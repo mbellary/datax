@@ -2067,6 +2067,25 @@ impl ChatComposer {
         }
     }
 
+    fn dismiss_completed_prefixed_token(&mut self, prefix: char, inserted_text: &str) {
+        let Some(completed_token) = inserted_text.strip_prefix(prefix) else {
+            return;
+        };
+        // Completion leaves the cursor on separator whitespace, where normal token affinity would
+        // otherwise immediately reopen the popup for sigil-prefixed inserted text.
+        let current_token =
+            Self::current_prefixed_token(&self.draft.textarea, prefix, /*allow_empty*/ true);
+        if current_token.as_deref() != Some(completed_token) {
+            return;
+        }
+
+        if prefix == '@' && !self.mentions_v2_enabled {
+            self.popups.dismissed_file_token = current_token;
+        } else {
+            self.popups.dismissed_mention_token = current_token;
+        }
+    }
+
     fn insert_selected_file_path(&mut self, token_range: Range<usize>, selected_path: &str) {
         if Self::is_image_path(selected_path) {
             let path_buf = PathBuf::from(selected_path);
@@ -2449,6 +2468,7 @@ impl ChatComposer {
             .textarea
             .set_cursor(start_idx.saturating_add(inserted.len()));
         self.advance_past_completion_separator();
+        self.dismiss_completed_prefixed_token('@', &inserted);
     }
 
     fn insert_selected_mention(
@@ -2477,6 +2497,11 @@ impl ChatComposer {
         }
 
         self.advance_past_completion_separator();
+        if let Some(sigil) = insert_text.chars().next()
+            && matches!(sigil, '$' | '@')
+        {
+            self.dismiss_completed_prefixed_token(sigil, insert_text);
+        }
     }
 
     fn mention_token_from_insert_text(insert_text: &str) -> Option<(char, String)> {
@@ -9177,6 +9202,45 @@ mod tests {
         composer.insert_str("foo");
 
         assert_eq!(composer.current_text(), "src/main.rs foo\nnext");
+    }
+
+    #[test]
+    fn file_completion_for_sigil_path_does_not_reopen_popup() {
+        let (tx, _rx) = unbounded_channel::<AppEvent>();
+        let sender = AppEventSender::new(tx);
+        let mut composer = ChatComposer::new(
+            /*has_input_focus*/ true,
+            sender,
+            /*enhanced_keys_supported*/ false,
+            "Ask Codex to do anything".to_string(),
+            /*disable_paste_burst*/ false,
+        );
+        composer.set_text_content("@ma\nnext".to_string(), Vec::new(), Vec::new());
+        composer.draft.textarea.set_cursor("@ma".len());
+        composer.sync_popups();
+        composer.on_file_search_result(
+            "ma".to_string(),
+            vec![FileMatch {
+                score: 1,
+                path: PathBuf::from("@scope/main.rs"),
+                match_type: codex_file_search::MatchType::File,
+                root: PathBuf::from("/tmp"),
+                indices: None,
+            }],
+        );
+
+        let _ = composer.handle_key_event(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
+
+        assert_eq!(composer.current_text(), "@scope/main.rs \nnext");
+        assert!(matches!(composer.popups.active, ActivePopup::None));
+
+        let (result, consumed) =
+            composer.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        assert!(consumed);
+        match result {
+            InputResult::Submitted { text, .. } => assert_eq!(text, "@scope/main.rs \nnext"),
+            _ => panic!("expected completed path to submit"),
+        }
     }
 
     #[test]

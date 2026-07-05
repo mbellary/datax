@@ -311,6 +311,6 @@ Tests and features must support Linux, macOS and Windows unless feature is expli
 
 ## ExecPlans
 
-When writing features or significant refactors, use an ExecPlan (as described in PLANS.md) from design to implementation. ExecPlans are living documents and should be referred to and updated frequently throughout implementation. Store new execplans in plans/$short-feature-name/*.md, e.g.: plans/matrix_multiplication/matrix_multiplication_execplan.md for the matrix multiplication design, plans/matrix_multiplication/matrix_multiplication_design.md
+When writing features or significant refactors, use an ExecPlan (as described in PLANS.md) from design to implementation. ExecPlans are living documents and should be referred to and updated frequently throughout implementation. Store new execplans in docs/plans/$short-feature-name/*.md, e.g.: docs/plans/matrix_multiplication/matrix_multiplication_execplan.md for the matrix multiplication design, docs/plans/matrix_multiplication/matrix_multiplication_design.md
 
 When instructed to implement an ExecPlan, implement it from start to finish autonomously, solving issues that arise independently. Work tirelessly, diligently; indefatigably. You have infinite time to complete ExecPlans, your context window will auto-compact, so refer back to the ExecPlan whenever it is no longer in your context window and diligently maintain it.

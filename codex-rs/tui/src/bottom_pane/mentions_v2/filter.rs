@@ -1,6 +1,6 @@
-use codex_file_search::FileMatch;
-use codex_file_search::MatchType;
-use codex_utils_fuzzy_match::fuzzy_match;
+use datax_file_search::FileMatch;
+use datax_file_search::MatchType;
+use datax_utils_fuzzy_match::fuzzy_match;
 
 use super::candidate::Candidate;
 use super::candidate::MentionType;

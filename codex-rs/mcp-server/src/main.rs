@@ -1,7 +1,7 @@
-use codex_arg0::Arg0DispatchPaths;
-use codex_arg0::arg0_dispatch_or_else;
-use codex_mcp_server::run_main;
-use codex_utils_cli::CliConfigOverrides;
+use datax_arg0::Arg0DispatchPaths;
+use datax_arg0::arg0_dispatch_or_else;
+use datax_mcp_server::run_main;
+use datax_utils_cli::CliConfigOverrides;
 
 fn main() -> anyhow::Result<()> {
     arg0_dispatch_or_else(|arg0_paths: Arg0DispatchPaths| async move {

@@ -52,7 +52,7 @@ use crate::terminal_hyperlinks::web_destination;
 use crate::wrapping::RtOptions;
 use crate::wrapping::adaptive_wrap_line;
 use crate::wrapping::word_wrap_line;
-use codex_utils_string::normalize_markdown_hash_location_suffix;
+use datax_utils_string::normalize_markdown_hash_location_suffix;
 use dirs::home_dir;
 use pulldown_cmark::Alignment;
 use pulldown_cmark::CodeBlockKind;

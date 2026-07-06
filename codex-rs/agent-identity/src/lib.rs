@@ -10,9 +10,9 @@ use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use chrono::SecondsFormat;
 use chrono::Utc;
-use codex_protocol::auth::PlanType as AuthPlanType;
-use codex_protocol::protocol::SessionSource;
 use crypto_box::SecretKey as Curve25519SecretKey;
+use datax_protocol::auth::PlanType as AuthPlanType;
+use datax_protocol::protocol::SessionSource;
 use ed25519_dalek::Signer as _;
 use ed25519_dalek::SigningKey;
 use ed25519_dalek::VerifyingKey;
@@ -34,13 +34,13 @@ use sha2::Sha512;
 
 const AGENT_TASK_REGISTRATION_TIMEOUT: Duration = Duration::from_secs(30);
 const AGENT_IDENTITY_JWKS_TIMEOUT: Duration = Duration::from_secs(10);
-const AGENT_IDENTITY_JWT_AUDIENCE: &str = "codex-app-server";
+const AGENT_IDENTITY_JWT_AUDIENCE: &str = "datax-app-server";
 const AGENT_IDENTITY_JWT_ISSUER: &str = "https://chatgpt.com/codex-backend/agent-identity";
 const AGENT_REGISTRATION_TIMEOUT: Duration = Duration::from_secs(15);
 const PROD_AGENT_IDENTITY_AUTHAPI_BASE_URL: &str = "https://auth.openai.com/api/accounts";
 const STAGING_AGENT_IDENTITY_AUTHAPI_BASE_URL: &str = "https://auth.api.openai.org/api/accounts";
 const AGENT_IDENTITY_KEY_SEED_BYTES: usize = 64;
-const AGENT_IDENTITY_KEY_DERIVATION_CONTEXT: &[u8] = b"codex-agent-identity-ed25519-v1";
+const AGENT_IDENTITY_KEY_DERIVATION_CONTEXT: &[u8] = b"datax-agent-identity-ed25519-v1";
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ChatGptEnvironment {
@@ -495,14 +495,14 @@ pub fn build_abom(session_source: SessionSource) -> AgentBillOfMaterials {
     AgentBillOfMaterials {
         agent_version: env!("CARGO_PKG_VERSION").to_string(),
         agent_harness_id: match &session_source {
-            SessionSource::VSCode => "codex-app".to_string(),
+            SessionSource::VSCode => "datax-app".to_string(),
             SessionSource::Cli
             | SessionSource::Exec
             | SessionSource::Mcp
             | SessionSource::Custom(_)
             | SessionSource::Internal(_)
             | SessionSource::SubAgent(_)
-            | SessionSource::Unknown => "codex-cli".to_string(),
+            | SessionSource::Unknown => "datax-cli".to_string(),
         },
         running_location: format!("{}-{}", session_source, std::env::consts::OS),
     }
@@ -568,7 +568,7 @@ mod tests {
     use jsonwebtoken::Header;
     use pretty_assertions::assert_eq;
 
-    use codex_protocol::auth::KnownPlan;
+    use datax_protocol::auth::KnownPlan;
 
     use super::*;
 

@@ -1,18 +1,4 @@
 use anyhow::Result;
-use codex_core::StartThreadOptions;
-use codex_core::ThreadConfigSnapshot;
-use codex_core::config::AgentRoleConfig;
-use codex_features::Feature;
-use codex_protocol::ThreadId;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::user_input::UserInput;
 use core_test_support::hooks::trust_discovered_hooks;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_assistant_message;
@@ -35,6 +21,20 @@ use core_test_support::test_codex::local_selections;
 use core_test_support::test_codex::test_codex;
 use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::wait_for_event_match;
+use datax_core::StartThreadOptions;
+use datax_core::ThreadConfigSnapshot;
+use datax_core::config::AgentRoleConfig;
+use datax_features::Feature;
+use datax_protocol::ThreadId;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::openai_models::ReasoningEffort;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::InitialHistory;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::SubAgentSource;
+use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
@@ -771,7 +771,7 @@ async fn subagent_stop_replaces_stop_and_skips_internal_subagents() -> Result<()
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(test.config.cwd.clone())),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),

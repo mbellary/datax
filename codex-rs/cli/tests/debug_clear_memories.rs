@@ -1,15 +1,15 @@
 use std::path::Path;
 
 use anyhow::Result;
-use codex_state::StateRuntime;
-use codex_state::memories_db_path;
-use codex_state::state_db_path;
+use datax_state::StateRuntime;
+use datax_state::memories_db_path;
+use datax_state::state_db_path;
 use predicates::str::contains;
 use sqlx::SqlitePool;
 use tempfile::TempDir;
 
 fn codex_command(codex_home: &Path) -> Result<assert_cmd::Command> {
-    let mut cmd = assert_cmd::Command::new(codex_utils_cargo_bin::cargo_bin("codex")?);
+    let mut cmd = assert_cmd::Command::new(datax_utils_cargo_bin::cargo_bin("codex")?);
     cmd.env("CODEX_HOME", codex_home);
     Ok(cmd)
 }

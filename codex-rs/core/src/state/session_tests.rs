@@ -1,9 +1,9 @@
 use super::*;
 use crate::session::tests::make_session_configuration_for_tests;
 use crate::state::AutoCompactWindowSnapshot;
-use codex_protocol::protocol::CreditsSnapshot;
-use codex_protocol::protocol::RateLimitWindow;
-use codex_protocol::protocol::SpendControlLimitSnapshot;
+use datax_protocol::protocol::CreditsSnapshot;
+use datax_protocol::protocol::RateLimitWindow;
+use datax_protocol::protocol::SpendControlLimitSnapshot;
 use pretty_assertions::assert_eq;
 
 #[tokio::test]
@@ -148,7 +148,7 @@ async fn set_rate_limits_carries_account_metadata_from_codex_to_codex_other() {
             remaining_percent: 68,
             resets_at: 300,
         }),
-        plan_type: Some(codex_protocol::account::PlanType::Plus),
+        plan_type: Some(datax_protocol::account::PlanType::Plus),
         rate_limit_reached_type: None,
     });
 
@@ -189,7 +189,7 @@ async fn set_rate_limits_carries_account_metadata_from_codex_to_codex_other() {
                 remaining_percent: 68,
                 resets_at: 300,
             }),
-            plan_type: Some(codex_protocol::account::PlanType::Plus),
+            plan_type: Some(datax_protocol::account::PlanType::Plus),
             rate_limit_reached_type: None,
         })
     );

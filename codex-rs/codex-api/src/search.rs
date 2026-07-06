@@ -1,5 +1,5 @@
 use crate::common::Reasoning;
-use codex_protocol::models::ResponseItem;
+use datax_protocol::models::ResponseItem;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;

@@ -1,15 +1,4 @@
 use anyhow::Context;
-use codex_features::Feature;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecCommandEndEvent;
-use codex_protocol::protocol::ExecCommandSource;
-use codex_protocol::protocol::ExecOutputStream;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_protocol::user_input::UserInput;
 use core_test_support::PathBufExt;
 use core_test_support::assert_regex_match;
 use core_test_support::responses;
@@ -28,6 +17,17 @@ use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_match;
 use core_test_support::wait_for_event_with_timeout;
+use datax_features::Feature;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::ExecCommandEndEvent;
+use datax_protocol::protocol::ExecCommandSource;
+use datax_protocol::protocol::ExecOutputStream;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::TurnAbortReason;
+use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use regex_lite::escape;
 use std::path::PathBuf;
@@ -107,8 +107,8 @@ async fn user_shell_command_without_local_environment_emits_error() -> anyhow::R
     let test = builder.build(&server).await?;
     submit_thread_settings(
         &test.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
-            environments: Some(codex_protocol::protocol::TurnEnvironmentSelections::new(
+        datax_protocol::protocol::ThreadSettingsOverrides {
+            environments: Some(datax_protocol::protocol::TurnEnvironmentSelections::new(
                 test.config.cwd.clone(),
                 vec![],
             )),
@@ -218,14 +218,14 @@ async fn user_shell_command_does_not_replace_active_turn() -> anyhow::Result<()>
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(cwd)),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                    mode: datax_protocol::config_types::ModeKind::Default,
+                    settings: datax_protocol::config_types::Settings {
                         model: fixture.session_configured.model.clone(),
                         reasoning_effort: None,
                         developer_instructions: None,

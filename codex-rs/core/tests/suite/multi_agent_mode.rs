@@ -1,14 +1,4 @@
 use anyhow::Result;
-use codex_core::config::Config;
-use codex_features::Feature;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::openai_models::ReasoningEffortPreset;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::MULTI_AGENT_MODE_OPEN_TAG;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::ThreadSettingsOverrides;
-use codex_protocol::user_input::UserInput;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
 use core_test_support::responses::mount_sse_once;
@@ -18,6 +8,16 @@ use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
+use datax_core::config::Config;
+use datax_features::Feature;
+use datax_protocol::openai_models::ModelInfo;
+use datax_protocol::openai_models::ReasoningEffort;
+use datax_protocol::openai_models::ReasoningEffortPreset;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::MULTI_AGENT_MODE_OPEN_TAG;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::ThreadSettingsOverrides;
+use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 
@@ -61,7 +61,7 @@ fn count_containing(texts: &[&str], target: &str) -> usize {
 }
 
 async fn submit_turn(
-    codex: &codex_core::CodexThread,
+    codex: &datax_core::CodexThread,
     prompt: &str,
     effort: Option<ReasoningEffort>,
 ) -> Result<()> {

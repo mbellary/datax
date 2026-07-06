@@ -15,11 +15,11 @@ use crate::api::TaskText;
 use chrono::DateTime;
 use chrono::Utc;
 
-use codex_api::SharedAuthProvider;
 use codex_backend_client as backend;
-use codex_backend_client::CodeTaskDetailsResponseExt;
-use codex_git_utils::ApplyGitRequest;
-use codex_git_utils::apply_git_patch;
+use datax_api::SharedAuthProvider;
+use datax_backend_client::CodeTaskDetailsResponseExt;
+use datax_git_utils::ApplyGitRequest;
+use datax_git_utils::apply_git_patch;
 
 #[derive(Clone)]
 pub struct HttpClient {
@@ -879,7 +879,7 @@ mod api {
     fn summarize_patch_for_logging(patch: &str) -> String {
         let trimmed = patch.trim_start();
         let kind = if trimmed.starts_with("*** Begin Patch") {
-            "codex-patch"
+            "datax-patch"
         } else if trimmed.starts_with("diff --git ") || trimmed.contains("\n*** End Patch\n") {
             "git-diff"
         } else if trimmed.starts_with("@@ ") || trimmed.contains("\n@@ ") {

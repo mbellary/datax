@@ -6,8 +6,8 @@ use crate::codex_thread::TryStartTurnIfIdleRejectionReason;
 use crate::state::ActiveTurn;
 use crate::state::TurnState;
 use crate::tasks::RegularTask;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::models::ResponseItem;
+use datax_protocol::config_types::ModeKind;
+use datax_protocol::models::ResponseItem;
 use std::sync::Arc;
 
 impl Session {

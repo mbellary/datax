@@ -1,18 +1,18 @@
 #![recursion_limit = "256"]
 #![deny(clippy::print_stdout, clippy::print_stderr)]
 
-use codex_arg0::Arg0DispatchPaths;
-use codex_config::ConfigLayerStackOrdering;
-use codex_config::LoaderOverrides;
-use codex_config::NoopThreadConfigLoader;
-use codex_config::RemoteThreadConfigLoader;
-use codex_config::ThreadConfigLoader;
-use codex_core::config::Config;
-use codex_core::resolve_installation_id;
-use codex_login::AuthManager;
+use datax_arg0::Arg0DispatchPaths;
+use datax_config::ConfigLayerStackOrdering;
+use datax_config::LoaderOverrides;
+use datax_config::NoopThreadConfigLoader;
+use datax_config::RemoteThreadConfigLoader;
+use datax_config::ThreadConfigLoader;
+use datax_core::config::Config;
+use datax_core::resolve_installation_id;
+use datax_login::AuthManager;
 #[cfg(debug_assertions)]
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_cli::CliConfigOverrides;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_cli::CliConfigOverrides;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::ErrorKind;
@@ -46,24 +46,24 @@ use crate::transport::start_control_socket_acceptor;
 use crate::transport::start_remote_control;
 use crate::transport::start_stdio_connection;
 use crate::transport::start_websocket_acceptor;
-use codex_analytics::AppServerRpcTransport;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_app_server_protocol::ConfigWarningNotification;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::TextPosition as AppTextPosition;
-use codex_app_server_protocol::TextRange as AppTextRange;
-use codex_config::ConfigLoadError;
-use codex_config::TextRange as CoreTextRange;
-use codex_core::ExecPolicyError;
-use codex_core::check_execpolicy_for_warnings;
-use codex_core::config::find_codex_home;
-use codex_exec_server::EnvironmentManager;
-use codex_exec_server::ExecServerRuntimePaths;
-use codex_feedback::CodexFeedback;
-use codex_protocol::protocol::SessionSource;
-use codex_rollout::state_db as rollout_state_db;
-use codex_state::log_db;
+use datax_analytics::AppServerRpcTransport;
+use datax_app_server_protocol::ConfigLayerSource;
+use datax_app_server_protocol::ConfigWarningNotification;
+use datax_app_server_protocol::JSONRPCMessage;
+use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::TextPosition as AppTextPosition;
+use datax_app_server_protocol::TextRange as AppTextRange;
+use datax_config::ConfigLoadError;
+use datax_config::TextRange as CoreTextRange;
+use datax_core::ExecPolicyError;
+use datax_core::check_execpolicy_for_warnings;
+use datax_core::config::find_codex_home;
+use datax_exec_server::EnvironmentManager;
+use datax_exec_server::ExecServerRuntimePaths;
+use datax_feedback::CodexFeedback;
+use datax_protocol::protocol::SessionSource;
+use datax_rollout::state_db as rollout_state_db;
+use datax_state::log_db;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
@@ -122,7 +122,7 @@ pub use crate::transport::auth::WebsocketAuthCliMode;
 pub use crate::transport::take_remote_control_disabled_env;
 
 const LOG_FORMAT_ENV_VAR: &str = "LOG_FORMAT";
-const OTEL_SERVICE_NAME: &str = "codex-app-server";
+const OTEL_SERVICE_NAME: &str = "datax-app-server";
 #[cfg(debug_assertions)]
 const TEST_USER_CONFIG_FILE_ENV_VAR: &str = "CODEX_APP_SERVER_TEST_USER_CONFIG_FILE";
 
@@ -526,7 +526,7 @@ pub async fn run_main_with_transport_options(
         }
     };
 
-    let otel = codex_core::otel_init::build_provider(
+    let otel = datax_core::otel_init::build_provider(
         &config,
         env!("CARGO_PKG_VERSION"),
         Some(OTEL_SERVICE_NAME),
@@ -538,8 +538,8 @@ pub async fn run_main_with_transport_options(
             format!("error loading otel config: {e}"),
         )
     })?;
-    codex_core::otel_init::record_process_start(otel.as_ref(), OTEL_SERVICE_NAME);
-    codex_core::otel_init::install_sqlite_telemetry(otel.as_ref(), OTEL_SERVICE_NAME);
+    datax_core::otel_init::record_process_start(otel.as_ref(), OTEL_SERVICE_NAME);
+    datax_core::otel_init::install_sqlite_telemetry(otel.as_ref(), OTEL_SERVICE_NAME);
     let unix_socket_startup_lock = match &transport {
         AppServerTransport::UnixSocket { socket_path } => {
             let startup_lock_path = app_server_startup_lock_path(&codex_home)?;
@@ -572,14 +572,14 @@ pub async fn run_main_with_transport_options(
         let effective_toml = config.config_layer_stack.effective_config();
         match effective_toml.try_into() {
             Ok(config_toml) => {
-                match codex_core::personality_migration::maybe_migrate_personality(
+                match datax_core::personality_migration::maybe_migrate_personality(
                     &config.codex_home,
                     &config_toml,
                     state_db.clone(),
                 )
                 .await
                 {
-                    Ok(codex_core::personality_migration::PersonalityMigrationStatus::Applied) => {
+                    Ok(datax_core::personality_migration::PersonalityMigrationStatus::Applied) => {
                         config = config_manager
                             .load_latest_config(/*fallback_cwd*/ None)
                             .await
@@ -593,9 +593,9 @@ pub async fn run_main_with_transport_options(
                             })?;
                     }
                     Ok(
-                        codex_core::personality_migration::PersonalityMigrationStatus::SkippedMarker
-                        | codex_core::personality_migration::PersonalityMigrationStatus::SkippedExplicitPersonality
-                        | codex_core::personality_migration::PersonalityMigrationStatus::SkippedNoSessions,
+                        datax_core::personality_migration::PersonalityMigrationStatus::SkippedMarker
+                        | datax_core::personality_migration::PersonalityMigrationStatus::SkippedExplicitPersonality
+                        | datax_core::personality_migration::PersonalityMigrationStatus::SkippedNoSessions,
                     ) => {}
                     Err(err) => {
                         warn!(error = %err, "Failed to run personality migration");
@@ -631,7 +631,7 @@ pub async fn run_main_with_transport_options(
         });
     }
     if let Some(warning) =
-        codex_core::config::system_bwrap_warning(config.permissions.permission_profile())
+        datax_core::config::system_bwrap_warning(config.permissions.permission_profile())
     {
         config_warnings.push(ConfigWarningNotification {
             summary: warning,
@@ -1223,9 +1223,9 @@ async fn init_sqlite_state_db_with_fresh_start_on_corruption(
             }
             Err(err) => err,
         };
-        let database_path = codex_state::runtime_db_path_for_corruption_error(&err)
-            .unwrap_or_else(|| codex_state::state_db_path(config.sqlite_home.as_path()));
-        if !codex_state::is_sqlite_corruption_error(&err)
+        let database_path = datax_state::runtime_db_path_for_corruption_error(&err)
+            .unwrap_or_else(|| datax_state::state_db_path(config.sqlite_home.as_path()));
+        if !datax_state::is_sqlite_corruption_error(&err)
             && !sqlite_home_is_blocking_file(database_path.as_path())
         {
             return Err(err);
@@ -1242,7 +1242,7 @@ async fn init_sqlite_state_db_with_fresh_start_on_corruption(
             "Codex local database at {} appears damaged. Moving it into a backup folder so the app server can rebuild it from saved data.",
             database_path.display()
         ));
-        let backups = codex_state::backup_runtime_db_for_fresh_start(database_path.as_path())
+        let backups = datax_state::backup_runtime_db_for_fresh_start(database_path.as_path())
             .await
             .map_err(|backup_err| {
                 anyhow::anyhow!(
@@ -1356,9 +1356,9 @@ mod tests {
     #[cfg(debug_assertions)]
     use super::loader_overrides_with_test_user_config_file;
     #[cfg(debug_assertions)]
-    use codex_config::LoaderOverrides;
+    use datax_config::LoaderOverrides;
     #[cfg(debug_assertions)]
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use datax_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -1382,7 +1382,7 @@ mod tests {
     #[cfg(debug_assertions)]
     #[test]
     fn debug_test_user_config_file_overrides_loader_path() {
-        let path = std::env::temp_dir().join("codex-app-server-test-config.toml");
+        let path = std::env::temp_dir().join("datax-app-server-test-config.toml");
         let loader_overrides = loader_overrides_with_test_user_config_file(
             LoaderOverrides::default(),
             Some(path.clone()),

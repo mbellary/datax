@@ -1,23 +1,3 @@
-use codex_config::types::Personality;
-use codex_features::Feature;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_models_manager::manager::SharedModelsManager;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::openai_models::ConfigShellToolType;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelInstructionsVariables;
-use codex_protocol::openai_models::ModelMessages;
-use codex_protocol::openai_models::ModelVisibility;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::openai_models::ReasoningEffortPreset;
-use codex_protocol::openai_models::TruncationPolicyConfig;
-use codex_protocol::openai_models::default_input_modalities;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::UserInput;
 use core_test_support::load_default_config_for_test;
 use core_test_support::responses::mount_models_once;
 use core_test_support::responses::mount_sse_once;
@@ -30,6 +10,26 @@ use core_test_support::test_codex::local_selections;
 use core_test_support::test_codex::test_codex;
 use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::wait_for_event;
+use datax_config::types::Personality;
+use datax_features::Feature;
+use datax_models_manager::manager::RefreshStrategy;
+use datax_models_manager::manager::SharedModelsManager;
+use datax_protocol::config_types::ReasoningSummary;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::openai_models::ConfigShellToolType;
+use datax_protocol::openai_models::ModelInfo;
+use datax_protocol::openai_models::ModelInstructionsVariables;
+use datax_protocol::openai_models::ModelMessages;
+use datax_protocol::openai_models::ModelVisibility;
+use datax_protocol::openai_models::ModelsResponse;
+use datax_protocol::openai_models::ReasoningEffort;
+use datax_protocol::openai_models::ReasoningEffortPreset;
+use datax_protocol::openai_models::TruncationPolicyConfig;
+use datax_protocol::openai_models::default_input_modalities;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
+use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::time::Duration;
@@ -69,15 +69,15 @@ fn read_only_text_turn_with_personality(
         final_output_json_schema: None,
         responsesapi_client_metadata: None,
         additional_context: Default::default(),
-        thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+        thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
             environments: Some(local_selections(test.config.cwd.clone())),
             approval_policy: Some(approval_policy),
             sandbox_policy: Some(sandbox_policy),
             permission_profile,
             personality,
-            collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                mode: codex_protocol::config_types::ModeKind::Default,
-                settings: codex_protocol::config_types::Settings {
+            collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                mode: datax_protocol::config_types::ModeKind::Default,
+                settings: datax_protocol::config_types::Settings {
                     model,
                     reasoning_effort: test.config.model_reasoning_effort.clone(),
                     developer_instructions: None,
@@ -98,7 +98,7 @@ async fn personality_does_not_mutate_base_instructions_without_template() {
         .expect("test config should allow feature update");
     config.personality = Some(Personality::Friendly);
 
-    let model_info = codex_core::test_support::construct_model_info_offline("gpt-5.4", &config);
+    let model_info = datax_core::test_support::construct_model_info_offline("gpt-5.4", &config);
     assert_eq!(
         model_info.get_model_instructions(config.personality),
         model_info.base_instructions
@@ -117,7 +117,7 @@ async fn base_instructions_override_disables_personality_template() {
     config.base_instructions = Some("override instructions".to_string());
 
     let model_info =
-        codex_core::test_support::construct_model_info_offline("gpt-5.3-codex", &config);
+        datax_core::test_support::construct_model_info_offline("gpt-5.3-codex", &config);
 
     assert_eq!(model_info.base_instructions, "override instructions");
     assert_eq!(
@@ -336,7 +336,7 @@ async fn user_turn_personality_some_adds_update_message() -> anyhow::Result<()> 
 
     core_test_support::submit_thread_settings(
         &test.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        datax_protocol::protocol::ThreadSettingsOverrides {
             personality: Some(Personality::Friendly),
             ..Default::default()
         },
@@ -412,7 +412,7 @@ async fn user_turn_personality_same_value_does_not_add_update_message() -> anyho
 
     core_test_support::submit_thread_settings(
         &test.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        datax_protocol::protocol::ThreadSettingsOverrides {
             personality: Some(Personality::Pragmatic),
             ..Default::default()
         },
@@ -459,7 +459,7 @@ async fn instructions_uses_base_if_feature_disabled() -> anyhow::Result<()> {
     config.personality = Some(Personality::Friendly);
 
     let model_info =
-        codex_core::test_support::construct_model_info_offline("gpt-5.3-codex", &config);
+        datax_core::test_support::construct_model_info_offline("gpt-5.3-codex", &config);
     assert_eq!(
         model_info.get_model_instructions(config.personality),
         model_info.base_instructions
@@ -501,7 +501,7 @@ async fn user_turn_personality_skips_if_feature_disabled() -> anyhow::Result<()>
 
     core_test_support::submit_thread_settings(
         &test.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        datax_protocol::protocol::ThreadSettingsOverrides {
             personality: Some(Personality::Pragmatic),
             ..Default::default()
         },
@@ -545,7 +545,7 @@ async fn remote_model_friendly_personality_instructions_with_feature() -> anyhow
         .start()
         .await;
 
-    let remote_slug = "codex-remote-default-personality";
+    let remote_slug = "datax-remote-default-personality";
     let default_personality_message = "Default from remote template";
     let friendly_personality_message = "Friendly variant";
     let remote_model = ModelInfo {
@@ -610,7 +610,7 @@ async fn remote_model_friendly_personality_instructions_with_feature() -> anyhow
     let resp_mock = mount_sse_once(&server, sse_completed("resp-1")).await;
 
     let mut builder = test_codex()
-        .with_auth(codex_login::CodexAuth::create_dummy_chatgpt_auth_for_testing())
+        .with_auth(datax_login::CodexAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(|config| {
             config
                 .features
@@ -660,7 +660,7 @@ async fn user_turn_personality_remote_model_template_includes_update_message() -
         .start()
         .await;
 
-    let remote_slug = "codex-remote-personality";
+    let remote_slug = "datax-remote-personality";
     let remote_friendly_message = "Friendly from remote template";
     let remote_pragmatic_message = "Pragmatic from remote template";
     let remote_model = ModelInfo {
@@ -729,7 +729,7 @@ async fn user_turn_personality_remote_model_template_includes_update_message() -
     .await;
 
     let mut builder = test_codex()
-        .with_auth(codex_login::CodexAuth::create_dummy_chatgpt_auth_for_testing())
+        .with_auth(datax_login::CodexAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(|config| {
             config
                 .features
@@ -754,7 +754,7 @@ async fn user_turn_personality_remote_model_template_includes_update_message() -
 
     core_test_support::submit_thread_settings(
         &test.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        datax_protocol::protocol::ThreadSettingsOverrides {
             personality: Some(Personality::Friendly),
             ..Default::default()
         },

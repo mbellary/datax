@@ -16,57 +16,57 @@ use crate::session::INITIAL_SUBMIT_ID;
 use crate::session::resolve_multi_agent_version;
 use crate::tasks::InterruptedTurnHistoryMarker;
 use crate::tasks::interrupted_turn_history_marker;
-use codex_analytics::AnalyticsEventsClient;
-use codex_app_server_protocol::ThreadHistoryBuilder;
-use codex_app_server_protocol::TurnStatus;
-use codex_core_plugins::PluginsManager;
-use codex_exec_server::EnvironmentManager;
-use codex_extension_api::ExtensionDataInit;
-use codex_extension_api::ExtensionRegistry;
-use codex_extension_api::LoadedUserInstructions;
-use codex_extension_api::UserInstructionsProvider;
-use codex_extension_api::empty_extension_registry;
-use codex_features::Feature;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_model_provider::create_model_provider;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::OPENAI_PROVIDER_ID;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_models_manager::manager::SharedModelsManager;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::CollaborationModeMask;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::ResumedHistory;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionConfiguredEvent;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::ThreadSource;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_protocol::protocol::TurnAbortedEvent;
-use codex_protocol::protocol::TurnEnvironmentSelection;
-use codex_protocol::protocol::W3cTraceContext;
-use codex_rollout::state_db::StateDbHandle;
-use codex_state::DirectionalThreadSpawnEdgeStatus;
-use codex_thread_store::InMemoryThreadStore;
-use codex_thread_store::LocalThreadStore;
-use codex_thread_store::LocalThreadStoreConfig;
-use codex_thread_store::ReadThreadByRolloutPathParams;
-use codex_thread_store::ReadThreadParams;
-use codex_thread_store::StoredThread;
-use codex_thread_store::ThreadMetadataPatch;
-use codex_thread_store::ThreadStore;
-use codex_thread_store::ThreadStoreError;
-use codex_thread_store::UpdateThreadMetadataParams;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_analytics::AnalyticsEventsClient;
+use datax_app_server_protocol::ThreadHistoryBuilder;
+use datax_app_server_protocol::TurnStatus;
+use datax_core_plugins::PluginsManager;
+use datax_exec_server::EnvironmentManager;
+use datax_extension_api::ExtensionDataInit;
+use datax_extension_api::ExtensionRegistry;
+use datax_extension_api::LoadedUserInstructions;
+use datax_extension_api::UserInstructionsProvider;
+use datax_extension_api::empty_extension_registry;
+use datax_features::Feature;
+use datax_login::AuthManager;
+use datax_login::CodexAuth;
+use datax_model_provider::create_model_provider;
+use datax_model_provider_info::ModelProviderInfo;
+use datax_model_provider_info::OPENAI_PROVIDER_ID;
+use datax_models_manager::manager::RefreshStrategy;
+use datax_models_manager::manager::SharedModelsManager;
+use datax_protocol::ThreadId;
+use datax_protocol::config_types::CollaborationModeMask;
+use datax_protocol::error::CodexErr;
+use datax_protocol::error::Result as CodexResult;
+use datax_protocol::openai_models::ModelPreset;
+use datax_protocol::protocol::Event;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::InitialHistory;
+use datax_protocol::protocol::MultiAgentVersion;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::ResumedHistory;
+use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::SessionConfiguredEvent;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::SubAgentSource;
+use datax_protocol::protocol::ThreadSource;
+use datax_protocol::protocol::TurnAbortReason;
+use datax_protocol::protocol::TurnAbortedEvent;
+use datax_protocol::protocol::TurnEnvironmentSelection;
+use datax_protocol::protocol::W3cTraceContext;
+use datax_rollout::state_db::StateDbHandle;
+use datax_state::DirectionalThreadSpawnEdgeStatus;
+use datax_thread_store::InMemoryThreadStore;
+use datax_thread_store::LocalThreadStore;
+use datax_thread_store::LocalThreadStoreConfig;
+use datax_thread_store::ReadThreadByRolloutPathParams;
+use datax_thread_store::ReadThreadParams;
+use datax_thread_store::StoredThread;
+use datax_thread_store::ThreadMetadataPatch;
+use datax_thread_store::ThreadStore;
+use datax_thread_store::ThreadStoreError;
+use datax_thread_store::UpdateThreadMetadataParams;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use futures::StreamExt;
 use futures::stream::FuturesUnordered;
 use std::collections::HashMap;
@@ -182,7 +182,7 @@ pub struct StartThreadOptions {
     pub initial_history: InitialHistory,
     pub session_source: Option<SessionSource>,
     pub thread_source: Option<ThreadSource>,
-    pub dynamic_tools: Vec<codex_protocol::dynamic_tools::DynamicToolSpec>,
+    pub dynamic_tools: Vec<datax_protocol::dynamic_tools::DynamicToolSpec>,
     pub metrics_service_name: Option<String>,
     pub parent_trace: Option<W3cTraceContext>,
     pub environments: Vec<TurnEnvironmentSelection>,
@@ -246,7 +246,7 @@ pub fn thread_store_from_config(
                 .features
                 .enabled(Feature::LocalThreadStoreCompression)
             {
-                codex_rollout::spawn_rollout_compression_worker(config.codex_home.to_path_buf());
+                datax_rollout::spawn_rollout_compression_worker(config.codex_home.to_path_buf());
             }
             Arc::new(LocalThreadStore::new(
                 LocalThreadStoreConfig::from_config(config),
@@ -324,7 +324,7 @@ impl ThreadManager {
     ) -> Self {
         set_thread_manager_test_mode_for_tests(/*enabled*/ true);
         let codex_home = std::env::temp_dir().join(format!(
-            "codex-thread-manager-test-{}",
+            "datax-thread-manager-test-{}",
             uuid::Uuid::new_v4()
         ));
         std::fs::create_dir_all(&codex_home)
@@ -594,7 +594,7 @@ impl ThreadManager {
     pub async fn start_thread_with_tools(
         &self,
         config: Config,
-        dynamic_tools: Vec<codex_protocol::dynamic_tools::DynamicToolSpec>,
+        dynamic_tools: Vec<datax_protocol::dynamic_tools::DynamicToolSpec>,
     ) -> CodexResult<NewThread> {
         let environments = default_thread_environment_selections(
             self.state.environment_manager.as_ref(),
@@ -1351,7 +1351,7 @@ impl ThreadManagerState {
         parent_thread_id: Option<ThreadId>,
         forked_from_thread_id: Option<ThreadId>,
         thread_source: Option<ThreadSource>,
-        dynamic_tools: Vec<codex_protocol::dynamic_tools::DynamicToolSpec>,
+        dynamic_tools: Vec<datax_protocol::dynamic_tools::DynamicToolSpec>,
         metrics_service_name: Option<String>,
         parent_trace: Option<W3cTraceContext>,
         environments: Vec<TurnEnvironmentSelection>,
@@ -1392,7 +1392,7 @@ impl ThreadManagerState {
         parent_thread_id: Option<ThreadId>,
         forked_from_thread_id: Option<ThreadId>,
         thread_source: Option<ThreadSource>,
-        dynamic_tools: Vec<codex_protocol::dynamic_tools::DynamicToolSpec>,
+        dynamic_tools: Vec<datax_protocol::dynamic_tools::DynamicToolSpec>,
         metrics_service_name: Option<String>,
         inherited_environments: Option<TurnEnvironmentSnapshot>,
         inherited_exec_policy: Option<Arc<crate::exec_policy::ExecPolicyManager>>,
@@ -1535,7 +1535,7 @@ impl ThreadManagerState {
         &self,
         session_source: &SessionSource,
         initial_history: &InitialHistory,
-    ) -> codex_rollout_trace::ThreadTraceContext {
+    ) -> datax_rollout_trace::ThreadTraceContext {
         // A fresh v2 child belongs to the same rollout tree as its parent, so
         // session startup derives its child trace from the parent's thread
         // context. Resumed children already have a prior `ThreadStarted` event
@@ -1545,10 +1545,10 @@ impl ThreadManagerState {
             parent_thread_id, ..
         }) = session_source
         else {
-            return codex_rollout_trace::ThreadTraceContext::disabled();
+            return datax_rollout_trace::ThreadTraceContext::disabled();
         };
         if matches!(initial_history, InitialHistory::Resumed(_)) {
-            return codex_rollout_trace::ThreadTraceContext::disabled();
+            return datax_rollout_trace::ThreadTraceContext::disabled();
         }
         // Parent lookup can fail if the parent was closed or released between
         // spawn preparation and session construction. Tracing is diagnostic, so
@@ -1558,7 +1558,7 @@ impl ThreadManagerState {
             .await
             .ok()
             .map(|thread| thread.codex.session.services.rollout_thread_trace.clone())
-            .unwrap_or_else(codex_rollout_trace::ThreadTraceContext::disabled)
+            .unwrap_or_else(datax_rollout_trace::ThreadTraceContext::disabled)
     }
 }
 

@@ -15,72 +15,72 @@ use app_test_support::format_with_current_shell_display;
 use app_test_support::to_response;
 use app_test_support::write_mock_responses_config_toml_with_chatgpt_base_url;
 use app_test_support::write_models_cache;
-use codex_app_server::INPUT_TOO_LARGE_ERROR_CODE;
-use codex_app_server::INVALID_PARAMS_ERROR_CODE;
-use codex_app_server_protocol::AdditionalContextEntry;
-use codex_app_server_protocol::AdditionalContextKind;
-use codex_app_server_protocol::ByteRange;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::CollabAgentStatus;
-use codex_app_server_protocol::CollabAgentTool;
-use codex_app_server_protocol::CollabAgentToolCallStatus;
-use codex_app_server_protocol::CommandExecutionApprovalDecision;
-use codex_app_server_protocol::CommandExecutionRequestApprovalResponse;
-use codex_app_server_protocol::CommandExecutionStatus;
-use codex_app_server_protocol::FileChangeApprovalDecision;
-use codex_app_server_protocol::FileChangePatchUpdatedNotification;
-use codex_app_server_protocol::FileChangeRequestApprovalResponse;
-use codex_app_server_protocol::ItemCompletedNotification;
-use codex_app_server_protocol::ItemStartedNotification;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::PatchApplyStatus;
-use codex_app_server_protocol::PatchChangeKind;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ServerRequestResolvedNotification;
-use codex_app_server_protocol::SubAgentActivityKind;
-use codex_app_server_protocol::TextElement;
-use codex_app_server_protocol::ThreadDeleteParams;
-use codex_app_server_protocol::ThreadDeleteResponse;
-use codex_app_server_protocol::ThreadDeletedNotification;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadLoadedListParams;
-use codex_app_server_protocol::ThreadLoadedListResponse;
-use codex_app_server_protocol::ThreadSource;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnCompletedNotification;
-use codex_app_server_protocol::TurnEnvironmentParams;
-use codex_app_server_protocol::TurnItemsView;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::TurnStartedNotification;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::TurnSteerParams;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_app_server_protocol::WarningNotification;
-use codex_config::config_toml::ConfigToml;
-use codex_core::personality_migration::PERSONALITY_MIGRATION_FILENAME;
-use codex_core::test_support::all_model_presets;
-use codex_features::FEATURES;
-use codex_features::Feature;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::MultiAgentMode;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::config_types::Settings;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_DANGER_FULL_ACCESS;
-use codex_protocol::models::ImageDetail;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::MULTI_AGENT_MODE_OPEN_TAG;
-use codex_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS;
-use codex_utils_absolute_path::test_support::PathExt;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
+use datax_app_server::INPUT_TOO_LARGE_ERROR_CODE;
+use datax_app_server::INVALID_PARAMS_ERROR_CODE;
+use datax_app_server_protocol::AdditionalContextEntry;
+use datax_app_server_protocol::AdditionalContextKind;
+use datax_app_server_protocol::ByteRange;
+use datax_app_server_protocol::ClientInfo;
+use datax_app_server_protocol::CollabAgentStatus;
+use datax_app_server_protocol::CollabAgentTool;
+use datax_app_server_protocol::CollabAgentToolCallStatus;
+use datax_app_server_protocol::CommandExecutionApprovalDecision;
+use datax_app_server_protocol::CommandExecutionRequestApprovalResponse;
+use datax_app_server_protocol::CommandExecutionStatus;
+use datax_app_server_protocol::FileChangeApprovalDecision;
+use datax_app_server_protocol::FileChangePatchUpdatedNotification;
+use datax_app_server_protocol::FileChangeRequestApprovalResponse;
+use datax_app_server_protocol::ItemCompletedNotification;
+use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::JSONRPCError;
+use datax_app_server_protocol::JSONRPCMessage;
+use datax_app_server_protocol::JSONRPCNotification;
+use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::PatchApplyStatus;
+use datax_app_server_protocol::PatchChangeKind;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::ServerRequest;
+use datax_app_server_protocol::ServerRequestResolvedNotification;
+use datax_app_server_protocol::SubAgentActivityKind;
+use datax_app_server_protocol::TextElement;
+use datax_app_server_protocol::ThreadDeleteParams;
+use datax_app_server_protocol::ThreadDeleteResponse;
+use datax_app_server_protocol::ThreadDeletedNotification;
+use datax_app_server_protocol::ThreadItem;
+use datax_app_server_protocol::ThreadLoadedListParams;
+use datax_app_server_protocol::ThreadLoadedListResponse;
+use datax_app_server_protocol::ThreadSource;
+use datax_app_server_protocol::ThreadStartParams;
+use datax_app_server_protocol::ThreadStartResponse;
+use datax_app_server_protocol::TurnCompletedNotification;
+use datax_app_server_protocol::TurnEnvironmentParams;
+use datax_app_server_protocol::TurnItemsView;
+use datax_app_server_protocol::TurnStartParams;
+use datax_app_server_protocol::TurnStartResponse;
+use datax_app_server_protocol::TurnStartedNotification;
+use datax_app_server_protocol::TurnStatus;
+use datax_app_server_protocol::TurnSteerParams;
+use datax_app_server_protocol::UserInput as V2UserInput;
+use datax_app_server_protocol::WarningNotification;
+use datax_config::config_toml::ConfigToml;
+use datax_core::personality_migration::PERSONALITY_MIGRATION_FILENAME;
+use datax_core::test_support::all_model_presets;
+use datax_features::FEATURES;
+use datax_features::Feature;
+use datax_protocol::config_types::CollaborationMode;
+use datax_protocol::config_types::ModeKind;
+use datax_protocol::config_types::MultiAgentMode;
+use datax_protocol::config_types::Personality;
+use datax_protocol::config_types::ReasoningSummary;
+use datax_protocol::config_types::Settings;
+use datax_protocol::models::BUILT_IN_PERMISSION_PROFILE_DANGER_FULL_ACCESS;
+use datax_protocol::models::ImageDetail;
+use datax_protocol::openai_models::ReasoningEffort;
+use datax_protocol::protocol::MULTI_AGENT_MODE_OPEN_TAG;
+use datax_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS;
+use datax_utils_absolute_path::test_support::PathExt;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
@@ -1330,7 +1330,7 @@ async fn turn_start_rejects_unknown_environment_before_starting_turn() -> Result
             }],
             environments: Some(vec![TurnEnvironmentParams {
                 environment_id: "missing".to_string(),
-                cwd: codex_utils_absolute_path::AbsolutePathBuf::try_from(
+                cwd: datax_utils_absolute_path::AbsolutePathBuf::try_from(
                     codex_home.path().to_path_buf(),
                 )?
                 .into(),
@@ -1427,7 +1427,7 @@ async fn turn_start_emits_notifications_and_accepts_model_override() -> Result<(
     assert_eq!(started.thread_id, thread.id);
     assert_eq!(
         started.turn.status,
-        codex_app_server_protocol::TurnStatus::InProgress
+        datax_app_server_protocol::TurnStatus::InProgress
     );
     assert_eq!(started.turn.id, turn.id);
     assert_eq!(started.turn.items_view, TurnItemsView::NotLoaded);
@@ -2273,8 +2273,8 @@ async fn turn_start_exec_approval_toggle_v2() -> Result<()> {
                 text: "run python again".to_string(),
                 text_elements: Vec::new(),
             }],
-            approval_policy: Some(codex_app_server_protocol::AskForApproval::Never),
-            sandbox_policy: Some(codex_app_server_protocol::SandboxPolicy::DangerFullAccess),
+            approval_policy: Some(datax_app_server_protocol::AskForApproval::Never),
+            sandbox_policy: Some(datax_app_server_protocol::SandboxPolicy::DangerFullAccess),
             model: Some("mock-model".to_string()),
             effort: Some(ReasoningEffort::Medium),
             summary: Some(ReasoningSummary::Auto),
@@ -2511,9 +2511,9 @@ async fn turn_start_updates_sandbox_and_cwd_between_turns_v2() -> Result<()> {
             additional_context: None,
             cwd: Some(first_cwd.clone()),
             runtime_workspace_roots: None,
-            approval_policy: Some(codex_app_server_protocol::AskForApproval::Never),
+            approval_policy: Some(datax_app_server_protocol::AskForApproval::Never),
             approvals_reviewer: None,
-            sandbox_policy: Some(codex_app_server_protocol::SandboxPolicy::WorkspaceWrite {
+            sandbox_policy: Some(datax_app_server_protocol::SandboxPolicy::WorkspaceWrite {
                 writable_roots: vec![first_cwd.try_into()?],
                 network_access: false,
                 exclude_tmpdir_env_var: true,
@@ -2556,9 +2556,9 @@ async fn turn_start_updates_sandbox_and_cwd_between_turns_v2() -> Result<()> {
             additional_context: None,
             cwd: Some(second_cwd.clone()),
             runtime_workspace_roots: None,
-            approval_policy: Some(codex_app_server_protocol::AskForApproval::Never),
+            approval_policy: Some(datax_app_server_protocol::AskForApproval::Never),
             approvals_reviewer: None,
-            sandbox_policy: Some(codex_app_server_protocol::SandboxPolicy::DangerFullAccess),
+            sandbox_policy: Some(datax_app_server_protocol::SandboxPolicy::DangerFullAccess),
             permissions: None,
             model: Some("mock-model".to_string()),
             effort: Some(ReasoningEffort::Medium),
@@ -2631,8 +2631,8 @@ async fn turn_start_permission_profile_rebinds_runtime_workspace_roots_between_t
     std::fs::create_dir(&new_root)?;
     let old_root_text = old_root.to_string_lossy().into_owned();
     let new_root_text = new_root.to_string_lossy().into_owned();
-    let old_root = codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(old_root)?;
-    let new_root = codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(new_root)?;
+    let old_root = datax_utils_absolute_path::AbsolutePathBuf::from_absolute_path(old_root)?;
+    let new_root = datax_utils_absolute_path::AbsolutePathBuf::from_absolute_path(new_root)?;
 
     let server = responses::start_mock_server().await;
     let response_mock = responses::mount_sse_sequence(
@@ -3017,7 +3017,7 @@ async fn turn_start_file_change_approval_v2() -> Result<()> {
     let expected_readme_path = expected_readme_path.to_string_lossy().into_owned();
     pretty_assertions::assert_eq!(
         started_changes,
-        vec![codex_app_server_protocol::FileUpdateChange {
+        vec![datax_app_server_protocol::FileUpdateChange {
             path: expected_readme_path.clone(),
             kind: PatchChangeKind::Add,
             diff: "new line\n".to_string(),
@@ -4185,7 +4185,7 @@ async fn turn_start_file_change_approval_decline_v2() -> Result<()> {
     let expected_readme_path_str = expected_readme_path.to_string_lossy().into_owned();
     pretty_assertions::assert_eq!(
         started_changes,
-        vec![codex_app_server_protocol::FileUpdateChange {
+        vec![datax_app_server_protocol::FileUpdateChange {
             path: expected_readme_path_str.clone(),
             kind: PatchChangeKind::Add,
             diff: "new line\n".to_string(),
@@ -4280,7 +4280,7 @@ async fn command_execution_notifications_include_process_id() -> Result<()> {
                 text: "run a command".to_string(),
                 text_elements: Vec::new(),
             }],
-            sandbox_policy: Some(codex_app_server_protocol::SandboxPolicy::DangerFullAccess),
+            sandbox_policy: Some(datax_app_server_protocol::SandboxPolicy::DangerFullAccess),
             ..Default::default()
         })
         .await?;
@@ -4410,7 +4410,7 @@ async fn turn_start_with_elevated_override_does_not_persist_project_trust() -> R
         .send_turn_start_request(TurnStartParams {
             thread_id: thread.id,
             cwd: Some(workspace.path().to_path_buf()),
-            sandbox_policy: Some(codex_app_server_protocol::SandboxPolicy::DangerFullAccess),
+            sandbox_policy: Some(datax_app_server_protocol::SandboxPolicy::DangerFullAccess),
             input: vec![V2UserInput::Text {
                 text: "Hello".to_string(),
                 text_elements: Vec::new(),

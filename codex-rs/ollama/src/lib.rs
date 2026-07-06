@@ -5,8 +5,8 @@ mod pull;
 mod url;
 
 pub use client::OllamaClient;
-use codex_core::config::Config;
-use codex_model_provider_info::ModelProviderInfo;
+use datax_core::config::Config;
+use datax_model_provider_info::ModelProviderInfo;
 pub use pull::CliProgressReporter;
 pub use pull::PullEvent;
 pub use pull::PullProgressReporter;

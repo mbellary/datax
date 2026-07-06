@@ -6,25 +6,25 @@ use app_test_support::ChatGptAuthFixture;
 use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::PluginAuthPolicy;
-use codex_app_server_protocol::PluginInstallPolicy;
-use codex_app_server_protocol::PluginInstalledParams;
-use codex_app_server_protocol::PluginInstalledResponse;
-use codex_app_server_protocol::PluginListMarketplaceKind;
-use codex_app_server_protocol::PluginListParams;
-use codex_app_server_protocol::PluginListResponse;
-use codex_app_server_protocol::PluginMarketplaceEntry;
-use codex_app_server_protocol::PluginShareDiscoverability;
-use codex_app_server_protocol::PluginSource;
-use codex_app_server_protocol::PluginSummary;
-use codex_app_server_protocol::RequestId;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_core::config::set_project_trust_level;
-use codex_login::AuthKeyringBackendKind;
-use codex_login::login_with_api_key;
-use codex_protocol::config_types::TrustLevel;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::PluginAuthPolicy;
+use datax_app_server_protocol::PluginInstallPolicy;
+use datax_app_server_protocol::PluginInstalledParams;
+use datax_app_server_protocol::PluginInstalledResponse;
+use datax_app_server_protocol::PluginListMarketplaceKind;
+use datax_app_server_protocol::PluginListParams;
+use datax_app_server_protocol::PluginListResponse;
+use datax_app_server_protocol::PluginMarketplaceEntry;
+use datax_app_server_protocol::PluginShareDiscoverability;
+use datax_app_server_protocol::PluginSource;
+use datax_app_server_protocol::PluginSummary;
+use datax_app_server_protocol::RequestId;
+use datax_config::types::AuthCredentialsStoreMode;
+use datax_core::config::set_project_trust_level;
+use datax_login::AuthKeyringBackendKind;
+use datax_login::login_with_api_key;
+use datax_protocol::config_types::TrustLevel;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use flate2::Compression;
 use flate2::write::GzEncoder;
 use pretty_assertions::assert_eq;
@@ -446,7 +446,7 @@ async fn plugin_list_keeps_valid_marketplaces_when_another_marketplace_fails_to_
                 enabled: false,
                 install_policy: PluginInstallPolicy::Available,
                 auth_policy: PluginAuthPolicy::OnInstall,
-                availability: codex_app_server_protocol::PluginAvailability::Available,
+                availability: datax_app_server_protocol::PluginAvailability::Available,
                 interface: None,
                 keywords: vec!["api-key".to_string(), "developer tools".to_string()],
             }],
@@ -492,7 +492,7 @@ async fn plugin_list_returns_empty_when_workspace_codex_plugins_disabled() -> Re
     std::fs::write(
         repo_root.path().join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "demo-plugin",
@@ -737,8 +737,8 @@ async fn plugin_list_uses_alternate_discoverable_manifest_and_keeps_undiscoverab
                     enabled: false,
                     install_policy: PluginInstallPolicy::Available,
                     auth_policy: PluginAuthPolicy::OnInstall,
-                    availability: codex_app_server_protocol::PluginAvailability::Available,
-                    interface: Some(codex_app_server_protocol::PluginInterface {
+                    availability: datax_app_server_protocol::PluginAvailability::Available,
+                    interface: Some(datax_app_server_protocol::PluginInterface {
                         display_name: Some("Valid Plugin".to_string()),
                         short_description: None,
                         long_description: None,
@@ -776,7 +776,7 @@ async fn plugin_list_uses_alternate_discoverable_manifest_and_keeps_undiscoverab
                     enabled: false,
                     install_policy: PluginInstallPolicy::Available,
                     auth_policy: PluginAuthPolicy::OnInstall,
-                    availability: codex_app_server_protocol::PluginAvailability::Available,
+                    availability: datax_app_server_protocol::PluginAvailability::Available,
                     interface: None,
                     keywords: Vec::new(),
                 },
@@ -795,7 +795,7 @@ async fn plugin_list_accepts_omitted_cwds() -> Result<()> {
     std::fs::write(
         codex_home.path().join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "home-plugin",
@@ -846,7 +846,7 @@ async fn plugin_list_returns_share_context_for_shared_local_plugin() -> Result<(
     std::fs::write(
         repo_root.path().join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "demo-plugin",
@@ -913,12 +913,12 @@ async fn plugin_list_includes_install_and_enabled_state_from_config() -> Result<
     let repo_root = TempDir::new()?;
     std::fs::create_dir_all(repo_root.path().join(".git"))?;
     std::fs::create_dir_all(repo_root.path().join(".agents/plugins"))?;
-    write_installed_plugin(&codex_home, "codex-curated", "enabled-plugin")?;
-    write_installed_plugin(&codex_home, "codex-curated", "disabled-plugin")?;
+    write_installed_plugin(&codex_home, "datax-curated", "enabled-plugin")?;
+    write_installed_plugin(&codex_home, "datax-curated", "disabled-plugin")?;
     std::fs::write(
         repo_root.path().join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "interface": {
     "displayName": "ChatGPT Official"
   },
@@ -991,7 +991,7 @@ enabled = false
         })
         .expect("expected repo marketplace entry");
 
-    assert_eq!(marketplace.name, "codex-curated");
+    assert_eq!(marketplace.name, "datax-curated");
     assert_eq!(
         marketplace
             .interface
@@ -1046,11 +1046,11 @@ enabled = false
 async fn plugin_list_uses_home_config_for_enabled_state() -> Result<()> {
     let codex_home = TempDir::new()?;
     std::fs::create_dir_all(codex_home.path().join(".agents/plugins"))?;
-    write_installed_plugin(&codex_home, "codex-curated", "shared-plugin")?;
+    write_installed_plugin(&codex_home, "datax-curated", "shared-plugin")?;
     std::fs::write(
         codex_home.path().join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "shared-plugin",
@@ -1080,7 +1080,7 @@ enabled = true
             .path()
             .join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "shared-plugin",
@@ -1158,7 +1158,7 @@ async fn plugin_list_returns_plugin_interface_with_absolute_asset_paths() -> Res
     std::fs::write(
         repo_root.path().join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "demo-plugin",
@@ -1292,7 +1292,7 @@ async fn plugin_list_accepts_legacy_string_default_prompt() -> Result<()> {
     std::fs::write(
         repo_root.path().join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "demo-plugin",
@@ -1817,7 +1817,7 @@ async fn plugin_list_includes_remote_marketplaces_when_remote_plugin_enabled() -
     assert_eq!(remote_marketplace.plugins[0].enabled, true);
     assert_eq!(
         remote_marketplace.plugins[0].availability,
-        codex_app_server_protocol::PluginAvailability::Available
+        datax_app_server_protocol::PluginAvailability::Available
     );
     assert_eq!(
         remote_marketplace.plugins[0]
@@ -3408,7 +3408,7 @@ async fn plugin_list_marks_remote_plugin_disabled_by_admin() -> Result<()> {
     assert_eq!(plugin.enabled, true);
     assert_eq!(
         plugin.availability,
-        codex_app_server_protocol::PluginAvailability::DisabledByAdmin
+        datax_app_server_protocol::PluginAvailability::DisabledByAdmin
     );
     Ok(())
 }

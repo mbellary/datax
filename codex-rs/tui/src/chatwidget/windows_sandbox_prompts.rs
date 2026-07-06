@@ -41,14 +41,14 @@ impl ChatWidget {
         let env_map: std::collections::HashMap<String, String> = std::env::vars().collect();
         let permission_profile = self.config.permissions.effective_permission_profile();
         let Ok(permissions) =
-            codex_windows_sandbox::ResolvedWindowsSandboxPermissions::try_from_permission_profile_for_workspace_roots(
+            datax_windows_sandbox::ResolvedWindowsSandboxPermissions::try_from_permission_profile_for_workspace_roots(
                 &permission_profile,
                 workspace_roots.as_slice(),
             )
         else {
             return None;
         };
-        match codex_windows_sandbox::apply_world_writable_scan_and_denies_for_permissions(
+        match datax_windows_sandbox::apply_world_writable_scan_and_denies_for_permissions(
             self.config.codex_home.as_path(),
             cwd.as_path(),
             &env_map,

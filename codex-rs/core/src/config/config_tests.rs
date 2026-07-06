@@ -2,94 +2,94 @@ use crate::config::edit::ConfigEdit;
 use crate::config::edit::ConfigEditsBuilder;
 use crate::config::edit::apply_blocking;
 use assert_matches::assert_matches;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::ConfigLayerEntry;
-use codex_config::ConfigLayerStack;
-use codex_config::ProfileV2Name;
-use codex_config::RequirementSource;
-use codex_config::Sourced;
-use codex_config::config_toml::AgentRoleToml;
-use codex_config::config_toml::AgentsToml;
-use codex_config::config_toml::AutoReviewToml;
-use codex_config::config_toml::ConfigToml;
-use codex_config::config_toml::ExperimentalRequestUserInput;
-use codex_config::config_toml::ProjectConfig;
-use codex_config::config_toml::RealtimeConfig;
-use codex_config::config_toml::RealtimeToml;
-use codex_config::config_toml::RealtimeTransport;
-use codex_config::config_toml::RealtimeWsMode;
-use codex_config::config_toml::RealtimeWsVersion;
-use codex_config::config_toml::ToolsToml;
-use codex_config::loader::project_trust_key;
-use codex_config::permissions_toml::FilesystemPermissionToml;
-use codex_config::permissions_toml::FilesystemPermissionsToml;
-use codex_config::permissions_toml::NetworkDomainPermissionToml;
-use codex_config::permissions_toml::NetworkDomainPermissionsToml;
-use codex_config::permissions_toml::NetworkMitmActionToml;
-use codex_config::permissions_toml::NetworkMitmHookToml;
-use codex_config::permissions_toml::NetworkMitmToml;
-use codex_config::permissions_toml::NetworkToml;
-use codex_config::permissions_toml::PermissionProfileToml;
-use codex_config::permissions_toml::PermissionsToml;
-use codex_config::permissions_toml::WorkspaceRootsToml;
-use codex_config::types::AppToolApproval;
-use codex_config::types::ApprovalsReviewer;
-use codex_config::types::BundledSkillsConfig;
-use codex_config::types::FeedbackConfigToml;
-use codex_config::types::HistoryPersistence;
-use codex_config::types::McpServerEnvVar;
-use codex_config::types::McpServerOAuthConfig;
-use codex_config::types::McpServerToolConfig;
-use codex_config::types::McpServerTransportConfig;
-use codex_config::types::MemoriesConfig;
-use codex_config::types::MemoriesToml;
-use codex_config::types::ModelAvailabilityNuxConfig;
-use codex_config::types::Notice;
-use codex_config::types::NotificationCondition;
-use codex_config::types::NotificationMethod;
-use codex_config::types::Notifications;
-use codex_config::types::OtelConfigToml;
-use codex_config::types::OtelExporterKind;
-use codex_config::types::SandboxWorkspaceWrite;
-use codex_config::types::SessionPickerViewMode;
-use codex_config::types::SkillsConfig;
-use codex_config::types::ToolSuggestDisabledTool;
-use codex_config::types::ToolSuggestDiscoverableType;
-use codex_config::types::Tui;
-use codex_config::types::TuiKeymap;
-use codex_config::types::TuiNotificationSettings;
-use codex_config::types::TuiPetAnchor;
-use codex_config::types::WindowsSandboxModeToml;
-use codex_config::types::WindowsToml;
-use codex_core_plugins::PluginsManager;
-use codex_exec_server::LOCAL_FS;
-use codex_features::Feature;
-use codex_features::FeaturesToml;
-use codex_model_provider_info::LMSTUDIO_OSS_PROVIDER_ID;
-use codex_model_provider_info::OLLAMA_OSS_PROVIDER_ID;
-use codex_model_provider_info::WireApi;
-use codex_models_manager::bundled_models_response;
-use codex_network_proxy::NetworkMode;
-use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::models::ActivePermissionProfile;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_DANGER_FULL_ACCESS;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
-use codex_protocol::models::ManagedFileSystemPermissions;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::SandboxEnforcement;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::NetworkAccess;
-use codex_protocol::protocol::RealtimeVoice;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_utils_path_uri::LegacyAppPathString;
+use datax_config::CONFIG_TOML_FILE;
+use datax_config::ConfigLayerEntry;
+use datax_config::ConfigLayerStack;
+use datax_config::ProfileV2Name;
+use datax_config::RequirementSource;
+use datax_config::Sourced;
+use datax_config::config_toml::AgentRoleToml;
+use datax_config::config_toml::AgentsToml;
+use datax_config::config_toml::AutoReviewToml;
+use datax_config::config_toml::ConfigToml;
+use datax_config::config_toml::ExperimentalRequestUserInput;
+use datax_config::config_toml::ProjectConfig;
+use datax_config::config_toml::RealtimeConfig;
+use datax_config::config_toml::RealtimeToml;
+use datax_config::config_toml::RealtimeTransport;
+use datax_config::config_toml::RealtimeWsMode;
+use datax_config::config_toml::RealtimeWsVersion;
+use datax_config::config_toml::ToolsToml;
+use datax_config::loader::project_trust_key;
+use datax_config::permissions_toml::FilesystemPermissionToml;
+use datax_config::permissions_toml::FilesystemPermissionsToml;
+use datax_config::permissions_toml::NetworkDomainPermissionToml;
+use datax_config::permissions_toml::NetworkDomainPermissionsToml;
+use datax_config::permissions_toml::NetworkMitmActionToml;
+use datax_config::permissions_toml::NetworkMitmHookToml;
+use datax_config::permissions_toml::NetworkMitmToml;
+use datax_config::permissions_toml::NetworkToml;
+use datax_config::permissions_toml::PermissionProfileToml;
+use datax_config::permissions_toml::PermissionsToml;
+use datax_config::permissions_toml::WorkspaceRootsToml;
+use datax_config::types::AppToolApproval;
+use datax_config::types::ApprovalsReviewer;
+use datax_config::types::BundledSkillsConfig;
+use datax_config::types::FeedbackConfigToml;
+use datax_config::types::HistoryPersistence;
+use datax_config::types::McpServerEnvVar;
+use datax_config::types::McpServerOAuthConfig;
+use datax_config::types::McpServerToolConfig;
+use datax_config::types::McpServerTransportConfig;
+use datax_config::types::MemoriesConfig;
+use datax_config::types::MemoriesToml;
+use datax_config::types::ModelAvailabilityNuxConfig;
+use datax_config::types::Notice;
+use datax_config::types::NotificationCondition;
+use datax_config::types::NotificationMethod;
+use datax_config::types::Notifications;
+use datax_config::types::OtelConfigToml;
+use datax_config::types::OtelExporterKind;
+use datax_config::types::SandboxWorkspaceWrite;
+use datax_config::types::SessionPickerViewMode;
+use datax_config::types::SkillsConfig;
+use datax_config::types::ToolSuggestDisabledTool;
+use datax_config::types::ToolSuggestDiscoverableType;
+use datax_config::types::Tui;
+use datax_config::types::TuiKeymap;
+use datax_config::types::TuiNotificationSettings;
+use datax_config::types::TuiPetAnchor;
+use datax_config::types::WindowsSandboxModeToml;
+use datax_config::types::WindowsToml;
+use datax_core_plugins::PluginsManager;
+use datax_exec_server::LOCAL_FS;
+use datax_features::Feature;
+use datax_features::FeaturesToml;
+use datax_model_provider_info::LMSTUDIO_OSS_PROVIDER_ID;
+use datax_model_provider_info::OLLAMA_OSS_PROVIDER_ID;
+use datax_model_provider_info::WireApi;
+use datax_models_manager::bundled_models_response;
+use datax_network_proxy::NetworkMode;
+use datax_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
+use datax_protocol::config_types::ServiceTier;
+use datax_protocol::models::ActivePermissionProfile;
+use datax_protocol::models::BUILT_IN_PERMISSION_PROFILE_DANGER_FULL_ACCESS;
+use datax_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY;
+use datax_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
+use datax_protocol::models::ManagedFileSystemPermissions;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::models::SandboxEnforcement;
+use datax_protocol::permissions::FileSystemAccessMode;
+use datax_protocol::permissions::FileSystemPath;
+use datax_protocol::permissions::FileSystemSandboxEntry;
+use datax_protocol::permissions::FileSystemSandboxPolicy;
+use datax_protocol::permissions::FileSystemSpecialPath;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_protocol::protocol::MultiAgentVersion;
+use datax_protocol::protocol::NetworkAccess;
+use datax_protocol::protocol::RealtimeVoice;
+use datax_protocol::protocol::SandboxPolicy;
+use datax_utils_path_uri::LegacyAppPathString;
 use serde::Deserialize;
 use tempfile::tempdir;
 
@@ -104,7 +104,7 @@ use rmcp::model::ElicitationCapability;
 use rmcp::model::FormElicitationCapability;
 use rmcp::model::UrlElicitationCapability;
 
-use codex_config::test_support::CloudConfigBundleFixture;
+use datax_config::test_support::CloudConfigBundleFixture;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::path::Path;
@@ -120,7 +120,7 @@ fn stdio_mcp(command: &str) -> McpServerConfig {
             env_vars: Vec::new(),
             cwd: None,
         },
-        environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+        environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
         enabled: true,
         required: false,
         supports_parallel_tool_calls: false,
@@ -145,7 +145,7 @@ fn http_mcp(url: &str) -> McpServerConfig {
             http_headers: None,
             env_http_headers: None,
         },
-        environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+        environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
         enabled: true,
         required: false,
         supports_parallel_tool_calls: false,
@@ -695,7 +695,7 @@ fn rejects_provider_aws_for_custom_provider() {
 name = "Custom Provider"
 
 [model_providers.custom.aws]
-profile = "codex-bedrock"
+profile = "datax-bedrock"
 "#,
     )
     .unwrap_err();
@@ -712,7 +712,7 @@ fn accepts_amazon_bedrock_aws_profile_override() {
     let cfg = toml::from_str::<ConfigToml>(
         r#"
 [model_providers.amazon-bedrock.aws]
-profile = "codex-bedrock"
+profile = "datax-bedrock"
 region = "us-west-2"
 "#,
     )
@@ -723,7 +723,7 @@ region = "us-west-2"
             .get("amazon-bedrock")
             .and_then(|provider| provider.aws.as_ref())
             .and_then(|aws| aws.profile.as_deref()),
-        Some("codex-bedrock")
+        Some("datax-bedrock")
     );
     assert_eq!(
         cfg.model_providers
@@ -741,7 +741,7 @@ async fn load_config_applies_amazon_bedrock_aws_profile_override() {
 model_provider = "amazon-bedrock"
 
 [model_providers.amazon-bedrock.aws]
-profile = "codex-bedrock"
+profile = "datax-bedrock"
 region = "us-west-2"
 "#,
     )
@@ -762,7 +762,7 @@ region = "us-west-2"
             .aws
             .as_ref()
             .and_then(|aws| aws.profile.as_deref()),
-        Some("codex-bedrock")
+        Some("datax-bedrock")
     );
     assert_eq!(
         config
@@ -787,7 +787,7 @@ requires_openai_auth = true
 supports_websockets = true
 
 [model_providers.amazon-bedrock.aws]
-profile = "codex-bedrock"
+profile = "datax-bedrock"
 region = "us-west-2"
 "#,
     )
@@ -2137,14 +2137,14 @@ async fn managed_unrestricted_permission_profile_still_enables_network_requireme
         .collect();
     let mut requirements = config.config_layer_stack.requirements().clone();
     requirements.network = Some(Sourced::new(
-        codex_config::NetworkConstraints {
+        datax_config::NetworkConstraints {
             enabled: Some(true),
             ..Default::default()
         },
         RequirementSource::LegacyManagedConfigTomlFromMdm,
     ));
     let mut requirements_toml = config.config_layer_stack.requirements_toml().clone();
-    requirements_toml.network = Some(codex_config::NetworkRequirementsToml {
+    requirements_toml.network = Some(datax_config::NetworkRequirementsToml {
         enabled: Some(true),
         ..Default::default()
     });
@@ -2478,7 +2478,7 @@ async fn default_permissions_read_only_keeps_add_dir_read_only() -> std::io::Res
 async fn workspace_profile_applies_rules_to_runtime_and_profile_workspace_roots()
 -> std::io::Result<()> {
     let temp_dir = TempDir::new()?;
-    let codex_home = temp_dir.path().join("codex-home");
+    let codex_home = temp_dir.path().join("datax-home");
     let cwd = temp_dir.path().join("frontend");
     let runtime_root = temp_dir.path().join("backend");
     let profile_root = temp_dir.path().join("shared");
@@ -4266,7 +4266,7 @@ fn filter_plugin_mcp_servers_by_allowlist_enforces_plugin_and_identity_rules() {
     let requirements = Sourced::new(
         BTreeMap::from([(
             "sample@test".to_string(),
-            codex_config::PluginRequirementsToml {
+            datax_config::PluginRequirementsToml {
                 mcp_servers: Some(BTreeMap::from([
                     (
                         MATCHED_SERVER.to_string(),
@@ -4316,7 +4316,7 @@ fn filter_plugin_mcp_servers_by_allowlist_blocks_unlisted_plugin() {
     let requirements = Sourced::new(
         BTreeMap::from([(
             "other@test".to_string(),
-            codex_config::PluginRequirementsToml {
+            datax_config::PluginRequirementsToml {
                 mcp_servers: Some(BTreeMap::from([(
                     "server-a".to_string(),
                     McpServerRequirement {
@@ -4390,18 +4390,18 @@ async fn rebuild_preserving_session_layers_refreshes_requirements() -> std::io::
             },
         ),
     ]);
-    let requirements_toml = codex_config::ConfigRequirementsToml {
+    let requirements_toml = datax_config::ConfigRequirementsToml {
         mcp_servers: Some(mcp_requirements.clone()),
         ..Default::default()
     };
-    let requirements = codex_config::ConfigRequirements {
+    let requirements = datax_config::ConfigRequirements {
         mcp_servers: Some(Sourced::new(mcp_requirements, RequirementSource::Unknown)),
         ..Default::default()
     };
     let refreshed_layer_stack = ConfigLayerStack::new(
         vec![
             ConfigLayerEntry::new(
-                codex_app_server_protocol::ConfigLayerSource::User {
+                datax_app_server_protocol::ConfigLayerSource::User {
                     file: user_file.clone(),
                     profile: None,
                 },
@@ -4416,7 +4416,7 @@ async fn rebuild_preserving_session_layers_refreshes_requirements() -> std::io::
                 .into(),
             ),
             ConfigLayerEntry::new(
-                codex_app_server_protocol::ConfigLayerSource::Project {
+                datax_app_server_protocol::ConfigLayerSource::Project {
                     dot_codex_folder: project_dot_codex.clone(),
                 },
                 toml::toml! {
@@ -4426,7 +4426,7 @@ async fn rebuild_preserving_session_layers_refreshes_requirements() -> std::io::
                 .into(),
             ),
             ConfigLayerEntry::new(
-                codex_app_server_protocol::ConfigLayerSource::LegacyManagedConfigTomlFromMdm,
+                datax_app_server_protocol::ConfigLayerSource::LegacyManagedConfigTomlFromMdm,
                 toml::toml! {
                     [mcp_servers.managed_overrides_session]
                     command = "managed-command"
@@ -4456,7 +4456,7 @@ async fn rebuild_preserving_session_layers_refreshes_requirements() -> std::io::
     let thread_layer_stack = ConfigLayerStack::new(
         vec![
             ConfigLayerEntry::new(
-                codex_app_server_protocol::ConfigLayerSource::User {
+                datax_app_server_protocol::ConfigLayerSource::User {
                     file: user_file.clone(),
                     profile: None,
                 },
@@ -4471,7 +4471,7 @@ async fn rebuild_preserving_session_layers_refreshes_requirements() -> std::io::
                 .into(),
             ),
             ConfigLayerEntry::new(
-                codex_app_server_protocol::ConfigLayerSource::Project {
+                datax_app_server_protocol::ConfigLayerSource::Project {
                     dot_codex_folder: project_dot_codex,
                 },
                 toml::toml! {
@@ -4481,7 +4481,7 @@ async fn rebuild_preserving_session_layers_refreshes_requirements() -> std::io::
                 .into(),
             ),
             ConfigLayerEntry::new(
-                codex_app_server_protocol::ConfigLayerSource::SessionFlags,
+                datax_app_server_protocol::ConfigLayerSource::SessionFlags,
                 toml::toml! {
                     [mcp_servers.session_overrides_user]
                     command = "session-command"
@@ -4493,7 +4493,7 @@ async fn rebuild_preserving_session_layers_refreshes_requirements() -> std::io::
                 .into(),
             ),
             ConfigLayerEntry::new(
-                codex_app_server_protocol::ConfigLayerSource::LegacyManagedConfigTomlFromMdm,
+                datax_app_server_protocol::ConfigLayerSource::LegacyManagedConfigTomlFromMdm,
                 toml::toml! {
                     [mcp_servers.managed_overrides_session]
                     command = "old-managed-command"
@@ -4587,7 +4587,7 @@ async fn rebuild_preserving_session_layers_refreshes_plugin_derived_mcp_config()
     let user_file = AbsolutePathBuf::resolve_path_against_base(CONFIG_TOML_FILE, codex_home.path());
     let refreshed_layer_stack = ConfigLayerStack::new(
         vec![ConfigLayerEntry::new(
-            codex_app_server_protocol::ConfigLayerSource::User {
+            datax_app_server_protocol::ConfigLayerSource::User {
                 file: user_file.clone(),
                 profile: None,
             },
@@ -4616,7 +4616,7 @@ async fn rebuild_preserving_session_layers_refreshes_plugin_derived_mcp_config()
     .await?;
     let thread_layer_stack = ConfigLayerStack::new(
         vec![ConfigLayerEntry::new(
-            codex_app_server_protocol::ConfigLayerSource::User {
+            datax_app_server_protocol::ConfigLayerSource::User {
                 file: user_file,
                 profile: None,
             },
@@ -4823,7 +4823,7 @@ url = "https://sample.example/mcp"
             .server("unlisted")
             .map(|server| (server.source().clone(), server.config().clone())),
         Some((
-            codex_mcp::McpServerSource::SelectedPlugin(McpPluginAttribution::new(
+            datax_mcp::McpServerSource::SelectedPlugin(McpPluginAttribution::new(
                 "selected-root".to_string(),
                 "Selected Plugin".to_string(),
             )),
@@ -5511,7 +5511,7 @@ async fn managed_config_overrides_oauth_store_mode() -> anyhow::Result<()> {
         Some(cwd),
         &Vec::new(),
         overrides,
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
     let cfg =
@@ -5645,7 +5645,7 @@ async fn managed_config_wins_over_cli_overrides() -> anyhow::Result<()> {
         Some(cwd),
         &[("model".to_string(), TomlValue::String("cli".to_string()))],
         overrides,
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -5928,7 +5928,7 @@ async fn replace_mcp_servers_serializes_env_sorted() -> anyhow::Result<()> {
                 env_vars: Vec::new(),
                 cwd: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: false,
@@ -6004,7 +6004,7 @@ async fn replace_mcp_servers_serializes_env_vars() -> anyhow::Result<()> {
                 env_vars: vec!["ALPHA".into(), "BETA".into()],
                 cwd: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: false,
@@ -6065,7 +6065,7 @@ async fn replace_mcp_servers_serializes_sourced_env_vars() -> anyhow::Result<()>
                 ],
                 cwd: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: false,
@@ -6117,7 +6117,7 @@ async fn replace_mcp_servers_serializes_cwd() -> anyhow::Result<()> {
                 env_vars: Vec::new(),
                 cwd: Some(cwd.clone()),
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: false,
@@ -6171,7 +6171,7 @@ async fn replace_mcp_servers_streamable_http_serializes_bearer_token() -> anyhow
                 http_headers: None,
                 env_http_headers: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: false,
@@ -6241,7 +6241,7 @@ async fn replace_mcp_servers_streamable_http_serializes_custom_headers() -> anyh
                     "DOCS_AUTH".to_string(),
                 )])),
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: false,
@@ -6323,7 +6323,7 @@ async fn replace_mcp_servers_streamable_http_removes_optional_sections() -> anyh
                     "DOCS_AUTH".to_string(),
                 )])),
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: false,
@@ -6358,7 +6358,7 @@ async fn replace_mcp_servers_streamable_http_removes_optional_sections() -> anyh
                 http_headers: None,
                 env_http_headers: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: false,
@@ -6428,7 +6428,7 @@ async fn replace_mcp_servers_streamable_http_isolates_headers_between_servers() 
                         "DOCS_AUTH".to_string(),
                     )])),
                 },
-                environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+                environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
                 enabled: true,
                 required: false,
                 supports_parallel_tool_calls: false,
@@ -6454,7 +6454,7 @@ async fn replace_mcp_servers_streamable_http_isolates_headers_between_servers() 
                     env_vars: Vec::new(),
                     cwd: None,
                 },
-                environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+                environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
                 enabled: true,
                 required: false,
                 supports_parallel_tool_calls: false,
@@ -6542,7 +6542,7 @@ async fn replace_mcp_servers_serializes_disabled_flag() -> anyhow::Result<()> {
                 env_vars: Vec::new(),
                 cwd: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: false,
             required: false,
             supports_parallel_tool_calls: false,
@@ -6592,7 +6592,7 @@ async fn replace_mcp_servers_serializes_required_flag() -> anyhow::Result<()> {
                 env_vars: Vec::new(),
                 cwd: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: true,
             supports_parallel_tool_calls: false,
@@ -6642,7 +6642,7 @@ async fn replace_mcp_servers_serializes_tool_filters() -> anyhow::Result<()> {
                 env_vars: Vec::new(),
                 cwd: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: false,
@@ -6696,7 +6696,7 @@ async fn replace_mcp_servers_streamable_http_serializes_oauth_resource() -> anyh
                 http_headers: None,
                 env_http_headers: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: false,
@@ -6914,7 +6914,7 @@ async fn load_config_uses_requirements_guardian_policy_config() -> std::io::Resu
     let config_layer_stack = ConfigLayerStack::new(
         Vec::new(),
         Default::default(),
-        codex_config::ConfigRequirementsToml {
+        datax_config::ConfigRequirementsToml {
             guardian_policy_config: Some(
                 "  Use the workspace-managed guardian policy.  ".to_string(),
             ),
@@ -6995,7 +6995,7 @@ async fn requirements_guardian_policy_beats_auto_review() -> std::io::Result<()>
     let config_layer_stack = ConfigLayerStack::new(
         Vec::new(),
         Default::default(),
-        codex_config::ConfigRequirementsToml {
+        datax_config::ConfigRequirementsToml {
             guardian_policy_config: Some("Use the managed guardian policy.".to_string()),
             ..Default::default()
         },
@@ -7059,7 +7059,7 @@ async fn load_config_ignores_empty_requirements_guardian_policy_config() -> std:
     let config_layer_stack = ConfigLayerStack::new(
         Vec::new(),
         Default::default(),
-        codex_config::ConfigRequirementsToml {
+        datax_config::ConfigRequirementsToml {
             guardian_policy_config: Some("   ".to_string()),
             ..Default::default()
         },
@@ -7191,16 +7191,16 @@ config_file = "./agents/researcher.toml"
 "#,
     )
     .expect("agent role layer config should parse");
-    let config_layer_stack = codex_config::ConfigLayerStack::new(
-        vec![codex_config::ConfigLayerEntry::new(
-            codex_app_server_protocol::ConfigLayerSource::User {
+    let config_layer_stack = datax_config::ConfigLayerStack::new(
+        vec![datax_config::ConfigLayerEntry::new(
+            datax_app_server_protocol::ConfigLayerSource::User {
                 file: codex_home.path().join(CONFIG_TOML_FILE).abs(),
                 profile: None,
             },
             layer_config,
         )],
         Default::default(),
-        codex_config::ConfigRequirementsToml::default(),
+        datax_config::ConfigRequirementsToml::default(),
     )
     .map_err(std::io::Error::other)?;
 
@@ -8356,7 +8356,7 @@ async fn trace_exporter_defaults_to_none_when_log_exporter_is_set() -> std::io::
         exporter: Some(OtelExporterKind::OtlpHttp {
             endpoint: "http://localhost:14318/v1/logs".to_string(),
             headers: HashMap::new(),
-            protocol: codex_config::types::OtelHttpProtocol::Binary,
+            protocol: datax_config::types::OtelHttpProtocol::Binary,
             tls: None,
         }),
         metrics_exporter: Some(OtelExporterKind::None),
@@ -8662,14 +8662,14 @@ async fn test_requirements_web_search_mode_allowlist_does_not_warn_when_unset() 
 {
     let fixture = create_test_fixture()?;
 
-    let requirements_toml = codex_config::ConfigRequirementsToml {
+    let requirements_toml = datax_config::ConfigRequirementsToml {
         allowed_approval_policies: None,
         allowed_approvals_reviewers: None,
         allowed_sandbox_modes: None,
         allowed_permission_profiles: None,
         default_permissions: None,
         remote_sandbox_config: None,
-        allowed_web_search_modes: Some(vec![codex_config::WebSearchModeRequirement::Cached]),
+        allowed_web_search_modes: Some(vec![datax_config::WebSearchModeRequirement::Cached]),
         allow_managed_hooks_only: None,
         allow_appshots: None,
         allow_remote_control: None,
@@ -8686,7 +8686,7 @@ async fn test_requirements_web_search_mode_allowlist_does_not_warn_when_unset() 
         permissions: None,
         guardian_policy_config: None,
     };
-    let requirement_source = codex_config::RequirementSource::Unknown;
+    let requirement_source = datax_config::RequirementSource::Unknown;
     let requirement_source_for_error = requirement_source.clone();
     let allowed = vec![WebSearchMode::Disabled, WebSearchMode::Cached];
     let constrained = Constrained::new(WebSearchMode::Cached, move |candidate| {
@@ -8701,15 +8701,15 @@ async fn test_requirements_web_search_mode_allowlist_does_not_warn_when_unset() 
             })
         }
     })?;
-    let requirements = codex_config::ConfigRequirements {
-        web_search_mode: codex_config::ConstrainedWithSource::new(
+    let requirements = datax_config::ConfigRequirements {
+        web_search_mode: datax_config::ConstrainedWithSource::new(
             constrained,
             Some(requirement_source),
         ),
         ..Default::default()
     };
     let config_layer_stack =
-        codex_config::ConfigLayerStack::new(Vec::new(), requirements, requirements_toml)
+        datax_config::ConfigLayerStack::new(Vec::new(), requirements, requirements_toml)
             .expect("config layer stack");
 
     let config = Config::load_config_with_layer_stack(
@@ -9381,7 +9381,7 @@ allowed_sandbox_implementations = ["elevated"]
 
     assert_eq!(
         config.permissions.windows_sandbox_mode,
-        Some(codex_config::types::WindowsSandboxModeToml::Elevated)
+        Some(datax_config::types::WindowsSandboxModeToml::Elevated)
     );
     assert!(
         config.startup_warnings.iter().any(|warning| warning

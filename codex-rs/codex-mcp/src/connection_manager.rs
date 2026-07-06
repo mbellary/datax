@@ -40,22 +40,22 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use async_channel::Sender;
-use codex_config::Constrained;
-use codex_config::McpServerTransportConfig;
-use codex_config::types::AuthKeyringBackendKind;
-use codex_config::types::OAuthCredentialsStoreMode;
-use codex_login::CodexAuth;
-use codex_protocol::mcp::CallToolResult;
-use codex_protocol::mcp::McpServerInfo;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::McpStartupCompleteEvent;
-use codex_protocol::protocol::McpStartupFailure;
-use codex_protocol::protocol::McpStartupStatus;
-use codex_protocol::protocol::McpStartupUpdateEvent;
-use codex_rmcp_client::ElicitationResponse;
+use datax_config::Constrained;
+use datax_config::McpServerTransportConfig;
+use datax_config::types::AuthKeyringBackendKind;
+use datax_config::types::OAuthCredentialsStoreMode;
+use datax_login::CodexAuth;
+use datax_protocol::mcp::CallToolResult;
+use datax_protocol::mcp::McpServerInfo;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::Event;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::McpStartupCompleteEvent;
+use datax_protocol::protocol::McpStartupFailure;
+use datax_protocol::protocol::McpStartupStatus;
+use datax_protocol::protocol::McpStartupUpdateEvent;
+use datax_rmcp_client::ElicitationResponse;
 use rmcp::model::ElicitationCapability;
 use rmcp::model::ListResourceTemplatesResult;
 use rmcp::model::ListResourcesResult;
@@ -156,7 +156,7 @@ impl McpConnectionManager {
         let startup_submit_id = submit_id.clone();
         let codex_apps_auth_provider = auth
             .filter(|auth| auth.uses_codex_backend())
-            .map(codex_model_provider::auth_provider_from_auth);
+            .map(datax_model_provider::auth_provider_from_auth);
         let mcp_servers = mcp_servers.clone();
         for (server_name, server) in mcp_servers
             .into_iter()
@@ -398,7 +398,7 @@ impl McpConnectionManager {
         &self,
         server_name: &str,
         tool_name: &str,
-    ) -> codex_config::AppToolApproval {
+    ) -> datax_config::AppToolApproval {
         self.server_metadata
             .get(server_name)
             .map(|metadata| metadata.tool_approval_mode(tool_name))

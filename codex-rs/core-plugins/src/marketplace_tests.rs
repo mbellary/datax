@@ -1,5 +1,5 @@
 use super::*;
-use codex_protocol::protocol::Product;
+use datax_protocol::protocol::Product;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use tempfile::tempdir;
@@ -41,7 +41,7 @@ fn find_marketplace_plugin_finds_repo_marketplace_plugin() {
     fs::write(
         repo_root.join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "local-plugin",
@@ -64,7 +64,7 @@ fn find_marketplace_plugin_finds_repo_marketplace_plugin() {
     assert_eq!(
         resolved,
         ResolvedMarketplacePlugin {
-            plugin_id: PluginId::new("local-plugin".to_string(), "codex-curated".to_string())
+            plugin_id: PluginId::new("local-plugin".to_string(), "datax-curated".to_string())
                 .unwrap(),
             source: MarketplacePluginSource::Local {
                 path: AbsolutePathBuf::try_from(repo_root.join("plugin-1")).unwrap(),
@@ -134,7 +134,7 @@ fn find_marketplace_plugin_supports_git_subdir_sources() {
     fs::write(
         repo_root.join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "remote-plugin",
@@ -160,7 +160,7 @@ fn find_marketplace_plugin_supports_git_subdir_sources() {
     assert_eq!(
         resolved,
         ResolvedMarketplacePlugin {
-            plugin_id: PluginId::new("remote-plugin".to_string(), "codex-curated".to_string())
+            plugin_id: PluginId::new("remote-plugin".to_string(), "datax-curated".to_string())
                 .unwrap(),
             source: MarketplacePluginSource::Git {
                 url: "https://github.com/openai/joey_marketplace3.git".to_string(),
@@ -189,7 +189,7 @@ fn find_marketplace_plugin_omits_interface_asset_paths_for_git_sources() {
     fs::write(
         repo_root.join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "remote-plugin",
@@ -443,7 +443,7 @@ fn find_marketplace_plugin_normalizes_github_shorthand_with_dot_git_suffix() {
     fs::write(
         repo_root.join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "remote-plugin",
@@ -488,7 +488,7 @@ fn find_marketplace_plugin_normalizes_relative_git_source_urls_to_marketplace_ro
             repo_root.join(".agents/plugins/marketplace.json"),
             format!(
                 r#"{{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {{
       "name": "remote-plugin",
@@ -559,7 +559,7 @@ fn find_marketplace_plugin_skips_root_equivalent_git_subdir_paths() {
             repo_root.join(".agents/plugins/marketplace.json"),
             format!(
                 r#"{{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {{
       "name": "remote-plugin",
@@ -596,7 +596,7 @@ fn find_marketplace_plugin_reports_missing_plugin() {
     fs::create_dir_all(repo_root.join(".agents/plugins")).unwrap();
     fs::write(
         repo_root.join(".agents/plugins/marketplace.json"),
-        r#"{"name":"codex-curated","plugins":[]}"#,
+        r#"{"name":"datax-curated","plugins":[]}"#,
     )
     .unwrap();
 
@@ -950,7 +950,7 @@ fn list_marketplaces_returns_home_and_repo_marketplaces() {
     fs::write(
         home_root.join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "shared-plugin",
@@ -973,7 +973,7 @@ fn list_marketplaces_returns_home_and_repo_marketplaces() {
     fs::write(
         repo_root.join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "shared-plugin",
@@ -1005,7 +1005,7 @@ fn list_marketplaces_returns_home_and_repo_marketplaces() {
         marketplaces,
         vec![
             Marketplace {
-                name: "codex-curated".to_string(),
+                name: "datax-curated".to_string(),
                 path:
                     AbsolutePathBuf::try_from(home_root.join(".agents/plugins/marketplace.json"),)
                         .unwrap(),
@@ -1044,7 +1044,7 @@ fn list_marketplaces_returns_home_and_repo_marketplaces() {
                 ],
             },
             Marketplace {
-                name: "codex-curated".to_string(),
+                name: "datax-curated".to_string(),
                 path:
                     AbsolutePathBuf::try_from(repo_root.join(".agents/plugins/marketplace.json"),)
                         .unwrap(),
@@ -1101,7 +1101,7 @@ fn list_marketplaces_keeps_distinct_entries_for_same_name() {
     fs::write(
         home_marketplace.clone(),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "local-plugin",
@@ -1117,7 +1117,7 @@ fn list_marketplaces_keeps_distinct_entries_for_same_name() {
     fs::write(
         repo_marketplace.clone(),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "local-plugin",
@@ -1142,7 +1142,7 @@ fn list_marketplaces_keeps_distinct_entries_for_same_name() {
         marketplaces,
         vec![
             Marketplace {
-                name: "codex-curated".to_string(),
+                name: "datax-curated".to_string(),
                 path: AbsolutePathBuf::try_from(home_marketplace).unwrap(),
                 interface: None,
                 plugins: vec![MarketplacePlugin {
@@ -1162,7 +1162,7 @@ fn list_marketplaces_keeps_distinct_entries_for_same_name() {
                 }],
             },
             Marketplace {
-                name: "codex-curated".to_string(),
+                name: "datax-curated".to_string(),
                 path: AbsolutePathBuf::try_from(repo_marketplace.clone()).unwrap(),
                 interface: None,
                 plugins: vec![MarketplacePlugin {
@@ -1210,7 +1210,7 @@ fn list_marketplaces_dedupes_multiple_roots_in_same_repo() {
     fs::write(
         repo_root.join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "local-plugin",
@@ -1237,7 +1237,7 @@ fn list_marketplaces_dedupes_multiple_roots_in_same_repo() {
     assert_eq!(
         marketplaces,
         vec![Marketplace {
-            name: "codex-curated".to_string(),
+            name: "datax-curated".to_string(),
             path: AbsolutePathBuf::try_from(repo_root.join(".agents/plugins/marketplace.json"))
                 .unwrap(),
             interface: None,
@@ -1601,7 +1601,7 @@ fn list_marketplaces_resolves_plugin_interface_paths_to_absolute() {
     fs::write(
         repo_root.join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "demo-plugin",
@@ -1691,7 +1691,7 @@ fn list_marketplaces_ignores_legacy_top_level_policy_fields() {
     fs::write(
         repo_root.join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "demo-plugin",
@@ -1737,7 +1737,7 @@ fn list_marketplaces_ignores_plugin_interface_assets_without_dot_slash() {
     fs::write(
         repo_root.join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "demo-plugin",
@@ -1814,7 +1814,7 @@ fn find_marketplace_plugin_skips_invalid_local_paths() {
             repo_root.join(".agents/plugins/marketplace.json"),
             format!(
                 r#"{{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {{
       "name": "local-plugin",
@@ -1851,7 +1851,7 @@ fn find_marketplace_plugin_uses_first_duplicate_entry() {
     fs::write(
         repo_root.join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "local-plugin",
@@ -1895,7 +1895,7 @@ fn find_installable_marketplace_plugin_rejects_disallowed_product() {
     fs::write(
         repo_root.join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "chatgpt-plugin",
@@ -1934,7 +1934,7 @@ fn find_marketplace_plugin_allows_missing_products_field() {
     fs::write(
         repo_root.join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "default-plugin",
@@ -1967,7 +1967,7 @@ fn find_installable_marketplace_plugin_rejects_explicit_empty_products() {
     fs::write(
         repo_root.join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "disabled-plugin",

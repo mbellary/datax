@@ -1,12 +1,12 @@
 use super::*;
-use codex_config::types::AppToolApproval;
-use codex_config::types::McpServerOAuthConfig;
-use codex_config::types::McpServerToolConfig;
-use codex_config::types::McpServerTransportConfig;
-use codex_config::types::SessionPickerViewMode;
-use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::openai_models::ReasoningEffort;
+use datax_config::types::AppToolApproval;
+use datax_config::types::McpServerOAuthConfig;
+use datax_config::types::McpServerToolConfig;
+use datax_config::types::McpServerTransportConfig;
+use datax_config::types::SessionPickerViewMode;
+use datax_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
+use datax_protocol::config_types::ServiceTier;
+use datax_protocol::openai_models::ReasoningEffort;
 use pretty_assertions::assert_eq;
 #[cfg(unix)]
 use std::os::unix::fs::symlink;
@@ -887,7 +887,7 @@ fn blocking_replace_mcp_servers_round_trips() {
                 env_vars: vec!["FOO".into()],
                 cwd: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: true,
@@ -917,7 +917,7 @@ fn blocking_replace_mcp_servers_round_trips() {
                 ),
                 env_http_headers: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: false,
             required: false,
             supports_parallel_tool_calls: false,
@@ -988,7 +988,7 @@ fn blocking_replace_mcp_servers_serializes_tool_approval_overrides() {
                 env_vars: Vec::new(),
                 cwd: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: false,
@@ -1048,7 +1048,7 @@ foo = { command = "cmd" }
                 env_vars: Vec::new(),
                 cwd: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: false,
@@ -1098,7 +1098,7 @@ foo = { command = "cmd" } # keep me
                 env_vars: Vec::new(),
                 cwd: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: false,
             required: false,
             supports_parallel_tool_calls: false,
@@ -1147,7 +1147,7 @@ foo = { command = "cmd", args = ["--flag"] } # keep me
                 env_vars: Vec::new(),
                 cwd: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: false,
@@ -1197,7 +1197,7 @@ foo = { command = "cmd" }
                 env_vars: Vec::new(),
                 cwd: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: false,
             required: false,
             supports_parallel_tool_calls: false,

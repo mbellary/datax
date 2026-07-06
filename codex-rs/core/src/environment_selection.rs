@@ -3,13 +3,13 @@ use std::fmt;
 use std::sync::Arc;
 
 use arc_swap::ArcSwap;
-use codex_exec_server::Environment;
-use codex_exec_server::EnvironmentManager;
-use codex_exec_server::ExecServerError;
-use codex_exec_server::ExecutorFileSystem;
-use codex_protocol::protocol::TurnEnvironmentSelection;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use datax_exec_server::Environment;
+use datax_exec_server::EnvironmentManager;
+use datax_exec_server::ExecServerError;
+use datax_exec_server::ExecutorFileSystem;
+use datax_protocol::protocol::TurnEnvironmentSelection;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_path_uri::PathUri;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use futures::future::Shared;
@@ -232,7 +232,7 @@ impl TurnEnvironmentSnapshot {
     }
 
     #[cfg(test)]
-    pub(crate) fn primary_environment(&self) -> Option<Arc<codex_exec_server::Environment>> {
+    pub(crate) fn primary_environment(&self) -> Option<Arc<datax_exec_server::Environment>> {
         self.primary()
             .map(|environment| Arc::clone(&environment.environment))
     }
@@ -271,13 +271,13 @@ impl TurnEnvironmentSnapshot {
 mod tests {
     use std::time::Duration;
 
-    use codex_exec_server::Environment;
-    use codex_exec_server::ExecServerRuntimePaths;
-    use codex_exec_server::LOCAL_ENVIRONMENT_ID;
-    use codex_exec_server::REMOTE_ENVIRONMENT_ID;
-    use codex_protocol::protocol::TurnEnvironmentSelection;
-    use codex_utils_absolute_path::AbsolutePathBuf;
-    use codex_utils_path_uri::PathUri;
+    use datax_exec_server::Environment;
+    use datax_exec_server::ExecServerRuntimePaths;
+    use datax_exec_server::LOCAL_ENVIRONMENT_ID;
+    use datax_exec_server::REMOTE_ENVIRONMENT_ID;
+    use datax_protocol::protocol::TurnEnvironmentSelection;
+    use datax_utils_absolute_path::AbsolutePathBuf;
+    use datax_utils_path_uri::PathUri;
     use futures::SinkExt;
     use futures::StreamExt;
     use pretty_assertions::assert_eq;

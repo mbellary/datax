@@ -6,8 +6,8 @@
 
 use std::collections::BTreeSet;
 
-use codex_app_server_protocol::McpServerStartupState;
-use codex_app_server_protocol::McpServerStatusUpdatedNotification;
+use datax_app_server_protocol::McpServerStartupState;
+use datax_app_server_protocol::McpServerStatusUpdatedNotification;
 
 use super::ChatWidget;
 

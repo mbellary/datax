@@ -1,7 +1,7 @@
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_utils_path_uri::PathUri;
+use datax_app_server_protocol::JSONRPCErrorError;
+use datax_utils_path_uri::PathUri;
 use tokio::io;
 
 use crate::CopyOptions;

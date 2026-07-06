@@ -112,7 +112,7 @@ pub fn detect_recent_sessions(
 mod tests {
     use super::*;
     use crate::ledger::record_imported_session;
-    use codex_protocol::ThreadId;
+    use datax_protocol::ThreadId;
     use serde_json::Value as JsonValue;
     use std::fs::FileTimes;
     use std::fs::OpenOptions;

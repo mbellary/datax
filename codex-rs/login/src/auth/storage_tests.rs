@@ -2,16 +2,16 @@ use super::*;
 use crate::token_data::IdTokenInfo;
 use anyhow::Context;
 use base64::Engine;
-use codex_secrets::LocalSecretsNamespace;
-use codex_secrets::SecretScope;
-use codex_secrets::SecretsBackendKind;
-use codex_secrets::SecretsManager;
-use codex_secrets::compute_keyring_account;
+use datax_secrets::LocalSecretsNamespace;
+use datax_secrets::SecretScope;
+use datax_secrets::SecretsBackendKind;
+use datax_secrets::SecretsManager;
+use datax_secrets::compute_keyring_account;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use tempfile::tempdir;
 
-use codex_keyring_store::tests::MockKeyringStore;
+use datax_keyring_store::tests::MockKeyringStore;
 use keyring::Error as KeyringError;
 
 #[tokio::test]

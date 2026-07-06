@@ -1,15 +1,15 @@
 #![allow(clippy::expect_used)]
 
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_utils_path_uri::PathUri;
+use datax_app_server_protocol::JSONRPCMessage;
+use datax_app_server_protocol::JSONRPCResponse;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::permissions::FileSystemAccessMode;
+use datax_protocol::permissions::FileSystemPath;
+use datax_protocol::permissions::FileSystemSandboxEntry;
+use datax_protocol::permissions::FileSystemSandboxPolicy;
+use datax_protocol::permissions::FileSystemSpecialPath;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_utils_path_uri::PathUri;
 use futures::SinkExt;
 use futures::StreamExt;
 use pretty_assertions::assert_eq;

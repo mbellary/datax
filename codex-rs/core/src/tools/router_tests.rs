@@ -4,25 +4,25 @@ use crate::config::Config;
 use crate::session::tests::make_session_and_context;
 use crate::tools::context::ToolPayload;
 use crate::turn_diff_tracker::TurnDiffTracker;
-use codex_extension_api::ExtensionData;
-use codex_extension_api::ExtensionRegistry;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_extension_api::ResponsesApiTool;
-use codex_extension_api::ToolCall as ExtensionToolCall;
-use codex_extension_api::ToolExecutor;
-use codex_protocol::dynamic_tools::DynamicToolFunctionSpec;
-use codex_protocol::dynamic_tools::DynamicToolNamespaceSpec;
-use codex_protocol::dynamic_tools::DynamicToolNamespaceTool;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_tools::ResponsesApiNamespace;
-use codex_tools::ResponsesApiNamespaceTool;
-use codex_tools::ToolName;
-use codex_tools::ToolSpec;
-use codex_tools::default_namespace_description;
+use datax_extension_api::ExtensionData;
+use datax_extension_api::ExtensionRegistry;
+use datax_extension_api::ExtensionRegistryBuilder;
+use datax_extension_api::ResponsesApiTool;
+use datax_extension_api::ToolCall as ExtensionToolCall;
+use datax_extension_api::ToolExecutor;
+use datax_protocol::dynamic_tools::DynamicToolFunctionSpec;
+use datax_protocol::dynamic_tools::DynamicToolNamespaceSpec;
+use datax_protocol::dynamic_tools::DynamicToolNamespaceTool;
+use datax_protocol::dynamic_tools::DynamicToolSpec;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::FunctionCallOutputBody;
+use datax_protocol::models::ResponseInputItem;
+use datax_protocol::models::ResponseItem;
+use datax_tools::ResponsesApiNamespace;
+use datax_tools::ResponsesApiNamespaceTool;
+use datax_tools::ToolName;
+use datax_tools::ToolSpec;
+use datax_tools::default_namespace_description;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use tokio_util::sync::CancellationToken;
@@ -35,7 +35,7 @@ use super::extension_tool_executors;
 
 struct ExtensionEchoContributor;
 
-impl codex_extension_api::ToolContributor for ExtensionEchoContributor {
+impl datax_extension_api::ToolContributor for ExtensionEchoContributor {
     fn tools(
         &self,
         _session_store: &ExtensionData,
@@ -60,7 +60,7 @@ impl ToolExecutor<ExtensionToolCall> for ExtensionEchoExecutor {
                 name: "echo".to_string(),
                 description: "Echoes arguments through an extension tool.".to_string(),
                 strict: true,
-                parameters: codex_extension_api::parse_tool_input_schema(&json!({
+                parameters: datax_extension_api::parse_tool_input_schema(&json!({
                     "type": "object",
                     "properties": {
                         "message": { "type": "string" },
@@ -75,7 +75,7 @@ impl ToolExecutor<ExtensionToolCall> for ExtensionEchoExecutor {
         })
     }
 
-    fn handle(&self, call: ExtensionToolCall) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, call: ExtensionToolCall) -> datax_tools::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(call))
     }
 }
@@ -84,15 +84,15 @@ impl ExtensionEchoExecutor {
     async fn handle_call(
         &self,
         call: ExtensionToolCall,
-    ) -> Result<Box<dyn codex_tools::ToolOutput>, codex_tools::FunctionCallError> {
+    ) -> Result<Box<dyn datax_tools::ToolOutput>, datax_tools::FunctionCallError> {
         let arguments: serde_json::Value =
             serde_json::from_str(call.function_arguments()?).expect("test arguments should parse");
-        Ok(Box::new(codex_tools::JsonToolOutput::new(json!({
+        Ok(Box::new(datax_tools::JsonToolOutput::new(json!({
             "arguments": arguments,
             "callId": call.call_id,
             "conversationHistory": call.conversation_history.items(),
             "ok": true,
-        }))) as Box<dyn codex_tools::ToolOutput>)
+        }))) as Box<dyn datax_tools::ToolOutput>)
     }
 }
 
@@ -308,8 +308,8 @@ fn mcp_tool_info(
     supports_parallel_tool_calls: bool,
     callable_namespace: &str,
     tool_name: &str,
-) -> codex_mcp::ToolInfo {
-    codex_mcp::ToolInfo {
+) -> datax_mcp::ToolInfo {
+    datax_mcp::ToolInfo {
         server_name: server_name.to_string(),
         supports_parallel_tool_calls,
         server_origin: None,

@@ -1,14 +1,14 @@
-use codex_config::test_support::CloudConfigBundleFixture;
-use codex_core::config::Config;
-use codex_core::config::ConfigBuilder;
-use codex_exec_server::EnvironmentManager;
-use codex_exec_server::LOCAL_ENVIRONMENT_ID;
-use codex_extension_api::ExtensionDataInit;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_extension_api::McpServerContribution;
-use codex_extension_api::McpServerContributionContext;
-use codex_protocol::capabilities::CapabilityRootLocation;
-use codex_protocol::capabilities::SelectedCapabilityRoot;
+use datax_config::test_support::CloudConfigBundleFixture;
+use datax_core::config::Config;
+use datax_core::config::ConfigBuilder;
+use datax_exec_server::EnvironmentManager;
+use datax_exec_server::LOCAL_ENVIRONMENT_ID;
+use datax_extension_api::ExtensionDataInit;
+use datax_extension_api::ExtensionRegistryBuilder;
+use datax_extension_api::McpServerContribution;
+use datax_extension_api::McpServerContributionContext;
+use datax_protocol::capabilities::CapabilityRootLocation;
+use datax_protocol::capabilities::SelectedCapabilityRoot;
 use pretty_assertions::assert_eq;
 use std::sync::Arc;
 
@@ -95,7 +95,7 @@ async fn selected_plugin_contributions(
     plugin_root: &std::path::Path,
 ) -> Vec<ContributionSummary> {
     let mut builder = ExtensionRegistryBuilder::new();
-    codex_mcp_extension::install_executor_plugins(
+    datax_mcp_extension::install_executor_plugins(
         &mut builder,
         Arc::new(EnvironmentManager::default_for_tests()),
     );
@@ -108,7 +108,7 @@ async fn selected_plugin_contributions(
             path: plugin_root.to_string_lossy().into_owned(),
         },
     }]);
-    codex_mcp_extension::initialize_executor_plugin_thread_data(&mut thread_init);
+    datax_mcp_extension::initialize_executor_plugin_thread_data(&mut thread_init);
 
     registry.mcp_server_contributors()[0]
         .contribute(McpServerContributionContext::for_thread(

@@ -1,12 +1,12 @@
 [package]
-name = "codex-tui"
+name = "datax-tui"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 autobins = false
 
 [[bin]]
-name = "codex-tui"
+name = "datax-tui"
 path = "src/main.rs"
 
 [[bin]]
@@ -14,7 +14,7 @@ name = "md-events"
 path = "src/bin/md-events.rs"
 
 [lib]
-name = "codex_tui"
+name = "datax_tui"
 path = "src/lib.rs"
 doctest = false
 
@@ -26,47 +26,47 @@ anyhow = { workspace = true }
 base64 = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
-codex-ansi-escape = { workspace = true }
-codex-app-server-client = { workspace = true }
-codex-app-server-protocol = { workspace = true }
-codex-arg0 = { workspace = true }
-codex-install-context = { workspace = true }
-codex-cloud-config = { workspace = true }
-codex-config = { workspace = true }
-codex-connectors = { workspace = true }
-codex-core-plugins = { workspace = true }
-codex-core-skills = { workspace = true }
-codex-exec-server = { workspace = true }
-codex-features = { workspace = true }
-codex-feedback = { workspace = true }
-codex-file-search = { workspace = true }
-codex-git-utils = { workspace = true }
-codex-login = { workspace = true }
-codex-message-history = { workspace = true }
-codex-model-provider = { workspace = true }
-codex-model-provider-info = { workspace = true }
-codex-models-manager = { workspace = true }
-codex-otel = { workspace = true }
-codex-plugin = { workspace = true }
-codex-protocol = { workspace = true }
-codex-rollout = { workspace = true }
-codex-sandboxing = { workspace = true }
-codex-shell-command = { workspace = true }
-codex-state = { workspace = true }
-codex-terminal-detection = { workspace = true }
-codex-utils-approval-presets = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-cli = { workspace = true }
-codex-utils-elapsed = { workspace = true }
-codex-utils-fuzzy-match = { workspace = true }
-codex-utils-home-dir = { workspace = true }
-codex-utils-oss = { workspace = true }
-codex-utils-path = { workspace = true }
-codex-utils-path-uri = { workspace = true }
-codex-utils-plugins = { workspace = true }
-codex-utils-sandbox-summary = { workspace = true }
-codex-utils-sleep-inhibitor = { workspace = true }
-codex-utils-string = { workspace = true }
+datax-ansi-escape = { workspace = true }
+datax-app-server-client = { workspace = true }
+datax-app-server-protocol = { workspace = true }
+datax-arg0 = { workspace = true }
+datax-install-context = { workspace = true }
+datax-cloud-config = { workspace = true }
+datax-config = { workspace = true }
+datax-connectors = { workspace = true }
+datax-core-plugins = { workspace = true }
+datax-core-skills = { workspace = true }
+datax-exec-server = { workspace = true }
+datax-features = { workspace = true }
+datax-feedback = { workspace = true }
+datax-file-search = { workspace = true }
+datax-git-utils = { workspace = true }
+datax-login = { workspace = true }
+datax-message-history = { workspace = true }
+datax-model-provider = { workspace = true }
+datax-model-provider-info = { workspace = true }
+datax-models-manager = { workspace = true }
+datax-otel = { workspace = true }
+datax-plugin = { workspace = true }
+datax-protocol = { workspace = true }
+datax-rollout = { workspace = true }
+datax-sandboxing = { workspace = true }
+datax-shell-command = { workspace = true }
+datax-state = { workspace = true }
+datax-terminal-detection = { workspace = true }
+datax-utils-approval-presets = { workspace = true }
+datax-utils-absolute-path = { workspace = true }
+datax-utils-cli = { workspace = true }
+datax-utils-elapsed = { workspace = true }
+datax-utils-fuzzy-match = { workspace = true }
+datax-utils-home-dir = { workspace = true }
+datax-utils-oss = { workspace = true }
+datax-utils-path = { workspace = true }
+datax-utils-path-uri = { workspace = true }
+datax-utils-plugins = { workspace = true }
+datax-utils-sandbox-summary = { workspace = true }
+datax-utils-sleep-inhibitor = { workspace = true }
+datax-utils-string = { workspace = true }
 color-eyre = { workspace = true }
 crossterm = { workspace = true, features = ["bracketed-paste", "event-stream"] }
 derive_more = { workspace = true, features = ["is_variant"] }
@@ -122,7 +122,7 @@ urlencoding = { workspace = true }
 webbrowser = { workspace = true }
 uuid = { workspace = true }
 
-codex-windows-sandbox = { workspace = true }
+datax-windows-sandbox = { workspace = true }
 tokio-util = { workspace = true, features = ["time"] }
 
 [target.'cfg(unix)'.dependencies]
@@ -149,10 +149,10 @@ arboard = { workspace = true }
 
 [dev-dependencies]
 app_test_support = { workspace = true }
-codex-cli = { workspace = true }
-codex-mcp = { workspace = true }
+datax-cli = { workspace = true }
+datax-mcp = { workspace = true }
 core_test_support = { workspace = true }
-codex-utils-cargo-bin = { workspace = true }
+datax-utils-cargo-bin = { workspace = true }
 assert_matches = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 insta = { workspace = true }

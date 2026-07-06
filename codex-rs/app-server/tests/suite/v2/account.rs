@@ -10,37 +10,37 @@ use app_test_support::write_chatgpt_auth;
 use app_test_support::write_models_cache;
 use chrono::Duration as ChronoDuration;
 use chrono::Utc;
-use codex_app_server_protocol::Account;
-use codex_app_server_protocol::AuthMode;
-use codex_app_server_protocol::CancelLoginAccountParams;
-use codex_app_server_protocol::CancelLoginAccountResponse;
-use codex_app_server_protocol::CancelLoginAccountStatus;
-use codex_app_server_protocol::ChatgptAuthTokensRefreshReason;
-use codex_app_server_protocol::ChatgptAuthTokensRefreshResponse;
-use codex_app_server_protocol::GetAccountParams;
-use codex_app_server_protocol::GetAccountResponse;
-use codex_app_server_protocol::GetAuthStatusParams;
-use codex_app_server_protocol::GetAuthStatusResponse;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::LoginAccountResponse;
-use codex_app_server_protocol::LogoutAccountResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::TurnCompletedNotification;
-use codex_app_server_protocol::TurnStatus;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_login::AuthKeyringBackendKind;
-use codex_login::CLIENT_ID_OVERRIDE_ENV_VAR;
-use codex_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
-use codex_login::login_with_api_key;
-use codex_login::login_with_bedrock_api_key;
-use codex_protocol::account::AmazonBedrockCredentialSource;
-use codex_protocol::account::PlanType as AccountPlanType;
 use core_test_support::responses;
+use datax_app_server_protocol::Account;
+use datax_app_server_protocol::AuthMode;
+use datax_app_server_protocol::CancelLoginAccountParams;
+use datax_app_server_protocol::CancelLoginAccountResponse;
+use datax_app_server_protocol::CancelLoginAccountStatus;
+use datax_app_server_protocol::ChatgptAuthTokensRefreshReason;
+use datax_app_server_protocol::ChatgptAuthTokensRefreshResponse;
+use datax_app_server_protocol::GetAccountParams;
+use datax_app_server_protocol::GetAccountResponse;
+use datax_app_server_protocol::GetAuthStatusParams;
+use datax_app_server_protocol::GetAuthStatusResponse;
+use datax_app_server_protocol::JSONRPCError;
+use datax_app_server_protocol::JSONRPCErrorError;
+use datax_app_server_protocol::JSONRPCNotification;
+use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::LoginAccountResponse;
+use datax_app_server_protocol::LogoutAccountResponse;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::ServerRequest;
+use datax_app_server_protocol::TurnCompletedNotification;
+use datax_app_server_protocol::TurnStatus;
+use datax_config::types::AuthCredentialsStoreMode;
+use datax_login::AuthKeyringBackendKind;
+use datax_login::CLIENT_ID_OVERRIDE_ENV_VAR;
+use datax_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
+use datax_login::login_with_api_key;
+use datax_login::login_with_bedrock_api_key;
+use datax_protocol::account::AmazonBedrockCredentialSource;
+use datax_protocol::account::PlanType as AccountPlanType;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use serial_test::serial;
@@ -500,7 +500,7 @@ async fn external_auth_refreshes_on_unauthorized() -> Result<()> {
     .await??;
 
     let thread_req = mcp
-        .send_thread_start_request(codex_app_server_protocol::ThreadStartParams {
+        .send_thread_start_request(datax_app_server_protocol::ThreadStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -510,13 +510,13 @@ async fn external_auth_refreshes_on_unauthorized() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let thread = to_response::<codex_app_server_protocol::ThreadStartResponse>(thread_resp)?;
+    let thread = to_response::<datax_app_server_protocol::ThreadStartResponse>(thread_resp)?;
 
     let turn_req = mcp
-        .send_turn_start_request(codex_app_server_protocol::TurnStartParams {
+        .send_turn_start_request(datax_app_server_protocol::TurnStartParams {
             thread_id: thread.thread.id,
             client_user_message_id: None,
-            input: vec![codex_app_server_protocol::UserInput::Text {
+            input: vec![datax_app_server_protocol::UserInput::Text {
                 text: "Hello".to_string(),
                 text_elements: Vec::new(),
             }],
@@ -608,7 +608,7 @@ async fn external_auth_refresh_error_fails_turn() -> Result<()> {
     .await??;
 
     let thread_req = mcp
-        .send_thread_start_request(codex_app_server_protocol::ThreadStartParams {
+        .send_thread_start_request(datax_app_server_protocol::ThreadStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -618,13 +618,13 @@ async fn external_auth_refresh_error_fails_turn() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let thread = to_response::<codex_app_server_protocol::ThreadStartResponse>(thread_resp)?;
+    let thread = to_response::<datax_app_server_protocol::ThreadStartResponse>(thread_resp)?;
 
     let turn_req = mcp
-        .send_turn_start_request(codex_app_server_protocol::TurnStartParams {
+        .send_turn_start_request(datax_app_server_protocol::TurnStartParams {
             thread_id: thread.thread.id.clone(),
             client_user_message_id: None,
-            input: vec![codex_app_server_protocol::UserInput::Text {
+            input: vec![datax_app_server_protocol::UserInput::Text {
                 text: "Hello".to_string(),
                 text_elements: Vec::new(),
             }],
@@ -732,7 +732,7 @@ async fn external_auth_refresh_mismatched_workspace_fails_turn() -> Result<()> {
     .await??;
 
     let thread_req = mcp
-        .send_thread_start_request(codex_app_server_protocol::ThreadStartParams {
+        .send_thread_start_request(datax_app_server_protocol::ThreadStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -742,13 +742,13 @@ async fn external_auth_refresh_mismatched_workspace_fails_turn() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let thread = to_response::<codex_app_server_protocol::ThreadStartResponse>(thread_resp)?;
+    let thread = to_response::<datax_app_server_protocol::ThreadStartResponse>(thread_resp)?;
 
     let turn_req = mcp
-        .send_turn_start_request(codex_app_server_protocol::TurnStartParams {
+        .send_turn_start_request(datax_app_server_protocol::TurnStartParams {
             thread_id: thread.thread.id.clone(),
             client_user_message_id: None,
-            input: vec![codex_app_server_protocol::UserInput::Text {
+            input: vec![datax_app_server_protocol::UserInput::Text {
                 text: "Hello".to_string(),
                 text_elements: Vec::new(),
             }],
@@ -849,7 +849,7 @@ async fn external_auth_refresh_invalid_access_token_fails_turn() -> Result<()> {
     .await??;
 
     let thread_req = mcp
-        .send_thread_start_request(codex_app_server_protocol::ThreadStartParams {
+        .send_thread_start_request(datax_app_server_protocol::ThreadStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -859,13 +859,13 @@ async fn external_auth_refresh_invalid_access_token_fails_turn() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let thread = to_response::<codex_app_server_protocol::ThreadStartResponse>(thread_resp)?;
+    let thread = to_response::<datax_app_server_protocol::ThreadStartResponse>(thread_resp)?;
 
     let turn_req = mcp
-        .send_turn_start_request(codex_app_server_protocol::TurnStartParams {
+        .send_turn_start_request(datax_app_server_protocol::TurnStartParams {
             thread_id: thread.thread.id.clone(),
             client_user_message_id: None,
-            input: vec![codex_app_server_protocol::UserInput::Text {
+            input: vec![datax_app_server_protocol::UserInput::Text {
                 text: "Hello".to_string(),
                 text_elements: Vec::new(),
             }],
@@ -1702,7 +1702,7 @@ async fn get_account_with_aws_provider() -> Result<()> {
             model_provider_id: Some("amazon-bedrock".to_string()),
             extra_provider_config: Some(
                 r#"[model_providers.amazon-bedrock.aws]
-profile = "codex-bedrock"
+profile = "datax-bedrock"
 region = "us-west-2"
 "#
                 .to_string(),

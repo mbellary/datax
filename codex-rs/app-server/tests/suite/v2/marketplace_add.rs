@@ -1,11 +1,11 @@
 use anyhow::Result;
 use app_test_support::TestAppServer;
 use app_test_support::to_response;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::MarketplaceAddParams;
-use codex_app_server_protocol::MarketplaceAddResponse;
-use codex_app_server_protocol::RequestId;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::MarketplaceAddParams;
+use datax_app_server_protocol::MarketplaceAddResponse;
+use datax_app_server_protocol::RequestId;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::time::Duration;

@@ -29,8 +29,8 @@ use crate::oauth::compute_expires_at_millis;
 use crate::save_oauth_tokens;
 use crate::utils::apply_default_headers;
 use crate::utils::build_default_headers;
-use codex_config::types::AuthKeyringBackendKind;
-use codex_config::types::OAuthCredentialsStoreMode;
+use datax_config::types::AuthKeyringBackendKind;
+use datax_config::types::OAuthCredentialsStoreMode;
 
 struct OauthHeaders {
     http_headers: Option<HashMap<String, String>>,

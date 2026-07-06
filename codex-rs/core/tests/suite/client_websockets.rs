@@ -1,41 +1,4 @@
 #![allow(clippy::unwrap_used)]
-use codex_api::WS_REQUEST_HEADER_TRACEPARENT_CLIENT_METADATA_KEY;
-use codex_api::WS_REQUEST_HEADER_TRACESTATE_CLIENT_METADATA_KEY;
-use codex_core::CodexResponsesMetadata;
-use codex_core::ModelClient;
-use codex_core::ModelClientSession;
-use codex_core::Prompt;
-use codex_core::ResponseEvent;
-use codex_core::X_RESPONSESAPI_INCLUDE_TIMING_METRICS_HEADER;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::WireApi;
-use codex_otel::MetricsClient;
-use codex_otel::MetricsConfig;
-use codex_otel::SessionTelemetry;
-use codex_otel::TelemetryAuthMode;
-use codex_otel::current_span_w3c_trace_context;
-use codex_protocol::SessionId;
-use codex_protocol::ThreadId;
-use codex_protocol::account::PlanType;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::W3cTraceContext;
-use codex_protocol::user_input::UserInput;
-use codex_rollout_trace::ConversationPart;
-use codex_rollout_trace::InferenceTraceContext;
-use codex_rollout_trace::RawTraceEventPayload;
-use codex_rollout_trace::TraceWriter;
-use codex_rollout_trace::replay_bundle;
 use core_test_support::TestCodexResponsesRequestKind;
 use core_test_support::load_default_config_for_test;
 use core_test_support::responses::WebSocketConnectionConfig;
@@ -50,6 +13,43 @@ use core_test_support::skip_if_no_network;
 use core_test_support::test_codex::test_codex;
 use core_test_support::tracing::install_test_tracing;
 use core_test_support::wait_for_event;
+use datax_api::WS_REQUEST_HEADER_TRACEPARENT_CLIENT_METADATA_KEY;
+use datax_api::WS_REQUEST_HEADER_TRACESTATE_CLIENT_METADATA_KEY;
+use datax_core::CodexResponsesMetadata;
+use datax_core::ModelClient;
+use datax_core::ModelClientSession;
+use datax_core::Prompt;
+use datax_core::ResponseEvent;
+use datax_core::X_RESPONSESAPI_INCLUDE_TIMING_METRICS_HEADER;
+use datax_features::Feature;
+use datax_login::CodexAuth;
+use datax_model_provider_info::ModelProviderInfo;
+use datax_model_provider_info::WireApi;
+use datax_otel::MetricsClient;
+use datax_otel::MetricsConfig;
+use datax_otel::SessionTelemetry;
+use datax_otel::TelemetryAuthMode;
+use datax_otel::current_span_w3c_trace_context;
+use datax_protocol::SessionId;
+use datax_protocol::ThreadId;
+use datax_protocol::account::PlanType;
+use datax_protocol::config_types::ReasoningSummary;
+use datax_protocol::config_types::ServiceTier;
+use datax_protocol::models::BaseInstructions;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::openai_models::ModelInfo;
+use datax_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::W3cTraceContext;
+use datax_protocol::user_input::UserInput;
+use datax_rollout_trace::ConversationPart;
+use datax_rollout_trace::InferenceTraceContext;
+use datax_rollout_trace::RawTraceEventPayload;
+use datax_rollout_trace::TraceWriter;
+use datax_rollout_trace::replay_bundle;
 use futures::StreamExt;
 use opentelemetry_sdk::metrics::InMemoryMetricExporter;
 use pretty_assertions::assert_eq;
@@ -190,7 +190,7 @@ async fn responses_websocket_streams_request() {
     );
     assert_eq!(
         handshake.header(USER_AGENT_HEADER),
-        Some(codex_login::default_client::get_codex_user_agent())
+        Some(datax_login::default_client::get_codex_user_agent())
     );
     assert_eq!(
         body["client_metadata"]["x-codex-installation-id"].as_str(),
@@ -272,7 +272,7 @@ async fn responses_websocket_reuses_connection_with_per_turn_trace_payloads() {
     assert_eq!(server.handshakes().len(), 1);
     assert_eq!(
         server.single_handshake().header(USER_AGENT_HEADER),
-        Some(codex_login::default_client::get_codex_user_agent())
+        Some(datax_login::default_client::get_codex_user_agent())
     );
     let connection = server.single_connection();
     assert_eq!(connection.len(), 2);
@@ -363,7 +363,7 @@ async fn responses_websocket_preconnect_reuses_connection() {
     assert_eq!(server.handshakes().len(), 1);
     assert_eq!(
         server.single_handshake().header(USER_AGENT_HEADER),
-        Some(codex_login::default_client::get_codex_user_agent())
+        Some(datax_login::default_client::get_codex_user_agent())
     );
     assert_eq!(
         server.single_handshake().header("x-codex-window-id"),
@@ -406,7 +406,7 @@ async fn responses_websocket_request_prewarm_reuses_connection() {
     assert_eq!(server.handshakes().len(), 1);
     assert_eq!(
         server.single_handshake().header(USER_AGENT_HEADER),
-        Some(codex_login::default_client::get_codex_user_agent())
+        Some(datax_login::default_client::get_codex_user_agent())
     );
     let connection = server.single_connection();
     assert_eq!(connection.len(), 2);
@@ -725,7 +725,7 @@ async fn responses_websocket_preconnect_is_reused_even_with_header_changes() {
             harness.summary,
             /*service_tier*/ None,
             &responses_metadata,
-            &codex_rollout_trace::InferenceTraceContext::disabled(),
+            &datax_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
         .expect("websocket stream failed");
@@ -778,7 +778,7 @@ async fn responses_websocket_request_prewarm_is_reused_even_with_header_changes(
             harness.summary,
             /*service_tier*/ None,
             &responses_metadata,
-            &codex_rollout_trace::InferenceTraceContext::disabled(),
+            &datax_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
         .expect("websocket stream failed");
@@ -1188,7 +1188,7 @@ async fn responses_websocket_emits_reasoning_included_event() {
             harness.summary,
             /*service_tier*/ None,
             &responses_metadata,
-            &codex_rollout_trace::InferenceTraceContext::disabled(),
+            &datax_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
         .expect("websocket stream failed");
@@ -1263,7 +1263,7 @@ async fn responses_websocket_emits_rate_limit_events() {
             harness.summary,
             /*service_tier*/ None,
             &responses_metadata,
-            &codex_rollout_trace::InferenceTraceContext::disabled(),
+            &datax_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
         .expect("websocket stream failed");
@@ -1507,8 +1507,8 @@ async fn responses_websocket_connection_limit_error_reconnects_and_completes() {
     assert_eq!(
         handshake_user_agents,
         vec![
-            Some(codex_login::default_client::get_codex_user_agent()),
-            Some(codex_login::default_client::get_codex_user_agent()),
+            Some(datax_login::default_client::get_codex_user_agent()),
+            Some(datax_login::default_client::get_codex_user_agent()),
         ]
     );
 
@@ -1919,7 +1919,7 @@ async fn responses_websocket_v2_after_error_uses_full_create_without_previous_re
             harness.summary,
             /*service_tier*/ None,
             &responses_metadata,
-            &codex_rollout_trace::InferenceTraceContext::disabled(),
+            &datax_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
         .expect("websocket stream failed");
@@ -2008,7 +2008,7 @@ async fn responses_websocket_v2_surfaces_terminal_error_without_close_handshake(
             harness.summary,
             /*service_tier*/ None,
             &responses_metadata,
-            &codex_rollout_trace::InferenceTraceContext::disabled(),
+            &datax_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
         .expect("websocket stream failed");
@@ -2161,14 +2161,14 @@ async fn websocket_harness_with_provider_options(
             .expect("test config should allow feature update");
     }
     let config = Arc::new(config);
-    let model_info = codex_core::test_support::construct_model_info_offline(MODEL, &config);
+    let model_info = datax_core::test_support::construct_model_info_offline(MODEL, &config);
     let thread_id = ThreadId::new();
     let session_id = SessionId::new();
     let auth_manager =
-        codex_core::test_support::auth_manager_from_auth(CodexAuth::from_api_key("Test API Key"));
+        datax_core::test_support::auth_manager_from_auth(CodexAuth::from_api_key("Test API Key"));
     let exporter = InMemoryMetricExporter::default();
     let metrics = MetricsClient::new(
-        MetricsConfig::in_memory("test", "codex-core", env!("CARGO_PKG_VERSION"), exporter)
+        MetricsConfig::in_memory("test", "datax-core", env!("CARGO_PKG_VERSION"), exporter)
             .with_runtime_reader(),
     )
     .expect("in-memory metrics client");
@@ -2243,7 +2243,7 @@ async fn stream_until_complete_with_model_info(
             harness.summary,
             /*service_tier*/ None,
             &responses_metadata,
-            &codex_rollout_trace::InferenceTraceContext::disabled(),
+            &datax_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
         .expect("websocket stream failed");
@@ -2292,7 +2292,7 @@ async fn stream_until_complete_with_metadata(
             harness.summary,
             service_tier.map(|service_tier| service_tier.request_value().to_string()),
             responses_metadata,
-            &codex_rollout_trace::InferenceTraceContext::disabled(),
+            &datax_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
         .expect("websocket stream failed");

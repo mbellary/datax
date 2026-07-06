@@ -1,26 +1,26 @@
 use anyhow::Result;
 use app_test_support::TestAppServer;
 use app_test_support::to_response;
-use codex_app_server_protocol::CodexErrorInfo;
-use codex_app_server_protocol::ErrorNotification;
-use codex_app_server_protocol::ItemCompletedNotification;
-use codex_app_server_protocol::ItemStartedNotification;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::ModelRerouteReason;
-use codex_app_server_protocol::ModelReroutedNotification;
-use codex_app_server_protocol::ModelVerification;
-use codex_app_server_protocol::ModelVerificationNotification;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnModerationMetadataNotification;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::UserInput;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
+use datax_app_server_protocol::CodexErrorInfo;
+use datax_app_server_protocol::ErrorNotification;
+use datax_app_server_protocol::ItemCompletedNotification;
+use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::JSONRPCMessage;
+use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::ModelRerouteReason;
+use datax_app_server_protocol::ModelReroutedNotification;
+use datax_app_server_protocol::ModelVerification;
+use datax_app_server_protocol::ModelVerificationNotification;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::ThreadItem;
+use datax_app_server_protocol::ThreadStartParams;
+use datax_app_server_protocol::ThreadStartResponse;
+use datax_app_server_protocol::TurnModerationMetadataNotification;
+use datax_app_server_protocol::TurnStartParams;
+use datax_app_server_protocol::TurnStartResponse;
+use datax_app_server_protocol::UserInput;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::time::timeout;
@@ -154,7 +154,7 @@ async fn cyber_policy_response_emits_typed_error_notification_v2() -> Result<()>
     assert_eq!(
         error,
         ErrorNotification {
-            error: codex_app_server_protocol::TurnError {
+            error: datax_app_server_protocol::TurnError {
                 message: CYBER_POLICY_MESSAGE.to_string(),
                 codex_error_info: Some(CodexErrorInfo::CyberPolicy),
                 additional_details: None,

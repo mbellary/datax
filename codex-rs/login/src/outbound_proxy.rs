@@ -1,4 +1,4 @@
-use codex_client::OutboundProxyConfig;
+use datax_client::OutboundProxyConfig;
 
 /// Auth-layer adapter around client-owned proxy policy.
 ///

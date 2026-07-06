@@ -1,9 +1,9 @@
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
 use core_test_support::responses::start_mock_server;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
+use datax_protocol::openai_models::ReasoningEffort;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
 use pretty_assertions::assert_eq;
 
 const CONFIG_TOML: &str = "config.toml";
@@ -26,7 +26,7 @@ async fn thread_settings_update_does_not_persist_when_config_exists() {
 
     core_test_support::submit_thread_settings(
         &codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        datax_protocol::protocol::ThreadSettingsOverrides {
             model: Some("o3".to_string()),
             effort: Some(Some(ReasoningEffort::High)),
             ..Default::default()
@@ -58,7 +58,7 @@ async fn thread_settings_update_does_not_create_config_file() {
 
     core_test_support::submit_thread_settings(
         &codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        datax_protocol::protocol::ThreadSettingsOverrides {
             model: Some("o3".to_string()),
             effort: Some(Some(ReasoningEffort::Medium)),
             ..Default::default()

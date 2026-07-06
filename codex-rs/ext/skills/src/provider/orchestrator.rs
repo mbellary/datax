@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 use std::time::Duration;
 
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_protocol::mcp::Resource;
-use codex_protocol::mcp::ResourceContent;
+use datax_mcp::CODEX_APPS_MCP_SERVER_NAME;
+use datax_protocol::mcp::Resource;
+use datax_protocol::mcp::ResourceContent;
 use url::Url;
 
 use crate::catalog::SkillAuthority;

@@ -1671,7 +1671,7 @@ mod tests {
     use crate::model::Stage1StartupClaimParams;
     use chrono::Duration;
     use chrono::Utc;
-    use codex_protocol::ThreadId;
+    use datax_protocol::ThreadId;
     use pretty_assertions::assert_eq;
     use sqlx::Row;
     use std::sync::Arc;

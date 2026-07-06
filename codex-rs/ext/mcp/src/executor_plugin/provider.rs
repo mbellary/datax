@@ -1,15 +1,15 @@
-use codex_config::McpServerConfig;
-use codex_config::McpServerTransportConfig;
-use codex_core_plugins::ResolvedExecutorPlugin;
-use codex_exec_server::ExecutorFileSystem;
-use codex_mcp::PluginMcpServerPlacement;
-use codex_mcp::parse_plugin_mcp_config;
-use codex_plugin::PluginResourceLocator;
-use codex_plugin::ResolvedPlugin;
-use codex_plugin::ResolvedPluginLocation;
-use codex_plugin::manifest::PluginManifestMcpServers;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use datax_config::McpServerConfig;
+use datax_config::McpServerTransportConfig;
+use datax_core_plugins::ResolvedExecutorPlugin;
+use datax_exec_server::ExecutorFileSystem;
+use datax_mcp::PluginMcpServerPlacement;
+use datax_mcp::parse_plugin_mcp_config;
+use datax_plugin::PluginResourceLocator;
+use datax_plugin::ResolvedPlugin;
+use datax_plugin::ResolvedPluginLocation;
+use datax_plugin::manifest::PluginManifestMcpServers;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_path_uri::PathUri;
 use std::io;
 use thiserror::Error;
 

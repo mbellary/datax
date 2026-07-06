@@ -40,21 +40,21 @@ use crate::tools::tool_with_model_visible_input_schema;
 use anyhow::Result;
 use anyhow::anyhow;
 use async_channel::Sender;
-use codex_api::SharedAuthProvider;
-use codex_async_utils::CancelErr;
-use codex_async_utils::OrCancelExt;
-use codex_config::McpServerConfig;
-use codex_config::McpServerTransportConfig;
-use codex_config::types::AuthKeyringBackendKind;
-use codex_config::types::OAuthCredentialsStoreMode;
-use codex_exec_server::HttpClient;
-use codex_exec_server::ReqwestHttpClient;
-use codex_protocol::mcp::McpServerInfo;
-use codex_protocol::protocol::Event;
-use codex_rmcp_client::ExecutorStdioServerLauncher;
-use codex_rmcp_client::LocalStdioServerLauncher;
-use codex_rmcp_client::RmcpClient;
-use codex_rmcp_client::StdioServerLauncher;
+use datax_api::SharedAuthProvider;
+use datax_async_utils::CancelErr;
+use datax_async_utils::OrCancelExt;
+use datax_config::McpServerConfig;
+use datax_config::McpServerTransportConfig;
+use datax_config::types::AuthKeyringBackendKind;
+use datax_config::types::OAuthCredentialsStoreMode;
+use datax_exec_server::HttpClient;
+use datax_exec_server::ReqwestHttpClient;
+use datax_protocol::mcp::McpServerInfo;
+use datax_protocol::protocol::Event;
+use datax_rmcp_client::ExecutorStdioServerLauncher;
+use datax_rmcp_client::LocalStdioServerLauncher;
+use datax_rmcp_client::RmcpClient;
+use datax_rmcp_client::StdioServerLauncher;
 use futures::future::BoxFuture;
 use futures::future::FutureExt;
 use futures::future::Shared;
@@ -563,7 +563,7 @@ fn mcp_initialize_request_params(
     }
     InitializeRequestParams::new(
         capabilities,
-        Implementation::new("codex-mcp-client", env!("CARGO_PKG_VERSION")).with_title("Codex"),
+        Implementation::new("datax-mcp-client", env!("CARGO_PKG_VERSION")).with_title("Codex"),
     )
     .with_protocol_version(ProtocolVersion::V_2025_06_18)
 }
@@ -645,7 +645,7 @@ async fn make_rmcp_client(
                 )) as Arc<dyn StdioServerLauncher>
             };
 
-            let cwd = cwd.map(codex_utils_path_uri::LegacyAppPathString::into_string);
+            let cwd = cwd.map(datax_utils_path_uri::LegacyAppPathString::into_string);
             RmcpClient::new_stdio_client(command_os, args_os, env_os, &env_vars, cwd, launcher)
                 .await
                 .map_err(|err| StartupOutcomeError::from(anyhow!(err)))

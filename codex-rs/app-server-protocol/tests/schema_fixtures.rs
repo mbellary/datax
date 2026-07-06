@@ -1,8 +1,8 @@
 use anyhow::Context;
 use anyhow::Result;
-use codex_app_server_protocol::generate_json_with_experimental;
-use codex_app_server_protocol::generate_typescript_schema_fixture_subtree_for_tests;
-use codex_app_server_protocol::read_schema_fixture_subtree;
+use datax_app_server_protocol::generate_json_with_experimental;
+use datax_app_server_protocol::generate_typescript_schema_fixture_subtree_for_tests;
+use datax_app_server_protocol::read_schema_fixture_subtree;
 use similar::TextDiff;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -107,7 +107,7 @@ Run `just write-app-server-schema` to overwrite with your changes.\n\n{diff}",
 fn schema_root() -> Result<PathBuf> {
     // In Bazel runfiles (especially manifest-only mode), resolving directories is not
     // reliable. Resolve a known file, then walk up to the schema root.
-    let typescript_index = codex_utils_cargo_bin::find_resource!("schema/typescript/index.ts")
+    let typescript_index = datax_utils_cargo_bin::find_resource!("schema/typescript/index.ts")
         .context("resolve TypeScript schema index.ts")?;
     let schema_root = typescript_index
         .parent()
@@ -117,7 +117,7 @@ fn schema_root() -> Result<PathBuf> {
 
     // Sanity check that the JSON fixtures resolve to the same schema root.
     let json_bundle =
-        codex_utils_cargo_bin::find_resource!("schema/json/codex_app_server_protocol.schemas.json")
+        datax_utils_cargo_bin::find_resource!("schema/json/codex_app_server_protocol.schemas.json")
             .context("resolve JSON schema bundle")?;
     let json_root = json_bundle
         .parent()

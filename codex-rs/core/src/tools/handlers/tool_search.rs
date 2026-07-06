@@ -10,14 +10,14 @@ use bm25::Document;
 use bm25::Language;
 use bm25::SearchEngine;
 use bm25::SearchEngineBuilder;
-use codex_tools::LoadableToolSpec;
-use codex_tools::TOOL_SEARCH_DEFAULT_LIMIT;
-use codex_tools::TOOL_SEARCH_TOOL_NAME;
-use codex_tools::ToolName;
-use codex_tools::ToolSearchEntry;
-use codex_tools::ToolSearchInfo;
-use codex_tools::ToolSpec;
-use codex_tools::coalesce_loadable_tool_specs;
+use datax_tools::LoadableToolSpec;
+use datax_tools::TOOL_SEARCH_DEFAULT_LIMIT;
+use datax_tools::TOOL_SEARCH_TOOL_NAME;
+use datax_tools::ToolName;
+use datax_tools::ToolSearchEntry;
+use datax_tools::ToolSearchInfo;
+use datax_tools::ToolSpec;
+use datax_tools::coalesce_loadable_tool_specs;
 use std::sync::Arc;
 use std::sync::Mutex;
 use tracing::instrument;
@@ -107,7 +107,7 @@ impl ToolExecutor<ToolInvocation> for ToolSearchHandler {
         true
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> datax_tools::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(invocation))
     }
 }
@@ -185,12 +185,12 @@ mod tests {
     use super::*;
     use crate::tools::handlers::DynamicToolHandler;
     use crate::tools::handlers::McpHandler;
-    use codex_mcp::ToolInfo;
-    use codex_protocol::dynamic_tools::DynamicToolFunctionSpec;
-    use codex_protocol::dynamic_tools::DynamicToolNamespaceSpec;
-    use codex_tools::ResponsesApiNamespace;
-    use codex_tools::ResponsesApiNamespaceTool;
-    use codex_tools::ResponsesApiTool;
+    use datax_mcp::ToolInfo;
+    use datax_protocol::dynamic_tools::DynamicToolFunctionSpec;
+    use datax_protocol::dynamic_tools::DynamicToolNamespaceSpec;
+    use datax_tools::ResponsesApiNamespace;
+    use datax_tools::ResponsesApiNamespaceTool;
+    use datax_tools::ResponsesApiTool;
     use pretty_assertions::assert_eq;
     use rmcp::model::Tool;
     use std::sync::Arc;
@@ -280,7 +280,7 @@ mod tests {
                             description: "Create events desktop tool".to_string(),
                             strict: false,
                             defer_loading: Some(true),
-                            parameters: codex_tools::JsonSchema::object(
+                            parameters: datax_tools::JsonSchema::object(
                                 Default::default(),
                                 /*required*/ None,
                                 Some(false.into()),
@@ -292,7 +292,7 @@ mod tests {
                             description: "List events desktop tool".to_string(),
                             strict: false,
                             defer_loading: Some(true),
-                            parameters: codex_tools::JsonSchema::object(
+                            parameters: datax_tools::JsonSchema::object(
                                 Default::default(),
                                 /*required*/ None,
                                 Some(false.into()),
@@ -310,10 +310,10 @@ mod tests {
                             .to_string(),
                         strict: false,
                         defer_loading: Some(true),
-                        parameters: codex_tools::JsonSchema::object(
+                        parameters: datax_tools::JsonSchema::object(
                             std::collections::BTreeMap::from([(
                                 "mode".to_string(),
-                                codex_tools::JsonSchema::string(/*description*/ None),
+                                datax_tools::JsonSchema::string(/*description*/ None),
                             )]),
                             Some(vec!["mode".to_string()]),
                             Some(false.into()),

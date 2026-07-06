@@ -1,5 +1,5 @@
 use super::*;
-use codex_plugin::PluginId;
+use datax_plugin::PluginId;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use tempfile::tempdir;

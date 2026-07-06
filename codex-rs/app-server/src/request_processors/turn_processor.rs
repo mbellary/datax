@@ -1,11 +1,11 @@
 use super::*;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::protocol::AdditionalContextEntry as CoreAdditionalContextEntry;
-use codex_protocol::protocol::AdditionalContextKind as CoreAdditionalContextKind;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::FunctionCallOutputContentItem;
+use datax_protocol::protocol::AdditionalContextEntry as CoreAdditionalContextEntry;
+use datax_protocol::protocol::AdditionalContextKind as CoreAdditionalContextKind;
+use datax_protocol::protocol::MultiAgentVersion;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::SubAgentSource;
 
 use crate::image_url::REMOTE_IMAGE_URL_ERROR;
 use crate::image_url::is_remote_image_url;
@@ -107,9 +107,9 @@ struct ThreadSettingsBuildParams {
     method: &'static str,
     environments: Option<TurnEnvironmentSelections>,
     runtime_workspace_roots: Option<Vec<AbsolutePathBuf>>,
-    approval_policy: Option<codex_app_server_protocol::AskForApproval>,
-    approvals_reviewer: Option<codex_app_server_protocol::ApprovalsReviewer>,
-    sandbox_policy: Option<codex_app_server_protocol::SandboxPolicy>,
+    approval_policy: Option<datax_app_server_protocol::AskForApproval>,
+    approvals_reviewer: Option<datax_app_server_protocol::ApprovalsReviewer>,
+    sandbox_policy: Option<datax_app_server_protocol::SandboxPolicy>,
     permissions: Option<String>,
     model: Option<String>,
     service_tier: Option<Option<String>>,
@@ -391,7 +391,7 @@ impl TurnRequestProcessor {
             ApiReviewTarget::Custom { instructions } => CoreReviewTarget::Custom { instructions },
         };
 
-        let hint = codex_core::review_prompts::user_facing_hint(&core_target);
+        let hint = datax_core::review_prompts::user_facing_hint(&core_target);
         let review_request = ReviewRequest {
             target: core_target,
             user_facing_hint: Some(hint.clone()),
@@ -403,7 +403,7 @@ impl TurnRequestProcessor {
     async fn request_trace_context(
         &self,
         request_id: &ConnectionRequestId,
-    ) -> Option<codex_protocol::protocol::W3cTraceContext> {
+    ) -> Option<datax_protocol::protocol::W3cTraceContext> {
         self.outgoing.request_trace_context(request_id).await
     }
 
@@ -540,7 +540,7 @@ impl TurnRequestProcessor {
 
         if turn_has_input {
             let config_snapshot = thread.config_snapshot().await;
-            codex_memories_write::start_memories_startup_task(
+            datax_memories_write::start_memories_startup_task(
                 Arc::clone(&self.thread_manager),
                 Arc::clone(&self.auth_manager),
                 thread_id,
@@ -604,7 +604,7 @@ impl TurnRequestProcessor {
         &self,
         thread: &CodexThread,
         params: ThreadSettingsBuildParams,
-    ) -> Result<codex_protocol::protocol::ThreadSettingsOverrides, JSONRPCErrorError> {
+    ) -> Result<datax_protocol::protocol::ThreadSettingsOverrides, JSONRPCErrorError> {
         let ThreadSettingsBuildParams {
             method,
             environments,
@@ -656,9 +656,9 @@ impl TurnRequestProcessor {
         let runtime_workspace_roots =
             runtime_workspace_roots_request.map(resolve_runtime_workspace_roots);
         let approval_policy =
-            approval_policy.map(codex_app_server_protocol::AskForApproval::to_core);
+            approval_policy.map(datax_app_server_protocol::AskForApproval::to_core);
         let approvals_reviewer =
-            approvals_reviewer.map(codex_app_server_protocol::ApprovalsReviewer::to_core);
+            approvals_reviewer.map(datax_app_server_protocol::ApprovalsReviewer::to_core);
         let sandbox_policy = sandbox_policy.map(|policy| policy.to_core());
         let (permission_profile, active_permission_profile, profile_workspace_roots) =
             if let Some(permissions) = permissions {
@@ -735,7 +735,7 @@ impl TurnRequestProcessor {
                 })?;
         }
 
-        Ok(codex_protocol::protocol::ThreadSettingsOverrides {
+        Ok(datax_protocol::protocol::ThreadSettingsOverrides {
             environments,
             workspace_roots: runtime_workspace_roots,
             profile_workspace_roots,
@@ -785,7 +785,7 @@ impl TurnRequestProcessor {
             )
             .await?;
 
-        if thread_settings != codex_protocol::protocol::ThreadSettingsOverrides::default() {
+        if thread_settings != datax_protocol::protocol::ThreadSettingsOverrides::default() {
             self.submit_core_op(
                 request_id,
                 thread.as_ref(),
@@ -908,11 +908,11 @@ impl TurnRequestProcessor {
                     ),
                     SteerInputError::ActiveTurnNotSteerable { turn_kind } => {
                         let (message, turn_steer_error) = match turn_kind {
-                            codex_protocol::protocol::NonSteerableTurnKind::Review => (
+                            datax_protocol::protocol::NonSteerableTurnKind::Review => (
                                 "cannot steer a review turn".to_string(),
                                 TurnSteerRequestError::NonSteerableReview,
                             ),
-                            codex_protocol::protocol::NonSteerableTurnKind::Compact => (
+                            datax_protocol::protocol::NonSteerableTurnKind::Compact => (
                                 "cannot steer a compact turn".to_string(),
                                 TurnSteerRequestError::NonSteerableCompact,
                             ),

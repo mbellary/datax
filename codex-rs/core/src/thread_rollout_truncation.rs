@@ -5,12 +5,12 @@
 
 use crate::context_manager::is_user_turn_boundary;
 use crate::event_mapping;
-use codex_protocol::items::TurnItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::protocol::RolloutItem;
+use datax_protocol::items::TurnItem;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::InitialHistory;
+use datax_protocol::protocol::InterAgentCommunication;
+use datax_protocol::protocol::RolloutItem;
 
 pub(crate) fn initial_history_has_prior_user_turns(conversation_history: &InitialHistory) -> bool {
     conversation_history.scan_rollout_items(rollout_item_is_user_turn_boundary)

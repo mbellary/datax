@@ -1,5 +1,5 @@
-use codex_core_skills::model::SkillDependencies;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_core_skills::model::SkillDependencies;
+use datax_utils_absolute_path::AbsolutePathBuf;
 
 /// Source authority that owns a skill package and must be used to read it.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

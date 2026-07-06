@@ -1,4 +1,4 @@
-use codex_config::HooksFile;
+use datax_config::HooksFile;
 
 /// Parsed plugin metadata parameterized by its resource locator representation.
 ///

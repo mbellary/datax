@@ -1,10 +1,10 @@
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::ConfigLayerStack;
-use codex_config::TomlValue;
-use codex_core::config::Config;
-use codex_features::Feature;
-use codex_hooks::HookListEntry;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_config::CONFIG_TOML_FILE;
+use datax_config::ConfigLayerStack;
+use datax_config::TomlValue;
+use datax_core::config::Config;
+use datax_features::Feature;
+use datax_hooks::HookListEntry;
+use datax_utils_absolute_path::AbsolutePathBuf;
 
 pub fn trust_discovered_hooks(config: &mut Config) {
     config
@@ -12,10 +12,10 @@ pub fn trust_discovered_hooks(config: &mut Config) {
         .enable(Feature::CodexHooks)
         .expect("test config should allow feature update");
 
-    let listed = codex_hooks::list_hooks(codex_hooks::HooksConfig {
+    let listed = datax_hooks::list_hooks(datax_hooks::HooksConfig {
         feature_enabled: true,
         config_layer_stack: Some(config.config_layer_stack.clone()),
-        ..codex_hooks::HooksConfig::default()
+        ..datax_hooks::HooksConfig::default()
     });
     assert!(
         !listed.hooks.is_empty(),

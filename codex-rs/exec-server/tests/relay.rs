@@ -12,19 +12,19 @@ use anyhow::Context;
 use anyhow::Result;
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
-use codex_api::AuthProvider;
-use codex_exec_server::ExecParams;
-use codex_exec_server::ExecResponse;
-use codex_exec_server::ExecServerClient;
-use codex_exec_server::ExecServerRuntimePaths;
-use codex_exec_server::FsReadFileParams;
-use codex_exec_server::NoiseChannelIdentity;
-use codex_exec_server::NoiseChannelPublicKey;
-use codex_exec_server::NoiseRendezvousConnectArgs;
-use codex_exec_server::NoiseRendezvousConnectBundle;
-use codex_exec_server::ProcessId;
-use codex_exec_server::RemoteEnvironmentConfig;
-use codex_utils_path_uri::PathUri;
+use datax_api::AuthProvider;
+use datax_exec_server::ExecParams;
+use datax_exec_server::ExecResponse;
+use datax_exec_server::ExecServerClient;
+use datax_exec_server::ExecServerRuntimePaths;
+use datax_exec_server::FsReadFileParams;
+use datax_exec_server::NoiseChannelIdentity;
+use datax_exec_server::NoiseChannelPublicKey;
+use datax_exec_server::NoiseRendezvousConnectArgs;
+use datax_exec_server::NoiseRendezvousConnectBundle;
+use datax_exec_server::ProcessId;
+use datax_exec_server::RemoteEnvironmentConfig;
+use datax_utils_path_uri::PathUri;
 use futures::SinkExt;
 use futures::StreamExt;
 use http::HeaderMap;
@@ -65,7 +65,7 @@ impl AuthProvider for StaticRegistryAuthProvider {
     }
 }
 
-fn static_registry_auth_provider() -> codex_api::SharedAuthProvider {
+fn static_registry_auth_provider() -> datax_api::SharedAuthProvider {
     Arc::new(StaticRegistryAuthProvider)
 }
 
@@ -105,7 +105,7 @@ async fn remote_environment_routes_encrypted_exec_server_rpc() -> Result<()> {
         ENVIRONMENT_ID.to_string(),
         static_registry_auth_provider(),
     )?;
-    let remote_environment = tokio::spawn(codex_exec_server::run_remote_environment(
+    let remote_environment = tokio::spawn(datax_exec_server::run_remote_environment(
         config,
         runtime_paths,
     ));

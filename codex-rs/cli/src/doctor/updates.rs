@@ -8,9 +8,9 @@
 
 use std::path::Path;
 
-use codex_core::config::Config;
-use codex_install_context::InstallContext;
-use codex_install_context::InstallMethod;
+use datax_core::config::Config;
+use datax_install_context::InstallContext;
+use datax_install_context::InstallMethod;
 use serde::Deserialize;
 
 use super::CheckStatus;

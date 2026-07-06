@@ -1,12 +1,12 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-core-skills"
+name = "datax-core-skills"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_core_skills"
+name = "datax_core_skills"
 path = "src/lib.rs"
 
 [lints]
@@ -14,21 +14,21 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-codex-analytics = { workspace = true }
-codex-app-server-protocol = { workspace = true }
-codex-config = { workspace = true }
-codex-context-fragments = { workspace = true }
-codex-exec-server = { workspace = true }
-codex-login = { workspace = true }
-codex-model-provider = { workspace = true }
-codex-otel = { workspace = true }
-codex-protocol = { workspace = true }
-codex-shell-command = { workspace = true }
-codex-skills = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-output-truncation = { workspace = true }
-codex-utils-path-uri = { workspace = true }
-codex-utils-plugins = { workspace = true }
+datax-analytics = { workspace = true }
+datax-app-server-protocol = { workspace = true }
+datax-config = { workspace = true }
+datax-context-fragments = { workspace = true }
+datax-exec-server = { workspace = true }
+datax-login = { workspace = true }
+datax-model-provider = { workspace = true }
+datax-otel = { workspace = true }
+datax-protocol = { workspace = true }
+datax-shell-command = { workspace = true }
+datax-skills = { workspace = true }
+datax-utils-absolute-path = { workspace = true }
+datax-utils-output-truncation = { workspace = true }
+datax-utils-path-uri = { workspace = true }
+datax-utils-plugins = { workspace = true }
 dirs = { workspace = true }
 dunce = { workspace = true }
 futures = { workspace = true }

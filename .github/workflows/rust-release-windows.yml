@@ -7,7 +7,7 @@ on:
 # nested submodules. Prefer the system git CLI across every Cargo invocation.
 env:
   CARGO_NET_GIT_FETCH_WITH_CLI: "true"
-  WINDOWS_BINARIES: "codex codex-responses-api-proxy codex-windows-sandbox-setup codex-command-runner codex-app-server"
+  WINDOWS_BINARIES: "datax datax-responses-api-proxy datax-windows-sandbox-setup datax-command-runner datax-app-server"
 
 jobs:
   build-windows-binaries:
@@ -28,42 +28,42 @@ jobs:
           - runner: windows-x64
             target: x86_64-pc-windows-msvc
             bundle: primary
-            binaries: "codex codex-responses-api-proxy"
+            binaries: "datax datax-responses-api-proxy"
             runs_on:
               group: ${{ github.event.repository.name }}-runners
               labels: ${{ github.event.repository.name }}-windows-x64
           - runner: windows-arm64
             target: aarch64-pc-windows-msvc
             bundle: primary
-            binaries: "codex codex-responses-api-proxy"
+            binaries: "datax datax-responses-api-proxy"
             runs_on:
               group: ${{ github.event.repository.name }}-runners
               labels: ${{ github.event.repository.name }}-windows-arm64
           - runner: windows-x64
             target: x86_64-pc-windows-msvc
             bundle: helpers
-            binaries: "codex-windows-sandbox-setup codex-command-runner"
+            binaries: "datax-windows-sandbox-setup datax-command-runner"
             runs_on:
               group: ${{ github.event.repository.name }}-runners
               labels: ${{ github.event.repository.name }}-windows-x64
           - runner: windows-arm64
             target: aarch64-pc-windows-msvc
             bundle: helpers
-            binaries: "codex-windows-sandbox-setup codex-command-runner"
+            binaries: "datax-windows-sandbox-setup datax-command-runner"
             runs_on:
               group: ${{ github.event.repository.name }}-runners
               labels: ${{ github.event.repository.name }}-windows-arm64
           - runner: windows-x64
             target: x86_64-pc-windows-msvc
             bundle: app-server
-            binaries: "codex-app-server"
+            binaries: "datax-app-server"
             runs_on:
               group: ${{ github.event.repository.name }}-runners
               labels: ${{ github.event.repository.name }}-windows-x64
           - runner: windows-arm64
             target: aarch64-pc-windows-msvc
             bundle: app-server
-            binaries: "codex-app-server"
+            binaries: "datax-app-server"
             runs_on:
               group: ${{ github.event.repository.name }}-runners
               labels: ${{ github.event.repository.name }}-windows-arm64
@@ -278,8 +278,8 @@ jobs:
         run: |
           set -euo pipefail
           target="${{ matrix.target }}"
-          archive_script="${GITHUB_WORKSPACE}/.github/scripts/build-codex-package-archive.sh"
-          temp_root="${RUNNER_TEMP}/codex-package-archives"
+          archive_script="${GITHUB_WORKSPACE}/.github/scripts/build-datax-package-archive.sh"
+          temp_root="${RUNNER_TEMP}/datax-package-archives"
 
           # The package helper rewrites cached DotSlash executables. Keep the
           # concurrent processes in separate temp roots because Windows cannot
@@ -322,7 +322,7 @@ jobs:
           python "${GITHUB_WORKSPACE}/sdk/python/scripts/update_sdk_artifacts.py" \
             stage-runtime \
             "$stage_dir" \
-            "dist/${{ matrix.target }}/codex-package-${{ matrix.target }}.tar.gz" \
+            "dist/${{ matrix.target }}/datax-package-${{ matrix.target }}.tar.gz" \
             --codex-version "${GITHUB_REF_NAME}" \
             --platform-tag "$platform_tag"
           "${RUNNER_TEMP}/python-runtime-build-venv/Scripts/python.exe" -m build --wheel --outdir "$wheel_dir" "$stage_dir"
@@ -347,9 +347,9 @@ jobs:
           # For compatibility with environments that lack the `zstd` tool we
           # additionally create a `.tar.gz` and `.zip` for every Windows binary.
           # The end result is:
-          #   codex-<target>.zst
-          #   codex-<target>.tar.gz
-          #   codex-<target>.zip
+          #   datax-<target>.zst
+          #   datax-<target>.tar.gz
+          #   datax-<target>.zip
           # Variables in the single-quoted script expand in the child shell.
           # shellcheck disable=SC2016
           printf '%s\0' "$dest"/* |
@@ -374,18 +374,18 @@ jobs:
             # Create zip archive for Windows binaries.
             # Must run from inside the dest dir so 7z does not embed the
             # directory path inside the zip.
-            if [[ "$base" == "codex-${target}.exe" ]]; then
+            if [[ "$base" == "datax-${target}.exe" ]]; then
               # Bundle the sandbox helper binaries into the main codex zip so
               # WinGet installs include the required helpers next to codex.exe.
               # Fall back to the single-binary zip if the helpers are missing
               # to avoid breaking releases.
               bundle_dir="$(mktemp -d)"
-              runner_src="$dest/codex-command-runner-${target}.exe"
-              setup_src="$dest/codex-windows-sandbox-setup-${target}.exe"
+              runner_src="$dest/datax-command-runner-${target}.exe"
+              setup_src="$dest/datax-windows-sandbox-setup-${target}.exe"
               if [[ -f "$runner_src" && -f "$setup_src" ]]; then
                 cp "$dest/$base" "$bundle_dir/$base"
-                cp "$runner_src" "$bundle_dir/codex-command-runner.exe"
-                cp "$setup_src" "$bundle_dir/codex-windows-sandbox-setup.exe"
+                cp "$runner_src" "$bundle_dir/datax-command-runner.exe"
+                cp "$setup_src" "$bundle_dir/datax-windows-sandbox-setup.exe"
                 # Use an absolute path so bundle zips land in the real dist
                 # dir even when 7z runs from a temp directory.
                 (cd "$bundle_dir" && 7z a "$repo_root/$dest/${base}.zip" .)

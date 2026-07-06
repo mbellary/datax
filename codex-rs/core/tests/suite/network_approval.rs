@@ -1,25 +1,5 @@
 use anyhow::Context;
 use anyhow::Result;
-use codex_config::types::ApprovalsReviewer;
-use codex_core::config::Constrained;
-use codex_exec_server::CreateDirectoryOptions;
-use codex_exec_server::LOCAL_ENVIRONMENT_ID;
-use codex_exec_server::REMOTE_ENVIRONMENT_ID;
-use codex_exec_server::RemoveOptions;
-use codex_features::Feature;
-use codex_protocol::approvals::NetworkApprovalContext;
-use codex_protocol::approvals::NetworkApprovalProtocol;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecApprovalRequestEvent;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::TurnEnvironmentSelection;
-use codex_protocol::protocol::TurnEnvironmentSelections;
-use codex_protocol::user_input::UserInput;
-use codex_utils_path_uri::PathUri;
 use core_test_support::PathBufExt;
 use core_test_support::PathExt;
 use core_test_support::get_remote_test_env;
@@ -42,6 +22,26 @@ use core_test_support::test_codex::test_codex;
 use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_with_timeout;
+use datax_config::types::ApprovalsReviewer;
+use datax_core::config::Constrained;
+use datax_exec_server::CreateDirectoryOptions;
+use datax_exec_server::LOCAL_ENVIRONMENT_ID;
+use datax_exec_server::REMOTE_ENVIRONMENT_ID;
+use datax_exec_server::RemoveOptions;
+use datax_features::Feature;
+use datax_protocol::approvals::NetworkApprovalContext;
+use datax_protocol::approvals::NetworkApprovalProtocol;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::ExecApprovalRequestEvent;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::ReviewDecision;
+use datax_protocol::protocol::TurnEnvironmentSelection;
+use datax_protocol::protocol::TurnEnvironmentSelections;
+use datax_protocol::user_input::UserInput;
+use datax_utils_path_uri::PathUri;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
@@ -53,7 +53,7 @@ use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 use tempfile::TempDir;
 
-const NETWORK_TEST_HOST: &str = "codex-network-test.invalid";
+const NETWORK_TEST_HOST: &str = "datax-network-test.invalid";
 const NETWORK_TEST_TARGET: &str = "http://codex-network-test.invalid:80";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -261,15 +261,15 @@ async fn submit_managed_network_turn(
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(turn_environment_selections),
                 approval_policy: Some(AskForApproval::OnFailure),
                 approvals_reviewer: Some(ApprovalsReviewer::User),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                    mode: datax_protocol::config_types::ModeKind::Default,
+                    settings: datax_protocol::config_types::Settings {
                         model: test.session_configured.model.clone(),
                         reasoning_effort: None,
                         developer_instructions: None,

@@ -1,8 +1,8 @@
-use codex_protocol::account::PlanType;
-use codex_protocol::protocol::CreditsSnapshot;
-use codex_protocol::protocol::RateLimitReachedType;
-use codex_protocol::protocol::RateLimitSnapshot;
-use codex_protocol::protocol::RateLimitWindow;
+use datax_protocol::account::PlanType;
+use datax_protocol::protocol::CreditsSnapshot;
+use datax_protocol::protocol::RateLimitReachedType;
+use datax_protocol::protocol::RateLimitSnapshot;
+use datax_protocol::protocol::RateLimitWindow;
 use http::HeaderMap;
 use serde::Deserialize;
 use std::collections::BTreeSet;

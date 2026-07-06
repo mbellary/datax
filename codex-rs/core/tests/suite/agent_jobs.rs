@@ -1,5 +1,4 @@
 use anyhow::Result;
-use codex_features::Feature;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_function_call;
 use core_test_support::responses::ev_response_created;
@@ -7,6 +6,7 @@ use core_test_support::responses::sse;
 use core_test_support::responses::sse_response;
 use core_test_support::responses::start_mock_server;
 use core_test_support::test_codex::test_codex;
+use datax_features::Feature;
 use regex_lite::Regex;
 use serde_json::Value;
 use serde_json::json;
@@ -432,7 +432,7 @@ async fn spawn_agents_on_csv_stop_halts_future_items() -> Result<()> {
         .expect("job_id from csv");
     let db = test.codex.state_db().expect("state db");
     let job = db.get_agent_job(job_id.as_str()).await?.expect("job");
-    assert_eq!(job.status, codex_state::AgentJobStatus::Cancelled);
+    assert_eq!(job.status, datax_state::AgentJobStatus::Cancelled);
     let progress = db.get_agent_job_progress(job_id.as_str()).await?;
     assert_eq!(progress.total_items, 3);
     assert_eq!(progress.completed_items, 1);

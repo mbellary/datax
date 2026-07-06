@@ -77,7 +77,7 @@ PACKAGE_NATIVE_COMPONENTS: dict[str, list[str]] = {
     "datax-darwin-arm64": [DATAX_PACKAGE_COMPONENT],
     "datax-win32-x64": [DATAX_PACKAGE_COMPONENT],
     "datax-win32-arm64": [DATAX_PACKAGE_COMPONENT],
-    "codex-responses-api-proxy": ["codex-responses-api-proxy"],
+    "datax-responses-api-proxy": ["datax-responses-api-proxy"],
     "codex-sdk": [],
 }
 
@@ -181,11 +181,11 @@ def main() -> int:
                     f"    node {staging_dir_str}/bin/datax.js --version\n"
                     f"    node {staging_dir_str}/bin/datax.js --help\n\n"
                 )
-            elif package == "codex-responses-api-proxy":
+            elif package == "datax-responses-api-proxy":
                 print(
                     f"Staged version {version} for release in {staging_dir_str}\n\n"
                     "Verify the responses API proxy:\n"
-                    f"    node {staging_dir_str}/bin/codex-responses-api-proxy.js --help\n\n"
+                    f"    node {staging_dir_str}/bin/datax-responses-api-proxy.js --help\n\n"
                 )
             elif package in DATAX_PLATFORM_PACKAGES:
                 print(
@@ -269,11 +269,11 @@ def stage_sources(staging_dir: Path, version: str, package: str) -> None:
         package_manager = datax_package_json.get("packageManager")
         if isinstance(package_manager, str):
             package_json["packageManager"] = package_manager
-    elif package == "codex-responses-api-proxy":
+    elif package == "datax-responses-api-proxy":
         bin_dir = staging_dir / "bin"
         bin_dir.mkdir(parents=True, exist_ok=True)
-        launcher_src = RESPONSES_API_PROXY_NPM_ROOT / "bin" / "codex-responses-api-proxy.js"
-        shutil.copy2(launcher_src, bin_dir / "codex-responses-api-proxy.js")
+        launcher_src = RESPONSES_API_PROXY_NPM_ROOT / "bin" / "datax-responses-api-proxy.js"
+        shutil.copy2(launcher_src, bin_dir / "datax-responses-api-proxy.js")
 
         readme_src = RESPONSES_API_PROXY_NPM_ROOT / "README.md"
         if readme_src.exists():

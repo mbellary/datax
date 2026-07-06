@@ -9,29 +9,29 @@ use crate::transport::AppServerTransport;
 use anyhow::Result;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::write_mock_responses_config_toml;
-use codex_analytics::AppServerRpcTransport;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::InitializeCapabilities;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::InitializeResponse;
-use codex_app_server_protocol::JSONRPCRequest;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::UserInput;
-use codex_arg0::Arg0DispatchPaths;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::LoaderOverrides;
-use codex_core::config::Config;
-use codex_core::config::ConfigBuilder;
-use codex_exec_server::EnvironmentManager;
-use codex_feedback::CodexFeedback;
-use codex_login::AuthManager;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::W3cTraceContext;
+use datax_analytics::AppServerRpcTransport;
+use datax_app_server_protocol::ClientInfo;
+use datax_app_server_protocol::ClientRequest;
+use datax_app_server_protocol::InitializeCapabilities;
+use datax_app_server_protocol::InitializeParams;
+use datax_app_server_protocol::InitializeResponse;
+use datax_app_server_protocol::JSONRPCRequest;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::ThreadStartParams;
+use datax_app_server_protocol::ThreadStartResponse;
+use datax_app_server_protocol::TurnStartParams;
+use datax_app_server_protocol::TurnStartResponse;
+use datax_app_server_protocol::UserInput;
+use datax_arg0::Arg0DispatchPaths;
+use datax_config::CloudConfigBundleLoader;
+use datax_config::LoaderOverrides;
+use datax_core::config::Config;
+use datax_core::config::ConfigBuilder;
+use datax_exec_server::EnvironmentManager;
+use datax_feedback::CodexFeedback;
+use datax_login::AuthManager;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::W3cTraceContext;
 use opentelemetry::global;
 use opentelemetry::trace::SpanId;
 use opentelemetry::trace::SpanKind;
@@ -90,7 +90,7 @@ fn init_test_tracing() -> &'static TestTracing {
         let provider = SdkTracerProvider::builder()
             .with_simple_exporter(exporter.clone())
             .build();
-        let tracer = provider.tracer("codex-app-server-message-processor-tests");
+        let tracer = provider.tracer("datax-app-server-message-processor-tests");
         global::set_text_map_propagator(TraceContextPropagator::new());
         let subscriber =
             tracing_subscriber::registry().with(tracing_opentelemetry::layer().with_tracer(tracer));
@@ -138,7 +138,7 @@ impl TracingHarness {
                     request_id: RequestId::Integer(1),
                     params: InitializeParams {
                         client_info: ClientInfo {
-                            name: "codex-app-server-tests".to_string(),
+                            name: "datax-app-server-tests".to_string(),
                             title: None,
                             version: "0.1.0".to_string(),
                         },
@@ -242,7 +242,7 @@ async fn build_test_processor(
         /*strict_config*/ false,
         CloudConfigBundleLoader::default(),
         Arg0DispatchPaths::default(),
-        Arc::new(codex_config::NoopThreadConfigLoader),
+        Arc::new(datax_config::NoopThreadConfigLoader),
     );
     let analytics_events_client =
         analytics_events_client_from_config(Arc::clone(&auth_manager), config.as_ref());
@@ -478,7 +478,7 @@ async fn read_thread_started_notification(
                 };
                 if matches!(
                     notification,
-                    codex_app_server_protocol::ServerNotification::ThreadStarted(_)
+                    datax_app_server_protocol::ServerNotification::ThreadStarted(_)
                 ) {
                     return;
                 }
@@ -491,7 +491,7 @@ async fn read_thread_started_notification(
                 };
                 if matches!(
                     notification,
-                    codex_app_server_protocol::ServerNotification::ThreadStarted(_)
+                    datax_app_server_protocol::ServerNotification::ThreadStarted(_)
                 ) {
                     return;
                 }

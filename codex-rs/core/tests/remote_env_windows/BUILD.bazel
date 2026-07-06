@@ -7,7 +7,7 @@ wine_rust_test(
     crate_name = "remote_env_windows_test",
     crate_root = "remote_env_windows_test.rs",
     host_binaries = {
-        "codex-app-server": "//codex-rs/app-server:codex-app-server",
+        "datax-app-server": "//codex-rs/app-server:datax-app-server",
     },
     windows_binaries = {
         "wine-windows-exec-server": "//codex-rs/exec-server/testing:windows-exec-server",

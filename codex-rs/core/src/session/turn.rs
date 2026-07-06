@@ -67,51 +67,51 @@ use crate::tools::spec_plan::tool_suggest_enabled;
 use crate::turn_diff_tracker::TurnDiffTracker;
 use crate::turn_timing::record_turn_ttft_metric;
 use crate::util::error_or_panic;
-use codex_analytics::AppInvocation;
-use codex_analytics::CompactionPhase;
-use codex_analytics::CompactionReason;
-use codex_analytics::InvocationType;
-use codex_analytics::TurnResolvedConfigFact;
-use codex_analytics::build_track_events_context;
-use codex_async_utils::OrCancelExt;
-use codex_core_plugins::RecommendedPluginCandidatesInput;
-use codex_core_skills::injection::InjectedHostSkillPrompts;
-use codex_extension_api::TurnInputContext;
-use codex_extension_api::TurnInputEnvironment;
-use codex_features::Feature;
-use codex_git_utils::get_git_repo_root_with_fs;
-use codex_protocol::config_types::AutoCompactTokenLimitScope;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::items::PlanItem;
-use codex_protocol::items::TurnItem;
-use codex_protocol::items::build_hook_prompt_message;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::AgentMessageContentDeltaEvent;
-use codex_protocol::protocol::AgentReasoningSectionBreakEvent;
-use codex_protocol::protocol::CodexErrorInfo;
-use codex_protocol::protocol::ErrorEvent;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::PlanDeltaEvent;
-use codex_protocol::protocol::ReasoningContentDeltaEvent;
-use codex_protocol::protocol::ReasoningRawContentDeltaEvent;
-use codex_protocol::protocol::SafetyBufferingEvent;
-use codex_protocol::protocol::TurnDiffEvent;
-use codex_protocol::protocol::WarningEvent;
-use codex_protocol::user_input::UserInput;
-use codex_tools::ToolName;
-use codex_tools::filter_request_plugin_install_discoverable_tools_for_client;
-use codex_utils_stream_parser::AssistantTextChunk;
-use codex_utils_stream_parser::AssistantTextStreamParser;
-use codex_utils_stream_parser::ProposedPlanSegment;
-use codex_utils_stream_parser::extract_proposed_plan_text;
-use codex_utils_stream_parser::strip_citations;
+use datax_analytics::AppInvocation;
+use datax_analytics::CompactionPhase;
+use datax_analytics::CompactionReason;
+use datax_analytics::InvocationType;
+use datax_analytics::TurnResolvedConfigFact;
+use datax_analytics::build_track_events_context;
+use datax_async_utils::OrCancelExt;
+use datax_core_plugins::RecommendedPluginCandidatesInput;
+use datax_core_skills::injection::InjectedHostSkillPrompts;
+use datax_extension_api::TurnInputContext;
+use datax_extension_api::TurnInputEnvironment;
+use datax_features::Feature;
+use datax_git_utils::get_git_repo_root_with_fs;
+use datax_protocol::config_types::AutoCompactTokenLimitScope;
+use datax_protocol::config_types::ModeKind;
+use datax_protocol::config_types::ServiceTier;
+use datax_protocol::error::CodexErr;
+use datax_protocol::error::Result as CodexResult;
+use datax_protocol::items::PlanItem;
+use datax_protocol::items::TurnItem;
+use datax_protocol::items::build_hook_prompt_message;
+use datax_protocol::models::BaseInstructions;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::MessagePhase;
+use datax_protocol::models::ResponseInputItem;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::protocol::AgentMessageContentDeltaEvent;
+use datax_protocol::protocol::AgentReasoningSectionBreakEvent;
+use datax_protocol::protocol::CodexErrorInfo;
+use datax_protocol::protocol::ErrorEvent;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::PlanDeltaEvent;
+use datax_protocol::protocol::ReasoningContentDeltaEvent;
+use datax_protocol::protocol::ReasoningRawContentDeltaEvent;
+use datax_protocol::protocol::SafetyBufferingEvent;
+use datax_protocol::protocol::TurnDiffEvent;
+use datax_protocol::protocol::WarningEvent;
+use datax_protocol::user_input::UserInput;
+use datax_tools::ToolName;
+use datax_tools::filter_request_plugin_install_discoverable_tools_for_client;
+use datax_utils_stream_parser::AssistantTextChunk;
+use datax_utils_stream_parser::AssistantTextStreamParser;
+use datax_utils_stream_parser::ProposedPlanSegment;
+use datax_utils_stream_parser::extract_proposed_plan_text;
+use datax_utils_stream_parser::strip_citations;
 use futures::future::BoxFuture;
 use futures::prelude::*;
 use futures::stream::FuturesOrdered;
@@ -142,7 +142,7 @@ use tracing::warn;
 pub(crate) async fn run_turn(
     sess: Arc<Session>,
     turn_context: Arc<TurnContext>,
-    turn_extension_data: Arc<codex_extension_api::ExtensionData>,
+    turn_extension_data: Arc<datax_extension_api::ExtensionData>,
     input: Vec<TurnInput>,
     prewarmed_client_session: Option<ModelClientSession>,
     cancellation_token: CancellationToken,
@@ -573,7 +573,7 @@ async fn build_skills_and_plugins(
         Vec::new()
     };
     let available_connectors = if turn_context.apps_enabled() {
-        let connectors = codex_connectors::merge::merge_plugin_connectors_with_accessible(
+        let connectors = datax_connectors::merge::merge_plugin_connectors_with_accessible(
             loaded_plugins
                 .effective_apps()
                 .into_iter()
@@ -1083,7 +1083,7 @@ pub(super) fn collect_explicit_app_ids_from_skill_items(
 
     let connector_slug_counts = build_connector_slug_counts(connectors);
     for connector in connectors {
-        let slug = codex_connectors::metadata::connector_mention_slug(connector);
+        let slug = datax_connectors::metadata::connector_mention_slug(connector);
         let connector_count = connector_slug_counts.get(&slug).copied().unwrap_or(0);
         let skill_count = skill_name_counts_lower.get(&slug).copied().unwrap_or(0);
         if connector_count == 1 && skill_count == 0 && mention_names_lower.contains(&slug) {
@@ -1126,7 +1126,7 @@ pub(crate) fn build_prompt(
 async fn run_sampling_request(
     sess: Arc<Session>,
     turn_context: Arc<TurnContext>,
-    turn_store: Arc<codex_extension_api::ExtensionData>,
+    turn_store: Arc<datax_extension_api::ExtensionData>,
     turn_diff_tracker: SharedTurnDiffTracker,
     client_session: &mut ModelClientSession,
     responses_metadata: &CodexResponsesMetadata,
@@ -1253,7 +1253,7 @@ pub(crate) async fn built_tools(
             connectors::with_app_enabled_state(connectors.clone(), &turn_context.config)
         });
     let connectors = if apps_enabled {
-        let connectors = codex_connectors::merge::merge_plugin_connectors_with_accessible(
+        let connectors = datax_connectors::merge::merge_plugin_connectors_with_accessible(
             loaded_plugins
                 .effective_apps()
                 .into_iter()
@@ -1528,11 +1528,11 @@ async fn maybe_emit_pending_agent_message_start(
 }
 
 /// Agent messages are text-only today; concatenate all text entries.
-fn agent_message_text(item: &codex_protocol::items::AgentMessageItem) -> String {
+fn agent_message_text(item: &datax_protocol::items::AgentMessageItem) -> String {
     item.content
         .iter()
         .map(|entry| match entry {
-            codex_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
+            datax_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
         })
         .collect()
 }
@@ -1786,7 +1786,7 @@ async fn maybe_complete_plan_item_from_message(
 async fn emit_agent_message_in_plan_mode(
     sess: &Session,
     turn_context: &TurnContext,
-    agent_message: codex_protocol::items::AgentMessageItem,
+    agent_message: datax_protocol::items::AgentMessageItem,
     state: &mut PlanModeStreamState,
 ) {
     let agent_message_id = agent_message.id.clone();
@@ -1807,7 +1807,7 @@ async fn emit_agent_message_in_plan_mode(
             .pending_agent_message_items
             .remove(&agent_message_id)
             .unwrap_or_else(|| {
-                TurnItem::AgentMessage(codex_protocol::items::AgentMessageItem {
+                TurnItem::AgentMessage(datax_protocol::items::AgentMessageItem {
                     id: agent_message_id.clone(),
                     content: Vec::new(),
                     phase: None,
@@ -1850,7 +1850,7 @@ async fn emit_turn_item_in_plan_mode(
 async fn handle_assistant_item_done_in_plan_mode(
     sess: &Session,
     turn_context: &TurnContext,
-    turn_store: &codex_extension_api::ExtensionData,
+    turn_store: &datax_extension_api::ExtensionData,
     item: &ResponseItem,
     state: &mut PlanModeStreamState,
     previously_active_item: Option<&TurnItem>,
@@ -1939,7 +1939,7 @@ async fn try_run_sampling_request(
     tool_runtime: ToolCallRuntime,
     sess: Arc<Session>,
     turn_context: Arc<TurnContext>,
-    turn_store: Arc<codex_extension_api::ExtensionData>,
+    turn_store: Arc<datax_extension_api::ExtensionData>,
     client_session: &mut ModelClientSession,
     responses_metadata: &CodexResponsesMetadata,
     turn_diff_tracker: SharedTurnDiffTracker,
@@ -2015,7 +2015,7 @@ async fn try_run_sampling_request(
             .await
         {
             Ok(event) => event,
-            Err(codex_async_utils::CancelErr::Cancelled) => break Err(CodexErr::TurnAborted),
+            Err(datax_async_utils::CancelErr::Cancelled) => break Err(CodexErr::TurnAborted),
         };
 
         let event = match event {
@@ -2160,7 +2160,7 @@ async fn try_run_sampling_request(
                             assistant_message_stream_parsers.seed_item_text(&item_id, &raw_text);
                         if let TurnItem::AgentMessage(agent_message) = &mut turn_item {
                             agent_message.content =
-                                vec![codex_protocol::items::AgentMessageContent::Text {
+                                vec![datax_protocol::items::AgentMessageContent::Text {
                                     text: if plan_mode {
                                         String::new()
                                     } else {

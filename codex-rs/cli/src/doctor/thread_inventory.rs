@@ -4,12 +4,12 @@ use super::CheckStatus;
 use super::Config;
 use super::DoctorCheck;
 use super::DoctorIssue;
-use codex_protocol::protocol::InternalSessionSource;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_rollout::RolloutRecorder;
-use codex_state::ThreadStateAuditRow;
-use codex_utils_path::normalize_for_path_comparison;
+use datax_protocol::protocol::InternalSessionSource;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::SubAgentSource;
+use datax_rollout::RolloutRecorder;
+use datax_state::ThreadStateAuditRow;
+use datax_utils_path::normalize_for_path_comparison;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -96,7 +96,7 @@ async fn thread_inventory_check_for_roots(
     default_provider: &str,
 ) -> DoctorCheck {
     let scan = scan_rollout_files(codex_home).await;
-    let state_db_path = codex_state::state_db_path(sqlite_home);
+    let state_db_path = datax_state::state_db_path(sqlite_home);
 
     let mut details = vec![
         format!("default model provider: {default_provider}"),
@@ -127,7 +127,7 @@ async fn thread_inventory_check_for_roots(
         return missing_state_db_check(scan, details);
     }
 
-    let rows = match codex_state::read_thread_state_audit_rows(&state_db_path).await {
+    let rows = match datax_state::read_thread_state_audit_rows(&state_db_path).await {
         Ok(rows) => rows,
         Err(err) => {
             details.push(format!("rollout DB read error: {err}"));
@@ -510,7 +510,7 @@ async fn thread_id_from_rollout(path: &Path) -> RolloutThreadId {
     if items.is_empty() {
         return RolloutThreadId::Unusable("no parseable rollout items".to_string());
     }
-    codex_rollout::builder_from_items(items.as_slice(), path)
+    datax_rollout::builder_from_items(items.as_slice(), path)
         .map(|builder| RolloutThreadId::Id(builder.id.to_string()))
         .unwrap_or(RolloutThreadId::MalformedName)
 }
@@ -677,9 +677,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_protocol::ThreadId;
-    use codex_protocol::protocol::RolloutItem;
-    use codex_protocol::protocol::RolloutLine;
+    use datax_protocol::ThreadId;
+    use datax_protocol::protocol::RolloutItem;
+    use datax_protocol::protocol::RolloutLine;
     use pretty_assertions::assert_eq;
     use sqlx::sqlite::SqliteConnectOptions;
     use sqlx::sqlite::SqlitePoolOptions;
@@ -796,7 +796,7 @@ mod tests {
         async fn new() -> Self {
             let codex_home = TempDir::new().expect("codex home");
             let sqlite_home = TempDir::new().expect("sqlite home");
-            let _runtime = codex_state::StateRuntime::init(
+            let _runtime = datax_state::StateRuntime::init(
                 sqlite_home.path().to_path_buf(),
                 "test-provider".to_string(),
             )
@@ -819,8 +819,8 @@ mod tests {
             let parsed_thread_id = ThreadId::from_string(thread_id).expect("thread id");
             let rollout_line = RolloutLine {
                 timestamp: timestamp.to_string(),
-                item: RolloutItem::SessionMeta(codex_protocol::protocol::SessionMetaLine {
-                    meta: codex_protocol::protocol::SessionMeta {
+                item: RolloutItem::SessionMeta(datax_protocol::protocol::SessionMetaLine {
+                    meta: datax_protocol::protocol::SessionMeta {
                         session_id: parsed_thread_id.into(),
                         id: parsed_thread_id,
                         timestamp: timestamp.to_string(),
@@ -840,7 +840,7 @@ mod tests {
         }
 
         async fn insert_thread_row(&self, id: &str, rollout_path: &Path, archived: bool) {
-            let state_db_path = codex_state::state_db_path(self.sqlite_home.path());
+            let state_db_path = datax_state::state_db_path(self.sqlite_home.path());
             let options = SqliteConnectOptions::new()
                 .filename(state_db_path)
                 .create_if_missing(false);

@@ -9,10 +9,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_exec_server::Environment;
-use codex_exec_server::EnvironmentManager;
-use codex_protocol::models::PermissionProfile;
-use codex_utils_path_uri::PathUri;
+use datax_exec_server::Environment;
+use datax_exec_server::EnvironmentManager;
+use datax_protocol::models::PermissionProfile;
+use datax_utils_path_uri::PathUri;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -57,7 +57,7 @@ impl McpRuntimeContext {
     pub(crate) fn resolve_server_environment(
         &self,
         server_name: &str,
-        config: &codex_config::McpServerConfig,
+        config: &datax_config::McpServerConfig,
     ) -> Result<Option<Arc<Environment>>, String> {
         // Resolve `"local"` through the shared registry when available. Local
         // HTTP is the one current exception: it can use the ambient HTTP client
@@ -71,10 +71,10 @@ impl McpRuntimeContext {
 
         if config.is_local_environment() {
             return match config.transport {
-                codex_config::McpServerTransportConfig::Stdio { .. } => Err(format!(
+                datax_config::McpServerTransportConfig::Stdio { .. } => Err(format!(
                     "local stdio MCP server `{server_name}` requires a local environment"
                 )),
-                codex_config::McpServerTransportConfig::StreamableHttp { .. } => Ok(None),
+                datax_config::McpServerTransportConfig::StreamableHttp { .. } => Ok(None),
             };
         }
 
@@ -86,7 +86,7 @@ impl McpRuntimeContext {
 }
 
 pub(crate) fn emit_duration(metric: &str, duration: Duration, tags: &[(&str, &str)]) {
-    if let Some(metrics) = codex_otel::global() {
+    if let Some(metrics) = datax_otel::global() {
         let _ = metrics.record_duration(metric, duration, tags);
     }
 }
@@ -95,11 +95,11 @@ pub(crate) fn emit_duration(metric: &str, duration: Duration, tags: &[(&str, &st
 mod tests {
     use std::collections::HashMap;
 
-    use codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID;
-    use codex_config::McpServerConfig;
-    use codex_config::McpServerTransportConfig;
-    use codex_exec_server::EnvironmentManager;
-    use codex_utils_path_uri::LegacyAppPathString;
+    use datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID;
+    use datax_config::McpServerConfig;
+    use datax_config::McpServerTransportConfig;
+    use datax_exec_server::EnvironmentManager;
+    use datax_utils_path_uri::LegacyAppPathString;
     use pretty_assertions::assert_eq;
 
     use super::*;

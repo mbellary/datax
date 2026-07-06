@@ -1,8 +1,8 @@
 use anyhow::Result;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::MarketplaceConfigUpdate;
-use codex_config::record_user_marketplace;
-use codex_utils_absolute_path::canonicalize_existing_preserving_symlinks;
+use datax_config::CONFIG_TOML_FILE;
+use datax_config::MarketplaceConfigUpdate;
+use datax_config::record_user_marketplace;
+use datax_utils_absolute_path::canonicalize_existing_preserving_symlinks;
 use predicates::prelude::PredicateBooleanExt;
 use predicates::str::contains;
 use pretty_assertions::assert_eq;
@@ -22,7 +22,7 @@ fn marketplace_list_row(marketplace_name: &str, root: &Path) -> String {
 }
 
 fn codex_command(codex_home: &Path) -> Result<assert_cmd::Command> {
-    let mut cmd = assert_cmd::Command::new(codex_utils_cargo_bin::cargo_bin("codex")?);
+    let mut cmd = assert_cmd::Command::new(datax_utils_cargo_bin::cargo_bin("codex")?);
     cmd.env("CODEX_HOME", codex_home);
     cmd.env("HOME", codex_home);
     Ok(cmd)
@@ -205,8 +205,8 @@ fn setup_local_marketplace_with_implicit_system_roots() -> Result<(TempDir, Temp
     let cache_home = TempDir::new()?;
     let runtime_root = cache_home
         .path()
-        .join("codex-runtimes")
-        .join("codex-primary-runtime")
+        .join("datax-runtimes")
+        .join("datax-primary-runtime")
         .join("plugins")
         .join("openai-primary-runtime");
     std::fs::create_dir_all(&runtime_root)?;

@@ -1,7 +1,7 @@
 use super::*;
-use codex_app_server_protocol::ConsumeAccountRateLimitResetCreditOutcome;
-use codex_app_server_protocol::ConsumeAccountRateLimitResetCreditResponse;
-use codex_app_server_protocol::RateLimitResetCreditsSummary;
+use datax_app_server_protocol::ConsumeAccountRateLimitResetCreditOutcome;
+use datax_app_server_protocol::ConsumeAccountRateLimitResetCreditResponse;
+use datax_app_server_protocol::RateLimitResetCreditsSummary;
 use uuid::Uuid;
 
 const TEST_OVERLAY_VIEW_ID: &str = "usage-test-overlay";

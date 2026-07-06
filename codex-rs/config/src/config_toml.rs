@@ -27,30 +27,30 @@ use crate::types::ToolSuggestConfig;
 use crate::types::Tui;
 use crate::types::UriBasedFileOpener;
 use crate::types::WindowsToml;
-use codex_features::FeaturesToml;
-use codex_model_provider_info::AMAZON_BEDROCK_PROVIDER_ID;
-use codex_model_provider_info::LEGACY_OLLAMA_CHAT_PROVIDER_ID;
-use codex_model_provider_info::LMSTUDIO_OSS_PROVIDER_ID;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::OLLAMA_CHAT_PROVIDER_REMOVED_ERROR;
-use codex_model_provider_info::OLLAMA_OSS_PROVIDER_ID;
-use codex_model_provider_info::OPENAI_PROVIDER_ID;
-use codex_protocol::config_types::AutoCompactTokenLimitScope;
-use codex_protocol::config_types::ForcedLoginMethod;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::config_types::SandboxMode;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::config_types::Verbosity;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::config_types::WebSearchToolConfig;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path::normalize_for_path_comparison;
+use datax_features::FeaturesToml;
+use datax_model_provider_info::AMAZON_BEDROCK_PROVIDER_ID;
+use datax_model_provider_info::LEGACY_OLLAMA_CHAT_PROVIDER_ID;
+use datax_model_provider_info::LMSTUDIO_OSS_PROVIDER_ID;
+use datax_model_provider_info::ModelProviderInfo;
+use datax_model_provider_info::OLLAMA_CHAT_PROVIDER_REMOVED_ERROR;
+use datax_model_provider_info::OLLAMA_OSS_PROVIDER_ID;
+use datax_model_provider_info::OPENAI_PROVIDER_ID;
+use datax_protocol::config_types::AutoCompactTokenLimitScope;
+use datax_protocol::config_types::ForcedLoginMethod;
+use datax_protocol::config_types::Personality;
+use datax_protocol::config_types::ReasoningSummary;
+use datax_protocol::config_types::SandboxMode;
+use datax_protocol::config_types::TrustLevel;
+use datax_protocol::config_types::Verbosity;
+use datax_protocol::config_types::WebSearchMode;
+use datax_protocol::config_types::WebSearchToolConfig;
+use datax_protocol::config_types::WindowsSandboxLevel;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::openai_models::ReasoningEffort;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_protocol::protocol::AskForApproval;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_path::normalize_for_path_comparison;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Deserializer;
@@ -605,8 +605,8 @@ pub enum RealtimeTransport {
     Websocket,
 }
 
-pub use codex_protocol::protocol::RealtimeConversationVersion as RealtimeWsVersion;
-pub use codex_protocol::protocol::RealtimeVoice;
+pub use datax_protocol::protocol::RealtimeConversationVersion as RealtimeWsVersion;
+pub use datax_protocol::protocol::RealtimeVoice;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
 #[schemars(deny_unknown_fields)]

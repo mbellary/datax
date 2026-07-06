@@ -20,7 +20,7 @@ impl WineExecServer {
         F: FnOnce(String, PathBuf) -> Fut,
         Fut: Future<Output = Result<T>>,
     {
-        let executable = codex_utils_cargo_bin::cargo_bin("wine-windows-exec-server")?;
+        let executable = datax_utils_cargo_bin::cargo_bin("wine-windows-exec-server")?;
         let mut exec_server = WineTestCommand::new(executable)
             .env("CODEX_HOME", r"C:\codex-home")
             .spawn()?;

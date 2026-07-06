@@ -7,17 +7,17 @@ use crate::tools::TELEMETRY_PREVIEW_MAX_LINES;
 use crate::tools::TELEMETRY_PREVIEW_TRUNCATION_NOTICE;
 use crate::turn_diff_tracker::TurnDiffTracker;
 use crate::unified_exec::resolve_max_tokens;
-use codex_protocol::mcp::CallToolResult;
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::function_call_output_content_items_to_text;
-use codex_tools::LoadableToolSpec;
-use codex_tools::ToolName;
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_output_truncation::formatted_truncate_text;
-use codex_utils_string::take_bytes_at_char_boundary;
+use datax_protocol::mcp::CallToolResult;
+use datax_protocol::models::FunctionCallOutputBody;
+use datax_protocol::models::FunctionCallOutputContentItem;
+use datax_protocol::models::FunctionCallOutputPayload;
+use datax_protocol::models::ResponseInputItem;
+use datax_protocol::models::function_call_output_content_items_to_text;
+use datax_tools::LoadableToolSpec;
+use datax_tools::ToolName;
+use datax_utils_output_truncation::TruncationPolicy;
+use datax_utils_output_truncation::formatted_truncate_text;
+use datax_utils_string::take_bytes_at_char_boundary;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use std::sync::Arc;
@@ -25,8 +25,8 @@ use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 
-pub use codex_tools::ToolOutput;
-pub use codex_tools::ToolPayload;
+pub use datax_tools::ToolOutput;
+pub use datax_tools::ToolPayload;
 
 pub(crate) fn boxed_tool_output<T>(output: T) -> Box<dyn ToolOutput>
 where

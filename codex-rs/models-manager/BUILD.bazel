@@ -6,5 +6,5 @@ codex_rust_crate(
         "models.json",
         "prompt.md",
     ],
-    crate_name = "codex_models_manager",
+    crate_name = "datax_models_manager",
 )

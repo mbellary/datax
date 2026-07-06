@@ -8,31 +8,6 @@ use crate::state::ActiveTurn;
 use crate::test_support::models_manager_with_provider;
 use crate::tools::hook_names::HookToolName;
 use crate::turn_metadata::McpTurnMetadataContext;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::config_toml::ConfigToml;
-use codex_config::types::AppConfig;
-use codex_config::types::AppToolConfig;
-use codex_config::types::AppToolsConfig;
-use codex_config::types::ApprovalsReviewer;
-use codex_config::types::AppsConfigToml;
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerToolConfig;
-use codex_features::Features;
-use codex_hooks::Hooks;
-use codex_hooks::HooksConfig;
-use codex_model_provider::create_model_provider;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::GranularApprovalConfig;
-use codex_protocol::protocol::McpInvocation;
-use codex_protocol::protocol::SessionSource;
-use codex_rollout_trace::ThreadStartedTraceMetadata;
-use codex_rollout_trace::ToolDispatchInvocation;
-use codex_rollout_trace::ToolDispatchPayload;
-use codex_rollout_trace::ToolDispatchRequester;
-use codex_rollout_trace::replay_bundle;
-use codex_utils_path_uri::PathUri;
 use core_test_support::hooks::trusted_config_layer_stack;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -40,6 +15,31 @@ use core_test_support::responses::ev_response_created;
 use core_test_support::responses::mount_sse_once;
 use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
+use datax_config::CONFIG_TOML_FILE;
+use datax_config::config_toml::ConfigToml;
+use datax_config::types::AppConfig;
+use datax_config::types::AppToolConfig;
+use datax_config::types::AppToolsConfig;
+use datax_config::types::ApprovalsReviewer;
+use datax_config::types::AppsConfigToml;
+use datax_config::types::McpServerConfig;
+use datax_config::types::McpServerToolConfig;
+use datax_features::Features;
+use datax_hooks::Hooks;
+use datax_hooks::HooksConfig;
+use datax_model_provider::create_model_provider;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::GranularApprovalConfig;
+use datax_protocol::protocol::McpInvocation;
+use datax_protocol::protocol::SessionSource;
+use datax_rollout_trace::ThreadStartedTraceMetadata;
+use datax_rollout_trace::ToolDispatchInvocation;
+use datax_rollout_trace::ToolDispatchPayload;
+use datax_rollout_trace::ToolDispatchRequester;
+use datax_rollout_trace::replay_bundle;
+use datax_utils_path_uri::PathUri;
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -244,7 +244,7 @@ print({hook_output:?})
         .to_string(),
     )
     .expect("write hooks.json");
-    let hook_list = codex_hooks::list_hooks(HooksConfig {
+    let hook_list = datax_hooks::list_hooks(HooksConfig {
         feature_enabled: true,
         config_layer_stack: Some(turn_context.config.config_layer_stack.clone()),
         ..HooksConfig::default()
@@ -281,7 +281,7 @@ fn attach_trace_bundle(
     root: &Path,
 ) -> anyhow::Result<()> {
     let rollout_thread_trace =
-        codex_rollout_trace::ThreadTraceContext::start_root_in_root_for_test(
+        datax_rollout_trace::ThreadTraceContext::start_root_in_root_for_test(
             root,
             ThreadStartedTraceMetadata {
                 thread_id: session.thread_id.to_string(),
@@ -1335,7 +1335,7 @@ fn codex_apps_auth_failure_metadata() -> McpToolApprovalMetadata {
 
 async fn install_host_owned_codex_apps_manager(session: &Session, turn_context: &TurnContext) {
     let auth = session.services.auth_manager.auth().await;
-    let manager = codex_mcp::McpConnectionManager::new(
+    let manager = datax_mcp::McpConnectionManager::new(
         &HashMap::new(),
         turn_context.config.mcp_oauth_credentials_store_mode,
         turn_context.config.auth_keyring_backend_kind(),
@@ -1345,7 +1345,7 @@ async fn install_host_owned_codex_apps_manager(session: &Session, turn_context: 
         session.get_tx_event(),
         CancellationToken::new(),
         turn_context.permission_profile(),
-        codex_mcp::McpRuntimeContext::new(
+        datax_mcp::McpRuntimeContext::new(
             session.services.turn_environments.environment_manager(),
             {
                 #[allow(deprecated)]
@@ -1353,12 +1353,12 @@ async fn install_host_owned_codex_apps_manager(session: &Session, turn_context: 
             },
         ),
         turn_context.config.codex_home.to_path_buf(),
-        codex_mcp::codex_apps_tools_cache_key(auth.as_ref()),
+        datax_mcp::codex_apps_tools_cache_key(auth.as_ref()),
         /*host_owned_codex_apps_enabled*/ true,
         turn_context.config.prefix_mcp_tool_names(),
         rmcp::model::ElicitationCapability::default(),
         /*supports_openai_form_elicitation*/ false,
-        codex_mcp::ToolPluginProvenance::default(),
+        datax_mcp::ToolPluginProvenance::default(),
         auth.as_ref(),
         /*elicitation_reviewer*/ None,
     )
@@ -1520,11 +1520,11 @@ async fn codex_apps_auth_elicitation_feature_enabled_requests_elicitation() {
     assert_eq!(request.server_name, CODEX_APPS_MCP_SERVER_NAME);
     assert_eq!(
         request.id,
-        codex_protocol::mcp::RequestId::String("codex_apps_auth_call_123".to_string())
+        datax_protocol::mcp::RequestId::String("codex_apps_auth_call_123".to_string())
     );
     assert!(matches!(
         request.request,
-        codex_protocol::approvals::ElicitationRequest::Url { .. }
+        datax_protocol::approvals::ElicitationRequest::Url { .. }
     ));
 
     session
@@ -1756,7 +1756,7 @@ async fn guardian_review_decision_maps_to_mcp_tool_decision() {
         "review-id".to_string(),
         crate::guardian::GuardianRejection {
             rationale: "too risky".to_string(),
-            source: codex_protocol::protocol::GuardianAssessmentDecisionSource::Agent,
+            source: datax_protocol::protocol::GuardianAssessmentDecisionSource::Agent,
         },
     );
     let denial = mcp_tool_approval_decision_from_guardian(
@@ -2314,7 +2314,7 @@ async fn maybe_persist_mcp_tool_approval_writes_project_config_for_project_serve
     ConfigEditsBuilder::new(&codex_home)
         .set_project_trust_level(
             project_dir.path(),
-            codex_protocol::config_types::TrustLevel::Trusted,
+            datax_protocol::config_types::TrustLevel::Trusted,
         )
         .apply()
         .await
@@ -2919,7 +2919,7 @@ async fn approve_mode_skips_guardian_in_every_permission_mode() {
     ] {
         let (mut session, mut turn_context) = make_session_and_context().await;
         turn_context.auth_manager = Some(crate::test_support::auth_manager_from_auth(
-            codex_login::CodexAuth::create_dummy_chatgpt_auth_for_testing(),
+            datax_login::CodexAuth::create_dummy_chatgpt_auth_for_testing(),
         ));
         turn_context
             .approval_policy

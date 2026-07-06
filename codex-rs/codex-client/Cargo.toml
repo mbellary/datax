@@ -1,7 +1,7 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-client"
+name = "datax-client"
 version.workspace = true
 
 [dependencies]
@@ -21,7 +21,7 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "time", "sync"] }
 tracing = { workspace = true }
 tracing-opentelemetry = { workspace = true }
-codex-utils-rustls-provider = { workspace = true }
+datax-utils-rustls-provider = { workspace = true }
 zstd = { workspace = true }
 
 [target.'cfg(any(target_os = "windows", target_os = "macos"))'.dependencies]
@@ -40,7 +40,7 @@ windows-sys = { version = "0.52", features = [
 workspace = true
 
 [dev-dependencies]
-codex-utils-cargo-bin = { workspace = true }
+datax-utils-cargo-bin = { workspace = true }
 opentelemetry_sdk = { workspace = true }
 pretty_assertions = { workspace = true }
 rcgen = { workspace = true }

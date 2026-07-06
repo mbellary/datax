@@ -2,10 +2,10 @@ use super::LocalThreadStore;
 use crate::CreateThreadParams;
 use crate::ThreadStoreError;
 use crate::ThreadStoreResult;
-use codex_protocol::protocol::ThreadMemoryMode;
-use codex_rollout::RolloutConfig;
-use codex_rollout::RolloutRecorder;
-use codex_rollout::RolloutRecorderParams;
+use datax_protocol::protocol::ThreadMemoryMode;
+use datax_rollout::RolloutConfig;
+use datax_rollout::RolloutRecorder;
+use datax_rollout::RolloutRecorderParams;
 
 pub(super) async fn create_thread(
     store: &LocalThreadStore,

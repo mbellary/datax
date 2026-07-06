@@ -2,10 +2,10 @@ use anyhow::Result;
 use app_test_support::ChatGptAuthFixture;
 use app_test_support::DEFAULT_CLIENT_NAME;
 use app_test_support::write_chatgpt_auth;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_config::types::OtelExporterKind;
-use codex_config::types::OtelHttpProtocol;
-use codex_core::config::ConfigBuilder;
+use datax_config::types::AuthCredentialsStoreMode;
+use datax_config::types::OtelExporterKind;
+use datax_config::types::OtelHttpProtocol;
+use datax_core::config::ConfigBuilder;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -21,7 +21,7 @@ use wiremock::matchers::path;
 
 const SERVICE_VERSION: &str = "0.0.0-test";
 
-fn set_metrics_exporter(config: &mut codex_core::config::Config) {
+fn set_metrics_exporter(config: &mut datax_core::config::Config) {
     config.otel.metrics_exporter = OtelExporterKind::OtlpHttp {
         endpoint: "http://localhost:4318".to_string(),
         headers: HashMap::new(),
@@ -40,10 +40,10 @@ async fn app_server_default_analytics_disabled_without_flag() -> Result<()> {
     set_metrics_exporter(&mut config);
     config.analytics_enabled = None;
 
-    let provider = codex_core::otel_init::build_provider(
+    let provider = datax_core::otel_init::build_provider(
         &config,
         SERVICE_VERSION,
-        Some("codex-app-server"),
+        Some("datax-app-server"),
         /*default_analytics_enabled*/ false,
     )
     .map_err(|err| anyhow::anyhow!(err.to_string()))?;
@@ -65,10 +65,10 @@ async fn app_server_default_analytics_enabled_with_flag() -> Result<()> {
     set_metrics_exporter(&mut config);
     config.analytics_enabled = None;
 
-    let provider = codex_core::otel_init::build_provider(
+    let provider = datax_core::otel_init::build_provider(
         &config,
         SERVICE_VERSION,
-        Some("codex-app-server"),
+        Some("datax-app-server"),
         /*default_analytics_enabled*/ true,
     )
     .map_err(|err| anyhow::anyhow!(err.to_string()))?;

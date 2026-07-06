@@ -2,21 +2,21 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::config::Config;
-use codex_config::McpServerConfig;
-use codex_core_plugins::PluginsManager;
-use codex_extension_api::ExtensionDataInit;
-use codex_extension_api::ExtensionRegistry;
-use codex_extension_api::McpServerContribution;
-use codex_extension_api::McpServerContributionContext;
-use codex_login::CodexAuth;
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_mcp::EffectiveMcpServer;
-use codex_mcp::McpConfig;
-use codex_mcp::McpPluginAttribution;
-use codex_mcp::McpServerRegistration;
-use codex_mcp::codex_apps_mcp_server_config;
-use codex_mcp::configured_mcp_servers;
-use codex_mcp::effective_mcp_servers;
+use datax_config::McpServerConfig;
+use datax_core_plugins::PluginsManager;
+use datax_extension_api::ExtensionDataInit;
+use datax_extension_api::ExtensionRegistry;
+use datax_extension_api::McpServerContribution;
+use datax_extension_api::McpServerContributionContext;
+use datax_login::CodexAuth;
+use datax_mcp::CODEX_APPS_MCP_SERVER_NAME;
+use datax_mcp::EffectiveMcpServer;
+use datax_mcp::McpConfig;
+use datax_mcp::McpPluginAttribution;
+use datax_mcp::McpServerRegistration;
+use datax_mcp::codex_apps_mcp_server_config;
+use datax_mcp::configured_mcp_servers;
+use datax_mcp::effective_mcp_servers;
 
 const LEGACY_CODEX_APPS_REGISTRATION_ID: &str = "legacy_codex_apps";
 
@@ -44,7 +44,7 @@ impl McpManager {
     pub fn new(plugins_manager: Arc<PluginsManager>) -> Self {
         Self {
             plugins_manager,
-            extensions: codex_extension_api::empty_extension_registry(),
+            extensions: datax_extension_api::empty_extension_registry(),
         }
     }
 

@@ -2,5 +2,5 @@ load("//:defs.bzl", "codex_rust_crate")
 
 codex_rust_crate(
     name = "core-api",
-    crate_name = "codex_core_api",
+    crate_name = "datax_core_api",
 )

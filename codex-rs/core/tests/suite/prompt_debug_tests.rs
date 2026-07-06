@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use codex_core::build_prompt_input;
-use codex_core::config::ConfigBuilder;
-use codex_core::config::ConfigOverrides;
-use codex_home::CodexHomeUserInstructionsProvider;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::user_input::UserInput;
 use core_test_support::responses::strip_metadata;
+use datax_core::build_prompt_input;
+use datax_core::config::ConfigBuilder;
+use datax_core::config::ConfigOverrides;
+use datax_home::CodexHomeUserInstructionsProvider;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 

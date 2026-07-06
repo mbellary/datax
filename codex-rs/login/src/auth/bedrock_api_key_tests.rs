@@ -1,5 +1,5 @@
-use codex_app_server_protocol::AuthMode;
-use codex_config::types::AuthCredentialsStoreMode;
+use datax_app_server_protocol::AuthMode;
+use datax_config::types::AuthCredentialsStoreMode;
 use pretty_assertions::assert_eq;
 use serial_test::serial;
 use tempfile::tempdir;

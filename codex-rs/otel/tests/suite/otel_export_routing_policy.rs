@@ -1,7 +1,7 @@
-use codex_otel::AuthEnvTelemetryMetadata;
-use codex_otel::OtelProvider;
-use codex_otel::SessionTelemetry;
-use codex_otel::TelemetryAuthMode;
+use datax_otel::AuthEnvTelemetryMetadata;
+use datax_otel::OtelProvider;
+use datax_otel::SessionTelemetry;
+use datax_otel::TelemetryAuthMode;
 use opentelemetry::KeyValue;
 use opentelemetry::logs::AnyValue;
 use opentelemetry::trace::TracerProvider as _;
@@ -18,12 +18,12 @@ use tracing_subscriber::Layer;
 use tracing_subscriber::filter::filter_fn;
 use tracing_subscriber::layer::SubscriberExt;
 
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::user_input::UserInput;
+use datax_protocol::ThreadId;
+use datax_protocol::config_types::ReasoningSummary;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::SandboxPolicy;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::user_input::UserInput;
 
 fn log_attributes(record: &SdkLogRecord) -> BTreeMap<String, String> {
     record

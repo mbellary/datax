@@ -1,4 +1,4 @@
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use dirs::home_dir;
 use std::path::PathBuf;
 
@@ -65,7 +65,7 @@ fn find_codex_home_from_env(codex_home_env: Option<&str>) -> std::io::Result<Abs
 #[cfg(test)]
 mod tests {
     use super::find_codex_home_from_env;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use datax_utils_absolute_path::AbsolutePathBuf;
     use dirs::home_dir;
     use pretty_assertions::assert_eq;
     use std::fs;
@@ -91,7 +91,7 @@ mod tests {
     #[test]
     fn find_codex_home_env_file_path_is_fatal() {
         let temp_home = TempDir::new().expect("temp home");
-        let file_path = temp_home.path().join("codex-home.txt");
+        let file_path = temp_home.path().join("datax-home.txt");
         fs::write(&file_path, "not a directory").expect("write temp file");
         let file_str = file_path
             .to_str()

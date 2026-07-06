@@ -1,13 +1,13 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_otel::ORIGINATOR_TAG;
-use codex_otel::bounded_originator_tag_value;
-use codex_state::DbTelemetry;
-use codex_state::DbTelemetryHandle;
+use datax_otel::ORIGINATOR_TAG;
+use datax_otel::bounded_originator_tag_value;
+use datax_state::DbTelemetry;
+use datax_state::DbTelemetryHandle;
 
 struct OtelDbTelemetry {
-    metrics: codex_otel::MetricsClient,
+    metrics: datax_otel::MetricsClient,
     originator: &'static str,
 }
 
@@ -23,7 +23,7 @@ impl DbTelemetry for OtelDbTelemetry {
     }
 }
 
-pub(crate) fn recorder(metrics: codex_otel::MetricsClient, originator: &str) -> DbTelemetryHandle {
+pub(crate) fn recorder(metrics: datax_otel::MetricsClient, originator: &str) -> DbTelemetryHandle {
     Arc::new(OtelDbTelemetry {
         metrics,
         originator: bounded_originator_tag_value(originator),

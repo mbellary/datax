@@ -1,10 +1,10 @@
-use codex_feedback::DOCTOR_REPORT_ATTACHMENT_FILENAME;
-use codex_feedback::FEEDBACK_DIAGNOSTICS_ATTACHMENT_FILENAME;
-use codex_feedback::FeedbackDiagnostics;
-use codex_feedback::WINDOWS_SANDBOX_LOG_ATTACHMENT_FILENAME;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyModifiers;
+use datax_feedback::DOCTOR_REPORT_ATTACHMENT_FILENAME;
+use datax_feedback::FEEDBACK_DIAGNOSTICS_ATTACHMENT_FILENAME;
+use datax_feedback::FeedbackDiagnostics;
+use datax_feedback::WINDOWS_SANDBOX_LOG_ATTACHMENT_FILENAME;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Stylize;
@@ -504,7 +504,7 @@ pub(crate) fn feedback_upload_consent_params(
         Line::from("Upload logs?".bold()).into(),
         Line::from("").into(),
         Line::from("The following files will be sent:".dim()).into(),
-        Line::from(vec!["  • ".into(), "codex-logs.log".into()]).into(),
+        Line::from(vec!["  • ".into(), "datax-logs.log".into()]).into(),
         Line::from(vec![
             "  • ".into(),
             DOCTOR_REPORT_ATTACHMENT_FILENAME.into(),
@@ -581,7 +581,7 @@ mod tests {
     use super::*;
     use crate::app_event::AppEvent;
     use crate::app_event_sender::AppEventSender;
-    use codex_feedback::FeedbackDiagnostic;
+    use datax_feedback::FeedbackDiagnostic;
     use pretty_assertions::assert_eq;
 
     fn render(view: &FeedbackNoteView, width: u16) -> String {

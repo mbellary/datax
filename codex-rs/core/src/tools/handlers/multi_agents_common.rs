@@ -8,20 +8,20 @@ use crate::session::turn_context::TurnContext;
 use crate::tools::context::FunctionToolOutput;
 use crate::tools::context::ToolOutput;
 use crate::tools::context::ToolPayload;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_protocol::AgentPath;
-use codex_protocol::ThreadId;
-use codex_protocol::error::CodexErr;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::openai_models::ReasoningEffortPreset;
-use codex_protocol::protocol::CollabAgentRef;
-use codex_protocol::protocol::CollabAgentStatusEntry;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::user_input::UserInput;
+use datax_models_manager::manager::RefreshStrategy;
+use datax_protocol::AgentPath;
+use datax_protocol::ThreadId;
+use datax_protocol::error::CodexErr;
+use datax_protocol::models::BaseInstructions;
+use datax_protocol::models::ResponseInputItem;
+use datax_protocol::openai_models::ReasoningEffort;
+use datax_protocol::openai_models::ReasoningEffortPreset;
+use datax_protocol::protocol::CollabAgentRef;
+use datax_protocol::protocol::CollabAgentStatusEntry;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::SubAgentSource;
+use datax_protocol::user_input::UserInput;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
@@ -381,7 +381,7 @@ pub(crate) async fn apply_spawn_agent_service_tier(
 }
 
 fn find_spawn_agent_model_name(
-    available_models: &[codex_protocol::openai_models::ModelPreset],
+    available_models: &[datax_protocol::openai_models::ModelPreset],
     requested_model: &str,
 ) -> Result<String, FunctionCallError> {
     available_models

@@ -1,22 +1,22 @@
-use codex_config::NetworkConstraints;
-use codex_execpolicy::Policy;
-use codex_network_proxy::BlockedRequestObserver;
-use codex_network_proxy::ConfigReloader;
-use codex_network_proxy::ConfigReloaderFuture;
-use codex_network_proxy::ConfigState;
-use codex_network_proxy::NetworkDecision;
-use codex_network_proxy::NetworkPolicyDecider;
-use codex_network_proxy::NetworkProxy;
-use codex_network_proxy::NetworkProxyAuditMetadata;
-use codex_network_proxy::NetworkProxyConfig;
-use codex_network_proxy::NetworkProxyConstraints;
-use codex_network_proxy::NetworkProxyHandle;
-use codex_network_proxy::NetworkProxyState;
-use codex_network_proxy::build_config_state;
-use codex_network_proxy::host_and_port_from_network_addr;
-use codex_network_proxy::normalize_host;
-use codex_network_proxy::validate_policy_against_constraints;
-use codex_protocol::models::PermissionProfile;
+use datax_config::NetworkConstraints;
+use datax_execpolicy::Policy;
+use datax_network_proxy::BlockedRequestObserver;
+use datax_network_proxy::ConfigReloader;
+use datax_network_proxy::ConfigReloaderFuture;
+use datax_network_proxy::ConfigState;
+use datax_network_proxy::NetworkDecision;
+use datax_network_proxy::NetworkPolicyDecider;
+use datax_network_proxy::NetworkProxy;
+use datax_network_proxy::NetworkProxyAuditMetadata;
+use datax_network_proxy::NetworkProxyConfig;
+use datax_network_proxy::NetworkProxyConstraints;
+use datax_network_proxy::NetworkProxyHandle;
+use datax_network_proxy::NetworkProxyState;
+use datax_network_proxy::build_config_state;
+use datax_network_proxy::host_and_port_from_network_addr;
+use datax_network_proxy::normalize_host;
+use datax_network_proxy::validate_policy_against_constraints;
+use datax_protocol::models::PermissionProfile;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -254,14 +254,14 @@ impl NetworkProxySpec {
                 requirements
                     .domains
                     .as_ref()
-                    .and_then(codex_config::NetworkDomainPermissionsToml::allowed_domains)
+                    .and_then(datax_config::NetworkDomainPermissionsToml::allowed_domains)
                     .unwrap_or_default(),
             )
         } else {
             requirements
                 .domains
                 .as_ref()
-                .and_then(codex_config::NetworkDomainPermissionsToml::allowed_domains)
+                .and_then(datax_config::NetworkDomainPermissionsToml::allowed_domains)
         };
         if let Some(managed_allowed_domains) = managed_allowed_domains {
             // Managed requirements seed the baseline allowlist. User additions
@@ -284,7 +284,7 @@ impl NetworkProxySpec {
         let managed_denied_domains = requirements
             .domains
             .as_ref()
-            .and_then(codex_config::NetworkDomainPermissionsToml::denied_domains);
+            .and_then(datax_config::NetworkDomainPermissionsToml::denied_domains);
         if let Some(managed_denied_domains) = managed_denied_domains {
             let effective_denied_domains = if denylist_expansion_enabled {
                 Self::merge_domain_lists(
@@ -302,7 +302,7 @@ impl NetworkProxySpec {
             let allow_unix_sockets = requirements
                 .unix_sockets
                 .as_ref()
-                .map(codex_config::NetworkUnixSocketPermissionsToml::allow_unix_sockets)
+                .map(datax_config::NetworkUnixSocketPermissionsToml::allow_unix_sockets)
                 .unwrap_or_default();
             config
                 .network
@@ -362,9 +362,9 @@ fn upsert_network_domains(config: &mut NetworkProxyConfig, hosts: Vec<String>, a
             config.network.upsert_domain_permission(
                 host,
                 if allow {
-                    codex_network_proxy::NetworkDomainPermission::Allow
+                    datax_network_proxy::NetworkDomainPermission::Allow
                 } else {
-                    codex_network_proxy::NetworkDomainPermission::Deny
+                    datax_network_proxy::NetworkDomainPermission::Deny
                 },
                 normalize_host,
             );

@@ -1,29 +1,29 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-model-provider"
+name = "datax-model-provider"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_model_provider"
+name = "datax_model_provider"
 path = "src/lib.rs"
 
 [lints]
 workspace = true
 
 [dependencies]
-codex-api = { workspace = true }
-codex-agent-identity = { workspace = true }
-codex-aws-auth = { workspace = true }
-codex-client = { workspace = true }
-codex-feedback = { workspace = true }
-codex-login = { workspace = true }
-codex-model-provider-info = { workspace = true }
-codex-models-manager = { workspace = true }
-codex-otel = { workspace = true }
-codex-protocol = { workspace = true }
-codex-response-debug-context = { workspace = true }
+datax-api = { workspace = true }
+datax-agent-identity = { workspace = true }
+datax-aws-auth = { workspace = true }
+datax-client = { workspace = true }
+datax-feedback = { workspace = true }
+datax-login = { workspace = true }
+datax-model-provider-info = { workspace = true }
+datax-models-manager = { workspace = true }
+datax-otel = { workspace = true }
+datax-protocol = { workspace = true }
+datax-response-debug-context = { workspace = true }
 http = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time"] }
 tracing = { workspace = true, features = ["log"] }

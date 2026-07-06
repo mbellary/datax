@@ -2,9 +2,6 @@ use assert_matches::assert_matches;
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::UserInput;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_function_call;
 use core_test_support::responses::ev_response_created;
@@ -14,6 +11,9 @@ use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
+use datax_protocol::user_input::UserInput;
 use regex_lite::Regex;
 use serde_json::json;
 

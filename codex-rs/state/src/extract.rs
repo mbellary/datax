@@ -1,11 +1,11 @@
 use crate::model::ThreadMetadata;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::TurnContextItem;
-use codex_protocol::protocol::USER_MESSAGE_BEGIN;
-use codex_protocol::protocol::UserMessageEvent;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::SessionMetaLine;
+use datax_protocol::protocol::TurnContextItem;
+use datax_protocol::protocol::USER_MESSAGE_BEGIN;
+use datax_protocol::protocol::UserMessageEvent;
 use serde::Serialize;
 use serde_json::Value;
 
@@ -158,24 +158,24 @@ mod tests {
     use crate::model::ThreadMetadata;
     use chrono::DateTime;
     use chrono::Utc;
-    use codex_protocol::ThreadId;
-    use codex_protocol::models::ContentItem;
-    use codex_protocol::models::PermissionProfile;
-    use codex_protocol::models::ResponseItem;
-    use codex_protocol::openai_models::ReasoningEffort;
-    use codex_protocol::protocol::AskForApproval;
-    use codex_protocol::protocol::EventMsg;
-    use codex_protocol::protocol::RolloutItem;
-    use codex_protocol::protocol::SandboxPolicy;
-    use codex_protocol::protocol::SessionMeta;
-    use codex_protocol::protocol::SessionMetaLine;
-    use codex_protocol::protocol::SessionSource;
-    use codex_protocol::protocol::ThreadGoal;
-    use codex_protocol::protocol::ThreadGoalStatus;
-    use codex_protocol::protocol::ThreadGoalUpdatedEvent;
-    use codex_protocol::protocol::TurnContextItem;
-    use codex_protocol::protocol::USER_MESSAGE_BEGIN;
-    use codex_protocol::protocol::UserMessageEvent;
+    use datax_protocol::ThreadId;
+    use datax_protocol::models::ContentItem;
+    use datax_protocol::models::PermissionProfile;
+    use datax_protocol::models::ResponseItem;
+    use datax_protocol::openai_models::ReasoningEffort;
+    use datax_protocol::protocol::AskForApproval;
+    use datax_protocol::protocol::EventMsg;
+    use datax_protocol::protocol::RolloutItem;
+    use datax_protocol::protocol::SandboxPolicy;
+    use datax_protocol::protocol::SessionMeta;
+    use datax_protocol::protocol::SessionMetaLine;
+    use datax_protocol::protocol::SessionSource;
+    use datax_protocol::protocol::ThreadGoal;
+    use datax_protocol::protocol::ThreadGoalStatus;
+    use datax_protocol::protocol::ThreadGoalUpdatedEvent;
+    use datax_protocol::protocol::TurnContextItem;
+    use datax_protocol::protocol::USER_MESSAGE_BEGIN;
+    use datax_protocol::protocol::UserMessageEvent;
 
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
@@ -372,7 +372,7 @@ mod tests {
                 multi_agent_mode: None,
                 realtime_active: None,
                 effort: None,
-                summary: codex_protocol::config_types::ReasoningSummary::Auto,
+                summary: datax_protocol::config_types::ReasoningSummary::Auto,
             }),
             "test-provider",
         );
@@ -417,7 +417,7 @@ mod tests {
                 multi_agent_mode: None,
                 realtime_active: None,
                 effort: None,
-                summary: codex_protocol::config_types::ReasoningSummary::Auto,
+                summary: datax_protocol::config_types::ReasoningSummary::Auto,
             }),
             "test-provider",
         );
@@ -458,7 +458,7 @@ mod tests {
                 multi_agent_mode: None,
                 realtime_active: None,
                 effort: Some(ReasoningEffort::High),
-                summary: codex_protocol::config_types::ReasoningSummary::Auto,
+                summary: datax_protocol::config_types::ReasoningSummary::Auto,
             }),
             "test-provider",
         );
@@ -496,7 +496,7 @@ mod tests {
                 multi_agent_mode: None,
                 realtime_active: None,
                 effort: Some(ReasoningEffort::High),
-                summary: codex_protocol::config_types::ReasoningSummary::Auto,
+                summary: datax_protocol::config_types::ReasoningSummary::Auto,
             }),
             "test-provider",
         );

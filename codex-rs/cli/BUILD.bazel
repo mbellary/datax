@@ -3,7 +3,7 @@ load("//bazel/platforms:release_binaries.bzl", "multiplatform_binaries")
 
 codex_rust_crate(
     name = "cli",
-    crate_name = "codex_cli",
+    crate_name = "datax_cli",
     extra_binaries = [
         "//codex-rs/bwrap:bwrap",
     ],

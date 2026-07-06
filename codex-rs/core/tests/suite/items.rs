@@ -1,22 +1,6 @@
 #![cfg(not(target_os = "windows"))]
 
 use anyhow::Ok;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Settings;
-use codex_protocol::items::AgentMessageContent;
-use codex_protocol::items::TurnItem;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::WebSearchAction;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ItemCompletedEvent;
-use codex_protocol::protocol::ItemStartedEvent;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::ByteRange;
-use codex_protocol::user_input::TextElement;
-use codex_protocol::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
 use core_test_support::PathBufExt;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -40,6 +24,22 @@ use core_test_support::test_codex::test_codex;
 use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_match;
+use datax_protocol::config_types::CollaborationMode;
+use datax_protocol::config_types::ModeKind;
+use datax_protocol::config_types::Settings;
+use datax_protocol::items::AgentMessageContent;
+use datax_protocol::items::TurnItem;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::models::WebSearchAction;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::ItemCompletedEvent;
+use datax_protocol::protocol::ItemStartedEvent;
+use datax_protocol::protocol::Op;
+use datax_protocol::user_input::ByteRange;
+use datax_protocol::user_input::TextElement;
+use datax_protocol::user_input::UserInput;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use std::path::PathBuf;
@@ -60,7 +60,7 @@ fn disabled_plan_turn(
         final_output_json_schema: None,
         responsesapi_client_metadata: None,
         additional_context: Default::default(),
-        thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+        thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
             environments: Some(local_selections(cwd)),
             approval_policy: Some(AskForApproval::Never),
             sandbox_policy: Some(sandbox_policy),
@@ -202,7 +202,7 @@ async fn assistant_message_item_is_emitted() -> anyhow::Result<()> {
     .await;
 
     assert_eq!(started.id, completed.id);
-    let Some(codex_protocol::items::AgentMessageContent::Text { text }) = completed.content.first()
+    let Some(datax_protocol::items::AgentMessageContent::Text { text }) = completed.content.first()
     else {
         panic!("expected agent message text content");
     };

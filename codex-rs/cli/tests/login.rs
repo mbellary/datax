@@ -2,8 +2,8 @@ use std::path::Path;
 
 use anyhow::Context;
 use anyhow::Result;
-use codex_login::CLIENT_ID;
-use codex_login::REVOKE_TOKEN_URL_OVERRIDE_ENV_VAR;
+use datax_login::CLIENT_ID;
+use datax_login::REVOKE_TOKEN_URL_OVERRIDE_ENV_VAR;
 use predicates::str::contains;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
@@ -16,7 +16,7 @@ use wiremock::matchers::method;
 use wiremock::matchers::path;
 
 fn codex_command(codex_home: &Path) -> Result<assert_cmd::Command> {
-    let mut cmd = assert_cmd::Command::new(codex_utils_cargo_bin::cargo_bin("codex")?);
+    let mut cmd = assert_cmd::Command::new(datax_utils_cargo_bin::cargo_bin("codex")?);
     cmd.env("CODEX_HOME", codex_home);
     Ok(cmd)
 }

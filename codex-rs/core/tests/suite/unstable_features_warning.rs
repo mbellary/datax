@@ -1,16 +1,16 @@
 #![allow(clippy::unwrap_used)]
 
-use codex_config::CONFIG_TOML_FILE;
-use codex_core::NewThread;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::WarningEvent;
-use codex_utils_absolute_path::AbsolutePathBuf;
 use core::time::Duration;
 use core_test_support::load_default_config_for_test;
 use core_test_support::wait_for_event;
+use datax_config::CONFIG_TOML_FILE;
+use datax_core::NewThread;
+use datax_features::Feature;
+use datax_login::CodexAuth;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::InitialHistory;
+use datax_protocol::protocol::WarningEvent;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use tempfile::TempDir;
 use tokio::time::timeout;
 use toml::toml;
@@ -31,12 +31,12 @@ async fn emits_warning_when_unstable_features_enabled_via_config() {
         toml! { features = { apply_patch_streaming_events = true } }.into(),
     );
 
-    let thread_manager = codex_core::test_support::thread_manager_with_models_provider(
+    let thread_manager = datax_core::test_support::thread_manager_with_models_provider(
         CodexAuth::from_api_key("test"),
         config.model_provider.clone(),
     );
     let auth_manager =
-        codex_core::test_support::auth_manager_from_auth(CodexAuth::from_api_key("test"));
+        datax_core::test_support::auth_manager_from_auth(CodexAuth::from_api_key("test"));
 
     let NewThread {
         thread: conversation,
@@ -78,12 +78,12 @@ async fn suppresses_warning_when_configured() {
         toml! { features = { apply_patch_streaming_events = true } }.into(),
     );
 
-    let thread_manager = codex_core::test_support::thread_manager_with_models_provider(
+    let thread_manager = datax_core::test_support::thread_manager_with_models_provider(
         CodexAuth::from_api_key("test"),
         config.model_provider.clone(),
     );
     let auth_manager =
-        codex_core::test_support::auth_manager_from_auth(CodexAuth::from_api_key("test"));
+        datax_core::test_support::auth_manager_from_auth(CodexAuth::from_api_key("test"));
 
     let NewThread {
         thread: conversation,

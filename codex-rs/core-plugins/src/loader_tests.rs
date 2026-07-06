@@ -1,11 +1,11 @@
 use super::*;
 use crate::manifest::load_plugin_manifest;
 use crate::test_support::write_file;
-use codex_config::ConfigLayerEntry;
-use codex_config::ConfigLayerSource;
-use codex_config::ConfigRequirements;
-use codex_config::ConfigRequirementsToml;
-use codex_plugin::PluginId;
+use datax_config::ConfigLayerEntry;
+use datax_config::ConfigLayerSource;
+use datax_config::ConfigRequirements;
+use datax_config::ConfigRequirementsToml;
+use datax_plugin::PluginId;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 

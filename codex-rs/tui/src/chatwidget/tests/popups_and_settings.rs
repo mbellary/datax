@@ -1,17 +1,17 @@
 use super::*;
 use crate::app_event::ConnectorsSnapshot;
 use crate::chatwidget::connectors::ConnectorsCacheState;
-use codex_app_server_protocol::AppInfo;
-use codex_app_server_protocol::HookErrorInfo;
-use codex_app_server_protocol::HooksListEntry;
-use codex_app_server_protocol::HooksListResponse;
-use codex_app_server_protocol::MarketplaceLoadErrorInfo;
-use codex_app_server_protocol::MarketplaceRemoveResponse;
-use codex_app_server_protocol::PluginAvailability;
-use codex_app_server_protocol::PluginShareContext;
-use codex_app_server_protocol::PluginShareDiscoverability;
-use codex_app_server_protocol::PluginSource;
-use codex_features::Stage;
+use datax_app_server_protocol::AppInfo;
+use datax_app_server_protocol::HookErrorInfo;
+use datax_app_server_protocol::HooksListEntry;
+use datax_app_server_protocol::HooksListResponse;
+use datax_app_server_protocol::MarketplaceLoadErrorInfo;
+use datax_app_server_protocol::MarketplaceRemoveResponse;
+use datax_app_server_protocol::PluginAvailability;
+use datax_app_server_protocol::PluginShareContext;
+use datax_app_server_protocol::PluginShareDiscoverability;
+use datax_app_server_protocol::PluginSource;
+use datax_features::Stage;
 use pretty_assertions::assert_eq;
 
 #[tokio::test]
@@ -44,7 +44,7 @@ async fn experimental_mode_plan_is_ignored_on_startup() {
         has_chatgpt_account: false,
         has_codex_backend_auth: false,
         model_catalog: test_model_catalog(&cfg),
-        feedback: codex_feedback::CodexFeedback::new(),
+        feedback: datax_feedback::CodexFeedback::new(),
         is_first_run: true,
         status_account_display: None,
         runtime_model_provider_base_url: None,
@@ -647,8 +647,8 @@ async fn plugin_detail_popup_snapshot_labels_personal_marketplace_as_local() {
         Some("Turn Figma files into implementation context."),
         &["design-review", "extract-copy"],
         &[
-            (codex_app_server_protocol::HookEventName::PreToolUse, 1),
-            (codex_app_server_protocol::HookEventName::Stop, 2),
+            (datax_app_server_protocol::HookEventName::PreToolUse, 1),
+            (datax_app_server_protocol::HookEventName::Stop, 2),
         ],
         &["Figma", "Slack"],
         &["figma-mcp", "docs-mcp"],
@@ -692,8 +692,8 @@ async fn plugin_detail_popup_hides_disclosure_for_installed_plugins() {
                 Some("Turn Figma files into implementation context."),
                 &["design-review", "extract-copy"],
                 &[
-                    (codex_app_server_protocol::HookEventName::PreToolUse, 1),
-                    (codex_app_server_protocol::HookEventName::Stop, 2),
+                    (datax_app_server_protocol::HookEventName::PreToolUse, 1),
+                    (datax_app_server_protocol::HookEventName::Stop, 2),
                 ],
                 &["Figma", "Slack"],
                 &["figma-mcp", "docs-mcp"],
@@ -3227,7 +3227,7 @@ async fn feedback_upload_consent_popup_snapshot() {
         chat.current_rollout_path.clone(),
         Some("auto-review-rollout-thread-1.jsonl".to_string()),
         /*include_windows_sandbox_log*/ true,
-        &codex_feedback::FeedbackDiagnostics::new(vec![codex_feedback::FeedbackDiagnostic {
+        &datax_feedback::FeedbackDiagnostics::new(vec![datax_feedback::FeedbackDiagnostic {
             headline: "Proxy environment variables are set and may affect connectivity."
                 .to_string(),
             details: vec!["HTTPS_PROXY = hello".to_string()],
@@ -3248,7 +3248,7 @@ async fn feedback_good_result_consent_popup_includes_connectivity_diagnostics_fi
         chat.current_rollout_path.clone(),
         Some("auto-review-rollout-thread-1.jsonl".to_string()),
         /*include_windows_sandbox_log*/ false,
-        &codex_feedback::FeedbackDiagnostics::new(vec![codex_feedback::FeedbackDiagnostic {
+        &datax_feedback::FeedbackDiagnostics::new(vec![datax_feedback::FeedbackDiagnostic {
             headline: "Proxy environment variables are set and may affect connectivity."
                 .to_string(),
             details: vec!["HTTPS_PROXY = hello".to_string()],

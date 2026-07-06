@@ -1,5 +1,5 @@
 use super::*;
-use codex_protocol::config_types::MultiAgentMode;
+use datax_protocol::config_types::MultiAgentMode;
 
 pub(super) const THREAD_UNLOADING_DELAY: Duration = Duration::from_secs(30 * 60);
 

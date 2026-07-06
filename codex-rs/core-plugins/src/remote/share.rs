@@ -1,9 +1,9 @@
 use super::*;
 use crate::plugin_bundle_archive::PluginBundlePackError;
 use crate::plugin_bundle_archive::pack_plugin_bundle_tar_gz;
-use codex_login::CodexAuth;
-use codex_login::default_client::build_reqwest_client;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_login::CodexAuth;
+use datax_login::default_client::build_reqwest_client;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use reqwest::RequestBuilder;
 use reqwest::StatusCode;
 use serde::Deserialize;

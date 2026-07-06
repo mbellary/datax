@@ -18,8 +18,8 @@ RUST_WORKSPACE_ROOT = REPO_ROOT / "codex-rs"
 class SourceBuildOutputs:
     entrypoint_bin: Path
     bwrap_bin: Path | None
-    codex_command_runner_bin: Path | None
-    codex_windows_sandbox_setup_bin: Path | None
+    datax_command_runner_bin: Path | None
+    datax_windows_sandbox_setup_bin: Path | None
 
 
 def build_source_binaries(
@@ -30,23 +30,23 @@ def build_source_binaries(
     profile: str,
     entrypoint_bin: Path | None,
     bwrap_bin: Path | None,
-    codex_command_runner_bin: Path | None,
-    codex_windows_sandbox_setup_bin: Path | None,
+    datax_command_runner_bin: Path | None,
+    datax_windows_sandbox_setup_bin: Path | None,
 ) -> SourceBuildOutputs:
     validate_prebuilt_resource_inputs(
         spec,
         bwrap_bin=bwrap_bin,
-        codex_command_runner_bin=codex_command_runner_bin,
-        codex_windows_sandbox_setup_bin=codex_windows_sandbox_setup_bin,
+        datax_command_runner_bin=datax_command_runner_bin,
+        datax_windows_sandbox_setup_bin=datax_windows_sandbox_setup_bin,
     )
     binaries = source_binaries_for_target(
         spec,
         variant,
         build_entrypoint=entrypoint_bin is None,
         build_bwrap=spec.is_linux and bwrap_bin is None,
-        build_codex_command_runner=spec.is_windows and codex_command_runner_bin is None,
-        build_codex_windows_sandbox_setup=spec.is_windows
-        and codex_windows_sandbox_setup_bin is None,
+        build_datax_command_runner=spec.is_windows and datax_command_runner_bin is None,
+        build_datax_windows_sandbox_setup=spec.is_windows
+        and datax_windows_sandbox_setup_bin is None,
     )
     if binaries:
         cmd = [
@@ -84,13 +84,13 @@ def build_source_binaries(
             bwrap_bin,
             output_dir / "bwrap" if spec.is_linux else None,
         ),
-        codex_command_runner_bin=resolve_output_path(
-            codex_command_runner_bin,
-            output_dir / "codex-command-runner.exe" if spec.is_windows else None,
+        datax_command_runner_bin=resolve_output_path(
+            datax_command_runner_bin,
+            output_dir / "datax-command-runner.exe" if spec.is_windows else None,
         ),
-        codex_windows_sandbox_setup_bin=resolve_output_path(
-            codex_windows_sandbox_setup_bin,
-            output_dir / "codex-windows-sandbox-setup.exe" if spec.is_windows else None,
+        datax_windows_sandbox_setup_bin=resolve_output_path(
+            datax_windows_sandbox_setup_bin,
+            output_dir / "datax-windows-sandbox-setup.exe" if spec.is_windows else None,
         ),
     )
     validate_source_outputs(outputs)
@@ -103,18 +103,18 @@ def source_binaries_for_target(
     *,
     build_entrypoint: bool,
     build_bwrap: bool,
-    build_codex_command_runner: bool,
-    build_codex_windows_sandbox_setup: bool,
+    build_datax_command_runner: bool,
+    build_datax_windows_sandbox_setup: bool,
 ) -> list[str]:
     binaries = []
     if build_entrypoint:
         binaries.append(variant.cargo_bin)
     if build_bwrap:
         binaries.append("bwrap")
-    if build_codex_command_runner:
-        binaries.append("codex-command-runner")
-    if build_codex_windows_sandbox_setup:
-        binaries.append("codex-windows-sandbox-setup")
+    if build_datax_command_runner:
+        binaries.append("datax-command-runner")
+    if build_datax_windows_sandbox_setup:
+        binaries.append("datax-windows-sandbox-setup")
     return binaries
 
 
@@ -122,18 +122,18 @@ def validate_prebuilt_resource_inputs(
     spec: TargetSpec,
     *,
     bwrap_bin: Path | None,
-    codex_command_runner_bin: Path | None,
-    codex_windows_sandbox_setup_bin: Path | None,
+    datax_command_runner_bin: Path | None,
+    datax_windows_sandbox_setup_bin: Path | None,
 ) -> None:
     if bwrap_bin is not None and not spec.is_linux:
         raise RuntimeError("--bwrap-bin is only supported for Linux targets.")
-    if codex_command_runner_bin is not None and not spec.is_windows:
+    if datax_command_runner_bin is not None and not spec.is_windows:
         raise RuntimeError(
-            "--codex-command-runner-bin is only supported for Windows targets."
+            "--datax-command-runner-bin is only supported for Windows targets."
         )
-    if codex_windows_sandbox_setup_bin is not None and not spec.is_windows:
+    if datax_windows_sandbox_setup_bin is not None and not spec.is_windows:
         raise RuntimeError(
-            "--codex-windows-sandbox-setup-bin is only supported for Windows targets."
+            "--datax-windows-sandbox-setup-bin is only supported for Windows targets."
         )
 
 
@@ -175,8 +175,8 @@ def validate_source_outputs(outputs: SourceBuildOutputs) -> None:
     for path in [
         outputs.entrypoint_bin,
         outputs.bwrap_bin,
-        outputs.codex_command_runner_bin,
-        outputs.codex_windows_sandbox_setup_bin,
+        outputs.datax_command_runner_bin,
+        outputs.datax_windows_sandbox_setup_bin,
     ]:
         if path is not None and not path.is_file():
             raise RuntimeError(f"cargo build did not produce expected binary: {path}")

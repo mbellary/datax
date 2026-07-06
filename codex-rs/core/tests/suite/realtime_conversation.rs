@@ -1,32 +1,6 @@
 use anyhow::Context;
 use anyhow::Result;
 use chrono::Utc;
-use codex_config::config_toml::RealtimeWsVersion;
-use codex_core::test_support::auth_manager_from_auth;
-use codex_login::CodexAuth;
-use codex_login::OPENAI_API_KEY_ENV_VAR;
-use codex_protocol::ThreadId;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::CodexErrorInfo;
-use codex_protocol::protocol::ConversationAudioParams;
-use codex_protocol::protocol::ConversationStartParams;
-use codex_protocol::protocol::ConversationStartTransport;
-use codex_protocol::protocol::ConversationTextParams;
-use codex_protocol::protocol::ConversationTextRole;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RealtimeAudioFrame;
-use codex_protocol::protocol::RealtimeConversationRealtimeEvent;
-use codex_protocol::protocol::RealtimeConversationVersion;
-use codex_protocol::protocol::RealtimeEvent;
-use codex_protocol::protocol::RealtimeNoopRequested;
-use codex_protocol::protocol::RealtimeOutputModality;
-use codex_protocol::protocol::RealtimeVoice;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::user_input::UserInput;
 use core_test_support::responses;
 use core_test_support::responses::WebSocketConnectionConfig;
 use core_test_support::responses::start_mock_server;
@@ -39,6 +13,32 @@ use core_test_support::test_codex::TestCodex;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_match;
+use datax_config::config_toml::RealtimeWsVersion;
+use datax_core::test_support::auth_manager_from_auth;
+use datax_login::CodexAuth;
+use datax_login::OPENAI_API_KEY_ENV_VAR;
+use datax_protocol::ThreadId;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::protocol::CodexErrorInfo;
+use datax_protocol::protocol::ConversationAudioParams;
+use datax_protocol::protocol::ConversationStartParams;
+use datax_protocol::protocol::ConversationStartTransport;
+use datax_protocol::protocol::ConversationTextParams;
+use datax_protocol::protocol::ConversationTextRole;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::InitialHistory;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::RealtimeAudioFrame;
+use datax_protocol::protocol::RealtimeConversationRealtimeEvent;
+use datax_protocol::protocol::RealtimeConversationVersion;
+use datax_protocol::protocol::RealtimeEvent;
+use datax_protocol::protocol::RealtimeNoopRequested;
+use datax_protocol::protocol::RealtimeOutputModality;
+use datax_protocol::protocol::RealtimeVoice;
+use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
@@ -60,7 +60,7 @@ use wiremock::matchers::path_regex;
 const STARTUP_CONTEXT_HEADER: &str = "Startup context from Codex.";
 const STARTUP_CONTEXT_OPEN_TAG: &str = "<startup_context>";
 const STARTUP_CONTEXT_CLOSE_TAG: &str = "</startup_context>";
-const REALTIME_BACKEND_PROMPT: &str = codex_prompts::BACKEND_PROMPT;
+const REALTIME_BACKEND_PROMPT: &str = datax_prompts::BACKEND_PROMPT;
 const USER_FIRST_NAME_PLACEHOLDER: &str = "{{ user_first_name }}";
 const MEMORY_PROMPT_PHRASE: &str =
     "You have access to a memory folder with guidance from prior runs.";
@@ -189,7 +189,7 @@ fn run_realtime_conversation_test_in_subprocess(
         .env(REALTIME_CONVERSATION_TEST_SUBPROCESS_ENV_VAR, "1");
     // The child talks to a loopback websocket server; parent proxy settings can
     // route that connection away from the test server in Bazel environments.
-    for &key in codex_network_proxy::PROXY_ENV_KEYS {
+    for &key in datax_network_proxy::PROXY_ENV_KEYS {
         command.env_remove(key);
     }
     match openai_api_key {
@@ -225,7 +225,7 @@ async fn seed_recent_thread(
     // rollout path no longer exists, so create the placeholder path that the test metadata points
     // at without exercising rollout writing in this realtime-context test.
     std::fs::write(&rollout_path, "")?;
-    let mut metadata_builder = codex_state::ThreadMetadataBuilder::new(
+    let mut metadata_builder = datax_state::ThreadMetadataBuilder::new(
         thread_id,
         rollout_path,
         updated_at,

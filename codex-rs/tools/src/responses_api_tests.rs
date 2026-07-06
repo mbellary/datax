@@ -8,7 +8,7 @@ use super::tool_definition_to_responses_api_tool;
 use crate::JsonSchema;
 use crate::ToolDefinition;
 use crate::ToolName;
-use codex_protocol::dynamic_tools::DynamicToolFunctionSpec;
+use datax_protocol::dynamic_tools::DynamicToolFunctionSpec;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::collections::BTreeMap;

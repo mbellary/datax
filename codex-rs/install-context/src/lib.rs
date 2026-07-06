@@ -3,13 +3,13 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_absolute_path::AbsolutePathBuf;
 
 const BIN_DIRNAME: &str = "bin";
-const PACKAGE_METADATA_FILENAME: &str = "codex-package.json";
-const PATH_DIRNAME: &str = "codex-path";
+const PACKAGE_METADATA_FILENAME: &str = "datax-package.json";
+const PATH_DIRNAME: &str = "datax-path";
 const RELEASES_DIRNAME: &str = "releases";
-const RESOURCES_DIRNAME: &str = "codex-resources";
+const RESOURCES_DIRNAME: &str = "datax-resources";
 const STANDALONE_PACKAGES_DIRNAME: &str = "standalone";
 const ZSH_DIRNAME: &str = "zsh";
 static INSTALL_CONTEXT: OnceLock<InstallContext> = OnceLock::new();
@@ -72,7 +72,7 @@ impl InstallContext {
         managed_by_npm: bool,
         managed_by_bun: bool,
     ) -> Self {
-        let codex_home = codex_utils_home_dir::find_codex_home().ok();
+        let codex_home = datax_utils_home_dir::find_codex_home().ok();
         Self::from_exe_with_codex_home(
             is_macos,
             current_exe,
@@ -286,7 +286,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use std::fs;
 
-    const TEST_RESOURCE_NAME: &str = "codex-test-helper";
+    const TEST_RESOURCE_NAME: &str = "datax-test-helper";
 
     #[test]
     fn detects_standalone_install_from_release_layout() -> std::io::Result<()> {

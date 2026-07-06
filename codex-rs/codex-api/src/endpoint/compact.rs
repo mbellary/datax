@@ -3,9 +3,9 @@ use crate::common::CompactionInput;
 use crate::endpoint::session::EndpointSession;
 use crate::error::ApiError;
 use crate::provider::Provider;
-use codex_client::HttpTransport;
-use codex_client::RequestTelemetry;
-use codex_protocol::models::ResponseItem;
+use datax_client::HttpTransport;
+use datax_client::RequestTelemetry;
+use datax_protocol::models::ResponseItem;
 use http::HeaderMap;
 use http::Method;
 use serde::Deserialize;
@@ -90,10 +90,10 @@ struct CompactHistoryResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_client::Request;
-    use codex_client::Response;
-    use codex_client::StreamResponse;
-    use codex_client::TransportError;
+    use datax_client::Request;
+    use datax_client::Response;
+    use datax_client::StreamResponse;
+    use datax_client::TransportError;
 
     #[derive(Clone, Default)]
     struct DummyTransport;

@@ -29,17 +29,17 @@ use crate::tools::sandboxing::ToolRuntime;
 use crate::tools::sandboxing::default_exec_approval_requirement;
 use crate::tools::sandboxing::sandbox_override_for_first_attempt;
 use crate::tools::sandboxing::unsandboxed_execution_allowed;
-use codex_hooks::PermissionRequestDecision;
-use codex_otel::ToolDecisionSource;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::SandboxErr;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::NetworkPolicyRuleAction;
-use codex_protocol::protocol::ReviewDecision;
-use codex_sandboxing::SandboxManager;
-use codex_sandboxing::SandboxType;
-use codex_utils_path_uri::PathUri;
+use datax_hooks::PermissionRequestDecision;
+use datax_otel::ToolDecisionSource;
+use datax_protocol::error::CodexErr;
+use datax_protocol::error::SandboxErr;
+use datax_protocol::exec_output::ExecToolCallOutput;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::NetworkPolicyRuleAction;
+use datax_protocol::protocol::ReviewDecision;
+use datax_sandboxing::SandboxManager;
+use datax_sandboxing::SandboxType;
+use datax_utils_path_uri::PathUri;
 use std::time::Instant;
 
 pub(crate) struct ToolOrchestrator {
@@ -517,7 +517,7 @@ impl ToolOrchestrator {
         approval_ctx: ApprovalCtx<'_>,
         tool_ctx: &ToolCtx,
         evaluate_permission_request_hooks: bool,
-        otel: &codex_otel::SessionTelemetry,
+        otel: &datax_otel::SessionTelemetry,
     ) -> Result<ReviewDecision, ToolError>
     where
         T: ToolRuntime<Rq, Out>,

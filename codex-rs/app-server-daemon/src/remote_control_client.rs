@@ -4,16 +4,16 @@ use std::time::Duration;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::JSONRPCRequest;
-use codex_app_server_protocol::RemoteControlConnectionStatus;
-use codex_app_server_protocol::RemoteControlDisableParams;
-use codex_app_server_protocol::RemoteControlDisableResponse;
-use codex_app_server_protocol::RemoteControlEnableParams;
-use codex_app_server_protocol::RemoteControlEnableResponse;
-use codex_app_server_protocol::RemoteControlStatusChangedNotification;
-use codex_app_server_protocol::RequestId;
+use datax_app_server_protocol::JSONRPCMessage;
+use datax_app_server_protocol::JSONRPCNotification;
+use datax_app_server_protocol::JSONRPCRequest;
+use datax_app_server_protocol::RemoteControlConnectionStatus;
+use datax_app_server_protocol::RemoteControlDisableParams;
+use datax_app_server_protocol::RemoteControlDisableResponse;
+use datax_app_server_protocol::RemoteControlEnableParams;
+use datax_app_server_protocol::RemoteControlEnableResponse;
+use datax_app_server_protocol::RemoteControlStatusChangedNotification;
+use datax_app_server_protocol::RequestId;
 use serde::de::DeserializeOwned;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncWrite;
@@ -162,7 +162,7 @@ async fn connect_with_retry(
     socket_path: &Path,
     connect_timeout: Duration,
     connect_retry_delay: Duration,
-) -> Result<WebSocketStream<codex_uds::UnixStream>> {
+) -> Result<WebSocketStream<datax_uds::UnixStream>> {
     let deadline = Instant::now() + connect_timeout;
     loop {
         match client::connect(socket_path).await {
@@ -320,10 +320,10 @@ impl From<RemoteControlStatusChangedNotification> for RemoteControlReadyStatus {
 #[cfg(all(test, unix))]
 mod tests {
     use anyhow::Result;
-    use codex_app_server_protocol::JSONRPCError;
-    use codex_app_server_protocol::JSONRPCErrorError;
-    use codex_app_server_protocol::JSONRPCResponse;
-    use codex_uds::UnixListener;
+    use datax_app_server_protocol::JSONRPCError;
+    use datax_app_server_protocol::JSONRPCErrorError;
+    use datax_app_server_protocol::JSONRPCResponse;
+    use datax_uds::UnixListener;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use tokio_tungstenite::accept_async;
@@ -623,7 +623,7 @@ mod tests {
 
     async fn accept_initialized_client(
         mut listener: UnixListener,
-    ) -> Result<WebSocketStream<codex_uds::UnixStream>> {
+    ) -> Result<WebSocketStream<datax_uds::UnixStream>> {
         let stream = listener.accept().await?;
         let mut websocket = accept_async(stream).await?;
         let initialize = client::read_message(&mut websocket).await?;

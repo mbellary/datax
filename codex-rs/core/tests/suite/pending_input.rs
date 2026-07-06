@@ -1,19 +1,6 @@
 use core_test_support::test_codex::local_selections;
 use std::sync::Arc;
 
-use codex_core::CodexThread;
-use codex_features::Feature;
-use codex_protocol::AgentPath;
-use codex_protocol::items::SleepItem;
-use codex_protocol::items::TurnItem;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::user_input::UserInput;
 use core_test_support::context_snapshot;
 use core_test_support::context_snapshot::ContextSnapshotOptions;
 use core_test_support::responses;
@@ -32,6 +19,19 @@ use core_test_support::test_codex::TestCodex;
 use core_test_support::test_codex::test_codex;
 use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::wait_for_event;
+use datax_core::CodexThread;
+use datax_features::Feature;
+use datax_protocol::AgentPath;
+use datax_protocol::items::SleepItem;
+use datax_protocol::items::TurnItem;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::InterAgentCommunication;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutLine;
+use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::from_slice;
@@ -154,14 +154,14 @@ async fn submit_danger_full_access_user_turn(test: &TestCodex, text: &str) {
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(test.config.cwd.clone())),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                    mode: datax_protocol::config_types::ModeKind::Default,
+                    settings: datax_protocol::config_types::Settings {
                         model: test.session_configured.model.clone(),
                         reasoning_effort: None,
                         developer_instructions: None,

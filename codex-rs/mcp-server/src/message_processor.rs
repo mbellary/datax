@@ -1,19 +1,19 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use codex_arg0::Arg0DispatchPaths;
-use codex_core::StateDbHandle;
-use codex_core::ThreadManager;
-use codex_core::config::Config;
-use codex_exec_server::EnvironmentManager;
-use codex_extension_api::empty_extension_registry;
-use codex_home::CodexHomeUserInstructionsProvider;
-use codex_login::AuthManager;
-use codex_login::default_client::USER_AGENT_SUFFIX;
-use codex_login::default_client::get_codex_user_agent;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::Submission;
+use datax_arg0::Arg0DispatchPaths;
+use datax_core::StateDbHandle;
+use datax_core::ThreadManager;
+use datax_core::config::Config;
+use datax_exec_server::EnvironmentManager;
+use datax_extension_api::empty_extension_registry;
+use datax_home::CodexHomeUserInstructionsProvider;
+use datax_login::AuthManager;
+use datax_login::default_client::USER_AGENT_SUFFIX;
+use datax_login::default_client::get_codex_user_agent;
+use datax_protocol::ThreadId;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::Submission;
 use rmcp::model::CallToolRequestParams;
 use rmcp::model::CallToolResult;
 use rmcp::model::ClientNotification;
@@ -74,7 +74,7 @@ impl MessageProcessor {
             empty_extension_registry(),
             user_instructions_provider,
             /*analytics_events_client*/ None,
-            codex_core::thread_store_from_config(config.as_ref(), state_db.clone()),
+            datax_core::thread_store_from_config(config.as_ref(), state_db.clone()),
             state_db.clone(),
             installation_id,
             /*attestation_provider*/ None,
@@ -224,7 +224,7 @@ impl MessageProcessor {
         }
 
         let server_info =
-            Implementation::new("codex-mcp-server", env!("CARGO_PKG_VERSION")).with_title("Codex");
+            Implementation::new("datax-mcp-server", env!("CARGO_PKG_VERSION")).with_title("Codex");
 
         // Preserve Codex's existing non-spec `serverInfo.user_agent` field.
         let mut server_info_value = match serde_json::to_value(&server_info) {
@@ -336,7 +336,7 @@ impl MessageProcessor {
 
         match name.as_ref() {
             "codex" => self.handle_tool_call_codex(id, arguments).await,
-            "codex-reply" => {
+            "datax-reply" => {
                 self.handle_tool_call_codex_session_reply(id, arguments)
                     .await
             }
@@ -544,7 +544,7 @@ impl MessageProcessor {
         if let Err(e) = codex_arc
             .submit_with_id(Submission {
                 id: request_id_string,
-                op: codex_protocol::protocol::Op::Interrupt,
+                op: datax_protocol::protocol::Op::Interrupt,
                 client_user_message_id: None,
                 trace: None,
             })

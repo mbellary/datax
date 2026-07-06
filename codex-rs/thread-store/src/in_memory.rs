@@ -6,14 +6,14 @@ use std::sync::MutexGuard;
 use std::sync::OnceLock;
 
 use chrono::Utc;
-use codex_protocol::ThreadId;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionMeta;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::ThreadMemoryMode;
-use codex_rollout::persisted_rollout_items;
+use datax_protocol::ThreadId;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::SessionMeta;
+use datax_protocol::protocol::SessionMetaLine;
+use datax_protocol::protocol::ThreadMemoryMode;
+use datax_rollout::persisted_rollout_items;
 
 use crate::AppendThreadItemsParams;
 use crate::ArchiveThreadParams;
@@ -50,8 +50,8 @@ mod tests {
     use crate::StoredTurnItemsView;
     use crate::ThreadPersistenceMetadata;
     use crate::ThreadSortKey;
-    use codex_protocol::models::BaseInstructions;
-    use codex_protocol::protocol::SessionSource;
+    use datax_protocol::models::BaseInstructions;
+    use datax_protocol::protocol::SessionSource;
 
     #[tokio::test]
     async fn default_turn_pagination_methods_return_unsupported() {
@@ -569,7 +569,7 @@ fn stored_thread_from_state(
     })
 }
 
-fn git_info_from_patch(patch: &ThreadMetadataPatch) -> Option<codex_protocol::protocol::GitInfo> {
+fn git_info_from_patch(patch: &ThreadMetadataPatch) -> Option<datax_protocol::protocol::GitInfo> {
     let git_info = patch.git_info.as_ref()?;
     let sha = git_info.sha.clone().flatten();
     let branch = git_info.branch.clone().flatten();
@@ -577,8 +577,8 @@ fn git_info_from_patch(patch: &ThreadMetadataPatch) -> Option<codex_protocol::pr
     if sha.is_none() && branch.is_none() && origin_url.is_none() {
         return None;
     }
-    Some(codex_protocol::protocol::GitInfo {
-        commit_hash: sha.as_deref().map(codex_git_utils::GitSha::new),
+    Some(datax_protocol::protocol::GitInfo {
+        commit_hash: sha.as_deref().map(datax_git_utils::GitSha::new),
         branch,
         repository_url: origin_url,
     })

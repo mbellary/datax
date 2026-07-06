@@ -7,13 +7,13 @@
 //! equivalent for read-root grants.
 
 use crate::legacy_core::config::Config;
-use codex_config::types::WindowsSandboxModeToml;
-use codex_features::Feature;
-use codex_protocol::config_types::WindowsSandboxLevel;
+use datax_config::types::WindowsSandboxModeToml;
+use datax_features::Feature;
+use datax_protocol::config_types::WindowsSandboxLevel;
 #[cfg(target_os = "windows")]
-use codex_protocol::models::PermissionProfile;
+use datax_protocol::models::PermissionProfile;
 #[cfg(target_os = "windows")]
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_absolute_path::AbsolutePathBuf;
 #[cfg(target_os = "windows")]
 use std::collections::HashMap;
 use std::path::Path;
@@ -35,7 +35,7 @@ pub(crate) fn level_from_config(config: &Config) -> WindowsSandboxLevel {
 }
 
 #[cfg(target_os = "windows")]
-pub(crate) use codex_windows_sandbox::sandbox_setup_is_complete;
+pub(crate) use datax_windows_sandbox::sandbox_setup_is_complete;
 
 #[cfg(not(target_os = "windows"))]
 pub(crate) fn sandbox_setup_is_complete(_codex_home: &Path) -> bool {
@@ -50,37 +50,37 @@ pub(crate) fn run_elevated_setup(
     env_map: &HashMap<String, String>,
     codex_home: &Path,
 ) -> anyhow::Result<()> {
-    let permissions = codex_windows_sandbox::ResolvedWindowsSandboxPermissions::try_from_permission_profile_for_workspace_roots(
+    let permissions = datax_windows_sandbox::ResolvedWindowsSandboxPermissions::try_from_permission_profile_for_workspace_roots(
         permission_profile,
         workspace_roots,
     )?;
-    codex_windows_sandbox::run_elevated_setup(
-        codex_windows_sandbox::SandboxSetupRequest {
+    datax_windows_sandbox::run_elevated_setup(
+        datax_windows_sandbox::SandboxSetupRequest {
             permissions: &permissions,
             command_cwd,
             env_map,
             codex_home,
             proxy_enforced: false,
         },
-        codex_windows_sandbox::SetupRootOverrides::default(),
+        datax_windows_sandbox::SetupRootOverrides::default(),
     )
 }
 
 #[cfg(target_os = "windows")]
 pub(crate) fn elevated_setup_failure_details(err: &anyhow::Error) -> Option<(String, String)> {
-    let failure = codex_windows_sandbox::extract_setup_failure(err)?;
+    let failure = datax_windows_sandbox::extract_setup_failure(err)?;
     Some((
         failure.code.as_str().to_string(),
-        codex_windows_sandbox::sanitize_setup_metric_tag_value(&failure.message),
+        datax_windows_sandbox::sanitize_setup_metric_tag_value(&failure.message),
     ))
 }
 
 #[cfg(target_os = "windows")]
 pub(crate) fn elevated_setup_failure_metric_name(err: &anyhow::Error) -> &'static str {
-    if codex_windows_sandbox::extract_setup_failure(err).is_some_and(|failure| {
+    if datax_windows_sandbox::extract_setup_failure(err).is_some_and(|failure| {
         matches!(
             failure.code,
-            codex_windows_sandbox::SetupErrorCode::OrchestratorHelperLaunchCanceled
+            datax_windows_sandbox::SetupErrorCode::OrchestratorHelperLaunchCanceled
         )
     }) {
         "codex.windows_sandbox.elevated_setup_canceled"
@@ -109,7 +109,7 @@ pub(crate) fn grant_read_root_non_elevated(
     }
 
     let canonical_root = dunce::canonicalize(read_root)?;
-    codex_windows_sandbox::run_setup_refresh_with_extra_read_roots(
+    datax_windows_sandbox::run_setup_refresh_with_extra_read_roots(
         permission_profile,
         workspace_roots,
         command_cwd,

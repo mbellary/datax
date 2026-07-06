@@ -80,86 +80,86 @@ use crate::facts::TurnTokenUsageFact;
 use crate::reducer::AnalyticsReducer;
 use crate::reducer::normalize_path_for_skill_id;
 use crate::reducer::skill_id_for_local_skill;
-use codex_app_server_protocol::ApprovalsReviewer as AppServerApprovalsReviewer;
-use codex_app_server_protocol::AskForApproval as AppServerAskForApproval;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ClientResponsePayload;
-use codex_app_server_protocol::CodexErrorInfo;
-use codex_app_server_protocol::CollabAgentTool;
-use codex_app_server_protocol::CollabAgentToolCallStatus;
-use codex_app_server_protocol::CommandAction;
-use codex_app_server_protocol::CommandExecutionApprovalDecision;
-use codex_app_server_protocol::CommandExecutionRequestApprovalParams;
-use codex_app_server_protocol::CommandExecutionRequestApprovalResponse;
-use codex_app_server_protocol::CommandExecutionSource;
-use codex_app_server_protocol::CommandExecutionStatus;
-use codex_app_server_protocol::DynamicToolCallStatus;
-use codex_app_server_protocol::GuardianApprovalReview;
-use codex_app_server_protocol::GuardianApprovalReviewAction;
-use codex_app_server_protocol::GuardianApprovalReviewStatus;
-use codex_app_server_protocol::GuardianCommandSource as AppServerGuardianCommandSource;
-use codex_app_server_protocol::InitializeCapabilities;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::ItemCompletedNotification;
-use codex_app_server_protocol::ItemGuardianApprovalReviewCompletedNotification;
-use codex_app_server_protocol::ItemStartedNotification;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::McpToolCallStatus;
-use codex_app_server_protocol::NonSteerableTurnKind;
-use codex_app_server_protocol::PatchApplyStatus;
-use codex_app_server_protocol::PermissionsRequestApprovalParams;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::RequestPermissionProfile;
-use codex_app_server_protocol::SandboxPolicy as AppServerSandboxPolicy;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ServerResponse;
-use codex_app_server_protocol::SessionSource as AppServerSessionSource;
-use codex_app_server_protocol::SubAgentActivityKind;
-use codex_app_server_protocol::Thread;
-use codex_app_server_protocol::ThreadArchiveParams;
-use codex_app_server_protocol::ThreadArchiveResponse;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadResumeResponse;
-use codex_app_server_protocol::ThreadSource as AppServerThreadSource;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::ThreadStatus as AppServerThreadStatus;
-use codex_app_server_protocol::Turn;
-use codex_app_server_protocol::TurnCompletedNotification;
-use codex_app_server_protocol::TurnDiffUpdatedNotification;
-use codex_app_server_protocol::TurnError as AppServerTurnError;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartedNotification;
-use codex_app_server_protocol::TurnStatus as AppServerTurnStatus;
-use codex_app_server_protocol::TurnSteerParams;
-use codex_app_server_protocol::TurnSteerResponse;
-use codex_app_server_protocol::UserInput;
-use codex_login::default_client::DEFAULT_ORIGINATOR;
-use codex_login::default_client::originator;
-use codex_plugin::AppConnectorId;
-use codex_plugin::PluginCapabilitySummary;
-use codex_plugin::PluginId;
-use codex_plugin::PluginTelemetryMetadata;
-use codex_protocol::approvals::NetworkApprovalProtocol;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::error::CodexErr;
-use codex_protocol::models::NetworkPermissions as CoreNetworkPermissions;
-use codex_protocol::models::PermissionProfile as CorePermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::HookEventName;
-use codex_protocol::protocol::HookRunStatus;
-use codex_protocol::protocol::HookSource;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::ThreadSource;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::request_permissions::PermissionGrantScope as CorePermissionGrantScope;
-use codex_protocol::request_permissions::RequestPermissionProfile as CoreRequestPermissionProfile;
-use codex_protocol::request_permissions::RequestPermissionsResponse as CoreRequestPermissionsResponse;
-use codex_utils_absolute_path::test_support::PathBufExt;
-use codex_utils_absolute_path::test_support::test_path_buf;
+use datax_app_server_protocol::ApprovalsReviewer as AppServerApprovalsReviewer;
+use datax_app_server_protocol::AskForApproval as AppServerAskForApproval;
+use datax_app_server_protocol::ClientInfo;
+use datax_app_server_protocol::ClientRequest;
+use datax_app_server_protocol::ClientResponsePayload;
+use datax_app_server_protocol::CodexErrorInfo;
+use datax_app_server_protocol::CollabAgentTool;
+use datax_app_server_protocol::CollabAgentToolCallStatus;
+use datax_app_server_protocol::CommandAction;
+use datax_app_server_protocol::CommandExecutionApprovalDecision;
+use datax_app_server_protocol::CommandExecutionRequestApprovalParams;
+use datax_app_server_protocol::CommandExecutionRequestApprovalResponse;
+use datax_app_server_protocol::CommandExecutionSource;
+use datax_app_server_protocol::CommandExecutionStatus;
+use datax_app_server_protocol::DynamicToolCallStatus;
+use datax_app_server_protocol::GuardianApprovalReview;
+use datax_app_server_protocol::GuardianApprovalReviewAction;
+use datax_app_server_protocol::GuardianApprovalReviewStatus;
+use datax_app_server_protocol::GuardianCommandSource as AppServerGuardianCommandSource;
+use datax_app_server_protocol::InitializeCapabilities;
+use datax_app_server_protocol::InitializeParams;
+use datax_app_server_protocol::ItemCompletedNotification;
+use datax_app_server_protocol::ItemGuardianApprovalReviewCompletedNotification;
+use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::JSONRPCErrorError;
+use datax_app_server_protocol::McpToolCallStatus;
+use datax_app_server_protocol::NonSteerableTurnKind;
+use datax_app_server_protocol::PatchApplyStatus;
+use datax_app_server_protocol::PermissionsRequestApprovalParams;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::RequestPermissionProfile;
+use datax_app_server_protocol::SandboxPolicy as AppServerSandboxPolicy;
+use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::ServerRequest;
+use datax_app_server_protocol::ServerResponse;
+use datax_app_server_protocol::SessionSource as AppServerSessionSource;
+use datax_app_server_protocol::SubAgentActivityKind;
+use datax_app_server_protocol::Thread;
+use datax_app_server_protocol::ThreadArchiveParams;
+use datax_app_server_protocol::ThreadArchiveResponse;
+use datax_app_server_protocol::ThreadItem;
+use datax_app_server_protocol::ThreadResumeResponse;
+use datax_app_server_protocol::ThreadSource as AppServerThreadSource;
+use datax_app_server_protocol::ThreadStartResponse;
+use datax_app_server_protocol::ThreadStatus as AppServerThreadStatus;
+use datax_app_server_protocol::Turn;
+use datax_app_server_protocol::TurnCompletedNotification;
+use datax_app_server_protocol::TurnDiffUpdatedNotification;
+use datax_app_server_protocol::TurnError as AppServerTurnError;
+use datax_app_server_protocol::TurnStartParams;
+use datax_app_server_protocol::TurnStartedNotification;
+use datax_app_server_protocol::TurnStatus as AppServerTurnStatus;
+use datax_app_server_protocol::TurnSteerParams;
+use datax_app_server_protocol::TurnSteerResponse;
+use datax_app_server_protocol::UserInput;
+use datax_login::default_client::DEFAULT_ORIGINATOR;
+use datax_login::default_client::originator;
+use datax_plugin::AppConnectorId;
+use datax_plugin::PluginCapabilitySummary;
+use datax_plugin::PluginId;
+use datax_plugin::PluginTelemetryMetadata;
+use datax_protocol::approvals::NetworkApprovalProtocol;
+use datax_protocol::config_types::ApprovalsReviewer;
+use datax_protocol::config_types::ModeKind;
+use datax_protocol::error::CodexErr;
+use datax_protocol::models::NetworkPermissions as CoreNetworkPermissions;
+use datax_protocol::models::PermissionProfile as CorePermissionProfile;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::HookEventName;
+use datax_protocol::protocol::HookRunStatus;
+use datax_protocol::protocol::HookSource;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::SubAgentSource;
+use datax_protocol::protocol::ThreadSource;
+use datax_protocol::protocol::TokenUsage;
+use datax_protocol::request_permissions::PermissionGrantScope as CorePermissionGrantScope;
+use datax_protocol::request_permissions::RequestPermissionProfile as CoreRequestPermissionProfile;
+use datax_protocol::request_permissions::RequestPermissionsResponse as CoreRequestPermissionsResponse;
+use datax_utils_absolute_path::test_support::PathBufExt;
+use datax_utils_absolute_path::test_support::test_path_buf;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::collections::HashSet;
@@ -231,7 +231,7 @@ fn sample_thread_start_response(
 fn sample_app_server_client_metadata() -> CodexAppServerClientMetadata {
     CodexAppServerClientMetadata {
         product_client_id: DEFAULT_ORIGINATOR.to_string(),
-        client_name: Some("codex-tui".to_string()),
+        client_name: Some("datax-tui".to_string()),
         client_version: Some("1.0.0".to_string()),
         rpc_transport: AppServerRpcTransport::Stdio,
         experimental_api_enabled: Some(true),
@@ -316,10 +316,10 @@ fn sample_turn_start_request(thread_id: &str, request_id: i64) -> ClientRequest 
 }
 
 fn sample_turn_start_response(turn_id: &str) -> ClientResponsePayload {
-    ClientResponsePayload::TurnStart(codex_app_server_protocol::TurnStartResponse {
+    ClientResponsePayload::TurnStart(datax_app_server_protocol::TurnStartResponse {
         turn: Turn {
             id: turn_id.to_string(),
-            items_view: codex_app_server_protocol::TurnItemsView::Full,
+            items_view: datax_app_server_protocol::TurnItemsView::Full,
             items: vec![],
             status: AppServerTurnStatus::InProgress,
             error: None,
@@ -335,7 +335,7 @@ fn sample_turn_started_notification(thread_id: &str, turn_id: &str) -> ServerNot
         thread_id: thread_id.to_string(),
         turn: Turn {
             id: turn_id.to_string(),
-            items_view: codex_app_server_protocol::TurnItemsView::Full,
+            items_view: datax_app_server_protocol::TurnItemsView::Full,
             items: vec![],
             status: AppServerTurnStatus::InProgress,
             error: None,
@@ -364,13 +364,13 @@ fn sample_turn_completed_notification(
     thread_id: &str,
     turn_id: &str,
     status: AppServerTurnStatus,
-    codex_error_info: Option<codex_app_server_protocol::CodexErrorInfo>,
+    codex_error_info: Option<datax_app_server_protocol::CodexErrorInfo>,
 ) -> ServerNotification {
     ServerNotification::TurnCompleted(TurnCompletedNotification {
         thread_id: thread_id.to_string(),
         turn: Turn {
             id: turn_id.to_string(),
-            items_view: codex_app_server_protocol::TurnItemsView::Full,
+            items_view: datax_app_server_protocol::TurnItemsView::Full,
             items: vec![],
             status,
             error: codex_error_info.map(|codex_error_info| AppServerTurnError {
@@ -521,13 +521,13 @@ async fn ingest_rejected_turn_steer(
                 connection_id: 8,
                 params: InitializeParams {
                     client_info: ClientInfo {
-                        name: "codex-web".to_string(),
+                        name: "datax-web".to_string(),
                         title: None,
                         version: "1.0.0".to_string(),
                     },
                     capabilities: None,
                 },
-                product_client_id: "codex-web".to_string(),
+                product_client_id: "datax-web".to_string(),
                 runtime: sample_runtime_metadata(),
                 rpc_transport: AppServerRpcTransport::Stdio,
             },
@@ -582,13 +582,13 @@ async fn ingest_initialize(reducer: &mut AnalyticsReducer, out: &mut Vec<TrackEv
                 connection_id: 7,
                 params: InitializeParams {
                     client_info: ClientInfo {
-                        name: "codex-tui".to_string(),
+                        name: "datax-tui".to_string(),
                         title: None,
                         version: "1.0.0".to_string(),
                     },
                     capabilities: None,
                 },
-                product_client_id: "codex-tui".to_string(),
+                product_client_id: "datax-tui".to_string(),
                 runtime: sample_runtime_metadata(),
                 rpc_transport: AppServerRpcTransport::Stdio,
             },
@@ -768,7 +768,7 @@ fn sample_initialize_fact(connection_id: u64) -> AnalyticsFact {
         connection_id,
         params: InitializeParams {
             client_info: ClientInfo {
-                name: "codex-tui".to_string(),
+                name: "datax-tui".to_string(),
                 title: None,
                 version: "1.0.0".to_string(),
             },
@@ -908,7 +908,7 @@ fn sample_permissions_approval_request(request_id: i64) -> ServerRequest {
             cwd: test_path_buf("/tmp").abs(),
             reason: Some("need network".to_string()),
             permissions: RequestPermissionProfile {
-                network: Some(codex_app_server_protocol::AdditionalNetworkPermissions {
+                network: Some(datax_app_server_protocol::AdditionalNetworkPermissions {
                     enabled: Some(true),
                 }),
                 file_system: None,
@@ -941,7 +941,7 @@ fn sample_guardian_review_completed(
             completed_at_ms: 1_042,
             review_id: review_id.to_string(),
             target_item_id: target_item_id.map(str::to_string),
-            decision_source: codex_app_server_protocol::AutoReviewDecisionSource::Agent,
+            decision_source: datax_app_server_protocol::AutoReviewDecisionSource::Agent,
             review: GuardianApprovalReview {
                 status,
                 risk_level: None,
@@ -1323,7 +1323,7 @@ fn compaction_event_serializes_expected_shape() {
                 "turn_id": "turn-1",
                 "app_server_client": {
                     "product_client_id": DEFAULT_ORIGINATOR,
-                    "client_name": "codex-tui",
+                    "client_name": "datax-tui",
                     "client_version": "1.0.0",
                     "rpc_transport": "stdio",
                     "experimental_api_enabled": true
@@ -1405,7 +1405,7 @@ fn thread_initialized_event_serializes_expected_shape() {
             session_id: "session-thread-0".to_string(),
             app_server_client: CodexAppServerClientMetadata {
                 product_client_id: DEFAULT_ORIGINATOR.to_string(),
-                client_name: Some("codex-tui".to_string()),
+                client_name: Some("datax-tui".to_string()),
                 client_version: Some("1.0.0".to_string()),
                 rpc_transport: AppServerRpcTransport::Stdio,
                 experimental_api_enabled: Some(true),
@@ -1438,7 +1438,7 @@ fn thread_initialized_event_serializes_expected_shape() {
                 "session_id": "session-thread-0",
                 "app_server_client": {
                     "product_client_id": DEFAULT_ORIGINATOR,
-                    "client_name": "codex-tui",
+                    "client_name": "datax-tui",
                     "client_version": "1.0.0",
                     "rpc_transport": "stdio",
                     "experimental_api_enabled": true
@@ -1473,7 +1473,7 @@ fn command_execution_event_serializes_expected_shape() {
                 item_id: "item-1".to_string(),
                 app_server_client: CodexAppServerClientMetadata {
                     product_client_id: "codex_tui".to_string(),
-                    client_name: Some("codex-tui".to_string()),
+                    client_name: Some("datax-tui".to_string()),
                     client_version: Some("1.2.3".to_string()),
                     rpc_transport: AppServerRpcTransport::Websocket,
                     experimental_api_enabled: Some(true),
@@ -1522,7 +1522,7 @@ fn command_execution_event_serializes_expected_shape() {
                 "item_id": "item-1",
                 "app_server_client": {
                     "product_client_id": "codex_tui",
-                    "client_name": "codex-tui",
+                    "client_name": "datax-tui",
                     "client_version": "1.2.3",
                     "rpc_transport": "websocket",
                     "experimental_api_enabled": true
@@ -1572,7 +1572,7 @@ fn review_event_serializes_expected_shape() {
             review_id: "review-1".to_string(),
             app_server_client: CodexAppServerClientMetadata {
                 product_client_id: "codex_tui".to_string(),
-                client_name: Some("codex-tui".to_string()),
+                client_name: Some("datax-tui".to_string()),
                 client_version: Some("1.2.3".to_string()),
                 rpc_transport: AppServerRpcTransport::Websocket,
                 experimental_api_enabled: Some(true),
@@ -1610,7 +1610,7 @@ fn review_event_serializes_expected_shape() {
                 "review_id": "review-1",
                 "app_server_client": {
                     "product_client_id": "codex_tui",
-                    "client_name": "codex-tui",
+                    "client_name": "datax-tui",
                     "client_version": "1.2.3",
                     "rpc_transport": "websocket",
                     "experimental_api_enabled": true
@@ -1664,7 +1664,7 @@ async fn initialize_caches_client_and_thread_lifecycle_publishes_once_initialize
                 connection_id: 7,
                 params: InitializeParams {
                     client_info: ClientInfo {
-                        name: "codex-tui".to_string(),
+                        name: "datax-tui".to_string(),
                         title: None,
                         version: "1.0.0".to_string(),
                     },
@@ -1712,7 +1712,7 @@ async fn initialize_caches_client_and_thread_lifecycle_publishes_once_initialize
     );
     assert_eq!(
         payload[0]["event_params"]["app_server_client"]["client_name"],
-        "codex-tui"
+        "datax-tui"
     );
     assert_eq!(
         payload[0]["event_params"]["app_server_client"]["client_version"],
@@ -1805,7 +1805,7 @@ async fn compaction_event_ingests_custom_fact() {
     let mut reducer = AnalyticsReducer::default();
     let mut events = Vec::new();
     let parent_thread_id =
-        codex_protocol::ThreadId::from_string("22222222-2222-2222-2222-222222222222")
+        datax_protocol::ThreadId::from_string("22222222-2222-2222-2222-222222222222")
             .expect("valid parent thread id");
 
     reducer
@@ -1814,7 +1814,7 @@ async fn compaction_event_ingests_custom_fact() {
                 connection_id: 7,
                 params: InitializeParams {
                     client_info: ClientInfo {
-                        name: "codex-tui".to_string(),
+                        name: "datax-tui".to_string(),
                         title: None,
                         version: "1.0.0".to_string(),
                     },
@@ -1905,7 +1905,7 @@ async fn compaction_event_ingests_custom_fact() {
     );
     assert_eq!(
         payload[0]["event_params"]["app_server_client"]["client_name"],
-        "codex-tui"
+        "datax-tui"
     );
     assert_eq!(
         payload[0]["event_params"]["app_server_client"]["rpc_transport"],
@@ -1943,7 +1943,7 @@ async fn guardian_review_event_ingests_custom_fact_with_optional_target_item() {
                 connection_id: 7,
                 params: InitializeParams {
                     client_info: ClientInfo {
-                        name: "codex-tui".to_string(),
+                        name: "datax-tui".to_string(),
                         title: None,
                         version: "1.0.0".to_string(),
                     },
@@ -2002,7 +2002,7 @@ async fn guardian_review_event_ingests_custom_fact_with_optional_target_item() {
                     guardian_session_kind: None,
                     guardian_model: None,
                     guardian_reasoning_effort: None,
-                    guardian_default_review_model_id: Some("codex-auto-review".to_string()),
+                    guardian_default_review_model_id: Some("datax-auto-review".to_string()),
                     guardian_catalog_contains_auto_review: Some(false),
                     guardian_review_model_overridden: Some(false),
                     guardian_review_model_override: None,
@@ -2075,7 +2075,7 @@ async fn guardian_review_event_ingests_custom_fact_with_optional_target_item() {
     assert_eq!(payload[0]["event_params"]["review_timeout_ms"], 90_000);
     assert_eq!(
         payload[0]["event_params"]["guardian_default_review_model_id"],
-        "codex-auto-review"
+        "datax-auto-review"
     );
     assert_eq!(
         payload[0]["event_params"]["guardian_catalog_contains_auto_review"],
@@ -2206,7 +2206,7 @@ async fn item_lifecycle_notifications_publish_command_execution_event() {
     assert_eq!(payload[0]["event_params"]["execution_duration_ms"], 42);
     assert_eq!(
         payload[0]["event_params"]["app_server_client"]["client_name"],
-        "codex-tui"
+        "datax-tui"
     );
     assert_eq!(payload[0]["event_params"]["thread_source"], "user");
 }
@@ -2549,8 +2549,8 @@ fn subagent_thread_started_review_serializes_expected_shape() {
             thread_id: "thread-review".to_string(),
             parent_thread_id: None,
             forked_from_thread_id: None,
-            product_client_id: "codex-tui".to_string(),
-            client_name: "codex-tui".to_string(),
+            product_client_id: "datax-tui".to_string(),
+            client_name: "datax-tui".to_string(),
             client_version: "1.0.0".to_string(),
             model: "gpt-5".to_string(),
             ephemeral: false,
@@ -2563,11 +2563,11 @@ fn subagent_thread_started_review_serializes_expected_shape() {
     assert_eq!(payload["event_params"]["thread_source"], "subagent");
     assert_eq!(
         payload["event_params"]["app_server_client"]["product_client_id"],
-        "codex-tui"
+        "datax-tui"
     );
     assert_eq!(
         payload["event_params"]["app_server_client"]["client_name"],
-        "codex-tui"
+        "datax-tui"
     );
     assert_eq!(
         payload["event_params"]["app_server_client"]["client_version"],
@@ -2590,10 +2590,10 @@ fn subagent_thread_started_review_serializes_expected_shape() {
 #[test]
 fn subagent_thread_started_thread_spawn_serializes_thread_lineage() {
     let parent_thread_id =
-        codex_protocol::ThreadId::from_string("11111111-1111-1111-1111-111111111111")
+        datax_protocol::ThreadId::from_string("11111111-1111-1111-1111-111111111111")
             .expect("valid thread id");
     let forked_from_thread_id =
-        codex_protocol::ThreadId::from_string("22222222-2222-4222-8222-222222222222")
+        datax_protocol::ThreadId::from_string("22222222-2222-4222-8222-222222222222")
             .expect("valid thread id");
     let event = TrackEventRequest::ThreadInitialized(subagent_thread_started_event_request(
         SubAgentThreadStartedInput {
@@ -2601,8 +2601,8 @@ fn subagent_thread_started_thread_spawn_serializes_thread_lineage() {
             thread_id: "thread-spawn".to_string(),
             parent_thread_id: Some(parent_thread_id.to_string()),
             forked_from_thread_id: Some(forked_from_thread_id.to_string()),
-            product_client_id: "codex-tui".to_string(),
-            client_name: "codex-tui".to_string(),
+            product_client_id: "datax-tui".to_string(),
+            client_name: "datax-tui".to_string(),
             client_version: "1.0.0".to_string(),
             model: "gpt-5".to_string(),
             ephemeral: true,
@@ -2640,8 +2640,8 @@ fn subagent_thread_started_memory_consolidation_serializes_expected_shape() {
             thread_id: "thread-memory".to_string(),
             parent_thread_id: None,
             forked_from_thread_id: None,
-            product_client_id: "codex-tui".to_string(),
-            client_name: "codex-tui".to_string(),
+            product_client_id: "datax-tui".to_string(),
+            client_name: "datax-tui".to_string(),
             client_version: "1.0.0".to_string(),
             model: "gpt-5".to_string(),
             ephemeral: false,
@@ -2667,8 +2667,8 @@ fn subagent_thread_started_other_serializes_expected_shape() {
             thread_id: "thread-guardian".to_string(),
             parent_thread_id: None,
             forked_from_thread_id: None,
-            product_client_id: "codex-tui".to_string(),
-            client_name: "codex-tui".to_string(),
+            product_client_id: "datax-tui".to_string(),
+            client_name: "datax-tui".to_string(),
             client_version: "1.0.0".to_string(),
             model: "gpt-5".to_string(),
             ephemeral: false,
@@ -2685,7 +2685,7 @@ fn subagent_thread_started_other_serializes_expected_shape() {
 #[test]
 fn subagent_thread_started_other_serializes_explicit_parent_thread_id() {
     let parent_thread_id =
-        codex_protocol::ThreadId::from_string("33333333-3333-4333-8333-333333333333")
+        datax_protocol::ThreadId::from_string("33333333-3333-4333-8333-333333333333")
             .expect("valid thread id");
     let event = TrackEventRequest::ThreadInitialized(subagent_thread_started_event_request(
         SubAgentThreadStartedInput {
@@ -2693,8 +2693,8 @@ fn subagent_thread_started_other_serializes_explicit_parent_thread_id() {
             thread_id: "thread-guardian".to_string(),
             parent_thread_id: Some(parent_thread_id.to_string()),
             forked_from_thread_id: None,
-            product_client_id: "codex-tui".to_string(),
-            client_name: "codex-tui".to_string(),
+            product_client_id: "datax-tui".to_string(),
+            client_name: "datax-tui".to_string(),
             client_version: "1.0.0".to_string(),
             model: "gpt-5".to_string(),
             ephemeral: false,
@@ -2724,8 +2724,8 @@ async fn subagent_thread_started_publishes_without_initialize() {
                     thread_id: "thread-review".to_string(),
                     parent_thread_id: None,
                     forked_from_thread_id: None,
-                    product_client_id: "codex-tui".to_string(),
-                    client_name: "codex-tui".to_string(),
+                    product_client_id: "datax-tui".to_string(),
+                    client_name: "datax-tui".to_string(),
                     client_version: "1.0.0".to_string(),
                     model: "gpt-5".to_string(),
                     ephemeral: false,
@@ -2742,7 +2742,7 @@ async fn subagent_thread_started_publishes_without_initialize() {
     assert_eq!(payload[0]["event_type"], "codex_thread_initialized");
     assert_eq!(
         payload[0]["event_params"]["app_server_client"]["product_client_id"],
-        "codex-tui"
+        "datax-tui"
     );
     assert_eq!(payload[0]["event_params"]["thread_source"], "subagent");
     assert_eq!(payload[0]["event_params"]["subagent_source"], "review");
@@ -2753,7 +2753,7 @@ async fn subagent_events_use_inherited_connection_unless_turn_connection_is_expl
     let mut reducer = AnalyticsReducer::default();
     let mut events = Vec::new();
     let parent_thread_id =
-        codex_protocol::ThreadId::from_string("44444444-4444-4444-4444-444444444444")
+        datax_protocol::ThreadId::from_string("44444444-4444-4444-4444-444444444444")
             .expect("valid parent thread id");
     let parent_thread_id_string = parent_thread_id.to_string();
 
@@ -2936,8 +2936,8 @@ async fn subagent_tool_items_inherit_parent_connection_metadata() {
                     thread_id: "thread-subagent".to_string(),
                     parent_thread_id: Some("thread-1".to_string()),
                     forked_from_thread_id: None,
-                    product_client_id: "codex-tui".to_string(),
-                    client_name: "codex-tui".to_string(),
+                    product_client_id: "datax-tui".to_string(),
+                    client_name: "datax-tui".to_string(),
                     client_version: "1.0.0".to_string(),
                     model: "gpt-5".to_string(),
                     ephemeral: false,
@@ -3002,7 +3002,7 @@ async fn subagent_tool_items_inherit_parent_connection_metadata() {
     assert_eq!(payload[0]["event_params"]["parent_thread_id"], "thread-1");
     assert_eq!(
         payload[0]["event_params"]["app_server_client"]["client_name"],
-        "codex-tui"
+        "datax-tui"
     );
 }
 
@@ -3279,7 +3279,7 @@ async fn reducer_ingests_skill_invoked_fact() {
                 tracking,
                 invocations: vec![SkillInvocation {
                     skill_name: "doc".to_string(),
-                    skill_scope: codex_protocol::protocol::SkillScope::User,
+                    skill_scope: datax_protocol::protocol::SkillScope::User,
                     skill_path,
                     plugin_id: None,
                     invocation_type: InvocationType::Explicit,
@@ -3328,7 +3328,7 @@ async fn reducer_includes_plugin_id_for_plugin_skill_invocations() {
                 tracking,
                 invocations: vec![SkillInvocation {
                     skill_name: "sample:doc".to_string(),
-                    skill_scope: codex_protocol::protocol::SkillScope::User,
+                    skill_scope: datax_protocol::protocol::SkillScope::User,
                     skill_path,
                     plugin_id: Some("sample@test".to_string()),
                     invocation_type: InvocationType::Explicit,
@@ -3721,7 +3721,7 @@ fn turn_event_serializes_expected_shape() {
                 "submission_type": null,
                 "app_server_client": {
                     "product_client_id": "codex_cli_rs",
-                    "client_name": "codex-tui",
+                    "client_name": "datax-tui",
                     "client_version": "1.0.0",
                     "rpc_transport": "stdio",
                     "experimental_api_enabled": true
@@ -3845,7 +3845,7 @@ async fn accepted_turn_steer_emits_expected_event() {
     );
     assert_eq!(
         payload["event_params"]["app_server_client"]["product_client_id"],
-        json!("codex-tui")
+        json!("datax-tui")
     );
     assert_eq!(
         payload["event_params"]["runtime"]["codex_rs_version"],
@@ -3876,7 +3876,7 @@ async fn rejected_turn_steer_uses_request_connection_metadata() {
     assert_eq!(payload["event_params"]["num_input_images"], json!(1));
     assert_eq!(
         payload["event_params"]["app_server_client"]["product_client_id"],
-        json!("codex-tui")
+        json!("datax-tui")
     );
     assert_eq!(
         payload["event_params"]["runtime"]["codex_rs_version"],
@@ -4057,8 +4057,8 @@ async fn turn_lifecycle_emits_turn_event() {
     assert_eq!(
         payload["event_params"]["app_server_client"],
         json!({
-            "product_client_id": "codex-tui",
-            "client_name": "codex-tui",
+            "product_client_id": "datax-tui",
+            "client_name": "datax-tui",
             "client_version": "1.0.0",
             "rpc_transport": "stdio",
             "experimental_api_enabled": null,
@@ -4475,7 +4475,7 @@ async fn turn_lifecycle_emits_failed_turn_event() {
                 "thread-2",
                 "turn-2",
                 AppServerTurnStatus::Failed,
-                Some(codex_app_server_protocol::CodexErrorInfo::BadRequest),
+                Some(datax_app_server_protocol::CodexErrorInfo::BadRequest),
             ))),
             &mut out,
         )

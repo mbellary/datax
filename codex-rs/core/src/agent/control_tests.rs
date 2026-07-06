@@ -10,27 +10,27 @@ use crate::context::ContextualUserFragment;
 use crate::context::SubagentNotification;
 use crate::init_state_db;
 use assert_matches::assert_matches;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_protocol::AgentPath;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::CompactedItem;
-use codex_protocol::protocol::ErrorEvent;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_protocol::protocol::TurnAbortedEvent;
-use codex_protocol::protocol::TurnCompleteEvent;
-use codex_protocol::protocol::TurnStartedEvent;
-use codex_thread_store::ArchiveThreadParams;
-use codex_thread_store::LocalThreadStore;
-use codex_thread_store::LocalThreadStoreConfig;
-use codex_thread_store::ThreadStore;
+use datax_features::Feature;
+use datax_login::CodexAuth;
+use datax_protocol::AgentPath;
+use datax_protocol::config_types::ModeKind;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::MessagePhase;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::protocol::CompactedItem;
+use datax_protocol::protocol::ErrorEvent;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::InterAgentCommunication;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::SubAgentSource;
+use datax_protocol::protocol::TurnAbortReason;
+use datax_protocol::protocol::TurnAbortedEvent;
+use datax_protocol::protocol::TurnCompleteEvent;
+use datax_protocol::protocol::TurnStartedEvent;
+use datax_thread_store::ArchiveThreadParams;
+use datax_thread_store::LocalThreadStore;
+use datax_thread_store::LocalThreadStoreConfig;
+use datax_thread_store::ThreadStore;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::time::Duration;
@@ -115,7 +115,7 @@ impl AgentControlHarness {
             CodexAuth::from_api_key("dummy"),
             config.model_provider.clone(),
             config.codex_home.to_path_buf(),
-            std::sync::Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+            std::sync::Arc::new(datax_exec_server::EnvironmentManager::default_for_tests()),
             state_db.clone(),
         );
         let control = manager.agent_control();
@@ -701,7 +701,7 @@ async fn resume_agent_from_rollout_does_not_reopen_v2_descendants() {
         CodexAuth::from_api_key("dummy"),
         harness.config.model_provider.clone(),
         harness.config.codex_home.to_path_buf(),
-        std::sync::Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        std::sync::Arc::new(datax_exec_server::EnvironmentManager::default_for_tests()),
         harness.state_db.clone(),
     );
     let resumed_control = resumed_manager.agent_control();
@@ -1588,7 +1588,7 @@ async fn spawn_agent_respects_max_threads_limit() {
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.codex_home.to_path_buf(),
-        std::sync::Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        std::sync::Arc::new(datax_exec_server::EnvironmentManager::default_for_tests()),
     );
     let control = manager.agent_control();
 
@@ -1640,7 +1640,7 @@ async fn spawn_agent_releases_slot_after_shutdown() {
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.codex_home.to_path_buf(),
-        std::sync::Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        std::sync::Arc::new(datax_exec_server::EnvironmentManager::default_for_tests()),
     );
     let control = manager.agent_control();
 
@@ -1683,7 +1683,7 @@ async fn spawn_agent_limit_shared_across_clones() {
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.codex_home.to_path_buf(),
-        std::sync::Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        std::sync::Arc::new(datax_exec_server::EnvironmentManager::default_for_tests()),
     );
     let control = manager.agent_control();
     let cloned = control.clone();
@@ -1728,7 +1728,7 @@ async fn resume_agent_respects_max_threads_limit() {
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.codex_home.to_path_buf(),
-        std::sync::Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        std::sync::Arc::new(datax_exec_server::EnvironmentManager::default_for_tests()),
     );
     let control = manager.agent_control();
 
@@ -1784,7 +1784,7 @@ async fn resume_agent_releases_slot_after_resume_failure() {
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.codex_home.to_path_buf(),
-        std::sync::Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        std::sync::Arc::new(datax_exec_server::EnvironmentManager::default_for_tests()),
     );
     let control = manager.agent_control();
 
@@ -2190,7 +2190,7 @@ async fn resume_thread_subagent_restores_stored_metadata() {
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.codex_home.to_path_buf(),
-        std::sync::Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        std::sync::Arc::new(datax_exec_server::EnvironmentManager::default_for_tests()),
         state_db.clone(),
     );
     let control = manager.agent_control();
@@ -2515,7 +2515,7 @@ async fn list_agent_subtree_thread_ids_finds_live_descendants_of_unloaded_root()
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.codex_home.to_path_buf(),
-        std::sync::Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        std::sync::Arc::new(datax_exec_server::EnvironmentManager::default_for_tests()),
         /*state_db*/ None,
     );
     let control = manager.agent_control();

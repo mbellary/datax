@@ -63,17 +63,17 @@ def build_package_dir(
     if inputs.bwrap_bin is not None:
         copy_executable(inputs.bwrap_bin, resources_dir / "bwrap", is_windows=False)
 
-    if inputs.codex_command_runner_bin is not None:
+    if inputs.datax_command_runner_bin is not None:
         copy_executable(
-            inputs.codex_command_runner_bin,
-            resources_dir / "codex-command-runner.exe",
+            inputs.datax_command_runner_bin,
+            resources_dir / "datax-command-runner.exe",
             is_windows=True,
         )
 
-    if inputs.codex_windows_sandbox_setup_bin is not None:
+    if inputs.datax_windows_sandbox_setup_bin is not None:
         copy_executable(
-            inputs.codex_windows_sandbox_setup_bin,
-            resources_dir / "codex-windows-sandbox-setup.exe",
+            inputs.datax_windows_sandbox_setup_bin,
+            resources_dir / "datax-windows-sandbox-setup.exe",
             is_windows=True,
         )
 
@@ -146,8 +146,8 @@ def validate_package_dir(
     if spec.is_windows:
         required_files.extend(
             [
-                Path("datax-resources") / "codex-command-runner.exe",
-                Path("datax-resources") / "codex-windows-sandbox-setup.exe",
+                Path("datax-resources") / "datax-command-runner.exe",
+                Path("datax-resources") / "datax-windows-sandbox-setup.exe",
             ]
         )
 

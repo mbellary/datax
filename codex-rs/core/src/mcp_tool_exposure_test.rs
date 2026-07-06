@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_mcp::ToolInfo;
-use codex_tools::ToolName;
+use datax_mcp::CODEX_APPS_MCP_SERVER_NAME;
+use datax_mcp::ToolInfo;
+use datax_tools::ToolName;
 use pretty_assertions::assert_eq;
 use rmcp::model::JsonObject;
 use rmcp::model::Meta;
@@ -79,7 +79,7 @@ fn numbered_mcp_tools(count: usize) -> Vec<ToolInfo> {
 fn tool_names(tools: &[ToolInfo]) -> HashSet<ToolName> {
     tools
         .iter()
-        .map(codex_mcp::ToolInfo::canonical_tool_name)
+        .map(datax_mcp::ToolInfo::canonical_tool_name)
         .collect()
 }
 

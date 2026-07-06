@@ -1,5 +1,5 @@
 use super::*;
-use codex_app_server_protocol::PluginAvailability;
+use datax_app_server_protocol::PluginAvailability;
 use pretty_assertions::assert_eq;
 
 pub(super) async fn test_config() -> Config {
@@ -187,7 +187,7 @@ pub(super) async fn make_chatwidget_manual_with_auth(
         has_chatgpt_account,
         has_codex_backend_auth,
         model_catalog,
-        feedback: codex_feedback::CodexFeedback::new(),
+        feedback: datax_feedback::CodexFeedback::new(),
         is_first_run: true,
         status_account_display: None,
         runtime_model_provider_base_url: None,
@@ -371,8 +371,8 @@ fn thread_id(chat: &ChatWidget) -> String {
     chat.thread_id.map(|id| id.to_string()).unwrap_or_default()
 }
 
-fn token_usage_breakdown(usage: TokenUsage) -> codex_app_server_protocol::TokenUsageBreakdown {
-    codex_app_server_protocol::TokenUsageBreakdown {
+fn token_usage_breakdown(usage: TokenUsage) -> datax_app_server_protocol::TokenUsageBreakdown {
+    datax_app_server_protocol::TokenUsageBreakdown {
         total_tokens: usage.total_tokens,
         input_tokens: usage.input_tokens,
         cached_input_tokens: usage.cached_input_tokens,
@@ -386,14 +386,14 @@ pub(super) fn handle_token_count(chat: &mut ChatWidget, info: Option<TokenUsageI
         Some(info) => {
             chat.handle_server_notification(
                 ServerNotification::ThreadTokenUsageUpdated(
-                    codex_app_server_protocol::ThreadTokenUsageUpdatedNotification {
+                    datax_app_server_protocol::ThreadTokenUsageUpdatedNotification {
                         thread_id: thread_id(chat),
                         turn_id: chat
                             .turn_lifecycle
                             .last_turn_id
                             .clone()
                             .unwrap_or_else(|| "turn-1".to_string()),
-                        token_usage: codex_app_server_protocol::ThreadTokenUsage {
+                        token_usage: datax_app_server_protocol::ThreadTokenUsage {
                             total: token_usage_breakdown(info.total_token_usage),
                             last: token_usage_breakdown(info.last_token_usage),
                             model_context_window: info.model_context_window,
@@ -495,7 +495,7 @@ pub(super) fn handle_model_verification(
 pub(super) fn handle_agent_message_delta(chat: &mut ChatWidget, delta: impl Into<String>) {
     chat.handle_server_notification(
         ServerNotification::AgentMessageDelta(
-            codex_app_server_protocol::AgentMessageDeltaNotification {
+            datax_app_server_protocol::AgentMessageDeltaNotification {
                 thread_id: thread_id(chat),
                 turn_id: chat
                     .turn_lifecycle
@@ -793,7 +793,7 @@ pub(super) fn replay_agent_message_delta(
 ) {
     chat.handle_server_notification(
         ServerNotification::AgentMessageDelta(
-            codex_app_server_protocol::AgentMessageDeltaNotification {
+            datax_app_server_protocol::AgentMessageDeltaNotification {
                 thread_id: thread_id(chat),
                 turn_id: "turn-1".to_string(),
                 item_id: "msg-1".to_string(),
@@ -814,13 +814,13 @@ pub(super) fn begin_exec_with_source(
     // Build the full command vec and parse it using core's parser,
     // then convert to protocol variants for the event payload.
     let command = vec!["bash".to_string(), "-lc".to_string(), raw_cmd.to_string()];
-    let command_actions = codex_shell_command::parse_command::parse_command(&command)
+    let command_actions = datax_shell_command::parse_command::parse_command(&command)
         .into_iter()
         .map(|parsed| AppServerCommandAction::from_core_with_cwd(parsed, &chat.config.cwd))
         .collect();
     let item = AppServerThreadItem::CommandExecution {
         id: call_id.to_string(),
-        command: codex_shell_command::parse_command::shlex_join(&command),
+        command: datax_shell_command::parse_command::shlex_join(&command),
         cwd: chat.config.cwd.clone().into(),
         process_id: None,
         source,
@@ -843,7 +843,7 @@ pub(super) fn begin_unified_exec_startup(
     let command = vec!["bash".to_string(), "-lc".to_string(), raw_cmd.to_string()];
     let item = AppServerThreadItem::CommandExecution {
         id: call_id.to_string(),
-        command: codex_shell_command::parse_command::shlex_join(&command),
+        command: datax_shell_command::parse_command::shlex_join(&command),
         cwd: chat.config.cwd.clone().into(),
         process_id: Some(process_id.to_string()),
         source: ExecCommandSource::UnifiedExecStartup,
@@ -881,7 +881,7 @@ pub(super) fn terminal_interaction(
 ) {
     chat.handle_server_notification(
         ServerNotification::TerminalInteraction(
-            codex_app_server_protocol::TerminalInteractionNotification {
+            datax_app_server_protocol::TerminalInteractionNotification {
                 thread_id: thread_id(chat),
                 turn_id: chat
                     .turn_lifecycle
@@ -969,7 +969,7 @@ pub(super) fn app_server_turn(
 ) -> AppServerTurn {
     AppServerTurn {
         id: turn_id.to_string(),
-        items_view: codex_app_server_protocol::TurnItemsView::Full,
+        items_view: datax_app_server_protocol::TurnItemsView::Full,
         items: Vec::new(),
         status,
         error,
@@ -1279,7 +1279,7 @@ pub(super) fn strip_osc8_for_snapshot(text: &str) -> String {
 
 pub(super) fn plugins_test_absolute_path(path: &str) -> AbsolutePathBuf {
     std::env::temp_dir()
-        .join("codex-plugin-menu-tests")
+        .join("datax-plugin-menu-tests")
         .join(path)
         .abs()
 }
@@ -1454,7 +1454,7 @@ pub(super) fn plugins_test_detail(
     summary: PluginSummary,
     description: Option<&str>,
     skills: &[&str],
-    hooks: &[(codex_app_server_protocol::HookEventName, usize)],
+    hooks: &[(datax_app_server_protocol::HookEventName, usize)],
     apps: &[&str],
     mcp_servers: &[&str],
 ) -> PluginDetail {
@@ -1482,7 +1482,7 @@ pub(super) fn plugins_test_detail(
             .enumerate()
             .flat_map(|(event_index, (event_name, handler_count))| {
                 (0..*handler_count).map(move |handler_index| {
-                    codex_app_server_protocol::PluginHookSummary {
+                    datax_app_server_protocol::PluginHookSummary {
                         key: format!("plugin:{event_index}:{handler_index}"),
                         event_name: *event_name,
                     }
@@ -1576,37 +1576,37 @@ pub(super) fn handle_hook_completed(chat: &mut ChatWidget, run: AppServerHookRun
 
 pub(super) fn hook_run(
     run_id: &str,
-    event_name: codex_app_server_protocol::HookEventName,
-    status: codex_app_server_protocol::HookRunStatus,
+    event_name: datax_app_server_protocol::HookEventName,
+    status: datax_app_server_protocol::HookRunStatus,
     status_message: &str,
-    entries: Vec<codex_app_server_protocol::HookOutputEntry>,
-) -> codex_app_server_protocol::HookRunSummary {
-    codex_app_server_protocol::HookRunSummary {
+    entries: Vec<datax_app_server_protocol::HookOutputEntry>,
+) -> datax_app_server_protocol::HookRunSummary {
+    datax_app_server_protocol::HookRunSummary {
         id: run_id.to_string(),
         event_name,
-        handler_type: codex_app_server_protocol::HookHandlerType::Command,
-        execution_mode: codex_app_server_protocol::HookExecutionMode::Sync,
-        scope: codex_app_server_protocol::HookScope::Turn,
+        handler_type: datax_app_server_protocol::HookHandlerType::Command,
+        execution_mode: datax_app_server_protocol::HookExecutionMode::Sync,
+        scope: datax_app_server_protocol::HookScope::Turn,
         source_path: PathBuf::from(test_path_display("/tmp/hooks.json")).abs(),
-        source: codex_app_server_protocol::HookSource::User,
+        source: datax_app_server_protocol::HookSource::User,
         display_order: 0,
         status,
         status_message: Some(status_message.to_string()),
         started_at: 1,
         completed_at: matches!(
             status,
-            codex_app_server_protocol::HookRunStatus::Completed
-                | codex_app_server_protocol::HookRunStatus::Failed
-                | codex_app_server_protocol::HookRunStatus::Blocked
-                | codex_app_server_protocol::HookRunStatus::Stopped
+            datax_app_server_protocol::HookRunStatus::Completed
+                | datax_app_server_protocol::HookRunStatus::Failed
+                | datax_app_server_protocol::HookRunStatus::Blocked
+                | datax_app_server_protocol::HookRunStatus::Stopped
         )
         .then_some(11),
         duration_ms: matches!(
             status,
-            codex_app_server_protocol::HookRunStatus::Completed
-                | codex_app_server_protocol::HookRunStatus::Failed
-                | codex_app_server_protocol::HookRunStatus::Blocked
-                | codex_app_server_protocol::HookRunStatus::Stopped
+            datax_app_server_protocol::HookRunStatus::Completed
+                | datax_app_server_protocol::HookRunStatus::Failed
+                | datax_app_server_protocol::HookRunStatus::Blocked
+                | datax_app_server_protocol::HookRunStatus::Stopped
         )
         .then_some(10),
         entries,
@@ -1614,7 +1614,7 @@ pub(super) fn hook_run(
 }
 
 pub(super) async fn assert_hook_events_snapshot(
-    event_name: codex_app_server_protocol::HookEventName,
+    event_name: datax_app_server_protocol::HookEventName,
     run_id: &str,
     status_message: &str,
     snapshot_name: &str,
@@ -1626,7 +1626,7 @@ pub(super) async fn assert_hook_events_snapshot(
         hook_run(
             run_id,
             event_name,
-            codex_app_server_protocol::HookRunStatus::Running,
+            datax_app_server_protocol::HookRunStatus::Running,
             status_message,
             Vec::new(),
         ),
@@ -1649,15 +1649,15 @@ pub(super) async fn assert_hook_events_snapshot(
         hook_run(
             run_id,
             event_name,
-            codex_app_server_protocol::HookRunStatus::Completed,
+            datax_app_server_protocol::HookRunStatus::Completed,
             status_message,
             vec![
-                codex_app_server_protocol::HookOutputEntry {
-                    kind: codex_app_server_protocol::HookOutputEntryKind::Warning,
+                datax_app_server_protocol::HookOutputEntry {
+                    kind: datax_app_server_protocol::HookOutputEntryKind::Warning,
                     text: "Heads up from the hook".to_string(),
                 },
-                codex_app_server_protocol::HookOutputEntry {
-                    kind: codex_app_server_protocol::HookOutputEntryKind::Context,
+                datax_app_server_protocol::HookOutputEntry {
+                    kind: datax_app_server_protocol::HookOutputEntryKind::Context,
                     text: "Remember the startup checklist.".to_string(),
                 },
             ],
@@ -1672,17 +1672,17 @@ pub(super) async fn assert_hook_events_snapshot(
     assert_chatwidget_snapshot!(snapshot_name, combined);
 }
 
-fn hook_event_label(event_name: codex_app_server_protocol::HookEventName) -> &'static str {
+fn hook_event_label(event_name: datax_app_server_protocol::HookEventName) -> &'static str {
     match event_name {
-        codex_app_server_protocol::HookEventName::PreToolUse => "PreToolUse",
-        codex_app_server_protocol::HookEventName::PermissionRequest => "PermissionRequest",
-        codex_app_server_protocol::HookEventName::PostToolUse => "PostToolUse",
-        codex_app_server_protocol::HookEventName::PreCompact => "PreCompact",
-        codex_app_server_protocol::HookEventName::PostCompact => "PostCompact",
-        codex_app_server_protocol::HookEventName::SessionStart => "SessionStart",
-        codex_app_server_protocol::HookEventName::UserPromptSubmit => "UserPromptSubmit",
-        codex_app_server_protocol::HookEventName::SubagentStart => "SubagentStart",
-        codex_app_server_protocol::HookEventName::SubagentStop => "SubagentStop",
-        codex_app_server_protocol::HookEventName::Stop => "Stop",
+        datax_app_server_protocol::HookEventName::PreToolUse => "PreToolUse",
+        datax_app_server_protocol::HookEventName::PermissionRequest => "PermissionRequest",
+        datax_app_server_protocol::HookEventName::PostToolUse => "PostToolUse",
+        datax_app_server_protocol::HookEventName::PreCompact => "PreCompact",
+        datax_app_server_protocol::HookEventName::PostCompact => "PostCompact",
+        datax_app_server_protocol::HookEventName::SessionStart => "SessionStart",
+        datax_app_server_protocol::HookEventName::UserPromptSubmit => "UserPromptSubmit",
+        datax_app_server_protocol::HookEventName::SubagentStart => "SubagentStart",
+        datax_app_server_protocol::HookEventName::SubagentStop => "SubagentStop",
+        datax_app_server_protocol::HookEventName::Stop => "Stop",
     }
 }

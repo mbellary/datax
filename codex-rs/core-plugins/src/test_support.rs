@@ -4,11 +4,11 @@ use std::path::Path;
 use crate::OPENAI_API_CURATED_MARKETPLACE_NAME;
 use crate::OPENAI_CURATED_MARKETPLACE_NAME;
 use crate::PluginsConfigInput;
-use codex_config::LoaderOverrides;
-use codex_config::NoopThreadConfigLoader;
-use codex_config::loader::load_config_layers_state;
-use codex_exec_server::LOCAL_FS;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_config::LoaderOverrides;
+use datax_config::NoopThreadConfigLoader;
+use datax_config::loader::load_config_layers_state;
+use datax_exec_server::LOCAL_FS;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use toml::Value;
 
 pub(crate) const TEST_CURATED_PLUGIN_SHA: &str = "0123456789abcdef0123456789abcdef01234567";

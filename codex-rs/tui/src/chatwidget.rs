@@ -78,98 +78,98 @@ use crate::text_formatting::proper_join;
 use crate::token_usage::TokenUsage;
 use crate::token_usage::TokenUsageInfo;
 use crate::version::CODEX_CLI_VERSION;
-use codex_app_server_protocol::AddCreditsNudgeCreditType;
-use codex_app_server_protocol::AddCreditsNudgeEmailStatus;
-use codex_app_server_protocol::AppInfo;
-use codex_app_server_protocol::AppSummary;
-use codex_app_server_protocol::CodexErrorInfo as AppServerCodexErrorInfo;
-use codex_app_server_protocol::CollabAgentTool;
-use codex_app_server_protocol::CollabAgentToolCallStatus;
-use codex_app_server_protocol::CommandExecutionRequestApprovalParams;
-use codex_app_server_protocol::CommandExecutionSource as ExecCommandSource;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_app_server_protocol::CreditsSnapshot;
-use codex_app_server_protocol::ErrorNotification;
-use codex_app_server_protocol::FileChangeRequestApprovalParams;
-use codex_app_server_protocol::GuardianApprovalReviewAction;
-use codex_app_server_protocol::ItemCompletedNotification;
-use codex_app_server_protocol::ItemStartedNotification;
-use codex_app_server_protocol::McpServerElicitationRequest;
-use codex_app_server_protocol::McpServerElicitationRequestParams;
-use codex_app_server_protocol::McpServerStatusDetail;
-use codex_app_server_protocol::ModelVerification as AppServerModelVerification;
-use codex_app_server_protocol::RateLimitReachedType;
-use codex_app_server_protocol::RateLimitSnapshot;
-use codex_app_server_protocol::RequestId as AppServerRequestId;
-use codex_app_server_protocol::ReviewTarget;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::SkillMetadata as ProtocolSkillMetadata;
-use codex_app_server_protocol::SkillsListResponse;
-use codex_app_server_protocol::ThreadGoal as AppThreadGoal;
-use codex_app_server_protocol::ThreadGoalStatus as AppThreadGoalStatus;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadSettings;
-use codex_app_server_protocol::ThreadSettingsUpdatedNotification;
-use codex_app_server_protocol::ThreadTokenUsage;
-use codex_app_server_protocol::ToolRequestUserInputParams;
-use codex_app_server_protocol::Turn;
-use codex_app_server_protocol::TurnCompletedNotification;
-use codex_app_server_protocol::TurnPlanStepStatus;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::UserInput;
-use codex_config::ConfigLayerStackOrdering;
-use codex_config::Constrained;
-use codex_config::ConstraintResult;
-use codex_config::types::ApprovalsReviewer;
-use codex_config::types::Notifications;
-use codex_config::types::WindowsSandboxModeToml;
-use codex_core_skills::model::SkillMetadata;
-use codex_features::FEATURES;
-use codex_features::Feature;
-#[cfg(test)]
-use codex_git_utils::CommitLogEntry;
-use codex_git_utils::current_branch_name;
-use codex_git_utils::get_git_repo_root;
-use codex_git_utils::local_git_branches;
-use codex_git_utils::recent_commits;
-use codex_otel::RuntimeMetricsSummary;
-use codex_otel::SessionTelemetry;
-use codex_plugin::PluginCapabilitySummary;
-use codex_protocol::ThreadId;
-use codex_protocol::account::PlanType;
-use codex_protocol::approvals::GuardianAssessmentAction;
-use codex_protocol::approvals::GuardianAssessmentDecisionSource;
-use codex_protocol::approvals::GuardianAssessmentEvent;
-use codex_protocol::approvals::GuardianAssessmentStatus;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::CollaborationModeMask;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::Settings;
-#[cfg(any(target_os = "windows", test))]
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::items::AgentMessageContent;
-use codex_protocol::items::AgentMessageItem;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::plan_tool::PlanItemArg as UpdatePlanItemArg;
-use codex_protocol::plan_tool::StepStatus as UpdatePlanItemStatus;
-use codex_protocol::request_permissions::RequestPermissionsEvent;
-use codex_protocol::user_input::ByteRange;
-use codex_protocol::user_input::TextElement;
-use codex_terminal_detection::Multiplexer;
-use codex_terminal_detection::TerminalInfo;
-use codex_terminal_detection::TerminalName;
-use codex_terminal_detection::terminal_info;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_cli::resume_hint;
-use codex_utils_path_uri::PathUri;
-use codex_utils_plugins::mention_syntax::PLUGIN_TEXT_MENTION_SIGIL;
-use codex_utils_plugins::mention_syntax::TOOL_MENTION_SIGIL;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
 use crossterm::event::KeyModifiers;
+use datax_app_server_protocol::AddCreditsNudgeCreditType;
+use datax_app_server_protocol::AddCreditsNudgeEmailStatus;
+use datax_app_server_protocol::AppInfo;
+use datax_app_server_protocol::AppSummary;
+use datax_app_server_protocol::CodexErrorInfo as AppServerCodexErrorInfo;
+use datax_app_server_protocol::CollabAgentTool;
+use datax_app_server_protocol::CollabAgentToolCallStatus;
+use datax_app_server_protocol::CommandExecutionRequestApprovalParams;
+use datax_app_server_protocol::CommandExecutionSource as ExecCommandSource;
+use datax_app_server_protocol::ConfigLayerSource;
+use datax_app_server_protocol::CreditsSnapshot;
+use datax_app_server_protocol::ErrorNotification;
+use datax_app_server_protocol::FileChangeRequestApprovalParams;
+use datax_app_server_protocol::GuardianApprovalReviewAction;
+use datax_app_server_protocol::ItemCompletedNotification;
+use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::McpServerElicitationRequest;
+use datax_app_server_protocol::McpServerElicitationRequestParams;
+use datax_app_server_protocol::McpServerStatusDetail;
+use datax_app_server_protocol::ModelVerification as AppServerModelVerification;
+use datax_app_server_protocol::RateLimitReachedType;
+use datax_app_server_protocol::RateLimitSnapshot;
+use datax_app_server_protocol::RequestId as AppServerRequestId;
+use datax_app_server_protocol::ReviewTarget;
+use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::ServerRequest;
+use datax_app_server_protocol::SkillMetadata as ProtocolSkillMetadata;
+use datax_app_server_protocol::SkillsListResponse;
+use datax_app_server_protocol::ThreadGoal as AppThreadGoal;
+use datax_app_server_protocol::ThreadGoalStatus as AppThreadGoalStatus;
+use datax_app_server_protocol::ThreadItem;
+use datax_app_server_protocol::ThreadSettings;
+use datax_app_server_protocol::ThreadSettingsUpdatedNotification;
+use datax_app_server_protocol::ThreadTokenUsage;
+use datax_app_server_protocol::ToolRequestUserInputParams;
+use datax_app_server_protocol::Turn;
+use datax_app_server_protocol::TurnCompletedNotification;
+use datax_app_server_protocol::TurnPlanStepStatus;
+use datax_app_server_protocol::TurnStatus;
+use datax_app_server_protocol::UserInput;
+use datax_config::ConfigLayerStackOrdering;
+use datax_config::Constrained;
+use datax_config::ConstraintResult;
+use datax_config::types::ApprovalsReviewer;
+use datax_config::types::Notifications;
+use datax_config::types::WindowsSandboxModeToml;
+use datax_core_skills::model::SkillMetadata;
+use datax_features::FEATURES;
+use datax_features::Feature;
+#[cfg(test)]
+use datax_git_utils::CommitLogEntry;
+use datax_git_utils::current_branch_name;
+use datax_git_utils::get_git_repo_root;
+use datax_git_utils::local_git_branches;
+use datax_git_utils::recent_commits;
+use datax_otel::RuntimeMetricsSummary;
+use datax_otel::SessionTelemetry;
+use datax_plugin::PluginCapabilitySummary;
+use datax_protocol::ThreadId;
+use datax_protocol::account::PlanType;
+use datax_protocol::approvals::GuardianAssessmentAction;
+use datax_protocol::approvals::GuardianAssessmentDecisionSource;
+use datax_protocol::approvals::GuardianAssessmentEvent;
+use datax_protocol::approvals::GuardianAssessmentStatus;
+use datax_protocol::config_types::CollaborationMode;
+use datax_protocol::config_types::CollaborationModeMask;
+use datax_protocol::config_types::ModeKind;
+use datax_protocol::config_types::Personality;
+use datax_protocol::config_types::Settings;
+#[cfg(any(target_os = "windows", test))]
+use datax_protocol::config_types::WindowsSandboxLevel;
+use datax_protocol::items::AgentMessageContent;
+use datax_protocol::items::AgentMessageItem;
+use datax_protocol::models::MessagePhase;
+use datax_protocol::plan_tool::PlanItemArg as UpdatePlanItemArg;
+use datax_protocol::plan_tool::StepStatus as UpdatePlanItemStatus;
+use datax_protocol::request_permissions::RequestPermissionsEvent;
+use datax_protocol::user_input::ByteRange;
+use datax_protocol::user_input::TextElement;
+use datax_terminal_detection::Multiplexer;
+use datax_terminal_detection::TerminalInfo;
+use datax_terminal_detection::TerminalName;
+use datax_terminal_detection::terminal_info;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_cli::resume_hint;
+use datax_utils_path_uri::PathUri;
+use datax_utils_plugins::mention_syntax::PLUGIN_TEXT_MENTION_SIGIL;
+use datax_utils_plugins::mention_syntax::TOOL_MENTION_SIGIL;
 use rand::Rng;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -452,17 +452,17 @@ use crate::streaming::controller::StreamController;
 use crate::workspace_command::WorkspaceCommandRunner;
 
 use chrono::Local;
-use codex_app_server_protocol::AskForApproval;
-use codex_file_search::FileMatch;
-use codex_protocol::models::ActivePermissionProfile;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
-use codex_protocol::plan_tool::StepStatus;
-use codex_protocol::plan_tool::UpdatePlanArgs;
-use codex_utils_approval_presets::ApprovalPreset;
-use codex_utils_approval_presets::builtin_approval_presets;
+use datax_app_server_protocol::AskForApproval;
+use datax_file_search::FileMatch;
+use datax_protocol::models::ActivePermissionProfile;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::openai_models::InputModality;
+use datax_protocol::openai_models::ModelPreset;
+use datax_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use datax_protocol::plan_tool::StepStatus;
+use datax_protocol::plan_tool::UpdatePlanArgs;
+use datax_utils_approval_presets::ApprovalPreset;
+use datax_utils_approval_presets::builtin_approval_presets;
 use strum::IntoEnumIterator;
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -490,7 +490,7 @@ pub(crate) struct ChatWidgetInit {
     pub(crate) has_chatgpt_account: bool,
     pub(crate) has_codex_backend_auth: bool,
     pub(crate) model_catalog: Arc<ModelCatalog>,
-    pub(crate) feedback: codex_feedback::CodexFeedback,
+    pub(crate) feedback: datax_feedback::CodexFeedback,
     pub(crate) is_first_run: bool,
     pub(crate) status_account_display: Option<StatusAccountDisplay>,
     pub(crate) runtime_model_provider_base_url: Option<String>,
@@ -681,7 +681,7 @@ pub(crate) struct ChatWidget {
     turn_runtime_metrics: RuntimeMetricsSummary,
     last_rendered_width: std::cell::Cell<Option<usize>>,
     // Feedback sink for /feedback
-    feedback: codex_feedback::CodexFeedback,
+    feedback: datax_feedback::CodexFeedback,
     // Current session rollout path (if known)
     current_rollout_path: Option<PathBuf>,
     // Current working directory (if known)
@@ -891,7 +891,7 @@ fn patch_approval_request_from_params(
 }
 
 fn request_permissions_from_params(
-    params: codex_app_server_protocol::PermissionsRequestApprovalParams,
+    params: datax_app_server_protocol::PermissionsRequestApprovalParams,
 ) -> std::io::Result<RequestPermissionsEvent> {
     Ok(RequestPermissionsEvent {
         turn_id: params.turn_id,
@@ -1018,7 +1018,7 @@ impl ChatWidget {
         let snapshot = self.feedback.snapshot(self.thread_id);
         #[cfg(target_os = "windows")]
         let include_windows_sandbox_log =
-            codex_windows_sandbox::current_log_file_path_for_codex_home(&self.config.codex_home)
+            datax_windows_sandbox::current_log_file_path_for_codex_home(&self.config.codex_home)
                 .is_file();
         #[cfg(not(target_os = "windows"))]
         let include_windows_sandbox_log = false;
@@ -1299,7 +1299,7 @@ impl ChatWidget {
                                 .unwrap_or(plugin_id)
                                 .to_string()
                         } else if path.starts_with("app://") {
-                            codex_connectors::metadata::connector_mention_slug_from_name(name)
+                            datax_connectors::metadata::connector_mention_slug_from_name(name)
                         } else {
                             name.clone()
                         };

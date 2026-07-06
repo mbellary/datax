@@ -1,6 +1,6 @@
 use super::*;
-use codex_tools::LoadableToolSpec;
-use codex_tools::ToolSearchSourceInfo;
+use datax_tools::LoadableToolSpec;
+use datax_tools::ToolSearchSourceInfo;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
@@ -44,7 +44,7 @@ fn search_info_uses_connector_name_for_output_namespace_description() {
 
 fn tool_info() -> ToolInfo {
     ToolInfo {
-        server_name: "codex-apps".to_string(),
+        server_name: "datax-apps".to_string(),
         supports_parallel_tool_calls: false,
         server_origin: None,
         callable_name: "_create_event".to_string(),

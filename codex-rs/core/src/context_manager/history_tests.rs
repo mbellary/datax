@@ -3,29 +3,29 @@ use crate::context::world_state::EnvironmentsState;
 use crate::context::world_state::WorldState;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use codex_protocol::AgentPath;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::DEFAULT_IMAGE_DETAIL;
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ImageDetail;
-use codex_protocol::models::InternalChatMessageMetadataPassthrough;
-use codex_protocol::models::LocalShellAction;
-use codex_protocol::models::LocalShellExecAction;
-use codex_protocol::models::LocalShellStatus;
-use codex_protocol::models::ReasoningItemContent;
-use codex_protocol::models::ReasoningItemReasoningSummary;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::openai_models::default_input_modalities;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::TurnContextItem;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_output_truncation::truncate_text;
+use datax_protocol::AgentPath;
+use datax_protocol::models::BaseInstructions;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::DEFAULT_IMAGE_DETAIL;
+use datax_protocol::models::FunctionCallOutputBody;
+use datax_protocol::models::FunctionCallOutputContentItem;
+use datax_protocol::models::FunctionCallOutputPayload;
+use datax_protocol::models::ImageDetail;
+use datax_protocol::models::InternalChatMessageMetadataPassthrough;
+use datax_protocol::models::LocalShellAction;
+use datax_protocol::models::LocalShellExecAction;
+use datax_protocol::models::LocalShellStatus;
+use datax_protocol::models::ReasoningItemContent;
+use datax_protocol::models::ReasoningItemReasoningSummary;
+use datax_protocol::openai_models::InputModality;
+use datax_protocol::openai_models::default_input_modalities;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::InterAgentCommunication;
+use datax_protocol::protocol::SandboxPolicy;
+use datax_protocol::protocol::TurnContextItem;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_output_truncation::TruncationPolicy;
+use datax_utils_output_truncation::truncate_text;
 use image::ImageBuffer;
 use image::ImageFormat;
 use image::Luma;
@@ -170,7 +170,7 @@ fn reference_context_item() -> TurnContextItem {
         multi_agent_mode: None,
         realtime_active: Some(false),
         effort: None,
-        summary: codex_protocol::config_types::ReasoningSummary::Auto,
+        summary: datax_protocol::config_types::ReasoningSummary::Auto,
     }
 }
 

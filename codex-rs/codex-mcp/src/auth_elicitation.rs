@@ -3,7 +3,7 @@
 //! This module owns protocol-neutral auth elicitation parsing and payload shaping.
 //! Session orchestration stays in `codex-core`.
 
-use codex_protocol::mcp::CallToolResult;
+use datax_protocol::mcp::CallToolResult;
 use serde::Serialize;
 
 pub const MCP_TOOL_CODEX_APPS_META_KEY: &str = "_codex_apps";

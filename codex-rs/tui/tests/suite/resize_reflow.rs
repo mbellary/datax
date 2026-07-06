@@ -25,7 +25,7 @@ async fn tmux_split_preserves_fresh_session_composer_row_after_resize_reflow() -
         return Ok(());
     }
 
-    let repo_root = codex_utils_cargo_bin::repo_root()?;
+    let repo_root = datax_utils_cargo_bin::repo_root()?;
     let codex = codex_binary(&repo_root)?;
     let codex_home = tempdir()?;
     let server = MockServer::start().await;
@@ -34,7 +34,7 @@ async fn tmux_split_preserves_fresh_session_composer_row_after_resize_reflow() -
     write_config(codex_home.path(), &repo_root)?;
     write_auth(codex_home.path())?;
 
-    let session_name = format!("codex-resize-reflow-smoke-{}", std::process::id());
+    let session_name = format!("datax-resize-reflow-smoke-{}", std::process::id());
     let _session = TmuxSession {
         name: session_name.clone(),
     };
@@ -192,7 +192,7 @@ async fn tmux_width_resize_restore_keeps_visible_content_anchored() -> Result<()
         return Ok(());
     }
 
-    let repo_root = codex_utils_cargo_bin::repo_root()?;
+    let repo_root = datax_utils_cargo_bin::repo_root()?;
     let codex = codex_binary(&repo_root)?;
     let codex_home = tempdir()?;
     let server = MockServer::start().await;
@@ -201,7 +201,7 @@ async fn tmux_width_resize_restore_keeps_visible_content_anchored() -> Result<()
     write_config(codex_home.path(), &repo_root)?;
     write_auth(codex_home.path())?;
 
-    let session_name = format!("codex-resize-width-{}", std::process::id());
+    let session_name = format!("datax-resize-width-{}", std::process::id());
     let _session = TmuxSession {
         name: session_name.clone(),
     };
@@ -312,7 +312,7 @@ async fn tmux_width_resize_restore_keeps_visible_content_anchored() -> Result<()
 }
 
 async fn run_repeated_resize_smoke() -> Result<()> {
-    let repo_root = codex_utils_cargo_bin::repo_root()?;
+    let repo_root = datax_utils_cargo_bin::repo_root()?;
     let codex = codex_binary(&repo_root)?;
     let codex_home = tempdir()?;
     let server = MockServer::start().await;
@@ -321,7 +321,7 @@ async fn run_repeated_resize_smoke() -> Result<()> {
     write_config(codex_home.path(), &repo_root)?;
     write_auth(codex_home.path())?;
 
-    let session_name = format!("codex-resize-repeat-{}", std::process::id());
+    let session_name = format!("datax-resize-repeat-{}", std::process::id());
     let _session = TmuxSession {
         name: session_name.clone(),
     };
@@ -449,7 +449,7 @@ impl Drop for TmuxSession {
 }
 
 fn codex_binary(repo_root: &Path) -> Result<PathBuf> {
-    if let Ok(path) = codex_utils_cargo_bin::cargo_bin("codex") {
+    if let Ok(path) = datax_utils_cargo_bin::cargo_bin("codex") {
         return Ok(path);
     }
 

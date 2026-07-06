@@ -1,22 +1,22 @@
 use std::time::Duration;
 
-use codex_analytics::GuardianApprovalRequestSource;
-use codex_analytics::GuardianReviewAnalyticsResult;
-use codex_analytics::GuardianReviewDecision;
-use codex_analytics::GuardianReviewFailureReason;
-use codex_analytics::GuardianReviewSessionKind;
-use codex_analytics::GuardianReviewTerminalStatus;
-use codex_analytics::GuardianReviewedAction;
-use codex_otel::GUARDIAN_REVIEW_COUNT_METRIC;
-use codex_otel::GUARDIAN_REVIEW_DURATION_METRIC;
-use codex_otel::GUARDIAN_REVIEW_TOKEN_USAGE_METRIC;
-use codex_otel::GUARDIAN_REVIEW_TTFT_DURATION_METRIC;
-use codex_otel::SessionTelemetry;
-use codex_otel::sanitize_metric_tag_value;
-use codex_protocol::protocol::GuardianAssessmentOutcome;
-use codex_protocol::protocol::GuardianRiskLevel;
-use codex_protocol::protocol::GuardianUserAuthorization;
-use codex_protocol::protocol::TokenUsage;
+use datax_analytics::GuardianApprovalRequestSource;
+use datax_analytics::GuardianReviewAnalyticsResult;
+use datax_analytics::GuardianReviewDecision;
+use datax_analytics::GuardianReviewFailureReason;
+use datax_analytics::GuardianReviewSessionKind;
+use datax_analytics::GuardianReviewTerminalStatus;
+use datax_analytics::GuardianReviewedAction;
+use datax_otel::GUARDIAN_REVIEW_COUNT_METRIC;
+use datax_otel::GUARDIAN_REVIEW_DURATION_METRIC;
+use datax_otel::GUARDIAN_REVIEW_TOKEN_USAGE_METRIC;
+use datax_otel::GUARDIAN_REVIEW_TTFT_DURATION_METRIC;
+use datax_otel::SessionTelemetry;
+use datax_otel::sanitize_metric_tag_value;
+use datax_protocol::protocol::GuardianAssessmentOutcome;
+use datax_protocol::protocol::GuardianRiskLevel;
+use datax_protocol::protocol::GuardianUserAuthorization;
+use datax_protocol::protocol::TokenUsage;
 
 pub(crate) fn emit_guardian_review_metrics(
     session_telemetry: &SessionTelemetry,
@@ -235,10 +235,10 @@ fn outcome_tag(outcome: Option<GuardianAssessmentOutcome>) -> &'static str {
 mod tests {
     use super::*;
 
-    use codex_otel::MetricsClient;
-    use codex_otel::MetricsConfig;
-    use codex_protocol::ThreadId;
-    use codex_protocol::protocol::SessionSource;
+    use datax_otel::MetricsClient;
+    use datax_otel::MetricsConfig;
+    use datax_protocol::ThreadId;
+    use datax_protocol::protocol::SessionSource;
     use opentelemetry::KeyValue;
     use opentelemetry_sdk::metrics::InMemoryMetricExporter;
     use opentelemetry_sdk::metrics::data::AggregatedMetrics;
@@ -251,7 +251,7 @@ mod tests {
     fn test_session_telemetry() -> SessionTelemetry {
         let exporter = InMemoryMetricExporter::default();
         let metrics = MetricsClient::new(
-            MetricsConfig::in_memory("test", "codex-core", env!("CARGO_PKG_VERSION"), exporter)
+            MetricsConfig::in_memory("test", "datax-core", env!("CARGO_PKG_VERSION"), exporter)
                 .with_runtime_reader(),
         )
         .expect("in-memory metrics client");
@@ -361,7 +361,7 @@ mod tests {
             &result,
             GuardianApprovalRequestSource::DelegatedSubagent,
             &GuardianReviewedAction::NetworkAccess {
-                protocol: codex_protocol::approvals::NetworkApprovalProtocol::Https,
+                protocol: datax_protocol::approvals::NetworkApprovalProtocol::Https,
                 port: 443,
             },
             /*completion_latency_ms*/ 456,

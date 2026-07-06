@@ -26,25 +26,25 @@ use crate::onboarding::mark_url_hyperlink;
 use crate::render::renderable::ColumnRenderable;
 use crate::render::renderable::Renderable;
 use crate::tui::FrameRequester;
-use codex_app_server_protocol::PluginAuthPolicy;
-use codex_app_server_protocol::PluginAvailability;
-use codex_app_server_protocol::PluginDetail;
-use codex_app_server_protocol::PluginInstallPolicy;
-use codex_app_server_protocol::PluginListResponse;
-use codex_app_server_protocol::PluginMarketplaceEntry;
-use codex_app_server_protocol::PluginShareContext;
-use codex_app_server_protocol::PluginShareDiscoverability;
-use codex_app_server_protocol::PluginSharePrincipal;
-use codex_app_server_protocol::PluginSource;
-use codex_app_server_protocol::PluginSummary;
-use codex_core_plugins::is_openai_curated_marketplace_name;
-use codex_core_plugins::remote::REMOTE_GLOBAL_MARKETPLACE_NAME;
-use codex_core_plugins::remote::REMOTE_WORKSPACE_MARKETPLACE_NAME;
-use codex_core_plugins::remote::REMOTE_WORKSPACE_SHARED_WITH_ME_MARKETPLACE_NAME;
-use codex_core_plugins::remote::REMOTE_WORKSPACE_SHARED_WITH_ME_PRIVATE_MARKETPLACE_NAME;
-use codex_core_plugins::remote::REMOTE_WORKSPACE_SHARED_WITH_ME_UNLISTED_MARKETPLACE_NAME;
-use codex_utils_absolute_path::AbsolutePathBuf;
 use crossterm::event::KeyCode;
+use datax_app_server_protocol::PluginAuthPolicy;
+use datax_app_server_protocol::PluginAvailability;
+use datax_app_server_protocol::PluginDetail;
+use datax_app_server_protocol::PluginInstallPolicy;
+use datax_app_server_protocol::PluginListResponse;
+use datax_app_server_protocol::PluginMarketplaceEntry;
+use datax_app_server_protocol::PluginShareContext;
+use datax_app_server_protocol::PluginShareDiscoverability;
+use datax_app_server_protocol::PluginSharePrincipal;
+use datax_app_server_protocol::PluginSource;
+use datax_app_server_protocol::PluginSummary;
+use datax_core_plugins::is_openai_curated_marketplace_name;
+use datax_core_plugins::remote::REMOTE_GLOBAL_MARKETPLACE_NAME;
+use datax_core_plugins::remote::REMOTE_WORKSPACE_MARKETPLACE_NAME;
+use datax_core_plugins::remote::REMOTE_WORKSPACE_SHARED_WITH_ME_MARKETPLACE_NAME;
+use datax_core_plugins::remote::REMOTE_WORKSPACE_SHARED_WITH_ME_PRIVATE_MARKETPLACE_NAME;
+use datax_core_plugins::remote::REMOTE_WORKSPACE_SHARED_WITH_ME_UNLISTED_MARKETPLACE_NAME;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::Widget;
@@ -1214,7 +1214,7 @@ impl ChatWidget {
                             location.clone().into_request_params();
                         tx.send(AppEvent::FetchPluginDetail {
                             cwd: cwd.clone(),
-                            params: codex_app_server_protocol::PluginReadParams {
+                            params: datax_app_server_protocol::PluginReadParams {
                                 marketplace_path,
                                 remote_marketplace_name,
                                 plugin_name: plugin_name.clone(),
@@ -1968,7 +1968,7 @@ fn plugin_hook_summary(plugin: &PluginDetail) -> String {
     if plugin.hooks.is_empty() {
         "No plugin hooks.".to_string()
     } else {
-        let mut event_counts = Vec::<(codex_app_server_protocol::HookEventName, usize)>::new();
+        let mut event_counts = Vec::<(datax_app_server_protocol::HookEventName, usize)>::new();
         for hook in &plugin.hooks {
             if let Some((_, handler_count)) = event_counts
                 .iter_mut()

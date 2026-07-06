@@ -22,21 +22,21 @@ use crate::protocol::v2::ItemGuardianApprovalReviewStartedNotification;
 use crate::protocol::v2::PatchApplyStatus;
 use crate::protocol::v2::PatchChangeKind;
 use crate::protocol::v2::ThreadItem;
-use codex_protocol::ThreadId;
-use codex_protocol::parse_command::ParsedCommand;
-use codex_protocol::protocol::ApplyPatchApprovalRequestEvent;
-use codex_protocol::protocol::ExecApprovalRequestEvent;
-use codex_protocol::protocol::ExecCommandBeginEvent;
-use codex_protocol::protocol::ExecCommandEndEvent;
-use codex_protocol::protocol::FileChange;
-use codex_protocol::protocol::GuardianAssessmentAction;
-use codex_protocol::protocol::GuardianAssessmentEvent;
-use codex_protocol::protocol::PatchApplyBeginEvent;
-use codex_protocol::protocol::PatchApplyEndEvent;
-use codex_shell_command::parse_command::parse_command;
-use codex_shell_command::parse_command::shlex_join;
-use codex_utils_path_uri::PathConvention;
-use codex_utils_path_uri::PathUri;
+use datax_protocol::ThreadId;
+use datax_protocol::parse_command::ParsedCommand;
+use datax_protocol::protocol::ApplyPatchApprovalRequestEvent;
+use datax_protocol::protocol::ExecApprovalRequestEvent;
+use datax_protocol::protocol::ExecCommandBeginEvent;
+use datax_protocol::protocol::ExecCommandEndEvent;
+use datax_protocol::protocol::FileChange;
+use datax_protocol::protocol::GuardianAssessmentAction;
+use datax_protocol::protocol::GuardianAssessmentEvent;
+use datax_protocol::protocol::PatchApplyBeginEvent;
+use datax_protocol::protocol::PatchApplyEndEvent;
+use datax_shell_command::parse_command::parse_command;
+use datax_shell_command::parse_command::shlex_join;
+use datax_utils_path_uri::PathConvention;
+use datax_utils_path_uri::PathUri;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tracing::warn;
@@ -252,19 +252,19 @@ pub fn guardian_auto_approval_review_notification(
     };
     let review = GuardianApprovalReview {
         status: match assessment.status {
-            codex_protocol::protocol::GuardianAssessmentStatus::InProgress => {
+            datax_protocol::protocol::GuardianAssessmentStatus::InProgress => {
                 GuardianApprovalReviewStatus::InProgress
             }
-            codex_protocol::protocol::GuardianAssessmentStatus::Approved => {
+            datax_protocol::protocol::GuardianAssessmentStatus::Approved => {
                 GuardianApprovalReviewStatus::Approved
             }
-            codex_protocol::protocol::GuardianAssessmentStatus::Denied => {
+            datax_protocol::protocol::GuardianAssessmentStatus::Denied => {
                 GuardianApprovalReviewStatus::Denied
             }
-            codex_protocol::protocol::GuardianAssessmentStatus::TimedOut => {
+            datax_protocol::protocol::GuardianAssessmentStatus::TimedOut => {
                 GuardianApprovalReviewStatus::TimedOut
             }
-            codex_protocol::protocol::GuardianAssessmentStatus::Aborted => {
+            datax_protocol::protocol::GuardianAssessmentStatus::Aborted => {
                 GuardianApprovalReviewStatus::Aborted
             }
         },
@@ -274,7 +274,7 @@ pub fn guardian_auto_approval_review_notification(
     };
     let action = assessment.action.clone().into();
     match assessment.status {
-        codex_protocol::protocol::GuardianAssessmentStatus::InProgress => {
+        datax_protocol::protocol::GuardianAssessmentStatus::InProgress => {
             ServerNotification::ItemGuardianApprovalReviewStarted(
                 ItemGuardianApprovalReviewStartedNotification {
                     thread_id: conversation_id.to_string(),
@@ -287,10 +287,10 @@ pub fn guardian_auto_approval_review_notification(
                 },
             )
         }
-        codex_protocol::protocol::GuardianAssessmentStatus::Approved
-        | codex_protocol::protocol::GuardianAssessmentStatus::Denied
-        | codex_protocol::protocol::GuardianAssessmentStatus::TimedOut
-        | codex_protocol::protocol::GuardianAssessmentStatus::Aborted => {
+        datax_protocol::protocol::GuardianAssessmentStatus::Approved
+        | datax_protocol::protocol::GuardianAssessmentStatus::Denied
+        | datax_protocol::protocol::GuardianAssessmentStatus::TimedOut
+        | datax_protocol::protocol::GuardianAssessmentStatus::Aborted => {
             ServerNotification::ItemGuardianApprovalReviewCompleted(
                 ItemGuardianApprovalReviewCompletedNotification {
                     thread_id: conversation_id.to_string(),

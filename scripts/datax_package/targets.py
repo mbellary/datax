@@ -42,8 +42,8 @@ class PackageInputs:
     rg_bin: Path
     zsh_bin: Path | None
     bwrap_bin: Path | None
-    codex_command_runner_bin: Path | None
-    codex_windows_sandbox_setup_bin: Path | None
+    datax_command_runner_bin: Path | None
+    datax_windows_sandbox_setup_bin: Path | None
 
 
 PACKAGE_VARIANTS: dict[str, PackageVariant] = {
@@ -52,10 +52,10 @@ PACKAGE_VARIANTS: dict[str, PackageVariant] = {
         cargo_bin="datax",
         executable_stem="datax",
     ),
-    "codex-app-server": PackageVariant(
-        name="codex-app-server",
-        cargo_bin="codex-app-server",
-        executable_stem="codex-app-server",
+    "datax-app-server": PackageVariant(
+        name="datax-app-server",
+        cargo_bin="datax-app-server",
+        executable_stem="datax-app-server",
     ),
 }
 

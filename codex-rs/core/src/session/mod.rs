@@ -50,112 +50,112 @@ use async_channel::Receiver;
 use async_channel::Sender;
 use chrono::Local;
 use chrono::Utc;
-use codex_analytics::AnalyticsEventsClient;
-use codex_analytics::SubAgentThreadStartedInput;
-use codex_analytics::TurnCodexErrorFact;
-use codex_app_server_protocol::McpServerElicitationRequest;
-use codex_app_server_protocol::McpServerElicitationRequestParams;
-use codex_config::types::AuthKeyringBackendKind;
-use codex_config::types::OAuthCredentialsStoreMode;
-use codex_exec_server::Environment;
-use codex_exec_server::EnvironmentManager;
-use codex_extension_api::ExtensionDataInit;
-use codex_extension_api::LoadedUserInstructions;
-use codex_extension_api::PromptFragment;
-use codex_extension_api::PromptSlot;
-use codex_extension_api::TurnContextContributionInput;
-use codex_features::FEATURES;
-use codex_features::Feature;
-use codex_features::unstable_features_warning_event;
-use codex_hooks::Hooks;
-use codex_hooks::HooksConfig;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::auth_env_telemetry::collect_auth_env_telemetry;
-use codex_login::default_client::originator;
-use codex_mcp::McpConnectionManager;
-use codex_mcp::McpResourceClient;
-use codex_mcp::McpRuntimeContext;
-use codex_mcp::codex_apps_tools_cache_key;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_models_manager::manager::SharedModelsManager;
-use codex_network_proxy::NetworkProxy;
-use codex_network_proxy::NetworkProxyAuditMetadata;
-use codex_network_proxy::normalize_host;
-use codex_otel::current_span_trace_id;
-use codex_otel::current_span_w3c_trace_context;
-use codex_otel::set_parent_from_w3c_trace_context;
-use codex_protocol::SessionId;
-use codex_protocol::ThreadId;
-use codex_protocol::approvals::ElicitationRequestEvent;
-use codex_protocol::approvals::ExecPolicyAmendment;
-use codex_protocol::approvals::NetworkPolicyAmendment;
-use codex_protocol::approvals::NetworkPolicyRuleAction;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::config_types::AutoCompactTokenLimitScope;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::MultiAgentMode;
-use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
-use codex_protocol::config_types::Settings;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::dynamic_tools::DynamicToolResponse;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_protocol::items::TurnItem;
-use codex_protocol::items::UserMessageItem;
-use codex_protocol::mcp::CallToolResult;
-use codex_protocol::models::ActivePermissionProfile;
-use codex_protocol::models::AdditionalPermissionProfile;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::SandboxEnforcement;
-use codex_protocol::models::format_allow_prefixes;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AdditionalContextEntry;
-use codex_protocol::protocol::FileChange;
-use codex_protocol::protocol::HasLegacyEvent;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::protocol::ItemCompletedEvent;
-use codex_protocol::protocol::ItemStartedEvent;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::RawResponseItemEvent;
-use codex_protocol::protocol::ReviewRequest;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::ThreadSource;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_protocol::protocol::TurnContextItem;
-use codex_protocol::protocol::TurnContextNetworkItem;
-use codex_protocol::protocol::TurnEnvironmentSelection;
-use codex_protocol::protocol::TurnEnvironmentSelections;
-use codex_protocol::protocol::W3cTraceContext;
-use codex_protocol::request_permissions::PermissionGrantScope;
-use codex_protocol::request_permissions::RequestPermissionProfile;
-use codex_protocol::request_permissions::RequestPermissionsArgs;
-use codex_protocol::request_permissions::RequestPermissionsEvent;
-use codex_protocol::request_permissions::RequestPermissionsResponse;
-use codex_protocol::request_user_input::RequestUserInputArgs;
-use codex_protocol::request_user_input::RequestUserInputResponse;
-use codex_rmcp_client::ElicitationResponse;
-use codex_rollout::state_db;
-use codex_rollout_trace::AgentResultTracePayload;
-use codex_rollout_trace::ThreadStartedTraceMetadata;
-use codex_rollout_trace::ThreadTraceContext;
-use codex_sandboxing::policy_transforms::intersect_permission_profiles;
-use codex_shell_command::parse_command::parse_command;
-use codex_terminal_detection::user_agent;
-use codex_thread_store::CreateThreadParams;
-use codex_thread_store::LiveThread;
-use codex_thread_store::LiveThreadInitGuard;
-use codex_thread_store::LocalThreadStore;
-use codex_thread_store::ReadThreadParams;
-use codex_thread_store::ResumeThreadParams;
-use codex_thread_store::ThreadPersistenceMetadata;
-use codex_thread_store::ThreadStore;
-use codex_utils_path_uri::PathUri;
+use datax_analytics::AnalyticsEventsClient;
+use datax_analytics::SubAgentThreadStartedInput;
+use datax_analytics::TurnCodexErrorFact;
+use datax_app_server_protocol::McpServerElicitationRequest;
+use datax_app_server_protocol::McpServerElicitationRequestParams;
+use datax_config::types::AuthKeyringBackendKind;
+use datax_config::types::OAuthCredentialsStoreMode;
+use datax_exec_server::Environment;
+use datax_exec_server::EnvironmentManager;
+use datax_extension_api::ExtensionDataInit;
+use datax_extension_api::LoadedUserInstructions;
+use datax_extension_api::PromptFragment;
+use datax_extension_api::PromptSlot;
+use datax_extension_api::TurnContextContributionInput;
+use datax_features::FEATURES;
+use datax_features::Feature;
+use datax_features::unstable_features_warning_event;
+use datax_hooks::Hooks;
+use datax_hooks::HooksConfig;
+use datax_login::AuthManager;
+use datax_login::CodexAuth;
+use datax_login::auth_env_telemetry::collect_auth_env_telemetry;
+use datax_login::default_client::originator;
+use datax_mcp::McpConnectionManager;
+use datax_mcp::McpResourceClient;
+use datax_mcp::McpRuntimeContext;
+use datax_mcp::codex_apps_tools_cache_key;
+use datax_models_manager::manager::RefreshStrategy;
+use datax_models_manager::manager::SharedModelsManager;
+use datax_network_proxy::NetworkProxy;
+use datax_network_proxy::NetworkProxyAuditMetadata;
+use datax_network_proxy::normalize_host;
+use datax_otel::current_span_trace_id;
+use datax_otel::current_span_w3c_trace_context;
+use datax_otel::set_parent_from_w3c_trace_context;
+use datax_protocol::SessionId;
+use datax_protocol::ThreadId;
+use datax_protocol::approvals::ElicitationRequestEvent;
+use datax_protocol::approvals::ExecPolicyAmendment;
+use datax_protocol::approvals::NetworkPolicyAmendment;
+use datax_protocol::approvals::NetworkPolicyRuleAction;
+use datax_protocol::config_types::ApprovalsReviewer;
+use datax_protocol::config_types::AutoCompactTokenLimitScope;
+use datax_protocol::config_types::ModeKind;
+use datax_protocol::config_types::MultiAgentMode;
+use datax_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
+use datax_protocol::config_types::Settings;
+use datax_protocol::config_types::WebSearchMode;
+use datax_protocol::dynamic_tools::DynamicToolResponse;
+use datax_protocol::dynamic_tools::DynamicToolSpec;
+use datax_protocol::items::TurnItem;
+use datax_protocol::items::UserMessageItem;
+use datax_protocol::mcp::CallToolResult;
+use datax_protocol::models::ActivePermissionProfile;
+use datax_protocol::models::AdditionalPermissionProfile;
+use datax_protocol::models::BaseInstructions;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::models::SandboxEnforcement;
+use datax_protocol::models::format_allow_prefixes;
+use datax_protocol::openai_models::ModelInfo;
+use datax_protocol::openai_models::ModelPreset;
+use datax_protocol::permissions::FileSystemSandboxPolicy;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_protocol::protocol::AdditionalContextEntry;
+use datax_protocol::protocol::FileChange;
+use datax_protocol::protocol::HasLegacyEvent;
+use datax_protocol::protocol::InterAgentCommunication;
+use datax_protocol::protocol::ItemCompletedEvent;
+use datax_protocol::protocol::ItemStartedEvent;
+use datax_protocol::protocol::MultiAgentVersion;
+use datax_protocol::protocol::RawResponseItemEvent;
+use datax_protocol::protocol::ReviewRequest;
+use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::SubAgentSource;
+use datax_protocol::protocol::ThreadSource;
+use datax_protocol::protocol::TurnAbortReason;
+use datax_protocol::protocol::TurnContextItem;
+use datax_protocol::protocol::TurnContextNetworkItem;
+use datax_protocol::protocol::TurnEnvironmentSelection;
+use datax_protocol::protocol::TurnEnvironmentSelections;
+use datax_protocol::protocol::W3cTraceContext;
+use datax_protocol::request_permissions::PermissionGrantScope;
+use datax_protocol::request_permissions::RequestPermissionProfile;
+use datax_protocol::request_permissions::RequestPermissionsArgs;
+use datax_protocol::request_permissions::RequestPermissionsEvent;
+use datax_protocol::request_permissions::RequestPermissionsResponse;
+use datax_protocol::request_user_input::RequestUserInputArgs;
+use datax_protocol::request_user_input::RequestUserInputResponse;
+use datax_rmcp_client::ElicitationResponse;
+use datax_rollout::state_db;
+use datax_rollout_trace::AgentResultTracePayload;
+use datax_rollout_trace::ThreadStartedTraceMetadata;
+use datax_rollout_trace::ThreadTraceContext;
+use datax_sandboxing::policy_transforms::intersect_permission_profiles;
+use datax_shell_command::parse_command::parse_command;
+use datax_terminal_detection::user_agent;
+use datax_thread_store::CreateThreadParams;
+use datax_thread_store::LiveThread;
+use datax_thread_store::LiveThreadInitGuard;
+use datax_thread_store::LocalThreadStore;
+use datax_thread_store::ReadThreadParams;
+use datax_thread_store::ResumeThreadParams;
+use datax_thread_store::ThreadPersistenceMetadata;
+use datax_thread_store::ThreadStore;
+use datax_utils_path_uri::PathUri;
 use futures::future::BoxFuture;
 use futures::future::Shared;
 use futures::prelude::*;
@@ -198,15 +198,15 @@ use crate::config::StartedNetworkProxy;
 use crate::config::resolve_web_search_mode_for_turn;
 use crate::context_manager::ContextManager;
 use crate::thread_rollout_truncation::initial_history_has_prior_user_turns;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::ConfigLayerSource;
-use codex_config::ConfigLayerStackOrdering;
-use codex_config::types::McpServerConfig;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
+use datax_config::CONFIG_TOML_FILE;
+use datax_config::ConfigLayerSource;
+use datax_config::ConfigLayerStackOrdering;
+use datax_config::types::McpServerConfig;
+use datax_model_provider_info::ModelProviderInfo;
+use datax_protocol::error::CodexErr;
+use datax_protocol::error::Result as CodexResult;
 #[cfg(test)]
-use codex_protocol::exec_output::StreamOutput;
+use datax_protocol::exec_output::StreamOutput;
 
 mod code_mode_warning;
 mod config_lock;
@@ -339,62 +339,62 @@ use crate::turn_timing::TurnTimingState;
 use crate::turn_timing::record_turn_ttfm_metric;
 use crate::unified_exec::UnifiedExecProcessManager;
 use crate::windows_sandbox::WindowsSandboxLevelExt;
-use codex_core_plugins::PluginsManager;
-use codex_core_plugins::RecommendedPluginCandidatesInput;
-use codex_git_utils::get_git_repo_root;
-use codex_mcp::McpConfig;
-use codex_mcp::compute_auth_statuses;
-use codex_mcp::effective_mcp_servers_from_configured;
-use codex_mcp::host_owned_codex_apps_enabled;
-use codex_otel::SessionTelemetry;
-use codex_otel::THREAD_STARTED_METRIC;
-use codex_otel::TelemetryAuthMode;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::LocalImagePreparation;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
-use codex_protocol::protocol::ApplyPatchApprovalRequestEvent;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::CodexErrorInfo;
-use codex_protocol::protocol::CompactedItem;
-use codex_protocol::protocol::DeprecationNoticeEvent;
-use codex_protocol::protocol::ErrorEvent;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecApprovalRequestEvent;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::McpServerRefreshConfig;
-use codex_protocol::protocol::ModelRerouteEvent;
-use codex_protocol::protocol::ModelRerouteReason;
-use codex_protocol::protocol::ModelVerification;
-use codex_protocol::protocol::ModelVerificationEvent;
-use codex_protocol::protocol::NetworkApprovalContext;
-use codex_protocol::protocol::NonSteerableTurnKind;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RateLimitSnapshot;
-use codex_protocol::protocol::RequestUserInputEvent;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionConfiguredEvent;
-use codex_protocol::protocol::SessionNetworkProxyRuntime;
-use codex_protocol::protocol::StreamErrorEvent;
-use codex_protocol::protocol::Submission;
-use codex_protocol::protocol::ThreadMemoryMode;
-use codex_protocol::protocol::TokenCountEvent;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::protocol::TokenUsageInfo;
-use codex_protocol::protocol::TurnModerationMetadataEvent;
-use codex_protocol::protocol::WarningEvent;
-use codex_protocol::user_input::UserInput;
-use codex_tools::ToolEnvironmentMode;
-use codex_tools::UnifiedExecShellMode;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_core_plugins::PluginsManager;
+use datax_core_plugins::RecommendedPluginCandidatesInput;
+use datax_git_utils::get_git_repo_root;
+use datax_mcp::McpConfig;
+use datax_mcp::compute_auth_statuses;
+use datax_mcp::effective_mcp_servers_from_configured;
+use datax_mcp::host_owned_codex_apps_enabled;
+use datax_otel::SessionTelemetry;
+use datax_otel::THREAD_STARTED_METRIC;
+use datax_otel::TelemetryAuthMode;
+use datax_protocol::config_types::CollaborationMode;
+use datax_protocol::config_types::Personality;
+use datax_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
+use datax_protocol::config_types::WindowsSandboxLevel;
+use datax_protocol::models::LocalImagePreparation;
+use datax_protocol::models::ResponseInputItem;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use datax_protocol::protocol::ApplyPatchApprovalRequestEvent;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::CodexErrorInfo;
+use datax_protocol::protocol::CompactedItem;
+use datax_protocol::protocol::DeprecationNoticeEvent;
+use datax_protocol::protocol::ErrorEvent;
+use datax_protocol::protocol::Event;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::ExecApprovalRequestEvent;
+use datax_protocol::protocol::InitialHistory;
+use datax_protocol::protocol::McpServerRefreshConfig;
+use datax_protocol::protocol::ModelRerouteEvent;
+use datax_protocol::protocol::ModelRerouteReason;
+use datax_protocol::protocol::ModelVerification;
+use datax_protocol::protocol::ModelVerificationEvent;
+use datax_protocol::protocol::NetworkApprovalContext;
+use datax_protocol::protocol::NonSteerableTurnKind;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::RateLimitSnapshot;
+use datax_protocol::protocol::RequestUserInputEvent;
+use datax_protocol::protocol::ReviewDecision;
+use datax_protocol::protocol::SandboxPolicy;
+use datax_protocol::protocol::SessionConfiguredEvent;
+use datax_protocol::protocol::SessionNetworkProxyRuntime;
+use datax_protocol::protocol::StreamErrorEvent;
+use datax_protocol::protocol::Submission;
+use datax_protocol::protocol::ThreadMemoryMode;
+use datax_protocol::protocol::TokenCountEvent;
+use datax_protocol::protocol::TokenUsage;
+use datax_protocol::protocol::TokenUsageInfo;
+use datax_protocol::protocol::TurnModerationMetadataEvent;
+use datax_protocol::protocol::WarningEvent;
+use datax_protocol::user_input::UserInput;
+use datax_tools::ToolEnvironmentMode;
+use datax_tools::UnifiedExecShellMode;
+use datax_utils_absolute_path::AbsolutePathBuf;
 #[cfg(test)]
-use codex_utils_stream_parser::ProposedPlanSegment;
+use datax_utils_stream_parser::ProposedPlanSegment;
 
 /// The high-level interface to the Codex system.
 /// It operates as a queue pair where you send submissions and receive events.
@@ -428,7 +428,7 @@ pub(crate) struct CodexSpawnArgs {
     pub(crate) skills_service: Arc<SkillsService>,
     pub(crate) plugins_manager: Arc<PluginsManager>,
     pub(crate) mcp_manager: Arc<McpManager>,
-    pub(crate) extensions: Arc<codex_extension_api::ExtensionRegistry<crate::config::Config>>,
+    pub(crate) extensions: Arc<datax_extension_api::ExtensionRegistry<crate::config::Config>>,
     pub(crate) conversation_history: InitialHistory,
     pub(crate) session_source: SessionSource,
     pub(crate) forked_from_thread_id: Option<ThreadId>,
@@ -484,7 +484,7 @@ impl Codex {
     pub(crate) async fn spawn(args: CodexSpawnArgs) -> CodexResult<CodexSpawnOk> {
         let parent_trace = match args.parent_trace {
             Some(trace) => {
-                if codex_otel::context_from_w3c_trace_context(&trace).is_some() {
+                if datax_otel::context_from_w3c_trace_context(&trace).is_some() {
                     Some(trace)
                 } else {
                     warn!("ignoring invalid thread spawn trace carrier");
@@ -567,14 +567,14 @@ impl Codex {
 
         let config = Arc::new(config);
         let refresh_strategy = if session_source.is_non_root_agent() {
-            codex_models_manager::manager::RefreshStrategy::Offline
+            datax_models_manager::manager::RefreshStrategy::Offline
         } else {
-            codex_models_manager::manager::RefreshStrategy::OnlineIfUncached
+            datax_models_manager::manager::RefreshStrategy::OnlineIfUncached
         };
         if config.model.is_none()
             || !matches!(
                 refresh_strategy,
-                codex_models_manager::manager::RefreshStrategy::Offline
+                datax_models_manager::manager::RefreshStrategy::Offline
             )
         {
             let _ = models_manager.list_models(refresh_strategy).await;
@@ -770,7 +770,7 @@ impl Codex {
     /// and does not involve the model.
     pub async fn set_thread_memory_mode(
         &self,
-        mode: codex_protocol::protocol::ThreadMemoryMode,
+        mode: datax_protocol::protocol::ThreadMemoryMode,
     ) -> anyhow::Result<()> {
         handlers::persist_thread_memory_mode_update(&self.session, mode).await
     }
@@ -998,10 +998,10 @@ impl Session {
 
     async fn start_managed_network_proxy(
         spec: &crate::config::NetworkProxySpec,
-        exec_policy: &codex_execpolicy::Policy,
+        exec_policy: &datax_execpolicy::Policy,
         permission_profile: &PermissionProfile,
-        network_policy_decider: Option<Arc<dyn codex_network_proxy::NetworkPolicyDecider>>,
-        blocked_request_observer: Option<Arc<dyn codex_network_proxy::BlockedRequestObserver>>,
+        network_policy_decider: Option<Arc<dyn datax_network_proxy::NetworkPolicyDecider>>,
+        blocked_request_observer: Option<Arc<dyn datax_network_proxy::BlockedRequestObserver>>,
         managed_network_requirements_enabled: bool,
         audit_metadata: NetworkProxyAuditMetadata,
     ) -> anyhow::Result<(StartedNetworkProxy, SessionNetworkProxyRuntime)> {
@@ -1527,7 +1527,7 @@ impl Session {
             .clone()
     }
 
-    pub(crate) async fn user_instructions(&self) -> Option<codex_extension_api::UserInstructions> {
+    pub(crate) async fn user_instructions(&self) -> Option<datax_extension_api::UserInstructions> {
         let state = self.state.lock().await;
         state
             .session_configuration
@@ -1807,13 +1807,13 @@ impl Session {
         &self,
         turn_context: &TurnContext,
         parent_thread_id: ThreadId,
-        child_agent_path: &codex_protocol::AgentPath,
+        child_agent_path: &datax_protocol::AgentPath,
         status: AgentStatus,
     ) {
         let Some(parent_agent_path) = child_agent_path
             .as_str()
             .rsplit_once('/')
-            .and_then(|(parent, _)| codex_protocol::AgentPath::try_from(parent).ok())
+            .and_then(|(parent, _)| datax_protocol::AgentPath::try_from(parent).ok())
         else {
             return;
         };
@@ -2273,7 +2273,7 @@ impl Session {
                 review_id,
                 request,
                 /*retry_reason*/ None,
-                codex_analytics::GuardianApprovalRequestSource::MainTurn,
+                datax_analytics::GuardianApprovalRequestSource::MainTurn,
                 cancellation_token.clone(),
             );
             let decision = tokio::select! {
@@ -2914,7 +2914,7 @@ impl Session {
         }
         {
             let mut state = self.state.lock().await;
-            state.queue_pending_session_start_source(codex_hooks::SessionStartSource::Compact);
+            state.queue_pending_session_start_source(datax_hooks::SessionStartSource::Compact);
         }
     }
 
@@ -3426,7 +3426,7 @@ impl Session {
         .await;
         {
             let mut state = self.state.lock().await;
-            state.queue_pending_session_start_source(codex_hooks::SessionStartSource::Compact);
+            state.queue_pending_session_start_source(datax_hooks::SessionStartSource::Compact);
         }
         self.recompute_token_usage(turn_context).await;
         Some(window_number)
@@ -3833,7 +3833,7 @@ impl Session {
 
     pub(crate) async fn take_pending_session_start_source(
         &self,
-    ) -> Option<codex_hooks::SessionStartSource> {
+    ) -> Option<datax_hooks::SessionStartSource> {
         let mut state = self.state.lock().await;
         state.take_pending_session_start_source()
     }

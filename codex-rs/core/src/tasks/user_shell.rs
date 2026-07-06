@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_async_utils::CancelErr;
-use codex_async_utils::OrCancelExt;
-use codex_network_proxy::PROXY_ACTIVE_ENV_KEY;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_async_utils::CancelErr;
+use datax_async_utils::OrCancelExt;
+use datax_network_proxy::PROXY_ACTIVE_ENV_KEY;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use tokio_util::sync::CancellationToken;
 use tracing::error;
 use uuid::Uuid;
@@ -27,23 +27,23 @@ use crate::tools::runtimes::maybe_wrap_shell_lc_with_snapshot;
 use crate::tools::runtimes::strip_managed_proxy_env;
 use crate::turn_timing::now_unix_timestamp_ms;
 use crate::user_shell_command::user_shell_command_record_item;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::exec_output::StreamOutput;
-use codex_protocol::protocol::ErrorEvent;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecCommandBeginEvent;
-use codex_protocol::protocol::ExecCommandEndEvent;
-use codex_protocol::protocol::ExecCommandSource;
-use codex_protocol::protocol::ExecCommandStatus;
-use codex_protocol::protocol::TurnStartedEvent;
-use codex_sandboxing::SandboxType;
-use codex_shell_command::parse_command::parse_command;
+use datax_protocol::exec_output::ExecToolCallOutput;
+use datax_protocol::exec_output::StreamOutput;
+use datax_protocol::protocol::ErrorEvent;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::ExecCommandBeginEvent;
+use datax_protocol::protocol::ExecCommandEndEvent;
+use datax_protocol::protocol::ExecCommandSource;
+use datax_protocol::protocol::ExecCommandStatus;
+use datax_protocol::protocol::TurnStartedEvent;
+use datax_sandboxing::SandboxType;
+use datax_shell_command::parse_command::parse_command;
 
 use super::SessionTask;
 use super::SessionTaskContext;
 use super::SessionTaskResult;
 use crate::session::session::Session;
-use codex_protocol::models::PermissionProfile;
+use datax_protocol::models::PermissionProfile;
 
 const USER_SHELL_TIMEOUT_MS: u64 = 60 * 60 * 1000; // 1 hour
 

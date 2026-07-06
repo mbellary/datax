@@ -3,12 +3,12 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::RwLock;
 
-use codex_config::ConfigLayerStack;
-use codex_exec_server::ExecutorFileSystem;
-use codex_protocol::protocol::Product;
-use codex_protocol::protocol::SkillScope;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_plugins::PluginSkillRoot;
+use datax_config::ConfigLayerStack;
+use datax_exec_server::ExecutorFileSystem;
+use datax_protocol::protocol::Product;
+use datax_protocol::protocol::SkillScope;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_plugins::PluginSkillRoot;
 use tracing::info;
 use tracing::instrument;
 use tracing::warn;
@@ -25,7 +25,7 @@ use crate::loader::load_skills_from_roots;
 use crate::loader::skill_roots;
 use crate::system::install_system_skills;
 use crate::system::uninstall_system_skills;
-use codex_config::SkillsConfig;
+use datax_config::SkillsConfig;
 
 #[derive(Debug, Clone)]
 pub struct SkillsLoadInput {
@@ -275,7 +275,7 @@ struct ConfigSkillsCacheKey {
 }
 
 pub fn bundled_skills_enabled_from_stack(
-    config_layer_stack: &codex_config::ConfigLayerStack,
+    config_layer_stack: &datax_config::ConfigLayerStack,
 ) -> bool {
     let effective_config = config_layer_stack.effective_config();
     let Some(skills_value) = effective_config

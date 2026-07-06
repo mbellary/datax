@@ -2,15 +2,15 @@ use super::*;
 use crate::auth::storage::FileAuthStorage;
 use crate::auth::storage::get_auth_file;
 use crate::token_data::IdTokenInfo;
-use codex_app_server_protocol::AuthMode;
-use codex_protocol::account::PlanType as AccountPlanType;
-use codex_protocol::auth::KnownPlan as InternalKnownPlan;
-use codex_protocol::auth::PlanType as InternalPlanType;
-use codex_protocol::protocol::SessionSource;
+use datax_app_server_protocol::AuthMode;
+use datax_protocol::account::PlanType as AccountPlanType;
+use datax_protocol::auth::KnownPlan as InternalKnownPlan;
+use datax_protocol::auth::PlanType as InternalPlanType;
+use datax_protocol::protocol::SessionSource;
 
 use base64::Engine;
-use codex_protocol::config_types::ForcedLoginMethod;
-use codex_protocol::config_types::ModelProviderAuthInfo;
+use datax_protocol::config_types::ForcedLoginMethod;
+use datax_protocol::config_types::ModelProviderAuthInfo;
 use pretty_assertions::assert_eq;
 use serde::Serialize;
 use serde_json::json;
@@ -393,7 +393,7 @@ async fn chatgpt_auth_registers_agent_identity_when_enabled() -> anyhow::Result<
         .and(header("authorization", "Bearer test-access-token"))
         .and(body_partial_json(json!({
             "abom": {
-                "agent_harness_id": "codex-cli",
+                "agent_harness_id": "datax-cli",
             },
             "capabilities": ["responsesapi"],
             "ttl": null,
@@ -1920,7 +1920,7 @@ async fn enforce_login_restrictions_blocks_env_api_key_when_chatgpt_required() {
 
 fn agent_identity_record(account_id: &str) -> AgentIdentityAuthRecord {
     let key_material =
-        codex_agent_identity::generate_agent_key_material().expect("generate agent key material");
+        datax_agent_identity::generate_agent_key_material().expect("generate agent key material");
     AgentIdentityAuthRecord {
         agent_runtime_id: "agent-runtime-id".to_string(),
         agent_private_key: key_material.private_key_pkcs8_base64,
@@ -1963,7 +1963,7 @@ fn fake_agent_identity_jwt_with_plan_type(
     let header_b64 = encode(br#"{"alg":"EdDSA","typ":"JWT"}"#);
     let payload = json!({
         "iss": "https://chatgpt.com/codex-backend/agent-identity",
-        "aud": "codex-app-server",
+        "aud": "datax-app-server",
         "iat": 1_700_000_000usize,
         "exp": 4_000_000_000usize,
         "agent_runtime_id": record.agent_runtime_id,
@@ -1989,7 +1989,7 @@ fn signed_agent_identity_jwt(
         &header,
         &json!({
             "iss": "https://chatgpt.com/codex-backend/agent-identity",
-            "aud": "codex-app-server",
+            "aud": "datax-app-server",
             "iat": 1_700_000_000usize,
             "exp": 4_000_000_000usize,
             "agent_runtime_id": record.agent_runtime_id,

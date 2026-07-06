@@ -4,23 +4,23 @@ use std::time::Duration;
 
 use crate::chatgpt_client::chatgpt_get_request_with_timeout;
 
-use codex_app_server_protocol::AppInfo;
-use codex_connectors::ConnectorDirectoryCacheContext;
-use codex_connectors::ConnectorDirectoryCacheKey;
-use codex_connectors::DirectoryListResponse;
-use codex_connectors::merge::merge_connectors;
-use codex_connectors::merge::merge_plugin_connectors;
-use codex_core::config::Config;
-pub use codex_core::connectors::list_accessible_connectors_from_mcp_tools;
-pub use codex_core::connectors::list_accessible_connectors_from_mcp_tools_with_environment_manager;
-pub use codex_core::connectors::list_accessible_connectors_from_mcp_tools_with_mcp_manager;
-pub use codex_core::connectors::list_accessible_connectors_from_mcp_tools_with_options;
-pub use codex_core::connectors::list_accessible_connectors_from_mcp_tools_with_options_and_status;
-pub use codex_core::connectors::list_cached_accessible_connectors_from_mcp_tools;
-pub use codex_core::connectors::with_app_enabled_state;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_plugin::AppConnectorId;
+use datax_app_server_protocol::AppInfo;
+use datax_connectors::ConnectorDirectoryCacheContext;
+use datax_connectors::ConnectorDirectoryCacheKey;
+use datax_connectors::DirectoryListResponse;
+use datax_connectors::merge::merge_connectors;
+use datax_connectors::merge::merge_plugin_connectors;
+use datax_core::config::Config;
+pub use datax_core::connectors::list_accessible_connectors_from_mcp_tools;
+pub use datax_core::connectors::list_accessible_connectors_from_mcp_tools_with_environment_manager;
+pub use datax_core::connectors::list_accessible_connectors_from_mcp_tools_with_mcp_manager;
+pub use datax_core::connectors::list_accessible_connectors_from_mcp_tools_with_options;
+pub use datax_core::connectors::list_accessible_connectors_from_mcp_tools_with_options_and_status;
+pub use datax_core::connectors::list_cached_accessible_connectors_from_mcp_tools;
+pub use datax_core::connectors::with_app_enabled_state;
+use datax_login::AuthManager;
+use datax_login::CodexAuth;
+use datax_plugin::AppConnectorId;
 
 const DIRECTORY_CONNECTORS_TIMEOUT: Duration = Duration::from_secs(60);
 
@@ -79,7 +79,7 @@ pub async fn list_cached_all_connectors(
 
     let auth = connector_auth(config).await.ok()?;
     let cache_context = connector_directory_cache_context(config, &auth);
-    let connectors = codex_connectors::cached_directory_connectors(&cache_context)?;
+    let connectors = datax_connectors::cached_directory_connectors(&cache_context)?;
     Some(merge_directory_and_plugin_connectors(
         connectors,
         plugin_apps,
@@ -96,7 +96,7 @@ pub async fn list_all_connectors_with_options(
     }
     let auth = connector_auth(config).await?;
     let cache_context = connector_directory_cache_context(config, &auth);
-    let connectors = codex_connectors::list_all_connectors_with_options(
+    let connectors = datax_connectors::list_all_connectors_with_options(
         cache_context,
         auth.is_workspace_account(),
         force_refetch,
@@ -187,8 +187,8 @@ pub fn merge_connectors_with_accessible(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_connectors::metadata::connector_install_url;
-    use codex_plugin::AppConnectorId;
+    use datax_connectors::metadata::connector_install_url;
+    use datax_plugin::AppConnectorId;
     use pretty_assertions::assert_eq;
 
     fn app(id: &str) -> AppInfo {

@@ -3,14 +3,6 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::user_input::UserInput;
 use core_test_support::hooks::trust_discovered_hooks;
 use core_test_support::responses;
 use core_test_support::responses::ResponseMock;
@@ -18,6 +10,14 @@ use core_test_support::skip_if_no_network;
 use core_test_support::test_codex::TestCodexHarness;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
+use datax_features::Feature;
+use datax_login::CodexAuth;
+use datax_protocol::config_types::ServiceTier;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutLine;
+use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
@@ -517,7 +517,7 @@ async fn build_harness_inner(
         builder = builder.with_pre_build_hook(write_manual_compact_hooks);
     }
     TestCodexHarness::with_builder(builder.with_config(move |config| {
-        config.cwd = codex_utils_absolute_path::AbsolutePathBuf::from_absolute_path(PathBuf::from(
+        config.cwd = datax_utils_absolute_path::AbsolutePathBuf::from_absolute_path(PathBuf::from(
             FIXED_CWD,
         ))
         .expect("fixed cwd should be absolute");
@@ -564,7 +564,7 @@ fn follow_up_index(request_count: usize) -> usize {
 
 async fn capture_from_requests(
     mode: Mode,
-    codex: &codex_core::CodexThread,
+    codex: &datax_core::CodexThread,
     rollout_path: &Path,
     responses_mock: &ResponseMock,
     compact_mock: Option<&ResponseMock>,
@@ -602,7 +602,7 @@ async fn capture_from_requests(
     })
 }
 
-async fn submit_user_input(codex: &codex_core::CodexThread, items: Vec<UserInput>) -> Result<()> {
+async fn submit_user_input(codex: &datax_core::CodexThread, items: Vec<UserInput>) -> Result<()> {
     codex
         .submit(Op::UserInput {
             items,
@@ -616,7 +616,7 @@ async fn submit_user_input(codex: &codex_core::CodexThread, items: Vec<UserInput
     Ok(())
 }
 
-async fn wait_for_turn_complete(codex: &codex_core::CodexThread) {
+async fn wait_for_turn_complete(codex: &datax_core::CodexThread) {
     wait_for_event(codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 }
 

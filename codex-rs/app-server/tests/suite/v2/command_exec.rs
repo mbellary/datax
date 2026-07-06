@@ -5,20 +5,20 @@ use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::to_response;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use codex_app_server_protocol::CommandExecOutputDeltaNotification;
-use codex_app_server_protocol::CommandExecOutputStream;
-use codex_app_server_protocol::CommandExecParams;
-use codex_app_server_protocol::CommandExecResizeParams;
-use codex_app_server_protocol::CommandExecResponse;
-use codex_app_server_protocol::CommandExecTerminalSize;
-use codex_app_server_protocol::CommandExecTerminateParams;
-use codex_app_server_protocol::CommandExecWriteParams;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::SandboxPolicy;
-use codex_exec_server::CODEX_EXEC_SERVER_URL_ENV_VAR;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY;
+use datax_app_server_protocol::CommandExecOutputDeltaNotification;
+use datax_app_server_protocol::CommandExecOutputStream;
+use datax_app_server_protocol::CommandExecParams;
+use datax_app_server_protocol::CommandExecResizeParams;
+use datax_app_server_protocol::CommandExecResponse;
+use datax_app_server_protocol::CommandExecTerminalSize;
+use datax_app_server_protocol::CommandExecTerminateParams;
+use datax_app_server_protocol::CommandExecWriteParams;
+use datax_app_server_protocol::JSONRPCMessage;
+use datax_app_server_protocol::JSONRPCNotification;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::SandboxPolicy;
+use datax_exec_server::CODEX_EXEC_SERVER_URL_ENV_VAR;
+use datax_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use std::path::Path;
@@ -983,7 +983,7 @@ async fn command_exec_process_ids_are_connection_scoped_and_disconnect_terminate
     let codex_home = TempDir::new()?;
     create_config_toml(codex_home.path(), &server.uri(), "never")?;
     let marker = format!(
-        "codex-command-exec-marker-{}",
+        "datax-command-exec-marker-{}",
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_nanos()

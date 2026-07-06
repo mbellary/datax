@@ -7,24 +7,24 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use codex_exec_server::EnvironmentManager;
-use codex_extension_api::LoadUserInstructionsFuture;
-use codex_extension_api::LoadedUserInstructions;
-use codex_extension_api::UserInstructionsProvider;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_model_provider::create_model_provider;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_models_manager::bundled_models_response;
-use codex_models_manager::collaboration_mode_presets;
-use codex_models_manager::manager::SharedModelsManager;
-use codex_models_manager::test_support::construct_model_info_offline_for_tests;
-use codex_models_manager::test_support::get_model_offline_for_tests;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::CollaborationModeMask;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::protocol::SessionSource;
+use datax_exec_server::EnvironmentManager;
+use datax_extension_api::LoadUserInstructionsFuture;
+use datax_extension_api::LoadedUserInstructions;
+use datax_extension_api::UserInstructionsProvider;
+use datax_login::AuthManager;
+use datax_login::CodexAuth;
+use datax_model_provider::create_model_provider;
+use datax_model_provider_info::ModelProviderInfo;
+use datax_models_manager::bundled_models_response;
+use datax_models_manager::collaboration_mode_presets;
+use datax_models_manager::manager::SharedModelsManager;
+use datax_models_manager::test_support::construct_model_info_offline_for_tests;
+use datax_models_manager::test_support::get_model_offline_for_tests;
+use datax_protocol::ThreadId;
+use datax_protocol::config_types::CollaborationModeMask;
+use datax_protocol::openai_models::ModelInfo;
+use datax_protocol::openai_models::ModelPreset;
+use datax_protocol::protocol::SessionSource;
 use once_cell::sync::Lazy;
 
 use crate::ThreadManager;
@@ -113,7 +113,7 @@ pub async fn start_thread_with_user_shell_override(
     config: Config,
     user_shell_override: crate::shell::Shell,
     supports_openai_form_elicitation: bool,
-) -> codex_protocol::error::Result<crate::NewThread> {
+) -> datax_protocol::error::Result<crate::NewThread> {
     thread_manager
         .start_thread_with_user_shell_override_for_tests(
             config,
@@ -130,7 +130,7 @@ pub async fn resume_thread_from_rollout_with_user_shell_override(
     auth_manager: Arc<AuthManager>,
     user_shell_override: crate::shell::Shell,
     supports_openai_form_elicitation: bool,
-) -> codex_protocol::error::Result<crate::NewThread> {
+) -> datax_protocol::error::Result<crate::NewThread> {
     thread_manager
         .resume_thread_from_rollout_with_user_shell_override_for_tests(
             config,

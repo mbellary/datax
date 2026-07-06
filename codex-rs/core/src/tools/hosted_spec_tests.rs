@@ -1,10 +1,10 @@
 use super::*;
-use codex_protocol::config_types::WebSearchContextSize;
-use codex_protocol::config_types::WebSearchFilters;
-use codex_protocol::config_types::WebSearchUserLocation;
-use codex_protocol::config_types::WebSearchUserLocationType;
-use codex_tools::ResponsesApiWebSearchFilters;
-use codex_tools::ResponsesApiWebSearchUserLocation;
+use datax_protocol::config_types::WebSearchContextSize;
+use datax_protocol::config_types::WebSearchFilters;
+use datax_protocol::config_types::WebSearchUserLocation;
+use datax_protocol::config_types::WebSearchUserLocationType;
+use datax_tools::ResponsesApiWebSearchFilters;
+use datax_tools::ResponsesApiWebSearchUserLocation;
 use pretty_assertions::assert_eq;
 
 #[test]

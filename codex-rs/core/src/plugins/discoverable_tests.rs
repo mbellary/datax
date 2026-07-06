@@ -1,13 +1,13 @@
 use crate::plugins::test_support::load_plugins_config;
 use crate::plugins::test_support::write_file;
 use crate::plugins::test_support::write_openai_curated_marketplace;
-use codex_core_plugins::PluginsManager;
-use codex_core_plugins::remote::REMOTE_GLOBAL_MARKETPLACE_NAME;
-use codex_core_plugins::remote::RemotePluginServiceConfig;
-use codex_core_plugins::remote::fetch_and_cache_global_remote_plugin_catalog;
-use codex_core_plugins::startup_sync::curated_plugins_repo_path;
-use codex_protocol::protocol::Product;
-use codex_tools::DiscoverablePluginInfo;
+use datax_core_plugins::PluginsManager;
+use datax_core_plugins::remote::REMOTE_GLOBAL_MARKETPLACE_NAME;
+use datax_core_plugins::remote::RemotePluginServiceConfig;
+use datax_core_plugins::remote::fetch_and_cache_global_remote_plugin_catalog;
+use datax_core_plugins::startup_sync::curated_plugins_repo_path;
+use datax_protocol::protocol::Product;
+use datax_tools::DiscoverablePluginInfo;
 use pretty_assertions::assert_eq;
 use tempfile::tempdir;
 
@@ -21,13 +21,13 @@ async fn list_discoverable_plugins(
 
 async fn list_discoverable_plugins_with_auth(
     config: &crate::config::Config,
-    auth: Option<&codex_login::CodexAuth>,
+    auth: Option<&datax_login::CodexAuth>,
     loaded_plugin_app_connector_ids: &[String],
 ) -> anyhow::Result<Vec<DiscoverablePluginInfo>> {
     let plugins_manager = PluginsManager::new_with_options(
         config.codex_home.to_path_buf(),
         Some(Product::Codex),
-        auth.map(codex_login::CodexAuth::api_auth_mode),
+        auth.map(datax_login::CodexAuth::api_auth_mode),
     );
     list_discoverable_plugins_with_manager_and_auth(
         config,
@@ -41,7 +41,7 @@ async fn list_discoverable_plugins_with_auth(
 async fn list_discoverable_plugins_with_manager_and_auth(
     config: &crate::config::Config,
     plugins_manager: &PluginsManager,
-    auth: Option<&codex_login::CodexAuth>,
+    auth: Option<&datax_login::CodexAuth>,
     loaded_plugin_app_connector_ids: &[String],
 ) -> anyhow::Result<Vec<DiscoverablePluginInfo>> {
     super::list_tool_suggest_discoverable_plugins(
@@ -55,7 +55,7 @@ async fn list_discoverable_plugins_with_manager_and_auth(
 
 #[tokio::test]
 async fn list_tool_suggest_discoverable_plugins_includes_cached_remote_global_plugins() {
-    use codex_login::CodexAuth;
+    use datax_login::CodexAuth;
     use serde_json::json;
     use wiremock::Mock;
     use wiremock::MockServer;

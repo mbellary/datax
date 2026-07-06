@@ -8,27 +8,6 @@ use crate::tools::context::ToolCallSource;
 use crate::tools::context::ToolOutput;
 use crate::tools::context::ToolPayload;
 use crate::turn_diff_tracker::TurnDiffTracker;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_config::ConfigLayerEntry;
-use codex_config::ConfigRequirements;
-use codex_config::ConfigRequirementsToml;
-use codex_exec_server::EnvironmentManager;
-use codex_execpolicy::Decision;
-use codex_execpolicy::Evaluation;
-use codex_execpolicy::RuleMatch;
-use codex_features::Feature;
-use codex_model_provider::create_model_provider;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::models::AdditionalPermissionProfile as PermissionProfile;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::NetworkPermissions;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::request_permissions::PermissionGrantScope;
-use codex_protocol::request_permissions::RequestPermissionProfile;
-use codex_protocol::request_permissions::RequestPermissionsArgs;
-use codex_protocol::request_permissions::RequestPermissionsResponse;
 use core_test_support::PathExt;
 use core_test_support::TempDirExt;
 use core_test_support::codex_linux_sandbox_exe_or_skip;
@@ -40,6 +19,27 @@ use core_test_support::responses::mount_sse_once;
 use core_test_support::responses::sse;
 use core_test_support::responses::sse_response;
 use core_test_support::responses::start_mock_server;
+use datax_app_server_protocol::ConfigLayerSource;
+use datax_config::ConfigLayerEntry;
+use datax_config::ConfigRequirements;
+use datax_config::ConfigRequirementsToml;
+use datax_exec_server::EnvironmentManager;
+use datax_execpolicy::Decision;
+use datax_execpolicy::Evaluation;
+use datax_execpolicy::RuleMatch;
+use datax_features::Feature;
+use datax_model_provider::create_model_provider;
+use datax_protocol::config_types::ApprovalsReviewer;
+use datax_protocol::models::AdditionalPermissionProfile as PermissionProfile;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::NetworkPermissions;
+use datax_protocol::models::ResponseInputItem;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::request_permissions::PermissionGrantScope;
+use datax_protocol::request_permissions::RequestPermissionProfile;
+use datax_protocol::request_permissions::RequestPermissionsArgs;
+use datax_protocol::request_permissions::RequestPermissionsResponse;
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::sync::Arc;
@@ -155,7 +155,7 @@ async fn request_permissions_routes_to_guardian_when_reviewer_is_enabled() {
     );
     assert_eq!(
         session
-            .granted_turn_permissions(codex_exec_server::LOCAL_ENVIRONMENT_ID)
+            .granted_turn_permissions(datax_exec_server::LOCAL_ENVIRONMENT_ID)
             .await,
         Some(requested_permissions.into())
     );
@@ -245,7 +245,7 @@ async fn request_permissions_guardian_review_stops_when_cancelled() {
             let event = rx_event.recv().await.expect("event channel should be open");
             if matches!(
                 event.msg,
-                codex_protocol::protocol::EventMsg::GuardianAssessment(_)
+                datax_protocol::protocol::EventMsg::GuardianAssessment(_)
             ) {
                 break;
             }
@@ -263,7 +263,7 @@ async fn request_permissions_guardian_review_stops_when_cancelled() {
     assert_eq!(response, None);
     assert_eq!(
         session
-            .granted_turn_permissions(codex_exec_server::LOCAL_ENVIRONMENT_ID)
+            .granted_turn_permissions(datax_exec_server::LOCAL_ENVIRONMENT_ID)
             .await,
         None
     );
@@ -300,7 +300,7 @@ async fn guardian_allows_shell_command_additional_permissions_requests_past_poli
         .features
         .enable(Feature::ExecPermissionApprovals)
         .expect("test setup should allow enabling request permissions");
-    turn_context_raw.permission_profile = codex_protocol::models::PermissionProfile::Disabled;
+    turn_context_raw.permission_profile = datax_protocol::models::PermissionProfile::Disabled;
     let mut config = (*turn_context_raw.config).clone();
     config.codex_linux_sandbox_exe = codex_linux_sandbox_exe_or_skip!();
     config
@@ -325,7 +325,7 @@ async fn guardian_allows_shell_command_additional_permissions_requests_past_poli
     let expiration_ms: u64 = if cfg!(windows) { 2_500 } else { 1_000 };
 
     let handler = crate::tools::handlers::ShellCommandHandler::from(
-        codex_tools::ShellCommandBackendConfig::Classic,
+        datax_tools::ShellCommandBackendConfig::Classic,
     );
     #[allow(deprecated)]
     let workdir = Some(turn_context.cwd.to_string_lossy().to_string());
@@ -336,7 +336,7 @@ async fn guardian_allows_shell_command_additional_permissions_requests_past_poli
             cancellation_token: CancellationToken::new(),
             tracker: Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new())),
             call_id: "test-call".to_string(),
-            tool_name: codex_tools::ToolName::plain("shell_command"),
+            tool_name: datax_tools::ToolName::plain("shell_command"),
             source: crate::tools::context::ToolCallSource::Direct,
             payload: ToolPayload::Function {
                 arguments: serde_json::json!({
@@ -400,7 +400,7 @@ async fn strict_auto_review_turn_grant_forces_guardian_for_shell_command_policy_
                 scope: PermissionGrantScope::Turn,
                 strict_auto_review: true,
             },
-            codex_exec_server::LOCAL_ENVIRONMENT_ID,
+            datax_exec_server::LOCAL_ENVIRONMENT_ID,
             Some(&originating_turn_state),
         )
         .await;
@@ -409,7 +409,7 @@ async fn strict_auto_review_turn_grant_forces_guardian_for_shell_command_policy_
         .approval_policy
         .set(AskForApproval::OnFailure)
         .expect("test setup should allow updating approval policy");
-    turn_context_raw.permission_profile = codex_protocol::models::PermissionProfile::Disabled;
+    turn_context_raw.permission_profile = datax_protocol::models::PermissionProfile::Disabled;
     let mut config = (*turn_context_raw.config).clone();
     config.approvals_reviewer = ApprovalsReviewer::User;
     config.model_provider.base_url = Some(format!("{}/v1", server.uri()));
@@ -429,7 +429,7 @@ async fn strict_auto_review_turn_grant_forces_guardian_for_shell_command_policy_
     let turn_context = Arc::new(turn_context_raw);
 
     let handler = crate::tools::handlers::ShellCommandHandler::from(
-        codex_tools::ShellCommandBackendConfig::Classic,
+        datax_tools::ShellCommandBackendConfig::Classic,
     );
     #[allow(deprecated)]
     let workdir = Some(turn_context.cwd.to_string_lossy().to_string());
@@ -440,7 +440,7 @@ async fn strict_auto_review_turn_grant_forces_guardian_for_shell_command_policy_
             cancellation_token: CancellationToken::new(),
             tracker: Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new())),
             call_id: "strict-shell-command-call".to_string(),
-            tool_name: codex_tools::ToolName::plain("shell_command"),
+            tool_name: datax_tools::ToolName::plain("shell_command"),
             source: ToolCallSource::Direct,
             payload: ToolPayload::Function {
                 arguments: serde_json::json!({
@@ -487,7 +487,7 @@ async fn guardian_allows_unified_exec_additional_permissions_requests_past_polic
             cancellation_token: CancellationToken::new(),
             tracker: Arc::clone(&tracker),
             call_id: "exec-call".to_string(),
-            tool_name: codex_tools::ToolName::plain("exec_command"),
+            tool_name: datax_tools::ToolName::plain("exec_command"),
             source: crate::tools::context::ToolCallSource::Direct,
             payload: ToolPayload::Function {
                 arguments: serde_json::json!({
@@ -588,7 +588,7 @@ async fn shell_command_allows_sticky_turn_permissions_without_inline_request_per
         let active_turn = active_turn.as_mut().expect("active turn");
         let mut turn_state = active_turn.turn_state.lock().await;
         turn_state.record_granted_permissions(
-            codex_exec_server::LOCAL_ENVIRONMENT_ID,
+            datax_exec_server::LOCAL_ENVIRONMENT_ID,
             PermissionProfile {
                 network: Some(NetworkPermissions {
                     enabled: Some(true),
@@ -602,7 +602,7 @@ async fn shell_command_allows_sticky_turn_permissions_without_inline_request_per
     let turn_context = Arc::new(turn_context_raw);
 
     let handler = crate::tools::handlers::ShellCommandHandler::from(
-        codex_tools::ShellCommandBackendConfig::Classic,
+        datax_tools::ShellCommandBackendConfig::Classic,
     );
     #[allow(deprecated)]
     let workdir = Some(turn_context.cwd.to_string_lossy().to_string());
@@ -613,7 +613,7 @@ async fn shell_command_allows_sticky_turn_permissions_without_inline_request_per
             cancellation_token: CancellationToken::new(),
             tracker: Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new())),
             call_id: "sticky-turn-grant".to_string(),
-            tool_name: codex_tools::ToolName::plain("shell_command"),
+            tool_name: datax_tools::ToolName::plain("shell_command"),
             source: crate::tools::context::ToolCallSource::Direct,
             payload: ToolPayload::Function {
                 arguments: serde_json::json!({
@@ -699,8 +699,8 @@ async fn guardian_subagent_does_not_inherit_parent_exec_policy_rules() {
         /*bundled_skills_enabled*/ true,
     ));
     let mcp_manager = Arc::new(McpManager::new(Arc::clone(&plugins_manager)));
-    let thread_store = Arc::new(codex_thread_store::LocalThreadStore::new(
-        codex_thread_store::LocalThreadStoreConfig::from_config(&config),
+    let thread_store = Arc::new(datax_thread_store::LocalThreadStore::new(
+        datax_thread_store::LocalThreadStoreConfig::from_config(&config),
         /*state_db*/ None,
     ));
 
@@ -714,7 +714,7 @@ async fn guardian_subagent_does_not_inherit_parent_exec_policy_rules() {
         skills_service,
         plugins_manager,
         mcp_manager,
-        extensions: codex_extension_api::empty_extension_registry(),
+        extensions: datax_extension_api::empty_extension_registry(),
         conversation_history: InitialHistory::New,
         session_source: SessionSource::SubAgent(SubAgentSource::Other(
             GUARDIAN_REVIEWER_NAME.to_string(),
@@ -727,11 +727,11 @@ async fn guardian_subagent_does_not_inherit_parent_exec_policy_rules() {
         metrics_service_name: None,
         inherited_environments: None,
         inherited_exec_policy: Some(Arc::new(parent_exec_policy)),
-        parent_rollout_thread_trace: codex_rollout_trace::ThreadTraceContext::disabled(),
+        parent_rollout_thread_trace: datax_rollout_trace::ThreadTraceContext::disabled(),
         user_shell_override: None,
         parent_trace: None,
         environment_selections: Vec::new(),
-        thread_extension_init: codex_extension_api::ExtensionDataInit::default(),
+        thread_extension_init: datax_extension_api::ExtensionDataInit::default(),
         supports_openai_form_elicitation: false,
         analytics_events_client: None,
         thread_store,

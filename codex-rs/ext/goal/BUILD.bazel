@@ -5,6 +5,6 @@ codex_rust_crate(
     compile_data = glob([
         "templates/**",
     ]),
-    crate_name = "codex_goal_extension",
+    crate_name = "datax_goal_extension",
     integration_compile_data_extra = ["src/accounting.rs"],
 )

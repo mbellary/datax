@@ -1,7 +1,7 @@
-use codex_client::Request;
-use codex_client::RequestCompression;
-use codex_client::RetryOn;
-use codex_client::RetryPolicy;
+use datax_client::Request;
+use datax_client::RequestCompression;
+use datax_client::RetryOn;
+use datax_client::RetryPolicy;
 use http::Method;
 use http::header::HeaderMap;
 use std::collections::HashMap;

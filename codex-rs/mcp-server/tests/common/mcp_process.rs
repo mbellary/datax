@@ -10,8 +10,8 @@ use tokio::process::ChildStdin;
 use tokio::process::ChildStdout;
 
 use anyhow::Context;
-use codex_mcp_server::CodexToolCallParam;
-use codex_terminal_detection::user_agent;
+use datax_mcp_server::CodexToolCallParam;
+use datax_terminal_detection::user_agent;
 
 use pretty_assertions::assert_eq;
 use rmcp::model::CallToolRequestParams;
@@ -57,7 +57,7 @@ impl McpProcess {
         codex_home: &Path,
         env_overrides: &[(&str, Option<&str>)],
     ) -> anyhow::Result<Self> {
-        let program = codex_utils_cargo_bin::cargo_bin("codex-mcp-server")
+        let program = datax_utils_cargo_bin::cargo_bin("datax-mcp-server")
             .context("should find binary for codex-mcp-server")?;
         let mut cmd = Command::new(program);
 
@@ -81,7 +81,7 @@ impl McpProcess {
         let mut process = cmd
             .kill_on_drop(true)
             .spawn()
-            .context("codex-mcp-server proc should start")?;
+            .context("datax-mcp-server proc should start")?;
         let stdin = process
             .stdin
             .take()
@@ -138,7 +138,7 @@ impl McpProcess {
         let initialized = self.read_jsonrpc_message().await?;
         let os_info = os_info::get();
         let build_version = env!("CARGO_PKG_VERSION");
-        let originator = codex_login::default_client::originator().value;
+        let originator = datax_login::default_client::originator().value;
         let user_agent = format!(
             "{originator}/{build_version} ({} {}; {}) {} (elicitation test; 0.0.0)",
             os_info.os_type(),
@@ -165,7 +165,7 @@ impl McpProcess {
                     },
                 },
                 "serverInfo": {
-                    "name": "codex-mcp-server",
+                    "name": "datax-mcp-server",
                     "title": "Codex",
                     "version": "0.0.0",
                     "user_agent": user_agent

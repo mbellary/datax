@@ -1,10 +1,10 @@
 use crate::config::MultiAgentV2Config;
 use crate::session::turn_context::TurnContext;
-use codex_protocol::config_types::MultiAgentMode;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
+use datax_protocol::config_types::MultiAgentMode;
+use datax_protocol::openai_models::ReasoningEffort;
+use datax_protocol::protocol::MultiAgentVersion;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::SubAgentSource;
 
 pub(super) fn usage_hint_text<'a>(
     turn_context: &'a TurnContext,

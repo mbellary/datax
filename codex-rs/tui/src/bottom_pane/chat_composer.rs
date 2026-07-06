@@ -207,10 +207,10 @@ use crate::render::RectExt;
 use crate::render::renderable::Renderable;
 use crate::slash_command::SlashCommand;
 use crate::style::user_message_style;
-use codex_protocol::ThreadId;
-use codex_protocol::user_input::ByteRange;
-use codex_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS;
-use codex_protocol::user_input::TextElement;
+use datax_protocol::ThreadId;
+use datax_protocol::user_input::ByteRange;
+use datax_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS;
+use datax_protocol::user_input::TextElement;
 
 mod attachment_state;
 mod draft_state;
@@ -241,14 +241,14 @@ use crate::history_cell;
 use crate::skills_helpers::skill_display_name;
 use crate::tui::FrameRequester;
 use crate::ui_consts::LIVE_PREFIX_COLS;
-use codex_app_server_protocol::AppInfo;
+use datax_app_server_protocol::AppInfo;
 #[cfg(test)]
-use codex_core_skills::model::SkillInterface;
-use codex_core_skills::model::SkillMetadata;
-use codex_file_search::FileMatch;
+use datax_core_skills::model::SkillInterface;
+use datax_core_skills::model::SkillMetadata;
+use datax_file_search::FileMatch;
 #[cfg(test)]
-use codex_plugin::AppConnectorId;
-use codex_plugin::PluginCapabilitySummary;
+use datax_plugin::AppConnectorId;
+use datax_plugin::PluginCapabilitySummary;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
@@ -3826,9 +3826,9 @@ impl ChatComposer {
                 if !connector.is_accessible || !connector.is_enabled {
                     continue;
                 }
-                let display_name = codex_connectors::metadata::connector_display_label(connector);
+                let display_name = datax_connectors::metadata::connector_display_label(connector);
                 let description = Some(Self::connector_brief_description(connector));
-                let slug = codex_connectors::metadata::connector_mention_slug(connector);
+                let slug = datax_connectors::metadata::connector_mention_slug(connector);
                 let search_terms = vec![display_name.clone(), connector.id.clone(), slug.clone()];
                 let connector_id = connector.id.as_str();
                 mentions.push(MentionItem {
@@ -4481,7 +4481,7 @@ mod tests {
     use crate::bottom_pane::InputResult;
     use crate::bottom_pane::chat_composer::LARGE_PASTE_CHAR_THRESHOLD;
     use crate::bottom_pane::textarea::TextArea;
-    use codex_protocol::models::local_image_label_text;
+    use datax_protocol::models::local_image_label_text;
     use tokio::sync::mpsc::unbounded_channel;
 
     #[test]
@@ -6367,9 +6367,9 @@ mod tests {
             "default_unified_mention_popup",
             /*enhanced_keys_supported*/ false,
             |composer| {
-                let features = codex_features::Features::with_defaults();
+                let features = datax_features::Features::with_defaults();
                 composer
-                    .set_mentions_v2_enabled(features.enabled(codex_features::Feature::MentionsV2));
+                    .set_mentions_v2_enabled(features.enabled(datax_features::Feature::MentionsV2));
                 composer.set_text_content("@sa".to_string(), Vec::new(), Vec::new());
                 composer.set_plugin_mentions(Some(vec![PluginCapabilitySummary {
                     config_name: "sample@test".to_string(),
@@ -8995,7 +8995,7 @@ mod tests {
             vec![FileMatch {
                 score: 1,
                 path: PathBuf::from("src/main.rs"),
-                match_type: codex_file_search::MatchType::File,
+                match_type: datax_file_search::MatchType::File,
                 root: PathBuf::from("/tmp"),
                 indices: None,
             }],

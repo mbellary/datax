@@ -1,22 +1,22 @@
 use std::collections::HashMap;
 
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_sandboxing::SandboxCommand;
-use codex_sandboxing::SandboxDirectSpawnTransformRequest;
-use codex_sandboxing::SandboxExecRequest;
-use codex_sandboxing::SandboxManager;
-use codex_sandboxing::SandboxTransformRequest;
-use codex_sandboxing::SandboxablePreference;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::canonicalize_preserving_symlinks;
-use codex_utils_path_uri::PathUri;
+use datax_app_server_protocol::JSONRPCErrorError;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::permissions::FileSystemAccessMode;
+use datax_protocol::permissions::FileSystemPath;
+use datax_protocol::permissions::FileSystemSandboxEntry;
+use datax_protocol::permissions::FileSystemSandboxPolicy;
+use datax_protocol::permissions::FileSystemSpecialPath;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_sandboxing::SandboxCommand;
+use datax_sandboxing::SandboxDirectSpawnTransformRequest;
+use datax_sandboxing::SandboxExecRequest;
+use datax_sandboxing::SandboxManager;
+use datax_sandboxing::SandboxTransformRequest;
+use datax_sandboxing::SandboxablePreference;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_absolute_path::canonicalize_preserving_symlinks;
+use datax_utils_path_uri::PathUri;
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 
@@ -369,15 +369,15 @@ mod tests {
     use std::collections::HashMap;
     use std::ffi::OsString;
 
-    use codex_protocol::models::PermissionProfile;
-    use codex_protocol::permissions::FileSystemAccessMode;
-    use codex_protocol::permissions::FileSystemPath;
-    use codex_protocol::permissions::FileSystemSandboxEntry;
-    use codex_protocol::permissions::FileSystemSandboxPolicy;
-    use codex_protocol::permissions::FileSystemSpecialPath;
-    use codex_protocol::permissions::NetworkSandboxPolicy;
-    use codex_utils_absolute_path::AbsolutePathBuf;
-    use codex_utils_path_uri::PathUri;
+    use datax_protocol::models::PermissionProfile;
+    use datax_protocol::permissions::FileSystemAccessMode;
+    use datax_protocol::permissions::FileSystemPath;
+    use datax_protocol::permissions::FileSystemSandboxEntry;
+    use datax_protocol::permissions::FileSystemSandboxPolicy;
+    use datax_protocol::permissions::FileSystemSpecialPath;
+    use datax_protocol::permissions::NetworkSandboxPolicy;
+    use datax_utils_absolute_path::AbsolutePathBuf;
+    use datax_utils_path_uri::PathUri;
     use pretty_assertions::assert_eq;
 
     use crate::ExecServerRuntimePaths;
@@ -611,7 +611,7 @@ mod tests {
             },
             access: FileSystemAccessMode::Write,
         }]);
-        let sandbox_context = codex_file_system::FileSystemSandboxContext::from_permission_profile(
+        let sandbox_context = datax_file_system::FileSystemSandboxContext::from_permission_profile(
             PermissionProfile::from_runtime_permissions(&policy, NetworkSandboxPolicy::Restricted),
         );
 
@@ -653,7 +653,7 @@ mod tests {
     fn helper_permissions_include_linux_sandbox_alias_parent() {
         let root = tempfile::tempdir().expect("temp dir");
         let codex_self_exe = root.path().join("bin").join("codex");
-        let codex_linux_sandbox_exe = root.path().join("aliases").join("codex-linux-sandbox");
+        let codex_linux_sandbox_exe = root.path().join("aliases").join("datax-linux-sandbox");
         let runtime_paths =
             ExecServerRuntimePaths::new(codex_self_exe, Some(codex_linux_sandbox_exe))
                 .expect("runtime paths");
@@ -683,7 +683,7 @@ mod tests {
         policy: &FileSystemSandboxPolicy,
         cwd: PathUri,
     ) -> crate::FileSystemSandboxContext {
-        codex_file_system::FileSystemSandboxContext::from_permission_profile_with_cwd(
+        datax_file_system::FileSystemSandboxContext::from_permission_profile_with_cwd(
             PermissionProfile::from_runtime_permissions(policy, NetworkSandboxPolicy::Restricted),
             cwd,
         )

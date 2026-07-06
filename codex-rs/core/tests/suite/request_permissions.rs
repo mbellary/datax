@@ -1,25 +1,6 @@
 #![allow(clippy::unwrap_used)]
 
 use anyhow::Result;
-use codex_core::config::Constrained;
-use codex_core::sandboxing::SandboxPermissions;
-use codex_features::Feature;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::models::AdditionalPermissionProfile as PermissionProfile;
-use codex_protocol::models::FileSystemPermissions;
-use codex_protocol::models::PermissionProfile as CorePermissionProfile;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecApprovalRequestEvent;
-use codex_protocol::protocol::GranularApprovalConfig;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::request_permissions::PermissionGrantScope;
-use codex_protocol::request_permissions::RequestPermissionProfile;
-use codex_protocol::request_permissions::RequestPermissionsResponse;
-use codex_protocol::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_function_call;
@@ -35,6 +16,25 @@ use core_test_support::test_codex::local_selections;
 use core_test_support::test_codex::test_codex;
 use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::wait_for_event;
+use datax_core::config::Constrained;
+use datax_core::sandboxing::SandboxPermissions;
+use datax_features::Feature;
+use datax_protocol::config_types::ApprovalsReviewer;
+use datax_protocol::models::AdditionalPermissionProfile as PermissionProfile;
+use datax_protocol::models::FileSystemPermissions;
+use datax_protocol::models::PermissionProfile as CorePermissionProfile;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::ExecApprovalRequestEvent;
+use datax_protocol::protocol::GranularApprovalConfig;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::ReviewDecision;
+use datax_protocol::request_permissions::PermissionGrantScope;
+use datax_protocol::request_permissions::RequestPermissionProfile;
+use datax_protocol::request_permissions::RequestPermissionsResponse;
+use datax_protocol::user_input::UserInput;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use regex_lite::Regex;
 use serde_json::Value;
@@ -183,15 +183,15 @@ async fn submit_turn(
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(test.config.cwd.clone())),
                 approval_policy: Some(approval_policy),
                 approvals_reviewer: Some(ApprovalsReviewer::User),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                    mode: datax_protocol::config_types::ModeKind::Default,
+                    settings: datax_protocol::config_types::Settings {
                         model: session_model,
                         reasoning_effort: None,
                         developer_instructions: None,

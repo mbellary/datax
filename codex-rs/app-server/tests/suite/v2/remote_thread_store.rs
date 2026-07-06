@@ -19,40 +19,40 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use app_test_support::create_mock_responses_server_repeating_assistant;
-use codex_app_server::in_process;
-use codex_app_server::in_process::InProcessClientHandle;
-use codex_app_server::in_process::InProcessServerEvent;
-use codex_app_server::in_process::InProcessStartArgs;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ThreadDeleteParams;
-use codex_app_server_protocol::ThreadDeleteResponse;
-use codex_app_server_protocol::ThreadListParams;
-use codex_app_server_protocol::ThreadListResponse;
-use codex_app_server_protocol::ThreadResumeParams;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_arg0::Arg0DispatchPaths;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::LoaderOverrides;
-use codex_config::NoopThreadConfigLoader;
-use codex_core::config::Config;
-use codex_core::config::ConfigBuilder;
-use codex_exec_server::EnvironmentManager;
-use codex_feedback::CodexFeedback;
-use codex_protocol::ThreadId;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::ThreadMemoryMode;
-use codex_thread_store::CreateThreadParams as StoreCreateThreadParams;
-use codex_thread_store::InMemoryThreadStore;
-use codex_thread_store::ThreadPersistenceMetadata;
-use codex_thread_store::ThreadStore;
+use datax_app_server::in_process;
+use datax_app_server::in_process::InProcessClientHandle;
+use datax_app_server::in_process::InProcessServerEvent;
+use datax_app_server::in_process::InProcessStartArgs;
+use datax_app_server_protocol::ClientInfo;
+use datax_app_server_protocol::ClientRequest;
+use datax_app_server_protocol::InitializeParams;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::ThreadDeleteParams;
+use datax_app_server_protocol::ThreadDeleteResponse;
+use datax_app_server_protocol::ThreadListParams;
+use datax_app_server_protocol::ThreadListResponse;
+use datax_app_server_protocol::ThreadResumeParams;
+use datax_app_server_protocol::ThreadStartParams;
+use datax_app_server_protocol::ThreadStartResponse;
+use datax_app_server_protocol::TurnStartParams;
+use datax_app_server_protocol::UserInput as V2UserInput;
+use datax_arg0::Arg0DispatchPaths;
+use datax_config::CloudConfigBundleLoader;
+use datax_config::LoaderOverrides;
+use datax_config::NoopThreadConfigLoader;
+use datax_core::config::Config;
+use datax_core::config::ConfigBuilder;
+use datax_exec_server::EnvironmentManager;
+use datax_feedback::CodexFeedback;
+use datax_protocol::ThreadId;
+use datax_protocol::models::BaseInstructions;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::ThreadMemoryMode;
+use datax_thread_store::CreateThreadParams as StoreCreateThreadParams;
+use datax_thread_store::InMemoryThreadStore;
+use datax_thread_store::ThreadPersistenceMetadata;
+use datax_thread_store::ThreadStore;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::time::timeout;
@@ -310,7 +310,7 @@ async fn start_in_process_client(
         enable_codex_api_key_env: false,
         initialize: InitializeParams {
             client_info: ClientInfo {
-                name: "codex-app-server-tests".to_string(),
+                name: "datax-app-server-tests".to_string(),
                 title: None,
                 version: "0.1.0".to_string(),
             },
@@ -351,7 +351,7 @@ fn assert_no_local_persistence_artifacts(codex_home: &Path) -> Result<()> {
         "non-local thread persistence should not create archived rollout sessions"
     );
     assert!(
-        !codex_state::state_db_path(codex_home).exists(),
+        !datax_state::state_db_path(codex_home).exists(),
         "non-local thread persistence should not create local thread sqlite"
     );
 

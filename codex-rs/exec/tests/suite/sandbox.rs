@@ -1,9 +1,9 @@
 #![cfg(unix)]
-use codex_core::spawn::StdioPolicy;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::test_support::PathBufExt;
+use datax_core::spawn::StdioPolicy;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_absolute_path::test_support::PathBufExt;
 use std::collections::HashMap;
 use std::future::Future;
 use std::io;
@@ -20,11 +20,11 @@ async fn spawn_command_under_sandbox(
     stdio_policy: StdioPolicy,
     env: HashMap<String, String>,
 ) -> std::io::Result<Child> {
-    use codex_core::exec::ExecCapturePolicy;
-    use codex_core::exec::ExecParams;
-    use codex_core::exec::build_exec_request;
-    use codex_core::sandboxing::SandboxPermissions;
-    use codex_protocol::config_types::WindowsSandboxLevel;
+    use datax_core::exec::ExecCapturePolicy;
+    use datax_core::exec::ExecParams;
+    use datax_core::exec::build_exec_request;
+    use datax_core::sandboxing::SandboxPermissions;
+    use datax_protocol::config_types::WindowsSandboxLevel;
     use std::process::Stdio;
 
     let codex_linux_sandbox_exe = None;
@@ -95,7 +95,7 @@ async fn spawn_command_under_sandbox(
     stdio_policy: StdioPolicy,
     env: HashMap<String, String>,
 ) -> std::io::Result<Child> {
-    use codex_core::spawn_command_under_linux_sandbox;
+    use datax_core::spawn_command_under_linux_sandbox;
 
     let codex_linux_sandbox_exe = core_test_support::find_codex_linux_sandbox_exe()
         .map_err(|err| io::Error::new(io::ErrorKind::NotFound, err))?;

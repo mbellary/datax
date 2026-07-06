@@ -1,9 +1,9 @@
-use codex_protocol::protocol::ConversationTextRole;
-use codex_protocol::protocol::RealtimeAudioFrame as CoreRealtimeAudioFrame;
-use codex_protocol::protocol::RealtimeConversationVersion;
-use codex_protocol::protocol::RealtimeOutputModality;
-use codex_protocol::protocol::RealtimeVoice;
-use codex_protocol::protocol::RealtimeVoicesList;
+use datax_protocol::protocol::ConversationTextRole;
+use datax_protocol::protocol::RealtimeAudioFrame as CoreRealtimeAudioFrame;
+use datax_protocol::protocol::RealtimeConversationVersion;
+use datax_protocol::protocol::RealtimeOutputModality;
+use datax_protocol::protocol::RealtimeVoice;
+use datax_protocol::protocol::RealtimeVoicesList;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;

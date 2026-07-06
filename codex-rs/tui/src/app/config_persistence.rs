@@ -6,7 +6,7 @@
 
 use super::*;
 #[cfg(target_os = "windows")]
-use codex_utils_approval_presets::ApprovalPreset;
+use datax_utils_approval_presets::ApprovalPreset;
 
 #[cfg(target_os = "windows")]
 pub(super) struct WindowsSetupPermissions {
@@ -726,7 +726,7 @@ impl App {
         model: &str,
         reasoning_effort: Option<&ReasoningEffortConfig>,
     ) -> Option<String> {
-        (!model.starts_with("codex-auto-")).then(|| Self::reasoning_label(reasoning_effort))
+        (!model.starts_with("datax-auto-")).then(|| Self::reasoning_label(reasoning_effort))
     }
 
     pub(crate) fn token_usage(&self) -> crate::token_usage::TokenUsage {
@@ -1013,7 +1013,7 @@ fn approvals_reviewer_from_effective_config(
     effective_config
         .config
         .approvals_reviewer
-        .map(codex_app_server_protocol::ApprovalsReviewer::to_core)
+        .map(datax_app_server_protocol::ApprovalsReviewer::to_core)
 }
 
 fn approval_policy_from_effective_config(
@@ -1043,7 +1043,7 @@ fn features_toml_from_json(value: &serde_json::Value) -> Option<FeaturesToml> {
 #[cfg(target_os = "windows")]
 fn windows_sandbox_mode_from_effective_config(
     effective_config: &ConfigReadResponse,
-) -> Option<codex_config::types::WindowsSandboxModeToml> {
+) -> Option<datax_config::types::WindowsSandboxModeToml> {
     let root_windows = effective_config
         .config
         .additional
@@ -1064,7 +1064,7 @@ mod tests {
     use crate::app::test_support::make_test_app;
     use crate::legacy_core::config::edit::ConfigEdit;
     use crate::test_support::PathBufExt;
-    use codex_protocol::models::PermissionProfile;
+    use datax_protocol::models::PermissionProfile;
     use pretty_assertions::assert_eq;
     use tempfile::tempdir;
 
@@ -1132,9 +1132,9 @@ mod tests {
     -> Result<()> {
         let mut app = make_test_app().await;
         let codex_home = tempdir()?;
-        let required_policy = codex_protocol::protocol::AskForApproval::Never;
+        let required_policy = datax_protocol::protocol::AskForApproval::Never;
         let cloud_config_bundle =
-            codex_config::test_support::CloudConfigBundleFixture::loader_with_enterprise_requirement(
+            datax_config::test_support::CloudConfigBundleFixture::loader_with_enterprise_requirement(
                 r#"allowed_approval_policies = ["never"]"#,
             );
 
@@ -1270,7 +1270,7 @@ terminal_resize_reflow_max_rows = 9000
         let effective_config: ConfigReadResponse = serde_json::from_value(serde_json::json!({
             "config": {
                 "approval_policy": AskForApproval::OnRequest,
-                "approvals_reviewer": codex_app_server_protocol::ApprovalsReviewer::AutoReview,
+                "approvals_reviewer": datax_app_server_protocol::ApprovalsReviewer::AutoReview,
                 "sandbox_mode": AppServerSandboxMode::WorkspaceWrite,
                 "features": {
                     "guardian_approval": false,

@@ -2,43 +2,43 @@ use anyhow::Result;
 use app_test_support::TestAppServer;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
-use codex_app_server::in_process;
-use codex_app_server::in_process::InProcessStartArgs;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::InitializeCapabilities;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadArchiveParams;
-use codex_app_server_protocol::ThreadArchiveResponse;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::ThreadStatus;
-use codex_app_server_protocol::ThreadUnarchiveParams;
-use codex_app_server_protocol::ThreadUnarchiveResponse;
-use codex_app_server_protocol::ThreadUnarchivedNotification;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::UserInput;
-use codex_arg0::Arg0DispatchPaths;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::LoaderOverrides;
-use codex_core::config::ConfigBuilder;
-use codex_core::find_archived_thread_path_by_id_str;
-use codex_core::find_thread_path_by_id_str;
-use codex_exec_server::EnvironmentManager;
-use codex_feedback::CodexFeedback;
-use codex_protocol::ThreadId;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::ThreadMemoryMode;
-use codex_thread_store::CreateThreadParams;
-use codex_thread_store::InMemoryThreadStore;
-use codex_thread_store::ThreadMetadataPatch;
-use codex_thread_store::ThreadPersistenceMetadata;
-use codex_thread_store::ThreadStore;
-use codex_thread_store::UpdateThreadMetadataParams;
+use datax_app_server::in_process;
+use datax_app_server::in_process::InProcessStartArgs;
+use datax_app_server_protocol::ClientInfo;
+use datax_app_server_protocol::ClientRequest;
+use datax_app_server_protocol::InitializeCapabilities;
+use datax_app_server_protocol::InitializeParams;
+use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::ThreadArchiveParams;
+use datax_app_server_protocol::ThreadArchiveResponse;
+use datax_app_server_protocol::ThreadStartParams;
+use datax_app_server_protocol::ThreadStartResponse;
+use datax_app_server_protocol::ThreadStatus;
+use datax_app_server_protocol::ThreadUnarchiveParams;
+use datax_app_server_protocol::ThreadUnarchiveResponse;
+use datax_app_server_protocol::ThreadUnarchivedNotification;
+use datax_app_server_protocol::TurnStartParams;
+use datax_app_server_protocol::TurnStartResponse;
+use datax_app_server_protocol::UserInput;
+use datax_arg0::Arg0DispatchPaths;
+use datax_config::CloudConfigBundleLoader;
+use datax_config::LoaderOverrides;
+use datax_core::config::ConfigBuilder;
+use datax_core::find_archived_thread_path_by_id_str;
+use datax_core::find_thread_path_by_id_str;
+use datax_exec_server::EnvironmentManager;
+use datax_feedback::CodexFeedback;
+use datax_protocol::ThreadId;
+use datax_protocol::models::BaseInstructions;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::ThreadMemoryMode;
+use datax_thread_store::CreateThreadParams;
+use datax_thread_store::InMemoryThreadStore;
+use datax_thread_store::ThreadMetadataPatch;
+use datax_thread_store::ThreadPersistenceMetadata;
+use datax_thread_store::ThreadStore;
+use datax_thread_store::UpdateThreadMetadataParams;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use std::fs::FileTimes;
@@ -250,7 +250,7 @@ async fn thread_unarchive_preserves_pathless_store_metadata() -> Result<()> {
         loader_overrides,
         strict_config: false,
         cloud_config_bundle: CloudConfigBundleLoader::default(),
-        thread_config_loader: Arc::new(codex_config::NoopThreadConfigLoader),
+        thread_config_loader: Arc::new(datax_config::NoopThreadConfigLoader),
         feedback: CodexFeedback::new(),
         log_db: None,
         state_db: None,
@@ -260,7 +260,7 @@ async fn thread_unarchive_preserves_pathless_store_metadata() -> Result<()> {
         enable_codex_api_key_env: false,
         initialize: InitializeParams {
             client_info: ClientInfo {
-                name: "codex-app-server-tests".to_string(),
+                name: "datax-app-server-tests".to_string(),
                 title: None,
                 version: "0.1.0".to_string(),
             },

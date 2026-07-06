@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use codex_app_server_protocol::Model;
-use codex_app_server_protocol::ModelServiceTier;
-use codex_app_server_protocol::ModelUpgradeInfo;
-use codex_app_server_protocol::ReasoningEffortOption;
-use codex_core::ThreadManager;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::openai_models::ReasoningEffortPreset;
+use datax_app_server_protocol::Model;
+use datax_app_server_protocol::ModelServiceTier;
+use datax_app_server_protocol::ModelUpgradeInfo;
+use datax_app_server_protocol::ReasoningEffortOption;
+use datax_core::ThreadManager;
+use datax_models_manager::manager::RefreshStrategy;
+use datax_protocol::openai_models::ModelPreset;
+use datax_protocol::openai_models::ReasoningEffortPreset;
 
 pub async fn supported_models(
     thread_manager: Arc<ThreadManager>,

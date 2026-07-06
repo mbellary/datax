@@ -1,6 +1,6 @@
 use super::RemotePluginDirectoryItem;
 use super::RemotePluginServiceConfig;
-use codex_login::CodexAuth;
+use datax_login::CodexAuth;
 use serde::Deserialize;
 use serde::Serialize;
 use std::path::Path;

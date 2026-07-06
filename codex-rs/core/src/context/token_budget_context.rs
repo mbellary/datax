@@ -1,7 +1,7 @@
 use super::ContextualUserFragment;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::CONTEXT_WINDOW_CLOSE_TAG;
-use codex_protocol::protocol::CONTEXT_WINDOW_OPEN_TAG;
+use datax_protocol::ThreadId;
+use datax_protocol::protocol::CONTEXT_WINDOW_CLOSE_TAG;
+use datax_protocol::protocol::CONTEXT_WINDOW_OPEN_TAG;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

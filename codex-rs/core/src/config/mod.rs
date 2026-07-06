@@ -6,112 +6,112 @@ use crate::unified_exec::MIN_EMPTY_YIELD_TIME_MS;
 use crate::windows_sandbox::WindowsSandboxLevelExt;
 use crate::windows_sandbox::resolve_windows_sandbox_mode;
 use crate::windows_sandbox::resolve_windows_sandbox_private_desktop;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::ConfigLayerSource;
-use codex_config::ConfigLayerStack;
-use codex_config::ConfigLayerStackOrdering;
-use codex_config::ConfigRequirements;
-use codex_config::ConfigRequirementsToml;
-use codex_config::ConstrainedWithSource;
-use codex_config::FeatureRequirementsToml;
-use codex_config::McpServerIdentity;
-use codex_config::McpServerRequirement;
-use codex_config::PluginRequirementsToml;
-use codex_config::ProfileV2Name;
-use codex_config::ResidencyRequirement;
-use codex_config::SandboxModeRequirement;
-use codex_config::Sourced;
-use codex_config::ThreadConfigLoader;
-use codex_config::config_toml::ConfigLockfileToml;
-use codex_config::config_toml::ConfigToml;
-use codex_config::config_toml::DEFAULT_PROJECT_DOC_MAX_BYTES;
-use codex_config::config_toml::ProjectConfig;
-use codex_config::config_toml::RealtimeAudioConfig;
-use codex_config::config_toml::RealtimeConfig;
-use codex_config::config_toml::ThreadStoreToml;
-use codex_config::config_toml::validate_model_providers;
-use codex_config::loader::load_config_layers_state;
-use codex_config::loader::project_trust_key;
-use codex_config::permissions_toml::PermissionsToml;
-use codex_config::sandbox_mode_requirement_for_permission_profile;
-use codex_config::types::ApprovalsReviewer;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_config::types::AuthKeyringBackendKind;
-use codex_config::types::History;
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerDisabledReason;
-use codex_config::types::McpServerTransportConfig;
-use codex_config::types::MemoriesConfig;
-use codex_config::types::ModelAvailabilityNuxConfig;
-use codex_config::types::Notice;
-use codex_config::types::OAuthCredentialsStoreMode;
-use codex_config::types::SessionPickerViewMode;
-use codex_config::types::ToolSuggestConfig;
-use codex_config::types::ToolSuggestDisabledTool;
-use codex_config::types::ToolSuggestDiscoverable;
-use codex_config::types::TuiKeymap;
-use codex_config::types::TuiNotificationSettings;
-use codex_config::types::TuiPetAnchor;
-use codex_config::types::UriBasedFileOpener;
-use codex_config::types::WindowsSandboxModeToml;
-use codex_core_plugins::PluginsConfigInput;
-use codex_exec_server::ExecutorFileSystem;
-use codex_exec_server::LOCAL_FS;
-use codex_features::CodeModeConfigToml;
-use codex_features::CurrentTimeReminderConfigToml;
-use codex_features::CurrentTimeSource;
-use codex_features::Feature;
-use codex_features::FeatureConfigSource;
-use codex_features::FeatureOverrides;
-use codex_features::FeatureToml;
-use codex_features::Features;
-use codex_features::FeaturesToml;
-use codex_features::MultiAgentV2ConfigToml;
-use codex_features::NetworkProxyConfigToml;
-use codex_features::TokenBudgetConfigToml;
-use codex_git_utils::resolve_root_git_project_for_trust;
-use codex_install_context::InstallContext;
-use codex_login::AuthManagerConfig;
-use codex_login::AuthRouteConfig;
-use codex_mcp::McpConfig;
-use codex_mcp::McpPluginAttribution;
-use codex_mcp::McpServerRegistration;
-use codex_mcp::ResolvedMcpCatalog;
-use codex_memories_read::memory_root;
-use codex_model_provider_info::LEGACY_OLLAMA_CHAT_PROVIDER_ID;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::OLLAMA_CHAT_PROVIDER_REMOVED_ERROR;
-use codex_model_provider_info::built_in_model_providers;
-use codex_model_provider_info::merge_configured_model_providers;
-use codex_models_manager::ModelsManagerConfig;
-use codex_protocol::config_types::AltScreenMode;
-use codex_protocol::config_types::AutoCompactTokenLimitScope;
-use codex_protocol::config_types::ForcedLoginMethod;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
-use codex_protocol::config_types::SandboxMode;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::config_types::ShellEnvironmentPolicy;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::config_types::Verbosity;
-use codex_protocol::config_types::WebSearchConfig;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::ActivePermissionProfile;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::SandboxEnforcement;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::SandboxPolicy;
-pub use codex_thread_store::ExtraConfig;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::AbsolutePathBufGuard;
-use codex_utils_path_uri::PathUri;
+use datax_config::CloudConfigBundleLoader;
+use datax_config::ConfigLayerSource;
+use datax_config::ConfigLayerStack;
+use datax_config::ConfigLayerStackOrdering;
+use datax_config::ConfigRequirements;
+use datax_config::ConfigRequirementsToml;
+use datax_config::ConstrainedWithSource;
+use datax_config::FeatureRequirementsToml;
+use datax_config::McpServerIdentity;
+use datax_config::McpServerRequirement;
+use datax_config::PluginRequirementsToml;
+use datax_config::ProfileV2Name;
+use datax_config::ResidencyRequirement;
+use datax_config::SandboxModeRequirement;
+use datax_config::Sourced;
+use datax_config::ThreadConfigLoader;
+use datax_config::config_toml::ConfigLockfileToml;
+use datax_config::config_toml::ConfigToml;
+use datax_config::config_toml::DEFAULT_PROJECT_DOC_MAX_BYTES;
+use datax_config::config_toml::ProjectConfig;
+use datax_config::config_toml::RealtimeAudioConfig;
+use datax_config::config_toml::RealtimeConfig;
+use datax_config::config_toml::ThreadStoreToml;
+use datax_config::config_toml::validate_model_providers;
+use datax_config::loader::load_config_layers_state;
+use datax_config::loader::project_trust_key;
+use datax_config::permissions_toml::PermissionsToml;
+use datax_config::sandbox_mode_requirement_for_permission_profile;
+use datax_config::types::ApprovalsReviewer;
+use datax_config::types::AuthCredentialsStoreMode;
+use datax_config::types::AuthKeyringBackendKind;
+use datax_config::types::History;
+use datax_config::types::McpServerConfig;
+use datax_config::types::McpServerDisabledReason;
+use datax_config::types::McpServerTransportConfig;
+use datax_config::types::MemoriesConfig;
+use datax_config::types::ModelAvailabilityNuxConfig;
+use datax_config::types::Notice;
+use datax_config::types::OAuthCredentialsStoreMode;
+use datax_config::types::SessionPickerViewMode;
+use datax_config::types::ToolSuggestConfig;
+use datax_config::types::ToolSuggestDisabledTool;
+use datax_config::types::ToolSuggestDiscoverable;
+use datax_config::types::TuiKeymap;
+use datax_config::types::TuiNotificationSettings;
+use datax_config::types::TuiPetAnchor;
+use datax_config::types::UriBasedFileOpener;
+use datax_config::types::WindowsSandboxModeToml;
+use datax_core_plugins::PluginsConfigInput;
+use datax_exec_server::ExecutorFileSystem;
+use datax_exec_server::LOCAL_FS;
+use datax_features::CodeModeConfigToml;
+use datax_features::CurrentTimeReminderConfigToml;
+use datax_features::CurrentTimeSource;
+use datax_features::Feature;
+use datax_features::FeatureConfigSource;
+use datax_features::FeatureOverrides;
+use datax_features::FeatureToml;
+use datax_features::Features;
+use datax_features::FeaturesToml;
+use datax_features::MultiAgentV2ConfigToml;
+use datax_features::NetworkProxyConfigToml;
+use datax_features::TokenBudgetConfigToml;
+use datax_git_utils::resolve_root_git_project_for_trust;
+use datax_install_context::InstallContext;
+use datax_login::AuthManagerConfig;
+use datax_login::AuthRouteConfig;
+use datax_mcp::McpConfig;
+use datax_mcp::McpPluginAttribution;
+use datax_mcp::McpServerRegistration;
+use datax_mcp::ResolvedMcpCatalog;
+use datax_memories_read::memory_root;
+use datax_model_provider_info::LEGACY_OLLAMA_CHAT_PROVIDER_ID;
+use datax_model_provider_info::ModelProviderInfo;
+use datax_model_provider_info::OLLAMA_CHAT_PROVIDER_REMOVED_ERROR;
+use datax_model_provider_info::built_in_model_providers;
+use datax_model_provider_info::merge_configured_model_providers;
+use datax_models_manager::ModelsManagerConfig;
+use datax_protocol::config_types::AltScreenMode;
+use datax_protocol::config_types::AutoCompactTokenLimitScope;
+use datax_protocol::config_types::ForcedLoginMethod;
+use datax_protocol::config_types::Personality;
+use datax_protocol::config_types::ReasoningSummary;
+use datax_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
+use datax_protocol::config_types::SandboxMode;
+use datax_protocol::config_types::ServiceTier;
+use datax_protocol::config_types::ShellEnvironmentPolicy;
+use datax_protocol::config_types::TrustLevel;
+use datax_protocol::config_types::Verbosity;
+use datax_protocol::config_types::WebSearchConfig;
+use datax_protocol::config_types::WebSearchMode;
+use datax_protocol::config_types::WindowsSandboxLevel;
+use datax_protocol::models::ActivePermissionProfile;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::models::SandboxEnforcement;
+use datax_protocol::openai_models::ModelsResponse;
+use datax_protocol::openai_models::ReasoningEffort;
+use datax_protocol::permissions::FileSystemSandboxPolicy;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::MultiAgentVersion;
+use datax_protocol::protocol::SandboxPolicy;
+pub use datax_thread_store::ExtraConfig;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_absolute_path::AbsolutePathBufGuard;
+use datax_utils_path_uri::PathUri;
 use rmcp::model::ElicitationCapability;
 use rmcp::model::FormElicitationCapability;
 use rmcp::model::UrlElicitationCapability;
@@ -138,7 +138,7 @@ use crate::config::permissions::validate_user_permission_profile_names;
 use crate::config_lock::config_without_lock_controls;
 use crate::config_lock::lock_layer_from_config;
 use crate::config_lock::read_config_lock_from_path;
-use codex_network_proxy::NetworkProxyConfig;
+use datax_network_proxy::NetworkProxyConfig;
 use toml::Value as TomlValue;
 use toml_edit::DocumentMut;
 
@@ -154,14 +154,14 @@ mod resolved_permission_profile;
 #[cfg(test)]
 mod schema;
 pub use auth_keyring::resolve_bootstrap_auth_keyring_backend_kind;
-pub use codex_config::ConfigLoadOptions;
-pub use codex_config::Constrained;
-pub use codex_config::ConstraintError;
-pub use codex_config::ConstraintResult;
-pub use codex_config::LoaderOverrides;
-pub use codex_network_proxy::NetworkProxyAuditMetadata;
-use codex_sandboxing::compatibility_sandbox_policy_for_permission_profile;
-pub use codex_sandboxing::system_bwrap_warning;
+pub use datax_config::ConfigLoadOptions;
+pub use datax_config::Constrained;
+pub use datax_config::ConstraintError;
+pub use datax_config::ConstraintResult;
+pub use datax_config::LoaderOverrides;
+pub use datax_network_proxy::NetworkProxyAuditMetadata;
+use datax_sandboxing::compatibility_sandbox_policy_for_permission_profile;
+pub use datax_sandboxing::system_bwrap_warning;
 pub use managed_features::ManagedFeatures;
 pub use network_proxy_spec::NetworkProxySpec;
 pub use network_proxy_spec::StartedNetworkProxy;
@@ -270,7 +270,7 @@ pub const CONFIG_TOML_FILE: &str = "config.toml";
 const CONFIG_PROFILE_V2_SUFFIX: &str = ".config.toml";
 
 fn resolve_sqlite_home_env(resolved_cwd: &Path) -> Option<PathBuf> {
-    let raw = std::env::var(codex_state::SQLITE_HOME_ENV).ok()?;
+    let raw = std::env::var(datax_state::SQLITE_HOME_ENV).ok()?;
     let trimmed = raw.trim();
     if trimmed.is_empty() {
         return None;
@@ -563,7 +563,7 @@ fn profile_allows_configured_network_proxy(permission_profile: &PermissionProfil
 
 fn build_network_proxy_spec(
     configured_network_proxy_config: NetworkProxyConfig,
-    network_requirements: Option<Sourced<codex_config::NetworkConstraints>>,
+    network_requirements: Option<Sourced<datax_config::NetworkConstraints>>,
     permission_profile: &PermissionProfile,
 ) -> std::io::Result<Option<NetworkProxySpec>> {
     let (network_requirements, network_requirements_source) = match network_requirements {
@@ -916,7 +916,7 @@ pub struct Config {
     pub codex_self_exe: Option<PathBuf>,
 
     /// Path to the `codex-linux-sandbox` executable. This must be set if
-    /// [`codex_sandboxing::SandboxType::LinuxSeccomp`] is used. Note that this
+    /// [`datax_sandboxing::SandboxType::LinuxSeccomp`] is used. Note that this
     /// cannot be set in the config file: it must be set in code via
     /// [`ConfigOverrides`].
     ///
@@ -1074,7 +1074,7 @@ pub struct Config {
     pub tool_suggest: ToolSuggestConfig,
 
     /// OTEL configuration (exporter type, endpoint, headers, etc.).
-    pub otel: codex_config::types::OtelConfig,
+    pub otel: datax_config::types::OtelConfig,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
@@ -1311,7 +1311,7 @@ impl ConfigBuilder {
             },
             thread_config_loader
                 .as_deref()
-                .unwrap_or(&codex_config::NoopThreadConfigLoader),
+                .unwrap_or(&datax_config::NoopThreadConfigLoader),
         )
         .await?;
         let merged_toml = config_layer_stack.effective_config();
@@ -1323,13 +1323,13 @@ impl ConfigBuilder {
         let config_toml: ConfigToml = match merged_toml.try_into() {
             Ok(config_toml) => config_toml,
             Err(err) => {
-                if let Some(config_error) = codex_config::first_layer_config_error::<ConfigToml>(
+                if let Some(config_error) = datax_config::first_layer_config_error::<ConfigToml>(
                     &config_layer_stack,
-                    codex_config::CONFIG_TOML_FILE,
+                    datax_config::CONFIG_TOML_FILE,
                 )
                 .await
                 {
-                    return Err(codex_config::io_error_from_config_error(
+                    return Err(datax_config::io_error_from_config_error(
                         std::io::ErrorKind::InvalidData,
                         config_error,
                         Some(err),
@@ -1502,7 +1502,7 @@ impl Config {
 
     pub async fn to_mcp_config(
         &self,
-        plugins_manager: &codex_core_plugins::PluginsManager,
+        plugins_manager: &datax_core_plugins::PluginsManager,
     ) -> McpConfig {
         self.to_mcp_config_with_plugin_registrations(
             plugins_manager,
@@ -1513,7 +1513,7 @@ impl Config {
 
     pub(crate) async fn to_mcp_config_with_plugin_registrations(
         &self,
-        plugins_manager: &codex_core_plugins::PluginsManager,
+        plugins_manager: &datax_core_plugins::PluginsManager,
         additional_plugin_registrations: impl IntoIterator<Item = McpServerRegistration>,
     ) -> McpConfig {
         let plugins_input = self.plugins_config_input();
@@ -1682,8 +1682,8 @@ impl Config {
                 format!("failed to serialize default config: {e}"),
             )
         })?;
-        let cli_layer = codex_config::build_cli_overrides_layer(&cli_overrides);
-        codex_config::merge_toml_values(&mut merged, &cli_layer);
+        let cli_layer = datax_config::build_cli_overrides_layer(&cli_overrides);
+        datax_config::merge_toml_values(&mut merged, &cli_layer);
         let codex_home = AbsolutePathBuf::from_absolute_path_checked(codex_home)?;
         let config_toml = deserialize_config_toml_with_base(merged, &codex_home)?;
         Self::load_config_with_layer_stack(
@@ -1796,7 +1796,7 @@ pub async fn load_config_toml_with_layer_stack(
         cwd.cloned(),
         &cli_overrides,
         options,
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -2009,7 +2009,7 @@ pub async fn load_global_mcp_servers(
         cwd,
         &cli_overrides,
         LoaderOverrides::default(),
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
     let merged_toml = config_layer_stack.effective_config();
@@ -2131,7 +2131,7 @@ pub fn set_project_trust_level(
 
 /// Save the default OSS provider preference to config.toml
 pub fn set_default_oss_provider(codex_home: &Path, provider: &str) -> std::io::Result<()> {
-    codex_config::config_toml::validate_oss_provider(provider)?;
+    datax_config::config_toml::validate_oss_provider(provider)?;
     use toml_edit::value;
 
     let edits = [ConfigEdit::SetPath {
@@ -2350,23 +2350,23 @@ fn resolve_permission_config_syntax(
 
 fn apply_managed_filesystem_constraints(
     file_system_sandbox_policy: &mut FileSystemSandboxPolicy,
-    filesystem_constraints: &codex_config::FilesystemConstraints,
+    filesystem_constraints: &datax_config::FilesystemConstraints,
 ) {
     for deny_read in &filesystem_constraints.deny_read {
         let deny_entry = if deny_read.contains_glob() {
-            codex_protocol::permissions::FileSystemSandboxEntry {
-                path: codex_protocol::permissions::FileSystemPath::GlobPattern {
+            datax_protocol::permissions::FileSystemSandboxEntry {
+                path: datax_protocol::permissions::FileSystemPath::GlobPattern {
                     pattern: deny_read.as_str().to_string(),
                 },
-                access: codex_protocol::permissions::FileSystemAccessMode::Deny,
+                access: datax_protocol::permissions::FileSystemAccessMode::Deny,
             }
         } else {
             let Ok(path) = AbsolutePathBuf::try_from(deny_read.as_str()) else {
                 continue;
             };
-            codex_protocol::permissions::FileSystemSandboxEntry {
-                path: codex_protocol::permissions::FileSystemPath::Path { path },
-                access: codex_protocol::permissions::FileSystemAccessMode::Deny,
+            datax_protocol::permissions::FileSystemSandboxEntry {
+                path: datax_protocol::permissions::FileSystemPath::Path { path },
+                access: datax_protocol::permissions::FileSystemAccessMode::Deny,
             }
         };
         if !file_system_sandbox_policy
@@ -2462,7 +2462,7 @@ fn resolve_experimental_request_user_input_enabled(config_toml: &ConfigToml) -> 
 }
 
 fn resolve_orchestrator_feature_enabled(
-    feature: Option<&codex_config::config_toml::OrchestratorFeatureToml>,
+    feature: Option<&datax_config::config_toml::OrchestratorFeatureToml>,
 ) -> bool {
     feature.and_then(|feature| feature.enabled).unwrap_or(true)
 }
@@ -3526,7 +3526,7 @@ impl Config {
         let forced_chatgpt_workspace_id = cfg
             .forced_chatgpt_workspace_id
             .clone()
-            .map(codex_config::config_toml::ForcedChatgptWorkspaceIds::into_vec)
+            .map(datax_config::config_toml::ForcedChatgptWorkspaceIds::into_vec)
             .map(|values| {
                 values
                     .into_iter()
@@ -4306,7 +4306,7 @@ fn normalize_guardian_policy_config(value: Option<&str>) -> Option<String> {
 /// - If `CODEX_HOME` is not set, this function does not verify that the
 ///   directory exists.
 pub fn find_codex_home() -> std::io::Result<AbsolutePathBuf> {
-    codex_utils_home_dir::find_codex_home()
+    datax_utils_home_dir::find_codex_home()
 }
 
 /// Returns the path to the folder where Codex logs are stored. Does not verify

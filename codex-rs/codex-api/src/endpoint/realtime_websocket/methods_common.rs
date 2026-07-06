@@ -13,7 +13,7 @@ use crate::endpoint::realtime_websocket::protocol::RealtimeSessionConfig;
 use crate::endpoint::realtime_websocket::protocol::RealtimeSessionMode;
 use crate::endpoint::realtime_websocket::protocol::RealtimeVoice;
 use crate::endpoint::realtime_websocket::protocol::SessionUpdateSession;
-use codex_protocol::protocol::ConversationTextRole;
+use datax_protocol::protocol::ConversationTextRole;
 use serde_json::Result as JsonResult;
 use serde_json::Value;
 use serde_json::to_value;

@@ -18,13 +18,13 @@ pub(crate) mod tool_dispatch_trace;
 use std::borrow::Cow;
 
 use crate::session::turn_context::TurnContext;
-use codex_features::Feature;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::openai_models::ToolMode;
-use codex_tools::ToolName;
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_output_truncation::formatted_truncate_text;
-use codex_utils_output_truncation::truncate_text;
+use datax_features::Feature;
+use datax_protocol::exec_output::ExecToolCallOutput;
+use datax_protocol::openai_models::ToolMode;
+use datax_tools::ToolName;
+use datax_utils_output_truncation::TruncationPolicy;
+use datax_utils_output_truncation::formatted_truncate_text;
+use datax_utils_output_truncation::truncate_text;
 pub use router::ToolRouter;
 
 // Telemetry preview limits: keep log events smaller than model budgets.
@@ -50,13 +50,13 @@ pub(crate) fn flat_tool_name(tool_name: &ToolName) -> Cow<'_, str> {
 
 pub(crate) fn tool_user_shell_type(
     user_shell: &crate::shell::Shell,
-) -> codex_tools::ToolUserShellType {
+) -> datax_tools::ToolUserShellType {
     match user_shell.shell_type {
-        crate::shell::ShellType::Zsh => codex_tools::ToolUserShellType::Zsh,
-        crate::shell::ShellType::Bash => codex_tools::ToolUserShellType::Bash,
-        crate::shell::ShellType::PowerShell => codex_tools::ToolUserShellType::PowerShell,
-        crate::shell::ShellType::Sh => codex_tools::ToolUserShellType::Sh,
-        crate::shell::ShellType::Cmd => codex_tools::ToolUserShellType::Cmd,
+        crate::shell::ShellType::Zsh => datax_tools::ToolUserShellType::Zsh,
+        crate::shell::ShellType::Bash => datax_tools::ToolUserShellType::Bash,
+        crate::shell::ShellType::PowerShell => datax_tools::ToolUserShellType::PowerShell,
+        crate::shell::ShellType::Sh => datax_tools::ToolUserShellType::Sh,
+        crate::shell::ShellType::Cmd => datax_tools::ToolUserShellType::Cmd,
     }
 }
 

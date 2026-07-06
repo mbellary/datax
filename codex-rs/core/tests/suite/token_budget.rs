@@ -1,13 +1,4 @@
 use anyhow::Result;
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerTransportConfig;
-use codex_core::config::TokenBudgetConfig;
-use codex_features::Feature;
-use codex_model_provider_info::built_in_model_providers;
-use codex_protocol::protocol::CONTEXT_WINDOW_CLOSE_TAG;
-use codex_protocol::protocol::CONTEXT_WINDOW_OPEN_TAG;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
 use core_test_support::PathBufExt;
 use core_test_support::assert_regex_match;
 use core_test_support::context_snapshot;
@@ -27,6 +18,15 @@ use core_test_support::test_codex::local;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_mcp_server;
+use datax_config::types::McpServerConfig;
+use datax_config::types::McpServerTransportConfig;
+use datax_core::config::TokenBudgetConfig;
+use datax_features::Feature;
+use datax_model_provider_info::built_in_model_providers;
+use datax_protocol::protocol::CONTEXT_WINDOW_CLOSE_TAG;
+use datax_protocol::protocol::CONTEXT_WINDOW_OPEN_TAG;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
@@ -46,7 +46,7 @@ fn token_budget_contexts(request: &ResponsesRequest) -> Vec<String> {
 
 fn token_budget_window_ids(
     text: &str,
-    thread_id: codex_protocol::ThreadId,
+    thread_id: datax_protocol::ThreadId,
 ) -> (String, Option<String>, String) {
     let captures = assert_regex_match(
         &format!(

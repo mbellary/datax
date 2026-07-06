@@ -15,9 +15,9 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
-use codex_otel::SessionTelemetry;
-use codex_protocol::ThreadId;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_otel::SessionTelemetry;
+use datax_protocol::ThreadId;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use tokio::fs;
 use tokio::process::Command;
 use tokio::time::timeout;
@@ -292,7 +292,7 @@ async fn run_script_with_timeout(
     #[cfg(unix)]
     unsafe {
         handler.pre_exec(|| {
-            codex_utils_pty::process_group::detach_from_tty()?;
+            datax_utils_pty::process_group::detach_from_tty()?;
             Ok(())
         });
     }

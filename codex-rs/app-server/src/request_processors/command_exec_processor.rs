@@ -239,12 +239,12 @@ impl CommandExecRequestProcessor {
                 .can_set_legacy_sandbox_policy(&policy, &sandbox_cwd)
                 .map_err(|err| invalid_request(format!("invalid sandbox policy: {err}")))?;
             let file_system_sandbox_policy =
-                codex_protocol::permissions::FileSystemSandboxPolicy::from_legacy_sandbox_policy_for_cwd(&policy, &sandbox_cwd);
+                datax_protocol::permissions::FileSystemSandboxPolicy::from_legacy_sandbox_policy_for_cwd(&policy, &sandbox_cwd);
             let network_sandbox_policy =
-                codex_protocol::permissions::NetworkSandboxPolicy::from(&policy);
+                datax_protocol::permissions::NetworkSandboxPolicy::from(&policy);
             let permission_profile =
-                codex_protocol::models::PermissionProfile::from_runtime_permissions_with_enforcement(
-                    codex_protocol::models::SandboxEnforcement::from_legacy_sandbox_policy(&policy),
+                datax_protocol::models::PermissionProfile::from_runtime_permissions_with_enforcement(
+                    datax_protocol::models::SandboxEnforcement::from_legacy_sandbox_policy(&policy),
                     &file_system_sandbox_policy,
                     network_sandbox_policy,
                 );
@@ -296,7 +296,7 @@ impl CommandExecRequestProcessor {
             env,
             network: started_network_proxy
                 .as_ref()
-                .map(codex_core::config::StartedNetworkProxy::proxy),
+                .map(datax_core::config::StartedNetworkProxy::proxy),
             network_environment_id: None,
             sandbox_permissions: SandboxPermissions::UseDefault,
             windows_sandbox_level,
@@ -319,7 +319,7 @@ impl CommandExecRequestProcessor {
             None => None,
         };
 
-        let exec_request = codex_core::exec::build_exec_request(
+        let exec_request = datax_core::exec::build_exec_request(
             exec_params,
             &effective_permission_profile,
             &sandbox_cwd,

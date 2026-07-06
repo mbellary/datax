@@ -91,21 +91,21 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
-        "--codex-command-runner-bin",
+        "--datax-command-runner-bin",
         type=Path,
         help=(
-            "Optional prebuilt Windows codex-command-runner.exe executable. "
-            "If omitted for Windows targets, codex-command-runner is built "
+            "Optional prebuilt Windows datax-command-runner.exe executable. "
+            "If omitted for Windows targets, datax-command-runner is built "
             "with Cargo."
         ),
     )
     parser.add_argument(
-        "--codex-windows-sandbox-setup-bin",
+        "--datax-windows-sandbox-setup-bin",
         type=Path,
         help=(
-            "Optional prebuilt Windows codex-windows-sandbox-setup.exe "
+            "Optional prebuilt Windows datax-windows-sandbox-setup.exe "
             "executable. If omitted for Windows targets, "
-            "codex-windows-sandbox-setup is built with Cargo."
+            "datax-windows-sandbox-setup is built with Cargo."
         ),
     )
     parser.add_argument(
@@ -145,15 +145,15 @@ def main() -> int:
             "prebuilt Linux bwrap executable",
             "--bwrap-bin",
         ),
-        codex_command_runner_bin=resolve_optional_input_path(
-            args.codex_command_runner_bin,
-            "prebuilt Windows codex-command-runner.exe executable",
-            "--codex-command-runner-bin",
+        datax_command_runner_bin=resolve_optional_input_path(
+            args.datax_command_runner_bin,
+            "prebuilt Windows datax-command-runner.exe executable",
+            "--datax-command-runner-bin",
         ),
-        codex_windows_sandbox_setup_bin=resolve_optional_input_path(
-            args.codex_windows_sandbox_setup_bin,
-            "prebuilt Windows codex-windows-sandbox-setup.exe executable",
-            "--codex-windows-sandbox-setup-bin",
+        datax_windows_sandbox_setup_bin=resolve_optional_input_path(
+            args.datax_windows_sandbox_setup_bin,
+            "prebuilt Windows datax-windows-sandbox-setup.exe executable",
+            "--datax-windows-sandbox-setup-bin",
         ),
     )
     version = read_workspace_version()
@@ -162,8 +162,8 @@ def main() -> int:
         rg_bin=resolve_rg_bin(spec, args.rg_bin),
         zsh_bin=resolve_zsh_bin(spec),
         bwrap_bin=source_outputs.bwrap_bin,
-        codex_command_runner_bin=source_outputs.codex_command_runner_bin,
-        codex_windows_sandbox_setup_bin=source_outputs.codex_windows_sandbox_setup_bin,
+        datax_command_runner_bin=source_outputs.datax_command_runner_bin,
+        datax_windows_sandbox_setup_bin=source_outputs.datax_windows_sandbox_setup_bin,
     )
     prepare_package_dir(package_dir, force=args.force)
     build_package_dir(package_dir, version, variant, spec, inputs)

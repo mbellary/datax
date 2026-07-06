@@ -10,5 +10,5 @@ codex_rust_crate(
             "Cargo.toml",
         ],
     ),
-    crate_name = "codex_features",
+    crate_name = "datax_features",
 )

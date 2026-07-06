@@ -7,5 +7,5 @@ codex_rust_crate(
         "src/seatbelt_base_policy.sbpl",
         "src/seatbelt_network_policy.sbpl",
     ],
-    crate_name = "codex_sandboxing",
+    crate_name = "datax_sandboxing",
 )

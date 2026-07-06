@@ -1,16 +1,3 @@
-use codex_core::config::Constrained;
-use codex_features::Feature;
-use codex_otel::SessionTelemetry;
-use codex_otel::TelemetryAuthMode;
-use codex_protocol::ThreadId;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::user_input::UserInput;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_custom_tool_call;
@@ -30,6 +17,19 @@ use core_test_support::responses::start_mock_server;
 use core_test_support::test_codex::TestCodex;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
+use datax_core::config::Constrained;
+use datax_features::Feature;
+use datax_otel::SessionTelemetry;
+use datax_otel::TelemetryAuthMode;
+use datax_protocol::ThreadId;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::openai_models::ReasoningEffort;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::ReviewDecision;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::user_input::UserInput;
 use std::sync::Mutex;
 use std::time::Duration;
 use tracing::Level;
@@ -1260,7 +1260,7 @@ async fn handle_shell_command_autoapprove_from_config_records_tool_decision() {
 #[traced_test]
 async fn handle_shell_command_user_approved_records_tool_decision() {
     let server = start_mock_server().await;
-    let command = touch_command("codex-otel-approval-test");
+    let command = touch_command("datax-otel-approval-test");
     mount_sse_once(
         &server,
         sse(vec![
@@ -1330,7 +1330,7 @@ async fn handle_shell_command_user_approved_records_tool_decision() {
 #[traced_test]
 async fn handle_shell_command_user_approved_for_session_records_tool_decision() {
     let server = start_mock_server().await;
-    let command = touch_command("codex-otel-approval-test");
+    let command = touch_command("datax-otel-approval-test");
 
     mount_sse_once(
         &server,
@@ -1400,7 +1400,7 @@ async fn handle_shell_command_user_approved_for_session_records_tool_decision() 
 #[traced_test]
 async fn handle_sandbox_error_user_approves_retry_records_tool_decision() {
     let server = start_mock_server().await;
-    let command = touch_command("codex-otel-approval-test");
+    let command = touch_command("datax-otel-approval-test");
 
     mount_sse_once(
         &server,
@@ -1470,7 +1470,7 @@ async fn handle_sandbox_error_user_approves_retry_records_tool_decision() {
 #[traced_test]
 async fn handle_shell_command_user_denies_records_tool_decision() {
     let server = start_mock_server().await;
-    let command = touch_command("codex-otel-approval-test");
+    let command = touch_command("datax-otel-approval-test");
 
     mount_sse_once(
         &server,
@@ -1540,7 +1540,7 @@ async fn handle_shell_command_user_denies_records_tool_decision() {
 #[traced_test]
 async fn handle_sandbox_error_user_approves_for_session_records_tool_decision() {
     let server = start_mock_server().await;
-    let command = touch_command("codex-otel-approval-test");
+    let command = touch_command("datax-otel-approval-test");
 
     mount_sse_once(
         &server,
@@ -1610,7 +1610,7 @@ async fn handle_sandbox_error_user_approves_for_session_records_tool_decision() 
 #[traced_test]
 async fn handle_sandbox_error_user_denies_records_tool_decision() {
     let server = start_mock_server().await;
-    let command = touch_command("codex-otel-approval-test");
+    let command = touch_command("datax-otel-approval-test");
 
     mount_sse_once(
         &server,

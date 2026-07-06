@@ -23,66 +23,66 @@ use crate::session::turn_context::TurnContext;
 use crate::tools::hook_names::HookToolName;
 use crate::tools::sandboxing::PermissionRequestPayload;
 use crate::turn_metadata::McpTurnMetadataContext;
-use codex_analytics::AppInvocation;
-use codex_analytics::InvocationType;
-use codex_analytics::build_track_events_context;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_app_server_protocol::McpElicitationObjectType;
-use codex_app_server_protocol::McpElicitationSchema;
-use codex_app_server_protocol::McpServerElicitationRequest;
-use codex_app_server_protocol::McpServerElicitationRequestParams;
-use codex_config::types::AppToolApproval;
-use codex_config::types::ApprovalsReviewer;
-use codex_connectors::AppToolPolicy;
-use codex_connectors::AppToolPolicyEvaluator;
-use codex_connectors::AppToolPolicyInput;
-use codex_features::Feature;
-use codex_hooks::PermissionRequestDecision;
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_mcp::MCP_TOOL_CODEX_APPS_META_KEY;
-use codex_mcp::McpPermissionPromptAutoApproveContext;
-use codex_mcp::SandboxState;
-use codex_mcp::auth_elicitation_completed_result;
-use codex_mcp::build_auth_elicitation_plan;
-use codex_mcp::declared_openai_file_input_param_names;
-use codex_mcp::mcp_permission_prompt_is_auto_approved;
-use codex_otel::sanitize_metric_tag_value;
-use codex_protocol::items::McpToolCallError;
-use codex_protocol::items::McpToolCallItem;
-use codex_protocol::items::McpToolCallStatus;
-use codex_protocol::items::TurnItem;
-use codex_protocol::mcp::CallToolResult;
-use codex_protocol::mcp_approval_meta::APPROVAL_KIND_KEY as MCP_TOOL_APPROVAL_KIND_KEY;
-use codex_protocol::mcp_approval_meta::APPROVAL_KIND_MCP_TOOL_CALL as MCP_TOOL_APPROVAL_KIND_MCP_TOOL_CALL;
-use codex_protocol::mcp_approval_meta::CONNECTOR_DESCRIPTION_KEY as MCP_TOOL_APPROVAL_CONNECTOR_DESCRIPTION_KEY;
-use codex_protocol::mcp_approval_meta::CONNECTOR_ID_KEY as MCP_TOOL_APPROVAL_CONNECTOR_ID_KEY;
-use codex_protocol::mcp_approval_meta::CONNECTOR_NAME_KEY as MCP_TOOL_APPROVAL_CONNECTOR_NAME_KEY;
-use codex_protocol::mcp_approval_meta::PERSIST_ALWAYS as MCP_TOOL_APPROVAL_PERSIST_ALWAYS;
-use codex_protocol::mcp_approval_meta::PERSIST_KEY as MCP_TOOL_APPROVAL_PERSIST_KEY;
-use codex_protocol::mcp_approval_meta::PERSIST_SESSION as MCP_TOOL_APPROVAL_PERSIST_SESSION;
-use codex_protocol::mcp_approval_meta::SOURCE_CONNECTOR as MCP_TOOL_APPROVAL_SOURCE_CONNECTOR;
-use codex_protocol::mcp_approval_meta::SOURCE_KEY as MCP_TOOL_APPROVAL_SOURCE_KEY;
-use codex_protocol::mcp_approval_meta::TOOL_DESCRIPTION_KEY as MCP_TOOL_APPROVAL_TOOL_DESCRIPTION_KEY;
-use codex_protocol::mcp_approval_meta::TOOL_PARAMS_DISPLAY_KEY as MCP_TOOL_APPROVAL_TOOL_PARAMS_DISPLAY_KEY;
-use codex_protocol::mcp_approval_meta::TOOL_PARAMS_KEY as MCP_TOOL_APPROVAL_TOOL_PARAMS_KEY;
-use codex_protocol::mcp_approval_meta::TOOL_TITLE_KEY as MCP_TOOL_APPROVAL_TOOL_TITLE_KEY;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::McpInvocation;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::request_user_input::RequestUserInputAnswer;
-use codex_protocol::request_user_input::RequestUserInputArgs;
-use codex_protocol::request_user_input::RequestUserInputQuestion;
-use codex_protocol::request_user_input::RequestUserInputQuestionOption;
-use codex_protocol::request_user_input::RequestUserInputResponse;
-use codex_rmcp_client::ElicitationAction;
-use codex_rmcp_client::ElicitationResponse;
-use codex_rollout::state_db;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_output_truncation::truncate_text;
-use codex_utils_path_uri::PathUri;
-use codex_utils_pty::DEFAULT_OUTPUT_BYTES_CAP;
+use datax_analytics::AppInvocation;
+use datax_analytics::InvocationType;
+use datax_analytics::build_track_events_context;
+use datax_app_server_protocol::ConfigLayerSource;
+use datax_app_server_protocol::McpElicitationObjectType;
+use datax_app_server_protocol::McpElicitationSchema;
+use datax_app_server_protocol::McpServerElicitationRequest;
+use datax_app_server_protocol::McpServerElicitationRequestParams;
+use datax_config::types::AppToolApproval;
+use datax_config::types::ApprovalsReviewer;
+use datax_connectors::AppToolPolicy;
+use datax_connectors::AppToolPolicyEvaluator;
+use datax_connectors::AppToolPolicyInput;
+use datax_features::Feature;
+use datax_hooks::PermissionRequestDecision;
+use datax_mcp::CODEX_APPS_MCP_SERVER_NAME;
+use datax_mcp::MCP_TOOL_CODEX_APPS_META_KEY;
+use datax_mcp::McpPermissionPromptAutoApproveContext;
+use datax_mcp::SandboxState;
+use datax_mcp::auth_elicitation_completed_result;
+use datax_mcp::build_auth_elicitation_plan;
+use datax_mcp::declared_openai_file_input_param_names;
+use datax_mcp::mcp_permission_prompt_is_auto_approved;
+use datax_otel::sanitize_metric_tag_value;
+use datax_protocol::items::McpToolCallError;
+use datax_protocol::items::McpToolCallItem;
+use datax_protocol::items::McpToolCallStatus;
+use datax_protocol::items::TurnItem;
+use datax_protocol::mcp::CallToolResult;
+use datax_protocol::mcp_approval_meta::APPROVAL_KIND_KEY as MCP_TOOL_APPROVAL_KIND_KEY;
+use datax_protocol::mcp_approval_meta::APPROVAL_KIND_MCP_TOOL_CALL as MCP_TOOL_APPROVAL_KIND_MCP_TOOL_CALL;
+use datax_protocol::mcp_approval_meta::CONNECTOR_DESCRIPTION_KEY as MCP_TOOL_APPROVAL_CONNECTOR_DESCRIPTION_KEY;
+use datax_protocol::mcp_approval_meta::CONNECTOR_ID_KEY as MCP_TOOL_APPROVAL_CONNECTOR_ID_KEY;
+use datax_protocol::mcp_approval_meta::CONNECTOR_NAME_KEY as MCP_TOOL_APPROVAL_CONNECTOR_NAME_KEY;
+use datax_protocol::mcp_approval_meta::PERSIST_ALWAYS as MCP_TOOL_APPROVAL_PERSIST_ALWAYS;
+use datax_protocol::mcp_approval_meta::PERSIST_KEY as MCP_TOOL_APPROVAL_PERSIST_KEY;
+use datax_protocol::mcp_approval_meta::PERSIST_SESSION as MCP_TOOL_APPROVAL_PERSIST_SESSION;
+use datax_protocol::mcp_approval_meta::SOURCE_CONNECTOR as MCP_TOOL_APPROVAL_SOURCE_CONNECTOR;
+use datax_protocol::mcp_approval_meta::SOURCE_KEY as MCP_TOOL_APPROVAL_SOURCE_KEY;
+use datax_protocol::mcp_approval_meta::TOOL_DESCRIPTION_KEY as MCP_TOOL_APPROVAL_TOOL_DESCRIPTION_KEY;
+use datax_protocol::mcp_approval_meta::TOOL_PARAMS_DISPLAY_KEY as MCP_TOOL_APPROVAL_TOOL_PARAMS_DISPLAY_KEY;
+use datax_protocol::mcp_approval_meta::TOOL_PARAMS_KEY as MCP_TOOL_APPROVAL_TOOL_PARAMS_KEY;
+use datax_protocol::mcp_approval_meta::TOOL_TITLE_KEY as MCP_TOOL_APPROVAL_TOOL_TITLE_KEY;
+use datax_protocol::openai_models::InputModality;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::McpInvocation;
+use datax_protocol::protocol::ReviewDecision;
+use datax_protocol::request_user_input::RequestUserInputAnswer;
+use datax_protocol::request_user_input::RequestUserInputArgs;
+use datax_protocol::request_user_input::RequestUserInputQuestion;
+use datax_protocol::request_user_input::RequestUserInputQuestionOption;
+use datax_protocol::request_user_input::RequestUserInputResponse;
+use datax_rmcp_client::ElicitationAction;
+use datax_rmcp_client::ElicitationResponse;
+use datax_rollout::state_db;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_output_truncation::TruncationPolicy;
+use datax_utils_output_truncation::truncate_text;
+use datax_utils_path_uri::PathUri;
+use datax_utils_pty::DEFAULT_OUTPUT_BYTES_CAP;
 use rmcp::model::ToolAnnotations;
 use serde::Deserialize;
 use serde::Serialize;
@@ -662,7 +662,7 @@ async fn maybe_request_codex_apps_auth_elicitation(
     let connector_id = metadata.and_then(|metadata| metadata.connector_id.as_deref());
     let connector_name = metadata.and_then(|metadata| metadata.connector_name.as_deref());
     let install_url = connector_id.map(|connector_id| {
-        codex_connectors::metadata::connector_install_url(
+        datax_connectors::metadata::connector_install_url(
             connector_name.unwrap_or(connector_id),
             connector_id,
         )
@@ -738,7 +738,7 @@ async fn augment_mcp_tool_request_meta_with_sandbox_state(
 
     let server_environment_id = mcp_connection_manager
         .server_environment_id(server)
-        .unwrap_or(codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID);
+        .unwrap_or(datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID);
     let Some(sandbox_cwd) = sandbox_cwd_for_mcp_server(turn_context, server_environment_id) else {
         return Ok(meta);
     };
@@ -753,7 +753,7 @@ async fn augment_mcp_tool_request_meta_with_sandbox_state(
     match meta.as_mut() {
         Some(serde_json::Value::Object(map)) => {
             map.insert(
-                codex_mcp::MCP_SANDBOX_STATE_META_CAPABILITY.to_string(),
+                datax_mcp::MCP_SANDBOX_STATE_META_CAPABILITY.to_string(),
                 sandbox_state,
             );
         }
@@ -761,7 +761,7 @@ async fn augment_mcp_tool_request_meta_with_sandbox_state(
         None => {
             let mut map = serde_json::Map::new();
             map.insert(
-                codex_mcp::MCP_SANDBOX_STATE_META_CAPABILITY.to_string(),
+                datax_mcp::MCP_SANDBOX_STATE_META_CAPABILITY.to_string(),
                 sandbox_state,
             );
             meta = Some(serde_json::Value::Object(map));
@@ -781,7 +781,7 @@ fn sandbox_cwd_for_mcp_server(turn_context: &TurnContext, environment_id: &str) 
         return Some(environment.cwd().clone());
     }
 
-    if environment_id == codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID {
+    if environment_id == datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID {
         #[allow(deprecated)]
         return Some(PathUri::from_abs_path(&turn_context.cwd));
     }
@@ -1046,7 +1046,7 @@ async fn custom_mcp_tool_approval_mode(
         .and_then(|table| table.get("mcp_servers"))
         .cloned()
         .and_then(|value| {
-            HashMap::<String, codex_config::types::McpServerConfig>::deserialize(value).ok()
+            HashMap::<String, datax_config::types::McpServerConfig>::deserialize(value).ok()
         })
         .and_then(|servers| {
             let server_config = servers.get(server)?;
@@ -2115,7 +2115,7 @@ fn user_mcp_server_is_configured(config: &Config, server: &str) -> anyhow::Resul
         return Ok(false);
     };
     let servers =
-        HashMap::<String, codex_config::types::McpServerConfig>::deserialize(mcp_servers_toml)?;
+        HashMap::<String, datax_config::types::McpServerConfig>::deserialize(mcp_servers_toml)?;
     Ok(servers.contains_key(server))
 }
 
@@ -2138,7 +2138,7 @@ fn project_mcp_tool_approval_config_folder(
                 .and_then(|table| table.get("mcp_servers"))
                 .cloned()
                 .and_then(|value| {
-                    HashMap::<String, codex_config::types::McpServerConfig>::deserialize(value).ok()
+                    HashMap::<String, datax_config::types::McpServerConfig>::deserialize(value).ok()
                 })?;
             if servers.contains_key(server) {
                 layer.config_folder()

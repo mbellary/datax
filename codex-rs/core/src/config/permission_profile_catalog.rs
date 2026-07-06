@@ -1,10 +1,10 @@
-use codex_config::ConfigLayerStack;
-use codex_config::RequirementSource;
-use codex_config::SandboxModeRequirement;
-use codex_config::Sourced;
-use codex_config::permissions_toml::PermissionsToml;
-use codex_config::sandbox_mode_requirement_for_permission_profile;
-use codex_protocol::models::PermissionProfile;
+use datax_config::ConfigLayerStack;
+use datax_config::RequirementSource;
+use datax_config::SandboxModeRequirement;
+use datax_config::Sourced;
+use datax_config::permissions_toml::PermissionsToml;
+use datax_config::sandbox_mode_requirement_for_permission_profile;
+use datax_protocol::models::PermissionProfile;
 
 use super::ConstraintError;
 use super::ConstraintResult;

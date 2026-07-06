@@ -1,8 +1,8 @@
-use codex_extension_api::ToolCall;
-use codex_extension_api::ToolExecutor;
-use codex_extension_api::ToolExecutorFuture;
-use codex_extension_api::ToolName;
-use codex_extension_api::ToolSpec;
+use datax_extension_api::ToolCall;
+use datax_extension_api::ToolExecutor;
+use datax_extension_api::ToolExecutorFuture;
+use datax_extension_api::ToolName;
+use datax_extension_api::ToolSpec;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;

@@ -18,26 +18,26 @@ use crate::transport::CHANNEL_CAPACITY;
 use crate::transport::ConnectionOrigin;
 use crate::transport::TransportEvent;
 use base64::Engine;
-use codex_app_server_protocol::AuthMode;
-use codex_app_server_protocol::ConfigWarningNotification;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::RemoteControlConnectionStatus;
-use codex_app_server_protocol::RemoteControlPairingStartParams;
-use codex_app_server_protocol::RemoteControlPairingStatusParams;
-use codex_app_server_protocol::RemoteControlStatusChangedNotification;
-use codex_app_server_protocol::ServerNotification;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_core::test_support::auth_manager_from_auth;
-use codex_core::test_support::auth_manager_from_auth_with_home;
-use codex_login::AuthDotJson;
-use codex_login::AuthKeyringBackendKind;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::save_auth;
-use codex_login::token_data::TokenData;
-use codex_login::token_data::parse_chatgpt_jwt_claims;
-use codex_state::RemoteControlEnrollmentRecord;
-use codex_state::StateRuntime;
+use datax_app_server_protocol::AuthMode;
+use datax_app_server_protocol::ConfigWarningNotification;
+use datax_app_server_protocol::JSONRPCMessage;
+use datax_app_server_protocol::RemoteControlConnectionStatus;
+use datax_app_server_protocol::RemoteControlPairingStartParams;
+use datax_app_server_protocol::RemoteControlPairingStatusParams;
+use datax_app_server_protocol::RemoteControlStatusChangedNotification;
+use datax_app_server_protocol::ServerNotification;
+use datax_config::types::AuthCredentialsStoreMode;
+use datax_core::test_support::auth_manager_from_auth;
+use datax_core::test_support::auth_manager_from_auth_with_home;
+use datax_login::AuthDotJson;
+use datax_login::AuthKeyringBackendKind;
+use datax_login::AuthManager;
+use datax_login::CodexAuth;
+use datax_login::save_auth;
+use datax_login::token_data::TokenData;
+use datax_login::token_data::parse_chatgpt_jwt_claims;
+use datax_state::RemoteControlEnrollmentRecord;
+use datax_state::StateRuntime;
 use futures::SinkExt;
 use futures::StreamExt;
 use gethostname::gethostname;
@@ -602,7 +602,7 @@ async fn remote_control_transport_manages_virtual_clients_and_routes_messages() 
         ClientEnvelope {
             event: ClientEvent::ClientMessage {
                 message: JSONRPCMessage::Notification(
-                    codex_app_server_protocol::JSONRPCNotification {
+                    datax_app_server_protocol::JSONRPCNotification {
                         method: "initialized".to_string(),
                         params: None,
                     },
@@ -622,8 +622,8 @@ async fn remote_control_transport_manages_virtual_clients_and_routes_messages() 
         "non-initialize client messages should be ignored before connection creation"
     );
 
-    let initialize_message = JSONRPCMessage::Request(codex_app_server_protocol::JSONRPCRequest {
-        id: codex_app_server_protocol::RequestId::Integer(1),
+    let initialize_message = JSONRPCMessage::Request(datax_app_server_protocol::JSONRPCRequest {
+        id: datax_app_server_protocol::RequestId::Integer(1),
         method: "initialize".to_string(),
         params: Some(json!({
             "clientInfo": {
@@ -680,7 +680,7 @@ async fn remote_control_transport_manages_virtual_clients_and_routes_messages() 
     }
 
     let followup_message =
-        JSONRPCMessage::Notification(codex_app_server_protocol::JSONRPCNotification {
+        JSONRPCMessage::Notification(datax_app_server_protocol::JSONRPCNotification {
             method: "initialized".to_string(),
             params: None,
         });
@@ -880,8 +880,8 @@ async fn remote_control_transport_reconnects_after_disconnect() {
         &mut second_websocket,
         ClientEnvelope {
             event: ClientEvent::ClientMessage {
-                message: JSONRPCMessage::Request(codex_app_server_protocol::JSONRPCRequest {
-                    id: codex_app_server_protocol::RequestId::Integer(2),
+                message: JSONRPCMessage::Request(datax_app_server_protocol::JSONRPCRequest {
+                    id: datax_app_server_protocol::RequestId::Integer(2),
                     method: "initialize".to_string(),
                     params: Some(json!({
                         "clientInfo": {
@@ -1299,8 +1299,8 @@ async fn remote_control_transport_clears_outgoing_buffer_when_backend_acks() {
     .await;
 
     let client_id = ClientId("client-1".to_string());
-    let initialize_message = JSONRPCMessage::Request(codex_app_server_protocol::JSONRPCRequest {
-        id: codex_app_server_protocol::RequestId::Integer(1),
+    let initialize_message = JSONRPCMessage::Request(datax_app_server_protocol::JSONRPCRequest {
+        id: datax_app_server_protocol::RequestId::Integer(1),
         method: "initialize".to_string(),
         params: Some(json!({
             "clientInfo": {
@@ -1547,8 +1547,8 @@ async fn remote_control_http_mode_enrolls_before_connecting() {
     let backend_client_id = ClientId("backend-test-client".to_string());
     let writer = {
         let initialize_message =
-            JSONRPCMessage::Request(codex_app_server_protocol::JSONRPCRequest {
-                id: codex_app_server_protocol::RequestId::Integer(11),
+            JSONRPCMessage::Request(datax_app_server_protocol::JSONRPCRequest {
+                id: datax_app_server_protocol::RequestId::Integer(11),
                 method: "initialize".to_string(),
                 params: Some(json!({
                     "clientInfo": {
@@ -1606,9 +1606,9 @@ async fn remote_control_http_mode_enrolls_before_connecting() {
     writer
         .send(QueuedOutgoingMessage::new(OutgoingMessage::Response(
             crate::outgoing_message::OutgoingResponse {
-                id: codex_app_server_protocol::RequestId::Integer(11),
+                id: datax_app_server_protocol::RequestId::Integer(11),
                 result: json!({
-                    "userAgent": "codex-test-agent"
+                    "userAgent": "datax-test-agent"
                 }),
             },
         )))
@@ -1623,7 +1623,7 @@ async fn remote_control_http_mode_enrolls_before_connecting() {
             "message": {
                 "id": 11,
                 "result": {
-                    "userAgent": "codex-test-agent",
+                    "userAgent": "datax-test-agent",
                 }
             }
         })

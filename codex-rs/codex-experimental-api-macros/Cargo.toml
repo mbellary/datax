@@ -1,5 +1,5 @@
 [package]
-name = "codex-experimental-api-macros"
+name = "datax-experimental-api-macros"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

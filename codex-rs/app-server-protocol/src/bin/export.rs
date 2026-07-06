@@ -22,13 +22,13 @@ struct Args {
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    codex_app_server_protocol::generate_ts_with_options(
+    datax_app_server_protocol::generate_ts_with_options(
         &args.out_dir,
         args.prettier.as_deref(),
-        codex_app_server_protocol::GenerateTsOptions {
+        datax_app_server_protocol::GenerateTsOptions {
             experimental_api: args.experimental,
-            ..codex_app_server_protocol::GenerateTsOptions::default()
+            ..datax_app_server_protocol::GenerateTsOptions::default()
         },
     )?;
-    codex_app_server_protocol::generate_json_with_experimental(&args.out_dir, args.experimental)
+    datax_app_server_protocol::generate_json_with_experimental(&args.out_dir, args.experimental)
 }

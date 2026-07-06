@@ -1,18 +1,18 @@
 //! Default Codex HTTP client: shared `User-Agent`, `originator`, optional residency header, and
 //! reqwest/`CodexHttpClient` construction.
 //!
-//! Use [`crate::default_client`] or [`codex_login::default_client`] from other crates in this
+//! Use [`crate::default_client`] or [`datax_login::default_client`] from other crates in this
 //! workspace.
 
-use codex_client::BuildCustomCaTransportError;
-use codex_client::BuildRouteAwareHttpClientError;
-use codex_client::ClientRouteClass;
-use codex_client::CodexHttpClient;
-pub use codex_client::CodexRequestBuilder;
-use codex_client::build_reqwest_client_for_route;
-use codex_client::build_reqwest_client_with_custom_ca;
-use codex_client::with_chatgpt_cloudflare_cookie_store;
-use codex_terminal_detection::user_agent;
+use datax_client::BuildCustomCaTransportError;
+use datax_client::BuildRouteAwareHttpClientError;
+use datax_client::ClientRouteClass;
+use datax_client::CodexHttpClient;
+pub use datax_client::CodexRequestBuilder;
+use datax_client::build_reqwest_client_for_route;
+use datax_client::build_reqwest_client_with_custom_ca;
+use datax_client::with_chatgpt_cloudflare_cookie_store;
+use datax_terminal_detection::user_agent;
 use reqwest::header::HeaderMap;
 use reqwest::header::HeaderValue;
 use reqwest::header::USER_AGENT;
@@ -42,7 +42,7 @@ pub const DEFAULT_ORIGINATOR: &str = "codex_cli_rs";
 pub const CODEX_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR: &str = "CODEX_INTERNAL_ORIGINATOR_OVERRIDE";
 pub const RESIDENCY_HEADER_NAME: &str = "x-openai-internal-codex-residency";
 
-pub use codex_config::ResidencyRequirement;
+pub use datax_config::ResidencyRequirement;
 
 #[derive(Debug, Clone)]
 pub struct Originator {
@@ -126,7 +126,7 @@ pub fn originator() -> Originator {
 
 pub fn is_first_party_originator(originator_value: &str) -> bool {
     originator_value == DEFAULT_ORIGINATOR
-        || originator_value == "codex-tui"
+        || originator_value == "datax-tui"
         || originator_value == "codex_vscode"
         || originator_value.starts_with("Codex ")
 }

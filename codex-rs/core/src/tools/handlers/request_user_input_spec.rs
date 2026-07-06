@@ -1,8 +1,8 @@
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::request_user_input::RequestUserInputArgs;
-use codex_tools::JsonSchema;
-use codex_tools::ResponsesApiTool;
-use codex_tools::ToolSpec;
+use datax_protocol::config_types::ModeKind;
+use datax_protocol::request_user_input::RequestUserInputArgs;
+use datax_tools::JsonSchema;
+use datax_tools::ResponsesApiTool;
+use datax_tools::ToolSpec;
 use std::collections::BTreeMap;
 
 pub const REQUEST_USER_INPUT_TOOL_NAME: &str = "request_user_input";

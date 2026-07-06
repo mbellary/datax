@@ -12,10 +12,10 @@ use std::path::Path;
 use std::process::Command;
 
 use anyhow::Result;
-use codex_exec_server::FileSystemSandboxContext;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_utils_path_uri::PathUri;
+use datax_exec_server::FileSystemSandboxContext;
+use datax_protocol::config_types::WindowsSandboxLevel;
+use datax_protocol::protocol::SandboxPolicy;
+use datax_utils_path_uri::PathUri;
 use test_case::test_case;
 
 use crate::support::FileSystemImplementation;

@@ -15,46 +15,46 @@ use crate::tools::handlers::multi_agents_v2::SendMessageHandler as SendMessageHa
 use crate::tools::handlers::multi_agents_v2::SpawnAgentHandler as SpawnAgentHandlerV2;
 use crate::tools::handlers::multi_agents_v2::WaitAgentHandler as WaitAgentHandlerV2;
 use crate::turn_diff_tracker::TurnDiffTracker;
-use codex_extension_api::empty_extension_registry;
-use codex_features::Feature;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_model_provider::create_model_provider;
-use codex_model_provider_info::built_in_model_providers;
-use codex_protocol::AgentPath;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::config_types::ShellEnvironmentPolicy;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::models::SandboxEnforcement;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::AgentStatus;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::FileSystemAccessMode;
-use codex_protocol::protocol::FileSystemPath;
-use codex_protocol::protocol::FileSystemSandboxEntry;
-use codex_protocol::protocol::FileSystemSandboxPolicy;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::protocol::NetworkSandboxPolicy;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_protocol::protocol::TurnAbortedEvent;
-use codex_protocol::protocol::TurnCompleteEvent;
-use codex_protocol::user_input::UserInput;
-use codex_state::DirectionalThreadSpawnEdgeStatus;
 use core_test_support::TempDirExt;
+use datax_extension_api::empty_extension_registry;
+use datax_features::Feature;
+use datax_login::AuthManager;
+use datax_login::CodexAuth;
+use datax_model_provider::create_model_provider;
+use datax_model_provider_info::built_in_model_providers;
+use datax_protocol::AgentPath;
+use datax_protocol::ThreadId;
+use datax_protocol::config_types::ApprovalsReviewer;
+use datax_protocol::config_types::ServiceTier;
+use datax_protocol::config_types::ShellEnvironmentPolicy;
+use datax_protocol::models::BaseInstructions;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::FunctionCallOutputBody;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::models::ResponseInputItem;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::models::SandboxEnforcement;
+use datax_protocol::openai_models::ReasoningEffort;
+use datax_protocol::protocol::AgentStatus;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::FileSystemAccessMode;
+use datax_protocol::protocol::FileSystemPath;
+use datax_protocol::protocol::FileSystemSandboxEntry;
+use datax_protocol::protocol::FileSystemSandboxPolicy;
+use datax_protocol::protocol::InitialHistory;
+use datax_protocol::protocol::InterAgentCommunication;
+use datax_protocol::protocol::NetworkSandboxPolicy;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::SandboxPolicy;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::SubAgentSource;
+use datax_protocol::protocol::TurnAbortReason;
+use datax_protocol::protocol::TurnAbortedEvent;
+use datax_protocol::protocol::TurnCompleteEvent;
+use datax_protocol::user_input::UserInput;
+use datax_state::DirectionalThreadSpawnEdgeStatus;
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 use serde_json::json;
@@ -78,7 +78,7 @@ fn invocation(
         cancellation_token: CancellationToken::new(),
         tracker: Arc::new(Mutex::new(TurnDiffTracker::default())),
         call_id: "call-1".to_string(),
-        tool_name: codex_tools::ToolName::plain(tool_name),
+        tool_name: datax_tools::ToolName::plain(tool_name),
         source: crate::tools::context::ToolCallSource::Direct,
         payload,
     }
@@ -156,7 +156,7 @@ where
             let content = match output.body {
                 FunctionCallOutputBody::Text(text) => text,
                 FunctionCallOutputBody::ContentItems(items) => {
-                    codex_protocol::models::function_call_output_content_items_to_text(&items)
+                    datax_protocol::models::function_call_output_content_items_to_text(&items)
                         .unwrap_or_default()
                 }
             };
@@ -393,7 +393,7 @@ async fn multi_agent_v2_spawn_fork_turns_all_rejects_agent_type_override() {
         .expect("test config should allow feature update");
     let turn = TurnContext {
         config: Arc::new(config),
-        multi_agent_version: codex_protocol::protocol::MultiAgentVersion::V2,
+        multi_agent_version: datax_protocol::protocol::MultiAgentVersion::V2,
         ..turn
     };
 
@@ -971,7 +971,7 @@ async fn multi_agent_v2_spawn_partial_fork_turns_allows_agent_type_override() {
         .expect("test config should allow feature update");
     let turn = TurnContext {
         config: Arc::new(config),
-        multi_agent_version: codex_protocol::protocol::MultiAgentVersion::V2,
+        multi_agent_version: datax_protocol::protocol::MultiAgentVersion::V2,
         ..turn
     };
 
@@ -3927,7 +3927,7 @@ async fn multi_agent_v2_interrupt_agent_accepts_unloaded_task_name_target() {
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.codex_home.to_path_buf(),
-        Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        Arc::new(datax_exec_server::EnvironmentManager::default_for_tests()),
         Some(state_db.clone()),
     );
     let root = manager
@@ -4256,7 +4256,7 @@ async fn tool_handlers_cascade_close_and_resume_and_keep_explicitly_closed_subtr
         &config,
         AuthManager::from_auth_for_testing(CodexAuth::from_api_key("dummy")),
         SessionSource::Exec,
-        Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        Arc::new(datax_exec_server::EnvironmentManager::default_for_tests()),
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,

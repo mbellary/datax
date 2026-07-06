@@ -1,15 +1,15 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-core"
+name = "datax-core"
 version.workspace = true
 
 [lib]
-name = "codex_core"
+name = "datax_core"
 path = "src/lib.rs"
 
 [[bin]]
-name = "codex-write-config-schema"
+name = "datax-write-config-schema"
 path = "src/bin/config_schema.rs"
 
 [lints]
@@ -23,59 +23,59 @@ base64 = { workspace = true }
 bm25 = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive"] }
-codex-analytics = { workspace = true }
-codex-api = { workspace = true }
-codex-app-server-protocol = { workspace = true }
-codex-apply-patch = { workspace = true }
-codex-async-utils = { workspace = true }
-codex-code-mode = { workspace = true }
-codex-connectors = { workspace = true }
-codex-context-fragments = { workspace = true }
-codex-config = { workspace = true }
-codex-core-plugins = { workspace = true }
-codex-core-skills = { workspace = true }
-codex-exec-server = { workspace = true }
-codex-extension-api = { workspace = true }
-codex-features = { workspace = true }
-codex-feedback = { workspace = true }
-codex-file-system = { workspace = true }
-codex-login = { workspace = true }
-codex-memories-read = { workspace = true }
-codex-mcp = { workspace = true }
-codex-model-provider-info = { workspace = true }
-codex-models-manager = { workspace = true }
-codex-shell-command = { workspace = true }
-codex-execpolicy = { workspace = true }
-codex-git-utils = { workspace = true }
-codex-hooks = { workspace = true }
-codex-install-context = { workspace = true }
-codex-network-proxy = { workspace = true }
-codex-otel = { workspace = true }
-codex-plugin = { workspace = true }
-codex-model-provider = { workspace = true }
-codex-protocol = { workspace = true }
-codex-response-debug-context = { workspace = true }
-codex-prompts = { workspace = true }
-codex-rollout = { workspace = true }
-codex-rollout-trace = { workspace = true }
-codex-rmcp-client = { workspace = true }
-codex-sandboxing = { workspace = true }
-codex-state = { workspace = true }
-codex-terminal-detection = { workspace = true }
-codex-thread-store = { workspace = true }
-codex-tools = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-cache = { workspace = true }
-codex-utils-image = { workspace = true }
-codex-utils-home-dir = { workspace = true }
-codex-utils-output-truncation = { workspace = true }
-codex-utils-path = { workspace = true }
-codex-utils-path-uri = { workspace = true }
-codex-utils-plugins = { workspace = true }
-codex-utils-pty = { workspace = true }
-codex-utils-string = { workspace = true }
-codex-utils-stream-parser = { workspace = true }
-codex-windows-sandbox = { package = "codex-windows-sandbox", path = "../windows-sandbox-rs" }
+datax-analytics = { workspace = true }
+datax-api = { workspace = true }
+datax-app-server-protocol = { workspace = true }
+datax-apply-patch = { workspace = true }
+datax-async-utils = { workspace = true }
+datax-code-mode = { workspace = true }
+datax-connectors = { workspace = true }
+datax-context-fragments = { workspace = true }
+datax-config = { workspace = true }
+datax-core-plugins = { workspace = true }
+datax-core-skills = { workspace = true }
+datax-exec-server = { workspace = true }
+datax-extension-api = { workspace = true }
+datax-features = { workspace = true }
+datax-feedback = { workspace = true }
+datax-file-system = { workspace = true }
+datax-login = { workspace = true }
+datax-memories-read = { workspace = true }
+datax-mcp = { workspace = true }
+datax-model-provider-info = { workspace = true }
+datax-models-manager = { workspace = true }
+datax-shell-command = { workspace = true }
+datax-execpolicy = { workspace = true }
+datax-git-utils = { workspace = true }
+datax-hooks = { workspace = true }
+datax-install-context = { workspace = true }
+datax-network-proxy = { workspace = true }
+datax-otel = { workspace = true }
+datax-plugin = { workspace = true }
+datax-model-provider = { workspace = true }
+datax-protocol = { workspace = true }
+datax-response-debug-context = { workspace = true }
+datax-prompts = { workspace = true }
+datax-rollout = { workspace = true }
+datax-rollout-trace = { workspace = true }
+datax-rmcp-client = { workspace = true }
+datax-sandboxing = { workspace = true }
+datax-state = { workspace = true }
+datax-terminal-detection = { workspace = true }
+datax-thread-store = { workspace = true }
+datax-tools = { workspace = true }
+datax-utils-absolute-path = { workspace = true }
+datax-utils-cache = { workspace = true }
+datax-utils-image = { workspace = true }
+datax-utils-home-dir = { workspace = true }
+datax-utils-output-truncation = { workspace = true }
+datax-utils-path = { workspace = true }
+datax-utils-path-uri = { workspace = true }
+datax-utils-plugins = { workspace = true }
+datax-utils-pty = { workspace = true }
+datax-utils-string = { workspace = true }
+datax-utils-stream-parser = { workspace = true }
+datax-windows-sandbox = { package = "datax-windows-sandbox", path = "../windows-sandbox-rs" }
 csv = { workspace = true }
 dirs = { workspace = true }
 dunce = { workspace = true }
@@ -129,17 +129,17 @@ openssl-sys = { workspace = true, features = ["vendored"] }
 openssl-sys = { workspace = true, features = ["vendored"] }
 
 [target.'cfg(unix)'.dependencies]
-codex-shell-escalation = { workspace = true }
+datax-shell-escalation = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }
 assert_matches = { workspace = true }
-codex-image-generation-extension = { workspace = true }
-codex-home = { workspace = true }
-codex-otel = { workspace = true }
-codex-test-binary-support = { workspace = true }
-codex-utils-cargo-bin = { workspace = true }
-codex-web-search-extension = { workspace = true }
+datax-image-generation-extension = { workspace = true }
+datax-home = { workspace = true }
+datax-otel = { workspace = true }
+datax-test-binary-support = { workspace = true }
+datax-utils-cargo-bin = { workspace = true }
+datax-web-search-extension = { workspace = true }
 core_test_support = { workspace = true }
 ctor = { workspace = true }
 insta = { workspace = true }

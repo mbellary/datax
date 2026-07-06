@@ -1,8 +1,8 @@
 use super::*;
-use codex_app_server_protocol::CommandExecutionSource;
-use codex_app_server_protocol::CommandExecutionStatus;
-use codex_app_server_protocol::ItemCompletedNotification;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_app_server_protocol::CommandExecutionSource;
+use datax_app_server_protocol::CommandExecutionStatus;
+use datax_app_server_protocol::ItemCompletedNotification;
+use datax_utils_absolute_path::AbsolutePathBuf;
 
 #[test]
 fn agent_status_uses_bounded_buffered_activity() {

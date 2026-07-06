@@ -24,49 +24,49 @@ use crate::tools::sandboxing::ToolError;
 use crate::tools::sandboxing::managed_network_for_sandbox_permissions;
 use crate::tools::sandboxing::sandbox_permissions_preserving_denied_reads;
 use crate::tools::sandboxing::unsandboxed_execution_allowed;
-use codex_execpolicy::Decision;
-use codex_execpolicy::Evaluation;
-use codex_execpolicy::MatchOptions;
-use codex_execpolicy::Policy;
-use codex_execpolicy::RuleMatch;
-use codex_features::Feature;
-use codex_hooks::PermissionRequestDecision;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::SandboxErr;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::exec_output::StreamOutput;
-use codex_protocol::models::AdditionalPermissionProfile;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::GuardianCommandSource;
-use codex_protocol::protocol::NetworkPolicyRuleAction;
-use codex_protocol::protocol::ReviewDecision;
-use codex_sandboxing::SandboxCommand;
-use codex_sandboxing::SandboxManager;
-use codex_sandboxing::SandboxTransformRequest;
-use codex_sandboxing::SandboxType;
-use codex_sandboxing::SandboxablePreference;
-use codex_shell_command::bash::parse_shell_lc_plain_commands;
-use codex_shell_command::bash::parse_shell_lc_single_command_prefix;
-use codex_shell_escalation::EscalateServer;
-use codex_shell_escalation::EscalationDecision;
-use codex_shell_escalation::EscalationExecution;
-use codex_shell_escalation::EscalationPermissions;
-use codex_shell_escalation::EscalationPolicy;
-use codex_shell_escalation::EscalationPolicyFuture;
-use codex_shell_escalation::EscalationSession;
-use codex_shell_escalation::ExecParams;
-use codex_shell_escalation::ExecResult;
-use codex_shell_escalation::PreparedExec;
-use codex_shell_escalation::ResolvedPermissionProfile;
-use codex_shell_escalation::ShellCommandExecutor;
-use codex_shell_escalation::ShellCommandExecutorFuture;
-use codex_shell_escalation::Stopwatch;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use datax_execpolicy::Decision;
+use datax_execpolicy::Evaluation;
+use datax_execpolicy::MatchOptions;
+use datax_execpolicy::Policy;
+use datax_execpolicy::RuleMatch;
+use datax_features::Feature;
+use datax_hooks::PermissionRequestDecision;
+use datax_protocol::config_types::WindowsSandboxLevel;
+use datax_protocol::error::CodexErr;
+use datax_protocol::error::SandboxErr;
+use datax_protocol::exec_output::ExecToolCallOutput;
+use datax_protocol::exec_output::StreamOutput;
+use datax_protocol::models::AdditionalPermissionProfile;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::permissions::FileSystemSandboxPolicy;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::GuardianCommandSource;
+use datax_protocol::protocol::NetworkPolicyRuleAction;
+use datax_protocol::protocol::ReviewDecision;
+use datax_sandboxing::SandboxCommand;
+use datax_sandboxing::SandboxManager;
+use datax_sandboxing::SandboxTransformRequest;
+use datax_sandboxing::SandboxType;
+use datax_sandboxing::SandboxablePreference;
+use datax_shell_command::bash::parse_shell_lc_plain_commands;
+use datax_shell_command::bash::parse_shell_lc_single_command_prefix;
+use datax_shell_escalation::EscalateServer;
+use datax_shell_escalation::EscalationDecision;
+use datax_shell_escalation::EscalationExecution;
+use datax_shell_escalation::EscalationPermissions;
+use datax_shell_escalation::EscalationPolicy;
+use datax_shell_escalation::EscalationPolicyFuture;
+use datax_shell_escalation::EscalationSession;
+use datax_shell_escalation::ExecParams;
+use datax_shell_escalation::ExecResult;
+use datax_shell_escalation::PreparedExec;
+use datax_shell_escalation::ResolvedPermissionProfile;
+use datax_shell_escalation::ShellCommandExecutor;
+use datax_shell_escalation::ShellCommandExecutorFuture;
+use datax_shell_escalation::Stopwatch;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_path_uri::PathUri;
 use std::collections::HashMap;
 use std::io;
 use std::path::PathBuf;
@@ -459,7 +459,7 @@ impl CoreShellActionProvider {
             .pause_for(async move {
                 // 1) Run PermissionRequest hooks
                 let permission_request = PermissionRequestPayload::bash(
-                    codex_shell_command::parse_command::shlex_join(&command),
+                    datax_shell_command::parse_command::shlex_join(&command),
                     /*description*/ None,
                 );
                 let effective_approval_id = approval_id.clone().unwrap_or_else(|| call_id.clone());
@@ -815,7 +815,7 @@ struct CoreShellCommandExecutor {
     network_sandbox_policy: NetworkSandboxPolicy,
     sandbox: SandboxType,
     env: HashMap<String, String>,
-    network: Option<codex_network_proxy::NetworkProxy>,
+    network: Option<datax_network_proxy::NetworkProxy>,
     network_environment_id: Option<String>,
     windows_sandbox_level: WindowsSandboxLevel,
     arg0: Option<String>,

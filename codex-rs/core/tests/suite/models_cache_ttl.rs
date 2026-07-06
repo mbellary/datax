@@ -6,22 +6,6 @@ use anyhow::Result;
 use chrono::DateTime;
 use chrono::TimeZone;
 use chrono::Utc;
-use codex_login::CodexAuth;
-use codex_models_manager::client_version_to_whole;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::openai_models::ConfigShellToolType;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelVisibility;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::openai_models::ReasoningEffortPreset;
-use codex_protocol::openai_models::TruncationPolicyConfig;
-use codex_protocol::openai_models::default_input_modalities;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::UserInput;
 use core_test_support::responses;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -31,6 +15,22 @@ use core_test_support::responses::sse_response;
 use core_test_support::test_codex::test_codex;
 use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::wait_for_event;
+use datax_login::CodexAuth;
+use datax_models_manager::client_version_to_whole;
+use datax_models_manager::manager::RefreshStrategy;
+use datax_protocol::config_types::ReasoningSummary;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::openai_models::ConfigShellToolType;
+use datax_protocol::openai_models::ModelInfo;
+use datax_protocol::openai_models::ModelVisibility;
+use datax_protocol::openai_models::ModelsResponse;
+use datax_protocol::openai_models::ReasoningEffort;
+use datax_protocol::openai_models::ReasoningEffortPreset;
+use datax_protocol::openai_models::TruncationPolicyConfig;
+use datax_protocol::openai_models::default_input_modalities;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
+use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 use serde::Serialize;
@@ -38,10 +38,10 @@ use wiremock::MockServer;
 
 const ETAG: &str = "\"models-etag-ttl\"";
 const CACHE_FILE: &str = "models_cache.json";
-const REMOTE_MODEL: &str = "codex-test-ttl";
-const VERSIONED_MODEL: &str = "codex-test-versioned";
-const MISSING_VERSION_MODEL: &str = "codex-test-missing-version";
-const DIFFERENT_VERSION_MODEL: &str = "codex-test-different-version";
+const REMOTE_MODEL: &str = "datax-test-ttl";
+const VERSIONED_MODEL: &str = "datax-test-versioned";
+const MISSING_VERSION_MODEL: &str = "datax-test-missing-version";
+const DIFFERENT_VERSION_MODEL: &str = "datax-test-different-version";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn renews_cache_ttl_on_matching_models_etag() -> Result<()> {
@@ -101,14 +101,14 @@ async fn renews_cache_ttl_on_matching_models_etag() -> Result<()> {
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(test.config.cwd.clone())),
-                approval_policy: Some(codex_protocol::protocol::AskForApproval::Never),
+                approval_policy: Some(datax_protocol::protocol::AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                    mode: datax_protocol::config_types::ModeKind::Default,
+                    settings: datax_protocol::config_types::Settings {
                         model: test.session_configured.model.clone(),
                         reasoning_effort: None,
                         developer_instructions: None,

@@ -1,21 +1,21 @@
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::Turn;
-use codex_app_server_protocol::TurnStatus;
-use codex_core::config::ConfigBuilder;
-use codex_protocol::SessionId;
-use codex_protocol::ThreadId;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::SessionConfiguredEvent;
-use codex_utils_absolute_path::test_support::PathBufExt;
-use codex_utils_absolute_path::test_support::test_path_buf;
-use codex_utils_sandbox_summary::summarize_permission_profile;
+use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::ThreadItem;
+use datax_app_server_protocol::Turn;
+use datax_app_server_protocol::TurnStatus;
+use datax_core::config::ConfigBuilder;
+use datax_protocol::SessionId;
+use datax_protocol::ThreadId;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::permissions::FileSystemAccessMode;
+use datax_protocol::permissions::FileSystemPath;
+use datax_protocol::permissions::FileSystemSandboxEntry;
+use datax_protocol::permissions::FileSystemSandboxPolicy;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::SessionConfiguredEvent;
+use datax_utils_absolute_path::test_support::PathBufExt;
+use datax_utils_absolute_path::test_support::test_path_buf;
+use datax_utils_sandbox_summary::summarize_permission_profile;
 use owo_colors::Style;
 use pretty_assertions::assert_eq;
 
@@ -306,11 +306,11 @@ fn turn_completed_recovers_final_message_from_turn_items() {
     };
 
     let status = processor.process_server_notification(ServerNotification::TurnCompleted(
-        codex_app_server_protocol::TurnCompletedNotification {
+        datax_app_server_protocol::TurnCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::TurnItemsView::Full,
                 items: vec![ThreadItem::AgentMessage {
                     id: "msg-1".to_string(),
                     text: "final answer".to_string(),
@@ -354,11 +354,11 @@ fn turn_completed_overwrites_stale_final_message_from_turn_items() {
     };
 
     let status = processor.process_server_notification(ServerNotification::TurnCompleted(
-        codex_app_server_protocol::TurnCompletedNotification {
+        datax_app_server_protocol::TurnCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::TurnItemsView::Full,
                 items: vec![ThreadItem::AgentMessage {
                     id: "msg-1".to_string(),
                     text: "final answer".to_string(),
@@ -403,11 +403,11 @@ fn turn_completed_preserves_streamed_final_message_when_turn_items_are_empty() {
     };
 
     let status = processor.process_server_notification(ServerNotification::TurnCompleted(
-        codex_app_server_protocol::TurnCompletedNotification {
+        datax_app_server_protocol::TurnCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: TurnStatus::Completed,
                 error: None,
@@ -447,11 +447,11 @@ fn turn_failed_clears_stale_final_message() {
     };
 
     let status = processor.process_server_notification(ServerNotification::TurnCompleted(
-        codex_app_server_protocol::TurnCompletedNotification {
+        datax_app_server_protocol::TurnCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: TurnStatus::Failed,
                 error: None,
@@ -492,11 +492,11 @@ fn turn_interrupted_clears_stale_final_message() {
     };
 
     let status = processor.process_server_notification(ServerNotification::TurnCompleted(
-        codex_app_server_protocol::TurnCompletedNotification {
+        datax_app_server_protocol::TurnCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: TurnStatus::Interrupted,
                 error: None,

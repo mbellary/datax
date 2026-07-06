@@ -1,12 +1,12 @@
 use crate::config::edit::ConfigEditsBuilder;
-use codex_config::config_toml::ConfigToml;
-use codex_protocol::config_types::Personality;
-use codex_rollout::state_db::StateDbHandle;
-use codex_thread_store::ListThreadsParams;
-use codex_thread_store::LocalThreadStore;
-use codex_thread_store::LocalThreadStoreConfig;
-use codex_thread_store::ThreadSortKey;
-use codex_thread_store::ThreadStore;
+use datax_config::config_toml::ConfigToml;
+use datax_protocol::config_types::Personality;
+use datax_rollout::state_db::StateDbHandle;
+use datax_thread_store::ListThreadsParams;
+use datax_thread_store::LocalThreadStore;
+use datax_thread_store::LocalThreadStoreConfig;
+use datax_thread_store::ThreadSortKey;
+use datax_thread_store::ThreadStore;
 use std::io;
 use std::path::Path;
 use tokio::fs::OpenOptions;
@@ -84,7 +84,7 @@ async fn has_threads(store: &LocalThreadStore, archived: bool) -> io::Result<boo
             page_size: 1,
             cursor: None,
             sort_key: ThreadSortKey::CreatedAt,
-            sort_direction: codex_thread_store::SortDirection::Desc,
+            sort_direction: datax_thread_store::SortDirection::Desc,
             allowed_sources: Vec::new(),
             model_providers: None,
             cwd_filters: None,

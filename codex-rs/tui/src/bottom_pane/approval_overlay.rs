@@ -38,27 +38,27 @@ use crate::keymap::primary_binding;
 use crate::render::highlight::highlight_bash_to_lines;
 use crate::render::renderable::ColumnRenderable;
 use crate::render::renderable::Renderable;
-use codex_app_server_protocol::AdditionalPermissionProfile;
-use codex_app_server_protocol::CommandExecutionApprovalDecision;
-use codex_app_server_protocol::FileChangeApprovalDecision;
-use codex_app_server_protocol::FileSystemAccessMode;
-use codex_app_server_protocol::FileSystemPath;
-use codex_app_server_protocol::FileSystemSandboxEntry;
-use codex_app_server_protocol::FileSystemSpecialPath;
-use codex_app_server_protocol::McpServerElicitationAction;
-use codex_app_server_protocol::NetworkApprovalContext;
-use codex_app_server_protocol::NetworkApprovalProtocol;
-use codex_app_server_protocol::NetworkPolicyRuleAction;
-use codex_app_server_protocol::RequestId;
-use codex_features::Features;
-use codex_protocol::ThreadId;
-use codex_protocol::request_permissions::PermissionGrantScope;
-use codex_protocol::request_permissions::RequestPermissionProfile;
-use codex_utils_absolute_path::AbsolutePathBuf;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
 use crossterm::event::KeyModifiers;
+use datax_app_server_protocol::AdditionalPermissionProfile;
+use datax_app_server_protocol::CommandExecutionApprovalDecision;
+use datax_app_server_protocol::FileChangeApprovalDecision;
+use datax_app_server_protocol::FileSystemAccessMode;
+use datax_app_server_protocol::FileSystemPath;
+use datax_app_server_protocol::FileSystemSandboxEntry;
+use datax_app_server_protocol::FileSystemSpecialPath;
+use datax_app_server_protocol::McpServerElicitationAction;
+use datax_app_server_protocol::NetworkApprovalContext;
+use datax_app_server_protocol::NetworkApprovalProtocol;
+use datax_app_server_protocol::NetworkPolicyRuleAction;
+use datax_app_server_protocol::RequestId;
+use datax_features::Features;
+use datax_protocol::ThreadId;
+use datax_protocol::request_permissions::PermissionGrantScope;
+use datax_protocol::request_permissions::RequestPermissionProfile;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Stylize;
@@ -428,7 +428,7 @@ impl ApprovalOverlay {
         self.app_event_tx.request_permissions_response(
             thread_id,
             call_id.to_string(),
-            codex_protocol::request_permissions::RequestPermissionsResponse {
+            datax_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: granted_permissions,
                 scope,
                 strict_auto_review,
@@ -1134,15 +1134,15 @@ fn elicitation_options(keymap: &ApprovalKeymap) -> Vec<ApprovalOption> {
 mod tests {
     use super::*;
     use crate::app_event::AppEvent;
-    use codex_app_server_protocol::AdditionalFileSystemPermissions;
-    use codex_app_server_protocol::AdditionalNetworkPermissions;
-    use codex_app_server_protocol::ExecPolicyAmendment;
-    use codex_app_server_protocol::NetworkApprovalProtocol;
-    use codex_app_server_protocol::NetworkPolicyAmendment;
-    use codex_protocol::models::FileSystemPermissions;
-    use codex_protocol::models::NetworkPermissions;
-    use codex_utils_absolute_path::AbsolutePathBuf;
     use crossterm::event::KeyModifiers;
+    use datax_app_server_protocol::AdditionalFileSystemPermissions;
+    use datax_app_server_protocol::AdditionalNetworkPermissions;
+    use datax_app_server_protocol::ExecPolicyAmendment;
+    use datax_app_server_protocol::NetworkApprovalProtocol;
+    use datax_app_server_protocol::NetworkPolicyAmendment;
+    use datax_protocol::models::FileSystemPermissions;
+    use datax_protocol::models::NetworkPermissions;
+    use datax_utils_absolute_path::AbsolutePathBuf;
     use insta::assert_snapshot;
     use pretty_assertions::assert_eq;
     use tokio::sync::mpsc::unbounded_channel;

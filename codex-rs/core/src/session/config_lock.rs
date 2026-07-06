@@ -1,17 +1,17 @@
 use anyhow::Context;
-use codex_config::config_toml::ConfigLockfileToml;
-use codex_config::config_toml::ConfigToml;
-use codex_config::config_toml::OrchestratorFeatureToml;
-use codex_config::config_toml::OrchestratorToml;
-use codex_config::types::MemoriesToml;
-use codex_features::CurrentTimeReminderConfigToml;
-use codex_features::Feature;
-use codex_features::FeatureToml;
-use codex_features::FeaturesToml;
-use codex_features::MultiAgentV2ConfigToml;
-use codex_features::RolloutBudgetConfigToml;
-use codex_features::TokenBudgetConfigToml;
-use codex_protocol::ThreadId;
+use datax_config::config_toml::ConfigLockfileToml;
+use datax_config::config_toml::ConfigToml;
+use datax_config::config_toml::OrchestratorFeatureToml;
+use datax_config::config_toml::OrchestratorToml;
+use datax_config::types::MemoriesToml;
+use datax_features::CurrentTimeReminderConfigToml;
+use datax_features::Feature;
+use datax_features::FeatureToml;
+use datax_features::FeaturesToml;
+use datax_features::MultiAgentV2ConfigToml;
+use datax_features::RolloutBudgetConfigToml;
+use datax_features::TokenBudgetConfigToml;
+use datax_protocol::ThreadId;
 
 use crate::config::Config;
 use crate::config_lock::ConfigLockReplayOptions;
@@ -298,7 +298,7 @@ mod tests {
             .as_ref()
             .expect("lock should materialize feature states");
         let feature_entries = features.entries();
-        for spec in codex_features::FEATURES {
+        for spec in datax_features::FEATURES {
             assert_eq!(
                 feature_entries.get(spec.key),
                 Some(&sc.original_config_do_not_use.features.enabled(spec.id)),
@@ -358,7 +358,7 @@ mod tests {
             Some(FeatureToml::Config(CurrentTimeReminderConfigToml {
                 enabled: Some(true),
                 reminder_interval_model_requests: Some(1),
-                clock_source: Some(codex_features::CurrentTimeSource::System),
+                clock_source: Some(datax_features::CurrentTimeSource::System),
             }))
         );
 

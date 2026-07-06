@@ -1,10 +1,10 @@
-use codex_protocol::models::ManagedFileSystemPermissions;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_protocol::models::ManagedFileSystemPermissions;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::permissions::FileSystemAccessMode;
+use datax_protocol::permissions::FileSystemPath;
+use datax_protocol::permissions::FileSystemSandboxEntry;
+use datax_protocol::permissions::FileSystemSpecialPath;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use std::collections::HashSet;
 use std::path::PathBuf;
 

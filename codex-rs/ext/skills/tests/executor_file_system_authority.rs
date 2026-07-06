@@ -3,27 +3,27 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 
-use codex_core_skills::HostSkillsSnapshot;
-use codex_core_skills::loader::SkillRoot;
-use codex_core_skills::loader::load_skills_from_roots;
-use codex_exec_server::CopyOptions;
-use codex_exec_server::CreateDirectoryOptions;
-use codex_exec_server::EnvironmentManager;
-use codex_exec_server::ExecutorFileSystem;
-use codex_exec_server::ExecutorFileSystemFuture;
-use codex_exec_server::FileMetadata;
-use codex_exec_server::FileSystemReadStream;
-use codex_exec_server::FileSystemSandboxContext;
-use codex_exec_server::ReadDirectoryEntry;
-use codex_exec_server::RemoveOptions;
-use codex_protocol::capabilities::CapabilityRootLocation;
-use codex_protocol::capabilities::SelectedCapabilityRoot;
-use codex_protocol::protocol::SkillScope;
-use codex_skills_extension::ExecutorSkillProvider;
-use codex_skills_extension::provider::SkillListQuery;
-use codex_skills_extension::provider::SkillProvider;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use datax_core_skills::HostSkillsSnapshot;
+use datax_core_skills::loader::SkillRoot;
+use datax_core_skills::loader::load_skills_from_roots;
+use datax_exec_server::CopyOptions;
+use datax_exec_server::CreateDirectoryOptions;
+use datax_exec_server::EnvironmentManager;
+use datax_exec_server::ExecutorFileSystem;
+use datax_exec_server::ExecutorFileSystemFuture;
+use datax_exec_server::FileMetadata;
+use datax_exec_server::FileSystemReadStream;
+use datax_exec_server::FileSystemSandboxContext;
+use datax_exec_server::ReadDirectoryEntry;
+use datax_exec_server::RemoveOptions;
+use datax_protocol::capabilities::CapabilityRootLocation;
+use datax_protocol::capabilities::SelectedCapabilityRoot;
+use datax_protocol::protocol::SkillScope;
+use datax_skills_extension::ExecutorSkillProvider;
+use datax_skills_extension::provider::SkillListQuery;
+use datax_skills_extension::provider::SkillProvider;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_path_uri::PathUri;
 use pretty_assertions::assert_eq;
 
 const SKILL_CONTENTS: &str =
@@ -180,7 +180,7 @@ impl ExecutorFileSystem for SyntheticFileSystem {
 #[tokio::test]
 async fn skill_loading_and_reads_use_the_supplied_executor_file_system() {
     let test_root =
-        std::env::temp_dir().join(format!("codex-executor-skill-fs-{}", std::process::id()));
+        std::env::temp_dir().join(format!("datax-executor-skill-fs-{}", std::process::id()));
     let alias_root = AbsolutePathBuf::from_absolute_path_checked(test_root.join("alias"))
         .expect("absolute path");
     let canonical_root = AbsolutePathBuf::from_absolute_path_checked(test_root.join("canonical"))
@@ -288,7 +288,7 @@ async fn selected_root_id_distinguishes_identical_executor_paths() {
 fn create_local_skill_root(label: &str) -> io::Result<std::path::PathBuf> {
     let id = NEXT_TEST_ROOT_ID.fetch_add(1, Ordering::Relaxed);
     let test_root = std::env::temp_dir().join(format!(
-        "codex-executor-skill-{label}-{}-{id}",
+        "datax-executor-skill-{label}-{}-{id}",
         std::process::id()
     ));
     let skill_dir = test_root.join("skill");

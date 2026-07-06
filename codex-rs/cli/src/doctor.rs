@@ -28,38 +28,38 @@ use std::time::Instant;
 
 use anyhow::Context;
 use clap::Parser;
-use codex_api::ApiError;
-use codex_api::ResponsesWebsocketClient;
-use codex_api::is_azure_responses_provider;
-use codex_arg0::Arg0DispatchPaths;
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerTransportConfig;
-use codex_core::config::Config;
-use codex_core::config::ConfigBuilder;
-use codex_core::config::ConfigOverrides;
-use codex_core::config::find_codex_home;
-use codex_features::FEATURES;
-use codex_install_context::CodexPackageLayout;
-use codex_install_context::InstallContext;
-use codex_install_context::InstallMethod;
-use codex_install_context::StandalonePlatform;
-use codex_login::AuthDotJson;
-use codex_login::AuthManager;
-use codex_login::CODEX_ACCESS_TOKEN_ENV_VAR;
-use codex_login::CODEX_API_KEY_ENV_VAR;
-use codex_login::CodexAuth;
-use codex_login::OPENAI_API_KEY_ENV_VAR;
-use codex_login::default_client::build_reqwest_client;
-use codex_login::default_client::default_headers;
-use codex_login::load_auth_dot_json;
-use codex_model_provider::create_model_provider;
-use codex_protocol::protocol::AskForApproval;
-use codex_terminal_detection::Multiplexer;
-use codex_terminal_detection::TerminalInfo;
-use codex_terminal_detection::TerminalName;
-use codex_terminal_detection::terminal_info;
-use codex_tui::Cli as TuiCli;
-use codex_utils_cli::CliConfigOverrides;
+use datax_api::ApiError;
+use datax_api::ResponsesWebsocketClient;
+use datax_api::is_azure_responses_provider;
+use datax_arg0::Arg0DispatchPaths;
+use datax_config::types::McpServerConfig;
+use datax_config::types::McpServerTransportConfig;
+use datax_core::config::Config;
+use datax_core::config::ConfigBuilder;
+use datax_core::config::ConfigOverrides;
+use datax_core::config::find_codex_home;
+use datax_features::FEATURES;
+use datax_install_context::CodexPackageLayout;
+use datax_install_context::InstallContext;
+use datax_install_context::InstallMethod;
+use datax_install_context::StandalonePlatform;
+use datax_login::AuthDotJson;
+use datax_login::AuthManager;
+use datax_login::CODEX_ACCESS_TOKEN_ENV_VAR;
+use datax_login::CODEX_API_KEY_ENV_VAR;
+use datax_login::CodexAuth;
+use datax_login::OPENAI_API_KEY_ENV_VAR;
+use datax_login::default_client::build_reqwest_client;
+use datax_login::default_client::default_headers;
+use datax_login::load_auth_dot_json;
+use datax_model_provider::create_model_provider;
+use datax_protocol::protocol::AskForApproval;
+use datax_terminal_detection::Multiplexer;
+use datax_terminal_detection::TerminalInfo;
+use datax_terminal_detection::TerminalName;
+use datax_terminal_detection::terminal_info;
+use datax_tui::Cli as TuiCli;
+use datax_utils_cli::CliConfigOverrides;
 use http::HeaderMap;
 use http::HeaderValue;
 use serde::Serialize;
@@ -529,7 +529,7 @@ fn config_overrides_from_interactive(
         interactive.approval_policy.map(Into::into)
     };
     let sandbox_mode = if interactive.dangerously_bypass_approvals_and_sandbox {
-        Some(codex_protocol::config_types::SandboxMode::DangerFullAccess)
+        Some(datax_protocol::config_types::SandboxMode::DangerFullAccess)
     } else {
         interactive.sandbox_mode.map(Into::into)
     };
@@ -1148,7 +1148,7 @@ fn feature_flag_details(config: &Config, details: &mut Vec<String>) {
 }
 
 fn config_toml_details(config: &Config, details: &mut Vec<String>) {
-    let config_path = config.codex_home.join(codex_config::CONFIG_TOML_FILE);
+    let config_path = config.codex_home.join(datax_config::CONFIG_TOML_FILE);
     details.push(format!("config.toml: {}", config_path.display()));
     match std::fs::read_to_string(&config_path) {
         Ok(contents) => match toml::from_str::<toml::Value>(&contents) {
@@ -1320,29 +1320,29 @@ fn provider_specific_auth_check(
     }
 }
 
-fn stored_auth_mode(auth: &codex_login::AuthDotJson) -> &'static str {
+fn stored_auth_mode(auth: &datax_login::AuthDotJson) -> &'static str {
     match stored_auth_mode_value(auth) {
-        codex_app_server_protocol::AuthMode::ApiKey => "api_key",
-        codex_app_server_protocol::AuthMode::Chatgpt => "chatgpt",
-        codex_app_server_protocol::AuthMode::ChatgptAuthTokens => "chatgpt_auth_tokens",
-        codex_app_server_protocol::AuthMode::AgentIdentity => "agent_identity",
-        codex_app_server_protocol::AuthMode::PersonalAccessToken => "personal_access_token",
-        codex_app_server_protocol::AuthMode::BedrockApiKey => "bedrock_api_key",
+        datax_app_server_protocol::AuthMode::ApiKey => "api_key",
+        datax_app_server_protocol::AuthMode::Chatgpt => "chatgpt",
+        datax_app_server_protocol::AuthMode::ChatgptAuthTokens => "chatgpt_auth_tokens",
+        datax_app_server_protocol::AuthMode::AgentIdentity => "agent_identity",
+        datax_app_server_protocol::AuthMode::PersonalAccessToken => "personal_access_token",
+        datax_app_server_protocol::AuthMode::BedrockApiKey => "bedrock_api_key",
     }
 }
 
-fn stored_auth_mode_value(auth: &AuthDotJson) -> codex_app_server_protocol::AuthMode {
+fn stored_auth_mode_value(auth: &AuthDotJson) -> datax_app_server_protocol::AuthMode {
     if let Some(mode) = auth.auth_mode {
         return mode;
     }
     if auth.personal_access_token.is_some() {
-        codex_app_server_protocol::AuthMode::PersonalAccessToken
+        datax_app_server_protocol::AuthMode::PersonalAccessToken
     } else if auth.bedrock_api_key.is_some() {
-        codex_app_server_protocol::AuthMode::BedrockApiKey
+        datax_app_server_protocol::AuthMode::BedrockApiKey
     } else if auth.openai_api_key.is_some() {
-        codex_app_server_protocol::AuthMode::ApiKey
+        datax_app_server_protocol::AuthMode::ApiKey
     } else {
-        codex_app_server_protocol::AuthMode::Chatgpt
+        datax_app_server_protocol::AuthMode::Chatgpt
     }
 }
 
@@ -1352,7 +1352,7 @@ fn stored_auth_issues(
 ) -> Vec<&'static str> {
     let mut issues = Vec::new();
     match stored_auth_mode_value(auth) {
-        codex_app_server_protocol::AuthMode::ApiKey => {
+        datax_app_server_protocol::AuthMode::ApiKey => {
             let stored_key_present = auth
                 .openai_api_key
                 .as_deref()
@@ -1363,7 +1363,7 @@ fn stored_auth_issues(
                 issues.push("API key auth is missing an API key");
             }
         }
-        codex_app_server_protocol::AuthMode::Chatgpt => {
+        datax_app_server_protocol::AuthMode::Chatgpt => {
             match auth.tokens.as_ref() {
                 Some(tokens) => {
                     if tokens.access_token.trim().is_empty() {
@@ -1379,7 +1379,7 @@ fn stored_auth_issues(
                 issues.push("ChatGPT auth is missing refresh metadata");
             }
         }
-        codex_app_server_protocol::AuthMode::ChatgptAuthTokens => {
+        datax_app_server_protocol::AuthMode::ChatgptAuthTokens => {
             match auth.tokens.as_ref() {
                 Some(tokens) => {
                     if tokens.access_token.trim().is_empty() {
@@ -1395,7 +1395,7 @@ fn stored_auth_issues(
                 issues.push("external ChatGPT auth is missing refresh metadata");
             }
         }
-        codex_app_server_protocol::AuthMode::AgentIdentity => {
+        datax_app_server_protocol::AuthMode::AgentIdentity => {
             if auth
                 .agent_identity
                 .as_ref()
@@ -1404,7 +1404,7 @@ fn stored_auth_issues(
                 issues.push("agent identity auth is missing an agent identity token");
             }
         }
-        codex_app_server_protocol::AuthMode::PersonalAccessToken => {
+        datax_app_server_protocol::AuthMode::PersonalAccessToken => {
             if auth
                 .personal_access_token
                 .as_deref()
@@ -1413,7 +1413,7 @@ fn stored_auth_issues(
                 issues.push("personal access token auth is missing a personal access token");
             }
         }
-        codex_app_server_protocol::AuthMode::BedrockApiKey => {
+        datax_app_server_protocol::AuthMode::BedrockApiKey => {
             if auth.bedrock_api_key.is_none() {
                 issues.push("Bedrock API key auth is missing a Bedrock API key");
             }
@@ -1659,7 +1659,7 @@ fn sandbox_check(config: &Config, arg0_paths: &Arg0DispatchPaths) -> DoctorCheck
     ));
     push_path_detail(
         &mut details,
-        "codex-linux-sandbox helper",
+        "datax-linux-sandbox helper",
         arg0_paths.codex_linux_sandbox_exe.as_deref(),
     );
     push_path_detail(
@@ -2151,7 +2151,7 @@ async fn state_check(config: &Config) -> DoctorCheck {
     path_readiness(&mut details, "log dir", &config.log_dir);
     path_readiness(&mut details, "sqlite home", &config.sqlite_home);
     let mut integrity_failures = Vec::new();
-    for db in codex_state::runtime_db_paths(&config.sqlite_home) {
+    for db in datax_state::runtime_db_paths(&config.sqlite_home) {
         path_readiness(&mut details, db.label, &db.path);
         sqlite_integrity_detail(&mut details, &mut integrity_failures, db.label, &db.path).await;
     }
@@ -2188,7 +2188,7 @@ async fn sqlite_integrity_detail(
         return;
     }
 
-    match codex_state::sqlite_integrity_check(path).await {
+    match datax_state::sqlite_integrity_check(path).await {
         Ok(rows) if rows.iter().all(|row| row == "ok") => {
             details.push(format!("{label} integrity: ok"));
         }
@@ -2461,12 +2461,12 @@ fn websocket_error_detail(err: &ApiError) -> String {
 
 fn auth_mode_name(auth: &CodexAuth) -> &'static str {
     match auth.auth_mode() {
-        codex_app_server_protocol::AuthMode::ApiKey => "api_key",
-        codex_app_server_protocol::AuthMode::Chatgpt => "chatgpt",
-        codex_app_server_protocol::AuthMode::ChatgptAuthTokens => "chatgpt_auth_tokens",
-        codex_app_server_protocol::AuthMode::AgentIdentity => "agent_identity",
-        codex_app_server_protocol::AuthMode::PersonalAccessToken => "personal_access_token",
-        codex_app_server_protocol::AuthMode::BedrockApiKey => "bedrock_api_key",
+        datax_app_server_protocol::AuthMode::ApiKey => "api_key",
+        datax_app_server_protocol::AuthMode::Chatgpt => "chatgpt",
+        datax_app_server_protocol::AuthMode::ChatgptAuthTokens => "chatgpt_auth_tokens",
+        datax_app_server_protocol::AuthMode::AgentIdentity => "agent_identity",
+        datax_app_server_protocol::AuthMode::PersonalAccessToken => "personal_access_token",
+        datax_app_server_protocol::AuthMode::BedrockApiKey => "bedrock_api_key",
     }
 }
 
@@ -2600,14 +2600,14 @@ fn provider_auth_reachability_mode_from_auth(
     }
     match stored_auth.map(stored_auth_mode_value) {
         Some(
-            codex_app_server_protocol::AuthMode::ApiKey
-            | codex_app_server_protocol::AuthMode::BedrockApiKey,
+            datax_app_server_protocol::AuthMode::ApiKey
+            | datax_app_server_protocol::AuthMode::BedrockApiKey,
         ) => ProviderAuthReachabilityMode::ApiKey,
         Some(
-            codex_app_server_protocol::AuthMode::Chatgpt
-            | codex_app_server_protocol::AuthMode::ChatgptAuthTokens
-            | codex_app_server_protocol::AuthMode::AgentIdentity
-            | codex_app_server_protocol::AuthMode::PersonalAccessToken,
+            datax_app_server_protocol::AuthMode::Chatgpt
+            | datax_app_server_protocol::AuthMode::ChatgptAuthTokens
+            | datax_app_server_protocol::AuthMode::AgentIdentity
+            | datax_app_server_protocol::AuthMode::PersonalAccessToken,
         )
         | None => ProviderAuthReachabilityMode::Chatgpt,
     }
@@ -3078,7 +3078,7 @@ mod tests {
     use std::sync::Mutex;
 
     use clap::Parser;
-    use codex_protocol::config_types::SandboxMode;
+    use datax_protocol::config_types::SandboxMode;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -3501,7 +3501,7 @@ mod tests {
     #[test]
     fn stored_auth_validation_rejects_missing_api_key() {
         let auth = AuthDotJson {
-            auth_mode: Some(codex_app_server_protocol::AuthMode::ApiKey),
+            auth_mode: Some(datax_app_server_protocol::AuthMode::ApiKey),
             openai_api_key: None,
             tokens: None,
             last_refresh: None,
@@ -3553,7 +3553,7 @@ mod tests {
         assert_eq!(stored_auth_mode(&auth), "personal_access_token");
         assert!(stored_auth_issues(&auth, |_| false).is_empty());
 
-        auth.auth_mode = Some(codex_app_server_protocol::AuthMode::PersonalAccessToken);
+        auth.auth_mode = Some(datax_app_server_protocol::AuthMode::PersonalAccessToken);
         auth.personal_access_token = None;
         assert_eq!(
             stored_auth_issues(&auth, |_| false),
@@ -3564,7 +3564,7 @@ mod tests {
     #[test]
     fn provider_reachability_mode_uses_api_key_auth() {
         let api_key_auth = AuthDotJson {
-            auth_mode: Some(codex_app_server_protocol::AuthMode::ApiKey),
+            auth_mode: Some(datax_app_server_protocol::AuthMode::ApiKey),
             openai_api_key: Some("sk-test".to_string()),
             tokens: None,
             last_refresh: None,

@@ -6,18 +6,6 @@ use std::sync::OnceLock;
 
 use anyhow::Context;
 use anyhow::Result;
-use codex_exec_server::CreateDirectoryOptions;
-use codex_features::Feature;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecCommandSource;
-use codex_protocol::protocol::ExecCommandStatus;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::UserInput;
-use codex_utils_path_uri::PathUri;
 use core_test_support::TempDirExt;
 use core_test_support::assert_regex_match;
 use core_test_support::managed_network_requirements_loader;
@@ -42,6 +30,18 @@ use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_match;
 use core_test_support::wait_for_event_with_timeout;
+use datax_exec_server::CreateDirectoryOptions;
+use datax_features::Feature;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::ExecCommandSource;
+use datax_protocol::protocol::ExecCommandStatus;
+use datax_protocol::protocol::Op;
+use datax_protocol::user_input::UserInput;
+use datax_utils_path_uri::PathUri;
 use pretty_assertions::assert_eq;
 use regex_lite::Regex;
 use serde_json::Value;
@@ -204,13 +204,13 @@ async fn submit_unified_exec_turn(
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                    mode: datax_protocol::config_types::ModeKind::Default,
+                    settings: datax_protocol::config_types::Settings {
                         model: session_model,
                         reasoning_effort: None,
                         developer_instructions: None,
@@ -296,14 +296,14 @@ async fn unified_exec_intercepts_apply_patch_exec_command() -> Result<()> {
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(cwd)),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                    mode: datax_protocol::config_types::ModeKind::Default,
+                    settings: datax_protocol::config_types::Settings {
                         model: session_model,
                         reasoning_effort: None,
                         developer_instructions: None,
@@ -910,7 +910,7 @@ async fn unified_exec_short_lived_network_denial_emits_failed_end_event() -> Res
 async fn unified_exec_network_denial_test(
     server: &wiremock::MockServer,
 ) -> Result<(TestCodex, PermissionProfile)> {
-    use codex_config::Constrained;
+    use datax_config::Constrained;
     use std::sync::Arc;
     use tempfile::TempDir;
 
@@ -983,7 +983,7 @@ async fn wait_for_unified_exec_end(
     test: &TestCodex,
     call_id: &str,
     response_mock: &core_test_support::responses::ResponseMock,
-) -> (codex_protocol::protocol::ExecCommandEndEvent, bool) {
+) -> (datax_protocol::protocol::ExecCommandEndEvent, bool) {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
     let mut observed_events = Vec::new();
     let mut turn_completed = false;
@@ -2438,14 +2438,14 @@ async fn unified_exec_keeps_long_running_session_after_turn_end() -> Result<()> 
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(turn_cwd)),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                    mode: datax_protocol::config_types::ModeKind::Default,
+                    settings: datax_protocol::config_types::Settings {
                         model: session_model,
                         reasoning_effort: None,
                         developer_instructions: None,
@@ -2541,14 +2541,14 @@ async fn unified_exec_interrupt_preserves_long_running_session() -> Result<()> {
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(turn_cwd)),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                    mode: datax_protocol::config_types::ModeKind::Default,
+                    settings: datax_protocol::config_types::Settings {
                         model: session_model,
                         reasoning_effort: None,
                         developer_instructions: None,
@@ -3024,14 +3024,14 @@ async fn unified_exec_runs_under_sandbox() -> Result<()> {
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(turn_cwd)),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                    mode: datax_protocol::config_types::ModeKind::Default,
+                    settings: datax_protocol::config_types::Settings {
                         model: session_model,
                         reasoning_effort: None,
                         developer_instructions: None,
@@ -3062,12 +3062,12 @@ async fn unified_exec_runs_under_sandbox() -> Result<()> {
 #[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unified_exec_enforces_glob_deny_read_policy() -> Result<()> {
-    use codex_protocol::models::PermissionProfile;
-    use codex_protocol::permissions::FileSystemAccessMode;
-    use codex_protocol::permissions::FileSystemPath;
-    use codex_protocol::permissions::FileSystemSandboxEntry;
-    use codex_protocol::permissions::FileSystemSandboxPolicy;
-    use codex_protocol::permissions::NetworkSandboxPolicy;
+    use datax_protocol::models::PermissionProfile;
+    use datax_protocol::permissions::FileSystemAccessMode;
+    use datax_protocol::permissions::FileSystemPath;
+    use datax_protocol::permissions::FileSystemSandboxEntry;
+    use datax_protocol::permissions::FileSystemSandboxPolicy;
+    use datax_protocol::permissions::NetworkSandboxPolicy;
 
     skip_if_no_network!(Ok(()));
     skip_if_sandbox!(Ok(()));
@@ -3146,14 +3146,14 @@ async fn unified_exec_enforces_glob_deny_read_policy() -> Result<()> {
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(turn_cwd)),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                    mode: datax_protocol::config_types::ModeKind::Default,
+                    settings: datax_protocol::config_types::Settings {
                         model: session_model,
                         reasoning_effort: None,
                         developer_instructions: None,
@@ -3284,14 +3284,14 @@ async fn unified_exec_python_prompt_under_seatbelt() -> Result<()> {
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(turn_cwd)),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                    mode: datax_protocol::config_types::ModeKind::Default,
+                    settings: datax_protocol::config_types::Settings {
                         model: session_model,
                         reasoning_effort: None,
                         developer_instructions: None,

@@ -8,10 +8,10 @@
 //! ## Usage
 //!
 //! ```no_run
-//! use codex_state::log_db;
+//! use datax_state::log_db;
 //! use tracing_subscriber::prelude::*;
 //!
-//! # async fn example(state_db: std::sync::Arc<codex_state::StateRuntime>) {
+//! # async fn example(state_db: std::sync::Arc<datax_state::StateRuntime>) {
 //! let layer = log_db::start(state_db);
 //! let _ = tracing_subscriber::registry()
 //!     .with(layer)
@@ -491,7 +491,7 @@ mod tests {
     use super::*;
 
     fn temp_codex_home() -> std::path::PathBuf {
-        std::env::temp_dir().join(format!("codex-state-log-db-{}", Uuid::new_v4()))
+        std::env::temp_dir().join(format!("datax-state-log-db-{}", Uuid::new_v4()))
     }
 
     async fn wait_for_log_count(runtime: &StateRuntime, expected: usize) -> Vec<crate::LogRow> {

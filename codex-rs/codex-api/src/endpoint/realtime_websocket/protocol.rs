@@ -1,11 +1,11 @@
 use crate::endpoint::realtime_websocket::protocol_v1::parse_realtime_event_v1;
 use crate::endpoint::realtime_websocket::protocol_v2::parse_realtime_event_v2;
-use codex_protocol::protocol::ConversationTextRole;
-pub use codex_protocol::protocol::RealtimeAudioFrame;
-pub use codex_protocol::protocol::RealtimeEvent;
-pub use codex_protocol::protocol::RealtimeOutputModality;
-pub use codex_protocol::protocol::RealtimeTranscriptEntry;
-pub use codex_protocol::protocol::RealtimeVoice;
+use datax_protocol::protocol::ConversationTextRole;
+pub use datax_protocol::protocol::RealtimeAudioFrame;
+pub use datax_protocol::protocol::RealtimeEvent;
+pub use datax_protocol::protocol::RealtimeOutputModality;
+pub use datax_protocol::protocol::RealtimeTranscriptEntry;
+pub use datax_protocol::protocol::RealtimeVoice;
 use serde::Serialize;
 use serde_json::Value;
 

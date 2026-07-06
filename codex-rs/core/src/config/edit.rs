@@ -1,15 +1,15 @@
 use crate::path_utils::resolve_symlink_write_paths;
 use crate::path_utils::write_atomically;
 use anyhow::Context;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::types::McpServerConfig;
-use codex_config::types::SessionPickerViewMode;
-use codex_config::types::ToolSuggestDisabledTool;
-use codex_features::FEATURES;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::openai_models::ReasoningEffort;
+use datax_config::CONFIG_TOML_FILE;
+use datax_config::types::McpServerConfig;
+use datax_config::types::SessionPickerViewMode;
+use datax_config::types::ToolSuggestDisabledTool;
+use datax_features::FEATURES;
+use datax_protocol::config_types::Personality;
+use datax_protocol::config_types::ServiceTier;
+use datax_protocol::config_types::TrustLevel;
+use datax_protocol::openai_models::ReasoningEffort;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -764,7 +764,7 @@ impl ConfigEditsBuilder {
         let config_path = config
             .config_layer_stack
             .get_user_config_file()
-            .map(codex_utils_absolute_path::AbsolutePathBuf::to_path_buf)
+            .map(datax_utils_absolute_path::AbsolutePathBuf::to_path_buf)
             .unwrap_or_else(|| config.codex_home.join(CONFIG_TOML_FILE).to_path_buf());
         Self::for_config_path(&config_path)
     }

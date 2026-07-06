@@ -1,6 +1,6 @@
-use codex_protocol::AgentPath;
-use codex_protocol::protocol::AgentStatus;
-use codex_utils_output_truncation::approx_token_count;
+use datax_protocol::AgentPath;
+use datax_protocol::protocol::AgentStatus;
+use datax_utils_output_truncation::approx_token_count;
 
 use super::COMPLETION_MESSAGE_MAX_TOKENS;
 use super::ERROR_NEXT_ACTION;

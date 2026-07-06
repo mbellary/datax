@@ -1,9 +1,4 @@
 use anyhow::Result;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::ByteRange;
-use codex_protocol::user_input::TextElement;
-use codex_protocol::user_input::UserInput;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_reasoning_item;
@@ -17,6 +12,11 @@ use core_test_support::test_codex::TestCodex;
 use core_test_support::test_codex::TestCodexBuilder;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
+use datax_protocol::user_input::ByteRange;
+use datax_protocol::user_input::TextElement;
+use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -425,7 +425,7 @@ async fn resume_model_switch_is_not_duplicated_after_pre_turn_override() -> Resu
     let resumed = resume_builder.resume(&server, home, rollout_path).await?;
     core_test_support::submit_thread_settings(
         &resumed.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        datax_protocol::protocol::ThreadSettingsOverrides {
             model: Some("gpt-5.4".to_string()),
             ..Default::default()
         },

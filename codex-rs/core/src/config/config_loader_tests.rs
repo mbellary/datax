@@ -3,41 +3,41 @@ use crate::config::ConfigOverrides;
 use crate::config::ConstraintError;
 use crate::config::PermissionProfileCatalogEntry;
 use crate::config::permission_profile_catalog;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::CloudConfigBundleLoadError;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::ConfigError;
-use codex_config::ConfigLayerEntry;
-use codex_config::ConfigLayerStackOrdering;
-use codex_config::ConfigLoadError;
-use codex_config::ConfigLoadOptions;
-use codex_config::ConfigRequirements;
-use codex_config::ConfigRequirementsToml;
-use codex_config::ConfigRequirementsWithSources;
-use codex_config::FilesystemDenyReadPattern;
-use codex_config::LoaderOverrides;
-use codex_config::RequirementSource;
-use codex_config::RequirementsLayerEntry;
-use codex_config::SessionThreadConfig;
-use codex_config::StaticThreadConfigLoader;
-use codex_config::ThreadConfigSource;
-use codex_config::compose_requirements;
-use codex_config::config_error_from_ignored_toml_fields;
-use codex_config::config_error_from_toml;
-use codex_config::config_toml::ConfigToml;
-use codex_config::config_toml::ProjectConfig;
-use codex_config::loader::load_config_layers_state;
-use codex_config::loader::load_requirements_toml;
-use codex_config::test_support::CloudConfigBundleFixture;
-use codex_exec_server::LOCAL_FS;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_DANGER_FULL_ACCESS;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_app_server_protocol::ConfigLayerSource;
+use datax_config::CONFIG_TOML_FILE;
+use datax_config::CloudConfigBundleLoadError;
+use datax_config::CloudConfigBundleLoader;
+use datax_config::ConfigError;
+use datax_config::ConfigLayerEntry;
+use datax_config::ConfigLayerStackOrdering;
+use datax_config::ConfigLoadError;
+use datax_config::ConfigLoadOptions;
+use datax_config::ConfigRequirements;
+use datax_config::ConfigRequirementsToml;
+use datax_config::ConfigRequirementsWithSources;
+use datax_config::FilesystemDenyReadPattern;
+use datax_config::LoaderOverrides;
+use datax_config::RequirementSource;
+use datax_config::RequirementsLayerEntry;
+use datax_config::SessionThreadConfig;
+use datax_config::StaticThreadConfigLoader;
+use datax_config::ThreadConfigSource;
+use datax_config::compose_requirements;
+use datax_config::config_error_from_ignored_toml_fields;
+use datax_config::config_error_from_toml;
+use datax_config::config_toml::ConfigToml;
+use datax_config::config_toml::ProjectConfig;
+use datax_config::loader::load_config_layers_state;
+use datax_config::loader::load_requirements_toml;
+use datax_config::test_support::CloudConfigBundleFixture;
+use datax_exec_server::LOCAL_FS;
+use datax_protocol::config_types::TrustLevel;
+use datax_protocol::config_types::WebSearchMode;
+use datax_protocol::models::BUILT_IN_PERMISSION_PROFILE_DANGER_FULL_ACCESS;
+use datax_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::protocol::AskForApproval;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -169,7 +169,7 @@ invalid = ["#;
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await
     .expect_err("expected error");
@@ -200,7 +200,7 @@ invalid = ["#,
             ignore_user_config: true,
             ..Default::default()
         },
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -230,7 +230,7 @@ async fn ignore_rules_marks_config_stack_for_exec_policy_rule_skip() -> std::io:
             ignore_user_and_project_exec_policy_rules: true,
             ..Default::default()
         },
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -255,7 +255,7 @@ invalid = ["#;
         Some(cwd),
         &[] as &[(String, TomlValue)],
         overrides,
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await
     .expect_err("expected error");
@@ -282,9 +282,9 @@ async fn returns_config_error_for_schema_error_in_user_config() {
         .expect_err("expected error");
 
     let config_error = config_error_from_io(&err);
-    let _guard = codex_utils_absolute_path::AbsolutePathBufGuard::new(tmp.path());
+    let _guard = datax_utils_absolute_path::AbsolutePathBufGuard::new(tmp.path());
     let expected_config_error =
-        codex_config::config_error_from_typed_toml::<ConfigToml>(&config_path, contents)
+        datax_config::config_error_from_typed_toml::<ConfigToml>(&config_path, contents)
             .expect("schema error");
     assert_eq!(config_error, &expected_config_error);
 }
@@ -306,7 +306,7 @@ async fn top_level_allow_managed_hooks_only_in_user_config_does_not_enable_requi
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -340,7 +340,7 @@ command = "python3 /tmp/user-hook.py"
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -505,8 +505,8 @@ collaboration_modes = "true""#;
     let config_path = tmp.path().join(CONFIG_TOML_FILE);
     std::fs::write(&config_path, contents).expect("write config");
 
-    let _guard = codex_utils_absolute_path::AbsolutePathBufGuard::new(tmp.path());
-    let error = codex_config::config_error_from_typed_toml::<ConfigToml>(&config_path, contents)
+    let _guard = datax_utils_absolute_path::AbsolutePathBufGuard::new(tmp.path());
+    let error = datax_config::config_error_from_typed_toml::<ConfigToml>(&config_path, contents)
         .expect("schema error");
 
     let value_line = contents.lines().nth(1).expect("value line");
@@ -549,7 +549,7 @@ extra = true
         Some(cwd),
         &[] as &[(String, TomlValue)],
         overrides,
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await
     .expect("load config");
@@ -582,7 +582,7 @@ async fn returns_empty_when_all_layers_missing() {
         Some(cwd),
         &[] as &[(String, TomlValue)],
         overrides,
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await
     .expect("load layers");
@@ -658,7 +658,7 @@ approval_policy = "on-failure"
         Some(cwd),
         &[] as &[(String, TomlValue)],
         overrides,
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await
     .expect("load layers");
@@ -799,7 +799,7 @@ flag = false
         Some(cwd),
         &[] as &[(String, TomlValue)],
         overrides,
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await
     .expect("load config");
@@ -833,7 +833,7 @@ flag = false
 async fn managed_preferences_expand_home_directory_in_workspace_write_roots() -> anyhow::Result<()>
 {
     use base64::Engine;
-    use codex_protocol::protocol::SandboxPolicy;
+    use datax_protocol::protocol::SandboxPolicy;
 
     let Some(home) = dirs::home_dir() else {
         return Ok(());
@@ -902,7 +902,7 @@ allowed_sandbox_modes = ["read-only"]
         Some(AbsolutePathBuf::try_from(tmp.path())?),
         &[] as &[(String, TomlValue)],
         loader_overrides,
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -963,7 +963,7 @@ allowed_approval_policies = ["never"]
         Some(AbsolutePathBuf::try_from(tmp.path())?),
         &[] as &[(String, TomlValue)],
         loader_overrides,
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -1014,14 +1014,14 @@ personality = true
             .allowed_web_search_modes
             .as_deref()
             .cloned(),
-        Some(vec![codex_config::WebSearchModeRequirement::Cached])
+        Some(vec![datax_config::WebSearchModeRequirement::Cached])
     );
     assert_eq!(
         config_requirements_toml
             .feature_requirements
             .as_ref()
             .map(|requirements| requirements.value.clone()),
-        Some(codex_config::FeatureRequirementsToml {
+        Some(datax_config::FeatureRequirementsToml {
             entries: BTreeMap::from([("personality".to_string(), true)]),
         })
     );
@@ -1060,14 +1060,14 @@ personality = true
     );
     assert_eq!(
         config_requirements.enforce_residency.value(),
-        Some(codex_config::ResidencyRequirement::Us)
+        Some(datax_config::ResidencyRequirement::Us)
     );
     assert_eq!(
         config_requirements
             .feature_requirements
             .as_ref()
             .map(|requirements| requirements.value.clone()),
-        Some(codex_config::FeatureRequirementsToml {
+        Some(datax_config::FeatureRequirementsToml {
             entries: BTreeMap::from([("personality".to_string(), true)]),
         })
     );
@@ -1101,7 +1101,7 @@ allowed_approval_policies = ["on-request"]
             ),
             ..Default::default()
         },
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -1337,7 +1337,7 @@ async fn load_config_layers_includes_cloud_config_bundle() -> anyhow::Result<()>
             cloud_config_bundle,
             ..Default::default()
         },
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -1946,7 +1946,7 @@ model_provider = "cloud-provider"
             ),
             ..Default::default()
         },
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -2082,7 +2082,7 @@ statusMessage = "checking"
             cloud_config_bundle,
             ..Default::default()
         },
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -2124,7 +2124,7 @@ deny_read = ["secrets/**"]
             cloud_config_bundle,
             ..Default::default()
         },
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -2169,7 +2169,7 @@ async fn strict_config_rejects_unknown_cloud_config_key() {
                 "unknown_key = true",
             ),
         },
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await
     .expect_err("strict config should reject unknown cloud config keys");
@@ -2206,15 +2206,15 @@ async fn load_config_layers_applies_matching_remote_sandbox_config() -> anyhow::
             cloud_config_bundle,
             ..Default::default()
         },
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
     assert_eq!(
         layers.requirements_toml().allowed_sandbox_modes,
         Some(vec![
-            codex_config::SandboxModeRequirement::ReadOnly,
-            codex_config::SandboxModeRequirement::WorkspaceWrite,
+            datax_config::SandboxModeRequirement::ReadOnly,
+            datax_config::SandboxModeRequirement::WorkspaceWrite,
         ])
     );
     assert!(
@@ -2243,14 +2243,14 @@ async fn load_config_layers_fails_when_cloud_config_bundle_loader_fails() -> any
         ConfigLoadOptions {
             cloud_config_bundle: CloudConfigBundleLoader::new(async {
                 Err(CloudConfigBundleLoadError::new(
-                    codex_config::CloudConfigBundleLoadErrorCode::RequestFailed,
+                    datax_config::CloudConfigBundleLoadErrorCode::RequestFailed,
                     /*status_code*/ None,
                     "cloud config bundle failed",
                 ))
             }),
             ..Default::default()
         },
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await
     .expect_err("cloud config bundle failure should fail closed");
@@ -2299,7 +2299,7 @@ async fn project_layers_prefer_closest_cwd() -> std::io::Result<()> {
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -2381,7 +2381,7 @@ async fn linked_worktree_project_layers_keep_worktree_config_but_use_root_repo_h
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -2462,7 +2462,7 @@ async fn linked_worktree_project_layers_use_root_repo_hooks_without_worktree_con
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -2532,7 +2532,7 @@ async fn nested_project_root_markers_do_not_redirect_regular_repo_hooks() -> std
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -2719,7 +2719,7 @@ async fn project_layer_is_added_when_dot_codex_exists_without_config_toml() -> s
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -2759,7 +2759,7 @@ async fn codex_home_is_not_loaded_as_project_layer_from_home_dir() -> std::io::R
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -2824,7 +2824,7 @@ async fn codex_home_within_project_tree_is_not_double_loaded() -> std::io::Resul
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -2899,7 +2899,7 @@ profile = "ignored"
         Some(cwd.clone()),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
     let project_layers_untrusted: Vec<_> = layers_untrusted
@@ -2945,7 +2945,7 @@ profile = "ignored"
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
     let project_layers_unknown: Vec<_> = layers_unknown
@@ -3036,7 +3036,7 @@ wire_api = "responses"
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -3138,7 +3138,7 @@ async fn project_trust_does_not_match_configured_alias_for_canonical_cwd() -> st
         Some(AbsolutePathBuf::from_absolute_path(&project_root)?),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -3303,7 +3303,7 @@ async fn invalid_project_config_ignored_when_untrusted_or_unknown() -> std::io::
             Some(cwd.clone()),
             &[] as &[(String, TomlValue)],
             LoaderOverrides::default(),
-            &codex_config::NoopThreadConfigLoader,
+            &datax_config::NoopThreadConfigLoader,
         )
         .await?;
         let project_layers: Vec<_> = layers
@@ -3371,7 +3371,7 @@ async fn project_layer_without_config_toml_is_disabled_when_untrusted_or_unknown
             Some(cwd.clone()),
             &[] as &[(String, TomlValue)],
             LoaderOverrides::default(),
-            &codex_config::NoopThreadConfigLoader,
+            &datax_config::NoopThreadConfigLoader,
         )
         .await?;
         let project_layers: Vec<_> = layers
@@ -3431,7 +3431,7 @@ async fn cli_overrides_with_relative_paths_do_not_break_trust_check() -> std::io
         Some(cwd),
         &cli_overrides,
         LoaderOverrides::default(),
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -3476,7 +3476,7 @@ async fn project_root_markers_supports_alternate_markers() -> std::io::Result<()
         Some(cwd),
         &[] as &[(String, TomlValue)],
         LoaderOverrides::default(),
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await?;
 
@@ -3507,22 +3507,22 @@ async fn project_root_markers_supports_alternate_markers() -> std::io::Result<()
 
 mod requirements_exec_policy_tests {
     use crate::exec_policy::load_exec_policy;
-    use codex_app_server_protocol::ConfigLayerSource;
-    use codex_config::ConfigLayerEntry;
-    use codex_config::ConfigLayerStack;
-    use codex_config::ConfigRequirements;
-    use codex_config::ConfigRequirementsToml;
-    use codex_config::ConfigRequirementsWithSources;
-    use codex_config::RequirementSource;
-    use codex_config::RequirementsExecPolicyDecisionToml;
-    use codex_config::RequirementsExecPolicyParseError;
-    use codex_config::RequirementsExecPolicyPatternTokenToml;
-    use codex_config::RequirementsExecPolicyPrefixRuleToml;
-    use codex_config::RequirementsExecPolicyToml;
-    use codex_execpolicy::Decision;
-    use codex_execpolicy::Evaluation;
-    use codex_execpolicy::RuleMatch;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use datax_app_server_protocol::ConfigLayerSource;
+    use datax_config::ConfigLayerEntry;
+    use datax_config::ConfigLayerStack;
+    use datax_config::ConfigRequirements;
+    use datax_config::ConfigRequirementsToml;
+    use datax_config::ConfigRequirementsWithSources;
+    use datax_config::RequirementSource;
+    use datax_config::RequirementsExecPolicyDecisionToml;
+    use datax_config::RequirementsExecPolicyParseError;
+    use datax_config::RequirementsExecPolicyPatternTokenToml;
+    use datax_config::RequirementsExecPolicyPrefixRuleToml;
+    use datax_config::RequirementsExecPolicyToml;
+    use datax_execpolicy::Decision;
+    use datax_execpolicy::Evaluation;
+    use datax_execpolicy::RuleMatch;
+    use datax_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use std::path::Path;
     use tempfile::tempdir;

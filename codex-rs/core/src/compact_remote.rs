@@ -18,23 +18,23 @@ use crate::responses_metadata::CompactionTurnMetadata;
 use crate::session::session::Session;
 use crate::session::turn::built_tools;
 use crate::session::turn_context::TurnContext;
-use codex_analytics::CompactionImplementation;
-use codex_analytics::CompactionPhase;
-use codex_analytics::CompactionReason;
-use codex_analytics::CompactionTrigger;
-use codex_app_server_protocol::AuthMode;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::items::ContextCompactionItem;
-use codex_protocol::items::TurnItem;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::CompactedItem;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::TurnStartedEvent;
-use codex_rollout_trace::CompactionCheckpointTracePayload;
+use datax_analytics::CompactionImplementation;
+use datax_analytics::CompactionPhase;
+use datax_analytics::CompactionReason;
+use datax_analytics::CompactionTrigger;
+use datax_app_server_protocol::AuthMode;
+use datax_protocol::error::CodexErr;
+use datax_protocol::error::Result as CodexResult;
+use datax_protocol::items::ContextCompactionItem;
+use datax_protocol::items::TurnItem;
+use datax_protocol::models::BaseInstructions;
+use datax_protocol::models::FunctionCallOutputBody;
+use datax_protocol::models::FunctionCallOutputPayload;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::protocol::CompactedItem;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::TurnStartedEvent;
+use datax_rollout_trace::CompactionCheckpointTracePayload;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
 
@@ -124,7 +124,7 @@ async fn run_remote_compact_task_inner(
             attempt
                 .track(
                     sess.as_ref(),
-                    codex_analytics::CompactionStatus::Interrupted,
+                    datax_analytics::CompactionStatus::Interrupted,
                     Some(&error),
                     analytics_details,
                 )

@@ -12,9 +12,9 @@ mod update_thread_metadata;
 #[cfg(test)]
 mod test_support;
 
-use codex_protocol::ThreadId;
-use codex_rollout::RolloutRecorder;
-use codex_rollout::StateDbHandle;
+use datax_protocol::ThreadId;
+use datax_rollout::RolloutRecorder;
+use datax_rollout::StateDbHandle;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::path::PathBuf;
@@ -74,7 +74,7 @@ pub struct LocalThreadStoreConfig {
 }
 
 impl LocalThreadStoreConfig {
-    pub fn from_config(config: &impl codex_rollout::RolloutConfigView) -> Self {
+    pub fn from_config(config: &impl datax_rollout::RolloutConfigView) -> Self {
         Self {
             codex_home: config.codex_home().to_path_buf(),
             sqlite_home: config.sqlite_home().to_path_buf(),
@@ -312,19 +312,19 @@ impl ThreadStore for LocalThreadStore {
 mod tests {
     use std::sync::Arc;
 
-    use codex_protocol::ThreadId;
-    use codex_protocol::models::BaseInstructions;
-    use codex_protocol::models::FunctionCallOutputPayload;
-    use codex_protocol::models::MessagePhase;
-    use codex_protocol::models::ResponseItem;
-    use codex_protocol::protocol::AgentMessageEvent;
-    use codex_protocol::protocol::EventMsg;
-    use codex_protocol::protocol::RolloutItem;
-    use codex_protocol::protocol::SessionSource;
-    use codex_protocol::protocol::ThreadMemoryMode;
-    use codex_protocol::protocol::TurnCompleteEvent;
-    use codex_protocol::protocol::TurnStartedEvent;
-    use codex_protocol::protocol::UserMessageEvent;
+    use datax_protocol::ThreadId;
+    use datax_protocol::models::BaseInstructions;
+    use datax_protocol::models::FunctionCallOutputPayload;
+    use datax_protocol::models::MessagePhase;
+    use datax_protocol::models::ResponseItem;
+    use datax_protocol::protocol::AgentMessageEvent;
+    use datax_protocol::protocol::EventMsg;
+    use datax_protocol::protocol::RolloutItem;
+    use datax_protocol::protocol::SessionSource;
+    use datax_protocol::protocol::ThreadMemoryMode;
+    use datax_protocol::protocol::TurnCompleteEvent;
+    use datax_protocol::protocol::TurnStartedEvent;
+    use datax_protocol::protocol::UserMessageEvent;
     use tempfile::TempDir;
 
     use super::*;
@@ -389,7 +389,7 @@ mod tests {
         // metadata updates must use LiveThread or call update_thread_metadata explicitly.
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = datax_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -424,7 +424,7 @@ mod tests {
     async fn live_thread_observes_appended_items_into_sqlite_metadata() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = datax_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -459,7 +459,7 @@ mod tests {
     async fn live_thread_output_advances_updated_at_but_not_recency_at() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = datax_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -516,7 +516,7 @@ mod tests {
                     internal_chat_message_metadata_passthrough: None,
                 }),
                 RolloutItem::EventMsg(EventMsg::TokenCount(
-                    codex_protocol::protocol::TokenCountEvent {
+                    datax_protocol::protocol::TokenCountEvent {
                         info: None,
                         rate_limits: None,
                     },
@@ -546,7 +546,7 @@ mod tests {
     async fn live_thread_shutdown_does_not_materialize_empty_thread_metadata() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = datax_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -582,7 +582,7 @@ mod tests {
     async fn live_thread_shutdown_with_buffered_items_materializes_before_metadata_read() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = datax_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -600,7 +600,7 @@ mod tests {
 
         live_thread
             .append_items(&[RolloutItem::EventMsg(EventMsg::TokenCount(
-                codex_protocol::protocol::TokenCountEvent {
+                datax_protocol::protocol::TokenCountEvent {
                     info: None,
                     rate_limits: None,
                 },
@@ -626,7 +626,7 @@ mod tests {
     async fn live_thread_resume_loads_history_before_observing_metadata() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = datax_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )
@@ -680,7 +680,7 @@ mod tests {
         let home = TempDir::new().expect("temp dir");
         let external_home = TempDir::new().expect("external temp dir");
         let config = test_config(home.path());
-        let runtime = codex_state::StateRuntime::init(
+        let runtime = datax_state::StateRuntime::init(
             config.sqlite_home.clone(),
             config.default_model_provider_id.clone(),
         )

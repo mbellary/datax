@@ -80,95 +80,95 @@ use crate::update_action::UpdateAction;
 use crate::version::CODEX_CLI_VERSION;
 use crate::workspace_command::AppServerWorkspaceCommandRunner;
 use crate::workspace_command::WorkspaceCommandRunner;
-use codex_ansi_escape::ansi_escape_line;
-use codex_app_server_client::AppServerRequestHandle;
-use codex_app_server_client::TypedRequestError;
-use codex_app_server_protocol::AddCreditsNudgeCreditType;
-use codex_app_server_protocol::AskForApproval;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::CodexErrorInfo as AppServerCodexErrorInfo;
-use codex_app_server_protocol::ConfigBatchWriteParams;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_app_server_protocol::ConfigReadResponse;
-use codex_app_server_protocol::ConfigValueWriteParams;
-use codex_app_server_protocol::ConfigWriteResponse;
-use codex_app_server_protocol::FeedbackUploadParams;
-use codex_app_server_protocol::FeedbackUploadResponse;
-use codex_app_server_protocol::GetAccountRateLimitsResponse;
-use codex_app_server_protocol::HooksListEntry;
-use codex_app_server_protocol::ListMcpServerStatusParams;
-use codex_app_server_protocol::ListMcpServerStatusResponse;
-#[cfg(test)]
-use codex_app_server_protocol::McpAuthStatus;
-use codex_app_server_protocol::McpServerStatus;
-use codex_app_server_protocol::McpServerStatusDetail;
-use codex_app_server_protocol::MergeStrategy;
-use codex_app_server_protocol::PluginInstallParams;
-use codex_app_server_protocol::PluginInstallResponse;
-use codex_app_server_protocol::PluginListMarketplaceKind;
-use codex_app_server_protocol::PluginListParams;
-use codex_app_server_protocol::PluginListResponse;
-use codex_app_server_protocol::PluginMarketplaceEntry;
-use codex_app_server_protocol::PluginReadParams;
-use codex_app_server_protocol::PluginReadResponse;
-use codex_app_server_protocol::PluginUninstallParams;
-use codex_app_server_protocol::PluginUninstallResponse;
-use codex_app_server_protocol::SandboxMode as AppServerSandboxMode;
-use codex_app_server_protocol::SendAddCreditsNudgeEmailParams;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::SkillErrorInfo;
-use codex_app_server_protocol::SkillsListParams;
-use codex_app_server_protocol::SkillsListResponse;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadLoadedListParams;
-use codex_app_server_protocol::ThreadMemoryMode;
-use codex_app_server_protocol::ThreadRollbackResponse;
-use codex_app_server_protocol::ThreadStartSource;
-use codex_app_server_protocol::Turn;
-use codex_app_server_protocol::TurnError as AppServerTurnError;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::WriteStatus;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::ConfigLayerStackOrdering;
-use codex_config::LoaderOverrides;
-use codex_config::types::ApprovalsReviewer;
-use codex_config::types::MemoriesToml;
-use codex_config::types::ModelAvailabilityNuxConfig;
-#[cfg(target_os = "windows")]
-use codex_config::types::WindowsToml;
-use codex_exec_server::EnvironmentManager;
-use codex_features::Feature;
-use codex_features::FeaturesToml;
-use codex_model_provider::create_model_provider;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_models_manager::model_presets::HIDE_GPT_5_1_CODEX_MAX_MIGRATION_PROMPT_CONFIG;
-use codex_models_manager::model_presets::HIDE_GPT5_1_MIGRATION_PROMPT_CONFIG;
-use codex_otel::SessionTelemetry;
-use codex_otel::TelemetryAuthMode;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::Personality;
-#[cfg(target_os = "windows")]
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::ActivePermissionProfile;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::openai_models::ModelAvailabilityNux;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::openai_models::ModelUpgrade;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
-#[cfg(target_os = "windows")]
-use codex_protocol::permissions::FileSystemSandboxKind;
-use codex_rollout::StateDbHandle;
-use codex_terminal_detection::user_agent;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_approval_presets::builtin_permission_profile_for_active_permission_profile;
 use color_eyre::eyre::Result;
 use color_eyre::eyre::WrapErr;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
 use crossterm::event::KeyModifiers;
+use datax_ansi_escape::ansi_escape_line;
+use datax_app_server_client::AppServerRequestHandle;
+use datax_app_server_client::TypedRequestError;
+use datax_app_server_protocol::AddCreditsNudgeCreditType;
+use datax_app_server_protocol::AskForApproval;
+use datax_app_server_protocol::ClientRequest;
+use datax_app_server_protocol::CodexErrorInfo as AppServerCodexErrorInfo;
+use datax_app_server_protocol::ConfigBatchWriteParams;
+use datax_app_server_protocol::ConfigLayerSource;
+use datax_app_server_protocol::ConfigReadResponse;
+use datax_app_server_protocol::ConfigValueWriteParams;
+use datax_app_server_protocol::ConfigWriteResponse;
+use datax_app_server_protocol::FeedbackUploadParams;
+use datax_app_server_protocol::FeedbackUploadResponse;
+use datax_app_server_protocol::GetAccountRateLimitsResponse;
+use datax_app_server_protocol::HooksListEntry;
+use datax_app_server_protocol::ListMcpServerStatusParams;
+use datax_app_server_protocol::ListMcpServerStatusResponse;
+#[cfg(test)]
+use datax_app_server_protocol::McpAuthStatus;
+use datax_app_server_protocol::McpServerStatus;
+use datax_app_server_protocol::McpServerStatusDetail;
+use datax_app_server_protocol::MergeStrategy;
+use datax_app_server_protocol::PluginInstallParams;
+use datax_app_server_protocol::PluginInstallResponse;
+use datax_app_server_protocol::PluginListMarketplaceKind;
+use datax_app_server_protocol::PluginListParams;
+use datax_app_server_protocol::PluginListResponse;
+use datax_app_server_protocol::PluginMarketplaceEntry;
+use datax_app_server_protocol::PluginReadParams;
+use datax_app_server_protocol::PluginReadResponse;
+use datax_app_server_protocol::PluginUninstallParams;
+use datax_app_server_protocol::PluginUninstallResponse;
+use datax_app_server_protocol::SandboxMode as AppServerSandboxMode;
+use datax_app_server_protocol::SendAddCreditsNudgeEmailParams;
+use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::ServerRequest;
+use datax_app_server_protocol::SkillErrorInfo;
+use datax_app_server_protocol::SkillsListParams;
+use datax_app_server_protocol::SkillsListResponse;
+use datax_app_server_protocol::ThreadItem;
+use datax_app_server_protocol::ThreadLoadedListParams;
+use datax_app_server_protocol::ThreadMemoryMode;
+use datax_app_server_protocol::ThreadRollbackResponse;
+use datax_app_server_protocol::ThreadStartSource;
+use datax_app_server_protocol::Turn;
+use datax_app_server_protocol::TurnError as AppServerTurnError;
+use datax_app_server_protocol::TurnStatus;
+use datax_app_server_protocol::WriteStatus;
+use datax_config::CloudConfigBundleLoader;
+use datax_config::ConfigLayerStackOrdering;
+use datax_config::LoaderOverrides;
+use datax_config::types::ApprovalsReviewer;
+use datax_config::types::MemoriesToml;
+use datax_config::types::ModelAvailabilityNuxConfig;
+#[cfg(target_os = "windows")]
+use datax_config::types::WindowsToml;
+use datax_exec_server::EnvironmentManager;
+use datax_features::Feature;
+use datax_features::FeaturesToml;
+use datax_model_provider::create_model_provider;
+use datax_model_provider_info::ModelProviderInfo;
+use datax_models_manager::model_presets::HIDE_GPT_5_1_CODEX_MAX_MIGRATION_PROMPT_CONFIG;
+use datax_models_manager::model_presets::HIDE_GPT5_1_MIGRATION_PROMPT_CONFIG;
+use datax_otel::SessionTelemetry;
+use datax_otel::TelemetryAuthMode;
+use datax_protocol::ThreadId;
+use datax_protocol::config_types::Personality;
+#[cfg(target_os = "windows")]
+use datax_protocol::config_types::WindowsSandboxLevel;
+use datax_protocol::models::ActivePermissionProfile;
+use datax_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::openai_models::ModelAvailabilityNux;
+use datax_protocol::openai_models::ModelPreset;
+use datax_protocol::openai_models::ModelUpgrade;
+use datax_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+#[cfg(target_os = "windows")]
+use datax_protocol::permissions::FileSystemSandboxKind;
+use datax_rollout::StateDbHandle;
+use datax_terminal_detection::user_agent;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_approval_presets::builtin_permission_profile_for_active_permission_profile;
 use ratatui::backend::Backend;
 use ratatui::layout::Rect;
 use ratatui::style::Stylize;
@@ -292,7 +292,7 @@ fn collab_receiver_is_not_found(
                 agents_states.get(receiver_thread_id).is_some_and(|state| {
                     matches!(
                         &state.status,
-                        codex_app_server_protocol::CollabAgentStatus::NotFound
+                        datax_app_server_protocol::CollabAgentStatus::NotFound
                     )
                 })
             }
@@ -303,15 +303,15 @@ fn collab_receiver_is_not_found(
 }
 
 fn default_exec_approval_decisions(
-    network_approval_context: Option<&codex_app_server_protocol::NetworkApprovalContext>,
-    proposed_execpolicy_amendment: Option<&codex_app_server_protocol::ExecPolicyAmendment>,
+    network_approval_context: Option<&datax_app_server_protocol::NetworkApprovalContext>,
+    proposed_execpolicy_amendment: Option<&datax_app_server_protocol::ExecPolicyAmendment>,
     proposed_network_policy_amendments: Option<
-        &[codex_app_server_protocol::NetworkPolicyAmendment],
+        &[datax_app_server_protocol::NetworkPolicyAmendment],
     >,
-    additional_permissions: Option<&codex_app_server_protocol::AdditionalPermissionProfile>,
-) -> Vec<codex_app_server_protocol::CommandExecutionApprovalDecision> {
-    use codex_app_server_protocol::CommandExecutionApprovalDecision;
-    use codex_app_server_protocol::NetworkPolicyRuleAction;
+    additional_permissions: Option<&datax_app_server_protocol::AdditionalPermissionProfile>,
+) -> Vec<datax_app_server_protocol::CommandExecutionApprovalDecision> {
+    use datax_app_server_protocol::CommandExecutionApprovalDecision;
+    use datax_app_server_protocol::NetworkPolicyRuleAction;
 
     if network_approval_context.is_some() {
         let mut decisions = vec![
@@ -472,7 +472,7 @@ fn resume_hint_for_resumable_thread(
     rollout_path: Option<&Path>,
 ) -> Option<String> {
     let thread = resumable_thread(thread_id, thread_name, rollout_path)?;
-    codex_utils_cli::resume_hint(thread.thread_name.as_deref(), Some(thread.thread_id))
+    datax_utils_cli::resume_hint(thread.thread_name.as_deref(), Some(thread.thread_id))
 }
 
 fn rollout_path_is_resumable(rollout_path: &Path) -> bool {
@@ -546,7 +546,7 @@ pub(crate) struct App {
     /// This is used after a confirmed thread rollback to ensure scrollback reflects the trimmed
     /// transcript cells.
     pub(crate) backtrack_render_pending: bool,
-    pub(crate) feedback: codex_feedback::CodexFeedback,
+    pub(crate) feedback: datax_feedback::CodexFeedback,
     feedback_audience: FeedbackAudience,
     environment_manager: Arc<EnvironmentManager>,
     app_server_target: AppServerTarget,
@@ -767,7 +767,7 @@ impl App {
         initial_prompt: Option<String>,
         initial_images: Vec<PathBuf>,
         session_selection: SessionSelection,
-        feedback: codex_feedback::CodexFeedback,
+        feedback: datax_feedback::CodexFeedback,
         is_first_run: bool,
         should_prompt_windows_sandbox_nux_at_startup: bool,
         app_server_target: AppServerTarget,
@@ -837,7 +837,7 @@ impl App {
             /*account_id*/ None,
             bootstrap.account_email.clone(),
             auth_mode,
-            codex_login::default_client::originator().value,
+            datax_login::default_client::originator().value,
             config.otel.log_user_prompt,
             user_agent(),
             serde_json::from_value(serde_json::json!("cli"))

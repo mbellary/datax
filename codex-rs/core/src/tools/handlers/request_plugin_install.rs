@@ -1,26 +1,26 @@
 use std::collections::HashSet;
 
-use codex_app_server_protocol::AppInfo;
-use codex_config::types::ToolSuggestDisabledTool;
-use codex_core_plugins::remote::REMOTE_GLOBAL_MARKETPLACE_NAME;
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_rmcp_client::ElicitationAction;
-use codex_rmcp_client::ElicitationResponse;
-use codex_tools::DiscoverableTool;
-use codex_tools::DiscoverableToolAction;
-use codex_tools::DiscoverableToolType;
-use codex_tools::LIST_AVAILABLE_PLUGINS_TO_INSTALL_TOOL_NAME;
-use codex_tools::REQUEST_PLUGIN_INSTALL_PERSIST_ALWAYS_VALUE;
-use codex_tools::REQUEST_PLUGIN_INSTALL_PERSIST_KEY;
-use codex_tools::REQUEST_PLUGIN_INSTALL_TOOL_NAME;
-use codex_tools::RequestPluginInstallArgs;
-use codex_tools::RequestPluginInstallResult;
-use codex_tools::ToolName;
-use codex_tools::ToolSpec;
-use codex_tools::all_requested_connectors_picked_up;
-use codex_tools::build_request_plugin_install_elicitation_request;
-use codex_tools::filter_request_plugin_install_discoverable_tools_for_client;
-use codex_tools::verified_connector_install_completed;
+use datax_app_server_protocol::AppInfo;
+use datax_config::types::ToolSuggestDisabledTool;
+use datax_core_plugins::remote::REMOTE_GLOBAL_MARKETPLACE_NAME;
+use datax_mcp::CODEX_APPS_MCP_SERVER_NAME;
+use datax_rmcp_client::ElicitationAction;
+use datax_rmcp_client::ElicitationResponse;
+use datax_tools::DiscoverableTool;
+use datax_tools::DiscoverableToolAction;
+use datax_tools::DiscoverableToolType;
+use datax_tools::LIST_AVAILABLE_PLUGINS_TO_INSTALL_TOOL_NAME;
+use datax_tools::REQUEST_PLUGIN_INSTALL_PERSIST_ALWAYS_VALUE;
+use datax_tools::REQUEST_PLUGIN_INSTALL_PERSIST_KEY;
+use datax_tools::REQUEST_PLUGIN_INSTALL_TOOL_NAME;
+use datax_tools::RequestPluginInstallArgs;
+use datax_tools::RequestPluginInstallResult;
+use datax_tools::ToolName;
+use datax_tools::ToolSpec;
+use datax_tools::all_requested_connectors_picked_up;
+use datax_tools::build_request_plugin_install_elicitation_request;
+use datax_tools::filter_request_plugin_install_discoverable_tools_for_client;
+use datax_tools::verified_connector_install_completed;
 use rmcp::model::RequestId;
 use serde::Deserialize;
 use serde_json::Value;
@@ -77,7 +77,7 @@ impl ToolExecutor<ToolInvocation> for RequestPluginInstallHandler {
         true
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> datax_tools::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(invocation))
     }
 }
@@ -128,7 +128,7 @@ impl RequestPluginInstallHandler {
         }
         if (requested_tool_type == Some(DiscoverableToolType::Plugin)
             || self.presentation == ToolSuggestPresentation::RecommendationContext)
-            && turn.app_server_client_name.as_deref() == Some("codex-tui")
+            && turn.app_server_client_name.as_deref() == Some("datax-tui")
         {
             return Err(FunctionCallError::RespondToModel(
                 "plugin install requests are not available in codex-tui yet".to_string(),
@@ -288,7 +288,7 @@ fn request_plugin_install_response_requests_persistent_disable(
 }
 
 async fn persist_disabled_install_request(
-    codex_home: &codex_utils_absolute_path::AbsolutePathBuf,
+    codex_home: &datax_utils_absolute_path::AbsolutePathBuf,
     tool: &DiscoverableTool,
 ) -> anyhow::Result<()> {
     ConfigEditsBuilder::new(codex_home)
@@ -312,7 +312,7 @@ async fn verify_request_plugin_install_completed(
     session: &crate::session::session::Session,
     turn: &crate::session::turn_context::TurnContext,
     tool: &DiscoverableTool,
-    auth: Option<&codex_login::CodexAuth>,
+    auth: Option<&datax_login::CodexAuth>,
 ) -> bool {
     match tool {
         DiscoverableTool::Connector(connector) => refresh_missing_requested_connectors(
@@ -374,7 +374,7 @@ async fn verify_request_plugin_install_completed(
 async fn refresh_remote_installed_plugins_cache_after_install(
     session: &crate::session::session::Session,
     turn: &crate::session::turn_context::TurnContext,
-    auth: Option<&codex_login::CodexAuth>,
+    auth: Option<&datax_login::CodexAuth>,
     tool_id: &str,
 ) {
     let plugins_manager = &session.services.plugins_manager;
@@ -403,7 +403,7 @@ fn is_remote_plugin_install_suggestion(plugin_id: &str) -> bool {
 async fn refresh_missing_requested_connectors(
     session: &crate::session::session::Session,
     turn: &crate::session::turn_context::TurnContext,
-    auth: Option<&codex_login::CodexAuth>,
+    auth: Option<&datax_login::CodexAuth>,
     expected_connector_ids: &[String],
     tool_id: &str,
 ) -> Option<Vec<AppInfo>> {
@@ -446,7 +446,7 @@ async fn refresh_missing_requested_connectors(
 fn verified_plugin_install_completed(
     tool_id: &str,
     config: &crate::config::Config,
-    plugins_manager: &codex_core_plugins::PluginsManager,
+    plugins_manager: &datax_core_plugins::PluginsManager,
 ) -> bool {
     let plugins_input = config.plugins_config_input();
     plugins_manager

@@ -7,21 +7,21 @@
 //! into a one-shot CLI command while still producing a durable `codex-login.log` artifact that
 //! support can request from users.
 
-use codex_app_server_protocol::AuthMode;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_core::config::Config;
-use codex_login::AuthKeyringBackendKind;
-use codex_login::AuthRouteConfig;
-use codex_login::CLIENT_ID;
-use codex_login::CodexAuth;
-use codex_login::ServerOptions;
-use codex_login::login_with_access_token;
-use codex_login::login_with_api_key;
-use codex_login::logout_with_revoke;
-use codex_login::run_device_code_login;
-use codex_login::run_login_server;
-use codex_protocol::config_types::ForcedLoginMethod;
-use codex_utils_cli::CliConfigOverrides;
+use datax_app_server_protocol::AuthMode;
+use datax_config::types::AuthCredentialsStoreMode;
+use datax_core::config::Config;
+use datax_login::AuthKeyringBackendKind;
+use datax_login::AuthRouteConfig;
+use datax_login::CLIENT_ID;
+use datax_login::CodexAuth;
+use datax_login::ServerOptions;
+use datax_login::login_with_access_token;
+use datax_login::login_with_api_key;
+use datax_login::logout_with_revoke;
+use datax_login::run_device_code_login;
+use datax_login::run_login_server;
+use datax_protocol::config_types::ForcedLoginMethod;
+use datax_utils_cli::CliConfigOverrides;
 use std::fs::OpenOptions;
 use std::io::IsTerminal;
 use std::io::Read;
@@ -50,7 +50,7 @@ const LOGIN_SUCCESS_MESSAGE: &str = "Successfully logged in";
 /// command produce a durable `codex-login.log` artifact without coupling it to the TUI's broader
 /// telemetry and feedback initialization.
 fn init_login_file_logging(config: &Config) -> Option<WorkerGuard> {
-    let log_dir = match codex_core::config::log_dir(config) {
+    let log_dir = match datax_core::config::log_dir(config) {
         Ok(log_dir) => log_dir,
         Err(err) => {
             eprintln!("Warning: failed to resolve login log directory: {err}");
@@ -75,7 +75,7 @@ fn init_login_file_logging(config: &Config) -> Option<WorkerGuard> {
         log_file_opts.mode(0o600);
     }
 
-    let log_path = log_dir.join("codex-login.log");
+    let log_path = log_dir.join("datax-login.log");
     let log_file = match log_file_opts.open(&log_path) {
         Ok(log_file) => log_file,
         Err(err) => {
@@ -529,10 +529,10 @@ fn safe_format_key(key: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use codex_config::types::AuthCredentialsStoreMode;
-    use codex_login::AuthKeyringBackendKind;
-    use codex_login::load_auth_dot_json;
-    use codex_login::login_with_api_key;
+    use datax_config::types::AuthCredentialsStoreMode;
+    use datax_login::AuthKeyringBackendKind;
+    use datax_login::load_auth_dot_json;
+    use datax_login::login_with_api_key;
     use pretty_assertions::assert_eq;
     use tempfile::tempdir;
 

@@ -34,7 +34,7 @@ pub use crate::trace_context::span_w3c_trace_context;
 pub use crate::trace_context::traceparent_context_from_env;
 pub use crate::trace_context::validate_tracestate_entries;
 pub use crate::trace_context::validate_tracestate_member;
-pub use codex_utils_string::sanitize_metric_tag_value;
+pub use datax_utils_string::sanitize_metric_tag_value;
 
 #[derive(Debug, Clone, Serialize, Display)]
 #[serde(rename_all = "snake_case")]
@@ -51,15 +51,15 @@ pub enum TelemetryAuthMode {
     Chatgpt,
 }
 
-impl From<codex_app_server_protocol::AuthMode> for TelemetryAuthMode {
-    fn from(mode: codex_app_server_protocol::AuthMode) -> Self {
+impl From<datax_app_server_protocol::AuthMode> for TelemetryAuthMode {
+    fn from(mode: datax_app_server_protocol::AuthMode) -> Self {
         match mode {
-            codex_app_server_protocol::AuthMode::ApiKey
-            | codex_app_server_protocol::AuthMode::BedrockApiKey => Self::ApiKey,
-            codex_app_server_protocol::AuthMode::Chatgpt
-            | codex_app_server_protocol::AuthMode::ChatgptAuthTokens
-            | codex_app_server_protocol::AuthMode::AgentIdentity
-            | codex_app_server_protocol::AuthMode::PersonalAccessToken => Self::Chatgpt,
+            datax_app_server_protocol::AuthMode::ApiKey
+            | datax_app_server_protocol::AuthMode::BedrockApiKey => Self::ApiKey,
+            datax_app_server_protocol::AuthMode::Chatgpt
+            | datax_app_server_protocol::AuthMode::ChatgptAuthTokens
+            | datax_app_server_protocol::AuthMode::AgentIdentity
+            | datax_app_server_protocol::AuthMode::PersonalAccessToken => Self::Chatgpt,
         }
     }
 }

@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use codex_config::AppToolApproval;
-use codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID;
-use codex_config::McpServerConfig;
-use codex_config::McpServerToolConfig;
-use codex_config::McpServerTransportConfig;
+use datax_config::AppToolApproval;
+use datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID;
+use datax_config::McpServerConfig;
+use datax_config::McpServerToolConfig;
+use datax_config::McpServerTransportConfig;
 use pretty_assertions::assert_eq;
 
 use super::McpPluginAttribution;

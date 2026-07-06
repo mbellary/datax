@@ -20,7 +20,7 @@ datax *args:
 exec *args:
     cargo run --bin datax -- exec {args}
 
-# Start `datax exec-server` and run codex-tui.
+# Start `datax exec-server` and run datax-tui.
 [no-cd]
 [positional-arguments]
 [unix]
@@ -29,12 +29,12 @@ tui-with-exec-server *args:
 
 # Run the CLI version of the file-search crate.
 file-search *args:
-    cargo run --bin codex-file-search -- {args}
+    cargo run --bin datax-file-search -- {args}
 
 # Build the CLI and run the app-server test client
 app-server-test-client *args:
-    cargo build -p codex-cli
-    cargo run -p codex-app-server-test-client -- --codex-bin ./target/debug/datax {args}
+    cargo build -p datax-cli
+    cargo run -p datax-app-server-test-client -- --datax-bin ./target/debug/datax {args}
 
 # Format the justfile, Rust, Bazel/Starlark, Python SDK code, and Python scripts.
 fmt:
@@ -138,19 +138,19 @@ build-for-release:
 
 # Run the MCP server
 mcp-server-run *args:
-    cargo run -p codex-mcp-server -- {args}
+    cargo run -p datax-mcp-server -- {args}
 
 # Regenerate the json schema for config.toml from the current config types.
 write-config-schema:
-    cargo run -p codex-core --bin codex-write-config-schema
+    cargo run -p datax-core --bin datax-write-config-schema
 
 # Regenerate vendored app-server protocol schema artifacts.
 write-app-server-schema *args:
-    cargo run -p codex-app-server-protocol --bin write_schema_fixtures -- {args}
+    cargo run -p datax-app-server-protocol --bin write_schema_fixtures -- {args}
 
 [no-cd]
 write-hooks-schema:
-    cargo run --manifest-path {{ justfile_directory() }}/codex-rs/Cargo.toml -p codex-hooks --bin write_hooks_schema_fixtures
+    cargo run --manifest-path {{ justfile_directory() }}/codex-rs/Cargo.toml -p datax-hooks --bin write_hooks_schema_fixtures
 
 # Run the argument-comment Dylint checks across codex-rs.
 [no-cd]
@@ -169,8 +169,8 @@ argument-comment-lint-from-source *args:
 # Tail logs from the state SQLite database
 [unix]
 log *args:
-    if [ "${1:-}" = "--" ]; then shift; fi; cargo run -p codex-state --bin logs_client -- "$@"
+    if [ "${1:-}" = "--" ]; then shift; fi; cargo run -p datax-state --bin logs_client -- "$@"
 
 [windows]
 log *args:
-    $forwarded_args = @($args | Select-Object -Skip 1); if ($forwarded_args.Count -gt 0 -and $forwarded_args[0] -eq "--") { $forwarded_args = @($forwarded_args | Select-Object -Skip 1) }; cargo run -p codex-state --bin logs_client -- @forwarded_args
+    $forwarded_args = @($args | Select-Object -Skip 1); if ($forwarded_args.Count -gt 0 -and $forwarded_args[0] -eq "--") { $forwarded_args = @($forwarded_args | Select-Object -Skip 1) }; cargo run -p datax-state --bin logs_client -- @forwarded_args

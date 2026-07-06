@@ -302,9 +302,9 @@ function Test-OldStandaloneBinLayout {
     $knownFiles = @(
         "datax.exe",
         "rg.exe",
-        "codex-command-runner.exe",
-        "codex-windows-sandbox.exe",
-        "codex-windows-sandbox-setup.exe"
+        "datax-command-runner.exe",
+        "datax-windows-sandbox.exe",
+        "datax-windows-sandbox-setup.exe"
     )
     foreach ($child in Get-ChildItem -LiteralPath $VisibleBinDir -Force) {
         if ($child.PSIsContainer) {
@@ -538,8 +538,8 @@ function Test-PackageContentsAreComplete {
         "datax-package.json",
         "bin\datax.exe",
         "datax-path\rg.exe",
-        "datax-resources\codex-command-runner.exe",
-        "datax-resources\codex-windows-sandbox-setup.exe"
+        "datax-resources\datax-command-runner.exe",
+        "datax-resources\datax-windows-sandbox-setup.exe"
     )
     foreach ($name in $expectedFiles) {
         if (-not (Test-Path -LiteralPath (Join-Path $PackageDir $name) -PathType Leaf)) {
@@ -561,8 +561,8 @@ function Test-LegacyPlatformNpmContentsAreComplete {
 
     $expectedFiles = @(
         "datax.exe",
-        "datax-resources\codex-command-runner.exe",
-        "datax-resources\codex-windows-sandbox-setup.exe",
+        "datax-resources\datax-command-runner.exe",
+        "datax-resources\datax-windows-sandbox-setup.exe",
         "datax-resources\rg.exe"
     )
     foreach ($name in $expectedFiles) {
@@ -825,8 +825,8 @@ try {
                 New-Item -ItemType Directory -Force -Path $resourcesDir | Out-Null
                 $copyMap = @{
                     "datax/datax.exe" = "datax.exe"
-                    "datax/codex-command-runner.exe" = "datax-resources\codex-command-runner.exe"
-                    "datax/codex-windows-sandbox-setup.exe" = "datax-resources\codex-windows-sandbox-setup.exe"
+                    "datax/datax-command-runner.exe" = "datax-resources\datax-command-runner.exe"
+                    "datax/datax-windows-sandbox-setup.exe" = "datax-resources\datax-windows-sandbox-setup.exe"
                     "path/rg.exe" = "datax-resources\rg.exe"
                 }
 

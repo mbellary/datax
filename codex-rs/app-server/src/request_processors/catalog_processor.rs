@@ -1,5 +1,5 @@
 use super::*;
-use codex_core::config::permission_profile_catalog;
+use datax_core::config::permission_profile_catalog;
 use futures::StreamExt;
 
 #[derive(Clone)]
@@ -16,19 +16,19 @@ pub(crate) struct CatalogRequestProcessor {
 const SKILLS_LIST_CWD_CONCURRENCY: usize = 5;
 
 fn skills_to_info(
-    skills: &[codex_core::skills::SkillMetadata],
+    skills: &[datax_core::skills::SkillMetadata],
     disabled_paths: &HashSet<AbsolutePathBuf>,
-) -> Vec<codex_app_server_protocol::SkillMetadata> {
+) -> Vec<datax_app_server_protocol::SkillMetadata> {
     skills
         .iter()
         .map(|skill| {
             let enabled = !disabled_paths.contains(&skill.path_to_skills_md);
-            codex_app_server_protocol::SkillMetadata {
+            datax_app_server_protocol::SkillMetadata {
                 name: skill.name.clone(),
                 description: skill.description.clone(),
                 short_description: skill.short_description.clone(),
                 interface: skill.interface.clone().map(|interface| {
-                    codex_app_server_protocol::SkillInterface {
+                    datax_app_server_protocol::SkillInterface {
                         display_name: interface.display_name,
                         short_description: interface.short_description,
                         icon_small: interface.icon_small,
@@ -38,11 +38,11 @@ fn skills_to_info(
                     }
                 }),
                 dependencies: skill.dependencies.clone().map(|dependencies| {
-                    codex_app_server_protocol::SkillDependencies {
+                    datax_app_server_protocol::SkillDependencies {
                         tools: dependencies
                             .tools
                             .into_iter()
-                            .map(|tool| codex_app_server_protocol::SkillToolDependency {
+                            .map(|tool| datax_app_server_protocol::SkillToolDependency {
                                 r#type: tool.r#type,
                                 value: tool.value,
                                 description: tool.description,
@@ -61,7 +61,7 @@ fn skills_to_info(
         .collect()
 }
 
-fn hooks_to_info(hooks: &[codex_hooks::HookListEntry]) -> Vec<HookMetadata> {
+fn hooks_to_info(hooks: &[datax_hooks::HookListEntry]) -> Vec<HookMetadata> {
     hooks
         .iter()
         .map(|hook| HookMetadata {
@@ -85,11 +85,11 @@ fn hooks_to_info(hooks: &[codex_hooks::HookListEntry]) -> Vec<HookMetadata> {
 }
 
 fn errors_to_info(
-    errors: &[codex_core::skills::SkillError],
-) -> Vec<codex_app_server_protocol::SkillErrorInfo> {
+    errors: &[datax_core::skills::SkillError],
+) -> Vec<datax_app_server_protocol::SkillErrorInfo> {
     errors
         .iter()
-        .map(|err| codex_app_server_protocol::SkillErrorInfo {
+        .map(|err| datax_app_server_protocol::SkillErrorInfo {
             path: err.path.to_path_buf(),
             message: err.message.clone(),
         })
@@ -511,10 +511,10 @@ impl CatalogRequestProcessor {
                             let error_path = cwd.clone();
                             return (
                                 index,
-                                codex_app_server_protocol::SkillsListEntry {
+                                datax_app_server_protocol::SkillsListEntry {
                                     cwd,
                                     skills: Vec::new(),
-                                    errors: vec![codex_app_server_protocol::SkillErrorInfo {
+                                    errors: vec![datax_app_server_protocol::SkillErrorInfo {
                                         path: error_path,
                                         message,
                                     }],
@@ -533,7 +533,7 @@ impl CatalogRequestProcessor {
                     } else {
                         Vec::new()
                     };
-                    let skills_input = codex_core::skills::SkillsLoadInput::new(
+                    let skills_input = datax_core::skills::SkillsLoadInput::new(
                         cwd_abs.clone(),
                         effective_skill_roots,
                         config_layer_stack,
@@ -547,7 +547,7 @@ impl CatalogRequestProcessor {
                     let skills = skills_to_info(&outcome.skills, &outcome.disabled_paths);
                     (
                         index,
-                        codex_app_server_protocol::SkillsListEntry {
+                        datax_app_server_protocol::SkillsListEntry {
                             cwd,
                             skills,
                             errors,
@@ -575,7 +575,7 @@ impl CatalogRequestProcessor {
             .set_extra_roots(extra_roots);
         self.outgoing
             .send_server_notification(ServerNotification::SkillsChanged(
-                codex_app_server_protocol::SkillsChangedNotification {},
+                datax_app_server_protocol::SkillsChangedNotification {},
             ))
             .await;
         Ok(SkillsExtraRootsSetResponse {})
@@ -609,11 +609,11 @@ impl CatalogRequestProcessor {
                 Ok(config) => config,
                 Err(err) => {
                     let error_path = cwd.clone();
-                    data.push(codex_app_server_protocol::HooksListEntry {
+                    data.push(datax_app_server_protocol::HooksListEntry {
                         cwd,
                         hooks: Vec::new(),
                         warnings: Vec::new(),
-                        errors: vec![codex_app_server_protocol::HookErrorInfo {
+                        errors: vec![datax_app_server_protocol::HookErrorInfo {
                             path: error_path,
                             message: err.to_string(),
                         }],
@@ -629,14 +629,14 @@ impl CatalogRequestProcessor {
             let plugin_hooks = if plugins_enabled {
                 let plugins_input = config.plugins_config_input();
                 let plugin_outcome = plugins_manager.plugins_for_config(&plugins_input).await;
-                codex_core_plugins::PluginHookLoadOutcome {
+                datax_core_plugins::PluginHookLoadOutcome {
                     hook_sources: plugin_outcome.effective_plugin_hook_sources(),
                     hook_load_warnings: plugin_outcome.effective_plugin_hook_warnings(),
                 }
             } else {
-                codex_core_plugins::PluginHookLoadOutcome::default()
+                datax_core_plugins::PluginHookLoadOutcome::default()
             };
-            let hooks = codex_hooks::list_hooks(codex_hooks::HooksConfig {
+            let hooks = datax_hooks::list_hooks(datax_hooks::HooksConfig {
                 feature_enabled: config.features.enabled(Feature::CodexHooks),
                 bypass_hook_trust: config.bypass_hook_trust,
                 config_layer_stack: Some(config.config_layer_stack),
@@ -644,7 +644,7 @@ impl CatalogRequestProcessor {
                 plugin_hook_load_warnings: plugin_hooks.hook_load_warnings,
                 ..Default::default()
             });
-            data.push(codex_app_server_protocol::HooksListEntry {
+            data.push(datax_app_server_protocol::HooksListEntry {
                 cwd,
                 hooks: hooks_to_info(&hooks.hooks),
                 warnings: hooks.warnings,

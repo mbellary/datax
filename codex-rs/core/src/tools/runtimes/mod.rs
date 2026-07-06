@@ -10,21 +10,21 @@ use crate::shell::Shell;
 use crate::shell::ShellType;
 use crate::tools::sandboxing::ToolError;
 #[cfg(unix)]
-use codex_install_context::InstallContext;
+use datax_install_context::InstallContext;
 #[cfg(target_os = "macos")]
-use codex_network_proxy::CODEX_PROXY_GIT_SSH_COMMAND_MARKER;
-use codex_network_proxy::CUSTOM_CA_ENV_KEYS;
-use codex_network_proxy::PROXY_ACTIVE_ENV_KEY;
-use codex_network_proxy::PROXY_ENV_KEYS;
+use datax_network_proxy::CODEX_PROXY_GIT_SSH_COMMAND_MARKER;
+use datax_network_proxy::CUSTOM_CA_ENV_KEYS;
+use datax_network_proxy::PROXY_ACTIVE_ENV_KEY;
+use datax_network_proxy::PROXY_ENV_KEYS;
 #[cfg(target_os = "macos")]
-use codex_network_proxy::PROXY_GIT_SSH_COMMAND_ENV_KEY;
-use codex_network_proxy::is_managed_mitm_ca_trust_bundle_path;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::AdditionalPermissionProfile;
-use codex_sandboxing::SandboxCommand;
-use codex_sandboxing::SandboxType;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use datax_network_proxy::PROXY_GIT_SSH_COMMAND_ENV_KEY;
+use datax_network_proxy::is_managed_mitm_ca_trust_bundle_path;
+use datax_protocol::config_types::WindowsSandboxLevel;
+use datax_protocol::models::AdditionalPermissionProfile;
+use datax_sandboxing::SandboxCommand;
+use datax_sandboxing::SandboxType;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_path_uri::PathUri;
 use std::collections::HashMap;
 #[cfg(unix)]
 use std::path::Path;

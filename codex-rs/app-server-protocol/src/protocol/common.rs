@@ -8,7 +8,7 @@ use crate::export::GeneratedSchema;
 use crate::export::write_json_schema;
 use crate::protocol::v1;
 use crate::protocol::v2;
-use codex_experimental_api_macros::ExperimentalApi;
+use datax_experimental_api_macros::ExperimentalApi;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -1525,7 +1525,7 @@ pub struct FuzzyFileSearchParams {
     pub cancellation_token: Option<String>,
 }
 
-/// Superset of [`codex_file_search::FileMatch`]
+/// Superset of [`datax_file_search::FileMatch`]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 pub struct FuzzyFileSearchResult {
     pub root: String,
@@ -1704,18 +1704,18 @@ client_notification_definitions! {
 mod tests {
     use super::*;
     use anyhow::Result;
-    use codex_protocol::ThreadId;
-    use codex_protocol::account::AmazonBedrockCredentialSource;
-    use codex_protocol::account::PlanType;
-    use codex_protocol::config_types::MultiAgentMode;
-    use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY;
-    use codex_protocol::parse_command::ParsedCommand;
-    use codex_protocol::protocol::RealtimeConversationVersion;
-    use codex_protocol::protocol::RealtimeOutputModality;
-    use codex_protocol::protocol::RealtimeVoice;
-    use codex_utils_absolute_path::AbsolutePathBuf;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use datax_protocol::ThreadId;
+    use datax_protocol::account::AmazonBedrockCredentialSource;
+    use datax_protocol::account::PlanType;
+    use datax_protocol::config_types::MultiAgentMode;
+    use datax_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY;
+    use datax_protocol::parse_command::ParsedCommand;
+    use datax_protocol::protocol::RealtimeConversationVersion;
+    use datax_protocol::protocol::RealtimeOutputModality;
+    use datax_protocol::protocol::RealtimeVoice;
+    use datax_utils_absolute_path::AbsolutePathBuf;
+    use datax_utils_absolute_path::test_support::PathBufExt;
+    use datax_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::path::PathBuf;
@@ -2600,7 +2600,7 @@ mod tests {
                 cwd,
                 runtime_workspace_roots: Vec::new(),
                 instruction_sources: vec![
-                    codex_utils_path_uri::LegacyAppPathString::from_abs_path(&absolute_path(
+                    datax_utils_path_uri::LegacyAppPathString::from_abs_path(&absolute_path(
                         "/tmp/AGENTS.md",
                     )),
                 ],
@@ -3609,9 +3609,9 @@ mod tests {
                     service_tier: None,
                     effort: None,
                     summary: None,
-                    collaboration_mode: codex_protocol::config_types::CollaborationMode {
-                        mode: codex_protocol::config_types::ModeKind::Default,
-                        settings: codex_protocol::config_types::Settings {
+                    collaboration_mode: datax_protocol::config_types::CollaborationMode {
+                        mode: datax_protocol::config_types::ModeKind::Default,
+                        settings: datax_protocol::config_types::Settings {
                             model: "gpt-5.4".to_string(),
                             reasoning_effort: None,
                             developer_instructions: None,

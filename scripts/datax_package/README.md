@@ -14,8 +14,8 @@ The builder creates a canonical Datax package directory:
 ├── datax-resources
 │   ├── bwrap                             # Linux only
 │   ├── zsh/bin/zsh                       # supported Unix targets only
-│   ├── codex-command-runner.exe          # Windows only
-│   └── codex-windows-sandbox-setup.exe   # Windows only
+│   ├── datax-command-runner.exe          # Windows only
+│   └── datax-windows-sandbox-setup.exe   # Windows only
 └── datax-path
     └── rg[.exe]
 ```
@@ -30,7 +30,7 @@ artifacts; pass a GNU Linux target explicitly for native glibc local builds. If
 prints its path after the package is built.
 
 The `--variant` flag selects the package entrypoint. Supported variants are
-`datax` and `codex-app-server`. The `version` field in `datax-package.json` is
+`datax` and `datax-app-server`. The `version` field in `datax-package.json` is
 read from `[workspace.package].version` in `codex-rs/Cargo.toml`.
 
 ## Source-built artifacts
@@ -41,7 +41,7 @@ override was provided:
 
 - all targets: the selected entrypoint, unless `--entrypoint-bin` is provided
 - Linux targets: `bwrap`, unless `--bwrap-bin` is provided
-- Windows targets: `codex-command-runner` and `codex-windows-sandbox-setup`,
+- Windows targets: `datax-command-runner` and `datax-windows-sandbox-setup`,
   unless the corresponding prebuilt helper flags are provided
 
 The default cargo profile is `dev-small` because local iteration should favor
@@ -52,7 +52,7 @@ binary instead of rebuilding it.
 
 Release jobs that already built package resource binaries should also pass the
 corresponding resource flags: `--bwrap-bin` for Linux packages, and
-`--codex-command-runner-bin` plus `--codex-windows-sandbox-setup-bin` for
+`--datax-command-runner-bin` plus `--datax-windows-sandbox-setup-bin` for
 Windows packages. This keeps package archive creation as a pure staging step
 after signing instead of rebuilding resources.
 

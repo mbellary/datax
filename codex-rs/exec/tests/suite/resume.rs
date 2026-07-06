@@ -107,7 +107,7 @@ fn last_user_image_count(path: &std::path::Path) -> usize {
 }
 
 fn exec_repo_root() -> anyhow::Result<std::path::PathBuf> {
-    Ok(codex_utils_cargo_bin::repo_root()?)
+    Ok(datax_utils_cargo_bin::repo_root()?)
 }
 
 fn exec_sse_response(index: usize) -> String {

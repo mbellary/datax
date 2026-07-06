@@ -9,7 +9,7 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use arc_swap::ArcSwap;
-use codex_app_server_protocol::JSONRPCNotification;
+use datax_app_server_protocol::JSONRPCNotification;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use serde_json::Value;
@@ -112,7 +112,7 @@ const PROCESS_EVENT_RETAINED_BYTES: usize = 1024 * 1024;
 impl Default for ExecServerClientConnectOptions {
     fn default() -> Self {
         Self {
-            client_name: "codex-core".to_string(),
+            client_name: "datax-core".to_string(),
             initialize_timeout: INITIALIZE_TIMEOUT,
             resume_session_id: None,
         }
@@ -1187,9 +1187,9 @@ async fn handle_server_notification(
 
 #[cfg(test)]
 mod tests {
-    use codex_app_server_protocol::JSONRPCMessage;
-    use codex_app_server_protocol::JSONRPCNotification;
-    use codex_app_server_protocol::JSONRPCResponse;
+    use datax_app_server_protocol::JSONRPCMessage;
+    use datax_app_server_protocol::JSONRPCNotification;
+    use datax_app_server_protocol::JSONRPCResponse;
     use futures::SinkExt;
     use futures::StreamExt;
     use pretty_assertions::assert_eq;
@@ -2066,7 +2066,7 @@ mod tests {
     async fn terminal_stdio_startup_failure_is_remembered() {
         let client = LazyRemoteExecServerClient::new(ExecServerTransportParams::StdioCommand {
             command: StdioExecServerCommand {
-                program: "codex-missing-exec-server-for-test".to_string(),
+                program: "datax-missing-exec-server-for-test".to_string(),
                 args: Vec::new(),
                 env: HashMap::new(),
                 cwd: None,

@@ -4,8 +4,8 @@ use crate::realtime_conversation::handle_speech as handle_realtime_conversation_
 use crate::realtime_conversation::handle_start as handle_realtime_conversation_start;
 use crate::realtime_conversation::handle_text as handle_realtime_conversation_text;
 use async_channel::Receiver;
-use codex_otel::set_parent_from_w3c_trace_context;
-use codex_protocol::protocol::Submission;
+use datax_otel::set_parent_from_w3c_trace_context;
+use datax_protocol::protocol::Submission;
 use tracing::Instrument;
 use tracing::debug_span;
 use tracing::info_span;
@@ -22,38 +22,38 @@ use crate::tasks::CompactTask;
 use crate::tasks::UserShellCommandMode;
 use crate::tasks::UserShellCommandTask;
 use crate::tasks::execute_user_shell_command;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::CodexErrorInfo;
-use codex_protocol::protocol::ErrorEvent;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::GuardianAssessmentEvent;
-use codex_protocol::protocol::GuardianAssessmentStatus;
-use codex_protocol::protocol::InterAgentCommunication;
-use codex_protocol::protocol::McpServerRefreshConfig;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RealtimeConversationListVoicesResponseEvent;
-use codex_protocol::protocol::RealtimeVoicesList;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::ReviewRequest;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::ThreadMemoryMode;
-use codex_protocol::protocol::ThreadRolledBackEvent;
-use codex_protocol::protocol::ThreadSettingsAppliedEvent;
-use codex_protocol::protocol::ThreadSettingsOverrides;
-use codex_protocol::protocol::ThreadSettingsSnapshot;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_protocol::protocol::WarningEvent;
-use codex_protocol::request_permissions::RequestPermissionsResponse;
-use codex_protocol::request_user_input::RequestUserInputResponse;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::ResponseInputItem;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::protocol::CodexErrorInfo;
+use datax_protocol::protocol::ErrorEvent;
+use datax_protocol::protocol::Event;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::GuardianAssessmentEvent;
+use datax_protocol::protocol::GuardianAssessmentStatus;
+use datax_protocol::protocol::InterAgentCommunication;
+use datax_protocol::protocol::McpServerRefreshConfig;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::RealtimeConversationListVoicesResponseEvent;
+use datax_protocol::protocol::RealtimeVoicesList;
+use datax_protocol::protocol::ReviewDecision;
+use datax_protocol::protocol::ReviewRequest;
+use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::ThreadMemoryMode;
+use datax_protocol::protocol::ThreadRolledBackEvent;
+use datax_protocol::protocol::ThreadSettingsAppliedEvent;
+use datax_protocol::protocol::ThreadSettingsOverrides;
+use datax_protocol::protocol::ThreadSettingsSnapshot;
+use datax_protocol::protocol::TurnAbortReason;
+use datax_protocol::protocol::WarningEvent;
+use datax_protocol::request_permissions::RequestPermissionsResponse;
+use datax_protocol::request_user_input::RequestUserInputResponse;
 
 use crate::context_manager::is_user_turn_boundary;
-use codex_protocol::dynamic_tools::DynamicToolResponse;
-use codex_protocol::mcp::RequestId as ProtocolRequestId;
-use codex_rmcp_client::ElicitationAction;
-use codex_rmcp_client::ElicitationResponse;
+use datax_protocol::dynamic_tools::DynamicToolResponse;
+use datax_protocol::mcp::RequestId as ProtocolRequestId;
+use datax_rmcp_client::ElicitationAction;
+use datax_rmcp_client::ElicitationResponse;
 use serde_json::Value;
 use std::sync::Arc;
 use tracing::debug;
@@ -322,14 +322,14 @@ pub async fn resolve_elicitation(
     sess: &Arc<Session>,
     server_name: String,
     request_id: ProtocolRequestId,
-    decision: codex_protocol::approvals::ElicitationAction,
+    decision: datax_protocol::approvals::ElicitationAction,
     content: Option<Value>,
     meta: Option<Value>,
 ) {
     let action = match decision {
-        codex_protocol::approvals::ElicitationAction::Accept => ElicitationAction::Accept,
-        codex_protocol::approvals::ElicitationAction::Decline => ElicitationAction::Decline,
-        codex_protocol::approvals::ElicitationAction::Cancel => ElicitationAction::Cancel,
+        datax_protocol::approvals::ElicitationAction::Accept => ElicitationAction::Accept,
+        datax_protocol::approvals::ElicitationAction::Decline => ElicitationAction::Decline,
+        datax_protocol::approvals::ElicitationAction::Cancel => ElicitationAction::Cancel,
     };
     let content = match action {
         // Preserve the legacy fallback for clients that only send an action.
@@ -608,7 +608,7 @@ async fn shutdown_session_runtime(sess: &Arc<Session>) {
 async fn emit_thread_stop_lifecycle(sess: &Session) {
     for contributor in sess.services.extensions.thread_lifecycle_contributors() {
         contributor
-            .on_thread_stop(codex_extension_api::ThreadStopInput {
+            .on_thread_stop(datax_extension_api::ThreadStopInput {
                 session_store: &sess.services.session_extension_data,
                 thread_store: &sess.services.thread_extension_data,
             })
@@ -659,7 +659,7 @@ pub async fn shutdown(sess: &Arc<Session>, sub_id: String) -> bool {
     sess.deliver_event_raw(event).await;
     sess.services
         .rollout_thread_trace
-        .record_ended(codex_rollout_trace::RolloutStatus::Completed);
+        .record_ended(datax_rollout_trace::RolloutStatus::Completed);
     true
 }
 

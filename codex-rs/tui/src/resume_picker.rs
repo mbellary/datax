@@ -33,19 +33,19 @@ use crate::wrapping::RtOptions;
 use crate::wrapping::adaptive_wrap_lines;
 use chrono::DateTime;
 use chrono::Utc;
-use codex_app_server_protocol::Thread;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadListCwdFilter;
-use codex_app_server_protocol::ThreadListParams;
-use codex_app_server_protocol::ThreadSortKey;
-use codex_config::types::SessionPickerViewMode;
-use codex_protocol::ThreadId;
 use codex_utils_path as path_utils;
 use color_eyre::eyre::Result;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
 use crossterm::event::KeyModifiers;
+use datax_app_server_protocol::Thread;
+use datax_app_server_protocol::ThreadItem;
+use datax_app_server_protocol::ThreadListCwdFilter;
+use datax_app_server_protocol::ThreadListParams;
+use datax_app_server_protocol::ThreadSortKey;
+use datax_config::types::SessionPickerViewMode;
+use datax_protocol::ThreadId;
 use ratatui::layout::Constraint;
 use ratatui::layout::Layout;
 use ratatui::layout::Rect;
@@ -783,7 +783,7 @@ async fn load_transcript_preview(
                 text: content
                     .iter()
                     .filter_map(|input| match input {
-                        codex_app_server_protocol::UserInput::Text { text, .. } => {
+                        datax_app_server_protocol::UserInput::Text { text, .. } => {
                             Some(text.as_str())
                         }
                         _ => None,
@@ -3197,11 +3197,11 @@ fn render_empty_state_line(state: &PickerState) -> Line<'static> {
 mod tests {
     use super::*;
     use chrono::Duration;
-    use codex_app_server_protocol::ThreadSourceKind;
-    use codex_config::CONFIG_TOML_FILE;
-    use codex_protocol::ThreadId;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use datax_app_server_protocol::ThreadSourceKind;
+    use datax_config::CONFIG_TOML_FILE;
+    use datax_protocol::ThreadId;
+    use datax_utils_absolute_path::test_support::PathBufExt;
+    use datax_utils_absolute_path::test_support::test_path_buf;
 
     use crossterm::event::KeyCode;
     use crossterm::event::KeyEvent;
@@ -4453,7 +4453,7 @@ session_picker_view = "dense"
     #[tokio::test]
     async fn ctrl_o_keeps_toggled_density_when_persistence_fails() {
         let tmp = tempdir().expect("tmpdir");
-        let codex_home_file = tmp.path().join("codex-home-file");
+        let codex_home_file = tmp.path().join("datax-home-file");
         std::fs::write(&codex_home_file, "not a directory").expect("write codex home file");
         let loader = page_only_loader(|_| {});
         let mut state = PickerState::new(
@@ -5729,11 +5729,11 @@ session_picker_view = "dense"
             created_at: 1,
             updated_at: 2,
             recency_at: Some(2),
-            status: codex_app_server_protocol::ThreadStatus::Idle,
+            status: datax_app_server_protocol::ThreadStatus::Idle,
             path: None,
             cwd: test_path_buf("/tmp").abs(),
             cli_version: String::from("0.0.0"),
-            source: codex_app_server_protocol::SessionSource::Cli,
+            source: datax_app_server_protocol::SessionSource::Cli,
             thread_source: None,
             agent_nickname: None,
             agent_role: None,
@@ -5765,24 +5765,24 @@ session_picker_view = "dense"
             created_at: 1,
             updated_at: 2,
             recency_at: Some(2),
-            status: codex_app_server_protocol::ThreadStatus::Idle,
+            status: datax_app_server_protocol::ThreadStatus::Idle,
             path: None,
             cwd: test_path_buf("/tmp").abs(),
             cli_version: String::from("0.0.0"),
-            source: codex_app_server_protocol::SessionSource::Cli,
+            source: datax_app_server_protocol::SessionSource::Cli,
             thread_source: None,
             agent_nickname: None,
             agent_role: None,
             git_info: None,
             name: None,
-            turns: vec![codex_app_server_protocol::Turn {
+            turns: vec![datax_app_server_protocol::Turn {
                 id: String::from("turn-1"),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::TurnItemsView::Full,
                 items: vec![
                     ThreadItem::UserMessage {
                         id: String::from("user-1"),
                         client_id: None,
-                        content: vec![codex_app_server_protocol::UserInput::Text {
+                        content: vec![datax_app_server_protocol::UserInput::Text {
                             text: String::from("hello from user"),
                             text_elements: Vec::new(),
                         }],
@@ -5798,7 +5798,7 @@ session_picker_view = "dense"
                         text: String::from("1. Do the thing"),
                     },
                 ],
-                status: codex_app_server_protocol::TurnStatus::Completed,
+                status: datax_app_server_protocol::TurnStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
@@ -5835,25 +5835,25 @@ session_picker_view = "dense"
             created_at: 1,
             updated_at: 2,
             recency_at: Some(2),
-            status: codex_app_server_protocol::ThreadStatus::Idle,
+            status: datax_app_server_protocol::ThreadStatus::Idle,
             path: None,
             cwd: test_path_buf("/tmp").abs(),
             cli_version: String::from("0.0.0"),
-            source: codex_app_server_protocol::SessionSource::Cli,
+            source: datax_app_server_protocol::SessionSource::Cli,
             thread_source: None,
             agent_nickname: None,
             agent_role: None,
             git_info: None,
             name: None,
-            turns: vec![codex_app_server_protocol::Turn {
+            turns: vec![datax_app_server_protocol::Turn {
                 id: String::from("turn-1"),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::TurnItemsView::Full,
                 items: vec![ThreadItem::Reasoning {
                     id: String::from("reasoning-1"),
                     summary: Vec::new(),
                     content: vec![String::from("private raw chain of thought")],
                 }],
-                status: codex_app_server_protocol::TurnStatus::Completed,
+                status: datax_app_server_protocol::TurnStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
@@ -5894,25 +5894,25 @@ session_picker_view = "dense"
             created_at: 1,
             updated_at: 2,
             recency_at: Some(2),
-            status: codex_app_server_protocol::ThreadStatus::Idle,
+            status: datax_app_server_protocol::ThreadStatus::Idle,
             path: None,
             cwd: test_path_buf("/tmp").abs(),
             cli_version: String::from("0.0.0"),
-            source: codex_app_server_protocol::SessionSource::Cli,
+            source: datax_app_server_protocol::SessionSource::Cli,
             thread_source: None,
             agent_nickname: None,
             agent_role: None,
             git_info: None,
             name: None,
-            turns: vec![codex_app_server_protocol::Turn {
+            turns: vec![datax_app_server_protocol::Turn {
                 id: String::from("turn-1"),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::TurnItemsView::Full,
                 items: vec![ThreadItem::Reasoning {
                     id: String::from("reasoning-1"),
                     summary: vec![String::from("public summary")],
                     content: vec![String::from("raw reasoning content")],
                 }],
-                status: codex_app_server_protocol::TurnStatus::Completed,
+                status: datax_app_server_protocol::TurnStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,

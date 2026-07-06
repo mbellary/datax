@@ -2,19 +2,19 @@ use anyhow::Result;
 use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use app_test_support::write_mock_responses_config_toml;
-use codex_app_server_protocol::CapabilityRootLocation;
-use codex_app_server_protocol::ListMcpServerStatusParams;
-use codex_app_server_protocol::ListMcpServerStatusResponse;
-use codex_app_server_protocol::McpServerToolCallParams;
-use codex_app_server_protocol::McpServerToolCallResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::SelectedCapabilityRoot;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::UserInput;
 use core_test_support::responses;
 use core_test_support::stdio_server_bin;
+use datax_app_server_protocol::CapabilityRootLocation;
+use datax_app_server_protocol::ListMcpServerStatusParams;
+use datax_app_server_protocol::ListMcpServerStatusResponse;
+use datax_app_server_protocol::McpServerToolCallParams;
+use datax_app_server_protocol::McpServerToolCallResponse;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::SelectedCapabilityRoot;
+use datax_app_server_protocol::ThreadStartParams;
+use datax_app_server_protocol::ThreadStartResponse;
+use datax_app_server_protocol::TurnStartParams;
+use datax_app_server_protocol::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -57,7 +57,7 @@ args = ["exec-server", "--listen", "stdio"]
 {EXECUTOR_ENV_NAME} = "{EXECUTOR_ENV_VALUE}"
 "#,
             toml::Value::String(
-                codex_utils_cargo_bin::cargo_bin("codex")?
+                datax_utils_cargo_bin::cargo_bin("codex")?
                     .to_string_lossy()
                     .into_owned()
             )

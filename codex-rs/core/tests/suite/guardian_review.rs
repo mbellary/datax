@@ -1,14 +1,6 @@
 #![cfg(not(target_os = "windows"))]
 
 use anyhow::Result;
-use codex_core::config::Constrained;
-use codex_core::sandboxing::SandboxPermissions;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::user_input::UserInput;
 use core_test_support::fs_wait;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -23,6 +15,14 @@ use core_test_support::skip_if_sandbox;
 use core_test_support::test_codex::local_selections;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
+use datax_core::config::Constrained;
+use datax_core::sandboxing::SandboxPermissions;
+use datax_protocol::config_types::ApprovalsReviewer;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::SandboxPolicy;
+use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
@@ -199,7 +199,7 @@ printf '%s\n' "${@: -1}" >> "${payload_path}""#,
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(test.config.cwd.clone())),
                 approval_policy: Some(approval_policy),
                 approvals_reviewer: Some(ApprovalsReviewer::AutoReview),

@@ -17,11 +17,11 @@ use crate::motion::ReducedMotionIndicator;
 use crate::motion::activity_indicator;
 use crate::motion::shimmer_text;
 use crate::render::renderable::Renderable;
-use codex_app_server_protocol::HookEventName;
-use codex_app_server_protocol::HookOutputEntry;
-use codex_app_server_protocol::HookOutputEntryKind;
-use codex_app_server_protocol::HookRunStatus;
-use codex_app_server_protocol::HookRunSummary;
+use datax_app_server_protocol::HookEventName;
+use datax_app_server_protocol::HookOutputEntry;
+use datax_app_server_protocol::HookOutputEntryKind;
+use datax_app_server_protocol::HookRunStatus;
+use datax_app_server_protocol::HookRunSummary;
 use ratatui::prelude::*;
 use ratatui::style::Stylize;
 use ratatui::widgets::Paragraph;
@@ -884,11 +884,11 @@ mod tests {
         HookRunSummary {
             id: id.to_string(),
             event_name: HookEventName::PostToolUse,
-            handler_type: codex_app_server_protocol::HookHandlerType::Command,
-            execution_mode: codex_app_server_protocol::HookExecutionMode::Sync,
-            scope: codex_app_server_protocol::HookScope::Turn,
+            handler_type: datax_app_server_protocol::HookHandlerType::Command,
+            execution_mode: datax_app_server_protocol::HookExecutionMode::Sync,
+            scope: datax_app_server_protocol::HookScope::Turn,
             source_path: test_path_buf("/tmp/hooks.json").abs(),
-            source: codex_app_server_protocol::HookSource::User,
+            source: datax_app_server_protocol::HookSource::User,
             display_order: 0,
             status: HookRunStatus::Running,
             status_message: Some("checking output policy".to_string()),

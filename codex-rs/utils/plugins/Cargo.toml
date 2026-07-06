@@ -2,21 +2,21 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-utils-plugins"
+name = "datax-utils-plugins"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_utils_plugins"
+name = "datax_utils_plugins"
 path = "src/lib.rs"
 
 [lints]
 workspace = true
 
 [dependencies]
-codex-exec-server = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-path-uri = { workspace = true }
+datax-exec-server = { workspace = true }
+datax-utils-absolute-path = { workspace = true }
+datax-utils-path-uri = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 

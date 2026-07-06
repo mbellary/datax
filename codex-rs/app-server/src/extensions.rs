@@ -1,28 +1,28 @@
 use std::sync::Arc;
 use std::sync::Weak;
 
-use codex_analytics::AnalyticsEventsClient;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ThreadGoal;
-use codex_app_server_protocol::ThreadGoalUpdatedNotification;
-use codex_core::NewThread;
-use codex_core::StartThreadOptions;
-use codex_core::ThreadManager;
-use codex_core::config::Config;
-use codex_exec_server::EnvironmentManager;
-use codex_extension_api::AgentSpawnFuture;
-use codex_extension_api::AgentSpawner;
-use codex_extension_api::ExtensionEventSink;
-use codex_extension_api::ExtensionRegistry;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_goal_extension::GoalService;
-use codex_login::AuthManager;
-use codex_protocol::ThreadId;
-use codex_protocol::error::CodexErr;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_rollout::state_db::StateDbHandle;
-use codex_thread_store::ThreadStore;
+use datax_analytics::AnalyticsEventsClient;
+use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::ThreadGoal;
+use datax_app_server_protocol::ThreadGoalUpdatedNotification;
+use datax_core::NewThread;
+use datax_core::StartThreadOptions;
+use datax_core::ThreadManager;
+use datax_core::config::Config;
+use datax_exec_server::EnvironmentManager;
+use datax_extension_api::AgentSpawnFuture;
+use datax_extension_api::AgentSpawner;
+use datax_extension_api::ExtensionEventSink;
+use datax_extension_api::ExtensionRegistry;
+use datax_extension_api::ExtensionRegistryBuilder;
+use datax_goal_extension::GoalService;
+use datax_login::AuthManager;
+use datax_protocol::ThreadId;
+use datax_protocol::error::CodexErr;
+use datax_protocol::protocol::Event;
+use datax_protocol::protocol::EventMsg;
+use datax_rollout::state_db::StateDbHandle;
+use datax_thread_store::ThreadStore;
 
 use crate::outgoing_message::OutgoingMessageSender;
 use crate::thread_state::ThreadListenerCommand;
@@ -36,7 +36,7 @@ pub(crate) struct ThreadExtensionDependencies {
     pub(crate) thread_manager: Weak<ThreadManager>,
     pub(crate) goal_service: Arc<GoalService>,
     pub(crate) environment_manager: Arc<EnvironmentManager>,
-    pub(crate) executor_skill_provider: Arc<dyn codex_skills_extension::SkillProvider>,
+    pub(crate) executor_skill_provider: Arc<dyn datax_skills_extension::SkillProvider>,
     /// Process-scoped persistence backend for extensions that need stored thread history.
     pub(crate) thread_store: Arc<dyn ThreadStore>,
 }
@@ -61,31 +61,31 @@ where
     } = dependencies;
     let mut builder = ExtensionRegistryBuilder::<Config>::with_event_sink(event_sink);
     if let Some(state_db) = state_db {
-        codex_goal_extension::install_with_backend(
+        datax_goal_extension::install_with_backend(
             &mut builder,
             state_db,
             analytics_events_client,
-            codex_otel::global(),
+            datax_otel::global(),
             thread_manager,
             goal_service,
-            |config: &Config| config.features.enabled(codex_features::Feature::Goals),
+            |config: &Config| config.features.enabled(datax_features::Feature::Goals),
         );
     }
-    codex_guardian::install(&mut builder, guardian_agent_spawner);
-    codex_memories_extension::install(&mut builder, codex_otel::global());
-    codex_mcp_extension::install(&mut builder);
-    codex_mcp_extension::install_executor_plugins(&mut builder, environment_manager);
-    codex_web_search_extension::install(&mut builder, auth_manager.clone());
-    codex_image_generation_extension::install(&mut builder, auth_manager);
-    let skill_providers = codex_skills_extension::SkillProviders::new()
+    datax_guardian::install(&mut builder, guardian_agent_spawner);
+    datax_memories_extension::install(&mut builder, datax_otel::global());
+    datax_mcp_extension::install(&mut builder);
+    datax_mcp_extension::install_executor_plugins(&mut builder, environment_manager);
+    datax_web_search_extension::install(&mut builder, auth_manager.clone());
+    datax_image_generation_extension::install(&mut builder, auth_manager);
+    let skill_providers = datax_skills_extension::SkillProviders::new()
         .with_executor_provider(executor_skill_provider)
         .with_orchestrator_provider(Arc::new(
-            codex_skills_extension::OrchestratorSkillProvider::new(),
+            datax_skills_extension::OrchestratorSkillProvider::new(),
         ));
-    codex_skills_extension::install_with_providers(
+    datax_skills_extension::install_with_providers(
         &mut builder,
         skill_providers,
-        |config: &Config| codex_skills_extension::SkillsExtensionConfig {
+        |config: &Config| datax_skills_extension::SkillsExtensionConfig {
             include_instructions: config.include_skill_instructions,
             bundled_skills_enabled: config.bundled_skills_enabled(),
             orchestrator_skills_enabled: config.orchestrator_skills_enabled,
@@ -173,9 +173,9 @@ pub(crate) fn guardian_agent_spawner(
 mod tests {
     use std::time::Duration;
 
-    use codex_protocol::protocol::ThreadGoal as CoreThreadGoal;
-    use codex_protocol::protocol::ThreadGoalStatus;
-    use codex_protocol::protocol::ThreadGoalUpdatedEvent;
+    use datax_protocol::protocol::ThreadGoal as CoreThreadGoal;
+    use datax_protocol::protocol::ThreadGoalStatus;
+    use datax_protocol::protocol::ThreadGoalUpdatedEvent;
     use pretty_assertions::assert_eq;
     use tokio::sync::mpsc;
     use tokio::time::timeout;

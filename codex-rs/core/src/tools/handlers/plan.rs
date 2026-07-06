@@ -6,13 +6,13 @@ use crate::tools::context::boxed_tool_output;
 use crate::tools::handlers::plan_spec::create_update_plan_tool;
 use crate::tools::registry::CoreToolRuntime;
 use crate::tools::registry::ToolExecutor;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::plan_tool::UpdatePlanArgs;
-use codex_protocol::protocol::EventMsg;
-use codex_tools::ToolName;
-use codex_tools::ToolSpec;
+use datax_protocol::config_types::ModeKind;
+use datax_protocol::models::FunctionCallOutputPayload;
+use datax_protocol::models::ResponseInputItem;
+use datax_protocol::plan_tool::UpdatePlanArgs;
+use datax_protocol::protocol::EventMsg;
+use datax_tools::ToolName;
+use datax_tools::ToolSpec;
 use serde_json::Value as JsonValue;
 
 pub struct PlanHandler;
@@ -54,7 +54,7 @@ impl ToolExecutor<ToolInvocation> for PlanHandler {
         create_update_plan_tool()
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> datax_tools::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(invocation))
     }
 }

@@ -1,18 +1,18 @@
-use codex_arg0::Arg0DispatchPaths;
-use codex_cloud_config::cloud_config_bundle_loader;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::ConfigLayerStack;
-use codex_config::LoaderOverrides;
-use codex_config::ThreadConfigLoader;
-use codex_config::loader::load_config_layers_state;
-use codex_core::config::Config;
-use codex_core::config::ConfigOverrides;
-use codex_exec_server::LOCAL_FS;
-use codex_features::feature_for_key;
-use codex_login::AuthManager;
-use codex_login::default_client::set_default_client_residency_requirement;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_json_to_toml::json_to_toml;
+use datax_arg0::Arg0DispatchPaths;
+use datax_cloud_config::cloud_config_bundle_loader;
+use datax_config::CloudConfigBundleLoader;
+use datax_config::ConfigLayerStack;
+use datax_config::LoaderOverrides;
+use datax_config::ThreadConfigLoader;
+use datax_config::loader::load_config_layers_state;
+use datax_core::config::Config;
+use datax_core::config::ConfigOverrides;
+use datax_exec_server::LOCAL_FS;
+use datax_features::feature_for_key;
+use datax_login::AuthManager;
+use datax_login::default_client::set_default_client_residency_requirement;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_json_to_toml::json_to_toml;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::HashMap;
@@ -120,7 +120,7 @@ impl ConfigManager {
         self.thread_config_loader
             .read()
             .map(|guard| Arc::clone(&*guard))
-            .unwrap_or_else(|_| Arc::new(codex_config::NoopThreadConfigLoader))
+            .unwrap_or_else(|_| Arc::new(datax_config::NoopThreadConfigLoader))
     }
 
     pub(crate) async fn sync_default_client_residency_requirement(&self) {
@@ -240,7 +240,7 @@ impl ConfigManager {
             )
             .collect::<Vec<_>>();
 
-        let mut config = codex_core::config::ConfigBuilder::default()
+        let mut config = datax_core::config::ConfigBuilder::default()
             .codex_home(self.codex_home.clone())
             .cli_overrides(merged_cli_overrides)
             .loader_overrides(self.loader_overrides.clone())
@@ -273,7 +273,7 @@ impl ConfigManager {
             &self.codex_home,
             cwd,
             &self.current_cli_overrides(),
-            codex_config::ConfigLoadOptions {
+            datax_config::ConfigLoadOptions {
                 loader_overrides: self.loader_overrides.clone(),
                 strict_config: self.strict_config,
                 cloud_config_bundle: self.current_cloud_config_bundle(),
@@ -314,7 +314,7 @@ impl ConfigManager {
             /*strict_config*/ false,
             cloud_config_bundle,
             Arg0DispatchPaths::default(),
-            Arc::new(codex_config::NoopThreadConfigLoader),
+            Arc::new(datax_config::NoopThreadConfigLoader),
         )
     }
 

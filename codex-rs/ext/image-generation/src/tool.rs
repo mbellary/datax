@@ -1,39 +1,39 @@
 use std::collections::HashSet;
 
-use codex_api::ImageBackground;
-use codex_api::ImageEditRequest;
-use codex_api::ImageGenerationRequest;
-use codex_api::ImageQuality;
-use codex_api::ImageUrl;
-use codex_core::context::extension_image_generation_output_hint;
-use codex_core::image_generation_artifact_path;
-use codex_extension_api::ExtensionTurnItem;
-use codex_extension_api::FunctionCallError;
-use codex_extension_api::ToolCall;
-use codex_extension_api::ToolEnvironment;
-use codex_extension_api::ToolExecutor;
-use codex_extension_api::ToolName;
-use codex_extension_api::ToolOutput;
-use codex_extension_api::ToolPayload;
-use codex_extension_api::ToolSpec;
-use codex_extension_api::parse_tool_input_schema;
-use codex_protocol::items::ImageGenerationItem;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::DEFAULT_IMAGE_DETAIL;
-use codex_protocol::models::FunctionCallOutputBody;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
-use codex_tools::ResponsesApiNamespace;
-use codex_tools::ResponsesApiNamespaceTool;
-use codex_tools::ResponsesApiTool;
-use codex_tools::ToolExposure;
-use codex_tools::default_namespace_description;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_image::PromptImageMode;
-use codex_utils_image::load_for_prompt_bytes;
-use codex_utils_path_uri::PathUri;
+use datax_api::ImageBackground;
+use datax_api::ImageEditRequest;
+use datax_api::ImageGenerationRequest;
+use datax_api::ImageQuality;
+use datax_api::ImageUrl;
+use datax_core::context::extension_image_generation_output_hint;
+use datax_core::image_generation_artifact_path;
+use datax_extension_api::ExtensionTurnItem;
+use datax_extension_api::FunctionCallError;
+use datax_extension_api::ToolCall;
+use datax_extension_api::ToolEnvironment;
+use datax_extension_api::ToolExecutor;
+use datax_extension_api::ToolName;
+use datax_extension_api::ToolOutput;
+use datax_extension_api::ToolPayload;
+use datax_extension_api::ToolSpec;
+use datax_extension_api::parse_tool_input_schema;
+use datax_protocol::items::ImageGenerationItem;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::DEFAULT_IMAGE_DETAIL;
+use datax_protocol::models::FunctionCallOutputBody;
+use datax_protocol::models::FunctionCallOutputContentItem;
+use datax_protocol::models::FunctionCallOutputPayload;
+use datax_protocol::models::ResponseInputItem;
+use datax_protocol::models::ResponseItem;
+use datax_tools::ResponsesApiNamespace;
+use datax_tools::ResponsesApiNamespaceTool;
+use datax_tools::ResponsesApiTool;
+use datax_tools::ToolExposure;
+use datax_tools::default_namespace_description;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_image::PromptImageMode;
+use datax_utils_image::load_for_prompt_bytes;
+use datax_utils_path_uri::PathUri;
 use schemars::JsonSchema;
 use schemars::r#gen::SchemaSettings;
 use serde::Deserialize;
@@ -97,7 +97,7 @@ impl ToolExecutor<ToolCall> for ImageGenerationTool {
     }
 
     /// Executes the selected image operation and returns the completed image result.
-    fn handle(&self, call: ToolCall) -> codex_extension_api::ToolExecutorFuture<'_> {
+    fn handle(&self, call: ToolCall) -> datax_extension_api::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(call))
     }
 }

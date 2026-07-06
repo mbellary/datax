@@ -1,6 +1,6 @@
-use codex_api::SharedAuthProvider;
-use codex_login::AuthManager;
-use codex_login::UnauthorizedRecovery;
+use datax_api::SharedAuthProvider;
+use datax_login::AuthManager;
+use datax_login::UnauthorizedRecovery;
 use std::io;
 use std::io::ErrorKind;
 use std::sync::Arc;
@@ -48,7 +48,7 @@ pub(super) async fn load_remote_control_auth(
     }
 
     Ok(RemoteControlConnectionAuth {
-        auth_provider: codex_model_provider::auth_provider_from_auth(&auth),
+        auth_provider: datax_model_provider::auth_provider_from_auth(&auth),
         account_id: auth.get_account_id().ok_or_else(|| {
             io::Error::new(
                 ErrorKind::WouldBlock,

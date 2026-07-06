@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
-use codex_extension_api::FunctionCallError;
-use codex_extension_api::JsonToolOutput;
-use codex_extension_api::ToolCall;
-use codex_extension_api::ToolExecutor;
-use codex_extension_api::ToolName;
-use codex_extension_api::ToolOutput;
-use codex_extension_api::ToolSpec;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::ThreadGoal;
-use codex_protocol::protocol::ThreadGoalStatus;
-use codex_protocol::protocol::validate_thread_goal_objective;
+use datax_extension_api::FunctionCallError;
+use datax_extension_api::JsonToolOutput;
+use datax_extension_api::ToolCall;
+use datax_extension_api::ToolExecutor;
+use datax_extension_api::ToolName;
+use datax_extension_api::ToolOutput;
+use datax_extension_api::ToolSpec;
+use datax_protocol::ThreadId;
+use datax_protocol::protocol::ThreadGoal;
+use datax_protocol::protocol::ThreadGoalStatus;
+use datax_protocol::protocol::validate_thread_goal_objective;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -31,7 +31,7 @@ use crate::spec::create_update_goal_tool;
 pub(crate) struct GoalToolExecutor {
     kind: GoalToolKind,
     thread_id: ThreadId,
-    state_db: Arc<codex_state::StateRuntime>,
+    state_db: Arc<datax_state::StateRuntime>,
     accounting_state: Arc<GoalAccountingState>,
     analytics: GoalAnalytics,
     event_emitter: GoalEventEmitter,
@@ -75,7 +75,7 @@ enum CompletionBudgetReport {
 impl GoalToolExecutor {
     pub(crate) fn get(
         thread_id: ThreadId,
-        state_db: Arc<codex_state::StateRuntime>,
+        state_db: Arc<datax_state::StateRuntime>,
         accounting_state: Arc<GoalAccountingState>,
         analytics: GoalAnalytics,
         event_emitter: GoalEventEmitter,
@@ -94,7 +94,7 @@ impl GoalToolExecutor {
 
     pub(crate) fn create(
         thread_id: ThreadId,
-        state_db: Arc<codex_state::StateRuntime>,
+        state_db: Arc<datax_state::StateRuntime>,
         accounting_state: Arc<GoalAccountingState>,
         analytics: GoalAnalytics,
         event_emitter: GoalEventEmitter,
@@ -113,7 +113,7 @@ impl GoalToolExecutor {
 
     pub(crate) fn update(
         thread_id: ThreadId,
-        state_db: Arc<codex_state::StateRuntime>,
+        state_db: Arc<datax_state::StateRuntime>,
         accounting_state: Arc<GoalAccountingState>,
         analytics: GoalAnalytics,
         event_emitter: GoalEventEmitter,
@@ -148,7 +148,7 @@ impl ToolExecutor<ToolCall> for GoalToolExecutor {
         }
     }
 
-    fn handle(&self, invocation: ToolCall) -> codex_extension_api::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolCall) -> datax_extension_api::ToolExecutorFuture<'_> {
         Box::pin(async move {
             match self.kind {
                 GoalToolKind::Get => self.handle_get(invocation).await,
@@ -193,7 +193,7 @@ impl GoalToolExecutor {
             .insert_thread_goal(
                 self.thread_id,
                 request.objective.as_str(),
-                codex_state::ThreadGoalStatus::Active,
+                datax_state::ThreadGoalStatus::Active,
                 request.token_budget,
             )
             .await
@@ -235,8 +235,8 @@ impl GoalToolExecutor {
 
         self.account_active_goal_progress(
             match args.status {
-                ThreadGoalStatus::Complete => codex_state::GoalAccountingMode::ActiveOrComplete,
-                ThreadGoalStatus::Blocked => codex_state::GoalAccountingMode::ActiveOrStopped,
+                ThreadGoalStatus::Complete => datax_state::GoalAccountingMode::ActiveOrComplete,
+                ThreadGoalStatus::Blocked => datax_state::GoalAccountingMode::ActiveOrStopped,
                 ThreadGoalStatus::Active
                 | ThreadGoalStatus::Paused
                 | ThreadGoalStatus::UsageLimited
@@ -254,7 +254,7 @@ impl GoalToolExecutor {
             .thread_goals()
             .update_thread_goal(
                 self.thread_id,
-                codex_state::GoalUpdate {
+                datax_state::GoalUpdate {
                     objective: None,
                     status: Some(state_status_from_protocol(args.status)),
                     token_budget: None,
@@ -302,7 +302,7 @@ impl GoalToolExecutor {
 
     async fn account_active_goal_progress(
         &self,
-        mode: codex_state::GoalAccountingMode,
+        mode: datax_state::GoalAccountingMode,
         event_id: &str,
         budget_limited_goal_disposition: BudgetLimitedGoalDisposition,
     ) -> Result<Option<ThreadGoal>, FunctionCallError> {
@@ -339,7 +339,7 @@ impl GoalToolExecutor {
                 FunctionCallError::RespondToModel(format!("failed to account goal progress: {err}"))
             })?;
         Ok(match outcome {
-            codex_state::GoalAccountingOutcome::Updated(goal) => {
+            datax_state::GoalAccountingOutcome::Updated(goal) => {
                 self.metrics
                     .record_terminal_if_status_changed(previous_status, &goal);
                 self.analytics
@@ -363,14 +363,14 @@ impl GoalToolExecutor {
                 );
                 Some(goal)
             }
-            codex_state::GoalAccountingOutcome::Unchanged(_) => None,
+            datax_state::GoalAccountingOutcome::Unchanged(_) => None,
         })
     }
 
     async fn current_goal_status_for_metrics(
         &self,
         expected_goal_id: Option<&str>,
-    ) -> Result<Option<codex_state::ThreadGoalStatus>, FunctionCallError> {
+    ) -> Result<Option<datax_state::ThreadGoalStatus>, FunctionCallError> {
         let goal = self
             .state_db
             .thread_goals()
@@ -437,9 +437,9 @@ impl GoalToolResponse {
 }
 
 pub(crate) async fn fill_empty_thread_preview_if_possible(
-    state_db: &codex_state::StateRuntime,
+    state_db: &datax_state::StateRuntime,
     thread_id: ThreadId,
-    goal: &codex_state::ThreadGoal,
+    goal: &datax_state::ThreadGoal,
 ) {
     if let Err(err) = state_db
         .set_thread_preview_if_empty(thread_id, goal.objective.as_str())
@@ -451,7 +451,7 @@ pub(crate) async fn fill_empty_thread_preview_if_possible(
     }
 }
 
-pub(crate) fn protocol_goal_from_state(goal: codex_state::ThreadGoal) -> ThreadGoal {
+pub(crate) fn protocol_goal_from_state(goal: datax_state::ThreadGoal) -> ThreadGoal {
     ThreadGoal {
         thread_id: goal.thread_id,
         objective: goal.objective,
@@ -464,27 +464,27 @@ pub(crate) fn protocol_goal_from_state(goal: codex_state::ThreadGoal) -> ThreadG
     }
 }
 
-fn protocol_status_from_state(status: codex_state::ThreadGoalStatus) -> ThreadGoalStatus {
+fn protocol_status_from_state(status: datax_state::ThreadGoalStatus) -> ThreadGoalStatus {
     match status {
-        codex_state::ThreadGoalStatus::Active => ThreadGoalStatus::Active,
-        codex_state::ThreadGoalStatus::Paused => ThreadGoalStatus::Paused,
-        codex_state::ThreadGoalStatus::Blocked => ThreadGoalStatus::Blocked,
-        codex_state::ThreadGoalStatus::UsageLimited => ThreadGoalStatus::UsageLimited,
-        codex_state::ThreadGoalStatus::BudgetLimited => ThreadGoalStatus::BudgetLimited,
-        codex_state::ThreadGoalStatus::Complete => ThreadGoalStatus::Complete,
+        datax_state::ThreadGoalStatus::Active => ThreadGoalStatus::Active,
+        datax_state::ThreadGoalStatus::Paused => ThreadGoalStatus::Paused,
+        datax_state::ThreadGoalStatus::Blocked => ThreadGoalStatus::Blocked,
+        datax_state::ThreadGoalStatus::UsageLimited => ThreadGoalStatus::UsageLimited,
+        datax_state::ThreadGoalStatus::BudgetLimited => ThreadGoalStatus::BudgetLimited,
+        datax_state::ThreadGoalStatus::Complete => ThreadGoalStatus::Complete,
     }
 }
 
 pub(crate) fn state_status_from_protocol(
     status: ThreadGoalStatus,
-) -> codex_state::ThreadGoalStatus {
+) -> datax_state::ThreadGoalStatus {
     match status {
-        ThreadGoalStatus::Active => codex_state::ThreadGoalStatus::Active,
-        ThreadGoalStatus::Paused => codex_state::ThreadGoalStatus::Paused,
-        ThreadGoalStatus::Blocked => codex_state::ThreadGoalStatus::Blocked,
-        ThreadGoalStatus::UsageLimited => codex_state::ThreadGoalStatus::UsageLimited,
-        ThreadGoalStatus::BudgetLimited => codex_state::ThreadGoalStatus::BudgetLimited,
-        ThreadGoalStatus::Complete => codex_state::ThreadGoalStatus::Complete,
+        ThreadGoalStatus::Active => datax_state::ThreadGoalStatus::Active,
+        ThreadGoalStatus::Paused => datax_state::ThreadGoalStatus::Paused,
+        ThreadGoalStatus::Blocked => datax_state::ThreadGoalStatus::Blocked,
+        ThreadGoalStatus::UsageLimited => datax_state::ThreadGoalStatus::UsageLimited,
+        ThreadGoalStatus::BudgetLimited => datax_state::ThreadGoalStatus::BudgetLimited,
+        ThreadGoalStatus::Complete => datax_state::ThreadGoalStatus::Complete,
     }
 }
 

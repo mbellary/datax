@@ -7,17 +7,17 @@ use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_protocol::config_types::EnvironmentVariablePattern;
-use codex_protocol::config_types::ShellEnvironmentPolicy;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::exec_output::StreamOutput;
-use codex_protocol::shell_environment;
-use codex_sandboxing::SandboxType;
-use codex_sandboxing::is_likely_sandbox_denied;
-use codex_utils_pty::ExecCommandSession;
-use codex_utils_pty::ProcessSignal as PtyProcessSignal;
-use codex_utils_pty::TerminalSize;
+use datax_app_server_protocol::JSONRPCErrorError;
+use datax_protocol::config_types::EnvironmentVariablePattern;
+use datax_protocol::config_types::ShellEnvironmentPolicy;
+use datax_protocol::exec_output::ExecToolCallOutput;
+use datax_protocol::exec_output::StreamOutput;
+use datax_protocol::shell_environment;
+use datax_sandboxing::SandboxType;
+use datax_sandboxing::is_likely_sandbox_denied;
+use datax_utils_pty::ExecCommandSession;
+use datax_utils_pty::ProcessSignal as PtyProcessSignal;
+use datax_utils_pty::TerminalSize;
 use tokio::sync::Mutex;
 use tokio::sync::Notify;
 use tokio::sync::mpsc;
@@ -241,7 +241,7 @@ impl LocalProcess {
         }
 
         let spawned_result = if params.tty {
-            codex_utils_pty::spawn_pty_process(
+            datax_utils_pty::spawn_pty_process(
                 program,
                 args,
                 prepared.cwd.as_path(),
@@ -251,7 +251,7 @@ impl LocalProcess {
             )
             .await
         } else if params.pipe_stdin {
-            codex_utils_pty::spawn_pipe_process(
+            datax_utils_pty::spawn_pipe_process(
                 program,
                 args,
                 prepared.cwd.as_path(),
@@ -260,7 +260,7 @@ impl LocalProcess {
             )
             .await
         } else {
-            codex_utils_pty::spawn_pipe_process_no_stdin(
+            datax_utils_pty::spawn_pipe_process_no_stdin(
                 program,
                 args,
                 prepared.cwd.as_path(),
@@ -945,9 +945,9 @@ fn notification_sender(inner: &Inner) -> Option<RpcNotificationSender> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_protocol::config_types::ShellEnvironmentPolicyInherit;
-    use codex_utils_path_uri::PathUri;
-    use codex_utils_pty::ProcessDriver;
+    use datax_protocol::config_types::ShellEnvironmentPolicyInherit;
+    use datax_utils_path_uri::PathUri;
+    use datax_utils_pty::ProcessDriver;
     use pretty_assertions::assert_eq;
     use tokio::sync::oneshot;
     use tokio::time::timeout;
@@ -1211,7 +1211,7 @@ mod tests {
         let (_stderr_tx, stderr_rx) = tokio::sync::broadcast::channel(1);
         let (_exit_tx, exit_rx) = oneshot::channel();
 
-        codex_utils_pty::spawn_from_driver(ProcessDriver {
+        datax_utils_pty::spawn_from_driver(ProcessDriver {
             writer_tx,
             stdout_rx,
             stderr_rx: Some(stderr_rx),

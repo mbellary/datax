@@ -10,30 +10,30 @@
 
 use std::path::PathBuf;
 
-use codex_app_server_protocol::AddCreditsNudgeCreditType;
-use codex_app_server_protocol::AddCreditsNudgeEmailStatus;
-use codex_app_server_protocol::AppInfo;
-use codex_app_server_protocol::ConsumeAccountRateLimitResetCreditResponse;
-use codex_app_server_protocol::GetAccountRateLimitsResponse;
-use codex_app_server_protocol::GetAccountTokenUsageResponse;
-use codex_app_server_protocol::MarketplaceAddResponse;
-use codex_app_server_protocol::MarketplaceRemoveResponse;
-use codex_app_server_protocol::MarketplaceUpgradeResponse;
-use codex_app_server_protocol::McpServerStatus;
-use codex_app_server_protocol::McpServerStatusDetail;
-use codex_app_server_protocol::PluginInstallResponse;
-use codex_app_server_protocol::PluginListResponse;
-use codex_app_server_protocol::PluginMarketplaceEntry;
-use codex_app_server_protocol::PluginReadParams;
-use codex_app_server_protocol::PluginReadResponse;
-use codex_app_server_protocol::PluginUninstallResponse;
-use codex_app_server_protocol::SkillsListResponse;
-use codex_app_server_protocol::ThreadGoalStatus;
-use codex_file_search::FileMatch;
-use codex_protocol::ThreadId;
-use codex_protocol::openai_models::ModelPreset;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_approval_presets::ApprovalPreset;
+use datax_app_server_protocol::AddCreditsNudgeCreditType;
+use datax_app_server_protocol::AddCreditsNudgeEmailStatus;
+use datax_app_server_protocol::AppInfo;
+use datax_app_server_protocol::ConsumeAccountRateLimitResetCreditResponse;
+use datax_app_server_protocol::GetAccountRateLimitsResponse;
+use datax_app_server_protocol::GetAccountTokenUsageResponse;
+use datax_app_server_protocol::MarketplaceAddResponse;
+use datax_app_server_protocol::MarketplaceRemoveResponse;
+use datax_app_server_protocol::MarketplaceUpgradeResponse;
+use datax_app_server_protocol::McpServerStatus;
+use datax_app_server_protocol::McpServerStatusDetail;
+use datax_app_server_protocol::PluginInstallResponse;
+use datax_app_server_protocol::PluginListResponse;
+use datax_app_server_protocol::PluginMarketplaceEntry;
+use datax_app_server_protocol::PluginReadParams;
+use datax_app_server_protocol::PluginReadResponse;
+use datax_app_server_protocol::PluginUninstallResponse;
+use datax_app_server_protocol::SkillsListResponse;
+use datax_app_server_protocol::ThreadGoalStatus;
+use datax_file_search::FileMatch;
+use datax_protocol::ThreadId;
+use datax_protocol::openai_models::ModelPreset;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_approval_presets::ApprovalPreset;
 
 use crate::app_command::AppCommand;
 use crate::app_server_session::AppServerStartedThread;
@@ -42,14 +42,14 @@ use crate::bottom_pane::StatusLineItem;
 use crate::bottom_pane::TerminalTitleItem;
 use crate::chatwidget::UserMessage;
 use crate::goal_files::GoalDraft;
-use codex_app_server_protocol::AskForApproval;
-use codex_config::types::ApprovalsReviewer;
-use codex_features::Feature;
-use codex_plugin::PluginCapabilitySummary;
-use codex_protocol::config_types::CollaborationModeMask;
-use codex_protocol::config_types::Personality;
-use codex_protocol::models::ActivePermissionProfile;
-use codex_protocol::openai_models::ReasoningEffort;
+use datax_app_server_protocol::AskForApproval;
+use datax_config::types::ApprovalsReviewer;
+use datax_features::Feature;
+use datax_plugin::PluginCapabilitySummary;
+use datax_protocol::config_types::CollaborationModeMask;
+use datax_protocol::config_types::Personality;
+use datax_protocol::models::ActivePermissionProfile;
+use datax_protocol::openai_models::ReasoningEffort;
 
 use crate::history_cell::HistoryCell;
 
@@ -469,7 +469,7 @@ pub(crate) enum AppEvent {
     /// Result of fetching lifecycle hook inventory.
     HooksLoaded {
         cwd: PathBuf,
-        result: Result<codex_app_server_protocol::HooksListResponse, String>,
+        result: Result<datax_app_server_protocol::HooksListResponse, String>,
     },
 
     /// Open the prompt for adding a marketplace source.

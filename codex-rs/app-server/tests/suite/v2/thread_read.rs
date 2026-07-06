@@ -5,65 +5,65 @@ use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::rollout_path;
 use app_test_support::test_absolute_path;
 use app_test_support::to_response;
-use codex_app_server::in_process;
-use codex_app_server::in_process::InProcessStartArgs;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::InitializeCapabilities;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::SessionSource;
-use codex_app_server_protocol::SortDirection;
-use codex_app_server_protocol::ThreadForkParams;
-use codex_app_server_protocol::ThreadForkResponse;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadListParams;
-use codex_app_server_protocol::ThreadListResponse;
-use codex_app_server_protocol::ThreadNameUpdatedNotification;
-use codex_app_server_protocol::ThreadReadParams;
-use codex_app_server_protocol::ThreadReadResponse;
-use codex_app_server_protocol::ThreadResumeInitialTurnsPageParams;
-use codex_app_server_protocol::ThreadResumeParams;
-use codex_app_server_protocol::ThreadResumeResponse;
-use codex_app_server_protocol::ThreadSetNameParams;
-use codex_app_server_protocol::ThreadSetNameResponse;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::ThreadStatus;
-use codex_app_server_protocol::ThreadTurnsItemsListParams;
-use codex_app_server_protocol::ThreadTurnsListParams;
-use codex_app_server_protocol::ThreadTurnsListResponse;
-use codex_app_server_protocol::TurnItemsView;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::UserInput;
-use codex_arg0::Arg0DispatchPaths;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::LoaderOverrides;
-use codex_core::ARCHIVED_SESSIONS_SUBDIR;
-use codex_core::config::ConfigBuilder;
-use codex_exec_server::EnvironmentManager;
-use codex_feedback::CodexFeedback;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::protocol::AgentMessageEvent;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionSource as ProtocolSessionSource;
-use codex_protocol::protocol::ThreadMemoryMode;
-use codex_protocol::protocol::UserMessageEvent;
-use codex_protocol::user_input::ByteRange;
-use codex_protocol::user_input::TextElement;
-use codex_thread_store::AppendThreadItemsParams;
-use codex_thread_store::CreateThreadParams;
-use codex_thread_store::InMemoryThreadStore;
-use codex_thread_store::ThreadMetadataPatch;
-use codex_thread_store::ThreadPersistenceMetadata;
-use codex_thread_store::ThreadStore;
-use codex_thread_store::UpdateThreadMetadataParams;
 use core_test_support::responses;
+use datax_app_server::in_process;
+use datax_app_server::in_process::InProcessStartArgs;
+use datax_app_server_protocol::ClientInfo;
+use datax_app_server_protocol::ClientRequest;
+use datax_app_server_protocol::InitializeCapabilities;
+use datax_app_server_protocol::InitializeParams;
+use datax_app_server_protocol::JSONRPCError;
+use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::SessionSource;
+use datax_app_server_protocol::SortDirection;
+use datax_app_server_protocol::ThreadForkParams;
+use datax_app_server_protocol::ThreadForkResponse;
+use datax_app_server_protocol::ThreadItem;
+use datax_app_server_protocol::ThreadListParams;
+use datax_app_server_protocol::ThreadListResponse;
+use datax_app_server_protocol::ThreadNameUpdatedNotification;
+use datax_app_server_protocol::ThreadReadParams;
+use datax_app_server_protocol::ThreadReadResponse;
+use datax_app_server_protocol::ThreadResumeInitialTurnsPageParams;
+use datax_app_server_protocol::ThreadResumeParams;
+use datax_app_server_protocol::ThreadResumeResponse;
+use datax_app_server_protocol::ThreadSetNameParams;
+use datax_app_server_protocol::ThreadSetNameResponse;
+use datax_app_server_protocol::ThreadStartParams;
+use datax_app_server_protocol::ThreadStartResponse;
+use datax_app_server_protocol::ThreadStatus;
+use datax_app_server_protocol::ThreadTurnsItemsListParams;
+use datax_app_server_protocol::ThreadTurnsListParams;
+use datax_app_server_protocol::ThreadTurnsListResponse;
+use datax_app_server_protocol::TurnItemsView;
+use datax_app_server_protocol::TurnStartParams;
+use datax_app_server_protocol::TurnStartResponse;
+use datax_app_server_protocol::TurnStatus;
+use datax_app_server_protocol::UserInput;
+use datax_arg0::Arg0DispatchPaths;
+use datax_config::CloudConfigBundleLoader;
+use datax_config::LoaderOverrides;
+use datax_core::ARCHIVED_SESSIONS_SUBDIR;
+use datax_core::config::ConfigBuilder;
+use datax_exec_server::EnvironmentManager;
+use datax_feedback::CodexFeedback;
+use datax_protocol::models::BaseInstructions;
+use datax_protocol::protocol::AgentMessageEvent;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::SessionSource as ProtocolSessionSource;
+use datax_protocol::protocol::ThreadMemoryMode;
+use datax_protocol::protocol::UserMessageEvent;
+use datax_protocol::user_input::ByteRange;
+use datax_protocol::user_input::TextElement;
+use datax_thread_store::AppendThreadItemsParams;
+use datax_thread_store::CreateThreadParams;
+use datax_thread_store::InMemoryThreadStore;
+use datax_thread_store::ThreadMetadataPatch;
+use datax_thread_store::ThreadPersistenceMetadata;
+use datax_thread_store::ThreadStore;
+use datax_thread_store::UpdateThreadMetadataParams;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
@@ -356,7 +356,7 @@ async fn thread_turns_list_supports_requested_items_view() -> Result<()> {
 #[tokio::test]
 async fn thread_turns_list_reads_store_history_without_rollout_path() -> Result<()> {
     let codex_home = TempDir::new()?;
-    let thread_id = codex_protocol::ThreadId::from_string("00000000-0000-4000-8000-000000000123")?;
+    let thread_id = datax_protocol::ThreadId::from_string("00000000-0000-4000-8000-000000000123")?;
     let store_id = Uuid::new_v4().to_string();
     create_config_toml_with_thread_store(codex_home.path(), &store_id)?;
     let store = InMemoryThreadStore::for_id(store_id.clone());
@@ -377,7 +377,7 @@ async fn thread_turns_list_reads_store_history_without_rollout_path() -> Result<
         loader_overrides,
         strict_config: false,
         cloud_config_bundle: CloudConfigBundleLoader::default(),
-        thread_config_loader: Arc::new(codex_config::NoopThreadConfigLoader),
+        thread_config_loader: Arc::new(datax_config::NoopThreadConfigLoader),
         feedback: CodexFeedback::new(),
         log_db: None,
         state_db: None,
@@ -387,7 +387,7 @@ async fn thread_turns_list_reads_store_history_without_rollout_path() -> Result<
         enable_codex_api_key_env: false,
         initialize: InitializeParams {
             client_info: ClientInfo {
-                name: "codex-app-server-tests".to_string(),
+                name: "datax-app-server-tests".to_string(),
                 title: None,
                 version: "0.1.0".to_string(),
             },
@@ -443,7 +443,7 @@ async fn thread_read_loaded_include_turns_reads_store_history_without_rollout_pa
         loader_overrides,
         strict_config: false,
         cloud_config_bundle: CloudConfigBundleLoader::default(),
-        thread_config_loader: Arc::new(codex_config::NoopThreadConfigLoader),
+        thread_config_loader: Arc::new(datax_config::NoopThreadConfigLoader),
         feedback: CodexFeedback::new(),
         log_db: None,
         state_db: None,
@@ -453,7 +453,7 @@ async fn thread_read_loaded_include_turns_reads_store_history_without_rollout_pa
         enable_codex_api_key_env: false,
         initialize: InitializeParams {
             client_info: ClientInfo {
-                name: "codex-app-server-tests".to_string(),
+                name: "datax-app-server-tests".to_string(),
                 title: None,
                 version: "0.1.0".to_string(),
             },
@@ -479,7 +479,7 @@ async fn thread_read_loaded_include_turns_reads_store_history_without_rollout_pa
     let ThreadStartResponse { thread, .. } = serde_json::from_value(result)?;
     assert_eq!(thread.path, None);
 
-    let thread_id = codex_protocol::ThreadId::from_string(&thread.id)?;
+    let thread_id = datax_protocol::ThreadId::from_string(&thread.id)?;
     store
         .append_items(AppendThreadItemsParams {
             thread_id,
@@ -508,7 +508,7 @@ async fn thread_read_loaded_include_turns_reads_store_history_without_rollout_pa
 #[tokio::test]
 async fn thread_list_includes_store_thread_without_rollout_path() -> Result<()> {
     let codex_home = TempDir::new()?;
-    let thread_id = codex_protocol::ThreadId::from_string("00000000-0000-4000-8000-000000000124")?;
+    let thread_id = datax_protocol::ThreadId::from_string("00000000-0000-4000-8000-000000000124")?;
     let store_id = Uuid::new_v4().to_string();
     create_config_toml_with_thread_store(codex_home.path(), &store_id)?;
     let store = InMemoryThreadStore::for_id(store_id.clone());
@@ -529,7 +529,7 @@ async fn thread_list_includes_store_thread_without_rollout_path() -> Result<()> 
         loader_overrides,
         strict_config: false,
         cloud_config_bundle: CloudConfigBundleLoader::default(),
-        thread_config_loader: Arc::new(codex_config::NoopThreadConfigLoader),
+        thread_config_loader: Arc::new(datax_config::NoopThreadConfigLoader),
         feedback: CodexFeedback::new(),
         log_db: None,
         state_db: None,
@@ -539,7 +539,7 @@ async fn thread_list_includes_store_thread_without_rollout_path() -> Result<()> 
         enable_codex_api_key_env: false,
         initialize: InitializeParams {
             client_info: ClientInfo {
-                name: "codex-app-server-tests".to_string(),
+                name: "datax-app-server-tests".to_string(),
                 title: None,
                 version: "0.1.0".to_string(),
             },
@@ -697,7 +697,7 @@ async fn thread_resume_initial_turns_page_matches_requested_turns_list_page() ->
     assert!(thread.turns.is_empty());
     assert_eq!(
         initial_turns_page,
-        Some(codex_app_server_protocol::TurnsPage::from(expected_page))
+        Some(datax_app_server_protocol::TurnsPage::from(expected_page))
     );
 
     Ok(())
@@ -1293,7 +1293,7 @@ async fn read_single_turn_items_view(
     mcp: &mut TestAppServer,
     thread_id: &str,
     items_view: Option<TurnItemsView>,
-) -> anyhow::Result<codex_app_server_protocol::Turn> {
+) -> anyhow::Result<datax_app_server_protocol::Turn> {
     let read_id = mcp
         .send_thread_turns_list_request(ThreadTurnsListParams {
             thread_id: thread_id.to_string(),
@@ -1314,7 +1314,7 @@ async fn read_single_turn_items_view(
     Ok(data.remove(0))
 }
 
-fn turn_user_texts(turns: &[codex_app_server_protocol::Turn]) -> Vec<&str> {
+fn turn_user_texts(turns: &[datax_app_server_protocol::Turn]) -> Vec<&str> {
     turns
         .iter()
         .filter_map(|turn| match turn.items.first()? {
@@ -1330,7 +1330,7 @@ fn turn_user_texts(turns: &[codex_app_server_protocol::Turn]) -> Vec<&str> {
         .collect()
 }
 
-fn turn_agent_texts(turns: &[codex_app_server_protocol::Turn]) -> Vec<&str> {
+fn turn_agent_texts(turns: &[datax_app_server_protocol::Turn]) -> Vec<&str> {
     turns
         .iter()
         .flat_map(|turn| &turn.items)
@@ -1353,7 +1353,7 @@ impl Drop for InMemoryThreadStoreId {
 
 async fn seed_pathless_store_thread(
     store: &InMemoryThreadStore,
-    thread_id: codex_protocol::ThreadId,
+    thread_id: datax_protocol::ThreadId,
 ) -> Result<()> {
     store
         .create_thread(CreateThreadParams {

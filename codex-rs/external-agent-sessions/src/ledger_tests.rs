@@ -1,7 +1,7 @@
 use super::CompletedExternalAgentSessionImport;
 use super::ImportedExternalAgentSessionLedger;
 use super::record_completed_session_imports;
-use codex_protocol::ThreadId;
+use datax_protocol::ThreadId;
 use sha2::Digest;
 use sha2::Sha256;
 use tempfile::TempDir;
@@ -21,7 +21,7 @@ fn empty_ledger_does_not_read_source() {
 #[test]
 fn completed_imports_do_not_read_source_files() {
     let root = TempDir::new().expect("tempdir");
-    let codex_home = root.path().join("codex-home");
+    let codex_home = root.path().join("datax-home");
     let source_path = root.path().join("session.jsonl");
     let contents = b"session contents";
     std::fs::write(&source_path, contents).expect("source");
@@ -49,7 +49,7 @@ fn completed_imports_do_not_read_source_files() {
 #[test]
 fn completed_import_refreshes_existing_record_metadata() {
     let root = TempDir::new().expect("tempdir");
-    let codex_home = root.path().join("codex-home");
+    let codex_home = root.path().join("datax-home");
     let source_path = root.path().join("session.jsonl");
     let contents = b"session contents";
     std::fs::write(&source_path, contents).expect("source");

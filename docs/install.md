@@ -42,7 +42,7 @@ just fmt
 just fix -p <crate-you-touched>
 
 # Run the relevant tests (project-specific is fastest), for example:
-just test -p codex-tui
+just test -p datax-tui
 # `just test` runs the test suite via nextest:
 just test
 # Avoid `--all-features` for routine local runs because it increases build

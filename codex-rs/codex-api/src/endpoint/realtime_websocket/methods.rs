@@ -15,11 +15,11 @@ use crate::endpoint::realtime_websocket::protocol::RealtimeVoice;
 use crate::endpoint::realtime_websocket::protocol::parse_realtime_event;
 use crate::error::ApiError;
 use crate::provider::Provider;
-use codex_client::backoff;
-use codex_client::maybe_build_rustls_client_config_with_custom_ca;
-use codex_protocol::protocol::ConversationTextRole;
-use codex_protocol::protocol::RealtimeTranscriptDelta;
-use codex_utils_rustls_provider::ensure_rustls_crypto_provider;
+use datax_client::backoff;
+use datax_client::maybe_build_rustls_client_config_with_custom_ca;
+use datax_protocol::protocol::ConversationTextRole;
+use datax_protocol::protocol::RealtimeTranscriptDelta;
+use datax_utils_rustls_provider::ensure_rustls_crypto_provider;
 use futures::SinkExt;
 use futures::StreamExt;
 use http::HeaderMap;
@@ -46,7 +46,7 @@ use tracing::warn;
 use tungstenite::protocol::WebSocketConfig;
 use url::Url;
 
-const REALTIME_WIRE_LOG_TARGET: &str = "codex_api::realtime_websocket::wire";
+const REALTIME_WIRE_LOG_TARGET: &str = "datax_api::realtime_websocket::wire";
 
 struct WsStream {
     tx_command: mpsc::Sender<WsCommand>,
@@ -853,15 +853,15 @@ fn normalize_realtime_path(url: &mut Url) {
 mod tests {
     use super::*;
     use crate::endpoint::realtime_websocket::protocol::RealtimeTranscriptEntry;
-    use codex_protocol::protocol::RealtimeHandoffRequested;
-    use codex_protocol::protocol::RealtimeInputAudioSpeechStarted;
-    use codex_protocol::protocol::RealtimeNoopRequested;
-    use codex_protocol::protocol::RealtimeResponseCancelled;
-    use codex_protocol::protocol::RealtimeResponseCreated;
-    use codex_protocol::protocol::RealtimeResponseDone;
-    use codex_protocol::protocol::RealtimeTranscriptDelta;
-    use codex_protocol::protocol::RealtimeTranscriptDone;
-    use codex_protocol::protocol::RealtimeVoice;
+    use datax_protocol::protocol::RealtimeHandoffRequested;
+    use datax_protocol::protocol::RealtimeInputAudioSpeechStarted;
+    use datax_protocol::protocol::RealtimeNoopRequested;
+    use datax_protocol::protocol::RealtimeResponseCancelled;
+    use datax_protocol::protocol::RealtimeResponseCreated;
+    use datax_protocol::protocol::RealtimeResponseDone;
+    use datax_protocol::protocol::RealtimeTranscriptDelta;
+    use datax_protocol::protocol::RealtimeTranscriptDone;
+    use datax_protocol::protocol::RealtimeVoice;
     use http::HeaderValue;
     use pretty_assertions::assert_eq;
     use serde_json::Value;

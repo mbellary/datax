@@ -1,6 +1,6 @@
-use codex_client::CodexHttpClient;
-use codex_protocol::account::PlanType as AccountPlanType;
-use codex_protocol::auth::PlanType as InternalPlanType;
+use datax_client::CodexHttpClient;
+use datax_protocol::account::PlanType as AccountPlanType;
+use datax_protocol::auth::PlanType as InternalPlanType;
 use serde::Deserialize;
 use std::env;
 use std::fmt;

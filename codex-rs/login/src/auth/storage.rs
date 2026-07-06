@@ -20,19 +20,19 @@ use tracing::warn;
 
 use super::BedrockApiKeyAuth;
 use crate::token_data::TokenData;
-use codex_agent_identity::AgentIdentityJwtClaims;
-use codex_agent_identity::decode_agent_identity_jwt;
-use codex_app_server_protocol::AuthMode;
-use codex_config::types::AuthCredentialsStoreMode;
-pub use codex_config::types::AuthKeyringBackendKind;
-use codex_keyring_store::DefaultKeyringStore;
-use codex_keyring_store::KeyringStore;
-use codex_protocol::account::PlanType as AccountPlanType;
-use codex_secrets::LocalSecretsNamespace;
-use codex_secrets::SecretName;
-use codex_secrets::SecretScope;
-use codex_secrets::SecretsBackendKind;
-use codex_secrets::SecretsManager;
+use datax_agent_identity::AgentIdentityJwtClaims;
+use datax_agent_identity::decode_agent_identity_jwt;
+use datax_app_server_protocol::AuthMode;
+use datax_config::types::AuthCredentialsStoreMode;
+pub use datax_config::types::AuthKeyringBackendKind;
+use datax_keyring_store::DefaultKeyringStore;
+use datax_keyring_store::KeyringStore;
+use datax_protocol::account::PlanType as AccountPlanType;
+use datax_secrets::LocalSecretsNamespace;
+use datax_secrets::SecretName;
+use datax_secrets::SecretScope;
+use datax_secrets::SecretsBackendKind;
+use datax_secrets::SecretsManager;
 use once_cell::sync::Lazy;
 
 /// Expected structure for $CODEX_HOME/auth.json.

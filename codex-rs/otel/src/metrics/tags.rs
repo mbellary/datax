@@ -1,7 +1,7 @@
 use crate::metrics::Result;
 use crate::metrics::validation::validate_tag_key;
 use crate::metrics::validation::validate_tag_value;
-use codex_utils_string::sanitize_metric_tag_value;
+use datax_utils_string::sanitize_metric_tag_value;
 
 pub const APP_VERSION_TAG: &str = "app.version";
 pub const AUTH_MODE_TAG: &str = "auth_mode";
@@ -13,16 +13,16 @@ pub const SESSION_SOURCE_TAG: &str = "session_source";
 const OTHER_ORIGINATOR_TAG_VALUE: &str = "other";
 const KNOWN_ORIGINATOR_TAG_VALUES: &[&str] = &[
     "codex_desktop",
-    "codex-app-server",
+    "datax-app-server",
     "codex_mcp_server",
     "codex_cli_rs",
-    "codex-tui",
+    "datax-tui",
     "codex_vscode",
     "none",
     "codex_exec",
-    "codex-cli",
+    "datax-cli",
     "codex_sdk_ts",
-    "codex-app-server-sdk",
+    "datax-app-server-sdk",
 ];
 
 /// Return a known low-cardinality originator tag value, or `other`.

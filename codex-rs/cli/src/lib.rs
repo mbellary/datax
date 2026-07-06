@@ -3,9 +3,9 @@ mod exit_status;
 pub(crate) mod login;
 
 use clap::Parser;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_cli::CliConfigOverrides;
-use codex_utils_cli::ProfileV2Name;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_cli::CliConfigOverrides;
+use datax_utils_cli::ProfileV2Name;
 use std::path::PathBuf;
 
 pub use debug_sandbox::run_command_under_landlock;

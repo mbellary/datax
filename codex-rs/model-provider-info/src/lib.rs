@@ -5,14 +5,14 @@
 //!   2. User-defined entries inside `~/.codex/config.toml` under the `model_providers`
 //!      key. These override or extend the defaults at runtime.
 
-use codex_api::Provider as ApiProvider;
-use codex_api::RetryConfig as ApiRetryConfig;
-use codex_api::is_azure_responses_provider;
-use codex_app_server_protocol::AuthMode;
-use codex_protocol::config_types::ModelProviderAuthInfo;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::EnvVarError;
-use codex_protocol::error::Result as CodexResult;
+use datax_api::Provider as ApiProvider;
+use datax_api::RetryConfig as ApiRetryConfig;
+use datax_api::is_azure_responses_provider;
+use datax_app_server_protocol::AuthMode;
+use datax_protocol::config_types::ModelProviderAuthInfo;
+use datax_protocol::error::CodexErr;
+use datax_protocol::error::EnvVarError;
+use datax_protocol::error::Result as CodexResult;
 use http::HeaderMap;
 use http::header::HeaderName;
 use http::header::HeaderValue;

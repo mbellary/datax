@@ -9,29 +9,29 @@ use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use axum::Router;
-use codex_app_server::in_process;
-use codex_app_server::in_process::InProcessStartArgs;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::McpResourceContent;
-use codex_app_server_protocol::McpResourceReadParams;
-use codex_app_server_protocol::McpResourceReadResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::UserInput;
-use codex_arg0::Arg0DispatchPaths;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::LoaderOverrides;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_core::config::ConfigBuilder;
-use codex_exec_server::EnvironmentManager;
-use codex_feedback::CodexFeedback;
-use codex_protocol::protocol::SessionSource;
 use core_test_support::responses;
+use datax_app_server::in_process;
+use datax_app_server::in_process::InProcessStartArgs;
+use datax_app_server_protocol::ClientInfo;
+use datax_app_server_protocol::ClientRequest;
+use datax_app_server_protocol::InitializeParams;
+use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::McpResourceContent;
+use datax_app_server_protocol::McpResourceReadParams;
+use datax_app_server_protocol::McpResourceReadResponse;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::ThreadStartParams;
+use datax_app_server_protocol::ThreadStartResponse;
+use datax_app_server_protocol::TurnStartParams;
+use datax_app_server_protocol::UserInput;
+use datax_arg0::Arg0DispatchPaths;
+use datax_config::CloudConfigBundleLoader;
+use datax_config::LoaderOverrides;
+use datax_config::types::AuthCredentialsStoreMode;
+use datax_core::config::ConfigBuilder;
+use datax_exec_server::EnvironmentManager;
+use datax_feedback::CodexFeedback;
+use datax_protocol::protocol::SessionSource;
 use pretty_assertions::assert_eq;
 use rmcp::handler::server::ServerHandler;
 use rmcp::model::ListResourcesResult;
@@ -597,7 +597,7 @@ async fn mcp_resource_read_returns_error_for_unknown_thread() -> Result<()> {
         loader_overrides,
         strict_config: false,
         cloud_config_bundle: CloudConfigBundleLoader::default(),
-        thread_config_loader: Arc::new(codex_config::NoopThreadConfigLoader),
+        thread_config_loader: Arc::new(datax_config::NoopThreadConfigLoader),
         feedback: CodexFeedback::new(),
         log_db: None,
         state_db: None,
@@ -607,7 +607,7 @@ async fn mcp_resource_read_returns_error_for_unknown_thread() -> Result<()> {
         enable_codex_api_key_env: false,
         initialize: InitializeParams {
             client_info: ClientInfo {
-                name: "codex-app-server-tests".to_string(),
+                name: "datax-app-server-tests".to_string(),
                 title: None,
                 version: "0.1.0".to_string(),
             },

@@ -68,14 +68,14 @@ fn env_overlay_for_exec_server_keeps_runtime_changes_only() {
 
 #[test]
 fn exec_server_params_use_path_uri_and_env_policy_overlay_contract() {
-    let cwd: codex_utils_absolute_path::AbsolutePathBuf = std::env::current_dir()
+    let cwd: datax_utils_absolute_path::AbsolutePathBuf = std::env::current_dir()
         .expect("current dir")
         .try_into()
         .expect("absolute path");
     let file_system_sandbox_policy =
-        codex_protocol::permissions::FileSystemSandboxPolicy::unrestricted();
-    let network_sandbox_policy = codex_protocol::permissions::NetworkSandboxPolicy::Restricted;
-    let permission_profile = codex_protocol::models::PermissionProfile::Disabled;
+        datax_protocol::permissions::FileSystemSandboxPolicy::unrestricted();
+    let network_sandbox_policy = datax_protocol::permissions::NetworkSandboxPolicy::Restricted;
+    let permission_profile = datax_protocol::models::PermissionProfile::Disabled;
     let mut request = ExecRequest {
         command: vec!["bash".to_string(), "-lc".to_string(), "true".to_string()],
         cwd: cwd.clone().into(),
@@ -85,8 +85,8 @@ fn exec_server_params_use_path_uri_and_env_policy_overlay_contract() {
             ("CODEX_THREAD_ID".to_string(), "thread-1".to_string()),
         ]),
         exec_server_env_config: Some(ExecServerEnvConfig {
-            policy: codex_exec_server::ExecEnvPolicy {
-                inherit: codex_protocol::config_types::ShellEnvironmentPolicyInherit::Core,
+            policy: datax_exec_server::ExecEnvPolicy {
+                inherit: datax_protocol::config_types::ShellEnvironmentPolicyInherit::Core,
                 ignore_default_excludes: false,
                 exclude: Vec::new(),
                 r#set: HashMap::new(),
@@ -101,10 +101,10 @@ fn exec_server_params_use_path_uri_and_env_policy_overlay_contract() {
         network_environment_id: None,
         expiration: crate::exec::ExecExpiration::DefaultTimeout,
         capture_policy: crate::exec::ExecCapturePolicy::ShellTool,
-        sandbox: codex_sandboxing::SandboxType::None,
+        sandbox: datax_sandboxing::SandboxType::None,
         windows_sandbox_policy_cwd: cwd.clone().into(),
         windows_sandbox_workspace_roots: vec![cwd],
-        windows_sandbox_level: codex_protocol::config_types::WindowsSandboxLevel::Disabled,
+        windows_sandbox_level: datax_protocol::config_types::WindowsSandboxLevel::Disabled,
         windows_sandbox_private_desktop: false,
         permission_profile: permission_profile.clone(),
         file_system_sandbox_policy,
@@ -129,7 +129,7 @@ fn exec_server_params_use_path_uri_and_env_policy_overlay_contract() {
         ])
     );
     request.exec_server_sandbox = Some(
-        codex_exec_server::FileSystemSandboxContext::from_permission_profile(permission_profile),
+        datax_exec_server::FileSystemSandboxContext::from_permission_profile(permission_profile),
     );
     let first =
         exec_server_params_for_request(/*process_id*/ 123, &request, /*tty*/ true);
@@ -216,7 +216,7 @@ async fn failed_initial_end_for_unstored_process_uses_fallback_output() {
             .primary()
             .cloned()
             .expect("primary environment"),
-        shell_mode: codex_tools::UnifiedExecShellMode::Direct,
+        shell_mode: datax_tools::UnifiedExecShellMode::Direct,
         network: None,
         tty: true,
         sandbox_permissions: crate::sandboxing::SandboxPermissions::UseDefault,
@@ -249,13 +249,13 @@ async fn failed_initial_end_for_unstored_process_uses_fallback_output() {
         .await
         .expect("timed out waiting for failed exec end event")
         .expect("event channel closed");
-    let codex_protocol::protocol::EventMsg::ExecCommandEnd(end_event) = event.msg else {
+    let datax_protocol::protocol::EventMsg::ExecCommandEnd(end_event) = event.msg else {
         panic!("expected ExecCommandEnd event");
     };
     assert_eq!(end_event.call_id, "call-unified-denied");
     assert_eq!(
         end_event.status,
-        codex_protocol::protocol::ExecCommandStatus::Failed
+        datax_protocol::protocol::ExecCommandStatus::Failed
     );
     assert_eq!(end_event.exit_code, -1);
     assert_eq!(end_event.process_id.as_deref(), Some("123"));

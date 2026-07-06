@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use clap::ArgAction;
 use clap::ArgGroup;
 use clap::Parser;
-use codex_core::config::edit::ConfigEditsBuilder;
-use codex_core::config::find_codex_home;
+use datax_core::config::edit::ConfigEditsBuilder;
+use datax_core::config::find_codex_home;
 
 #[derive(Debug, Parser)]
 #[command(group(
@@ -35,7 +35,7 @@ pub(crate) struct SandboxSetupCommand {
     current_user: bool,
 
     /// CODEX_HOME for the Codex user. Required with --user.
-    #[arg(long = "codex-home", value_name = "DIR")]
+    #[arg(long = "datax-home", value_name = "DIR")]
     codex_home: Option<PathBuf>,
 }
 
@@ -78,7 +78,7 @@ pub(crate) fn parse_setup_command(
 async fn run_elevated(cmd: SandboxSetupCommand) -> anyhow::Result<()> {
     let identity = resolve_sandbox_setup_identity(&cmd)?;
 
-    codex_core::windows_sandbox::run_elevated_provisioning_setup(
+    datax_core::windows_sandbox::run_elevated_provisioning_setup(
         identity.codex_home.as_path(),
         identity.real_user.as_str(),
     )?;

@@ -6,10 +6,10 @@ use crate::endpoint::session::EndpointSession;
 use crate::error::ApiError;
 use crate::provider::Provider;
 use bytes::Bytes;
-use codex_client::HttpTransport;
-use codex_client::Request;
-use codex_client::RequestBody;
-use codex_client::RequestTelemetry;
+use datax_client::HttpTransport;
+use datax_client::Request;
+use datax_client::RequestBody;
+use datax_client::RequestTelemetry;
 use http::HeaderMap;
 use http::HeaderValue;
 use http::Method;
@@ -23,7 +23,7 @@ use std::sync::Arc;
 use tracing::instrument;
 use tracing::trace;
 
-const MULTIPART_BOUNDARY: &str = "codex-realtime-call-boundary";
+const MULTIPART_BOUNDARY: &str = "datax-realtime-call-boundary";
 const MULTIPART_CONTENT_TYPE: &str = "multipart/form-data; boundary=codex-realtime-call-boundary";
 
 pub struct RealtimeCallClient<T: HttpTransport> {
@@ -121,7 +121,7 @@ impl<T: HttpTransport> RealtimeCallClient<T> {
         session_config: RealtimeSessionConfig,
         extra_headers: HeaderMap,
     ) -> Result<RealtimeCallResponse, ApiError> {
-        trace!(target: "codex_api::realtime_websocket::wire", "realtime call request SDP: {sdp}");
+        trace!(target: "datax_api::realtime_websocket::wire", "realtime call request SDP: {sdp}");
         // WebRTC can begin inference as soon as the peer connection comes up, so the initial
         // session payload is sent with call creation. The sideband WebSocket still sends its normal
         // session.update after it joins.
@@ -276,11 +276,11 @@ mod tests {
     use crate::endpoint::realtime_websocket::RealtimeOutputModality;
     use crate::endpoint::realtime_websocket::RealtimeSessionMode;
     use crate::provider::RetryConfig;
-    use codex_client::Request;
-    use codex_client::Response;
-    use codex_client::StreamResponse;
-    use codex_client::TransportError;
-    use codex_protocol::protocol::RealtimeVoice;
+    use datax_client::Request;
+    use datax_client::Response;
+    use datax_client::StreamResponse;
+    use datax_client::TransportError;
+    use datax_protocol::protocol::RealtimeVoice;
     use http::StatusCode;
     use pretty_assertions::assert_eq;
     use std::sync::Mutex;

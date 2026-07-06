@@ -2,28 +2,6 @@ use core_test_support::test_codex::local_selections;
 use std::fs;
 
 use anyhow::Result;
-use codex_core::compact::SUMMARY_PREFIX;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::dynamic_tools::DynamicToolFunctionSpec;
-use codex_protocol::dynamic_tools::DynamicToolNamespaceSpec;
-use codex_protocol::dynamic_tools::DynamicToolNamespaceTool;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_protocol::items::TurnItem;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::ConversationStartParams;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ItemCompletedEvent;
-use codex_protocol::protocol::ItemStartedEvent;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RealtimeConversationRealtimeEvent;
-use codex_protocol::protocol::RealtimeEvent;
-use codex_protocol::protocol::RealtimeOutputModality;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::user_input::UserInput;
 use core_test_support::PathBufExt;
 use core_test_support::apps_test_server::configure_search_capable_model;
 use core_test_support::context_snapshot;
@@ -41,6 +19,28 @@ use core_test_support::test_path_buf;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_match;
 use core_test_support::wait_for_event_with_timeout;
+use datax_core::compact::SUMMARY_PREFIX;
+use datax_features::Feature;
+use datax_login::CodexAuth;
+use datax_protocol::config_types::ServiceTier;
+use datax_protocol::dynamic_tools::DynamicToolFunctionSpec;
+use datax_protocol::dynamic_tools::DynamicToolNamespaceSpec;
+use datax_protocol::dynamic_tools::DynamicToolNamespaceTool;
+use datax_protocol::dynamic_tools::DynamicToolSpec;
+use datax_protocol::items::TurnItem;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::protocol::ConversationStartParams;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::ItemCompletedEvent;
+use datax_protocol::protocol::ItemStartedEvent;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::RealtimeConversationRealtimeEvent;
+use datax_protocol::protocol::RealtimeEvent;
+use datax_protocol::protocol::RealtimeOutputModality;
+use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutLine;
+use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
@@ -200,7 +200,7 @@ async fn start_remote_realtime_server() -> responses::WebSocketTestServer {
     .await
 }
 
-async fn start_realtime_conversation(codex: &codex_core::CodexThread) -> Result<()> {
+async fn start_realtime_conversation(codex: &datax_core::CodexThread) -> Result<()> {
     codex
         .submit(Op::RealtimeConversationStart(ConversationStartParams {
             client_managed_handoffs: false,
@@ -241,7 +241,7 @@ async fn start_realtime_conversation(codex: &codex_core::CodexThread) -> Result<
     Ok(())
 }
 
-async fn close_realtime_conversation(codex: &codex_core::CodexThread) -> Result<()> {
+async fn close_realtime_conversation(codex: &datax_core::CodexThread) -> Result<()> {
     codex.submit(Op::RealtimeConversationClose).await?;
     wait_for_event_match(codex, |msg| match msg {
         EventMsg::RealtimeConversationClosed(closed) => Some(closed.clone()),
@@ -294,7 +294,7 @@ fn assert_request_contains_realtime_end(request: &responses::ResponsesRequest) {
     );
 }
 
-async fn wait_for_turn_complete(codex: &codex_core::CodexThread) {
+async fn wait_for_turn_complete(codex: &datax_core::CodexThread) {
     wait_for_event_with_timeout(
         codex,
         |ev| matches!(ev, EventMsg::TurnComplete(_)),
@@ -3310,7 +3310,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_including_incoming_us
         if user == "USER_THREE" {
             core_test_support::submit_thread_settings(
                 &codex,
-                codex_protocol::protocol::ThreadSettingsOverrides {
+                datax_protocol::protocol::ThreadSettingsOverrides {
                     environments: Some(local_selections(
                         test_path_buf(PRETURN_CONTEXT_DIFF_CWD).abs(),
                     )),
@@ -3422,7 +3422,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_strips_incoming_model
 
     core_test_support::submit_thread_settings(
         &codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        datax_protocol::protocol::ThreadSettingsOverrides {
             model: Some(next_model.to_string()),
             ..Default::default()
         },

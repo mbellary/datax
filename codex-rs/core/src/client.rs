@@ -30,59 +30,59 @@ use std::sync::OnceLock;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
-use codex_api::ApiError;
-use codex_api::AuthProvider;
-use codex_api::CompactClient as ApiCompactClient;
-use codex_api::CompactionInput as ApiCompactionInput;
-use codex_api::Compression;
-use codex_api::MemoriesClient as ApiMemoriesClient;
-use codex_api::MemorySummarizeInput as ApiMemorySummarizeInput;
-use codex_api::MemorySummarizeOutput as ApiMemorySummarizeOutput;
-use codex_api::Provider as ApiProvider;
-use codex_api::RawMemory as ApiRawMemory;
-use codex_api::RealtimeCallClient as ApiRealtimeCallClient;
-use codex_api::RealtimeSessionConfig as ApiRealtimeSessionConfig;
-use codex_api::Reasoning;
-use codex_api::ReasoningContext;
-use codex_api::RequestTelemetry;
-use codex_api::ReqwestTransport;
-use codex_api::ResponseCreateWsRequest;
-use codex_api::ResponsesApiRequest;
-use codex_api::ResponsesClient as ApiResponsesClient;
-use codex_api::ResponsesOptions as ApiResponsesOptions;
-use codex_api::ResponsesWebsocketClient as ApiWebSocketResponsesClient;
-use codex_api::ResponsesWebsocketConnection as ApiWebSocketConnection;
-use codex_api::ResponsesWsRequest;
-use codex_api::SharedAuthProvider;
-use codex_api::SseTelemetry;
-use codex_api::TransportError;
-use codex_api::WebsocketTelemetry;
-use codex_api::auth_header_telemetry;
-use codex_api::build_session_headers;
-use codex_api::create_text_param_for_request;
-use codex_api::response_create_client_metadata;
-use codex_app_server_protocol::AuthMode;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::RefreshTokenError;
-use codex_login::UnauthorizedRecovery;
-use codex_login::default_client::build_reqwest_client;
-use codex_otel::SessionTelemetry;
-use codex_otel::current_span_w3c_trace_context;
+use datax_api::ApiError;
+use datax_api::AuthProvider;
+use datax_api::CompactClient as ApiCompactClient;
+use datax_api::CompactionInput as ApiCompactionInput;
+use datax_api::Compression;
+use datax_api::MemoriesClient as ApiMemoriesClient;
+use datax_api::MemorySummarizeInput as ApiMemorySummarizeInput;
+use datax_api::MemorySummarizeOutput as ApiMemorySummarizeOutput;
+use datax_api::Provider as ApiProvider;
+use datax_api::RawMemory as ApiRawMemory;
+use datax_api::RealtimeCallClient as ApiRealtimeCallClient;
+use datax_api::RealtimeSessionConfig as ApiRealtimeSessionConfig;
+use datax_api::Reasoning;
+use datax_api::ReasoningContext;
+use datax_api::RequestTelemetry;
+use datax_api::ReqwestTransport;
+use datax_api::ResponseCreateWsRequest;
+use datax_api::ResponsesApiRequest;
+use datax_api::ResponsesClient as ApiResponsesClient;
+use datax_api::ResponsesOptions as ApiResponsesOptions;
+use datax_api::ResponsesWebsocketClient as ApiWebSocketResponsesClient;
+use datax_api::ResponsesWebsocketConnection as ApiWebSocketConnection;
+use datax_api::ResponsesWsRequest;
+use datax_api::SharedAuthProvider;
+use datax_api::SseTelemetry;
+use datax_api::TransportError;
+use datax_api::WebsocketTelemetry;
+use datax_api::auth_header_telemetry;
+use datax_api::build_session_headers;
+use datax_api::create_text_param_for_request;
+use datax_api::response_create_client_metadata;
+use datax_app_server_protocol::AuthMode;
+use datax_login::AuthManager;
+use datax_login::CodexAuth;
+use datax_login::RefreshTokenError;
+use datax_login::UnauthorizedRecovery;
+use datax_login::default_client::build_reqwest_client;
+use datax_otel::SessionTelemetry;
+use datax_otel::current_span_w3c_trace_context;
 
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
-use codex_protocol::config_types::Verbosity as VerbosityConfig;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
-use codex_protocol::protocol::InternalSessionSource;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::W3cTraceContext;
-use codex_rollout_trace::CompactionTraceContext;
-use codex_rollout_trace::InferenceTraceAttempt;
-use codex_rollout_trace::InferenceTraceContext;
-use codex_tools::create_tools_json_for_responses_api;
+use datax_protocol::ThreadId;
+use datax_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
+use datax_protocol::config_types::Verbosity as VerbosityConfig;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::openai_models::ModelInfo;
+use datax_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use datax_protocol::protocol::InternalSessionSource;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::W3cTraceContext;
+use datax_rollout_trace::CompactionTraceContext;
+use datax_rollout_trace::InferenceTraceAttempt;
+use datax_rollout_trace::InferenceTraceContext;
+use datax_tools::create_tools_json_for_responses_api;
 use eventsource_stream::Event;
 use eventsource_stream::EventStreamError;
 use futures::StreamExt;
@@ -112,22 +112,22 @@ use crate::feedback_tags;
 use crate::responses_metadata::CodexResponsesMetadata;
 use crate::responses_metadata::subagent_header_value;
 use crate::util::emit_feedback_auth_recovery_tags;
-use codex_feedback::FeedbackRequestTags;
-use codex_feedback::emit_feedback_request_tags_with_auth_env;
-use codex_login::auth_env_telemetry::AuthEnvTelemetry;
-use codex_login::auth_env_telemetry::collect_auth_env_telemetry;
-use codex_model_provider::SharedModelProvider;
-use codex_model_provider::create_model_provider;
+use datax_feedback::FeedbackRequestTags;
+use datax_feedback::emit_feedback_request_tags_with_auth_env;
+use datax_login::auth_env_telemetry::AuthEnvTelemetry;
+use datax_login::auth_env_telemetry::collect_auth_env_telemetry;
+use datax_model_provider::SharedModelProvider;
+use datax_model_provider::create_model_provider;
 #[cfg(test)]
-use codex_model_provider_info::DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::WireApi;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result;
-use codex_response_debug_context::extract_response_debug_context;
-use codex_response_debug_context::extract_response_debug_context_from_api_error;
-use codex_response_debug_context::telemetry_api_error_message;
-use codex_response_debug_context::telemetry_transport_error_message;
+use datax_model_provider_info::DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS;
+use datax_model_provider_info::ModelProviderInfo;
+use datax_model_provider_info::WireApi;
+use datax_protocol::error::CodexErr;
+use datax_protocol::error::Result;
+use datax_response_debug_context::extract_response_debug_context;
+use datax_response_debug_context::extract_response_debug_context_from_api_error;
+use datax_response_debug_context::telemetry_api_error_message;
+use datax_response_debug_context::telemetry_transport_error_message;
 
 pub const OPENAI_BETA_HEADER: &str = "OpenAI-Beta";
 pub const X_CODEX_INSTALLATION_ID_HEADER: &str = "x-codex-installation-id";
@@ -780,7 +780,7 @@ impl ModelClient {
     #[allow(clippy::too_many_arguments)]
     fn build_responses_request(
         &self,
-        provider: &codex_api::Provider,
+        provider: &datax_api::Provider,
         prompt: &Prompt,
         model_info: &ModelInfo,
         effort: Option<ReasoningEffortConfig>,
@@ -885,7 +885,7 @@ impl ModelClient {
     async fn connect_websocket(
         &self,
         session_telemetry: &SessionTelemetry,
-        api_provider: codex_api::Provider,
+        api_provider: datax_api::Provider,
         api_auth: SharedAuthProvider,
         responses_metadata: &CodexResponsesMetadata,
         auth_context: AuthRequestTelemetryContext,
@@ -904,7 +904,7 @@ impl ModelClient {
             websocket_connect_timeout,
             ApiWebSocketResponsesClient::new(api_provider, api_auth).connect(
                 headers,
-                codex_login::default_client::default_headers(),
+                datax_login::default_client::default_headers(),
                 /*turn_state*/ None,
                 Some(websocket_telemetry),
             ),
@@ -1772,16 +1772,16 @@ const RESPONSE_STREAM_CHANNEL_CAPACITY: usize = 1600;
 const STREAM_DROPPED_REASON: &str = "response stream dropped before provider terminal event";
 
 fn map_response_stream(
-    api_stream: codex_api::ResponseStream,
+    api_stream: datax_api::ResponseStream,
     session_telemetry: SessionTelemetry,
     inference_trace_attempt: InferenceTraceAttempt,
     provider: SharedModelProvider,
 ) -> (ResponseStream, oneshot::Receiver<LastResponse>) {
-    let codex_api::ResponseStream {
+    let datax_api::ResponseStream {
         rx_event,
         upstream_request_id,
     } = api_stream;
-    let api_stream = codex_api::ResponseStream {
+    let api_stream = datax_api::ResponseStream {
         rx_event,
         upstream_request_id: None,
     };
@@ -2005,7 +2005,7 @@ impl AuthRequestTelemetryContext {
 
 struct WebsocketConnectParams<'a> {
     session_telemetry: &'a SessionTelemetry,
-    api_provider: codex_api::Provider,
+    api_provider: datax_api::Provider,
     api_auth: SharedAuthProvider,
     responses_metadata: &'a CodexResponsesMetadata,
     auth_context: AuthRequestTelemetryContext,

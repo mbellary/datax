@@ -1,5 +1,5 @@
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_path_uri::PathUri;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;

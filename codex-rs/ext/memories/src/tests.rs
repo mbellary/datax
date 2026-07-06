@@ -1,21 +1,21 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use codex_extension_api::ContextContributor;
-use codex_extension_api::ExtensionData;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_extension_api::NoopTurnItemEmitter;
-use codex_extension_api::PromptSlot;
-use codex_extension_api::ToolCall;
-use codex_extension_api::ToolContributor;
-use codex_extension_api::ToolExecutor;
-use codex_extension_api::ToolName;
-use codex_extension_api::ToolPayload;
-use codex_tools::ToolOutput;
-use codex_utils_absolute_path::test_support::PathBufExt;
-use codex_utils_absolute_path::test_support::PathExt;
-use codex_utils_absolute_path::test_support::test_path_buf;
-use codex_utils_output_truncation::TruncationPolicy;
+use datax_extension_api::ContextContributor;
+use datax_extension_api::ExtensionData;
+use datax_extension_api::ExtensionRegistryBuilder;
+use datax_extension_api::NoopTurnItemEmitter;
+use datax_extension_api::PromptSlot;
+use datax_extension_api::ToolCall;
+use datax_extension_api::ToolContributor;
+use datax_extension_api::ToolExecutor;
+use datax_extension_api::ToolName;
+use datax_extension_api::ToolPayload;
+use datax_tools::ToolOutput;
+use datax_utils_absolute_path::test_support::PathBufExt;
+use datax_utils_absolute_path::test_support::PathExt;
+use datax_utils_absolute_path::test_support::test_path_buf;
+use datax_utils_output_truncation::TruncationPolicy;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
@@ -110,7 +110,7 @@ fn tools_are_contributed_when_enabled_with_dedicated_tools() {
 
 #[test]
 fn install_registers_dedicated_tool_contributor() {
-    let mut builder = ExtensionRegistryBuilder::<codex_core::config::Config>::new();
+    let mut builder = ExtensionRegistryBuilder::<datax_core::config::Config>::new();
     crate::install(&mut builder, /*metrics_client*/ None);
     let registry = builder.build();
     let thread_store = ExtensionData::new("thread");
@@ -213,7 +213,7 @@ async fn add_ad_hoc_note_tool_creates_note_file() {
             tool_name: memory_tool_name(crate::ADD_AD_HOC_NOTE_TOOL_NAME),
             model: "gpt-test".to_string(),
             truncation_policy: TruncationPolicy::Bytes(1024),
-            conversation_history: codex_extension_api::ConversationHistory::default(),
+            conversation_history: datax_extension_api::ConversationHistory::default(),
             turn_item_emitter: Arc::new(NoopTurnItemEmitter),
             environments: Vec::new(),
             payload: payload.clone(),
@@ -257,7 +257,7 @@ async fn add_ad_hoc_note_tool_rejects_paths_as_filenames() {
             tool_name: memory_tool_name(crate::ADD_AD_HOC_NOTE_TOOL_NAME),
             model: "gpt-test".to_string(),
             truncation_policy: TruncationPolicy::Bytes(1024),
-            conversation_history: codex_extension_api::ConversationHistory::default(),
+            conversation_history: datax_extension_api::ConversationHistory::default(),
             turn_item_emitter: Arc::new(NoopTurnItemEmitter),
             environments: Vec::new(),
             payload,
@@ -302,7 +302,7 @@ async fn read_tool_reads_memory_file() {
             tool_name: memory_tool_name(crate::READ_TOOL_NAME),
             model: "gpt-test".to_string(),
             truncation_policy: TruncationPolicy::Bytes(1024),
-            conversation_history: codex_extension_api::ConversationHistory::default(),
+            conversation_history: datax_extension_api::ConversationHistory::default(),
             turn_item_emitter: Arc::new(NoopTurnItemEmitter),
             environments: Vec::new(),
             payload: payload.clone(),
@@ -350,7 +350,7 @@ async fn search_tool_accepts_multiple_queries() {
             tool_name: memory_tool_name(crate::SEARCH_TOOL_NAME),
             model: "gpt-test".to_string(),
             truncation_policy: TruncationPolicy::Bytes(1024),
-            conversation_history: codex_extension_api::ConversationHistory::default(),
+            conversation_history: datax_extension_api::ConversationHistory::default(),
             turn_item_emitter: Arc::new(NoopTurnItemEmitter),
             environments: Vec::new(),
             payload: payload.clone(),
@@ -424,7 +424,7 @@ async fn search_tool_accepts_windowed_all_match_mode() {
             tool_name: memory_tool_name(crate::SEARCH_TOOL_NAME),
             model: "gpt-test".to_string(),
             truncation_policy: TruncationPolicy::Bytes(1024),
-            conversation_history: codex_extension_api::ConversationHistory::default(),
+            conversation_history: datax_extension_api::ConversationHistory::default(),
             turn_item_emitter: Arc::new(NoopTurnItemEmitter),
             environments: Vec::new(),
             payload: payload.clone(),
@@ -478,7 +478,7 @@ async fn search_tool_rejects_legacy_single_query() {
             tool_name: memory_tool_name(crate::SEARCH_TOOL_NAME),
             model: "gpt-test".to_string(),
             truncation_policy: TruncationPolicy::Bytes(1024),
-            conversation_history: codex_extension_api::ConversationHistory::default(),
+            conversation_history: datax_extension_api::ConversationHistory::default(),
             turn_item_emitter: Arc::new(NoopTurnItemEmitter),
             environments: Vec::new(),
             payload,

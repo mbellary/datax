@@ -30,7 +30,7 @@ pub(super) async fn spawn_review_thread(
         .list_models(RefreshStrategy::OnlineIfUncached)
         .await;
     let unified_exec_shell_mode = UnifiedExecShellMode::for_session(
-        codex_tools::unified_exec_feature_mode_for_features(review_features.get()),
+        datax_tools::unified_exec_feature_mode_for_features(review_features.get()),
         crate::tools::tool_user_shell_type(sess.services.user_shell.as_ref()),
         sess.services.shell_zsh_path.as_ref(),
         sess.services.main_execve_wrapper_exe.as_ref(),
@@ -100,7 +100,7 @@ pub(super) async fn spawn_review_thread(
         parent_turn_context.network.is_some(),
     ));
 
-    let extension_data = Arc::new(codex_extension_api::ExtensionData::new(
+    let extension_data = Arc::new(datax_extension_api::ExtensionData::new(
         review_turn_id.clone(),
     ));
     extension_data.insert(parent_turn_context.turn_skills.snapshot.clone());

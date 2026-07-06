@@ -7,14 +7,14 @@ use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 
-use codex_extension_api::ExtensionData;
-use codex_protocol::dynamic_tools::DynamicToolResponse;
-use codex_protocol::protocol::TurnEnvironmentSelection;
-use codex_protocol::request_permissions::RequestPermissionProfile;
-use codex_protocol::request_permissions::RequestPermissionsResponse;
-use codex_protocol::request_user_input::RequestUserInputResponse;
-use codex_rmcp_client::ElicitationResponse;
-use codex_sandboxing::policy_transforms::merge_permission_profiles;
+use datax_extension_api::ExtensionData;
+use datax_protocol::dynamic_tools::DynamicToolResponse;
+use datax_protocol::protocol::TurnEnvironmentSelection;
+use datax_protocol::request_permissions::RequestPermissionProfile;
+use datax_protocol::request_permissions::RequestPermissionsResponse;
+use datax_protocol::request_user_input::RequestUserInputResponse;
+use datax_rmcp_client::ElicitationResponse;
+use datax_sandboxing::policy_transforms::merge_permission_profiles;
 use rmcp::model::RequestId;
 use tokio::sync::oneshot;
 
@@ -22,9 +22,9 @@ use crate::agent::control::AgentExecutionGuard;
 use crate::session::TurnInputQueue;
 use crate::session::turn_context::TurnContext;
 use crate::tasks::AnySessionTask;
-use codex_protocol::models::AdditionalPermissionProfile;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::TokenUsage;
+use datax_protocol::models::AdditionalPermissionProfile;
+use datax_protocol::protocol::ReviewDecision;
+use datax_protocol::protocol::TokenUsage;
 
 /// Metadata about the currently running turn.
 pub(crate) struct ActiveTurn {
@@ -79,7 +79,7 @@ pub(crate) struct RunningTask {
     pub(crate) turn_extension_data: Arc<ExtensionData>,
     pub(crate) _agent_execution_guard: Option<AgentExecutionGuard>,
     // Timer recorded when the task drops to capture the full turn duration.
-    pub(crate) _timer: Option<codex_otel::Timer>,
+    pub(crate) _timer: Option<datax_otel::Timer>,
 }
 
 /// Mutable state for a single turn.

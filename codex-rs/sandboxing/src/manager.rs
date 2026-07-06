@@ -13,15 +13,15 @@ use crate::resolve_windows_elevated_filesystem_overrides;
 use crate::resolve_windows_restricted_token_filesystem_overrides;
 #[cfg(target_os = "windows")]
 use crate::windows_sandbox_uses_elevated_backend;
-use codex_network_proxy::NetworkProxy;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::AdditionalPermissionProfile;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use datax_network_proxy::NetworkProxy;
+use datax_protocol::config_types::WindowsSandboxLevel;
+use datax_protocol::models::AdditionalPermissionProfile;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::permissions::FileSystemSandboxPolicy;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_protocol::protocol::SandboxPolicy;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_path_uri::PathUri;
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::io;
@@ -461,7 +461,7 @@ impl SandboxManager {
     ) -> Result<SandboxExecRequest, SandboxTransformError> {
         #[cfg(target_os = "windows")]
         {
-            let codex_home = codex_utils_home_dir::find_codex_home()
+            let codex_home = datax_utils_home_dir::find_codex_home()
                 .map_err(|err| SandboxTransformError::WindowsSandboxPreparation(err.to_string()))?;
             self.transform_for_direct_spawn_with_codex_home(request, codex_home.as_path())
         }
@@ -518,7 +518,7 @@ fn wrap_windows_sandbox_exec_request_for_direct_spawn(
         ));
     };
     let source = std::path::PathBuf::from(&program);
-    let helper = codex_windows_sandbox::resolve_exe_for_launch(source.as_path(), codex_home);
+    let helper = datax_windows_sandbox::resolve_exe_for_launch(source.as_path(), codex_home);
     *program = helper.to_string_lossy().into_owned();
 
     let inner_command = std::mem::take(&mut request.command);
@@ -558,7 +558,7 @@ fn wrap_windows_sandbox_exec_request_for_direct_spawn(
         overrides.additional_deny_write_paths.as_slice()
     });
     let mut wrapper_args =
-        codex_windows_sandbox::create_windows_sandbox_command_args_for_permission_profile(
+        datax_windows_sandbox::create_windows_sandbox_command_args_for_permission_profile(
             inner_command,
             &native_cwd,
             workspace_roots,

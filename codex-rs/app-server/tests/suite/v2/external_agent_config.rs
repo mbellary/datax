@@ -8,27 +8,27 @@ use app_test_support::start_analytics_events_server;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use app_test_support::write_mock_responses_config_toml;
-use codex_app_server_protocol::ExternalAgentConfigDetectResponse;
-use codex_app_server_protocol::ExternalAgentConfigImportCompletedNotification;
-use codex_app_server_protocol::ExternalAgentConfigImportHistoriesReadResponse;
-use codex_app_server_protocol::ExternalAgentConfigImportProgressNotification;
-use codex_app_server_protocol::ExternalAgentConfigImportResponse;
-use codex_app_server_protocol::ExternalAgentConfigMigrationItemType;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::PluginListParams;
-use codex_app_server_protocol::PluginListResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadListParams;
-use codex_app_server_protocol::ThreadListResponse;
-use codex_app_server_protocol::ThreadReadParams;
-use codex_app_server_protocol::ThreadReadResponse;
-use codex_app_server_protocol::ThreadResumeParams;
-use codex_app_server_protocol::ThreadResumeResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::UserInput;
-use codex_config::types::AuthCredentialsStoreMode;
 use core_test_support::responses;
+use datax_app_server_protocol::ExternalAgentConfigDetectResponse;
+use datax_app_server_protocol::ExternalAgentConfigImportCompletedNotification;
+use datax_app_server_protocol::ExternalAgentConfigImportHistoriesReadResponse;
+use datax_app_server_protocol::ExternalAgentConfigImportProgressNotification;
+use datax_app_server_protocol::ExternalAgentConfigImportResponse;
+use datax_app_server_protocol::ExternalAgentConfigMigrationItemType;
+use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::PluginListParams;
+use datax_app_server_protocol::PluginListResponse;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::ThreadItem;
+use datax_app_server_protocol::ThreadListParams;
+use datax_app_server_protocol::ThreadListResponse;
+use datax_app_server_protocol::ThreadReadParams;
+use datax_app_server_protocol::ThreadReadResponse;
+use datax_app_server_protocol::ThreadResumeParams;
+use datax_app_server_protocol::ThreadResumeResponse;
+use datax_app_server_protocol::TurnStartParams;
+use datax_app_server_protocol::UserInput;
+use datax_config::types::AuthCredentialsStoreMode;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -113,7 +113,7 @@ async fn external_agent_config_import_sends_completion_notification_for_sync_onl
         serde_json::from_value(notification.params.expect("completed params"))?;
     assert_eq!(completed.import_id, import_id);
     let state_db =
-        codex_state::StateRuntime::init(sqlite_home.path().to_path_buf(), "mock_provider".into())
+        datax_state::StateRuntime::init(sqlite_home.path().to_path_buf(), "mock_provider".into())
             .await?;
     let details_record = state_db
         .external_agent_config_import_details_record(&import_id)

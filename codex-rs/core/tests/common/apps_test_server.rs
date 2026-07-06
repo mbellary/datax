@@ -1,10 +1,10 @@
 use crate::test_codex::TestCodexBuilder;
 use crate::test_codex::test_codex;
 use anyhow::Result;
-use codex_core::config::Config;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_models_manager::bundled_models_response;
+use datax_core::config::Config;
+use datax_features::Feature;
+use datax_login::CodexAuth;
+use datax_models_manager::bundled_models_response;
 use serde_json::Value;
 use serde_json::json;
 use std::sync::atomic::AtomicUsize;
@@ -26,7 +26,7 @@ const DISCOVERABLE_GMAIL_ID: &str = "connector_68df038e0ba48191908c8434991bbac2"
 const CONNECTOR_DESCRIPTION: &str = "Plan events and manage your calendar.";
 const CODEX_APPS_META_KEY: &str = "_codex_apps";
 const PROTOCOL_VERSION: &str = "2025-11-25";
-const SERVER_NAME: &str = "codex-apps-test";
+const SERVER_NAME: &str = "datax-apps-test";
 const SERVER_VERSION: &str = "1.0.0";
 const SEARCHABLE_TOOL_COUNT: usize = 100;
 const CALENDAR_CREATE_EVENT_TOOL_NAME: &str = "calendar_create_event";

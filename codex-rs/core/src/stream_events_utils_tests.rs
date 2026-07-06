@@ -12,20 +12,20 @@ use crate::session::tests::make_session_and_context;
 use crate::tools::ToolRouter;
 use crate::tools::parallel::ToolCallRuntime;
 use crate::turn_diff_tracker::TurnDiffTracker;
-use codex_extension_api::ExtensionData;
-use codex_extension_api::TurnItemContributor;
-use codex_protocol::error::CodexErr;
-use codex_protocol::items::AgentMessageContent;
-use codex_protocol::items::TurnItem;
-use codex_protocol::memory_citation::MemoryCitation;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::LocalShellAction;
-use codex_protocol::models::LocalShellExecAction;
-use codex_protocol::models::LocalShellStatus;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::models::ResponseItem;
-use codex_utils_absolute_path::test_support::PathExt;
+use datax_extension_api::ExtensionData;
+use datax_extension_api::TurnItemContributor;
+use datax_protocol::error::CodexErr;
+use datax_protocol::items::AgentMessageContent;
+use datax_protocol::items::TurnItem;
+use datax_protocol::memory_citation::MemoryCitation;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::FunctionCallOutputPayload;
+use datax_protocol::models::LocalShellAction;
+use datax_protocol::models::LocalShellExecAction;
+use datax_protocol::models::LocalShellStatus;
+use datax_protocol::models::MessagePhase;
+use datax_protocol::models::ResponseItem;
+use datax_utils_absolute_path::test_support::PathExt;
 use pretty_assertions::assert_eq;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
@@ -159,7 +159,7 @@ async fn handle_non_tool_response_item_strips_citations_from_assistant_message()
         .content
         .iter()
         .map(|entry| match entry {
-            codex_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
+            datax_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
         })
         .collect::<String>();
     assert_eq!(text, "hello world");
@@ -185,7 +185,7 @@ impl TurnItemContributor for TestTurnItemContributor {
         _thread_store: &'a ExtensionData,
         turn_store: &'a ExtensionData,
         item: &'a mut TurnItem,
-    ) -> codex_extension_api::ExtensionFuture<'a, Result<(), String>> {
+    ) -> datax_extension_api::ExtensionFuture<'a, Result<(), String>> {
         Box::pin(async move {
             turn_store.insert(TurnItemContributorRan);
             if let TurnItem::AgentMessage(agent_message) = item {
@@ -207,7 +207,7 @@ impl TurnItemContributor for RewriteAgentMessageContributor {
         _thread_store: &'a ExtensionData,
         _turn_store: &'a ExtensionData,
         item: &'a mut TurnItem,
-    ) -> codex_extension_api::ExtensionFuture<'a, Result<(), String>> {
+    ) -> datax_extension_api::ExtensionFuture<'a, Result<(), String>> {
         Box::pin(async move {
             if let TurnItem::AgentMessage(agent_message) = item {
                 agent_message.content = vec![AgentMessageContent::Text {
@@ -222,7 +222,7 @@ impl TurnItemContributor for RewriteAgentMessageContributor {
 #[tokio::test]
 async fn handle_non_tool_response_item_runs_turn_item_contributors_only_when_requested() {
     let (mut session, turn_context) = make_session_and_context().await;
-    let mut builder = codex_extension_api::ExtensionRegistryBuilder::new();
+    let mut builder = datax_extension_api::ExtensionRegistryBuilder::new();
     builder.turn_item_contributor(Arc::new(TestTurnItemContributor));
     session.services.extensions = Arc::new(builder.build());
     let turn_store = ExtensionData::new(turn_context.sub_id.clone());
@@ -265,7 +265,7 @@ async fn handle_non_tool_response_item_runs_turn_item_contributors_only_when_req
         .content
         .iter()
         .map(|entry| match entry {
-            codex_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
+            datax_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
         })
         .collect::<String>();
     assert_eq!(text, "hello world");
@@ -274,7 +274,7 @@ async fn handle_non_tool_response_item_runs_turn_item_contributors_only_when_req
 #[tokio::test]
 async fn handle_output_item_done_returns_contributed_last_agent_message() {
     let (mut session, turn_context) = make_session_and_context().await;
-    let mut builder = codex_extension_api::ExtensionRegistryBuilder::new();
+    let mut builder = datax_extension_api::ExtensionRegistryBuilder::new();
     builder.turn_item_contributor(Arc::new(RewriteAgentMessageContributor));
     session.services.extensions = Arc::new(builder.build());
     let session = Arc::new(session);
@@ -319,7 +319,7 @@ async fn handle_output_item_done_returns_contributed_last_agent_message() {
 #[tokio::test]
 async fn finalized_turn_item_defers_mailbox_for_contributed_visible_text() {
     let (mut session, turn_context) = make_session_and_context().await;
-    let mut builder = codex_extension_api::ExtensionRegistryBuilder::new();
+    let mut builder = datax_extension_api::ExtensionRegistryBuilder::new();
     builder.turn_item_contributor(Arc::new(RewriteAgentMessageContributor));
     session.services.extensions = Arc::new(builder.build());
     let turn_store = ExtensionData::new(turn_context.sub_id.clone());
@@ -345,7 +345,7 @@ async fn finalized_turn_item_defers_mailbox_for_contributed_visible_text() {
 #[tokio::test]
 async fn finalized_turn_item_keeps_mailbox_open_for_commentary_text() {
     let (mut session, turn_context) = make_session_and_context().await;
-    let mut builder = codex_extension_api::ExtensionRegistryBuilder::new();
+    let mut builder = datax_extension_api::ExtensionRegistryBuilder::new();
     builder.turn_item_contributor(Arc::new(RewriteAgentMessageContributor));
     session.services.extensions = Arc::new(builder.build());
     let turn_store = ExtensionData::new(turn_context.sub_id.clone());

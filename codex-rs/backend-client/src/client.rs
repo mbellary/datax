@@ -8,17 +8,17 @@ use crate::types::RateLimitStatusPayload;
 use crate::types::TokenUsageProfile;
 use crate::types::TurnAttemptsSiblingTurnsResponse;
 use anyhow::Result;
-use codex_api::SharedAuthProvider;
-use codex_client::build_reqwest_client_with_custom_ca;
-use codex_client::with_chatgpt_cloudflare_cookie_store;
-use codex_login::CodexAuth;
-use codex_login::default_client::get_codex_user_agent;
-use codex_protocol::account::PlanType as AccountPlanType;
-use codex_protocol::protocol::CreditsSnapshot;
-use codex_protocol::protocol::RateLimitReachedType;
-use codex_protocol::protocol::RateLimitSnapshot;
-use codex_protocol::protocol::RateLimitWindow;
-use codex_protocol::protocol::SpendControlLimitSnapshot;
+use datax_api::SharedAuthProvider;
+use datax_client::build_reqwest_client_with_custom_ca;
+use datax_client::with_chatgpt_cloudflare_cookie_store;
+use datax_login::CodexAuth;
+use datax_login::default_client::get_codex_user_agent;
+use datax_protocol::account::PlanType as AccountPlanType;
+use datax_protocol::protocol::CreditsSnapshot;
+use datax_protocol::protocol::RateLimitReachedType;
+use datax_protocol::protocol::RateLimitSnapshot;
+use datax_protocol::protocol::RateLimitWindow;
+use datax_protocol::protocol::SpendControlLimitSnapshot;
 use reqwest::StatusCode;
 use reqwest::header::CACHE_CONTROL;
 use reqwest::header::CONTENT_TYPE;
@@ -168,7 +168,7 @@ impl Client {
         Ok(Self {
             base_url,
             http,
-            auth_provider: codex_model_provider::unauthenticated_auth_provider(),
+            auth_provider: datax_model_provider::unauthenticated_auth_provider(),
             user_agent: None,
             chatgpt_account_id: None,
             chatgpt_account_is_fedramp: false,
@@ -179,7 +179,7 @@ impl Client {
     pub fn from_auth(base_url: impl Into<String>, auth: &CodexAuth) -> Result<Self> {
         Ok(Self::new(base_url)?
             .with_user_agent(get_codex_user_agent())
-            .with_auth_provider(codex_model_provider::auth_provider_from_auth(auth)))
+            .with_auth_provider(datax_model_provider::auth_provider_from_auth(auth)))
     }
 
     pub fn with_auth_provider(mut self, auth: SharedAuthProvider) -> Self {
@@ -214,7 +214,7 @@ impl Client {
         if let Some(ua) = &self.user_agent {
             h.insert(USER_AGENT, ua.clone());
         } else {
-            h.insert(USER_AGENT, HeaderValue::from_static("codex-cli"));
+            h.insert(USER_AGENT, HeaderValue::from_static("datax-cli"));
         }
         self.auth_provider.add_auth_headers(&mut h);
         if let Some(acc) = &self.chatgpt_account_id
@@ -667,9 +667,9 @@ impl Client {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_backend_openapi_models::models::AdditionalRateLimitDetails;
-    use codex_backend_openapi_models::models::RateLimitReachedKind;
-    use codex_backend_openapi_models::models::RateLimitReachedType as BackendRateLimitReachedType;
+    use datax_backend_openapi_models::models::AdditionalRateLimitDetails;
+    use datax_backend_openapi_models::models::RateLimitReachedKind;
+    use datax_backend_openapi_models::models::RateLimitReachedType as BackendRateLimitReachedType;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -724,7 +724,7 @@ mod tests {
                 ..Default::default()
             }))),
             spend_control: Some(Some(Box::new(
-                codex_backend_openapi_models::models::SpendControlStatusDetails {
+                datax_backend_openapi_models::models::SpendControlStatusDetails {
                     reached: false,
                     individual_limit: Some(Some(Box::new(
                         crate::types::SpendControlLimitDetails {
@@ -978,7 +978,7 @@ mod tests {
         Client {
             base_url: base_url.to_string(),
             http: reqwest::Client::new(),
-            auth_provider: codex_model_provider::unauthenticated_auth_provider(),
+            auth_provider: datax_model_provider::unauthenticated_auth_provider(),
             user_agent: None,
             chatgpt_account_id: None,
             chatgpt_account_is_fedramp: false,

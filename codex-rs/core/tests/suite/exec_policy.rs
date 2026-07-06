@@ -1,15 +1,6 @@
 #![allow(clippy::unwrap_used)]
 
 use anyhow::Result;
-use codex_features::Feature;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Settings;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::UserInput;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_function_call;
@@ -21,6 +12,15 @@ use core_test_support::test_codex::local_selections;
 use core_test_support::test_codex::test_codex;
 use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::wait_for_event;
+use datax_features::Feature;
+use datax_protocol::config_types::CollaborationMode;
+use datax_protocol::config_types::ModeKind;
+use datax_protocol::config_types::Settings;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
+use datax_protocol::user_input::UserInput;
 use serde_json::Value;
 use serde_json::json;
 use std::fs;
@@ -55,15 +55,15 @@ async fn submit_user_turn(
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(test.config.cwd.clone())),
                 approval_policy: Some(approval_policy),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
                 collaboration_mode: collaboration_mode.or({
-                    Some(codex_protocol::config_types::CollaborationMode {
-                        mode: codex_protocol::config_types::ModeKind::Default,
-                        settings: codex_protocol::config_types::Settings {
+                    Some(datax_protocol::config_types::CollaborationMode {
+                        mode: datax_protocol::config_types::ModeKind::Default,
+                        settings: datax_protocol::config_types::Settings {
                             model: session_model,
                             reasoning_effort: None,
                             developer_instructions: None,
@@ -215,14 +215,14 @@ async fn execpolicy_blocks_shell_invocation() -> Result<()> {
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(test.config.cwd.clone())),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                    mode: datax_protocol::config_types::ModeKind::Default,
+                    settings: datax_protocol::config_types::Settings {
                         model: session_model,
                         reasoning_effort: None,
                         developer_instructions: None,

@@ -7,32 +7,32 @@ use crate::exec_policy::format_exec_policy_error_with_source;
 use crate::exec_policy::load_exec_policy;
 use anyhow::Context;
 use anyhow::Result;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::ConfigLayerStack;
-use codex_config::ConfigLayerStackOrdering;
-use codex_config::LoaderOverrides;
-use codex_config::loader::load_config_layers_state;
-use codex_config::merge_toml_values;
-use codex_config::permissions_toml::NetworkMitmActionToml;
-use codex_config::permissions_toml::NetworkMitmHookToml;
-use codex_config::permissions_toml::NetworkMitmToml;
-use codex_config::permissions_toml::NetworkToml;
-use codex_config::permissions_toml::PermissionsToml;
-use codex_config::permissions_toml::overlay_network_domain_permissions;
-use codex_exec_server::LOCAL_FS;
-use codex_network_proxy::ConfigReloader;
-use codex_network_proxy::ConfigReloaderFuture;
-use codex_network_proxy::ConfigState;
-use codex_network_proxy::NetworkMode;
-use codex_network_proxy::NetworkProxyConfig;
-use codex_network_proxy::NetworkProxyConstraintError;
-use codex_network_proxy::NetworkProxyConstraints;
-use codex_network_proxy::NetworkProxyState;
-use codex_network_proxy::build_config_state;
-use codex_network_proxy::normalize_host;
-use codex_network_proxy::validate_policy_against_constraints;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_app_server_protocol::ConfigLayerSource;
+use datax_config::CONFIG_TOML_FILE;
+use datax_config::ConfigLayerStack;
+use datax_config::ConfigLayerStackOrdering;
+use datax_config::LoaderOverrides;
+use datax_config::loader::load_config_layers_state;
+use datax_config::merge_toml_values;
+use datax_config::permissions_toml::NetworkMitmActionToml;
+use datax_config::permissions_toml::NetworkMitmHookToml;
+use datax_config::permissions_toml::NetworkMitmToml;
+use datax_config::permissions_toml::NetworkToml;
+use datax_config::permissions_toml::PermissionsToml;
+use datax_config::permissions_toml::overlay_network_domain_permissions;
+use datax_exec_server::LOCAL_FS;
+use datax_network_proxy::ConfigReloader;
+use datax_network_proxy::ConfigReloaderFuture;
+use datax_network_proxy::ConfigState;
+use datax_network_proxy::NetworkMode;
+use datax_network_proxy::NetworkProxyConfig;
+use datax_network_proxy::NetworkProxyConstraintError;
+use datax_network_proxy::NetworkProxyConstraints;
+use datax_network_proxy::NetworkProxyState;
+use datax_network_proxy::build_config_state;
+use datax_network_proxy::normalize_host;
+use datax_network_proxy::validate_policy_against_constraints;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use indexmap::IndexMap;
 use serde::Deserialize;
 use std::sync::Arc;
@@ -59,7 +59,7 @@ async fn build_config_state_with_mtimes() -> Result<(ConfigState, Vec<LayerMtime
         /*cwd*/ None,
         &cli_overrides,
         overrides,
-        &codex_config::NoopThreadConfigLoader,
+        &datax_config::NoopThreadConfigLoader,
     )
     .await
     .context("failed to load Codex config")?;
@@ -67,7 +67,7 @@ async fn build_config_state_with_mtimes() -> Result<(ConfigState, Vec<LayerMtime
     let (exec_policy, warning) = match load_exec_policy(&config_layer_stack).await {
         Ok(policy) => (policy, None),
         Err(err @ ExecPolicyError::ParsePolicy { .. }) => {
-            (codex_execpolicy::Policy::empty(), Some(err))
+            (datax_execpolicy::Policy::empty(), Some(err))
         }
         Err(err) => return Err(err.into()),
     };
@@ -268,7 +268,7 @@ impl NetworkConfigAccumulator {
 
 fn config_from_layers(
     layers: &ConfigLayerStack,
-    exec_policy: &codex_execpolicy::Policy,
+    exec_policy: &datax_execpolicy::Policy,
 ) -> Result<NetworkProxyConfig> {
     let mut merged = toml::Value::Table(toml::map::Map::new());
     for layer in layers.get_layers(
@@ -287,21 +287,21 @@ fn config_from_layers(
 
 fn apply_exec_policy_network_rules(
     config: &mut NetworkProxyConfig,
-    exec_policy: &codex_execpolicy::Policy,
+    exec_policy: &datax_execpolicy::Policy,
 ) {
     let (allowed_domains, denied_domains) = exec_policy.compiled_network_domains();
     for host in allowed_domains {
         upsert_network_domain(
             config,
             host,
-            codex_network_proxy::NetworkDomainPermission::Allow,
+            datax_network_proxy::NetworkDomainPermission::Allow,
         );
     }
     for host in denied_domains {
         upsert_network_domain(
             config,
             host,
-            codex_network_proxy::NetworkDomainPermission::Deny,
+            datax_network_proxy::NetworkDomainPermission::Deny,
         );
     }
 }
@@ -309,7 +309,7 @@ fn apply_exec_policy_network_rules(
 fn upsert_network_domain(
     config: &mut NetworkProxyConfig,
     host: String,
-    permission: codex_network_proxy::NetworkDomainPermission,
+    permission: datax_network_proxy::NetworkDomainPermission,
 ) {
     config
         .network

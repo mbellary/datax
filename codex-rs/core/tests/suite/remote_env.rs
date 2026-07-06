@@ -1,36 +1,5 @@
 use anyhow::Context;
 use anyhow::Result;
-use codex_config::types::ApprovalsReviewer;
-use codex_core::config::Constrained;
-use codex_exec_server::CopyOptions;
-use codex_exec_server::CreateDirectoryOptions;
-use codex_exec_server::FileSystemSandboxContext;
-use codex_exec_server::LOCAL_ENVIRONMENT_ID;
-use codex_exec_server::REMOTE_ENVIRONMENT_ID;
-use codex_exec_server::RemoveOptions;
-use codex_features::Feature;
-use codex_protocol::models::FileSystemPermissions;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::ApplyPatchApprovalRequestEvent;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::TurnEnvironmentSelection;
-use codex_protocol::request_permissions::PermissionGrantScope;
-use codex_protocol::request_permissions::RequestPermissionProfile;
-use codex_protocol::request_permissions::RequestPermissionsResponse;
-use codex_protocol::request_user_input::RequestUserInputAnswer;
-use codex_protocol::request_user_input::RequestUserInputResponse;
-use codex_protocol::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
 use core_test_support::PathBufExt;
 use core_test_support::PathExt;
 use core_test_support::TestEnvironment;
@@ -52,6 +21,37 @@ use core_test_support::test_codex::test_codex;
 use core_test_support::test_codex::test_env;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_match;
+use datax_config::types::ApprovalsReviewer;
+use datax_core::config::Constrained;
+use datax_exec_server::CopyOptions;
+use datax_exec_server::CreateDirectoryOptions;
+use datax_exec_server::FileSystemSandboxContext;
+use datax_exec_server::LOCAL_ENVIRONMENT_ID;
+use datax_exec_server::REMOTE_ENVIRONMENT_ID;
+use datax_exec_server::RemoveOptions;
+use datax_features::Feature;
+use datax_protocol::models::FileSystemPermissions;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::permissions::FileSystemAccessMode;
+use datax_protocol::permissions::FileSystemPath;
+use datax_protocol::permissions::FileSystemSandboxEntry;
+use datax_protocol::permissions::FileSystemSandboxPolicy;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_protocol::protocol::ApplyPatchApprovalRequestEvent;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::ReviewDecision;
+use datax_protocol::protocol::SandboxPolicy;
+use datax_protocol::protocol::TurnEnvironmentSelection;
+use datax_protocol::request_permissions::PermissionGrantScope;
+use datax_protocol::request_permissions::RequestPermissionProfile;
+use datax_protocol::request_permissions::RequestPermissionsResponse;
+use datax_protocol::request_user_input::RequestUserInputAnswer;
+use datax_protocol::request_user_input::RequestUserInputResponse;
+use datax_protocol::user_input::UserInput;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_path_uri::PathUri;
 use futures::SinkExt;
 use futures::StreamExt;
 use pretty_assertions::assert_eq;
@@ -89,7 +89,7 @@ async fn submit_turn_with_approval_and_environments(
     environments: Vec<TurnEnvironmentSelection>,
     approval_policy: AskForApproval,
 ) -> Result<()> {
-    let turn_environment_selections = codex_protocol::protocol::TurnEnvironmentSelections::new(
+    let turn_environment_selections = datax_protocol::protocol::TurnEnvironmentSelections::new(
         test.config.cwd.clone(),
         environments,
     );
@@ -102,14 +102,14 @@ async fn submit_turn_with_approval_and_environments(
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(turn_environment_selections),
                 approval_policy: Some(approval_policy),
                 approvals_reviewer: Some(ApprovalsReviewer::User),
                 sandbox_policy: Some(SandboxPolicy::new_read_only_policy()),
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                    mode: datax_protocol::config_types::ModeKind::Default,
+                    settings: datax_protocol::config_types::Settings {
                         model: test.session_configured.model.clone(),
                         reasoning_effort: None,
                         developer_instructions: None,

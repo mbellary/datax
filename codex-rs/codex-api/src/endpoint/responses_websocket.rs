@@ -10,9 +10,9 @@ use crate::safety_buffering::treatment_from_headers;
 use crate::sse::ResponsesStreamEvent;
 use crate::sse::process_responses_event;
 use crate::telemetry::WebsocketTelemetry;
-use codex_client::TransportError;
-use codex_client::maybe_build_rustls_client_config_with_custom_ca;
-use codex_utils_rustls_provider::ensure_rustls_crypto_provider;
+use datax_client::TransportError;
+use datax_client::maybe_build_rustls_client_config_with_custom_ca;
+use datax_utils_rustls_provider::ensure_rustls_crypto_provider;
 use futures::SinkExt;
 use futures::StreamExt;
 use http::HeaderMap;
@@ -814,8 +814,8 @@ fn serialize_websocket_request(request: &ResponsesWsRequest) -> Result<String, A
 mod tests {
     use super::*;
     use crate::common::ResponseCreateWsRequest;
-    use codex_protocol::models::ContentItem;
-    use codex_protocol::models::ResponseItem;
+    use datax_protocol::models::ContentItem;
+    use datax_protocol::models::ResponseItem;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::collections::HashMap;

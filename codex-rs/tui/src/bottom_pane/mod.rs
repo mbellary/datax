@@ -34,16 +34,16 @@ use crate::render::renderable::RenderableItem;
 use crate::tui::FrameRequester;
 pub(crate) use bottom_pane_view::BottomPaneView;
 pub(crate) use bottom_pane_view::ViewCompletion;
-use codex_app_server_protocol::ToolRequestUserInputParams;
-use codex_core_skills::model::SkillMetadata;
-use codex_features::Features;
-use codex_file_search::FileMatch;
-use codex_plugin::PluginCapabilitySummary;
-use codex_protocol::ThreadId;
-use codex_protocol::user_input::TextElement;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
+use datax_app_server_protocol::ToolRequestUserInputParams;
+use datax_core_skills::model::SkillMetadata;
+use datax_features::Features;
+use datax_file_search::FileMatch;
+use datax_plugin::PluginCapabilitySummary;
+use datax_protocol::ThreadId;
+use datax_protocol::user_input::TextElement;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::text::Line;
@@ -1851,11 +1851,11 @@ mod tests {
     use crate::status_indicator_widget::StatusDetailsCapitalization;
     use crate::test_support::PathBufExt;
     use crate::test_support::test_path_buf;
-    use codex_app_server_protocol::CommandExecutionApprovalDecision;
     use crossterm::event::KeyCode;
     use crossterm::event::KeyEvent;
     use crossterm::event::KeyEventKind;
     use crossterm::event::KeyModifiers;
+    use datax_app_server_protocol::CommandExecutionApprovalDecision;
     use insta::assert_snapshot;
     use pretty_assertions::assert_eq;
     use ratatui::buffer::Buffer;
@@ -1905,7 +1905,7 @@ mod tests {
 
     fn exec_request() -> ApprovalRequest {
         ApprovalRequest::Exec {
-            thread_id: codex_protocol::ThreadId::new(),
+            thread_id: datax_protocol::ThreadId::new(),
             thread_label: None,
             id: "1".to_string(),
             environment_id: None,

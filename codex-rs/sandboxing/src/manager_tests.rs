@@ -7,19 +7,19 @@ use super::SandboxType;
 use super::SandboxablePreference;
 use super::get_platform_sandbox;
 use super::with_managed_mitm_ca_readable_root;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::AdditionalPermissionProfile;
-use codex_protocol::models::FileSystemPermissions;
-use codex_protocol::models::NetworkPermissions;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use datax_protocol::config_types::WindowsSandboxLevel;
+use datax_protocol::models::AdditionalPermissionProfile;
+use datax_protocol::models::FileSystemPermissions;
+use datax_protocol::models::NetworkPermissions;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::permissions::FileSystemAccessMode;
+use datax_protocol::permissions::FileSystemPath;
+use datax_protocol::permissions::FileSystemSandboxEntry;
+use datax_protocol::permissions::FileSystemSandboxPolicy;
+use datax_protocol::permissions::FileSystemSpecialPath;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_path_uri::PathUri;
 use dunce::canonicalize;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
@@ -417,7 +417,7 @@ fn transform_linux_seccomp_uses_helper_alias_when_launcher_is_not_helper_path() 
     let codex_linux_sandbox_exe = std::path::PathBuf::from("/tmp/codex");
     let exec_request = transform_linux_seccomp_request(&codex_linux_sandbox_exe);
 
-    assert_eq!(exec_request.arg0, Some("codex-linux-sandbox".to_string()));
+    assert_eq!(exec_request.arg0, Some("datax-linux-sandbox".to_string()));
 }
 
 #[cfg(target_os = "windows")]

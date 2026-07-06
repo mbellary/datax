@@ -1,6 +1,6 @@
-use codex_protocol::items::HookPromptItem;
-use codex_protocol::items::parse_hook_prompt_fragment;
-use codex_protocol::models::ContentItem;
+use datax_protocol::items::HookPromptItem;
+use datax_protocol::items::parse_hook_prompt_fragment;
+use datax_protocol::models::ContentItem;
 
 use super::AdditionalContextUserFragment;
 use super::FragmentRegistration;

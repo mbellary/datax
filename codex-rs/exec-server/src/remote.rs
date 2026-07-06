@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_api::AuthProvider;
-use codex_api::SharedAuthProvider;
+use datax_api::AuthProvider;
+use datax_api::SharedAuthProvider;
 use futures::FutureExt;
 use http::HeaderMap;
 use http::HeaderName;
@@ -15,7 +15,7 @@ use tracing::debug;
 use tracing::info;
 use tracing::warn;
 
-use codex_utils_rustls_provider::ensure_rustls_crypto_provider;
+use datax_utils_rustls_provider::ensure_rustls_crypto_provider;
 
 use crate::EnvironmentRegistryConnectRequest;
 use crate::EnvironmentRegistryConnectResponse;
@@ -396,7 +396,7 @@ impl RemoteEnvironmentConfig {
         Ok(Self {
             base_url,
             environment_id,
-            name: "codex-exec-server".to_string(),
+            name: "datax-exec-server".to_string(),
             auth_provider,
         })
     }
@@ -573,7 +573,7 @@ fn preview_error_body(body: &str) -> Option<String> {
 mod tests {
     use std::sync::Arc;
 
-    use codex_api::AuthProvider;
+    use datax_api::AuthProvider;
     use http::HeaderMap;
     use http::HeaderValue;
     use pretty_assertions::assert_eq;

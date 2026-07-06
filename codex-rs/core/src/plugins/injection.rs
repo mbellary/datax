@@ -1,15 +1,15 @@
 use std::collections::BTreeSet;
 
-use codex_connectors::metadata::connector_display_label;
-use codex_protocol::models::ResponseItem;
+use datax_connectors::metadata::connector_display_label;
+use datax_protocol::models::ResponseItem;
 
 use crate::connectors;
 use crate::context::ContextualUserFragment;
 use crate::context::PluginInstructions;
 use crate::plugins::PluginCapabilitySummary;
 use crate::plugins::render_explicit_plugin_instructions;
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_mcp::ToolInfo;
+use datax_mcp::CODEX_APPS_MCP_SERVER_NAME;
+use datax_mcp::ToolInfo;
 
 pub(crate) fn build_plugin_injections(
     mentioned_plugins: &[PluginCapabilitySummary],

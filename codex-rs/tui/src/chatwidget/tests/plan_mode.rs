@@ -809,7 +809,7 @@ async fn plan_implementation_popup_skips_replayed_turn_complete() {
     chat.replay_thread_turns(
         vec![AppServerTurn {
             id: "turn-1".to_string(),
-            items_view: codex_app_server_protocol::TurnItemsView::Full,
+            items_view: datax_app_server_protocol::TurnItemsView::Full,
             items: vec![AppServerThreadItem::AgentMessage {
                 id: "msg-plan".to_string(),
                 text: "Plan details".to_string(),
@@ -847,7 +847,7 @@ async fn plan_implementation_popup_shows_once_when_replay_precedes_live_turn_com
     chat.replay_thread_turns(
         vec![AppServerTurn {
             id: "turn-1".to_string(),
-            items_view: codex_app_server_protocol::TurnItemsView::Full,
+            items_view: datax_app_server_protocol::TurnItemsView::Full,
             items: vec![AppServerThreadItem::AgentMessage {
                 id: "msg-plan-replay".to_string(),
                 text: "Plan details".to_string(),
@@ -1132,7 +1132,7 @@ async fn submit_user_message_queues_while_compaction_turn_is_running() {
             thread_id: thread_id.to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
@@ -1177,7 +1177,7 @@ async fn submit_user_message_queues_while_compaction_turn_is_running() {
             thread_id: thread_id.to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: AppServerTurnStatus::Completed,
                 error: None,
@@ -1231,7 +1231,7 @@ async fn submit_user_message_emits_structured_plugin_mentions_from_bindings() {
     chat.handle_thread_session(configured);
     chat.set_feature_enabled(Feature::Plugins, /*enabled*/ true);
     chat.bottom_pane
-        .set_plugin_mentions(Some(vec![codex_plugin::PluginCapabilitySummary {
+        .set_plugin_mentions(Some(vec![datax_plugin::PluginCapabilitySummary {
             config_name: "sample@test".to_string(),
             display_name: "Sample Plugin".to_string(),
             description: None,
@@ -1496,7 +1496,7 @@ async fn make_startup_chat_with_cli_overrides(
         has_chatgpt_account: false,
         has_codex_backend_auth: false,
         model_catalog: test_model_catalog(&cfg),
-        feedback: codex_feedback::CodexFeedback::new(),
+        feedback: datax_feedback::CodexFeedback::new(),
         is_first_run: true,
         status_account_display: None,
         runtime_model_provider_base_url: None,

@@ -11,16 +11,16 @@ pub use crate::mcp_types::McpServerOAuthConfig;
 pub use crate::mcp_types::McpServerToolConfig;
 pub use crate::mcp_types::McpServerTransportConfig;
 pub use crate::mcp_types::RawMcpServerConfig;
-pub use codex_protocol::config_types::AltScreenMode;
-pub use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::config_types::EnvironmentVariablePattern;
-pub use codex_protocol::config_types::ModeKind;
-pub use codex_protocol::config_types::Personality;
-pub use codex_protocol::config_types::ServiceTier;
-use codex_protocol::config_types::ShellEnvironmentPolicy;
-use codex_protocol::config_types::ShellEnvironmentPolicyInherit;
-pub use codex_protocol::config_types::WebSearchMode;
-use codex_utils_absolute_path::AbsolutePathBuf;
+pub use datax_protocol::config_types::AltScreenMode;
+pub use datax_protocol::config_types::ApprovalsReviewer;
+use datax_protocol::config_types::EnvironmentVariablePattern;
+pub use datax_protocol::config_types::ModeKind;
+pub use datax_protocol::config_types::Personality;
+pub use datax_protocol::config_types::ServiceTier;
+use datax_protocol::config_types::ShellEnvironmentPolicy;
+use datax_protocol::config_types::ShellEnvironmentPolicyInherit;
+pub use datax_protocol::config_types::WebSearchMode;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::fmt;
@@ -920,7 +920,7 @@ pub struct SandboxWorkspaceWrite {
     pub exclude_slash_tmp: bool,
 }
 
-impl From<SandboxWorkspaceWrite> for codex_app_server_protocol::SandboxSettings {
+impl From<SandboxWorkspaceWrite> for datax_app_server_protocol::SandboxSettings {
     fn from(sandbox_workspace_write: SandboxWorkspaceWrite) -> Self {
         Self {
             writable_roots: sandbox_workspace_write.writable_roots,

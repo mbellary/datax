@@ -3,28 +3,28 @@ use std::sync::Arc;
 
 use async_channel::Receiver;
 use async_channel::Sender;
-use codex_analytics::GuardianApprovalRequestSource;
-use codex_async_utils::OrCancelExt;
-use codex_extension_api::LoadedUserInstructions;
-use codex_protocol::protocol::ApplyPatchApprovalRequestEvent;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecApprovalRequestEvent;
-use codex_protocol::protocol::McpInvocation;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RequestUserInputEvent;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::Submission;
-use codex_protocol::protocol::ThreadSource;
-use codex_protocol::request_permissions::PermissionGrantScope;
-use codex_protocol::request_permissions::RequestPermissionsArgs;
-use codex_protocol::request_permissions::RequestPermissionsEvent;
-use codex_protocol::request_permissions::RequestPermissionsResponse;
-use codex_protocol::request_user_input::RequestUserInputArgs;
-use codex_protocol::request_user_input::RequestUserInputResponse;
-use codex_protocol::user_input::UserInput;
+use datax_analytics::GuardianApprovalRequestSource;
+use datax_async_utils::OrCancelExt;
+use datax_extension_api::LoadedUserInstructions;
+use datax_protocol::protocol::ApplyPatchApprovalRequestEvent;
+use datax_protocol::protocol::Event;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::ExecApprovalRequestEvent;
+use datax_protocol::protocol::McpInvocation;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::RequestUserInputEvent;
+use datax_protocol::protocol::ReviewDecision;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::SubAgentSource;
+use datax_protocol::protocol::Submission;
+use datax_protocol::protocol::ThreadSource;
+use datax_protocol::request_permissions::PermissionGrantScope;
+use datax_protocol::request_permissions::RequestPermissionsArgs;
+use datax_protocol::request_permissions::RequestPermissionsEvent;
+use datax_protocol::request_permissions::RequestPermissionsResponse;
+use datax_protocol::request_user_input::RequestUserInputArgs;
+use datax_protocol::request_user_input::RequestUserInputResponse;
+use datax_protocol::user_input::UserInput;
 use serde_json::Value;
 use std::time::Duration;
 use tokio::sync::Mutex;
@@ -51,11 +51,11 @@ use crate::session::SUBMISSION_CHANNEL_CAPACITY;
 use crate::session::emit_subagent_session_started;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
-use codex_login::AuthManager;
-use codex_models_manager::manager::SharedModelsManager;
-use codex_protocol::error::CodexErr;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::MultiAgentVersion;
+use datax_login::AuthManager;
+use datax_models_manager::manager::SharedModelsManager;
+use datax_protocol::error::CodexErr;
+use datax_protocol::protocol::InitialHistory;
+use datax_protocol::protocol::MultiAgentVersion;
 
 #[cfg(test)]
 use crate::session::completed_session_loop_termination;
@@ -109,10 +109,10 @@ pub(crate) async fn run_codex_thread_interactive(
         user_shell_override: None,
         inherited_environments: Some(parent_ctx.environments.clone()),
         inherited_exec_policy: Some(Arc::clone(&parent_session.services.exec_policy)),
-        parent_rollout_thread_trace: codex_rollout_trace::ThreadTraceContext::disabled(),
+        parent_rollout_thread_trace: datax_rollout_trace::ThreadTraceContext::disabled(),
         parent_trace: None,
         environment_selections: parent_ctx.environments.to_selections(),
-        thread_extension_init: codex_extension_api::ExtensionDataInit::default(),
+        thread_extension_init: datax_extension_api::ExtensionDataInit::default(),
         supports_openai_form_elicitation: parent_session
             .services
             .supports_openai_form_elicitation
@@ -566,13 +566,13 @@ async fn handle_patch_approval(
         let patch = changes
             .iter()
             .map(|(path, change)| match change {
-                codex_protocol::protocol::FileChange::Add { content } => {
+                datax_protocol::protocol::FileChange::Add { content } => {
                     format!("*** Add File: {}\n{}", path.display(), content)
                 }
-                codex_protocol::protocol::FileChange::Delete { content } => {
+                datax_protocol::protocol::FileChange::Delete { content } => {
                     format!("*** Delete File: {}\n{}", path.display(), content)
                 }
-                codex_protocol::protocol::FileChange::Update {
+                datax_protocol::protocol::FileChange::Update {
                     unified_diff,
                     move_path,
                 } => {
@@ -756,7 +756,7 @@ async fn maybe_auto_review_mcp_request_user_input(
     Some(RequestUserInputResponse {
         answers: HashMap::from([(
             question.id.clone(),
-            codex_protocol::request_user_input::RequestUserInputAnswer {
+            datax_protocol::request_user_input::RequestUserInputAnswer {
                 answers: vec![selected_label],
             },
         )]),
@@ -861,9 +861,9 @@ async fn await_approval_with_cancel<F>(
     approval_id: &str,
     cancel_token: &CancellationToken,
     review_cancel_token: Option<&CancellationToken>,
-) -> codex_protocol::protocol::ReviewDecision
+) -> datax_protocol::protocol::ReviewDecision
 where
-    F: core::future::Future<Output = codex_protocol::protocol::ReviewDecision>,
+    F: core::future::Future<Output = datax_protocol::protocol::ReviewDecision>,
 {
     tokio::select! {
         biased;
@@ -872,9 +872,9 @@ where
                 review_cancel_token.cancel();
             }
             parent_session
-                .notify_approval(approval_id, codex_protocol::protocol::ReviewDecision::Abort)
+                .notify_approval(approval_id, datax_protocol::protocol::ReviewDecision::Abort)
                 .await;
-            codex_protocol::protocol::ReviewDecision::Abort
+            datax_protocol::protocol::ReviewDecision::Abort
         }
         decision = fut => {
             decision

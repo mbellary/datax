@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use anyhow::Result;
-use codex_protocol::protocol::McpAuthStatus;
+use datax_protocol::protocol::McpAuthStatus;
 use futures::FutureExt;
 use reqwest::Client;
 use reqwest::header::AUTHORIZATION;
@@ -15,8 +15,8 @@ use crate::oauth::StoredOAuthTokenStatus;
 use crate::oauth::oauth_token_status;
 use crate::utils::apply_default_headers;
 use crate::utils::build_default_headers;
-use codex_config::types::AuthKeyringBackendKind;
-use codex_config::types::OAuthCredentialsStoreMode;
+use datax_config::types::AuthKeyringBackendKind;
+use datax_config::types::OAuthCredentialsStoreMode;
 
 const DISCOVERY_TIMEOUT: Duration = Duration::from_secs(5);
 

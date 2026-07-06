@@ -19,13 +19,13 @@
 use anyhow::Context;
 use anyhow::Error;
 use anyhow::Result;
-use codex_config::types::AuthKeyringBackendKind;
-use codex_config::types::OAuthCredentialsStoreMode;
-use codex_secrets::LocalSecretsNamespace;
-use codex_secrets::SecretName;
-use codex_secrets::SecretScope;
-use codex_secrets::SecretsBackendKind;
-use codex_secrets::SecretsManager;
+use datax_config::types::AuthKeyringBackendKind;
+use datax_config::types::OAuthCredentialsStoreMode;
+use datax_secrets::LocalSecretsNamespace;
+use datax_secrets::SecretName;
+use datax_secrets::SecretScope;
+use datax_secrets::SecretsBackendKind;
+use datax_secrets::SecretsManager;
 use oauth2::AccessToken;
 use oauth2::RefreshToken;
 use oauth2::Scope;
@@ -49,12 +49,12 @@ use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 use tracing::warn;
 
-use codex_keyring_store::DefaultKeyringStore;
-use codex_keyring_store::KeyringStore;
+use datax_keyring_store::DefaultKeyringStore;
+use datax_keyring_store::KeyringStore;
 use rmcp::transport::auth::AuthorizationManager;
 use tokio::sync::Mutex;
 
-use codex_utils_home_dir::find_codex_home;
+use datax_utils_home_dir::find_codex_home;
 
 const KEYRING_SERVICE: &str = "Codex MCP Credentials";
 const MCP_OAUTH_SECRET_PREFIX: &str = "MCP_OAUTH";
@@ -814,7 +814,7 @@ fn sha_256_prefix(value: &Value) -> Result<String> {
 mod tests {
     use super::*;
     use anyhow::Result;
-    use codex_secrets::compute_keyring_account;
+    use datax_secrets::compute_keyring_account;
     use keyring::Error as KeyringError;
     use pretty_assertions::assert_eq;
     use std::sync::Arc;
@@ -824,7 +824,7 @@ mod tests {
     use std::sync::PoisonError;
     use tempfile::tempdir;
 
-    use codex_keyring_store::tests::MockKeyringStore;
+    use datax_keyring_store::tests::MockKeyringStore;
 
     struct TempCodexHome {
         _guard: MutexGuard<'static, ()>,

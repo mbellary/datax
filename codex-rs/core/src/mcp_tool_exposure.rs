@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
-use codex_connectors::AppToolPolicyEvaluator;
-use codex_connectors::AppToolPolicyInput;
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_mcp::ToolInfo as McpToolInfo;
-use codex_mcp::tool_is_model_visible;
+use datax_connectors::AppToolPolicyEvaluator;
+use datax_connectors::AppToolPolicyInput;
+use datax_mcp::CODEX_APPS_MCP_SERVER_NAME;
+use datax_mcp::ToolInfo as McpToolInfo;
+use datax_mcp::tool_is_model_visible;
 use tracing::instrument;
 
 use crate::config::Config;

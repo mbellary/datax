@@ -1,6 +1,6 @@
-use codex_analytics::AnalyticsEventsClient;
-use codex_analytics::CodexGoalEvent;
-use codex_analytics::GoalEventKind;
+use datax_analytics::AnalyticsEventsClient;
+use datax_analytics::CodexGoalEvent;
+use datax_analytics::GoalEventKind;
 
 #[derive(Clone)]
 pub(crate) struct GoalAnalytics {
@@ -19,7 +19,7 @@ impl GoalAnalytics {
 
     pub(crate) fn created(
         &self,
-        goal: &codex_state::ThreadGoal,
+        goal: &datax_state::ThreadGoal,
         attribution: GoalEventAttribution<'_>,
     ) {
         self.track(goal, attribution, GoalEventKind::Created);
@@ -27,7 +27,7 @@ impl GoalAnalytics {
 
     pub(crate) fn usage_accounted(
         &self,
-        goal: &codex_state::ThreadGoal,
+        goal: &datax_state::ThreadGoal,
         attribution: GoalEventAttribution<'_>,
     ) {
         self.track(goal, attribution, GoalEventKind::UsageAccounted);
@@ -35,8 +35,8 @@ impl GoalAnalytics {
 
     pub(crate) fn status_changed(
         &self,
-        goal: &codex_state::ThreadGoal,
-        previous_status: Option<codex_state::ThreadGoalStatus>,
+        goal: &datax_state::ThreadGoal,
+        previous_status: Option<datax_state::ThreadGoalStatus>,
         attribution: GoalEventAttribution<'_>,
     ) {
         if previous_status.is_some_and(|status| status != goal.status) {
@@ -44,13 +44,13 @@ impl GoalAnalytics {
         }
     }
 
-    pub(crate) fn cleared(&self, goal: &codex_state::ThreadGoal) {
+    pub(crate) fn cleared(&self, goal: &datax_state::ThreadGoal) {
         self.track(goal, GoalEventAttribution::NoTurn, GoalEventKind::Cleared);
     }
 
     fn track(
         &self,
-        goal: &codex_state::ThreadGoal,
+        goal: &datax_state::ThreadGoal,
         attribution: GoalEventAttribution<'_>,
         event_kind: GoalEventKind,
     ) {

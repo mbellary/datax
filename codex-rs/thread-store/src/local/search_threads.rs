@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use codex_install_context::InstallContext;
-use codex_protocol::ThreadId;
-use codex_rollout::RolloutConfig;
-use codex_rollout::find_thread_names_by_ids;
-use codex_rollout::first_rollout_content_match_snippet;
-use codex_rollout::parse_cursor;
-use codex_rollout::search_rollout_matches;
+use datax_install_context::InstallContext;
+use datax_protocol::ThreadId;
+use datax_rollout::RolloutConfig;
+use datax_rollout::find_thread_names_by_ids;
+use datax_rollout::first_rollout_content_match_snippet;
+use datax_rollout::parse_cursor;
+use datax_rollout::search_rollout_matches;
 
 use super::LocalThreadStore;
 use super::helpers::distinct_thread_metadata_title;
@@ -28,7 +28,7 @@ use crate::ThreadStoreResult;
 mod tests;
 
 struct ThreadSearchItem {
-    item: codex_rollout::ThreadItem,
+    item: datax_rollout::ThreadItem,
     snippet: String,
 }
 
@@ -52,13 +52,13 @@ pub(super) async fn search_threads(
         })
         .transpose()?;
     let sort_key = match params.sort_key {
-        ThreadSortKey::CreatedAt => codex_rollout::ThreadSortKey::CreatedAt,
-        ThreadSortKey::UpdatedAt => codex_rollout::ThreadSortKey::UpdatedAt,
-        ThreadSortKey::RecencyAt => codex_rollout::ThreadSortKey::RecencyAt,
+        ThreadSortKey::CreatedAt => datax_rollout::ThreadSortKey::CreatedAt,
+        ThreadSortKey::UpdatedAt => datax_rollout::ThreadSortKey::UpdatedAt,
+        ThreadSortKey::RecencyAt => datax_rollout::ThreadSortKey::RecencyAt,
     };
     let sort_direction = match params.sort_direction {
-        SortDirection::Asc => codex_rollout::SortDirection::Asc,
-        SortDirection::Desc => codex_rollout::SortDirection::Desc,
+        SortDirection::Asc => datax_rollout::SortDirection::Asc,
+        SortDirection::Desc => datax_rollout::SortDirection::Desc,
     };
     let state_db = store.state_db().await;
     let rollout_config = RolloutConfig {
@@ -115,7 +115,7 @@ pub(super) async fn search_threads(
         )
         .await?;
         for item in page.items {
-            let logical_path = codex_rollout::plain_rollout_path(item.path.as_path());
+            let logical_path = datax_rollout::plain_rollout_path(item.path.as_path());
             let Some(snippet) = (match remaining_rollouts.remove(logical_path.as_path()) {
                 Some(Some(snippet)) => Some(snippet),
                 Some(None) => first_rollout_content_match_snippet(item.path.as_path(), search_term)
@@ -176,7 +176,7 @@ pub(super) async fn search_threads(
 fn cursor_from_thread_search_item(
     item: &ThreadSearchItem,
     sort_key: ThreadSortKey,
-) -> Option<codex_rollout::Cursor> {
+) -> Option<datax_rollout::Cursor> {
     let timestamp = match sort_key {
         ThreadSortKey::CreatedAt => item.item.created_at.as_deref()?,
         ThreadSortKey::UpdatedAt => item

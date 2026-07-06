@@ -5,11 +5,11 @@ use crate::context::environment_context::NetworkContext;
 use crate::context::environment_context::push_xml_escaped_text;
 use crate::environment_selection::TurnEnvironmentSnapshot;
 use crate::session::turn_context::TurnContext;
-use codex_exec_server::LOCAL_ENVIRONMENT_ID;
-use codex_protocol::protocol::TurnContextItem;
-use codex_protocol::protocol::TurnContextNetworkItem;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use datax_exec_server::LOCAL_ENVIRONMENT_ID;
+use datax_protocol::protocol::TurnContextItem;
+use datax_protocol::protocol::TurnContextNetworkItem;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_path_uri::PathUri;
 use std::collections::BTreeMap;
 
 /// Environment values visible to the model.
@@ -330,8 +330,8 @@ fn is_legacy_single(environments: &BTreeMap<String, EnvironmentState>) -> bool {
 
 fn environment_context_markers() -> (&'static str, &'static str) {
     (
-        codex_protocol::protocol::ENVIRONMENT_CONTEXT_OPEN_TAG,
-        codex_protocol::protocol::ENVIRONMENT_CONTEXT_CLOSE_TAG,
+        datax_protocol::protocol::ENVIRONMENT_CONTEXT_OPEN_TAG,
+        datax_protocol::protocol::ENVIRONMENT_CONTEXT_CLOSE_TAG,
     )
 }
 
@@ -347,12 +347,12 @@ fn network_from_turn_context(turn_context: &TurnContext) -> Option<NetworkContex
         network
             .domains
             .as_ref()
-            .and_then(codex_config::NetworkDomainPermissionsToml::allowed_domains)
+            .and_then(datax_config::NetworkDomainPermissionsToml::allowed_domains)
             .unwrap_or_default(),
         network
             .domains
             .as_ref()
-            .and_then(codex_config::NetworkDomainPermissionsToml::denied_domains)
+            .and_then(datax_config::NetworkDomainPermissionsToml::denied_domains)
             .unwrap_or_default(),
     ))
 }

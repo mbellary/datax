@@ -1,14 +1,4 @@
 use anyhow::Context;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::DEFAULT_IMAGE_DETAIL;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::user_input::UserInput;
 use core_test_support::TempDirExt;
 use core_test_support::responses;
 use core_test_support::responses::ev_assistant_message;
@@ -22,6 +12,16 @@ use core_test_support::test_codex::local_selections;
 use core_test_support::test_codex::test_codex;
 use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::wait_for_event;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::DEFAULT_IMAGE_DETAIL;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutLine;
+use datax_protocol::user_input::UserInput;
 use image::ImageBuffer;
 use image::Rgba;
 use pretty_assertions::assert_eq;
@@ -129,14 +129,14 @@ async fn copy_paste_local_image_persists_rollout_request_shape() -> anyhow::Resu
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(cwd.abs())),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                    mode: datax_protocol::config_types::ModeKind::Default,
+                    settings: datax_protocol::config_types::Settings {
                         model: session_model,
                         reasoning_effort: None,
                         developer_instructions: None,
@@ -162,7 +162,7 @@ async fn copy_paste_local_image_persists_rollout_request_shape() -> anyhow::Resu
         role: "user".to_string(),
         content: vec![
             ContentItem::InputText {
-                text: codex_protocol::models::local_image_open_tag_text_with_path(
+                text: datax_protocol::models::local_image_open_tag_text_with_path(
                     /*label_number*/ 1, &abs_path,
                 ),
             },
@@ -171,7 +171,7 @@ async fn copy_paste_local_image_persists_rollout_request_shape() -> anyhow::Resu
                 detail: Some(DEFAULT_IMAGE_DETAIL),
             },
             ContentItem::InputText {
-                text: codex_protocol::models::image_close_tag_text(),
+                text: datax_protocol::models::image_close_tag_text(),
             },
             ContentItem::InputText {
                 text: "pasted image".to_string(),
@@ -228,14 +228,14 @@ async fn drag_drop_image_persists_rollout_request_shape() -> anyhow::Result<()> 
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(cwd.abs())),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                    mode: datax_protocol::config_types::ModeKind::Default,
+                    settings: datax_protocol::config_types::Settings {
                         model: session_model,
                         reasoning_effort: None,
                         developer_instructions: None,

@@ -1,6 +1,6 @@
 use crate::ExtensionData;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::TurnEnvironmentSelection;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::TurnEnvironmentSelection;
 
 /// Input supplied when the host starts a runtime for a thread.
 pub struct ThreadStartInput<'a, C> {

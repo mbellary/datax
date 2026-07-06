@@ -1,19 +1,19 @@
 use anyhow::Context;
-use codex_core::exec::ExecCapturePolicy;
-use codex_core::exec::ExecParams;
-use codex_core::exec::process_exec_tool_call;
-use codex_core::sandboxing::SandboxPermissions;
-use codex_core::windows_sandbox::sandbox_setup_is_complete;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::exec_output::ExecToolCallOutput;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_protocol::permissions::NetworkSandboxPolicy;
 use core_test_support::PathExt;
+use datax_core::exec::ExecCapturePolicy;
+use datax_core::exec::ExecParams;
+use datax_core::exec::process_exec_tool_call;
+use datax_core::sandboxing::SandboxPermissions;
+use datax_core::windows_sandbox::sandbox_setup_is_complete;
+use datax_protocol::config_types::WindowsSandboxLevel;
+use datax_protocol::exec_output::ExecToolCallOutput;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::permissions::FileSystemAccessMode;
+use datax_protocol::permissions::FileSystemPath;
+use datax_protocol::permissions::FileSystemSandboxEntry;
+use datax_protocol::permissions::FileSystemSandboxPolicy;
+use datax_protocol::permissions::FileSystemSpecialPath;
+use datax_protocol::permissions::NetworkSandboxPolicy;
 use pretty_assertions::assert_eq;
 use serial_test::serial;
 use std::collections::HashMap;
@@ -81,7 +81,7 @@ fn stage_windows_sandbox_helpers() -> anyhow::Result<()> {
     let test_exe_dir = test_exe
         .parent()
         .context("Windows test executable should have a parent directory")?;
-    let resources_dir = test_exe_dir.join("codex-resources");
+    let resources_dir = test_exe_dir.join("datax-resources");
     match std::fs::create_dir_all(&resources_dir) {
         Ok(()) => {}
         Err(err)
@@ -91,8 +91,8 @@ fn stage_windows_sandbox_helpers() -> anyhow::Result<()> {
                 .with_context(|| format!("create resources dir {}", resources_dir.display()));
         }
     }
-    for helper_name in ["codex-windows-sandbox-setup", "codex-command-runner"] {
-        let helper = codex_utils_cargo_bin::cargo_bin(helper_name)?;
+    for helper_name in ["datax-windows-sandbox-setup", "datax-command-runner"] {
+        let helper = datax_utils_cargo_bin::cargo_bin(helper_name)?;
         let file_name = Path::new(helper_name).with_extension("exe");
         let destination = resources_dir.join(file_name);
         if let Err(err) = std::fs::copy(&helper, &destination) {

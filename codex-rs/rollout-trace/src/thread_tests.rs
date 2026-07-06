@@ -3,13 +3,13 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
-use codex_protocol::AgentPath;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::AgentStatus;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
+use datax_protocol::AgentPath;
+use datax_protocol::ThreadId;
+use datax_protocol::protocol::AgentStatus;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::SandboxPolicy;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::SubAgentSource;
 use tempfile::TempDir;
 
 use super::*;
@@ -132,7 +132,7 @@ fn disabled_thread_context_accepts_trace_calls_without_writing() -> anyhow::Resu
         thread_trace.inference_trace_context("turn-1", "gpt-test", "test-provider");
     let inference_attempt = inference_trace.start_attempt();
     inference_attempt.record_started(&serde_json::json!({ "kind": "inference" }));
-    let token_usage: Option<codex_protocol::protocol::TokenUsage> = None;
+    let token_usage: Option<datax_protocol::protocol::TokenUsage> = None;
     inference_attempt.record_completed("response-1", Some("req-1"), &token_usage, &[]);
     inference_attempt.record_failed("inference failed", /*upstream_request_id*/ None, &[]);
 

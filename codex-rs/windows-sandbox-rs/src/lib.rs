@@ -352,8 +352,8 @@ mod windows_impl {
     use super::spawn_prep::prepare_legacy_spawn_context;
     use super::spawn_prep::root_capability_sids;
     use anyhow::Result;
-    use codex_protocol::models::PermissionProfile;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use datax_protocol::models::PermissionProfile;
+    use datax_utils_absolute_path::AbsolutePathBuf;
     use std::collections::HashMap;
     use std::io;
     use std::path::Path;
@@ -721,8 +721,8 @@ mod windows_impl {
     #[cfg(test)]
     mod tests {
         use crate::resolved_permissions::ResolvedWindowsSandboxPermissions;
-        use codex_protocol::models::PermissionProfile;
-        use codex_protocol::permissions::NetworkSandboxPolicy;
+        use datax_protocol::models::PermissionProfile;
+        use datax_protocol::permissions::NetworkSandboxPolicy;
         use std::collections::HashMap;
         use std::path::Path;
 
@@ -789,8 +789,8 @@ mod stub {
     use super::WindowsSandboxCancellationToken;
     use anyhow::Result;
     use anyhow::bail;
-    use codex_protocol::models::PermissionProfile;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use datax_protocol::models::PermissionProfile;
+    use datax_utils_absolute_path::AbsolutePathBuf;
     use std::collections::HashMap;
     use std::path::Path;
 

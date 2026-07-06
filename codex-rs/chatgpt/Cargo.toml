@@ -1,5 +1,5 @@
 [package]
-name = "codex-chatgpt"
+name = "datax-chatgpt"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,19 +10,19 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
-codex-app-server-protocol = { workspace = true }
-codex-connectors = { workspace = true }
-codex-core = { workspace = true }
-codex-git-utils = { workspace = true }
-codex-login = { workspace = true }
-codex-model-provider = { workspace = true }
-codex-plugin = { workspace = true }
-codex-utils-cli = { workspace = true }
+datax-app-server-protocol = { workspace = true }
+datax-connectors = { workspace = true }
+datax-core = { workspace = true }
+datax-git-utils = { workspace = true }
+datax-login = { workspace = true }
+datax-model-provider = { workspace = true }
+datax-plugin = { workspace = true }
+datax-utils-cli = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["full"] }
 
 [dev-dependencies]
-codex-utils-cargo-bin = { workspace = true }
+datax-utils-cargo-bin = { workspace = true }
 pretty_assertions = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }

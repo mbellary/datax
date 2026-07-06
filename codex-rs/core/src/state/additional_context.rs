@@ -3,9 +3,9 @@ use std::collections::BTreeMap;
 use crate::context::AdditionalContextDeveloperFragment;
 use crate::context::AdditionalContextUserFragment;
 use crate::context::ContextualUserFragment;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::protocol::AdditionalContextEntry;
-use codex_protocol::protocol::AdditionalContextKind;
+use datax_protocol::models::ResponseInputItem;
+use datax_protocol::protocol::AdditionalContextEntry;
+use datax_protocol::protocol::AdditionalContextKind;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct AdditionalContextStore {

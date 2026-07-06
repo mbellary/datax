@@ -1,7 +1,7 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-home"
+name = "datax-home"
 version.workspace = true
 
 [lib]
@@ -11,8 +11,8 @@ doctest = false
 workspace = true
 
 [dependencies]
-codex-extension-api = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
+datax-extension-api = { workspace = true }
+datax-utils-absolute-path = { workspace = true }
 tokio = { workspace = true, features = ["fs"] }
 
 [dev-dependencies]

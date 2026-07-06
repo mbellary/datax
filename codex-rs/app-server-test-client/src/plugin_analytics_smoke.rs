@@ -1,20 +1,20 @@
-use super::CodexClient;
+use super::DataxClient;
 use super::loopback_responses_server::LoopbackResponsesServer;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ConfigValueWriteParams;
-use codex_app_server_protocol::ConfigWriteResponse;
-use codex_app_server_protocol::MergeStrategy;
-use codex_app_server_protocol::PluginAvailability;
-use codex_app_server_protocol::PluginInstalledParams;
-use codex_app_server_protocol::PluginInstalledResponse;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::UserInput;
-use codex_app_server_protocol::WriteStatus;
+use datax_app_server_protocol::ClientRequest;
+use datax_app_server_protocol::ConfigValueWriteParams;
+use datax_app_server_protocol::ConfigWriteResponse;
+use datax_app_server_protocol::MergeStrategy;
+use datax_app_server_protocol::PluginAvailability;
+use datax_app_server_protocol::PluginInstalledParams;
+use datax_app_server_protocol::PluginInstalledResponse;
+use datax_app_server_protocol::ThreadStartParams;
+use datax_app_server_protocol::TurnStartParams;
+use datax_app_server_protocol::TurnStatus;
+use datax_app_server_protocol::UserInput;
+use datax_app_server_protocol::WriteStatus;
 use serde_json::Value;
 use serde_json::json;
 use std::ffi::OsString;
@@ -38,13 +38,13 @@ const MOCK_MODEL_SLUG: &str = "plugin-analytics-smoke";
 const MOCK_PROVIDER_ID: &str = "plugin_analytics_smoke";
 
 pub(super) fn run(
-    codex_bin: &Path,
+    datax_bin: &Path,
     config_overrides: &[String],
     plugin_id: &str,
     capture_file: Option<PathBuf>,
 ) -> Result<()> {
     let capture_path = capture_file.unwrap_or_else(|| {
-        std::env::temp_dir().join(format!("codex-plugin-analytics-{}.jsonl", process::id()))
+        std::env::temp_dir().join(format!("datax-plugin-analytics-{}.jsonl", process::id()))
     });
     prepare_capture_file(&capture_path)?;
 
@@ -63,7 +63,7 @@ pub(super) fn run(
             temporary_config.path().as_os_str().to_os_string(),
         ),
     ];
-    let mut client = CodexClient::spawn_stdio_with_env(codex_bin, &overrides, &child_environment)?;
+    let mut client = DataxClient::spawn_stdio_with_env(datax_bin, &overrides, &child_environment)?;
     wait_until_capture_is_ready(&capture_path)?;
     client.initialize()?;
 
@@ -94,7 +94,7 @@ pub(super) fn run(
     Ok(())
 }
 
-fn run_plugin_turn(client: &mut CodexClient, expected: &ExpectedPlugin) -> Result<String> {
+fn run_plugin_turn(client: &mut DataxClient, expected: &ExpectedPlugin) -> Result<String> {
     let thread = client.thread_start(ThreadStartParams {
         model: Some(MOCK_MODEL_SLUG.to_string()),
         model_provider: Some(MOCK_PROVIDER_ID.to_string()),
@@ -124,7 +124,7 @@ fn run_plugin_turn(client: &mut CodexClient, expected: &ExpectedPlugin) -> Resul
 }
 
 fn wait_for_plugin_usage(
-    client: &mut CodexClient,
+    client: &mut DataxClient,
     capture_path: &Path,
     expected: &ExpectedPlugin,
 ) -> Result<()> {
@@ -163,7 +163,7 @@ struct ExpectedPlugin {
     marketplace_name: String,
 }
 
-fn plugin_installed(client: &mut CodexClient) -> Result<PluginInstalledResponse> {
+fn plugin_installed(client: &mut DataxClient) -> Result<PluginInstalledResponse> {
     let request_id = client.request_id();
     client.send_request(
         ClientRequest::PluginInstalled {
@@ -221,7 +221,7 @@ fn expected_plugin(response: &PluginInstalledResponse, plugin_id: &str) -> Resul
 }
 
 fn write_plugin_enabled(
-    client: &mut CodexClient,
+    client: &mut DataxClient,
     config_path: &Path,
     plugin_id: &str,
     enabled: bool,
@@ -481,7 +481,7 @@ struct TemporaryConfigFile {
 impl TemporaryConfigFile {
     fn create() -> Result<Self> {
         let path = std::env::temp_dir().join(format!(
-            "codex-plugin-analytics-config-{}.toml",
+            "datax-plugin-analytics-config-{}.toml",
             process::id()
         ));
         fs::write(&path, "")

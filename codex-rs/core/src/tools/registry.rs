@@ -24,22 +24,22 @@ use crate::tools::lifecycle::notify_tool_finish;
 use crate::tools::lifecycle::notify_tool_start;
 use crate::tools::tool_dispatch_trace::ToolDispatchTrace;
 use crate::util::error_or_panic;
-use codex_extension_api::ToolCallOutcome;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::protocol::EventMsg;
-use codex_rollout::state_db;
-use codex_tools::ToolName;
-use codex_tools::ToolSearchInfo;
-use codex_tools::ToolSpec;
+use datax_extension_api::ToolCallOutcome;
+use datax_protocol::models::FunctionCallOutputPayload;
+use datax_protocol::models::ResponseInputItem;
+use datax_protocol::protocol::EventMsg;
+use datax_rollout::state_db;
+use datax_tools::ToolName;
+use datax_tools::ToolSearchInfo;
+use datax_tools::ToolSpec;
 use futures::future::BoxFuture;
 use serde_json::Value;
 use tracing::instrument;
 
 pub(crate) type ToolTelemetryTags = Vec<(&'static str, String)>;
 
-pub use codex_tools::ToolExecutor;
-pub use codex_tools::ToolExposure;
+pub use datax_tools::ToolExecutor;
+pub use datax_tools::ToolExposure;
 
 /// Typed runtime contract for locally executed tools.
 ///
@@ -272,7 +272,7 @@ impl ToolExecutor<ToolInvocation> for ExposureOverride {
         self.handler.search_info()
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> datax_tools::ToolExecutorFuture<'_> {
         self.handler.handle(invocation)
     }
 }

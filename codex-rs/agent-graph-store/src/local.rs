@@ -1,5 +1,5 @@
-use codex_protocol::ThreadId;
-use codex_state::StateRuntime;
+use datax_protocol::ThreadId;
+use datax_state::StateRuntime;
 use std::sync::Arc;
 
 use crate::AgentGraphStore;
@@ -91,10 +91,10 @@ impl AgentGraphStore for LocalAgentGraphStore {
     }
 }
 
-fn to_state_status(status: ThreadSpawnEdgeStatus) -> codex_state::DirectionalThreadSpawnEdgeStatus {
+fn to_state_status(status: ThreadSpawnEdgeStatus) -> datax_state::DirectionalThreadSpawnEdgeStatus {
     match status {
-        ThreadSpawnEdgeStatus::Open => codex_state::DirectionalThreadSpawnEdgeStatus::Open,
-        ThreadSpawnEdgeStatus::Closed => codex_state::DirectionalThreadSpawnEdgeStatus::Closed,
+        ThreadSpawnEdgeStatus::Open => datax_state::DirectionalThreadSpawnEdgeStatus::Open,
+        ThreadSpawnEdgeStatus::Closed => datax_state::DirectionalThreadSpawnEdgeStatus::Closed,
     }
 }
 
@@ -107,7 +107,7 @@ fn internal_error(err: impl std::fmt::Display) -> AgentGraphStoreError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_state::DirectionalThreadSpawnEdgeStatus;
+    use datax_state::DirectionalThreadSpawnEdgeStatus;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
 

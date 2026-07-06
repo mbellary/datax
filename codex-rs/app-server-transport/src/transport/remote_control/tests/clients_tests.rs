@@ -1,13 +1,13 @@
 use super::super::clients::list_remote_control_clients;
 use super::super::clients::revoke_remote_control_client;
 use super::*;
-use codex_app_server_protocol::RemoteControlClient;
-use codex_app_server_protocol::RemoteControlClientsListOrder;
-use codex_app_server_protocol::RemoteControlClientsListParams;
-use codex_app_server_protocol::RemoteControlClientsListResponse;
-use codex_app_server_protocol::RemoteControlClientsRevokeParams;
-use codex_app_server_protocol::RemoteControlClientsRevokeResponse;
-use codex_login::AuthKeyringBackendKind;
+use datax_app_server_protocol::RemoteControlClient;
+use datax_app_server_protocol::RemoteControlClientsListOrder;
+use datax_app_server_protocol::RemoteControlClientsListParams;
+use datax_app_server_protocol::RemoteControlClientsListResponse;
+use datax_app_server_protocol::RemoteControlClientsRevokeParams;
+use datax_app_server_protocol::RemoteControlClientsRevokeResponse;
+use datax_login::AuthKeyringBackendKind;
 use pretty_assertions::assert_eq;
 
 fn client_management_handle(

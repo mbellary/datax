@@ -6,17 +6,17 @@ use std::time::Duration;
 use std::time::Instant;
 
 use async_channel::unbounded;
-pub use codex_app_server_protocol::AppBranding;
-pub use codex_app_server_protocol::AppInfo;
-pub use codex_app_server_protocol::AppMetadata;
-use codex_connectors::ConnectorDirectoryCacheContext;
-use codex_connectors::ConnectorDirectoryCacheKey;
-use codex_connectors::app_is_enabled;
-use codex_connectors::apps_config_from_layer_stack;
-use codex_exec_server::EnvironmentManager;
-use codex_exec_server::ExecServerRuntimePaths;
-use codex_protocol::models::PermissionProfile;
-use codex_tools::DiscoverableTool;
+pub use datax_app_server_protocol::AppBranding;
+pub use datax_app_server_protocol::AppInfo;
+pub use datax_app_server_protocol::AppMetadata;
+use datax_connectors::ConnectorDirectoryCacheContext;
+use datax_connectors::ConnectorDirectoryCacheKey;
+use datax_connectors::app_is_enabled;
+use datax_connectors::apps_config_from_layer_stack;
+use datax_exec_server::EnvironmentManager;
+use datax_exec_server::ExecServerRuntimePaths;
+use datax_protocol::models::PermissionProfile;
+use datax_tools::DiscoverableTool;
 use tokio_util::sync::CancellationToken;
 use tracing::instrument;
 use tracing::warn;
@@ -25,23 +25,23 @@ use crate::config::Config;
 use crate::mcp::McpManager;
 use crate::plugins::list_tool_suggest_discoverable_plugins;
 use crate::session::INITIAL_SUBMIT_ID;
-use codex_config::types::ApprovalsReviewer;
-use codex_config::types::ToolSuggestDiscoverableType;
-use codex_core_plugins::PluginsManager;
-use codex_features::Feature;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_mcp::MCP_TOOL_CODEX_APPS_META_KEY;
-use codex_mcp::McpConnectionManager;
-use codex_mcp::McpRuntimeContext;
-use codex_mcp::ToolInfo;
-use codex_mcp::ToolPluginProvenance;
-use codex_mcp::codex_apps_tools_cache_key;
-use codex_mcp::compute_auth_statuses;
-use codex_mcp::effective_mcp_servers;
-use codex_mcp::host_owned_codex_apps_enabled;
-use codex_mcp::tool_plugin_provenance;
+use datax_config::types::ApprovalsReviewer;
+use datax_config::types::ToolSuggestDiscoverableType;
+use datax_core_plugins::PluginsManager;
+use datax_features::Feature;
+use datax_login::AuthManager;
+use datax_login::CodexAuth;
+use datax_mcp::CODEX_APPS_MCP_SERVER_NAME;
+use datax_mcp::MCP_TOOL_CODEX_APPS_META_KEY;
+use datax_mcp::McpConnectionManager;
+use datax_mcp::McpRuntimeContext;
+use datax_mcp::ToolInfo;
+use datax_mcp::ToolPluginProvenance;
+use datax_mcp::codex_apps_tools_cache_key;
+use datax_mcp::compute_auth_statuses;
+use datax_mcp::effective_mcp_servers;
+use datax_mcp::host_owned_codex_apps_enabled;
+use datax_mcp::tool_plugin_provenance;
 
 const CONNECTORS_READY_TIMEOUT_ON_EMPTY_TOOLS: Duration = Duration::from_secs(30);
 
@@ -103,12 +103,12 @@ pub(crate) async fn list_tool_suggest_discoverable_tools_with_auth(
     loaded_plugin_app_connector_ids: &[String],
 ) -> anyhow::Result<Vec<DiscoverableTool>> {
     let connector_ids = tool_suggest_connector_ids(config, loaded_plugin_app_connector_ids);
-    let directory_connectors = codex_connectors::merge::merge_plugin_connectors(
+    let directory_connectors = datax_connectors::merge::merge_plugin_connectors(
         cached_directory_connectors_for_tool_suggest_with_auth(config, auth).await,
         connector_ids.iter().cloned(),
     );
     let discoverable_connectors =
-        codex_connectors::filter::filter_tool_suggest_discoverable_connectors(
+        datax_connectors::filter::filter_tool_suggest_discoverable_connectors(
             directory_connectors,
             accessible_connectors,
             &connector_ids,
@@ -397,7 +397,7 @@ fn write_cached_accessible_connectors(
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     *cache_guard = Some(CachedAccessibleConnectors {
         key: cache_key,
-        expires_at: Instant::now() + codex_connectors::CONNECTORS_CACHE_TTL,
+        expires_at: Instant::now() + datax_connectors::CONNECTORS_CACHE_TTL,
         connectors: connectors.to_vec(),
     });
 }
@@ -466,7 +466,7 @@ async fn cached_directory_connectors_for_tool_suggest_with_auth(
         ),
     );
 
-    codex_connectors::cached_directory_connectors(&cache_context).unwrap_or_default()
+    datax_connectors::cached_directory_connectors(&cache_context).unwrap_or_default()
 }
 
 pub(crate) fn accessible_connectors_from_mcp_tools(mcp_tools: &[ToolInfo]) -> Vec<AppInfo> {
@@ -483,14 +483,14 @@ fn collect_accessible_connectors_from_mcp_tools<'a>(
             return None;
         }
         let connector_id = tool.connector_id.as_deref()?;
-        Some(codex_connectors::accessible::AccessibleConnectorTool {
+        Some(datax_connectors::accessible::AccessibleConnectorTool {
             connector_id: connector_id.to_string(),
             connector_name: tool.connector_name.clone(),
             connector_description: tool.namespace_description.clone(),
             plugin_display_names: tool.plugin_display_names.clone(),
         })
     });
-    codex_connectors::accessible::collect_accessible_connectors(tools)
+    datax_connectors::accessible::collect_accessible_connectors(tools)
 }
 
 fn accessible_connectors_for_app_list_from_mcp_tools(mcp_tools: &[ToolInfo]) -> Vec<AppInfo> {

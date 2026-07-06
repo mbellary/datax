@@ -11,7 +11,7 @@ use tokio_tungstenite::connect_async_with_config;
 use tracing::debug;
 use tracing::warn;
 
-use codex_utils_rustls_provider::ensure_rustls_crypto_provider;
+use datax_utils_rustls_provider::ensure_rustls_crypto_provider;
 
 use crate::ExecServerClient;
 use crate::ExecServerError;
@@ -31,7 +31,7 @@ use crate::noise_relay::noise_harness_connection_from_websocket;
 use crate::noise_relay::noise_relay_websocket_config;
 use crate::relay::harness_connection_from_websocket;
 
-const ENVIRONMENT_CLIENT_NAME: &str = "codex-environment";
+const ENVIRONMENT_CLIENT_NAME: &str = "datax-environment";
 
 /// Reopens the transport for one logical exec-server client session.
 ///

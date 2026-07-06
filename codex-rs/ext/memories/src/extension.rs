@@ -1,18 +1,18 @@
 use std::sync::Arc;
 
-use codex_core::config::Config;
-use codex_extension_api::ConfigContributor;
-use codex_extension_api::ContextContributor;
-use codex_extension_api::ExtensionData;
-use codex_extension_api::ExtensionFuture;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_extension_api::PromptFragment;
-use codex_extension_api::ThreadLifecycleContributor;
-use codex_extension_api::ThreadStartInput;
-use codex_extension_api::ToolContributor;
-use codex_features::Feature;
-use codex_otel::MetricsClient;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_core::config::Config;
+use datax_extension_api::ConfigContributor;
+use datax_extension_api::ContextContributor;
+use datax_extension_api::ExtensionData;
+use datax_extension_api::ExtensionFuture;
+use datax_extension_api::ExtensionRegistryBuilder;
+use datax_extension_api::PromptFragment;
+use datax_extension_api::ThreadLifecycleContributor;
+use datax_extension_api::ThreadStartInput;
+use datax_extension_api::ToolContributor;
+use datax_features::Feature;
+use datax_otel::MetricsClient;
+use datax_utils_absolute_path::AbsolutePathBuf;
 
 use crate::local::LocalMemoriesBackend;
 use crate::prompts::build_memory_tool_developer_instructions;
@@ -100,7 +100,7 @@ impl ToolContributor for MemoriesExtension {
         &self,
         _session_store: &ExtensionData,
         thread_store: &ExtensionData,
-    ) -> Vec<Arc<dyn codex_extension_api::ToolExecutor<codex_extension_api::ToolCall>>> {
+    ) -> Vec<Arc<dyn datax_extension_api::ToolExecutor<datax_extension_api::ToolCall>>> {
         let Some(config) = thread_store.get::<MemoriesExtensionConfig>() else {
             return Vec::new();
         };

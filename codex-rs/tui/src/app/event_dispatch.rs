@@ -8,7 +8,7 @@ use super::*;
 use crate::config_update::format_config_error;
 use crate::external_agent_config_migration_flow::ExternalAgentConfigMigrationFlowOutcome;
 #[cfg(target_os = "windows")]
-use codex_config::types::WindowsSandboxModeToml;
+use datax_config::types::WindowsSandboxModeToml;
 
 const SHUTDOWN_FIRST_EXIT_TIMEOUT: Duration = Duration::from_secs(/*secs*/ 2);
 
@@ -1043,7 +1043,7 @@ impl App {
             } => {
                 #[cfg(any(target_os = "windows", test))]
                 if !self.chat_widget.windows_sandbox_mode_allowed(
-                    codex_config::types::WindowsSandboxModeToml::Elevated,
+                    datax_config::types::WindowsSandboxModeToml::Elevated,
                 ) {
                     tracing::warn!(
                         "refusing to set up elevated Windows sandbox mode disallowed by requirements"
@@ -1162,7 +1162,7 @@ impl App {
             } => {
                 #[cfg(any(target_os = "windows", test))]
                 if !self.chat_widget.windows_sandbox_mode_allowed(
-                    codex_config::types::WindowsSandboxModeToml::Unelevated,
+                    datax_config::types::WindowsSandboxModeToml::Unelevated,
                 ) {
                     tracing::warn!(
                         "refusing to set up unelevated Windows sandbox mode disallowed by requirements"
@@ -1203,7 +1203,7 @@ impl App {
                     self.chat_widget.show_windows_sandbox_setup_status();
                     tokio::task::spawn_blocking(move || {
                         if let Err(err) =
-                            codex_windows_sandbox::run_windows_sandbox_legacy_preflight(
+                            datax_windows_sandbox::run_windows_sandbox_legacy_preflight(
                                 &permission_profile,
                                 workspace_roots.as_slice(),
                                 codex_home.as_path(),

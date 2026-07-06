@@ -1,8 +1,8 @@
 use super::*;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::WireApi;
-use codex_protocol::models::DEFAULT_IMAGE_DETAIL;
-use codex_protocol::models::InternalChatMessageMetadataPassthrough;
+use datax_model_provider_info::ModelProviderInfo;
+use datax_model_provider_info::WireApi;
+use datax_protocol::models::DEFAULT_IMAGE_DETAIL;
+use datax_protocol::models::InternalChatMessageMetadataPassthrough;
 use pretty_assertions::assert_eq;
 
 async fn process_compacted_history_with_test_session(

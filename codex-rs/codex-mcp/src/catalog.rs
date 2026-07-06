@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::HashMap;
 
-use codex_config::McpServerConfig;
+use datax_config::McpServerConfig;
 
 /// Plugin identity retained with an MCP registration for tool attribution.
 #[derive(Clone, Debug, PartialEq, Eq)]

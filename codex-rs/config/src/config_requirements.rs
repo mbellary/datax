@@ -1,9 +1,9 @@
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::config_types::SandboxMode;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_protocol::config_types::ApprovalsReviewer;
+use datax_protocol::config_types::SandboxMode;
+use datax_protocol::config_types::WebSearchMode;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::protocol::AskForApproval;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use serde::Deserialize;
 use serde::Serialize;
 use serde::de::Error as _;
@@ -1493,12 +1493,12 @@ mod tests {
     use super::*;
     use crate::HookEventsToml;
     use anyhow::Result;
-    use codex_execpolicy::Decision;
-    use codex_execpolicy::Evaluation;
-    use codex_execpolicy::RuleMatch;
-    use codex_protocol::permissions::NetworkSandboxPolicy;
-    use codex_utils_absolute_path::AbsolutePathBuf;
-    use codex_utils_absolute_path::AbsolutePathBufGuard;
+    use datax_execpolicy::Decision;
+    use datax_execpolicy::Evaluation;
+    use datax_execpolicy::RuleMatch;
+    use datax_protocol::permissions::NetworkSandboxPolicy;
+    use datax_utils_absolute_path::AbsolutePathBuf;
+    use datax_utils_absolute_path::AbsolutePathBufGuard;
     use pretty_assertions::assert_eq;
     use toml::from_str;
 
@@ -3410,7 +3410,7 @@ command = "python3 /enterprise/hooks/pre.py"
     fn deserialize_mcp_server_requirements() -> Result<()> {
         let toml_str = r#"
             [mcp_servers.docs.identity]
-            command = "codex-mcp"
+            command = "datax-mcp"
 
             [mcp_servers.remote.identity]
             url = "https://example.com/mcp"
@@ -3426,7 +3426,7 @@ command = "python3 /enterprise/hooks/pre.py"
                         "docs".to_string(),
                         McpServerRequirement {
                             identity: McpServerIdentity::Command {
-                                command: "codex-mcp".to_string(),
+                                command: "datax-mcp".to_string(),
                             },
                         },
                     ),

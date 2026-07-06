@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_plugins::PluginSkillRoot;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_plugins::PluginSkillRoot;
 
 use crate::AppConnectorId;
 use crate::AppDeclaration;

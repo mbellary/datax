@@ -2,21 +2,21 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
 use clap::Parser;
-use codex_core::config::Config;
-use codex_core::config::find_codex_home;
-use codex_core_plugins::PluginMarketplaceUpgradeOutcome;
-use codex_core_plugins::PluginsConfigInput;
-use codex_core_plugins::PluginsManager;
-use codex_core_plugins::installed_marketplaces::marketplace_install_root;
-use codex_core_plugins::installed_marketplaces::resolve_configured_marketplace_root;
-use codex_core_plugins::marketplace::marketplace_root_dir;
-use codex_core_plugins::marketplace_add::MarketplaceAddOutcome;
-use codex_core_plugins::marketplace_add::MarketplaceAddRequest;
-use codex_core_plugins::marketplace_add::add_marketplace;
-use codex_core_plugins::marketplace_remove::MarketplaceRemoveOutcome;
-use codex_core_plugins::marketplace_remove::MarketplaceRemoveRequest;
-use codex_core_plugins::marketplace_remove::remove_marketplace;
-use codex_utils_cli::CliConfigOverrides;
+use datax_core::config::Config;
+use datax_core::config::find_codex_home;
+use datax_core_plugins::PluginMarketplaceUpgradeOutcome;
+use datax_core_plugins::PluginsConfigInput;
+use datax_core_plugins::PluginsManager;
+use datax_core_plugins::installed_marketplaces::marketplace_install_root;
+use datax_core_plugins::installed_marketplaces::resolve_configured_marketplace_root;
+use datax_core_plugins::marketplace::marketplace_root_dir;
+use datax_core_plugins::marketplace_add::MarketplaceAddOutcome;
+use datax_core_plugins::marketplace_add::MarketplaceAddRequest;
+use datax_core_plugins::marketplace_add::add_marketplace;
+use datax_core_plugins::marketplace_remove::MarketplaceRemoveOutcome;
+use datax_core_plugins::marketplace_remove::MarketplaceRemoveRequest;
+use datax_core_plugins::marketplace_remove::remove_marketplace;
+use datax_utils_cli::CliConfigOverrides;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -302,7 +302,7 @@ struct JsonMarketplaceListOutput {
 
 impl JsonMarketplaceListOutput {
     fn from_marketplaces(
-        marketplaces: Vec<codex_core_plugins::marketplace::Marketplace>,
+        marketplaces: Vec<datax_core_plugins::marketplace::Marketplace>,
         marketplace_sources: &HashMap<PathBuf, JsonMarketplaceSource>,
     ) -> Self {
         let mut seen_roots = HashSet::new();

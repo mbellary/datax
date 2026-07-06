@@ -11,9 +11,9 @@ use std::time::Duration;
 use crate::workspace_command::WorkspaceCommand;
 use crate::workspace_command::WorkspaceCommandExecutor;
 use crate::workspace_command::WorkspaceCommandOutput;
-use codex_git_utils::FsmonitorOverride;
-use codex_git_utils::FsmonitorProbeRunner;
-use codex_git_utils::detect_fsmonitor_override;
+use datax_git_utils::FsmonitorOverride;
+use datax_git_utils::FsmonitorProbeRunner;
+use datax_git_utils::detect_fsmonitor_override;
 
 const DIFF_COMMAND_TIMEOUT: Duration = Duration::from_secs(/*secs*/ 30);
 const DISABLE_HOOKS_CONFIG: &str = if cfg!(windows) {

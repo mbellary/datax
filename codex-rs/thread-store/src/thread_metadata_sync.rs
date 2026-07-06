@@ -4,15 +4,15 @@ use std::time::Instant;
 use chrono::DateTime;
 use chrono::NaiveDateTime;
 use chrono::Utc;
-use codex_git_utils::collect_git_info;
-use codex_git_utils::get_git_repo_root;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::GitInfo;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::ThreadMemoryMode;
-use codex_protocol::protocol::USER_MESSAGE_BEGIN;
-use codex_protocol::protocol::UserMessageEvent;
+use datax_git_utils::collect_git_info;
+use datax_git_utils::get_git_repo_root;
+use datax_protocol::ThreadId;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::GitInfo;
+use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::ThreadMemoryMode;
+use datax_protocol::protocol::USER_MESSAGE_BEGIN;
+use datax_protocol::protocol::UserMessageEvent;
 
 use crate::CreateThreadParams;
 use crate::GitInfoPatch;
@@ -153,7 +153,7 @@ impl ThreadMetadataSync {
         self.defer_resume_update_until_append = false;
         let affects_metadata = items
             .iter()
-            .any(codex_state::rollout_item_affects_thread_metadata);
+            .any(datax_state::rollout_item_affects_thread_metadata);
         let advances_recency = items
             .iter()
             .any(|item| matches!(item, RolloutItem::EventMsg(EventMsg::TurnStarted(_))));
@@ -379,15 +379,15 @@ fn git_info_patch_from_observation(git_info: GitInfo) -> GitInfoPatch {
 
 #[cfg(test)]
 mod tests {
-    use codex_protocol::protocol::CompactedItem;
-    use codex_protocol::protocol::SessionMeta;
-    use codex_protocol::protocol::SessionMetaLine;
-    use codex_protocol::protocol::SessionSource;
-    use codex_protocol::protocol::ThreadGoal;
-    use codex_protocol::protocol::ThreadGoalStatus;
-    use codex_protocol::protocol::ThreadGoalUpdatedEvent;
-    use codex_protocol::protocol::TurnStartedEvent;
-    use codex_protocol::protocol::UserMessageEvent;
+    use datax_protocol::protocol::CompactedItem;
+    use datax_protocol::protocol::SessionMeta;
+    use datax_protocol::protocol::SessionMetaLine;
+    use datax_protocol::protocol::SessionSource;
+    use datax_protocol::protocol::ThreadGoal;
+    use datax_protocol::protocol::ThreadGoalStatus;
+    use datax_protocol::protocol::ThreadGoalUpdatedEvent;
+    use datax_protocol::protocol::TurnStartedEvent;
+    use datax_protocol::protocol::UserMessageEvent;
     use pretty_assertions::assert_eq;
 
     use super::*;

@@ -18,13 +18,13 @@ use std::process::Command;
 
 use anyhow::Context;
 use anyhow::Result;
-use codex_exec_server::CopyOptions;
-use codex_exec_server::CreateDirectoryOptions;
+use datax_exec_server::CopyOptions;
+use datax_exec_server::CreateDirectoryOptions;
 #[cfg(target_os = "linux")]
-use codex_exec_server::Environment;
-use codex_exec_server::FileMetadata;
-use codex_exec_server::RemoveOptions;
-use codex_utils_path_uri::PathUri;
+use datax_exec_server::Environment;
+use datax_exec_server::FileMetadata;
+use datax_exec_server::RemoveOptions;
+use datax_utils_path_uri::PathUri;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use test_case::test_case;
@@ -310,7 +310,7 @@ async fn file_system_sandboxed_write_allows_explicit_alias_roots(
     let file_system = context.file_system;
 
     let tmp = tempfile::Builder::new()
-        .prefix("codex-fs-sandbox-alias-")
+        .prefix("datax-fs-sandbox-alias-")
         .tempdir_in(&alias_root)?;
     let file_path = tmp.path().join("note.txt");
     let sandbox = workspace_write_sandbox(alias_root.clone());

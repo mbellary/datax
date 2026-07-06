@@ -1,6 +1,6 @@
-use codex_core::config::Config;
-use codex_login::AuthManager;
-use codex_login::default_client::create_client;
+use datax_core::config::Config;
+use datax_login::AuthManager;
+use datax_login::default_client::create_client;
 
 use anyhow::Context;
 use serde::de::DeserializeOwned;
@@ -48,7 +48,7 @@ pub(crate) async fn chatgpt_get_request_with_timeout<T: DeserializeOwned>(
 
     let mut request = client
         .get(&url)
-        .headers(codex_model_provider::auth_provider_from_auth(&auth).to_auth_headers())
+        .headers(datax_model_provider::auth_provider_from_auth(&auth).to_auth_headers())
         .header(OAI_PRODUCT_SKU_HEADER, CODEX_PRODUCT_SKU)
         .header("Content-Type", "application/json");
 

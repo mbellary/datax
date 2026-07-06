@@ -11,24 +11,24 @@ use crate::session::turn_context::TurnContext;
 use crate::state::SessionServices;
 use crate::tools::hook_names::HookToolName;
 use crate::tools::network_approval::NetworkApprovalSpec;
-use codex_file_system::FileSystemSandboxContext;
-use codex_network_proxy::NetworkProxy;
-use codex_protocol::approvals::ExecPolicyAmendment;
-use codex_protocol::approvals::NetworkApprovalContext;
-use codex_protocol::error::CodexErr;
-use codex_protocol::permissions::FileSystemSandboxKind;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::ReviewDecision;
-use codex_sandboxing::SandboxCommand;
-use codex_sandboxing::SandboxManager;
-use codex_sandboxing::SandboxTransformRequest;
-use codex_sandboxing::SandboxType;
-use codex_sandboxing::SandboxablePreference;
-use codex_sandboxing::policy_transforms::effective_permission_profile;
-use codex_tools::ToolName;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use datax_file_system::FileSystemSandboxContext;
+use datax_network_proxy::NetworkProxy;
+use datax_protocol::approvals::ExecPolicyAmendment;
+use datax_protocol::approvals::NetworkApprovalContext;
+use datax_protocol::error::CodexErr;
+use datax_protocol::permissions::FileSystemSandboxKind;
+use datax_protocol::permissions::FileSystemSandboxPolicy;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::ReviewDecision;
+use datax_sandboxing::SandboxCommand;
+use datax_sandboxing::SandboxManager;
+use datax_sandboxing::SandboxTransformRequest;
+use datax_sandboxing::SandboxType;
+use datax_sandboxing::SandboxablePreference;
+use datax_sandboxing::policy_transforms::effective_permission_profile;
+use datax_tools::ToolName;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_path_uri::PathUri;
 use futures::Future;
 use futures::future::BoxFuture;
 use serde::Serialize;
@@ -412,16 +412,16 @@ pub(crate) struct SandboxAttempt<'a> {
     pub sandbox: SandboxType,
     /// Whether policy requested sandboxing, independent of this host's concrete wrapper.
     pub sandbox_requested: bool,
-    pub permissions: &'a codex_protocol::models::PermissionProfile,
+    pub permissions: &'a datax_protocol::models::PermissionProfile,
     /// Canonical permissions before this host materializes workspace roots.
-    pub exec_server_permissions: &'a codex_protocol::models::PermissionProfile,
+    pub exec_server_permissions: &'a datax_protocol::models::PermissionProfile,
     pub enforce_managed_network: bool,
     pub(crate) manager: &'a SandboxManager,
     pub(crate) sandbox_cwd: &'a PathUri,
     pub(crate) workspace_roots: &'a [AbsolutePathBuf],
     pub codex_linux_sandbox_exe: Option<&'a std::path::PathBuf>,
     pub use_legacy_landlock: bool,
-    pub windows_sandbox_level: codex_protocol::config_types::WindowsSandboxLevel,
+    pub windows_sandbox_level: datax_protocol::config_types::WindowsSandboxLevel,
     pub windows_sandbox_private_desktop: bool,
     pub network_denial_cancellation_token: Option<CancellationToken>,
 }

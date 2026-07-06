@@ -22,6 +22,7 @@ Phase 1.3 makes the Rust workspace internally consistent with the Datax product 
 - [x] (2026-07-06T12:40:22Z) Ran `just fmt` from `codex-rs` successfully after fixing manifest path drift.
 - [x] (2026-07-06T12:40:22Z) Ran lightweight static checks and Python syntax checks; build/test commands remain deferred.
 - [x] (2026-07-06T12:40:22Z) Updated this ExecPlan with final inventory status, decisions, validation command status, and outcome notes.
+- [x] (2026-07-06T13:20:00Z) Fixed `codex-rs/.config/nextest.toml` package filters after user validation showed `just test -p datax-cli` failed during nextest config parsing.
 
 ## Surprises & Discoveries
 
@@ -36,6 +37,9 @@ Phase 1.3 makes the Rust workspace internally consistent with the Datax product 
 
 - Observation: Bazel was not installed in the environment, but a temporary Bazelisk install in `/tmp` was sufficient to run the required lock commands without modifying the repository.
   Evidence: The first `just bazel-lock-update` failed with `bazel: not found`; after downloading Bazelisk to `/tmp/datax-bazel-bin/bazel`, `PATH=/tmp/datax-bazel-bin:$PATH just bazel-lock-update` and `PATH=/tmp/datax-bazel-bin:$PATH just bazel-lock-check` both completed.
+
+- Observation: `codex-rs/.config/nextest.toml` is part of the Rust package rename dependency surface because nextest validates package filters before running even a targeted crate test.
+  Evidence: User-run `just test -p datax-cli` failed with `operator didn't match any packages` for filters referencing `codex-app-server-protocol`, `codex-app-server`, `codex-core`, and `codex-windows-sandbox`.
 
 ## Decision Log
 
@@ -92,6 +96,7 @@ The table below tracks files and file sets that belong to Phase 1.3. Rows marked
 | `docs/plans/datax_migration_phase1_3_rust_workspace/rust_workspace_stabilization_execplan.md` | `Completed` | Living ExecPlan updated with implementation decisions, validation status, and outcome notes. |
 | `codex-rs/Cargo.toml` | `Completed` | Root workspace package/dependency keys renamed to `datax-*`; existing `codex-*` directory paths preserved where those directories still exist. |
 | `codex-rs/Cargo.lock` | `Completed` | Refreshed with `cargo generate-lockfile`; internal package names now use `datax-*`. |
+| `codex-rs/.config/nextest.toml` | `Completed` | Updated nextest package filters from old package names to `datax-*` so targeted tests can parse the config. |
 | `codex-rs/**/Cargo.toml` | `Completed` | Rust crate package names, dependency keys, library names, and binary names renamed where they represent internal Datax crates and binaries. |
 | `codex-rs/**/BUILD.bazel` | `Completed` | Bazel crate target names and `crate_name` values renamed; `codex_rust_crate` and `codex-rs` path references remain documented exceptions. |
 | `codex-rs/**/*.rs` | `Completed` | External workspace crate paths changed from `codex_*::` to `datax_*::`; internal modules such as `crate::codex_thread` are not crate imports and are deferred exceptions. |
@@ -169,6 +174,7 @@ After implementation, run formatter from `codex-rs`:
 | `rg -n 'name = "codex-|package = "codex-|^codex-[a-z0-9_-]+ = \{' codex-rs --glob 'Cargo.toml'` | repository root | `Completed` | No internal Rust package/dependency names remain except documented external/provenance exceptions. |
 | `rg --pcre2 -n '(?<!crate::)(?<!super::)\bcodex_[A-Za-z0-9_]+::' codex-rs --glob '*.rs'` | repository root | `Completed` | No old external crate-path references remain. |
 | `rg -n 'crate_name = "codex_' codex-rs --glob 'BUILD.bazel'` | repository root | `Completed` | No old Bazel `crate_name` values remain. |
+| `rg -n 'package\(codex-' codex-rs/.config/nextest.toml` | repository root | `Completed` | No old nextest package filters remain. |
 | `python3 -m py_compile scripts/datax_package/*.py datax-cli/scripts/build_npm_package.py scripts/stage_npm_packages.py` | repository root | `Completed` | Touched Python package scripts compile. |
 | `just fmt` | `codex-rs` | `Completed` | Rust formatting completed successfully. |
 | `cargo generate-lockfile` | `codex-rs` | `Completed` | `codex-rs/Cargo.lock` refreshed with renamed internal package names after escalated network retry. |

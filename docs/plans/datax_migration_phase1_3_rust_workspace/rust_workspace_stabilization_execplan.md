@@ -23,6 +23,7 @@ Phase 1.3 makes the Rust workspace internally consistent with the Datax product 
 - [x] (2026-07-06T12:40:22Z) Ran lightweight static checks and Python syntax checks; build/test commands remain deferred.
 - [x] (2026-07-06T12:40:22Z) Updated this ExecPlan with final inventory status, decisions, validation command status, and outcome notes.
 - [x] (2026-07-06T13:20:00Z) Fixed `codex-rs/.config/nextest.toml` package filters after user validation showed `just test -p datax-cli` failed during nextest config parsing.
+- [x] (2026-07-06T13:35:00Z) Corrected `codex-rs/Cargo.lock` Rama helper packages from `0.3.0-rc1` to `0.3.0-alpha.4` after user validation showed Rust 1.95 rejected the rc packages.
 
 ## Surprises & Discoveries
 
@@ -40,6 +41,9 @@ Phase 1.3 makes the Rust workspace internally consistent with the Datax product 
 
 - Observation: `codex-rs/.config/nextest.toml` is part of the Rust package rename dependency surface because nextest validates package filters before running even a targeted crate test.
   Evidence: User-run `just test -p datax-cli` failed with `operator didn't match any packages` for filters referencing `codex-app-server-protocol`, `codex-app-server`, `codex-core`, and `codex-windows-sandbox`.
+
+- Observation: Refreshing `codex-rs/Cargo.lock` selected `rama-error`, `rama-macros`, and `rama-utils` `0.3.0-rc1`, but the repository toolchain is Rust 1.95 and those rc packages require Rust 1.96.
+  Evidence: User-run validation failed with `rustc 1.95.0 is not supported by the following packages`; the direct Rama dependencies in `codex-rs/network-proxy/Cargo.toml` are pinned to `=0.3.0-alpha.4`, so the helper packages were locked back to `0.3.0-alpha.4` with `cargo update -p ... --precise 0.3.0-alpha.4`.
 
 ## Decision Log
 
@@ -95,7 +99,7 @@ The table below tracks files and file sets that belong to Phase 1.3. Rows marked
 | --- | --- | --- |
 | `docs/plans/datax_migration_phase1_3_rust_workspace/rust_workspace_stabilization_execplan.md` | `Completed` | Living ExecPlan updated with implementation decisions, validation status, and outcome notes. |
 | `codex-rs/Cargo.toml` | `Completed` | Root workspace package/dependency keys renamed to `datax-*`; existing `codex-*` directory paths preserved where those directories still exist. |
-| `codex-rs/Cargo.lock` | `Completed` | Refreshed with `cargo generate-lockfile`; internal package names now use `datax-*`. |
+| `codex-rs/Cargo.lock` | `Completed` | Refreshed with `cargo generate-lockfile`; internal package names now use `datax-*`; Rama helper packages are locked to Rust 1.95-compatible `0.3.0-alpha.4`. |
 | `codex-rs/.config/nextest.toml` | `Completed` | Updated nextest package filters from old package names to `datax-*` so targeted tests can parse the config. |
 | `codex-rs/**/Cargo.toml` | `Completed` | Rust crate package names, dependency keys, library names, and binary names renamed where they represent internal Datax crates and binaries. |
 | `codex-rs/**/BUILD.bazel` | `Completed` | Bazel crate target names and `crate_name` values renamed; `codex_rust_crate` and `codex-rs` path references remain documented exceptions. |
@@ -178,6 +182,10 @@ After implementation, run formatter from `codex-rs`:
 | `python3 -m py_compile scripts/datax_package/*.py datax-cli/scripts/build_npm_package.py scripts/stage_npm_packages.py` | repository root | `Completed` | Touched Python package scripts compile. |
 | `just fmt` | `codex-rs` | `Completed` | Rust formatting completed successfully. |
 | `cargo generate-lockfile` | `codex-rs` | `Completed` | `codex-rs/Cargo.lock` refreshed with renamed internal package names after escalated network retry. |
+| `cargo update -p rama-error --precise 0.3.0-alpha.4` | `codex-rs` | `Completed` | `rama-error` lock entry is compatible with Rust 1.95. |
+| `cargo update -p rama-utils --precise 0.3.0-alpha.4` | `codex-rs` | `Completed` | `rama-utils` lock entry is compatible with Rust 1.95. |
+| `cargo update -p rama-macros --precise 0.3.0-alpha.4` | `codex-rs` | `Completed` | `rama-macros` lock entry is compatible with Rust 1.95. |
+| `rg -n '0\.3\.0-rc1' codex-rs/Cargo.lock` | repository root | `Completed` | No Rama rc package versions remain in the lockfile. |
 | `PATH=/tmp/datax-bazel-bin:$PATH just bazel-lock-update` | repository root | `Completed` | Bazel lock metadata refreshed using temporary Bazelisk. |
 | `PATH=/tmp/datax-bazel-bin:$PATH just bazel-lock-check` | repository root | `Completed` | Bazel lock metadata has no drift. |
 | `just test -p datax-cli` | `codex-rs` | `Deferred` | CLI crate tests pass after rename. |

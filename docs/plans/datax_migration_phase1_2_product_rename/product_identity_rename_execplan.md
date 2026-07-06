@@ -38,6 +38,9 @@ This milestone is not the full Rust crate graph migration. The `codex-rs` worksp
 - Observation: Long Rust tests are too expensive to run after every phase during the migration.
   Evidence: `just test -p codex-cli` began compiling dependent crates and was interrupted at the user's request before completion. The migration process now records exact test commands in each phase ExecPlan and defers expensive execution until the user runs the per-phase test list after all phases are implemented.
 
+- Observation: Running `node datax-cli/bin/datax.js --version` directly from the source checkout is not a valid launcher smoke test unless a native optional dependency or vendor directory has first been staged.
+  Evidence: The source-tree launcher reported a missing `datax-linux-x64` optional dependency. The validation command was corrected to stage the meta package and a temporary native vendor executable before invoking `node`.
+
 ## Decision Log
 
 - Decision: Keep the `codex-rs` directory name and most Rust crate package names unchanged in Phase 1.2.
@@ -232,9 +235,14 @@ From `codex-rs`, run the targeted CLI crate tests and expect them to pass:
 
     just test -p codex-cli
 
-From the repository root, run the local launcher smoke test and expect it to print a version after the native binary has been built or staged:
+From the repository root on Linux x64, run the staged local launcher smoke test and expect it to print `datax 0.0.0-dev`. This command stages the npm meta package and a temporary native vendor executable before invoking the launcher:
 
-    node datax-cli/bin/datax.js --version
+    launcher_stage=$(mktemp -d /tmp/datax-launcher-smoke.XXXXXX)
+    python3 datax-cli/scripts/build_npm_package.py --version 0.0.0-dev --staging-dir "$launcher_stage"
+    mkdir -p "$launcher_stage/vendor/x86_64-unknown-linux-musl/bin"
+    printf '#!/usr/bin/env sh\nprintf "datax 0.0.0-dev\\n"\n' > "$launcher_stage/vendor/x86_64-unknown-linux-musl/bin/datax"
+    chmod +x "$launcher_stage/vendor/x86_64-unknown-linux-musl/bin/datax"
+    node "$launcher_stage/bin/datax.js" --version
 
 From the repository root, run the npm package staging smoke test and expect the staged `package.json` to expose `name: datax`, `bin.datax`, and Datax platform optional dependencies:
 
@@ -268,7 +276,7 @@ Acceptance for this milestone is that a reviewer can inspect staged package meta
 | `python3 -m py_compile datax-cli/scripts/build_npm_package.py scripts/stage_npm_packages.py scripts/build_datax_package.py scripts/datax_package/*.py` | repository root | Yes for renamed Python scripts | Completed | Passed. Generated `__pycache__` directories were removed after the check. |
 | `python3 -m unittest discover -s scripts/datax_package -p 'test_*.py'` | repository root | Yes if package builder is renamed | Completed | Passed: 8 tests. |
 | `just test -p codex-cli` | `codex-rs` | Yes if CLI binary/package changes | Deferred | Started, then interrupted at user request to defer long-running tests. Exact command retained for the post-implementation test pass. |
-| `node datax-cli/bin/datax.js --version` | repository root | Best effort | Deferred | May fail before native binary staging; user will run later if desired. |
+| Staged launcher smoke command from `Validation and Acceptance` | repository root | Best effort | Deferred | Direct source-tree launcher execution fails unless a native optional dependency or vendor directory is present; use the staged command above. |
 | `python3 datax-cli/scripts/build_npm_package.py --version 0.0.0-dev --staging-dir $(mktemp -d /tmp/datax-npm-stage.XXXXXX)` | repository root | Yes if npm builder remains executable without native binaries | Completed | Passed and staged package metadata with `name: datax`, `bin.datax`, and Datax platform optional dependencies. |
 | Search for the forbidden mixed-case spelling in `docs/plans`, package, release, CLI, TUI, and root metadata surfaces | repository root | Yes | Completed | Returned no matches after the initial plan wording was corrected. |
 | Search for malformed rename fragments such as `datax-rs`, `npmdatax`, and `datax-command-runner` in package/release surfaces | repository root | Yes | Completed | Caught one workflow path typo and passed after correction. |

@@ -39,6 +39,6 @@ Local validation completed for the documentation-only Phase 1.1 scope:
 
 GitHub issue: https://github.com/mbellary/datax/issues/1
 
-Draft pull request: Pending.
+Draft pull request: https://github.com/mbellary/datax/pull/2
 
 Revision note, 2026-07-06: Created as the Phase 1.1 migration note required by the provisional Phase 1 plan.

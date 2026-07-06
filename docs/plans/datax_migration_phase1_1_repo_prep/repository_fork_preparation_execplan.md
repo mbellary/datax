@@ -19,8 +19,8 @@ The observable result is a repository-preparation-only pull request that adds th
 - [x] (2026-07-06 05:07Z) Create the repository provenance note.
 - [x] (2026-07-06 05:08Z) Ran targeted validation for a documentation-only repository-preparation milestone.
 - [x] (2026-07-06 05:09Z) Created GitHub issue #1.
-- [ ] Create the draft pull request.
-- [ ] Update this ExecPlan with final validation, issue, pull request, and outcome evidence.
+- [x] (2026-07-06 05:10Z) Created draft pull request #2.
+- [x] (2026-07-06 05:10Z) Updated this ExecPlan with final validation, issue, pull request, and outcome evidence.
 
 ## Surprises & Discoveries
 
@@ -30,6 +30,8 @@ The observable result is a repository-preparation-only pull request that adds th
   Evidence: `sed -n '1,220p' codex-rs/justfile` returned `No such file or directory`, while the root `justfile` sets `working-directory := "codex-rs"`.
 - Observation: Repository issues were disabled when Phase 1.1 started.
   Evidence: `gh issue create --repo mbellary/datax ...` returned `the 'mbellary/datax' repository has disabled issues`; `gh repo edit mbellary/datax --enable-issues` succeeded and issue #1 was then created.
+- Observation: GitHub reported existing dependency alerts on the default branch during the first Phase 1.1 push.
+  Evidence: `git push -u origin datax/migration-phase1-1-repo-prep` printed `GitHub found 58 vulnerabilities on mbellary/datax's default branch`. This milestone does not change dependencies, so the alerts are recorded but not addressed here.
 
 ## Decision Log
 
@@ -42,7 +44,9 @@ The observable result is a repository-preparation-only pull request that adds th
 
 ## Outcomes & Retrospective
 
-Pending completion. This section will summarize the created artifacts, validation results, issue, pull request, and any remaining risks before Phase 1.1 is considered complete.
+Phase 1.1 established the repository-preparation baseline without changing product behavior. The milestone added this ExecPlan, added a repository provenance note, corrected migration branch guidance to use the Datax repository identity, enabled GitHub issues for the fork, created issue #1, pushed the dedicated branch, and opened draft PR #2.
+
+No Rust code, package metadata, CLI behavior, app-server protocol, generated artifacts, fixtures, snapshots, config behavior, or persisted state changed. Existing dependency alerts reported by GitHub are outside this milestone and should be triaged separately.
 
 ## Context and Orientation
 
@@ -57,7 +61,7 @@ This milestone intentionally does not change Rust source files, package metadata
 | Filename | Modified | Remarks Notes |
 | --- | --- | --- |
 | `docs/plans/Recommended-Datax-Migration-Execution-Model.md` | `Completed` | Belongs to Phase 1.1 because it prescribed milestone branch names; updated suggested branches to use the migration repository identity. |
-| `docs/plans/datax_migration_phase1_1_repo_prep/repository_fork_preparation_execplan.md` | `In-Progress` | This living ExecPlan tracks Phase 1.1 scope, progress, validation, and artifacts; final PR URL still pending. |
+| `docs/plans/datax_migration_phase1_1_repo_prep/repository_fork_preparation_execplan.md` | `Completed` | This living ExecPlan tracks Phase 1.1 scope, progress, validation, issue, draft PR, and outcome evidence. |
 | `docs/plans/datax_migration_phase1_1_repo_prep/repository_provenance.md` | `Completed` | Records fork baseline, remote, branch, starting commit, scope boundary, validation summary, and issue link. |
 | `docs/plans/Provisional-Datax-Migration-Plan-Phase1.md` | `Not Required` | Inspected as the source of Phase 1.1 scope; no edit required for this milestone. |
 | `docs/plans/Provision-Datax-Migration-Plan-Phase2.md` | `Not Required` | Inspected because the Phase 1 plan references Phase 2; no edit required before Phase 1.1 completes. |
@@ -186,7 +190,7 @@ Starting metadata:
 
 GitHub issue: https://github.com/mbellary/datax/issues/1.
 
-Draft pull request: Pending.
+Draft pull request: https://github.com/mbellary/datax/pull/2.
 
 ## Interfaces and Dependencies
 

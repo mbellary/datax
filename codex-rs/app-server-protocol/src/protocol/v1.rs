@@ -1,21 +1,21 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::ForcedLoginMethod;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::config_types::SandboxMode;
-use codex_protocol::config_types::Verbosity;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::parse_command::ParsedCommand;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::FileChange;
-pub use codex_protocol::protocol::GitSha;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::SandboxPolicy;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_protocol::ThreadId;
+use datax_protocol::config_types::ForcedLoginMethod;
+use datax_protocol::config_types::ReasoningSummary;
+use datax_protocol::config_types::SandboxMode;
+use datax_protocol::config_types::Verbosity;
+use datax_protocol::openai_models::ReasoningEffort;
+use datax_protocol::parse_command::ParsedCommand;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::FileChange;
+pub use datax_protocol::protocol::GitSha;
+use datax_protocol::protocol::ReviewDecision;
+use datax_protocol::protocol::SandboxPolicy;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::TurnAbortReason;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -132,8 +132,8 @@ pub struct GitDiffToRemoteResponse {
 #[serde(rename_all = "camelCase")]
 pub struct ApplyPatchApprovalParams {
     pub conversation_id: ThreadId,
-    /// Use to correlate this with [codex_protocol::protocol::PatchApplyBeginEvent]
-    /// and [codex_protocol::protocol::PatchApplyEndEvent].
+    /// Use to correlate this with [datax_protocol::protocol::PatchApplyBeginEvent]
+    /// and [datax_protocol::protocol::PatchApplyEndEvent].
     pub call_id: String,
     pub file_changes: HashMap<PathBuf, FileChange>,
     /// Optional explanatory reason (e.g. request for extra write access).
@@ -153,8 +153,8 @@ pub struct ApplyPatchApprovalResponse {
 #[serde(rename_all = "camelCase")]
 pub struct ExecCommandApprovalParams {
     pub conversation_id: ThreadId,
-    /// Use to correlate this with [codex_protocol::protocol::ExecCommandBeginEvent]
-    /// and [codex_protocol::protocol::ExecCommandEndEvent].
+    /// Use to correlate this with [datax_protocol::protocol::ExecCommandBeginEvent]
+    /// and [datax_protocol::protocol::ExecCommandEndEvent].
     pub call_id: String,
     /// Identifier for this specific approval callback.
     pub approval_id: Option<String>,

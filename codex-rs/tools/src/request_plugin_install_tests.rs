@@ -25,7 +25,7 @@ fn build_request_plugin_install_elicitation_request_uses_expected_shape() {
     }));
 
     let request = build_request_plugin_install_elicitation_request(
-        "codex-apps",
+        "datax-apps",
         "thread-1".to_string(),
         "turn-1".to_string(),
         "Plan and reference events from your calendar",
@@ -37,7 +37,7 @@ fn build_request_plugin_install_elicitation_request_uses_expected_shape() {
         McpServerElicitationRequestParams {
             thread_id: "thread-1".to_string(),
             turn_id: Some("turn-1".to_string()),
-            server_name: "codex-apps".to_string(),
+            server_name: "datax-apps".to_string(),
             request: McpServerElicitationRequest::Form {
                 meta: Some(json!(RequestPluginInstallMeta {
                     codex_approval_kind: REQUEST_PLUGIN_INSTALL_APPROVAL_KIND_VALUE,
@@ -78,7 +78,7 @@ fn build_request_plugin_install_elicitation_request_injects_plugin_metadata() {
     }));
 
     let request = build_request_plugin_install_elicitation_request(
-        "codex-apps",
+        "datax-apps",
         "thread-1".to_string(),
         "turn-1".to_string(),
         "Use the sample plugin's skills and MCP server",
@@ -90,7 +90,7 @@ fn build_request_plugin_install_elicitation_request_injects_plugin_metadata() {
         McpServerElicitationRequestParams {
             thread_id: "thread-1".to_string(),
             turn_id: Some("turn-1".to_string()),
-            server_name: "codex-apps".to_string(),
+            server_name: "datax-apps".to_string(),
             request: McpServerElicitationRequest::Form {
                 meta: Some(json!(RequestPluginInstallMeta {
                     codex_approval_kind: REQUEST_PLUGIN_INSTALL_APPROVAL_KIND_VALUE,

@@ -2,14 +2,14 @@ extern crate codex_execpolicy_legacy;
 
 use std::vec;
 
-use codex_execpolicy_legacy::Error;
-use codex_execpolicy_legacy::ExecCall;
-use codex_execpolicy_legacy::MatchedExec;
-use codex_execpolicy_legacy::MatchedFlag;
-use codex_execpolicy_legacy::Policy;
-use codex_execpolicy_legacy::PositionalArg;
-use codex_execpolicy_legacy::ValidExec;
-use codex_execpolicy_legacy::get_default_policy;
+use datax_execpolicy_legacy::Error;
+use datax_execpolicy_legacy::ExecCall;
+use datax_execpolicy_legacy::MatchedExec;
+use datax_execpolicy_legacy::MatchedFlag;
+use datax_execpolicy_legacy::Policy;
+use datax_execpolicy_legacy::PositionalArg;
+use datax_execpolicy_legacy::ValidExec;
+use datax_execpolicy_legacy::get_default_policy;
 
 #[expect(clippy::expect_used)]
 fn setup() -> Policy {

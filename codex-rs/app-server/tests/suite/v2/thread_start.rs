@@ -6,33 +6,33 @@ use app_test_support::TestAppServer;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
-use codex_app_server_protocol::AskForApproval;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::McpServerStartupState;
-use codex_app_server_protocol::McpServerStatusUpdatedNotification;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::SandboxMode;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ThreadSource;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::ThreadStartedNotification;
-use codex_app_server_protocol::ThreadStatus;
-use codex_app_server_protocol::ThreadStatusChangedNotification;
-use codex_app_server_protocol::TurnEnvironmentParams;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_config::loader::project_trust_key;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_core::config::set_project_trust_level;
-use codex_exec_server::LOCAL_FS;
-use codex_git_utils::resolve_root_git_project_for_trust;
-use codex_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
-use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::openai_models::ReasoningEffort;
+use datax_app_server_protocol::AskForApproval;
+use datax_app_server_protocol::JSONRPCError;
+use datax_app_server_protocol::JSONRPCMessage;
+use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::McpServerStartupState;
+use datax_app_server_protocol::McpServerStatusUpdatedNotification;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::SandboxMode;
+use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::ThreadSource;
+use datax_app_server_protocol::ThreadStartParams;
+use datax_app_server_protocol::ThreadStartResponse;
+use datax_app_server_protocol::ThreadStartedNotification;
+use datax_app_server_protocol::ThreadStatus;
+use datax_app_server_protocol::ThreadStatusChangedNotification;
+use datax_app_server_protocol::TurnEnvironmentParams;
+use datax_app_server_protocol::TurnStartParams;
+use datax_app_server_protocol::UserInput as V2UserInput;
+use datax_config::loader::project_trust_key;
+use datax_config::types::AuthCredentialsStoreMode;
+use datax_core::config::set_project_trust_level;
+use datax_exec_server::LOCAL_FS;
+use datax_git_utils::resolve_root_git_project_for_trust;
+use datax_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
+use datax_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
+use datax_protocol::config_types::TrustLevel;
+use datax_protocol::openai_models::ReasoningEffort;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
@@ -293,7 +293,7 @@ async fn thread_start_rejects_unknown_environment_as_invalid_request() -> Result
         .send_thread_start_request(ThreadStartParams {
             environments: Some(vec![TurnEnvironmentParams {
                 environment_id: "missing".to_string(),
-                cwd: codex_utils_absolute_path::AbsolutePathBuf::try_from(
+                cwd: datax_utils_absolute_path::AbsolutePathBuf::try_from(
                     codex_home.path().to_path_buf(),
                 )?
                 .into(),

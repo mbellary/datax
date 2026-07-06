@@ -5,13 +5,13 @@ use std::io::ErrorKind;
 use std::io::Result as IoResult;
 use std::sync::Arc;
 
-use codex_arg0::Arg0DispatchPaths;
-use codex_core::config::ConfigBuilder;
-use codex_core::resolve_installation_id;
-use codex_exec_server::EnvironmentManager;
-use codex_exec_server::ExecServerRuntimePaths;
-use codex_login::default_client::set_default_client_residency_requirement;
-use codex_utils_cli::CliConfigOverrides;
+use datax_arg0::Arg0DispatchPaths;
+use datax_core::config::ConfigBuilder;
+use datax_core::resolve_installation_id;
+use datax_exec_server::EnvironmentManager;
+use datax_exec_server::ExecServerRuntimePaths;
+use datax_login::default_client::set_default_client_residency_requirement;
+use datax_utils_cli::CliConfigOverrides;
 
 use rmcp::model::ClientNotification;
 use rmcp::model::ClientRequest;
@@ -78,7 +78,7 @@ pub async fn run_main(
             std::io::Error::new(ErrorKind::InvalidData, format!("error loading config: {e}"))
         })?;
     set_default_client_residency_requirement(config.enforce_residency.value());
-    let otel = codex_core::otel_init::build_provider(
+    let otel = datax_core::otel_init::build_provider(
         &config,
         env!("CARGO_PKG_VERSION"),
         Some(OTEL_SERVICE_NAME),
@@ -90,9 +90,9 @@ pub async fn run_main(
             format!("error loading otel config: {e}"),
         )
     })?;
-    codex_core::otel_init::record_process_start(otel.as_ref(), OTEL_SERVICE_NAME);
-    codex_core::otel_init::install_sqlite_telemetry(otel.as_ref(), OTEL_SERVICE_NAME);
-    let state_db = codex_core::init_state_db(&config).await;
+    datax_core::otel_init::record_process_start(otel.as_ref(), OTEL_SERVICE_NAME);
+    datax_core::otel_init::install_sqlite_telemetry(otel.as_ref(), OTEL_SERVICE_NAME);
+    let state_db = datax_core::init_state_db(&config).await;
     let environment_manager = Arc::new(
         EnvironmentManager::from_codex_home(
             config.codex_home.clone(),
@@ -205,8 +205,8 @@ pub async fn run_main(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_config::types::OtelExporterKind;
-    use codex_core::config::ConfigBuilder;
+    use datax_config::types::OtelExporterKind;
+    use datax_core::config::ConfigBuilder;
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
     use tempfile::TempDir;
@@ -233,7 +233,7 @@ mod tests {
         config.otel.metrics_exporter = exporter;
         config.analytics_enabled = None;
 
-        let provider = codex_core::otel_init::build_provider(
+        let provider = datax_core::otel_init::build_provider(
             &config,
             "0.0.0-test",
             Some(OTEL_SERVICE_NAME),

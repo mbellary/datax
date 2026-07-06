@@ -5,32 +5,32 @@ use anyhow::Context;
 use anyhow::Result;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
-use codex_otel::StatsigMetricsSettings;
-use codex_windows_sandbox::SETUP_VERSION;
-use codex_windows_sandbox::SetupErrorCode;
-use codex_windows_sandbox::SetupErrorReport;
-use codex_windows_sandbox::SetupFailure;
-use codex_windows_sandbox::add_deny_write_ace;
-use codex_windows_sandbox::canonicalize_path;
-use codex_windows_sandbox::convert_string_sid_to_sid;
-use codex_windows_sandbox::ensure_allow_mask_aces_with_inheritance;
-use codex_windows_sandbox::ensure_allow_write_aces;
-use codex_windows_sandbox::extract_setup_failure;
-use codex_windows_sandbox::hide_newly_created_users;
-use codex_windows_sandbox::install_wfp_filters;
-use codex_windows_sandbox::is_command_cwd_root;
-use codex_windows_sandbox::log_note;
-use codex_windows_sandbox::log_writer;
-use codex_windows_sandbox::path_mask_allows;
-use codex_windows_sandbox::sandbox_bin_dir;
-use codex_windows_sandbox::sandbox_dir;
-use codex_windows_sandbox::sandbox_secrets_dir;
-use codex_windows_sandbox::string_from_sid_bytes;
-use codex_windows_sandbox::sync_persistent_deny_read_acls;
-use codex_windows_sandbox::to_wide;
-use codex_windows_sandbox::workspace_write_cap_sid_for_root;
-use codex_windows_sandbox::workspace_write_root_overlaps_path;
-use codex_windows_sandbox::write_setup_error_report;
+use datax_otel::StatsigMetricsSettings;
+use datax_windows_sandbox::SETUP_VERSION;
+use datax_windows_sandbox::SetupErrorCode;
+use datax_windows_sandbox::SetupErrorReport;
+use datax_windows_sandbox::SetupFailure;
+use datax_windows_sandbox::add_deny_write_ace;
+use datax_windows_sandbox::canonicalize_path;
+use datax_windows_sandbox::convert_string_sid_to_sid;
+use datax_windows_sandbox::ensure_allow_mask_aces_with_inheritance;
+use datax_windows_sandbox::ensure_allow_write_aces;
+use datax_windows_sandbox::extract_setup_failure;
+use datax_windows_sandbox::hide_newly_created_users;
+use datax_windows_sandbox::install_wfp_filters;
+use datax_windows_sandbox::is_command_cwd_root;
+use datax_windows_sandbox::log_note;
+use datax_windows_sandbox::log_writer;
+use datax_windows_sandbox::path_mask_allows;
+use datax_windows_sandbox::sandbox_bin_dir;
+use datax_windows_sandbox::sandbox_dir;
+use datax_windows_sandbox::sandbox_secrets_dir;
+use datax_windows_sandbox::string_from_sid_bytes;
+use datax_windows_sandbox::sync_persistent_deny_read_acls;
+use datax_windows_sandbox::to_wide;
+use datax_windows_sandbox::workspace_write_cap_sid_for_root;
+use datax_windows_sandbox::workspace_write_root_overlaps_path;
+use datax_windows_sandbox::write_setup_error_report;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashSet;
@@ -1037,9 +1037,9 @@ mod tests {
     use super::Payload;
     use super::SETUP_VERSION;
     use super::workspace_write_cap_sids_for_path;
-    use codex_otel::StatsigMetricsSettings;
-    use codex_windows_sandbox::load_or_create_cap_sids;
-    use codex_windows_sandbox::workspace_write_cap_sid_for_root;
+    use datax_otel::StatsigMetricsSettings;
+    use datax_windows_sandbox::load_or_create_cap_sids;
+    use datax_windows_sandbox::workspace_write_cap_sid_for_root;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::fs;
@@ -1093,7 +1093,7 @@ mod tests {
     #[test]
     fn deny_path_under_active_root_uses_only_matching_root_sid() {
         let temp = tempfile::tempdir().expect("tempdir");
-        let codex_home = temp.path().join("codex-home");
+        let codex_home = temp.path().join("datax-home");
         let workspace = temp.path().join("workspace");
         let active_root = temp.path().join("active-root");
         let stale_root = temp.path().join("stale-root");
@@ -1129,7 +1129,7 @@ mod tests {
     #[test]
     fn deny_path_outside_active_roots_falls_back_to_all_active_root_sids() {
         let temp = tempfile::tempdir().expect("tempdir");
-        let codex_home = temp.path().join("codex-home");
+        let codex_home = temp.path().join("datax-home");
         let workspace = temp.path().join("workspace");
         let active_root = temp.path().join("active-root");
         let stale_root = temp.path().join("stale-root");
@@ -1166,7 +1166,7 @@ mod tests {
     #[test]
     fn deny_path_includes_nested_active_root_sid() {
         let temp = tempfile::tempdir().expect("tempdir");
-        let codex_home = temp.path().join("codex-home");
+        let codex_home = temp.path().join("datax-home");
         let workspace = temp.path().join("workspace");
         let protected_dir = workspace.join(".codex");
         let nested_root = protected_dir.join("nested-root");

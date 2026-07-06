@@ -2,30 +2,30 @@ use super::*;
 use crate::mcp_tool_call::MCP_TOOL_APPROVAL_DECLINE_SYNTHETIC;
 use crate::mcp_tool_call::MCP_TOOL_APPROVAL_QUESTION_ID_PREFIX;
 use async_channel::bounded;
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::models::NetworkPermissions;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::AgentStatus;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecApprovalRequestEvent;
-use codex_protocol::protocol::GuardianAssessmentAction;
-use codex_protocol::protocol::GuardianAssessmentStatus;
-use codex_protocol::protocol::GuardianCommandSource;
-use codex_protocol::protocol::McpInvocation;
-use codex_protocol::protocol::RawResponseItemEvent;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_protocol::protocol::TurnAbortedEvent;
-use codex_protocol::request_permissions::RequestPermissionProfile;
-use codex_protocol::request_permissions::RequestPermissionsEvent;
-use codex_protocol::request_permissions::RequestPermissionsResponse;
-use codex_protocol::request_user_input::RequestUserInputAnswer;
-use codex_protocol::request_user_input::RequestUserInputEvent;
-use codex_protocol::request_user_input::RequestUserInputQuestion;
 use core_test_support::PathBufExt;
 use core_test_support::test_path_buf;
+use datax_mcp::CODEX_APPS_MCP_SERVER_NAME;
+use datax_protocol::config_types::ApprovalsReviewer;
+use datax_protocol::models::NetworkPermissions;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::protocol::AgentStatus;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::ExecApprovalRequestEvent;
+use datax_protocol::protocol::GuardianAssessmentAction;
+use datax_protocol::protocol::GuardianAssessmentStatus;
+use datax_protocol::protocol::GuardianCommandSource;
+use datax_protocol::protocol::McpInvocation;
+use datax_protocol::protocol::RawResponseItemEvent;
+use datax_protocol::protocol::ReviewDecision;
+use datax_protocol::protocol::TurnAbortReason;
+use datax_protocol::protocol::TurnAbortedEvent;
+use datax_protocol::request_permissions::RequestPermissionProfile;
+use datax_protocol::request_permissions::RequestPermissionsEvent;
+use datax_protocol::request_permissions::RequestPermissionsResponse;
+use datax_protocol::request_user_input::RequestUserInputAnswer;
+use datax_protocol::request_user_input::RequestUserInputEvent;
+use datax_protocol::request_user_input::RequestUserInputQuestion;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -132,7 +132,7 @@ async fn forward_ops_preserves_submission_trace_context() {
         id: "sub-1".to_string(),
         op: Op::Interrupt,
         client_user_message_id: None,
-        trace: Some(codex_protocol::protocol::W3cTraceContext {
+        trace: Some(datax_protocol::protocol::W3cTraceContext {
             traceparent: Some(
                 "00-1234567890abcdef1234567890abcdef-1234567890abcdef-01".to_string(),
             ),

@@ -1,4 +1,4 @@
-use codex_config::McpServerConfig;
+use datax_config::McpServerConfig;
 
 use crate::ExtensionDataInit;
 

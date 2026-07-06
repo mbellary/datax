@@ -1,32 +1,32 @@
 use crate::events::AppServerRpcTransport;
 use crate::events::CodexRuntimeMetadata;
 use crate::events::GuardianReviewEventParams;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ClientResponsePayload;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ServerResponse;
-use codex_plugin::PluginTelemetryMetadata;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::error::CodexErr;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::HookEventName;
-use codex_protocol::protocol::HookRunStatus;
-use codex_protocol::protocol::HookSource;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SkillScope;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::request_permissions::RequestPermissionsResponse;
+use datax_app_server_protocol::ClientRequest;
+use datax_app_server_protocol::ClientResponsePayload;
+use datax_app_server_protocol::InitializeParams;
+use datax_app_server_protocol::JSONRPCErrorError;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::ServerRequest;
+use datax_app_server_protocol::ServerResponse;
+use datax_plugin::PluginTelemetryMetadata;
+use datax_protocol::config_types::ApprovalsReviewer;
+use datax_protocol::config_types::ModeKind;
+use datax_protocol::config_types::Personality;
+use datax_protocol::config_types::ReasoningSummary;
+use datax_protocol::config_types::ServiceTier;
+use datax_protocol::error::CodexErr;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::openai_models::ReasoningEffort;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::HookEventName;
+use datax_protocol::protocol::HookRunStatus;
+use datax_protocol::protocol::HookSource;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::SkillScope;
+use datax_protocol::protocol::SubAgentSource;
+use datax_protocol::protocol::TokenUsage;
+use datax_protocol::request_permissions::RequestPermissionsResponse;
 use serde::Serialize;
 use std::path::PathBuf;
 
@@ -435,7 +435,7 @@ pub struct CodexGoalEvent {
     pub turn_id: Option<String>,
     pub goal_id: String,
     pub event_kind: GoalEventKind,
-    pub goal_status: codex_state::ThreadGoalStatus,
+    pub goal_status: datax_state::ThreadGoalStatus,
     pub has_token_budget: bool,
     pub cumulative_tokens_accounted: Option<i64>,
     pub cumulative_time_accounted_seconds: Option<i64>,

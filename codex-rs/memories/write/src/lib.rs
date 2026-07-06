@@ -16,7 +16,7 @@ mod start;
 mod storage;
 pub mod workspace;
 
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -76,8 +76,8 @@ signal to remove stale memories derived only from those resources.
 }
 
 mod stage_one {
-    pub(super) const REASONING_EFFORT: codex_protocol::openai_models::ReasoningEffort =
-        codex_protocol::openai_models::ReasoningEffort::Low;
+    pub(super) const REASONING_EFFORT: datax_protocol::openai_models::ReasoningEffort =
+        datax_protocol::openai_models::ReasoningEffort::Low;
     pub(super) const CONCURRENCY_LIMIT: usize = 8;
     pub(super) const JOB_LEASE_SECONDS: i64 = 3_600;
     pub(super) const JOB_RETRY_DELAY_SECONDS: i64 = 3_600;
@@ -100,8 +100,8 @@ mod stage_one {
 }
 
 mod stage_two {
-    pub(super) const REASONING_EFFORT: codex_protocol::openai_models::ReasoningEffort =
-        codex_protocol::openai_models::ReasoningEffort::Medium;
+    pub(super) const REASONING_EFFORT: datax_protocol::openai_models::ReasoningEffort =
+        datax_protocol::openai_models::ReasoningEffort::Medium;
     pub(super) const JOB_LEASE_SECONDS: i64 = 3_600;
     pub(super) const JOB_RETRY_DELAY_SECONDS: i64 = 3_600;
     pub(super) const JOB_HEARTBEAT_SECONDS: u64 = 90;

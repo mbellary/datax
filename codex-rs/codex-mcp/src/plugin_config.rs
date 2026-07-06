@@ -1,6 +1,6 @@
-use codex_config::McpServerConfig;
-use codex_config::McpServerEnvVar;
-use codex_config::McpServerTransportConfig;
+use datax_config::McpServerConfig;
+use datax_config::McpServerEnvVar;
+use datax_config::McpServerTransportConfig;
 use serde::Deserialize;
 use serde_json::Map as JsonMap;
 use serde_json::Value as JsonValue;

@@ -1,16 +1,16 @@
-use codex_app_server_client::AppServerRequestHandle;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ConfigBatchWriteParams;
-use codex_app_server_protocol::ConfigWriteResponse;
-use codex_app_server_protocol::HookMetadata;
-use codex_app_server_protocol::HookTrustStatus;
-use codex_app_server_protocol::HooksListEntry;
-use codex_app_server_protocol::HooksListParams;
-use codex_app_server_protocol::HooksListResponse;
-use codex_app_server_protocol::MergeStrategy;
-use codex_app_server_protocol::RequestId;
 use color_eyre::eyre::Result;
 use color_eyre::eyre::WrapErr;
+use datax_app_server_client::AppServerRequestHandle;
+use datax_app_server_protocol::ClientRequest;
+use datax_app_server_protocol::ConfigBatchWriteParams;
+use datax_app_server_protocol::ConfigWriteResponse;
+use datax_app_server_protocol::HookMetadata;
+use datax_app_server_protocol::HookTrustStatus;
+use datax_app_server_protocol::HooksListEntry;
+use datax_app_server_protocol::HooksListParams;
+use datax_app_server_protocol::HooksListResponse;
+use datax_app_server_protocol::MergeStrategy;
+use datax_app_server_protocol::RequestId;
 use std::path::Path;
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -77,7 +77,7 @@ pub(crate) async fn write_hook_trusts(
         .request_typed(ClientRequest::ConfigBatchWrite {
             request_id,
             params: ConfigBatchWriteParams {
-                edits: vec![codex_app_server_protocol::ConfigEdit {
+                edits: vec![datax_app_server_protocol::ConfigEdit {
                     key_path: "hooks.state".to_string(),
                     value,
                     merge_strategy: MergeStrategy::Upsert,

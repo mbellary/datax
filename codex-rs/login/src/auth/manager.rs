@@ -19,11 +19,11 @@ use tokio::sync::Semaphore;
 use tokio::sync::watch;
 use tracing::instrument;
 
-use codex_agent_identity::ChatGptEnvironment;
-use codex_app_server_protocol::AuthMode;
-use codex_app_server_protocol::AuthMode as ApiAuthMode;
-use codex_protocol::config_types::ForcedLoginMethod;
-use codex_protocol::config_types::ModelProviderAuthInfo;
+use datax_agent_identity::ChatGptEnvironment;
+use datax_app_server_protocol::AuthMode;
+use datax_app_server_protocol::AuthMode as ApiAuthMode;
+use datax_protocol::config_types::ForcedLoginMethod;
+use datax_protocol::config_types::ModelProviderAuthInfo;
 
 use super::access_token::CodexAccessToken;
 use super::access_token::classify_codex_access_token;
@@ -54,13 +54,13 @@ use crate::outbound_proxy::AuthRouteConfig;
 use crate::token_data::TokenData;
 use crate::token_data::parse_chatgpt_jwt_claims;
 use crate::token_data::parse_jwt_expiration;
-use codex_client::CodexHttpClient;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_protocol::account::PlanType as AccountPlanType;
-use codex_protocol::auth::PlanType as InternalPlanType;
-use codex_protocol::auth::RefreshTokenFailedError;
-use codex_protocol::auth::RefreshTokenFailedReason;
-use codex_protocol::protocol::SessionSource;
+use datax_client::CodexHttpClient;
+use datax_config::types::AuthCredentialsStoreMode;
+use datax_protocol::account::PlanType as AccountPlanType;
+use datax_protocol::auth::PlanType as InternalPlanType;
+use datax_protocol::auth::RefreshTokenFailedError;
+use datax_protocol::auth::RefreshTokenFailedReason;
+use datax_protocol::protocol::SessionSource;
 use serde_json::Value;
 use thiserror::Error;
 
@@ -1749,7 +1749,7 @@ pub struct AuthManager {
 ///
 /// Implementations should return the auth-related config values for the
 /// already-resolved runtime configuration. The primary implementation is
-/// `codex_core::config::Config`, but this trait keeps `codex-login` independent
+/// `datax_core::config::Config`, but this trait keeps `codex-login` independent
 /// from `codex-core`.
 pub trait AuthManagerConfig {
     /// Returns the Codex home directory used for auth storage.

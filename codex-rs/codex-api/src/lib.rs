@@ -14,9 +14,9 @@ pub(crate) mod sse;
 pub(crate) mod telemetry;
 
 pub use crate::requests::headers::build_session_headers;
-pub use codex_client::RequestTelemetry;
-pub use codex_client::ReqwestTransport;
-pub use codex_client::TransportError;
+pub use datax_client::RequestTelemetry;
+pub use datax_client::ReqwestTransport;
+pub use datax_client::TransportError;
 
 pub use crate::api_bridge::map_api_error;
 pub use crate::auth::AuthError;
@@ -108,5 +108,5 @@ pub use crate::search::TimeOperation;
 pub use crate::search::WeatherOperation;
 pub use crate::telemetry::SseTelemetry;
 pub use crate::telemetry::WebsocketTelemetry;
-pub use codex_protocol::protocol::RealtimeAudioFrame;
-pub use codex_protocol::protocol::RealtimeEvent;
+pub use datax_protocol::protocol::RealtimeAudioFrame;
+pub use datax_protocol::protocol::RealtimeEvent;

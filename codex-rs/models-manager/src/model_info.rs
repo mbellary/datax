@@ -1,16 +1,16 @@
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::openai_models::ConfigShellToolType;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelInstructionsVariables;
-use codex_protocol::openai_models::ModelMessages;
-use codex_protocol::openai_models::ModelVisibility;
-use codex_protocol::openai_models::TruncationMode;
-use codex_protocol::openai_models::TruncationPolicyConfig;
-use codex_protocol::openai_models::WebSearchToolType;
-use codex_protocol::openai_models::default_input_modalities;
+use datax_protocol::config_types::ReasoningSummary;
+use datax_protocol::openai_models::ConfigShellToolType;
+use datax_protocol::openai_models::ModelInfo;
+use datax_protocol::openai_models::ModelInstructionsVariables;
+use datax_protocol::openai_models::ModelMessages;
+use datax_protocol::openai_models::ModelVisibility;
+use datax_protocol::openai_models::TruncationMode;
+use datax_protocol::openai_models::TruncationPolicyConfig;
+use datax_protocol::openai_models::WebSearchToolType;
+use datax_protocol::openai_models::default_input_modalities;
 
 use crate::config::ModelsManagerConfig;
-use codex_utils_output_truncation::approx_bytes_for_tokens;
+use datax_utils_output_truncation::approx_bytes_for_tokens;
 use tracing::warn;
 
 pub const BASE_INSTRUCTIONS: &str = include_str!("../prompt.md");

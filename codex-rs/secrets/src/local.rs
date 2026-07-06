@@ -19,7 +19,7 @@ use anyhow::Context;
 use anyhow::Result;
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use codex_keyring_store::KeyringStore;
+use datax_keyring_store::KeyringStore;
 use rand::TryRngCore;
 use rand::rngs::OsRng;
 use serde::Deserialize;
@@ -372,7 +372,7 @@ fn parse_canonical_key(canonical_key: &str) -> Option<SecretListEntry> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_keyring_store::tests::MockKeyringStore;
+    use datax_keyring_store::tests::MockKeyringStore;
     use keyring::Error as KeyringError;
     use pretty_assertions::assert_eq;
 
@@ -466,12 +466,12 @@ mod tests {
         let scope = SecretScope::Global;
         let name = SecretName::new("TEST_SECRET")?;
 
-        codex_auth_backend.set(&scope, &name, "codex-auth-value")?;
+        codex_auth_backend.set(&scope, &name, "datax-auth-value")?;
         mcp_backend.set(&scope, &name, "mcp-value")?;
 
         assert_eq!(
             codex_auth_backend.get(&scope, &name)?,
-            Some("codex-auth-value".to_string())
+            Some("datax-auth-value".to_string())
         );
         assert_eq!(
             mcp_backend.get(&scope, &name)?,

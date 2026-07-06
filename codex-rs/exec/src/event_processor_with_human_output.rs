@@ -1,18 +1,18 @@
 use std::io::IsTerminal;
 use std::path::PathBuf;
 
-use codex_app_server_protocol::CommandExecutionStatus;
-use codex_app_server_protocol::McpToolCallStatus;
-use codex_app_server_protocol::PatchApplyStatus;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadTokenUsage;
-use codex_app_server_protocol::TurnStatus;
-use codex_core::config::Config;
-use codex_model_provider_info::WireApi;
-use codex_protocol::num_format::format_with_separators;
-use codex_protocol::protocol::SessionConfiguredEvent;
-use codex_utils_sandbox_summary::summarize_permission_profile;
+use datax_app_server_protocol::CommandExecutionStatus;
+use datax_app_server_protocol::McpToolCallStatus;
+use datax_app_server_protocol::PatchApplyStatus;
+use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::ThreadItem;
+use datax_app_server_protocol::ThreadTokenUsage;
+use datax_app_server_protocol::TurnStatus;
+use datax_core::config::Config;
+use datax_model_provider_info::WireApi;
+use datax_protocol::num_format::format_with_separators;
+use datax_protocol::protocol::SessionConfiguredEvent;
+use datax_utils_sandbox_summary::summarize_permission_profile;
 use owo_colors::OwoColorize;
 use owo_colors::Style;
 
@@ -343,13 +343,13 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 }
                 for step in notification.plan {
                     match step.status {
-                        codex_app_server_protocol::TurnPlanStepStatus::Completed => {
+                        datax_app_server_protocol::TurnPlanStepStatus::Completed => {
                             eprintln!("  {} {}", "✓".style(self.green), step.step);
                         }
-                        codex_app_server_protocol::TurnPlanStepStatus::InProgress => {
+                        datax_app_server_protocol::TurnPlanStepStatus::InProgress => {
                             eprintln!("  {} {}", "→".style(self.cyan), step.step);
                         }
-                        codex_app_server_protocol::TurnPlanStepStatus::Pending => {
+                        datax_app_server_protocol::TurnPlanStepStatus::Pending => {
                             eprintln!(
                                 "  {} {}",
                                 "•".style(self.dimmed),

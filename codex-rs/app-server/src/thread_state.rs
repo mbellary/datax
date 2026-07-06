@@ -1,21 +1,21 @@
 use crate::outgoing_message::ConnectionId;
 use crate::outgoing_message::ConnectionRequestId;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadGoal;
-use codex_app_server_protocol::ThreadHistoryBuilder;
-use codex_app_server_protocol::ThreadSettings;
-use codex_app_server_protocol::Turn;
-use codex_app_server_protocol::TurnError;
-use codex_core::CodexThread;
-use codex_core::ThreadConfigSnapshot;
-use codex_file_watcher::WatchRegistration;
-use codex_protocol::ThreadId;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::ThreadGoal;
+use datax_app_server_protocol::ThreadHistoryBuilder;
+use datax_app_server_protocol::ThreadSettings;
+use datax_app_server_protocol::Turn;
+use datax_app_server_protocol::TurnError;
+use datax_core::CodexThread;
+use datax_core::ThreadConfigSnapshot;
+use datax_file_watcher::WatchRegistration;
+use datax_protocol::ThreadId;
 #[cfg(test)]
-use codex_protocol::config_types::MultiAgentMode;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::RolloutItem;
-use codex_rollout::state_db::StateDbHandle;
-use codex_utils_path_uri::LegacyAppPathString;
+use datax_protocol::config_types::MultiAgentMode;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::RolloutItem;
+use datax_rollout::state_db::StateDbHandle;
+use datax_utils_path_uri::LegacyAppPathString;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -34,12 +34,12 @@ pub(crate) struct PendingThreadResumeRequest {
     pub(crate) history_items: Vec<RolloutItem>,
     pub(crate) config_snapshot: ThreadConfigSnapshot,
     pub(crate) instruction_sources: Vec<LegacyAppPathString>,
-    pub(crate) thread_summary: codex_app_server_protocol::Thread,
+    pub(crate) thread_summary: datax_app_server_protocol::Thread,
     pub(crate) emit_thread_goal_update: bool,
     pub(crate) thread_goal_state_db: Option<StateDbHandle>,
     pub(crate) include_turns: bool,
     pub(crate) initial_turns_page:
-        Option<codex_app_server_protocol::ThreadResumeInitialTurnsPageParams>,
+        Option<datax_app_server_protocol::ThreadResumeInitialTurnsPageParams>,
     pub(crate) redact_resume_payloads: bool,
 }
 
@@ -196,13 +196,13 @@ pub(crate) async fn resolve_server_request_on_thread_listener(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_app_server_protocol::ApprovalsReviewer;
-    use codex_app_server_protocol::AskForApproval;
-    use codex_app_server_protocol::SandboxPolicy;
-    use codex_protocol::config_types::CollaborationMode;
-    use codex_protocol::config_types::ModeKind;
-    use codex_protocol::config_types::Settings;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use datax_app_server_protocol::ApprovalsReviewer;
+    use datax_app_server_protocol::AskForApproval;
+    use datax_app_server_protocol::SandboxPolicy;
+    use datax_protocol::config_types::CollaborationMode;
+    use datax_protocol::config_types::ModeKind;
+    use datax_protocol::config_types::Settings;
+    use datax_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
 
     #[test]

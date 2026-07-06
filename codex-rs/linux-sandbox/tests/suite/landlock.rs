@@ -1,23 +1,23 @@
 #![cfg(target_os = "linux")]
 #![allow(clippy::unwrap_used)]
-use codex_core::exec::ExecCapturePolicy;
-use codex_core::exec::ExecParams;
-use codex_core::exec::process_exec_tool_call;
-use codex_core::exec_env::create_env;
-use codex_core::sandboxing::SandboxPermissions;
-use codex_protocol::config_types::ShellEnvironmentPolicy;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result;
-use codex_protocol::error::SandboxErr;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_core::exec::ExecCapturePolicy;
+use datax_core::exec::ExecParams;
+use datax_core::exec::process_exec_tool_call;
+use datax_core::exec_env::create_env;
+use datax_core::sandboxing::SandboxPermissions;
+use datax_protocol::config_types::ShellEnvironmentPolicy;
+use datax_protocol::config_types::WindowsSandboxLevel;
+use datax_protocol::error::CodexErr;
+use datax_protocol::error::Result;
+use datax_protocol::error::SandboxErr;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::permissions::FileSystemAccessMode;
+use datax_protocol::permissions::FileSystemPath;
+use datax_protocol::permissions::FileSystemSandboxEntry;
+use datax_protocol::permissions::FileSystemSandboxPolicy;
+use datax_protocol::permissions::FileSystemSpecialPath;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -69,7 +69,7 @@ async fn run_cmd_output(
     cmd: &[&str],
     writable_roots: &[PathBuf],
     timeout_ms: u64,
-) -> codex_protocol::exec_output::ExecToolCallOutput {
+) -> datax_protocol::exec_output::ExecToolCallOutput {
     run_cmd_result_with_writable_roots(
         cmd,
         writable_roots,
@@ -87,7 +87,7 @@ async fn run_cmd_result_with_writable_roots(
     timeout_ms: u64,
     use_legacy_landlock: bool,
     network_access: bool,
-) -> Result<codex_protocol::exec_output::ExecToolCallOutput> {
+) -> Result<datax_protocol::exec_output::ExecToolCallOutput> {
     let writable_roots = writable_roots
         .iter()
         .map(|path| AbsolutePathBuf::try_from(path.as_path()).unwrap())
@@ -115,7 +115,7 @@ async fn run_cmd_result_with_permission_profile(
     permission_profile: PermissionProfile,
     timeout_ms: u64,
     use_legacy_landlock: bool,
-) -> Result<codex_protocol::exec_output::ExecToolCallOutput> {
+) -> Result<datax_protocol::exec_output::ExecToolCallOutput> {
     let cwd = AbsolutePathBuf::current_dir().expect("cwd should exist");
     run_cmd_result_with_permission_profile_for_cwd(
         cmd,
@@ -134,7 +134,7 @@ async fn run_cmd_result_with_cwd_and_writable_roots(
     timeout_ms: u64,
     use_legacy_landlock: bool,
     network_access: bool,
-) -> Result<codex_protocol::exec_output::ExecToolCallOutput> {
+) -> Result<datax_protocol::exec_output::ExecToolCallOutput> {
     let writable_roots = writable_roots
         .iter()
         .map(|path| AbsolutePathBuf::try_from(path.as_path()).unwrap())
@@ -166,7 +166,7 @@ async fn run_cmd_result_with_permission_profile_for_cwd(
     permission_profile: PermissionProfile,
     timeout_ms: u64,
     use_legacy_landlock: bool,
-) -> Result<codex_protocol::exec_output::ExecToolCallOutput> {
+) -> Result<datax_protocol::exec_output::ExecToolCallOutput> {
     let sandbox_cwd = cwd.clone();
     let params = ExecParams {
         command: cmd.iter().copied().map(str::to_owned).collect(),
@@ -196,7 +196,7 @@ async fn run_cmd_result_with_permission_profile_for_cwd(
     .await
 }
 
-fn is_bwrap_unavailable_output(output: &codex_protocol::exec_output::ExecToolCallOutput) -> bool {
+fn is_bwrap_unavailable_output(output: &datax_protocol::exec_output::ExecToolCallOutput) -> bool {
     output.stderr.text.contains(BWRAP_UNAVAILABLE_ERR)
         || (output
             .stderr
@@ -229,9 +229,9 @@ async fn should_skip_bwrap_tests() -> bool {
 }
 
 fn expect_denied(
-    result: Result<codex_protocol::exec_output::ExecToolCallOutput>,
+    result: Result<datax_protocol::exec_output::ExecToolCallOutput>,
     context: &str,
-) -> codex_protocol::exec_output::ExecToolCallOutput {
+) -> datax_protocol::exec_output::ExecToolCallOutput {
     match result {
         Ok(output) => {
             assert_ne!(output.exit_code, 0, "{context}: expected nonzero exit code");

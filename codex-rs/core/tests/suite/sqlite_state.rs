@@ -1,28 +1,4 @@
 use anyhow::Result;
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerTransportConfig;
-use codex_core::config::Config;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::WebSearchMode;
-use codex_protocol::dynamic_tools::DynamicToolFunctionSpec;
-use codex_protocol::dynamic_tools::DynamicToolNamespaceSpec;
-use codex_protocol::dynamic_tools::DynamicToolNamespaceTool;
-use codex_protocol::dynamic_tools::DynamicToolSpec;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::SessionMeta;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::UserMessageEvent;
-use codex_protocol::user_input::UserInput;
-use codex_web_search_extension::install as install_web_search_extension;
 use core_test_support::responses;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_function_call;
@@ -39,6 +15,30 @@ use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_match;
 use core_test_support::wait_for_mcp_server;
+use datax_config::types::McpServerConfig;
+use datax_config::types::McpServerTransportConfig;
+use datax_core::config::Config;
+use datax_extension_api::ExtensionRegistryBuilder;
+use datax_features::Feature;
+use datax_login::CodexAuth;
+use datax_protocol::ThreadId;
+use datax_protocol::config_types::WebSearchMode;
+use datax_protocol::dynamic_tools::DynamicToolFunctionSpec;
+use datax_protocol::dynamic_tools::DynamicToolNamespaceSpec;
+use datax_protocol::dynamic_tools::DynamicToolNamespaceTool;
+use datax_protocol::dynamic_tools::DynamicToolSpec;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutLine;
+use datax_protocol::protocol::SessionMeta;
+use datax_protocol::protocol::SessionMetaLine;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::UserMessageEvent;
+use datax_protocol::user_input::UserInput;
+use datax_web_search_extension::install as install_web_search_extension;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::collections::HashMap;
@@ -65,7 +65,7 @@ async fn new_thread_is_recorded_in_state_db() -> Result<()> {
 
     let thread_id = test.session_configured.thread_id;
     let rollout_path = test.codex.rollout_path().expect("rollout path");
-    let db_path = codex_state::state_db_path(test.config.sqlite_home.as_path());
+    let db_path = datax_state::state_db_path(test.config.sqlite_home.as_path());
 
     for _ in 0..100 {
         if tokio::fs::try_exists(&db_path).await.unwrap_or(false) {
@@ -412,7 +412,7 @@ async fn backfill_scans_existing_rollouts() -> Result<()> {
 
     let test = builder.build(&server).await?;
 
-    let db_path = codex_state::state_db_path(test.config.sqlite_home.as_path());
+    let db_path = datax_state::state_db_path(test.config.sqlite_home.as_path());
     let rollout_path = test.config.codex_home.join(&rollout_rel_path);
     let default_provider = test.config.model_provider_id.clone();
 
@@ -463,7 +463,7 @@ async fn user_messages_persist_in_state_db() -> Result<()> {
     });
     let test = builder.build(&server).await?;
 
-    let db_path = codex_state::state_db_path(test.config.sqlite_home.as_path());
+    let db_path = datax_state::state_db_path(test.config.sqlite_home.as_path());
     for _ in 0..100 {
         if tokio::fs::try_exists(&db_path).await.unwrap_or(false) {
             break;
@@ -573,7 +573,7 @@ async fn standalone_web_search_marks_thread_memory_mode_polluted_when_configured
     .await;
 
     let auth = CodexAuth::from_api_key("dummy");
-    let auth_manager = codex_core::test_support::auth_manager_from_auth(auth.clone());
+    let auth_manager = datax_core::test_support::auth_manager_from_auth(auth.clone());
     let mut extension_builder = ExtensionRegistryBuilder::<Config>::new();
     install_web_search_extension(&mut extension_builder, auth_manager);
     let mut builder = test_codex()
@@ -704,14 +704,14 @@ async fn mcp_call_marks_thread_memory_mode_polluted_when_configured() -> Result<
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(cwd)),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
                 permission_profile,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                    mode: datax_protocol::config_types::ModeKind::Default,
+                    settings: datax_protocol::config_types::Settings {
                         model: test.session_configured.model.clone(),
                         reasoning_effort: None,
                         developer_instructions: None,
@@ -780,7 +780,7 @@ async fn tool_call_logs_include_thread_id() -> Result<()> {
 
     test.submit_turn("run a shell command").await?;
 
-    let log_db_layer = codex_state::log_db::start(db.clone());
+    let log_db_layer = datax_state::log_db::start(db.clone());
     let subscriber = tracing_subscriber::registry().with(log_db_layer.clone());
     let dispatch = tracing::Dispatch::new(subscriber);
     tracing::dispatcher::with_default(&dispatch, || {
@@ -792,7 +792,7 @@ async fn tool_call_logs_include_thread_id() -> Result<()> {
 
     let mut found = None;
     for _ in 0..80 {
-        let query = codex_state::LogQuery {
+        let query = datax_state::LogQuery {
             descending: true,
             limit: Some(20),
             ..Default::default()

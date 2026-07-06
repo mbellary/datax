@@ -2,10 +2,10 @@
 
 use std::path::Path;
 
-use codex_app_server_protocol::AuthMode;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_login::AuthKeyringBackendKind;
-use codex_login::load_auth_dot_json;
+use datax_app_server_protocol::AuthMode;
+use datax_config::types::AuthCredentialsStoreMode;
+use datax_login::AuthKeyringBackendKind;
+use datax_login::load_auth_dot_json;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LocalChatgptAuth {
@@ -64,11 +64,11 @@ mod tests {
 
     use base64::Engine;
     use chrono::Utc;
-    use codex_app_server_protocol::AuthMode;
-    use codex_login::AuthDotJson;
-    use codex_login::auth::login_with_chatgpt_auth_tokens;
-    use codex_login::save_auth;
-    use codex_login::token_data::TokenData;
+    use datax_app_server_protocol::AuthMode;
+    use datax_login::AuthDotJson;
+    use datax_login::auth::login_with_chatgpt_auth_tokens;
+    use datax_login::save_auth;
+    use datax_login::token_data::TokenData;
     use pretty_assertions::assert_eq;
     use serde::Serialize;
     use serde_json::json;
@@ -106,7 +106,7 @@ mod tests {
             auth_mode: Some(AuthMode::Chatgpt),
             openai_api_key: None,
             tokens: Some(TokenData {
-                id_token: codex_login::token_data::parse_chatgpt_jwt_claims(&id_token)
+                id_token: datax_login::token_data::parse_chatgpt_jwt_claims(&id_token)
                     .expect("id token should parse"),
                 access_token,
                 refresh_token: "refresh-token".to_string(),

@@ -1,11 +1,5 @@
 use super::compact::COMPACT_WARNING_MESSAGE;
 use anyhow::Result;
-use codex_core::CodexThread;
-use codex_core::compact::SUMMARIZATION_PROMPT;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::WarningEvent;
-use codex_protocol::user_input::UserInput;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -15,6 +9,12 @@ use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
+use datax_core::CodexThread;
+use datax_core::compact::SUMMARIZATION_PROMPT;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::WarningEvent;
+use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use std::sync::Arc;
 

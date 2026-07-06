@@ -27,19 +27,19 @@ use crate::facts::TurnProfileFact;
 use crate::facts::TurnResolvedConfigFact;
 use crate::facts::TurnTokenUsageFact;
 use crate::reducer::AnalyticsReducer;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ClientResponsePayload;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ServerResponse;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::default_client::create_client;
-use codex_plugin::PluginTelemetryMetadata;
-use codex_protocol::request_permissions::RequestPermissionsResponse;
+use datax_app_server_protocol::ClientRequest;
+use datax_app_server_protocol::ClientResponsePayload;
+use datax_app_server_protocol::InitializeParams;
+use datax_app_server_protocol::JSONRPCErrorError;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::ServerRequest;
+use datax_app_server_protocol::ServerResponse;
+use datax_login::AuthManager;
+use datax_login::CodexAuth;
+use datax_login::default_client::create_client;
+use datax_plugin::PluginTelemetryMetadata;
+use datax_protocol::request_permissions::RequestPermissionsResponse;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -563,7 +563,7 @@ async fn send_track_events_request(
     let response = create_client()
         .post(url)
         .timeout(ANALYTICS_EVENTS_TIMEOUT)
-        .headers(codex_model_provider::auth_provider_from_auth(auth).to_auth_headers())
+        .headers(datax_model_provider::auth_provider_from_auth(auth).to_auth_headers())
         .header("Content-Type", "application/json")
         .json(&payload)
         .send()

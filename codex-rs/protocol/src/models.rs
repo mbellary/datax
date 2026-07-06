@@ -3,9 +3,9 @@ use std::io;
 use std::num::NonZeroUsize;
 use std::path::Path;
 
-use codex_utils_image::PromptImageMode;
-use codex_utils_image::data_url_from_bytes;
-use codex_utils_image::load_for_prompt_bytes;
+use datax_utils_image::PromptImageMode;
+use datax_utils_image::data_url_from_bytes;
+use datax_utils_image::load_for_prompt_bytes;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
@@ -21,9 +21,9 @@ use crate::permissions::FileSystemSpecialPath;
 use crate::permissions::NetworkSandboxPolicy;
 use crate::protocol::SandboxPolicy;
 use crate::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_image::ImageProcessingError;
-use codex_utils_path_uri::PathUri;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_image::ImageProcessingError;
+use datax_utils_path_uri::PathUri;
 use schemars::JsonSchema;
 
 use crate::mcp::CallToolResult;
@@ -2133,7 +2133,7 @@ impl std::fmt::Display for FunctionCallOutputPayload {
 mod tests {
     use super::*;
     use anyhow::Result;
-    use codex_execpolicy::Policy;
+    use datax_execpolicy::Policy;
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
     use tempfile::tempdir;
@@ -2782,7 +2782,7 @@ mod tests {
             exec_policy
                 .add_prefix_rule(
                     &[format!("tool-{i:03}"), "x".repeat(500)],
-                    codex_execpolicy::Decision::Allow,
+                    datax_execpolicy::Decision::Allow,
                 )
                 .expect("add rule");
         }

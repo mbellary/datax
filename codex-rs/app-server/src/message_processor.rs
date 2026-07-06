@@ -48,42 +48,42 @@ use crate::thread_state::ConnectionCapabilities;
 use crate::thread_state::ThreadStateManager;
 use crate::transport::AppServerTransport;
 use crate::transport::RemoteControlHandle;
-use codex_analytics::AnalyticsEventsClient;
-use codex_analytics::AppServerRpcTransport;
-use codex_app_server_protocol::AuthMode as LoginAuthMode;
-use codex_app_server_protocol::ChatgptAuthTokensRefreshParams;
-use codex_app_server_protocol::ChatgptAuthTokensRefreshReason;
-use codex_app_server_protocol::ChatgptAuthTokensRefreshResponse;
-use codex_app_server_protocol::ClientNotification;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ClientResponsePayload;
-use codex_app_server_protocol::ConfigWarningNotification;
-use codex_app_server_protocol::ExperimentalApi;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::JSONRPCRequest;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::ServerRequestPayload;
-use codex_app_server_protocol::experimental_required_message;
-use codex_arg0::Arg0DispatchPaths;
-use codex_chatgpt::workspace_settings;
-use codex_core::ThreadManager;
-use codex_core::config::Config;
-use codex_exec_server::EnvironmentManager;
-use codex_feedback::CodexFeedback;
-use codex_goal_extension::GoalService;
-use codex_home::CodexHomeUserInstructionsProvider;
-use codex_login::AuthManager;
-use codex_login::auth::ExternalAuth;
-use codex_login::auth::ExternalAuthRefreshContext;
-use codex_login::auth::ExternalAuthRefreshReason;
-use codex_login::auth::ExternalAuthTokens;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::W3cTraceContext;
-use codex_rollout::StateDbHandle;
-use codex_state::log_db::LogDbLayer;
+use datax_analytics::AnalyticsEventsClient;
+use datax_analytics::AppServerRpcTransport;
+use datax_app_server_protocol::AuthMode as LoginAuthMode;
+use datax_app_server_protocol::ChatgptAuthTokensRefreshParams;
+use datax_app_server_protocol::ChatgptAuthTokensRefreshReason;
+use datax_app_server_protocol::ChatgptAuthTokensRefreshResponse;
+use datax_app_server_protocol::ClientNotification;
+use datax_app_server_protocol::ClientRequest;
+use datax_app_server_protocol::ClientResponsePayload;
+use datax_app_server_protocol::ConfigWarningNotification;
+use datax_app_server_protocol::ExperimentalApi;
+use datax_app_server_protocol::JSONRPCError;
+use datax_app_server_protocol::JSONRPCErrorError;
+use datax_app_server_protocol::JSONRPCNotification;
+use datax_app_server_protocol::JSONRPCRequest;
+use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::ServerRequestPayload;
+use datax_app_server_protocol::experimental_required_message;
+use datax_arg0::Arg0DispatchPaths;
+use datax_chatgpt::workspace_settings;
+use datax_core::ThreadManager;
+use datax_core::config::Config;
+use datax_exec_server::EnvironmentManager;
+use datax_feedback::CodexFeedback;
+use datax_goal_extension::GoalService;
+use datax_home::CodexHomeUserInstructionsProvider;
+use datax_login::AuthManager;
+use datax_login::auth::ExternalAuth;
+use datax_login::auth::ExternalAuthRefreshContext;
+use datax_login::auth::ExternalAuthRefreshReason;
+use datax_login::auth::ExternalAuthTokens;
+use datax_protocol::ThreadId;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::W3cTraceContext;
+use datax_rollout::StateDbHandle;
+use datax_state::log_db::LogDbLayer;
 use tokio::sync::Mutex;
 use tokio::sync::Semaphore;
 use tokio::sync::broadcast;
@@ -178,7 +178,7 @@ impl ExternalAuth for ExternalAuthRefreshBridge {
     fn refresh(
         &self,
         context: ExternalAuthRefreshContext,
-    ) -> codex_login::ExternalAuthFuture<'_, ExternalAuthTokens> {
+    ) -> datax_login::ExternalAuthFuture<'_, ExternalAuthTokens> {
         Box::pin(ExternalAuthRefreshBridge::refresh(self, context))
     }
 }
@@ -334,12 +334,12 @@ impl MessageProcessor {
         // The thread store is intentionally process-scoped. Config reloads can
         // affect per-thread behavior, but they must not move newly started,
         // resumed, or forked threads to a different persistence backend/root.
-        let thread_store = codex_core::thread_store_from_config(config.as_ref(), state_db.clone());
+        let thread_store = datax_core::thread_store_from_config(config.as_ref(), state_db.clone());
         let environment_manager_for_requests = Arc::clone(&environment_manager);
         let environment_manager_for_extensions = Arc::clone(&environment_manager);
         let restriction_product = session_source.restriction_product();
-        let executor_skill_provider: Arc<dyn codex_skills_extension::SkillProvider> = Arc::new(
-            codex_skills_extension::ExecutorSkillProvider::new_with_restriction_product(
+        let executor_skill_provider: Arc<dyn datax_skills_extension::SkillProvider> = Arc::new(
+            datax_skills_extension::ExecutorSkillProvider::new_with_restriction_product(
                 Arc::clone(&environment_manager_for_extensions),
                 restriction_product,
             ),

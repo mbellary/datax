@@ -7,10 +7,10 @@ use super::key_aliases::normalized_with_key_aliases;
 use super::merge::merge_toml_values;
 use crate::CloudConfigBundleLoader;
 use crate::ProfileV2Name;
-use codex_app_server_protocol::ConfigLayer;
-use codex_app_server_protocol::ConfigLayerMetadata;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_app_server_protocol::ConfigLayer;
+use datax_app_server_protocol::ConfigLayerMetadata;
+use datax_app_server_protocol::ConfigLayerSource;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
 use std::path::Path;
@@ -57,7 +57,7 @@ impl LoaderOverrides {
     ///
     /// This is intended for tests that should load only repo-controlled config fixtures.
     pub fn without_managed_config_for_tests() -> Self {
-        let base = std::env::temp_dir().join("codex-config-tests");
+        let base = std::env::temp_dir().join("datax-config-tests");
         Self {
             user_config_path: None,
             user_config_profile: None,

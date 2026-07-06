@@ -4,8 +4,8 @@ use std::sync::Weak;
 use anyhow::Context;
 use anyhow::Result;
 use arc_swap::ArcSwap;
-use codex_protocol::mcp::Resource;
-use codex_protocol::mcp::ResourceContent;
+use datax_protocol::mcp::Resource;
+use datax_protocol::mcp::ResourceContent;
 use rmcp::model::PaginatedRequestParams;
 use rmcp::model::ReadResourceRequestParams;
 

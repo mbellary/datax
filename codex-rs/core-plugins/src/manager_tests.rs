@@ -25,29 +25,29 @@ use crate::test_support::write_curated_plugin_sha_with as write_curated_plugin_s
 use crate::test_support::write_file;
 use crate::test_support::write_openai_api_curated_marketplace;
 use crate::test_support::write_openai_curated_marketplace;
-use codex_app_server_protocol::AuthMode;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_config::AppToolApproval;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::ConfigLayerEntry;
-use codex_config::ConfigLayerStack;
-use codex_config::ConfigRequirements;
-use codex_config::ConfigRequirementsToml;
-use codex_config::McpServerConfig;
-use codex_config::McpServerOAuthConfig;
-use codex_config::McpServerToolConfig;
-use codex_config::types::McpServerTransportConfig;
-use codex_core_skills::PluginSkillSnapshots;
-use codex_core_skills::SkillsLoadInput;
-use codex_core_skills::SkillsService;
-use codex_core_skills::config_rules::SkillConfigRules;
-use codex_login::CodexAuth;
-use codex_plugin::AppDeclaration;
-use codex_plugin::PluginId;
-use codex_protocol::protocol::HookEventName;
-use codex_protocol::protocol::Product;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::test_support::PathBufExt;
+use datax_app_server_protocol::AuthMode;
+use datax_app_server_protocol::ConfigLayerSource;
+use datax_config::AppToolApproval;
+use datax_config::CONFIG_TOML_FILE;
+use datax_config::ConfigLayerEntry;
+use datax_config::ConfigLayerStack;
+use datax_config::ConfigRequirements;
+use datax_config::ConfigRequirementsToml;
+use datax_config::McpServerConfig;
+use datax_config::McpServerOAuthConfig;
+use datax_config::McpServerToolConfig;
+use datax_config::types::McpServerTransportConfig;
+use datax_core_skills::PluginSkillSnapshots;
+use datax_core_skills::SkillsLoadInput;
+use datax_core_skills::SkillsService;
+use datax_core_skills::config_rules::SkillConfigRules;
+use datax_login::CodexAuth;
+use datax_plugin::AppDeclaration;
+use datax_plugin::PluginId;
+use datax_protocol::protocol::HookEventName;
+use datax_protocol::protocol::Product;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_absolute_path::test_support::PathBufExt;
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::path::Path;
@@ -476,7 +476,7 @@ fn write_plugin(root: &Path, dir_name: &str, manifest_name: &str) {
 
 fn init_git_repo(repo: &Path) {
     run_git(repo, &["init"]);
-    run_git(repo, &["config", "user.email", "codex-test@example.com"]);
+    run_git(repo, &["config", "user.email", "datax-test@example.com"]);
     run_git(repo, &["config", "user.name", "Codex Test"]);
     run_git(repo, &["add", "."]);
     run_git(repo, &["commit", "-m", "initial"]);
@@ -552,9 +552,9 @@ fn remote_installed_plugin_in_marketplace(
         id: format!("plugins~Plugin_{name}"),
         name: name.to_string(),
         enabled: true,
-        install_policy: codex_app_server_protocol::PluginInstallPolicy::Available,
-        auth_policy: codex_app_server_protocol::PluginAuthPolicy::OnUse,
-        availability: codex_app_server_protocol::PluginAvailability::Available,
+        install_policy: datax_app_server_protocol::PluginInstallPolicy::Available,
+        auth_policy: datax_app_server_protocol::PluginAuthPolicy::OnUse,
+        availability: datax_app_server_protocol::PluginAvailability::Available,
         interface: None,
         keywords: Vec::new(),
     }
@@ -1015,9 +1015,9 @@ async fn build_remote_installed_plugin_marketplaces_from_cache_uses_remote_metad
     let codex_home = TempDir::new().unwrap();
     let manager = PluginsManager::new(codex_home.path().to_path_buf());
     let mut plugin = remote_installed_linear_plugin();
-    plugin.install_policy = codex_app_server_protocol::PluginInstallPolicy::InstalledByDefault;
-    plugin.auth_policy = codex_app_server_protocol::PluginAuthPolicy::OnInstall;
-    plugin.interface = Some(codex_app_server_protocol::PluginInterface {
+    plugin.install_policy = datax_app_server_protocol::PluginInstallPolicy::InstalledByDefault;
+    plugin.auth_policy = datax_app_server_protocol::PluginAuthPolicy::OnInstall;
+    plugin.interface = Some(datax_app_server_protocol::PluginInterface {
         display_name: Some("Linear".to_string()),
         short_description: Some("Track remote work".to_string()),
         long_description: None,
@@ -1056,11 +1056,11 @@ async fn build_remote_installed_plugin_marketplaces_from_cache_uses_remote_metad
     assert_eq!(plugin.enabled, true);
     assert_eq!(
         plugin.install_policy,
-        codex_app_server_protocol::PluginInstallPolicy::InstalledByDefault
+        datax_app_server_protocol::PluginInstallPolicy::InstalledByDefault
     );
     assert_eq!(
         plugin.auth_policy,
-        codex_app_server_protocol::PluginAuthPolicy::OnInstall
+        datax_app_server_protocol::PluginAuthPolicy::OnInstall
     );
     assert_eq!(plugin.keywords, vec!["issues".to_string()]);
     assert_eq!(
@@ -4372,7 +4372,7 @@ plugins = true
     Mock::given(method("GET"))
         .and(path("/backend-api/plugins/featured"))
         .and(query_param("platform", "codex"))
-        .respond_with(ResponseTemplate::new(200).set_body_string(r#"["codex-plugin"]"#))
+        .respond_with(ResponseTemplate::new(200).set_body_string(r#"["datax-plugin"]"#))
         .mount(&server)
         .await;
 
@@ -4389,7 +4389,7 @@ plugins = true
         .await
         .unwrap();
 
-    assert_eq!(featured_plugin_ids, vec!["codex-plugin".to_string()]);
+    assert_eq!(featured_plugin_ids, vec!["datax-plugin".to_string()]);
 }
 
 #[tokio::test]

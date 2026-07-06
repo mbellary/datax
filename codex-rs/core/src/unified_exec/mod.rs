@@ -27,11 +27,11 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::Weak;
 
-use codex_network_proxy::NetworkProxy;
-use codex_protocol::models::AdditionalPermissionProfile;
-use codex_tools::UnifiedExecShellMode;
-use codex_utils_output_truncation::TruncationPolicy;
-use codex_utils_path_uri::PathUri;
+use datax_network_proxy::NetworkProxy;
+use datax_protocol::models::AdditionalPermissionProfile;
+use datax_tools::UnifiedExecShellMode;
+use datax_utils_output_truncation::TruncationPolicy;
+use datax_utils_path_uri::PathUri;
 use rand::Rng;
 use rand::rng;
 use tokio::sync::Mutex;

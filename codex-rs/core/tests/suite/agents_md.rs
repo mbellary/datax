@@ -1,19 +1,5 @@
 use anyhow::Result;
 use anyhow::anyhow;
-use codex_core::ForkSnapshot;
-use codex_core::StartThreadOptions;
-use codex_exec_server::CreateDirectoryOptions;
-use codex_exec_server::LOCAL_ENVIRONMENT_ID;
-use codex_exec_server::REMOTE_ENVIRONMENT_ID;
-use codex_features::Feature;
-use codex_home::CodexHomeUserInstructionsProvider;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::TurnEnvironmentSelection;
-use codex_protocol::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
 use core_test_support::PathBufExt;
 use core_test_support::create_directory_symlink;
 use core_test_support::get_remote_test_env;
@@ -29,6 +15,20 @@ use core_test_support::test_codex::RecordingUserInstructionsProvider;
 use core_test_support::test_codex::TestCodexBuilder;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
+use datax_core::ForkSnapshot;
+use datax_core::StartThreadOptions;
+use datax_exec_server::CreateDirectoryOptions;
+use datax_exec_server::LOCAL_ENVIRONMENT_ID;
+use datax_exec_server::REMOTE_ENVIRONMENT_ID;
+use datax_features::Feature;
+use datax_home::CodexHomeUserInstructionsProvider;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::InitialHistory;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::TurnEnvironmentSelection;
+use datax_protocol::user_input::UserInput;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_path_uri::PathUri;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::sync::Arc;
@@ -99,7 +99,7 @@ fn assert_single_instruction_fragment(request: &responses::ResponsesRequest, exp
     assert_eq!(instruction_fragments(request), vec![expected.to_string()]);
 }
 
-async fn submit_thread_turn(thread: &Arc<codex_core::CodexThread>, prompt: &str) -> Result<()> {
+async fn submit_thread_turn(thread: &Arc<datax_core::CodexThread>, prompt: &str) -> Result<()> {
     thread
         .submit(Op::UserInput {
             items: vec![UserInput::Text {

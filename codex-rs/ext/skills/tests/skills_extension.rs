@@ -4,50 +4,50 @@ use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 
-use codex_core_skills::HostSkillsSnapshot;
-use codex_core_skills::SKILLS_HOW_TO_USE_WITH_ABSOLUTE_PATHS;
-use codex_core_skills::SKILLS_INTRO_WITH_ABSOLUTE_PATHS;
-use codex_core_skills::SkillLoadOutcome;
-use codex_core_skills::SkillMetadata;
-use codex_core_skills::injection::InjectedHostSkillPrompts;
-use codex_extension_api::ConversationHistory;
-use codex_extension_api::ExtensionData;
-use codex_extension_api::ExtensionEventSink;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_extension_api::NoopTurnItemEmitter;
-use codex_extension_api::ThreadStartInput;
-use codex_extension_api::ToolCall;
-use codex_extension_api::ToolPayload;
-use codex_extension_api::TurnInputContext;
-use codex_protocol::capabilities::CapabilityRootLocation;
-use codex_protocol::capabilities::SelectedCapabilityRoot;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::SKILLS_INSTRUCTIONS_CLOSE_TAG;
-use codex_protocol::protocol::SKILLS_INSTRUCTIONS_OPEN_TAG;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SkillScope;
-use codex_protocol::protocol::TruncationPolicy;
-use codex_protocol::user_input::UserInput;
-use codex_skills_extension::SkillProviders;
-use codex_skills_extension::SkillsExtensionConfig;
-use codex_skills_extension::catalog::SkillAuthority;
-use codex_skills_extension::catalog::SkillCatalog;
-use codex_skills_extension::catalog::SkillCatalogEntry;
-use codex_skills_extension::catalog::SkillPackageId;
-use codex_skills_extension::catalog::SkillProviderError;
-use codex_skills_extension::catalog::SkillReadResult;
-use codex_skills_extension::catalog::SkillResourceId;
-use codex_skills_extension::catalog::SkillSearchResult;
-use codex_skills_extension::catalog::SkillSourceKind;
-use codex_skills_extension::install;
-use codex_skills_extension::install_with_providers;
-use codex_skills_extension::provider::SkillListQuery;
-use codex_skills_extension::provider::SkillProvider;
-use codex_skills_extension::provider::SkillProviderFuture;
-use codex_skills_extension::provider::SkillReadRequest;
-use codex_skills_extension::provider::SkillSearchRequest;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_core_skills::HostSkillsSnapshot;
+use datax_core_skills::SKILLS_HOW_TO_USE_WITH_ABSOLUTE_PATHS;
+use datax_core_skills::SKILLS_INTRO_WITH_ABSOLUTE_PATHS;
+use datax_core_skills::SkillLoadOutcome;
+use datax_core_skills::SkillMetadata;
+use datax_core_skills::injection::InjectedHostSkillPrompts;
+use datax_extension_api::ConversationHistory;
+use datax_extension_api::ExtensionData;
+use datax_extension_api::ExtensionEventSink;
+use datax_extension_api::ExtensionRegistryBuilder;
+use datax_extension_api::NoopTurnItemEmitter;
+use datax_extension_api::ThreadStartInput;
+use datax_extension_api::ToolCall;
+use datax_extension_api::ToolPayload;
+use datax_extension_api::TurnInputContext;
+use datax_protocol::capabilities::CapabilityRootLocation;
+use datax_protocol::capabilities::SelectedCapabilityRoot;
+use datax_protocol::protocol::Event;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::SKILLS_INSTRUCTIONS_CLOSE_TAG;
+use datax_protocol::protocol::SKILLS_INSTRUCTIONS_OPEN_TAG;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::SkillScope;
+use datax_protocol::protocol::TruncationPolicy;
+use datax_protocol::user_input::UserInput;
+use datax_skills_extension::SkillProviders;
+use datax_skills_extension::SkillsExtensionConfig;
+use datax_skills_extension::catalog::SkillAuthority;
+use datax_skills_extension::catalog::SkillCatalog;
+use datax_skills_extension::catalog::SkillCatalogEntry;
+use datax_skills_extension::catalog::SkillPackageId;
+use datax_skills_extension::catalog::SkillProviderError;
+use datax_skills_extension::catalog::SkillReadResult;
+use datax_skills_extension::catalog::SkillResourceId;
+use datax_skills_extension::catalog::SkillSearchResult;
+use datax_skills_extension::catalog::SkillSourceKind;
+use datax_skills_extension::install;
+use datax_skills_extension::install_with_providers;
+use datax_skills_extension::provider::SkillListQuery;
+use datax_skills_extension::provider::SkillProvider;
+use datax_skills_extension::provider::SkillProviderFuture;
+use datax_skills_extension::provider::SkillReadRequest;
+use datax_skills_extension::provider::SkillSearchRequest;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -714,7 +714,7 @@ fn skills_extension_config(config: &TestConfig) -> SkillsExtensionConfig {
 fn test_codex_home() -> PathBuf {
     let id = NEXT_CODEX_HOME_ID.fetch_add(1, Ordering::Relaxed);
     std::env::temp_dir().join(format!(
-        "codex-skills-extension-test-{}-{id}",
+        "datax-skills-extension-test-{}-{id}",
         std::process::id(),
     ))
 }

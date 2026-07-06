@@ -9,7 +9,7 @@ use crate::state::NetworkProxyState;
 use anyhow::Context;
 use anyhow::Result;
 use clap::Parser;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::net::TcpListener as StdTcpListener;
@@ -20,7 +20,7 @@ use tokio::task::JoinHandle;
 use tracing::warn;
 
 #[derive(Debug, Clone, Parser)]
-#[command(name = "codex-network-proxy", about = "Codex network sandbox proxy")]
+#[command(name = "datax-network-proxy", about = "Codex network sandbox proxy")]
 pub struct Args {}
 
 #[derive(Debug)]

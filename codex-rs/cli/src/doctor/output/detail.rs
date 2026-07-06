@@ -744,7 +744,7 @@ fn value<'a>(parsed: &'a [ParsedDetail], label: &str) -> Option<&'a str> {
 
 fn display_label(label: &str) -> String {
     match label {
-        "codex-linux-sandbox helper" => "linux helper",
+        "datax-linux-sandbox helper" => "linux helper",
         "optional reachability failed" => "optional reachability",
         "check for update on startup" => "startup update check",
         other => other,

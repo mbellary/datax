@@ -1,11 +1,11 @@
 [package]
-name = "codex-app-server-protocol"
+name = "datax-app-server-protocol"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [lib]
-name = "codex_app_server_protocol"
+name = "datax_app_server_protocol"
 path = "src/lib.rs"
 doctest = false
 
@@ -15,11 +15,11 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
-codex-experimental-api-macros = { workspace = true }
-codex-protocol = { workspace = true }
-codex-shell-command = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-path-uri = { workspace = true }
+datax-experimental-api-macros = { workspace = true }
+datax-protocol = { workspace = true }
+datax-shell-command = { workspace = true }
+datax-utils-absolute-path = { workspace = true }
+datax-utils-path-uri = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -39,7 +39,7 @@ uuid = { workspace = true, features = ["serde", "v7"] }
 
 [dev-dependencies]
 anyhow = { workspace = true }
-codex-utils-cargo-bin = { workspace = true }
+datax-utils-cargo-bin = { workspace = true }
 pretty_assertions = { workspace = true }
 similar = { workspace = true }
 tempfile = { workspace = true }

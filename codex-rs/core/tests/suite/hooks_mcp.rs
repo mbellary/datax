@@ -5,11 +5,6 @@ use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
-use codex_config::types::AppToolApproval;
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerTransportConfig;
-use codex_core::config::Config;
-use codex_features::Feature;
 use core_test_support::hooks::trust_discovered_hooks;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -23,6 +18,11 @@ use core_test_support::skip_if_no_network;
 use core_test_support::stdio_server_bin;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_mcp_server;
+use datax_config::types::AppToolApproval;
+use datax_config::types::McpServerConfig;
+use datax_config::types::McpServerTransportConfig;
+use datax_core::config::Config;
+use datax_features::Feature;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
@@ -191,7 +191,7 @@ fn insert_rmcp_test_server(config: &mut Config, command: String, approval_mode: 
                 env_vars: Vec::new(),
                 cwd: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: false,

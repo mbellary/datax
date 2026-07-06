@@ -1,10 +1,10 @@
-use codex_config::types::AppToolApproval;
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerEnvVar;
-use codex_config::types::McpServerToolConfig;
-use codex_config::types::McpServerTransportConfig;
-use codex_config::types::ToolSuggestDisabledTool;
-use codex_config::types::ToolSuggestDiscoverableType;
+use datax_config::types::AppToolApproval;
+use datax_config::types::McpServerConfig;
+use datax_config::types::McpServerEnvVar;
+use datax_config::types::McpServerToolConfig;
+use datax_config::types::McpServerTransportConfig;
+use datax_config::types::ToolSuggestDisabledTool;
+use datax_config::types::ToolSuggestDiscoverableType;
 use toml_edit::Array as TomlArray;
 use toml_edit::InlineTable;
 use toml_edit::Item as TomlItem;

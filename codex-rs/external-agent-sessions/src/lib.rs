@@ -5,7 +5,7 @@ mod export;
 mod ledger;
 mod records;
 
-use codex_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutItem;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;
@@ -117,7 +117,7 @@ fn now_unix_seconds() -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_protocol::ThreadId;
+    use datax_protocol::ThreadId;
     use sha2::Digest;
     use sha2::Sha256;
     use tempfile::TempDir;
@@ -125,7 +125,7 @@ mod tests {
     #[test]
     fn skips_session_that_was_already_imported() {
         let root = TempDir::new().expect("tempdir");
-        let codex_home = root.path().join("codex-home");
+        let codex_home = root.path().join("datax-home");
         let source_path = root.path().join("session.jsonl");
         std::fs::write(&source_path, "{}\n").expect("session");
         ledger::record_imported_session(&codex_home, &source_path, ThreadId::new())

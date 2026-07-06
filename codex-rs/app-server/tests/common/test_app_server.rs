@@ -12,106 +12,106 @@ use tokio::process::ChildStdin;
 use tokio::process::ChildStdout;
 
 use anyhow::Context;
-use codex_app_server_protocol::AppsListParams;
-use codex_app_server_protocol::CancelLoginAccountParams;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::ClientNotification;
-use codex_app_server_protocol::CollaborationModeListParams;
-use codex_app_server_protocol::CommandExecParams;
-use codex_app_server_protocol::CommandExecResizeParams;
-use codex_app_server_protocol::CommandExecTerminateParams;
-use codex_app_server_protocol::CommandExecWriteParams;
-use codex_app_server_protocol::ConfigBatchWriteParams;
-use codex_app_server_protocol::ConfigReadParams;
-use codex_app_server_protocol::ConfigValueWriteParams;
-use codex_app_server_protocol::ConsumeAccountRateLimitResetCreditParams;
-use codex_app_server_protocol::ExperimentalFeatureListParams;
-use codex_app_server_protocol::FeedbackUploadParams;
-use codex_app_server_protocol::FsCopyParams;
-use codex_app_server_protocol::FsCreateDirectoryParams;
-use codex_app_server_protocol::FsGetMetadataParams;
-use codex_app_server_protocol::FsReadDirectoryParams;
-use codex_app_server_protocol::FsReadFileParams;
-use codex_app_server_protocol::FsRemoveParams;
-use codex_app_server_protocol::FsUnwatchParams;
-use codex_app_server_protocol::FsWatchParams;
-use codex_app_server_protocol::FsWriteFileParams;
-use codex_app_server_protocol::GetAccountParams;
-use codex_app_server_protocol::GetAuthStatusParams;
-use codex_app_server_protocol::GetConversationSummaryParams;
-use codex_app_server_protocol::HooksListParams;
-use codex_app_server_protocol::InitializeCapabilities;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCNotification;
-use codex_app_server_protocol::JSONRPCRequest;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::ListMcpServerStatusParams;
-use codex_app_server_protocol::LoginAccountParams;
-use codex_app_server_protocol::MarketplaceAddParams;
-use codex_app_server_protocol::MarketplaceRemoveParams;
-use codex_app_server_protocol::MarketplaceUpgradeParams;
-use codex_app_server_protocol::McpResourceReadParams;
-use codex_app_server_protocol::McpServerToolCallParams;
-use codex_app_server_protocol::MockExperimentalMethodParams;
-use codex_app_server_protocol::ModelListParams;
-use codex_app_server_protocol::ModelProviderCapabilitiesReadParams;
-use codex_app_server_protocol::PermissionProfileListParams;
-use codex_app_server_protocol::PluginInstallParams;
-use codex_app_server_protocol::PluginInstalledParams;
-use codex_app_server_protocol::PluginListParams;
-use codex_app_server_protocol::PluginReadParams;
-use codex_app_server_protocol::PluginSkillReadParams;
-use codex_app_server_protocol::PluginUninstallParams;
-use codex_app_server_protocol::ProcessKillParams;
-use codex_app_server_protocol::ProcessResizePtyParams;
-use codex_app_server_protocol::ProcessSpawnParams;
-use codex_app_server_protocol::ProcessWriteStdinParams;
-use codex_app_server_protocol::RemoteControlClientsListParams;
-use codex_app_server_protocol::RemoteControlClientsRevokeParams;
-use codex_app_server_protocol::RemoteControlPairingStartParams;
-use codex_app_server_protocol::RemoteControlPairingStatusParams;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ReviewStartParams;
-use codex_app_server_protocol::SendAddCreditsNudgeEmailParams;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::SkillsExtraRootsSetParams;
-use codex_app_server_protocol::SkillsListParams;
-use codex_app_server_protocol::ThreadArchiveParams;
-use codex_app_server_protocol::ThreadCompactStartParams;
-use codex_app_server_protocol::ThreadDeleteParams;
-use codex_app_server_protocol::ThreadForkParams;
-use codex_app_server_protocol::ThreadInjectItemsParams;
-use codex_app_server_protocol::ThreadListParams;
-use codex_app_server_protocol::ThreadLoadedListParams;
-use codex_app_server_protocol::ThreadMemoryModeSetParams;
-use codex_app_server_protocol::ThreadMetadataUpdateParams;
-use codex_app_server_protocol::ThreadReadParams;
-use codex_app_server_protocol::ThreadRealtimeAppendAudioParams;
-use codex_app_server_protocol::ThreadRealtimeAppendSpeechParams;
-use codex_app_server_protocol::ThreadRealtimeAppendTextParams;
-use codex_app_server_protocol::ThreadRealtimeListVoicesParams;
-use codex_app_server_protocol::ThreadRealtimeStartParams;
-use codex_app_server_protocol::ThreadRealtimeStopParams;
-use codex_app_server_protocol::ThreadResumeParams;
-use codex_app_server_protocol::ThreadRollbackParams;
-use codex_app_server_protocol::ThreadSearchParams;
-use codex_app_server_protocol::ThreadSetNameParams;
-use codex_app_server_protocol::ThreadSettingsUpdateParams;
-use codex_app_server_protocol::ThreadShellCommandParams;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadTurnsItemsListParams;
-use codex_app_server_protocol::ThreadTurnsListParams;
-use codex_app_server_protocol::ThreadUnarchiveParams;
-use codex_app_server_protocol::ThreadUnsubscribeParams;
-use codex_app_server_protocol::TurnCompletedNotification;
-use codex_app_server_protocol::TurnInterruptParams;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnSteerParams;
-use codex_app_server_protocol::WindowsSandboxSetupStartParams;
-use codex_login::default_client::CODEX_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR;
+use datax_app_server_protocol::AppsListParams;
+use datax_app_server_protocol::CancelLoginAccountParams;
+use datax_app_server_protocol::ClientInfo;
+use datax_app_server_protocol::ClientNotification;
+use datax_app_server_protocol::CollaborationModeListParams;
+use datax_app_server_protocol::CommandExecParams;
+use datax_app_server_protocol::CommandExecResizeParams;
+use datax_app_server_protocol::CommandExecTerminateParams;
+use datax_app_server_protocol::CommandExecWriteParams;
+use datax_app_server_protocol::ConfigBatchWriteParams;
+use datax_app_server_protocol::ConfigReadParams;
+use datax_app_server_protocol::ConfigValueWriteParams;
+use datax_app_server_protocol::ConsumeAccountRateLimitResetCreditParams;
+use datax_app_server_protocol::ExperimentalFeatureListParams;
+use datax_app_server_protocol::FeedbackUploadParams;
+use datax_app_server_protocol::FsCopyParams;
+use datax_app_server_protocol::FsCreateDirectoryParams;
+use datax_app_server_protocol::FsGetMetadataParams;
+use datax_app_server_protocol::FsReadDirectoryParams;
+use datax_app_server_protocol::FsReadFileParams;
+use datax_app_server_protocol::FsRemoveParams;
+use datax_app_server_protocol::FsUnwatchParams;
+use datax_app_server_protocol::FsWatchParams;
+use datax_app_server_protocol::FsWriteFileParams;
+use datax_app_server_protocol::GetAccountParams;
+use datax_app_server_protocol::GetAuthStatusParams;
+use datax_app_server_protocol::GetConversationSummaryParams;
+use datax_app_server_protocol::HooksListParams;
+use datax_app_server_protocol::InitializeCapabilities;
+use datax_app_server_protocol::InitializeParams;
+use datax_app_server_protocol::JSONRPCError;
+use datax_app_server_protocol::JSONRPCErrorError;
+use datax_app_server_protocol::JSONRPCMessage;
+use datax_app_server_protocol::JSONRPCNotification;
+use datax_app_server_protocol::JSONRPCRequest;
+use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::ListMcpServerStatusParams;
+use datax_app_server_protocol::LoginAccountParams;
+use datax_app_server_protocol::MarketplaceAddParams;
+use datax_app_server_protocol::MarketplaceRemoveParams;
+use datax_app_server_protocol::MarketplaceUpgradeParams;
+use datax_app_server_protocol::McpResourceReadParams;
+use datax_app_server_protocol::McpServerToolCallParams;
+use datax_app_server_protocol::MockExperimentalMethodParams;
+use datax_app_server_protocol::ModelListParams;
+use datax_app_server_protocol::ModelProviderCapabilitiesReadParams;
+use datax_app_server_protocol::PermissionProfileListParams;
+use datax_app_server_protocol::PluginInstallParams;
+use datax_app_server_protocol::PluginInstalledParams;
+use datax_app_server_protocol::PluginListParams;
+use datax_app_server_protocol::PluginReadParams;
+use datax_app_server_protocol::PluginSkillReadParams;
+use datax_app_server_protocol::PluginUninstallParams;
+use datax_app_server_protocol::ProcessKillParams;
+use datax_app_server_protocol::ProcessResizePtyParams;
+use datax_app_server_protocol::ProcessSpawnParams;
+use datax_app_server_protocol::ProcessWriteStdinParams;
+use datax_app_server_protocol::RemoteControlClientsListParams;
+use datax_app_server_protocol::RemoteControlClientsRevokeParams;
+use datax_app_server_protocol::RemoteControlPairingStartParams;
+use datax_app_server_protocol::RemoteControlPairingStatusParams;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::ReviewStartParams;
+use datax_app_server_protocol::SendAddCreditsNudgeEmailParams;
+use datax_app_server_protocol::ServerRequest;
+use datax_app_server_protocol::SkillsExtraRootsSetParams;
+use datax_app_server_protocol::SkillsListParams;
+use datax_app_server_protocol::ThreadArchiveParams;
+use datax_app_server_protocol::ThreadCompactStartParams;
+use datax_app_server_protocol::ThreadDeleteParams;
+use datax_app_server_protocol::ThreadForkParams;
+use datax_app_server_protocol::ThreadInjectItemsParams;
+use datax_app_server_protocol::ThreadListParams;
+use datax_app_server_protocol::ThreadLoadedListParams;
+use datax_app_server_protocol::ThreadMemoryModeSetParams;
+use datax_app_server_protocol::ThreadMetadataUpdateParams;
+use datax_app_server_protocol::ThreadReadParams;
+use datax_app_server_protocol::ThreadRealtimeAppendAudioParams;
+use datax_app_server_protocol::ThreadRealtimeAppendSpeechParams;
+use datax_app_server_protocol::ThreadRealtimeAppendTextParams;
+use datax_app_server_protocol::ThreadRealtimeListVoicesParams;
+use datax_app_server_protocol::ThreadRealtimeStartParams;
+use datax_app_server_protocol::ThreadRealtimeStopParams;
+use datax_app_server_protocol::ThreadResumeParams;
+use datax_app_server_protocol::ThreadRollbackParams;
+use datax_app_server_protocol::ThreadSearchParams;
+use datax_app_server_protocol::ThreadSetNameParams;
+use datax_app_server_protocol::ThreadSettingsUpdateParams;
+use datax_app_server_protocol::ThreadShellCommandParams;
+use datax_app_server_protocol::ThreadStartParams;
+use datax_app_server_protocol::ThreadTurnsItemsListParams;
+use datax_app_server_protocol::ThreadTurnsListParams;
+use datax_app_server_protocol::ThreadUnarchiveParams;
+use datax_app_server_protocol::ThreadUnsubscribeParams;
+use datax_app_server_protocol::TurnCompletedNotification;
+use datax_app_server_protocol::TurnInterruptParams;
+use datax_app_server_protocol::TurnStartParams;
+use datax_app_server_protocol::TurnSteerParams;
+use datax_app_server_protocol::WindowsSandboxSetupStartParams;
+use datax_login::default_client::CODEX_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR;
 use tokio::process::Command;
 
 pub struct TestAppServer {
@@ -126,7 +126,7 @@ pub struct TestAppServer {
     pending_messages: VecDeque<JSONRPCMessage>,
 }
 
-pub const DEFAULT_CLIENT_NAME: &str = "codex-app-server-tests";
+pub const DEFAULT_CLIENT_NAME: &str = "datax-app-server-tests";
 pub const DISABLE_PLUGIN_STARTUP_TASKS_ARG: &str = "--disable-plugin-startup-tasks-for-tests";
 const DISABLE_MANAGED_CONFIG_ENV_VAR: &str = "CODEX_APP_SERVER_DISABLE_MANAGED_CONFIG";
 
@@ -205,7 +205,7 @@ impl TestAppServer {
         env_overrides: &[(&str, Option<&str>)],
         args: &[&str],
     ) -> anyhow::Result<Self> {
-        let program = codex_utils_cargo_bin::cargo_bin("codex-app-server")
+        let program = datax_utils_cargo_bin::cargo_bin("datax-app-server")
             .context("should find binary for codex-app-server")?;
         Self::new_with_program_env_and_args(codex_home, &program, env_overrides, args).await
     }
@@ -246,7 +246,7 @@ impl TestAppServer {
         let mut process = cmd
             .kill_on_drop(true)
             .spawn()
-            .context("codex-mcp-server proc should start")?;
+            .context("datax-mcp-server proc should start")?;
         let stdin = process
             .stdin
             .take()
@@ -651,7 +651,7 @@ impl TestAppServer {
     /// Send an `experimentalFeature/enablement/set` JSON-RPC request.
     pub async fn send_experimental_feature_enablement_set_request(
         &mut self,
-        params: codex_app_server_protocol::ExperimentalFeatureEnablementSetParams,
+        params: datax_app_server_protocol::ExperimentalFeatureEnablementSetParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
         self.send_request("experimentalFeature/enablement/set", params)

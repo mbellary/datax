@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
-use codex_config::McpServerConfig;
-use codex_config::McpServerTransportConfig;
-use codex_config::types::AuthKeyringBackendKind;
-use codex_config::types::OAuthCredentialsStoreMode;
-use codex_login::CodexAuth;
-use codex_protocol::protocol::McpAuthStatus;
-use codex_rmcp_client::OAuthProviderError;
-use codex_rmcp_client::determine_streamable_http_auth_status;
-use codex_rmcp_client::discover_streamable_http_oauth;
+use datax_config::McpServerConfig;
+use datax_config::McpServerTransportConfig;
+use datax_config::types::AuthKeyringBackendKind;
+use datax_config::types::OAuthCredentialsStoreMode;
+use datax_login::CodexAuth;
+use datax_protocol::protocol::McpAuthStatus;
+use datax_rmcp_client::OAuthProviderError;
+use datax_rmcp_client::determine_streamable_http_auth_status;
+use datax_rmcp_client::discover_streamable_http_oauth;
 use futures::future::join_all;
 use tracing::warn;
 

@@ -1,5 +1,5 @@
-use codex_app_server_protocol::AuthMode;
-use codex_plugin::AppDeclaration;
+use datax_app_server_protocol::AuthMode;
+use datax_plugin::AppDeclaration;
 use std::collections::HashMap;
 use std::collections::HashSet;
 

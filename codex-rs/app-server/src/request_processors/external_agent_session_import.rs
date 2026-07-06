@@ -2,27 +2,27 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use chrono::Utc;
-use codex_arg0::Arg0DispatchPaths;
-use codex_core::ThreadManager;
-use codex_core::config::ConfigOverrides;
-use codex_external_agent_sessions::CompletedExternalAgentSessionImport;
-use codex_external_agent_sessions::ExternalAgentSessionMigration;
-use codex_external_agent_sessions::ImportedExternalAgentSession;
-use codex_external_agent_sessions::PendingSessionImport;
-use codex_external_agent_sessions::prepare_validated_session_import;
-use codex_external_agent_sessions::record_completed_session_imports;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_protocol::ThreadId;
-use codex_protocol::models::BaseInstructions;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::ThreadMemoryMode;
-use codex_rollout::is_persisted_rollout_item;
-use codex_thread_store::AppendThreadItemsParams;
-use codex_thread_store::CreateThreadParams;
-use codex_thread_store::ThreadMetadataPatch;
-use codex_thread_store::ThreadPersistenceMetadata;
-use codex_thread_store::ThreadStore;
-use codex_thread_store::UpdateThreadMetadataParams;
+use datax_arg0::Arg0DispatchPaths;
+use datax_core::ThreadManager;
+use datax_core::config::ConfigOverrides;
+use datax_external_agent_sessions::CompletedExternalAgentSessionImport;
+use datax_external_agent_sessions::ExternalAgentSessionMigration;
+use datax_external_agent_sessions::ImportedExternalAgentSession;
+use datax_external_agent_sessions::PendingSessionImport;
+use datax_external_agent_sessions::prepare_validated_session_import;
+use datax_external_agent_sessions::record_completed_session_imports;
+use datax_models_manager::manager::RefreshStrategy;
+use datax_protocol::ThreadId;
+use datax_protocol::models::BaseInstructions;
+use datax_protocol::protocol::MultiAgentVersion;
+use datax_protocol::protocol::ThreadMemoryMode;
+use datax_rollout::is_persisted_rollout_item;
+use datax_thread_store::AppendThreadItemsParams;
+use datax_thread_store::CreateThreadParams;
+use datax_thread_store::ThreadMetadataPatch;
+use datax_thread_store::ThreadPersistenceMetadata;
+use datax_thread_store::ThreadStore;
+use datax_thread_store::UpdateThreadMetadataParams;
 use futures::StreamExt;
 use tokio::sync::Semaphore;
 
@@ -224,7 +224,7 @@ impl ExternalAgentSessionImporter {
         rollout_items.retain(is_persisted_rollout_item);
         let title = title
             .as_deref()
-            .and_then(codex_core::util::normalize_thread_name);
+            .and_then(datax_core::util::normalize_thread_name);
         let metadata = ThreadMetadataPatch {
             title,
             preview: first_user_message.clone(),

@@ -1,10 +1,10 @@
 use std::io;
 
-use codex_config::ConfigLayerEntry;
-use codex_config::ConfigLayerSource;
-use codex_config::config_toml::ConfigLockfileToml;
-use codex_config::config_toml::ConfigToml;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_config::ConfigLayerEntry;
+use datax_config::ConfigLayerSource;
+use datax_config::config_toml::ConfigLockfileToml;
+use datax_config::config_toml::ConfigToml;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use similar::TextDiff;

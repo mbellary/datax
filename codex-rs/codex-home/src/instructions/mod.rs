@@ -1,10 +1,10 @@
 use std::io;
 
-use codex_extension_api::LoadUserInstructionsFuture;
-use codex_extension_api::LoadedUserInstructions;
-use codex_extension_api::UserInstructions;
-use codex_extension_api::UserInstructionsProvider;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_extension_api::LoadUserInstructionsFuture;
+use datax_extension_api::LoadedUserInstructions;
+use datax_extension_api::UserInstructions;
+use datax_extension_api::UserInstructionsProvider;
+use datax_utils_absolute_path::AbsolutePathBuf;
 
 const DEFAULT_AGENTS_MD_FILENAME: &str = "AGENTS.md";
 const LOCAL_AGENTS_MD_FILENAME: &str = "AGENTS.override.md";

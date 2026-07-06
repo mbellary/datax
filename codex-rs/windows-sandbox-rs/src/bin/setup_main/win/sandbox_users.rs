@@ -42,14 +42,14 @@ use windows_sys::Win32::Storage::FileSystem::CREATE_NEW;
 use windows_sys::Win32::Storage::FileSystem::CreateFileW;
 use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_NORMAL;
 
-use codex_windows_sandbox::SETUP_VERSION;
-use codex_windows_sandbox::SetupErrorCode;
-use codex_windows_sandbox::SetupFailure;
-use codex_windows_sandbox::dpapi_protect;
-use codex_windows_sandbox::sandbox_dir;
-use codex_windows_sandbox::sandbox_secrets_dir;
-use codex_windows_sandbox::string_from_sid_bytes;
-use codex_windows_sandbox::to_wide;
+use datax_windows_sandbox::SETUP_VERSION;
+use datax_windows_sandbox::SetupErrorCode;
+use datax_windows_sandbox::SetupFailure;
+use datax_windows_sandbox::dpapi_protect;
+use datax_windows_sandbox::sandbox_dir;
+use datax_windows_sandbox::sandbox_secrets_dir;
+use datax_windows_sandbox::string_from_sid_bytes;
+use datax_windows_sandbox::to_wide;
 
 pub const SANDBOX_USERS_GROUP: &str = "CodexSandboxUsers";
 const SANDBOX_USERS_GROUP_COMMENT: &str = "Codex sandbox internal group (managed)";

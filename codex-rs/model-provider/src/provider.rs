@@ -4,18 +4,18 @@ use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use codex_api::ApiError;
-use codex_api::Provider;
-use codex_api::SharedAuthProvider;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_models_manager::manager::OpenAiModelsManager;
-use codex_models_manager::manager::SharedModelsManager;
-use codex_models_manager::manager::StaticModelsManager;
-use codex_protocol::account::ProviderAccount;
-use codex_protocol::error::CodexErr;
-use codex_protocol::openai_models::ModelsResponse;
+use datax_api::ApiError;
+use datax_api::Provider;
+use datax_api::SharedAuthProvider;
+use datax_login::AuthManager;
+use datax_login::CodexAuth;
+use datax_model_provider_info::ModelProviderInfo;
+use datax_models_manager::manager::OpenAiModelsManager;
+use datax_models_manager::manager::SharedModelsManager;
+use datax_models_manager::manager::StaticModelsManager;
+use datax_protocol::account::ProviderAccount;
+use datax_protocol::error::CodexErr;
+use datax_protocol::openai_models::ModelsResponse;
 
 use crate::amazon_bedrock::AmazonBedrockModelProvider;
 use crate::auth::auth_manager_for_provider;
@@ -80,7 +80,7 @@ pub type ProviderAccountResult = std::result::Result<ProviderAccountState, Provi
 
 /// Default model used for automatic approval review when a provider does not
 /// require a backend-specific model ID.
-pub const DEFAULT_APPROVAL_REVIEW_PREFERRED_MODEL: &str = "codex-auto-review";
+pub const DEFAULT_APPROVAL_REVIEW_PREFERRED_MODEL: &str = "datax-auto-review";
 
 /// Default model used for memory extraction when a provider does not require a
 /// backend-specific model ID.
@@ -146,11 +146,11 @@ pub trait ModelProvider: fmt::Debug + Send + Sync {
 
     /// Maps an API client error into the provider's user-facing error representation.
     fn map_api_error(&self, error: ApiError) -> CodexErr {
-        codex_api::map_api_error(error)
+        datax_api::map_api_error(error)
     }
 
     /// Returns provider configuration adapted for the API client.
-    fn api_provider(&self) -> ModelProviderFuture<'_, codex_protocol::error::Result<Provider>> {
+    fn api_provider(&self) -> ModelProviderFuture<'_, datax_protocol::error::Result<Provider>> {
         Box::pin(async move {
             let auth = self.auth().await;
             self.info()
@@ -161,14 +161,14 @@ pub trait ModelProvider: fmt::Debug + Send + Sync {
     /// Returns the provider base URL that will be used at request time.
     fn runtime_base_url(
         &self,
-    ) -> ModelProviderFuture<'_, codex_protocol::error::Result<Option<String>>> {
+    ) -> ModelProviderFuture<'_, datax_protocol::error::Result<Option<String>>> {
         Box::pin(async { Ok(self.info().base_url.clone()) })
     }
 
     /// Returns the auth provider used to attach request credentials.
     fn api_auth(
         &self,
-    ) -> ModelProviderFuture<'_, codex_protocol::error::Result<SharedAuthProvider>> {
+    ) -> ModelProviderFuture<'_, datax_protocol::error::Result<SharedAuthProvider>> {
         Box::pin(async move {
             let auth = self.auth().await;
             resolve_provider_auth(auth.as_ref(), self.info())
@@ -310,14 +310,14 @@ impl ModelProvider for ConfiguredModelProvider {
 mod tests {
     use std::num::NonZeroU64;
 
-    use codex_login::auth::BedrockApiKeyAuth;
-    use codex_model_provider_info::ModelProviderAwsAuthInfo;
-    use codex_model_provider_info::WireApi;
-    use codex_models_manager::manager::RefreshStrategy;
-    use codex_protocol::account::PlanType;
-    use codex_protocol::config_types::ModelProviderAuthInfo;
-    use codex_protocol::openai_models::ModelInfo;
-    use codex_protocol::openai_models::ModelsResponse;
+    use datax_login::auth::BedrockApiKeyAuth;
+    use datax_model_provider_info::ModelProviderAwsAuthInfo;
+    use datax_model_provider_info::WireApi;
+    use datax_models_manager::manager::RefreshStrategy;
+    use datax_protocol::account::PlanType;
+    use datax_protocol::config_types::ModelProviderAuthInfo;
+    use datax_protocol::openai_models::ModelInfo;
+    use datax_protocol::openai_models::ModelsResponse;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use wiremock::Mock;
@@ -347,7 +347,7 @@ mod tests {
     }
 
     fn test_codex_home() -> std::path::PathBuf {
-        std::env::temp_dir().join(format!("codex-model-provider-test-{}", std::process::id()))
+        std::env::temp_dir().join(format!("datax-model-provider-test-{}", std::process::id()))
     }
 
     fn provider_for(base_url: String) -> ModelProviderInfo {
@@ -463,7 +463,7 @@ mod tests {
     fn create_model_provider_does_not_use_openai_auth_manager_for_amazon_bedrock_provider() {
         let provider = create_model_provider(
             ModelProviderInfo::create_amazon_bedrock_provider(Some(ModelProviderAwsAuthInfo {
-                profile: Some("codex-bedrock".to_string()),
+                profile: Some("datax-bedrock".to_string()),
                 region: None,
             })),
             Some(AuthManager::from_auth_for_testing(CodexAuth::from_api_key(
@@ -587,7 +587,7 @@ mod tests {
             Ok(ProviderAccountState {
                 account: Some(ProviderAccount::AmazonBedrock {
                     credential_source:
-                        codex_protocol::account::AmazonBedrockCredentialSource::AwsManaged,
+                        datax_protocol::account::AmazonBedrockCredentialSource::AwsManaged,
                 }),
                 requires_openai_auth: false,
             })
@@ -633,7 +633,7 @@ mod tests {
 
     #[tokio::test]
     async fn configured_bedrock_catalog_only_allows_default_service_tier() {
-        let configured_model = codex_models_manager::bundled_models_response()
+        let configured_model = datax_models_manager::bundled_models_response()
             .expect("bundled models should parse")
             .models
             .into_iter()

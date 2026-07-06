@@ -1,5 +1,5 @@
-use codex_protocol::protocol::ThreadGoal;
-use codex_utils_template::Template;
+use datax_protocol::protocol::ThreadGoal;
+use datax_utils_template::Template;
 use std::sync::LazyLock;
 
 static CONTINUATION_PROMPT_TEMPLATE: LazyLock<Template> =

@@ -23,23 +23,23 @@ use crate::facts::TurnSteerRejectionReason;
 use crate::facts::TurnSteerResult;
 use crate::facts::TurnSubmissionType;
 use crate::now_unix_millis;
-use codex_app_server_protocol::CodexErrorInfo;
-use codex_app_server_protocol::CommandExecutionSource;
-use codex_login::default_client::originator;
-use codex_plugin::PluginTelemetryMetadata;
-use codex_protocol::approvals::NetworkApprovalProtocol;
-use codex_protocol::models::AdditionalPermissionProfile;
-use codex_protocol::models::SandboxPermissions;
-use codex_protocol::protocol::GuardianAssessmentOutcome;
-use codex_protocol::protocol::GuardianCommandSource;
-use codex_protocol::protocol::GuardianRiskLevel;
-use codex_protocol::protocol::GuardianUserAuthorization;
-use codex_protocol::protocol::HookEventName;
-use codex_protocol::protocol::HookRunStatus;
-use codex_protocol::protocol::HookSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::ThreadSource;
-use codex_protocol::protocol::TokenUsage;
+use datax_app_server_protocol::CodexErrorInfo;
+use datax_app_server_protocol::CommandExecutionSource;
+use datax_login::default_client::originator;
+use datax_plugin::PluginTelemetryMetadata;
+use datax_protocol::approvals::NetworkApprovalProtocol;
+use datax_protocol::models::AdditionalPermissionProfile;
+use datax_protocol::models::SandboxPermissions;
+use datax_protocol::protocol::GuardianAssessmentOutcome;
+use datax_protocol::protocol::GuardianCommandSource;
+use datax_protocol::protocol::GuardianRiskLevel;
+use datax_protocol::protocol::GuardianUserAuthorization;
+use datax_protocol::protocol::HookEventName;
+use datax_protocol::protocol::HookRunStatus;
+use datax_protocol::protocol::HookSource;
+use datax_protocol::protocol::SubAgentSource;
+use datax_protocol::protocol::ThreadSource;
+use datax_protocol::protocol::TokenUsage;
 use serde::Serialize;
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -830,7 +830,7 @@ pub(crate) struct CodexGoalEventParams {
     pub(crate) parent_thread_id: Option<String>,
     pub(crate) goal_id: String,
     pub(crate) event_kind: GoalEventKind,
-    pub(crate) goal_status: codex_state::ThreadGoalStatus,
+    pub(crate) goal_status: datax_state::ThreadGoalStatus,
     pub(crate) has_token_budget: bool,
     pub(crate) cumulative_tokens_accounted: Option<i64>,
     pub(crate) cumulative_time_accounted_seconds: Option<i64>,

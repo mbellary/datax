@@ -1,5 +1,5 @@
 use super::*;
-use codex_protocol::AgentPath;
+use datax_protocol::AgentPath;
 use pretty_assertions::assert_eq;
 use std::collections::HashSet;
 

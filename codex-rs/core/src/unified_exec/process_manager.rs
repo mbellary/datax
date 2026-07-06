@@ -53,15 +53,15 @@ use crate::unified_exec::process::OutputBuffer;
 use crate::unified_exec::process::OutputHandles;
 use crate::unified_exec::process::SpawnLifecycleHandle;
 use crate::unified_exec::process::UnifiedExecProcess;
-use codex_network_proxy::NetworkProxy;
-use codex_protocol::config_types::ShellEnvironmentPolicy;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::SandboxErr;
-use codex_protocol::protocol::ExecCommandSource;
-use codex_sandboxing::SandboxCommand;
-use codex_tools::ToolName;
-use codex_utils_output_truncation::approx_token_count;
-use codex_utils_path_uri::PathUri;
+use datax_network_proxy::NetworkProxy;
+use datax_protocol::config_types::ShellEnvironmentPolicy;
+use datax_protocol::error::CodexErr;
+use datax_protocol::error::SandboxErr;
+use datax_protocol::protocol::ExecCommandSource;
+use datax_sandboxing::SandboxCommand;
+use datax_tools::ToolName;
+use datax_utils_output_truncation::approx_token_count;
+use datax_utils_path_uri::PathUri;
 
 const UNIFIED_EXEC_ENV: [(&str, &str); 10] = [
     ("NO_COLOR", "1"),
@@ -107,8 +107,8 @@ fn apply_unified_exec_env(mut env: HashMap<String, String>) -> HashMap<String, S
 
 fn exec_env_policy_from_shell_policy(
     policy: &ShellEnvironmentPolicy,
-) -> codex_exec_server::ExecEnvPolicy {
-    codex_exec_server::ExecEnvPolicy {
+) -> datax_exec_server::ExecEnvPolicy {
+    datax_exec_server::ExecEnvPolicy {
         inherit: policy.inherit.clone(),
         ignore_default_excludes: policy.ignore_default_excludes,
         exclude: policy
@@ -139,7 +139,7 @@ fn env_overlay_for_exec_server(
 fn exec_server_env_for_request(
     request: &ExecRequest,
 ) -> (
-    Option<codex_exec_server::ExecEnvPolicy>,
+    Option<datax_exec_server::ExecEnvPolicy>,
     HashMap<String, String>,
 ) {
     if let Some(exec_server_env_config) = &request.exec_server_env_config {
@@ -156,7 +156,7 @@ fn exec_server_params_for_request(
     process_id: i32,
     request: &ExecRequest,
     tty: bool,
-) -> codex_exec_server::ExecParams {
+) -> datax_exec_server::ExecParams {
     let (env_policy, env) = exec_server_env_for_request(request);
     // Sandbox retries reuse the unified-exec ID but start a distinct executor process.
     let exec_server_process_id = if request.exec_server_sandbox.is_some() {
@@ -164,7 +164,7 @@ fn exec_server_params_for_request(
     } else {
         process_id.to_string()
     };
-    codex_exec_server::ExecParams {
+    datax_exec_server::ExecParams {
         process_id: exec_server_process_id.into(),
         argv: request.command.clone(),
         cwd: request.cwd.clone(),
@@ -907,7 +907,7 @@ impl UnifiedExecProcessManager {
         exec_server_env_config: Option<ExecServerEnvConfig>,
         tty: bool,
         spawn_lifecycle: SpawnLifecycleHandle,
-        environment: &codex_exec_server::Environment,
+        environment: &datax_exec_server::Environment,
     ) -> Result<UnifiedExecProcess, ToolError> {
         let mut request = if environment.is_remote() {
             attempt.env_for_exec_server(command, options, network, environment_id)
@@ -941,12 +941,12 @@ impl UnifiedExecProcessManager {
         request: &ExecRequest,
         tty: bool,
         mut spawn_lifecycle: SpawnLifecycleHandle,
-        environment: &codex_exec_server::Environment,
+        environment: &datax_exec_server::Environment,
     ) -> Result<UnifiedExecProcess, UnifiedExecError> {
         let inherited_fds = spawn_lifecycle.inherited_fds();
 
         #[cfg(target_os = "windows")]
-        if request.sandbox == codex_sandboxing::SandboxType::WindowsRestrictedToken {
+        if request.sandbox == datax_sandboxing::SandboxType::WindowsRestrictedToken {
             // TODO(anp): Keep PathUri through the Windows sandbox launch boundary.
             let native_cwd =
                 request
@@ -983,8 +983,8 @@ impl UnifiedExecProcessManager {
                 .as_ref()
                 .and_then(|overrides| overrides.write_roots_override.clone());
             let spawned = match request.windows_sandbox_level {
-                codex_protocol::config_types::WindowsSandboxLevel::Elevated => {
-                    codex_windows_sandbox::spawn_windows_sandbox_session_elevated_for_permission_profile(
+                datax_protocol::config_types::WindowsSandboxLevel::Elevated => {
+                    datax_windows_sandbox::spawn_windows_sandbox_session_elevated_for_permission_profile(
                         &request.permission_profile,
                         request.windows_sandbox_workspace_roots.as_slice(),
                         codex_home.as_ref(),
@@ -1004,9 +1004,9 @@ impl UnifiedExecProcessManager {
                     )
                     .await
                 }
-                codex_protocol::config_types::WindowsSandboxLevel::RestrictedToken
-                | codex_protocol::config_types::WindowsSandboxLevel::Disabled => {
-                    codex_windows_sandbox::spawn_windows_sandbox_session_legacy(
+                datax_protocol::config_types::WindowsSandboxLevel::RestrictedToken
+                | datax_protocol::config_types::WindowsSandboxLevel::Disabled => {
+                    datax_windows_sandbox::spawn_windows_sandbox_session_legacy(
                         &request.permission_profile,
                         request.windows_sandbox_workspace_roots.as_slice(),
                         codex_home.as_ref(),
@@ -1060,18 +1060,18 @@ impl UnifiedExecProcessManager {
             .split_first()
             .ok_or(UnifiedExecError::MissingCommandLine)?;
         let spawn_result = if tty {
-            codex_utils_pty::pty::spawn_process_with_inherited_fds(
+            datax_utils_pty::pty::spawn_process_with_inherited_fds(
                 program,
                 args,
                 native_cwd.as_path(),
                 &request.env,
                 &request.arg0,
-                codex_utils_pty::TerminalSize::default(),
+                datax_utils_pty::TerminalSize::default(),
                 &inherited_fds,
             )
             .await
         } else {
-            codex_utils_pty::pipe::spawn_process_no_stdin_with_inherited_fds(
+            datax_utils_pty::pipe::spawn_process_no_stdin_with_inherited_fds(
                 program,
                 args,
                 native_cwd.as_path(),

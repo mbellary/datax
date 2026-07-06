@@ -5,6 +5,6 @@
 mod test_backend;
 
 #[allow(unused_imports)]
-use codex_cli as _; // Keep dev-dep for cargo-shear; tests spawn the codex binary.
+use datax_cli as _; // Keep dev-dep for cargo-shear; tests spawn the datax binary.
 
 mod suite;

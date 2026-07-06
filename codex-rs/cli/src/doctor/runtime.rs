@@ -8,8 +8,8 @@
 use std::env;
 use std::process::Command;
 
-use codex_install_context::InstallContext;
-use codex_install_context::InstallMethod;
+use datax_install_context::InstallContext;
+use datax_install_context::InstallMethod;
 
 use super::CheckStatus;
 use super::DoctorCheck;

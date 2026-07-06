@@ -30,18 +30,18 @@ use std::time::Duration;
 
 use anyhow::Result;
 use anyhow::anyhow;
-use codex_config::types::McpServerEnvVar;
-use codex_exec_server::ExecBackend;
-use codex_exec_server::ExecEnvPolicy;
-use codex_exec_server::ExecParams;
-use codex_exec_server::ExecProcess;
-use codex_protocol::config_types::ShellEnvironmentPolicyInherit;
-use codex_utils_path_uri::LegacyAppPathString;
-use codex_utils_path_uri::PathUri;
+use datax_config::types::McpServerEnvVar;
+use datax_exec_server::ExecBackend;
+use datax_exec_server::ExecEnvPolicy;
+use datax_exec_server::ExecParams;
+use datax_exec_server::ExecProcess;
+use datax_protocol::config_types::ShellEnvironmentPolicyInherit;
+use datax_utils_path_uri::LegacyAppPathString;
+use datax_utils_path_uri::PathUri;
 #[cfg(unix)]
-use codex_utils_pty::process_group::kill_process_group;
+use datax_utils_pty::process_group::kill_process_group;
 #[cfg(unix)]
-use codex_utils_pty::process_group::terminate_process_group;
+use datax_utils_pty::process_group::terminate_process_group;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use rmcp::service::RoleClient;
@@ -587,9 +587,9 @@ impl ExecutorStdioServerLauncher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_protocol::config_types::EnvironmentVariablePattern;
-    use codex_protocol::config_types::ShellEnvironmentPolicy;
-    use codex_protocol::shell_environment;
+    use datax_protocol::config_types::EnvironmentVariablePattern;
+    use datax_protocol::config_types::ShellEnvironmentPolicy;
+    use datax_protocol::shell_environment;
 
     #[test]
     fn remote_env_policy_uses_core_env_without_remote_source_vars() {

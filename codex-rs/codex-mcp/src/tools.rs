@@ -9,8 +9,8 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use codex_config::McpServerConfig;
-use codex_protocol::ToolName;
+use datax_config::McpServerConfig;
+use datax_protocol::ToolName;
 use rmcp::model::Tool;
 use serde::Deserialize;
 use serde::Serialize;

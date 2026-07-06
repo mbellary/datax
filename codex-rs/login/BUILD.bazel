@@ -7,5 +7,5 @@ codex_rust_crate(
         "src/assets/success.html",
         "src/assets/success_legacy.html",
     ],
-    crate_name = "codex_login",
+    crate_name = "datax_login",
 )

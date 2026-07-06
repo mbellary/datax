@@ -5,19 +5,19 @@ use std::sync::atomic::Ordering;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
-use codex_analytics::AnalyticsEventsClient;
-use codex_app_server_protocol::ClientResponsePayload;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::Result;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ServerRequestPayload;
-use codex_app_server_protocol::ServerResponse;
-use codex_otel::span_w3c_trace_context;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::W3cTraceContext;
-use codex_protocol::request_permissions::RequestPermissionsResponse;
+use datax_analytics::AnalyticsEventsClient;
+use datax_app_server_protocol::ClientResponsePayload;
+use datax_app_server_protocol::JSONRPCErrorError;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::Result;
+use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::ServerRequest;
+use datax_app_server_protocol::ServerRequestPayload;
+use datax_app_server_protocol::ServerResponse;
+use datax_otel::span_w3c_trace_context;
+use datax_protocol::ThreadId;
+use datax_protocol::protocol::W3cTraceContext;
+use datax_protocol::request_permissions::RequestPermissionsResponse;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
@@ -27,14 +27,14 @@ use tracing::warn;
 
 use crate::error_code::internal_error;
 use crate::server_request_error::TURN_TRANSITION_PENDING_REQUEST_ERROR_REASON;
-pub(crate) use codex_app_server_transport::ConnectionId;
-pub(crate) use codex_app_server_transport::OutgoingError;
-pub(crate) use codex_app_server_transport::OutgoingMessage;
-pub(crate) use codex_app_server_transport::OutgoingResponse;
-pub(crate) use codex_app_server_transport::QueuedOutgoingMessage;
+pub(crate) use datax_app_server_transport::ConnectionId;
+pub(crate) use datax_app_server_transport::OutgoingError;
+pub(crate) use datax_app_server_transport::OutgoingMessage;
+pub(crate) use datax_app_server_transport::OutgoingResponse;
+pub(crate) use datax_app_server_transport::QueuedOutgoingMessage;
 
 #[cfg(test)]
-use codex_protocol::account::PlanType;
+use datax_protocol::account::PlanType;
 
 pub(crate) type ClientRequestResult = std::result::Result<Result, JSONRPCErrorError>;
 
@@ -696,27 +696,27 @@ fn now_unix_timestamp_ms() -> u64 {
 mod tests {
     use std::time::Duration;
 
-    use codex_app_server_protocol::AccountLoginCompletedNotification;
-    use codex_app_server_protocol::AccountRateLimitsUpdatedNotification;
-    use codex_app_server_protocol::AccountUpdatedNotification;
-    use codex_app_server_protocol::ApplyPatchApprovalParams;
-    use codex_app_server_protocol::AuthMode;
-    use codex_app_server_protocol::CommandExecutionApprovalDecision;
-    use codex_app_server_protocol::CommandExecutionRequestApprovalParams;
-    use codex_app_server_protocol::ConfigWarningNotification;
-    use codex_app_server_protocol::DynamicToolCallParams;
-    use codex_app_server_protocol::FileChangeRequestApprovalParams;
-    use codex_app_server_protocol::GuardianWarningNotification;
-    use codex_app_server_protocol::ModelRerouteReason;
-    use codex_app_server_protocol::ModelReroutedNotification;
-    use codex_app_server_protocol::ModelVerification;
-    use codex_app_server_protocol::ModelVerificationNotification;
-    use codex_app_server_protocol::RateLimitSnapshot;
-    use codex_app_server_protocol::RateLimitWindow;
-    use codex_app_server_protocol::ServerResponse;
-    use codex_app_server_protocol::ToolRequestUserInputParams;
-    use codex_app_server_protocol::TurnModerationMetadataNotification;
-    use codex_protocol::ThreadId;
+    use datax_app_server_protocol::AccountLoginCompletedNotification;
+    use datax_app_server_protocol::AccountRateLimitsUpdatedNotification;
+    use datax_app_server_protocol::AccountUpdatedNotification;
+    use datax_app_server_protocol::ApplyPatchApprovalParams;
+    use datax_app_server_protocol::AuthMode;
+    use datax_app_server_protocol::CommandExecutionApprovalDecision;
+    use datax_app_server_protocol::CommandExecutionRequestApprovalParams;
+    use datax_app_server_protocol::ConfigWarningNotification;
+    use datax_app_server_protocol::DynamicToolCallParams;
+    use datax_app_server_protocol::FileChangeRequestApprovalParams;
+    use datax_app_server_protocol::GuardianWarningNotification;
+    use datax_app_server_protocol::ModelRerouteReason;
+    use datax_app_server_protocol::ModelReroutedNotification;
+    use datax_app_server_protocol::ModelVerification;
+    use datax_app_server_protocol::ModelVerificationNotification;
+    use datax_app_server_protocol::RateLimitSnapshot;
+    use datax_app_server_protocol::RateLimitWindow;
+    use datax_app_server_protocol::ServerResponse;
+    use datax_app_server_protocol::ToolRequestUserInputParams;
+    use datax_app_server_protocol::TurnModerationMetadataNotification;
+    use datax_protocol::ThreadId;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::sync::Arc;
@@ -1013,7 +1013,7 @@ mod tests {
     async fn send_response_routes_to_target_connection() {
         let (tx, mut rx) = mpsc::channel::<OutgoingEnvelope>(4);
         let outgoing =
-            OutgoingMessageSender::new(tx, codex_analytics::AnalyticsEventsClient::disabled());
+            OutgoingMessageSender::new(tx, datax_analytics::AnalyticsEventsClient::disabled());
         let request_id = ConnectionRequestId {
             connection_id: ConnectionId(42),
             request_id: RequestId::Integer(7),
@@ -1023,7 +1023,7 @@ mod tests {
             .send_response(
                 request_id.clone(),
                 ClientResponsePayload::ThreadArchive(
-                    codex_app_server_protocol::ThreadArchiveResponse {},
+                    datax_app_server_protocol::ThreadArchiveResponse {},
                 ),
             )
             .await;
@@ -1054,7 +1054,7 @@ mod tests {
     async fn send_response_clears_registered_request_context() {
         let (tx, _rx) = mpsc::channel::<OutgoingEnvelope>(4);
         let outgoing =
-            OutgoingMessageSender::new(tx, codex_analytics::AnalyticsEventsClient::disabled());
+            OutgoingMessageSender::new(tx, datax_analytics::AnalyticsEventsClient::disabled());
         let request_id = ConnectionRequestId {
             connection_id: ConnectionId(42),
             request_id: RequestId::Integer(7),
@@ -1073,7 +1073,7 @@ mod tests {
             .send_response(
                 request_id,
                 ClientResponsePayload::ThreadArchive(
-                    codex_app_server_protocol::ThreadArchiveResponse {},
+                    datax_app_server_protocol::ThreadArchiveResponse {},
                 ),
             )
             .await;
@@ -1085,7 +1085,7 @@ mod tests {
     async fn send_error_routes_to_target_connection() {
         let (tx, mut rx) = mpsc::channel::<OutgoingEnvelope>(4);
         let outgoing =
-            OutgoingMessageSender::new(tx, codex_analytics::AnalyticsEventsClient::disabled());
+            OutgoingMessageSender::new(tx, datax_analytics::AnalyticsEventsClient::disabled());
         let request_id = ConnectionRequestId {
             connection_id: ConnectionId(9),
             request_id: RequestId::Integer(3),
@@ -1120,7 +1120,7 @@ mod tests {
     async fn send_server_notification_to_connection_and_wait_tracks_write_completion() {
         let (tx, mut rx) = mpsc::channel::<OutgoingEnvelope>(4);
         let outgoing =
-            OutgoingMessageSender::new(tx, codex_analytics::AnalyticsEventsClient::disabled());
+            OutgoingMessageSender::new(tx, datax_analytics::AnalyticsEventsClient::disabled());
         let send_task = tokio::spawn(async move {
             outgoing
                 .send_server_notification_to_connection_and_wait(
@@ -1165,7 +1165,7 @@ mod tests {
     async fn connection_closed_clears_registered_request_contexts() {
         let (tx, _rx) = mpsc::channel::<OutgoingEnvelope>(4);
         let outgoing =
-            OutgoingMessageSender::new(tx, codex_analytics::AnalyticsEventsClient::disabled());
+            OutgoingMessageSender::new(tx, datax_analytics::AnalyticsEventsClient::disabled());
         let closed_connection_request = ConnectionRequestId {
             connection_id: ConnectionId(9),
             request_id: RequestId::Integer(3),
@@ -1200,7 +1200,7 @@ mod tests {
     async fn notify_client_error_forwards_error_to_waiter() {
         let (tx, _rx) = mpsc::channel::<OutgoingEnvelope>(4);
         let outgoing =
-            OutgoingMessageSender::new(tx, codex_analytics::AnalyticsEventsClient::disabled());
+            OutgoingMessageSender::new(tx, datax_analytics::AnalyticsEventsClient::disabled());
 
         let (request_id, wait_for_result) = outgoing
             .send_request(ServerRequestPayload::ApplyPatchApproval(
@@ -1232,7 +1232,7 @@ mod tests {
         let (tx, _rx) = mpsc::channel::<OutgoingEnvelope>(8);
         let outgoing = Arc::new(OutgoingMessageSender::new(
             tx,
-            codex_analytics::AnalyticsEventsClient::disabled(),
+            datax_analytics::AnalyticsEventsClient::disabled(),
         ));
         let thread_id = ThreadId::new();
         let thread_outgoing = ThreadScopedOutgoingMessageSender::new(
@@ -1295,7 +1295,7 @@ mod tests {
         let (tx, _rx) = mpsc::channel::<OutgoingEnvelope>(8);
         let outgoing = Arc::new(OutgoingMessageSender::new(
             tx,
-            codex_analytics::AnalyticsEventsClient::disabled(),
+            datax_analytics::AnalyticsEventsClient::disabled(),
         ));
         let thread_id = ThreadId::new();
         let thread_outgoing = ThreadScopedOutgoingMessageSender::new(

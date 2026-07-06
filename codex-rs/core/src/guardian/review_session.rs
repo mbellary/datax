@@ -5,28 +5,28 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::anyhow;
-use codex_analytics::GuardianReviewAnalyticsResult;
-use codex_analytics::GuardianReviewSessionAnalyticsParams;
-use codex_analytics::GuardianReviewSessionKind;
-use codex_extension_api::UserInstructions;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::AutoCompactTokenLimitScope;
-use codex_protocol::config_types::Personality;
-use codex_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::CodexErrorInfo;
-use codex_protocol::protocol::ErrorEvent;
-use codex_protocol::protocol::Event;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::TokenUsage;
+use datax_analytics::GuardianReviewAnalyticsResult;
+use datax_analytics::GuardianReviewSessionAnalyticsParams;
+use datax_analytics::GuardianReviewSessionKind;
+use datax_extension_api::UserInstructions;
+use datax_protocol::ThreadId;
+use datax_protocol::config_types::AutoCompactTokenLimitScope;
+use datax_protocol::config_types::Personality;
+use datax_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::CodexErrorInfo;
+use datax_protocol::protocol::ErrorEvent;
+use datax_protocol::protocol::Event;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::InitialHistory;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::SubAgentSource;
+use datax_protocol::protocol::TokenUsage;
 use futures::future::BoxFuture;
 use serde_json::Value;
 use tokio::sync::Mutex;
@@ -45,10 +45,10 @@ use crate::context::GuardianFollowupReviewReminder;
 use crate::session::Codex;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
-use codex_config::types::McpServerConfig;
-use codex_features::Feature;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_config::types::McpServerConfig;
+use datax_features::Feature;
+use datax_model_provider_info::ModelProviderInfo;
+use datax_utils_absolute_path::AbsolutePathBuf;
 
 use super::GUARDIAN_REVIEWER_NAME;
 use super::GuardianApprovalRequest;
@@ -810,8 +810,8 @@ async fn run_review_on_session(
             final_output_json_schema: Some(params.schema.clone()),
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
-                environments: Some(codex_protocol::protocol::TurnEnvironmentSelections::new(
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
+                environments: Some(datax_protocol::protocol::TurnEnvironmentSelections::new(
                     parent_turn_legacy_fallback_cwd,
                     parent_turn_environments,
                 )),
@@ -820,9 +820,9 @@ async fn run_review_on_session(
                 permission_profile: Some(guardian_permission_profile),
                 summary: Some(params.reasoning_summary),
                 personality: params.personality,
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                    mode: datax_protocol::config_types::ModeKind::Default,
+                    settings: datax_protocol::config_types::Settings {
                         model: params.model.clone(),
                         reasoning_effort: params.reasoning_effort.clone(),
                         developer_instructions: None,
@@ -992,9 +992,9 @@ fn event_matches_turn(event: &Event, expected_turn_id: &str) -> bool {
 
 pub(crate) fn build_guardian_review_session_config(
     parent_config: &Config,
-    live_network_config: Option<codex_network_proxy::NetworkProxyConfig>,
+    live_network_config: Option<datax_network_proxy::NetworkProxyConfig>,
     active_model: &str,
-    reasoning_effort: Option<codex_protocol::openai_models::ReasoningEffort>,
+    reasoning_effort: Option<datax_protocol::openai_models::ReasoningEffort>,
 ) -> anyhow::Result<Config> {
     let mut guardian_config = parent_config.clone();
     guardian_config.model = Some(active_model.to_string());
@@ -1124,12 +1124,12 @@ async fn interrupt_and_drain_turn(codex: &Codex, expected_turn_id: &str) -> anyh
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_protocol::protocol::AgentStatus;
-    use codex_protocol::protocol::ErrorEvent;
-    use codex_protocol::protocol::Submission;
-    use codex_protocol::protocol::TurnAbortReason;
-    use codex_protocol::protocol::TurnAbortedEvent;
-    use codex_protocol::protocol::TurnCompleteEvent;
+    use datax_protocol::protocol::AgentStatus;
+    use datax_protocol::protocol::ErrorEvent;
+    use datax_protocol::protocol::Submission;
+    use datax_protocol::protocol::TurnAbortReason;
+    use datax_protocol::protocol::TurnAbortedEvent;
+    use datax_protocol::protocol::TurnCompleteEvent;
 
     async fn test_review_session() -> (
         GuardianReviewSession,
@@ -1230,7 +1230,7 @@ mod tests {
             schema: super::super::prompt::guardian_output_schema(),
             model,
             reasoning_effort,
-            guardian_default_review_model_id: "codex-auto-review".to_string(),
+            guardian_default_review_model_id: "datax-auto-review".to_string(),
             guardian_catalog_contains_auto_review: true,
             guardian_review_model_overridden: false,
             guardian_review_model_override: None,

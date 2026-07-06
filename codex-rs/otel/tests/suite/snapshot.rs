@@ -1,12 +1,12 @@
 use crate::harness::attributes_to_map;
 use crate::harness::find_metric;
-use codex_otel::MetricsClient;
-use codex_otel::MetricsConfig;
-use codex_otel::Result;
-use codex_otel::SessionTelemetry;
-use codex_otel::TelemetryAuthMode;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::SessionSource;
+use datax_otel::MetricsClient;
+use datax_otel::MetricsConfig;
+use datax_otel::Result;
+use datax_otel::SessionTelemetry;
+use datax_otel::TelemetryAuthMode;
+use datax_protocol::ThreadId;
+use datax_protocol::protocol::SessionSource;
 use opentelemetry_sdk::metrics::InMemoryMetricExporter;
 use opentelemetry_sdk::metrics::data::AggregatedMetrics;
 use opentelemetry_sdk::metrics::data::MetricData;
@@ -18,11 +18,11 @@ fn snapshot_collects_metrics_without_shutdown() -> Result<()> {
     let exporter = InMemoryMetricExporter::default();
     let config = MetricsConfig::in_memory(
         "test",
-        "codex-cli",
+        "datax-cli",
         env!("CARGO_PKG_VERSION"),
         exporter.clone(),
     )
-    .with_tag("service", "codex-cli")?
+    .with_tag("service", "datax-cli")?
     .with_runtime_reader();
     let metrics = MetricsClient::new(config)?;
 
@@ -48,7 +48,7 @@ fn snapshot_collects_metrics_without_shutdown() -> Result<()> {
     };
 
     let expected = BTreeMap::from([
-        ("service".to_string(), "codex-cli".to_string()),
+        ("service".to_string(), "datax-cli".to_string()),
         ("success".to_string(), "true".to_string()),
         ("tool".to_string(), "shell".to_string()),
     ]);
@@ -65,8 +65,8 @@ fn snapshot_collects_metrics_without_shutdown() -> Result<()> {
 #[test]
 fn manager_snapshot_metrics_collects_without_shutdown() -> Result<()> {
     let exporter = InMemoryMetricExporter::default();
-    let config = MetricsConfig::in_memory("test", "codex-cli", env!("CARGO_PKG_VERSION"), exporter)
-        .with_tag("service", "codex-cli")?
+    let config = MetricsConfig::in_memory("test", "datax-cli", env!("CARGO_PKG_VERSION"), exporter)
+        .with_tag("service", "datax-cli")?
         .with_runtime_reader();
     let metrics = MetricsClient::new(config)?;
     let manager = SessionTelemetry::new(
@@ -114,7 +114,7 @@ fn manager_snapshot_metrics_collects_without_shutdown() -> Result<()> {
         ),
         ("model".to_string(), "gpt-5.1".to_string()),
         ("originator".to_string(), "test_originator".to_string()),
-        ("service".to_string(), "codex-cli".to_string()),
+        ("service".to_string(), "datax-cli".to_string()),
         ("session_source".to_string(), "cli".to_string()),
         ("success".to_string(), "true".to_string()),
         ("tool".to_string(), "shell".to_string()),

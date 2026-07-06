@@ -112,7 +112,7 @@ fn codex_new_thread_url(workspace: &Path) -> String {
 
 async fn download_and_install_codex_to_user_applications(dmg_url: &str) -> anyhow::Result<PathBuf> {
     let temp_dir = Builder::new()
-        .prefix("codex-app-installer-")
+        .prefix("datax-app-installer-")
         .tempdir()
         .context("failed to create temp dir")?;
     let tmp_root = temp_dir.path().to_path_buf();

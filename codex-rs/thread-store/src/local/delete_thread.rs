@@ -7,11 +7,11 @@
 use std::io::ErrorKind;
 use std::path::Path;
 
-use codex_rollout::ARCHIVED_SESSIONS_SUBDIR;
-use codex_rollout::SESSIONS_SUBDIR;
-use codex_rollout::find_archived_thread_path_by_id_str;
-use codex_rollout::find_thread_path_by_id_str;
-use codex_rollout::remove_thread_name_entries;
+use datax_rollout::ARCHIVED_SESSIONS_SUBDIR;
+use datax_rollout::SESSIONS_SUBDIR;
+use datax_rollout::find_archived_thread_path_by_id_str;
+use datax_rollout::find_thread_path_by_id_str;
+use datax_rollout::remove_thread_name_entries;
 
 use super::LocalThreadStore;
 use super::helpers::matching_rollout_file_name;
@@ -87,9 +87,9 @@ pub(super) async fn delete_thread(
 fn delete_rollout_file(
     store: &LocalThreadStore,
     rollout_path: &Path,
-    thread_id: codex_protocol::ThreadId,
+    thread_id: datax_protocol::ThreadId,
 ) -> ThreadStoreResult<bool> {
-    let plain_path = codex_rollout::plain_rollout_path(rollout_path);
+    let plain_path = datax_rollout::plain_rollout_path(rollout_path);
     let compressed_path = plain_path.with_extension("jsonl.zst");
     let deleted_plain = delete_rollout_path(store, plain_path.as_path(), thread_id)?;
     let deleted_compressed = delete_rollout_path(store, compressed_path.as_path(), thread_id)?;
@@ -99,7 +99,7 @@ fn delete_rollout_file(
 fn delete_rollout_path(
     store: &LocalThreadStore,
     rollout_path: &Path,
-    thread_id: codex_protocol::ThreadId,
+    thread_id: datax_protocol::ThreadId,
 ) -> ThreadStoreResult<bool> {
     let canonical_rollout_path = scoped_rollout_path(
         store.config.codex_home.join(SESSIONS_SUBDIR),
@@ -132,7 +132,7 @@ fn delete_rollout_path(
 
 #[cfg(test)]
 mod tests {
-    use codex_protocol::ThreadId;
+    use datax_protocol::ThreadId;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use uuid::Uuid;

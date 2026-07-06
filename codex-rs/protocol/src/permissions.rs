@@ -4,9 +4,9 @@ use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::canonicalize_preserving_symlinks;
-use codex_utils_path_uri::PathUri;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_absolute_path::canonicalize_preserving_symlinks;
+use datax_utils_path_uri::PathUri;
 use globset::GlobBuilder;
 use globset::GlobMatcher;
 use schemars::JsonSchema;
@@ -399,7 +399,7 @@ impl TryFrom<FileSystemPath<PathUri>> for FileSystemPath<AbsolutePathBuf> {
     }
 }
 
-const PROJECT_ROOTS_GLOB_PATTERN_PREFIX: &str = "codex-project-roots://";
+const PROJECT_ROOTS_GLOB_PATTERN_PREFIX: &str = "datax-project-roots://";
 
 pub fn project_roots_glob_pattern(subpath: &Path) -> String {
     format!("{PROJECT_ROOTS_GLOB_PATTERN_PREFIX}{}", subpath.display())

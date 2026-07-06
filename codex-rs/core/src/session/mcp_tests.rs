@@ -103,8 +103,8 @@ fn plugin_install_elicitation_telemetry_metadata_requires_install_tool_suggestio
     let event = EventMsg::ElicitationRequest(ElicitationRequestEvent {
         turn_id: Some("turn-1".to_string()),
         server_name: "codex_apps".to_string(),
-        id: codex_protocol::mcp::RequestId::String("request-1".to_string()),
-        request: codex_protocol::approvals::ElicitationRequest::Form {
+        id: datax_protocol::mcp::RequestId::String("request-1".to_string()),
+        request: datax_protocol::approvals::ElicitationRequest::Form {
             meta: Some(json!({
                 "codex_approval_kind": "tool_suggestion",
                 "suggest_type": "install",
@@ -132,8 +132,8 @@ fn plugin_install_elicitation_telemetry_metadata_requires_install_tool_suggestio
     let enable_event = EventMsg::ElicitationRequest(ElicitationRequestEvent {
         turn_id: Some("turn-1".to_string()),
         server_name: "codex_apps".to_string(),
-        id: codex_protocol::mcp::RequestId::String("request-2".to_string()),
-        request: codex_protocol::approvals::ElicitationRequest::Form {
+        id: datax_protocol::mcp::RequestId::String("request-2".to_string()),
+        request: datax_protocol::approvals::ElicitationRequest::Form {
             meta: Some(json!({
                 "codex_approval_kind": "tool_suggestion",
                 "suggest_type": "enable",

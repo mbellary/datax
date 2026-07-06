@@ -10,21 +10,21 @@ use crate::tools::registry::CoreToolRuntime;
 use crate::tools::registry::ToolExecutor;
 use crate::tools::registry::ToolExposure;
 use crate::turn_timing::now_unix_timestamp_ms;
-use codex_protocol::dynamic_tools::DynamicToolCallRequest;
-use codex_protocol::dynamic_tools::DynamicToolFunctionSpec;
-use codex_protocol::dynamic_tools::DynamicToolNamespaceSpec;
-use codex_protocol::dynamic_tools::DynamicToolResponse;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::protocol::DynamicToolCallResponseEvent;
-use codex_protocol::protocol::EventMsg;
-use codex_tools::ResponsesApiNamespace;
-use codex_tools::ResponsesApiNamespaceTool;
-use codex_tools::ToolName;
-use codex_tools::ToolSearchInfo;
-use codex_tools::ToolSearchSourceInfo;
-use codex_tools::ToolSpec;
-use codex_tools::default_namespace_description;
-use codex_tools::dynamic_tool_to_responses_api_tool;
+use datax_protocol::dynamic_tools::DynamicToolCallRequest;
+use datax_protocol::dynamic_tools::DynamicToolFunctionSpec;
+use datax_protocol::dynamic_tools::DynamicToolNamespaceSpec;
+use datax_protocol::dynamic_tools::DynamicToolResponse;
+use datax_protocol::models::FunctionCallOutputContentItem;
+use datax_protocol::protocol::DynamicToolCallResponseEvent;
+use datax_protocol::protocol::EventMsg;
+use datax_tools::ResponsesApiNamespace;
+use datax_tools::ResponsesApiNamespaceTool;
+use datax_tools::ToolName;
+use datax_tools::ToolSearchInfo;
+use datax_tools::ToolSearchSourceInfo;
+use datax_tools::ToolSpec;
+use datax_tools::default_namespace_description;
+use datax_tools::dynamic_tool_to_responses_api_tool;
 use serde_json::Value;
 use std::time::Instant;
 use tokio::sync::oneshot;
@@ -106,7 +106,7 @@ impl ToolExecutor<ToolInvocation> for DynamicToolHandler {
         )
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> datax_tools::ToolExecutorFuture<'_> {
         Box::pin(self.handle_call(invocation))
     }
 }

@@ -3,7 +3,7 @@ use std::time::Duration;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 
-use codex_app_server_transport::REMOTE_CONTROL_DISABLED_ENV_VAR;
+use datax_app_server_transport::REMOTE_CONTROL_DISABLED_ENV_VAR;
 
 use super::PidBackend;
 use super::PidCommandKind;

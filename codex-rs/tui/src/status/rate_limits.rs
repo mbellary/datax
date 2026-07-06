@@ -14,11 +14,11 @@ use chrono::DateTime;
 use chrono::Duration as ChronoDuration;
 use chrono::Local;
 use chrono::Utc;
-use codex_app_server_protocol::CreditsSnapshot as CoreCreditsSnapshot;
-use codex_app_server_protocol::RateLimitSnapshot;
-use codex_app_server_protocol::RateLimitWindow;
-use codex_app_server_protocol::SpendControlLimitSnapshot as CoreSpendControlLimitSnapshot;
-use codex_protocol::num_format::format_with_separators;
+use datax_app_server_protocol::CreditsSnapshot as CoreCreditsSnapshot;
+use datax_app_server_protocol::RateLimitSnapshot;
+use datax_app_server_protocol::RateLimitWindow;
+use datax_app_server_protocol::SpendControlLimitSnapshot as CoreSpendControlLimitSnapshot;
+use datax_protocol::num_format::format_with_separators;
 
 const STATUS_LIMIT_BAR_SEGMENTS: usize = 20;
 const STATUS_LIMIT_BAR_FILLED: &str = "█";
@@ -443,7 +443,7 @@ mod tests {
             individual_limit: None,
         };
         let other = RateLimitSnapshotDisplay {
-            limit_name: "codex-other".to_string(),
+            limit_name: "datax-other".to_string(),
             captured_at: now,
             primary: Some(window(/*used_percent*/ 20.0)),
             secondary: None,
@@ -466,7 +466,7 @@ mod tests {
             vec![
                 "5h limit".to_string(),
                 "Credits".to_string(),
-                "codex-other 5h limit".to_string(),
+                "datax-other 5h limit".to_string(),
                 "Credits".to_string(),
             ]
         );
@@ -477,7 +477,7 @@ mod tests {
     fn non_codex_multi_limit_keeps_group_row() {
         let now = Local::now();
         let other = RateLimitSnapshotDisplay {
-            limit_name: "codex-other".to_string(),
+            limit_name: "datax-other".to_string(),
             captured_at: now,
             primary: Some(RateLimitWindowDisplay {
                 used_percent: 20.0,
@@ -501,7 +501,7 @@ mod tests {
         assert_eq!(
             labels,
             vec![
-                "codex-other limit".to_string(),
+                "datax-other limit".to_string(),
                 "Usage limit".to_string(),
                 "Secondary usage limit".to_string(),
             ]

@@ -1,7 +1,7 @@
 use super::*;
 use assert_matches::assert_matches;
-use codex_config::types::ModelAvailabilityNuxConfig;
-use codex_protocol::openai_models::ModelAvailabilityNux;
+use datax_config::types::ModelAvailabilityNuxConfig;
+use datax_protocol::openai_models::ModelAvailabilityNux;
 use pretty_assertions::assert_eq;
 use tokio::sync::mpsc::unbounded_channel;
 

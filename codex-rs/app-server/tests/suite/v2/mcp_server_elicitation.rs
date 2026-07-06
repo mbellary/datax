@@ -14,31 +14,31 @@ use axum::http::StatusCode;
 use axum::http::Uri;
 use axum::http::header::AUTHORIZATION;
 use axum::routing::get;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::InitializeCapabilities;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::McpElicitationSchema;
-use codex_app_server_protocol::McpServerElicitationAction;
-use codex_app_server_protocol::McpServerElicitationRequest;
-use codex_app_server_protocol::McpServerElicitationRequestParams;
-use codex_app_server_protocol::McpServerElicitationRequestResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ServerRequestResolvedNotification;
-use codex_app_server_protocol::ThreadResumeParams;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnCompletedNotification;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_config::types::AuthCredentialsStoreMode;
 use core_test_support::assert_regex_match;
 use core_test_support::responses;
 use core_test_support::responses::ResponseMock;
+use datax_app_server_protocol::ClientInfo;
+use datax_app_server_protocol::InitializeCapabilities;
+use datax_app_server_protocol::InitializeParams;
+use datax_app_server_protocol::JSONRPCMessage;
+use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::McpElicitationSchema;
+use datax_app_server_protocol::McpServerElicitationAction;
+use datax_app_server_protocol::McpServerElicitationRequest;
+use datax_app_server_protocol::McpServerElicitationRequestParams;
+use datax_app_server_protocol::McpServerElicitationRequestResponse;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::ServerRequest;
+use datax_app_server_protocol::ServerRequestResolvedNotification;
+use datax_app_server_protocol::ThreadResumeParams;
+use datax_app_server_protocol::ThreadStartParams;
+use datax_app_server_protocol::ThreadStartResponse;
+use datax_app_server_protocol::TurnCompletedNotification;
+use datax_app_server_protocol::TurnStartParams;
+use datax_app_server_protocol::TurnStartResponse;
+use datax_app_server_protocol::TurnStatus;
+use datax_app_server_protocol::UserInput as V2UserInput;
+use datax_config::types::AuthCredentialsStoreMode;
 use pretty_assertions::assert_eq;
 use rmcp::handler::server::ServerHandler;
 use rmcp::model::BooleanSchema;
@@ -427,7 +427,7 @@ impl ElicitationRoundTripFixture {
             DEFAULT_READ_TIMEOUT,
             mcp.initialize_with_capabilities(
                 ClientInfo {
-                    name: "codex-app-server-tests".to_string(),
+                    name: "datax-app-server-tests".to_string(),
                     title: None,
                     version: "0.1.0".to_string(),
                 },

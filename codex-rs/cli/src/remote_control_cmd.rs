@@ -3,21 +3,21 @@ use std::time::Duration;
 
 use anyhow::Context;
 use clap::Args;
-use codex_app_server::AppServerRuntimeOptions;
-use codex_app_server::AppServerTransport;
-use codex_app_server::AppServerWebsocketAuthSettings;
-use codex_app_server_daemon::LifecycleCommand as AppServerLifecycleCommand;
-use codex_app_server_daemon::LifecycleOutput as AppServerLifecycleOutput;
-use codex_app_server_daemon::LifecycleStatus as AppServerLifecycleStatus;
-use codex_app_server_daemon::RemoteControlReadyOutput as AppServerRemoteControlReadyOutput;
-use codex_app_server_daemon::RemoteControlReadyStatus as AppServerRemoteControlReadyStatus;
-use codex_app_server_daemon::RemoteControlStartOutput as AppServerRemoteControlStartOutput;
-use codex_app_server_protocol::RemoteControlConnectionStatus;
-use codex_arg0::Arg0DispatchPaths;
-use codex_config::LoaderOverrides;
-use codex_protocol::protocol::SessionSource;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_cli::CliConfigOverrides;
+use datax_app_server::AppServerRuntimeOptions;
+use datax_app_server::AppServerTransport;
+use datax_app_server::AppServerWebsocketAuthSettings;
+use datax_app_server_daemon::LifecycleCommand as AppServerLifecycleCommand;
+use datax_app_server_daemon::LifecycleOutput as AppServerLifecycleOutput;
+use datax_app_server_daemon::LifecycleStatus as AppServerLifecycleStatus;
+use datax_app_server_daemon::RemoteControlReadyOutput as AppServerRemoteControlReadyOutput;
+use datax_app_server_daemon::RemoteControlReadyStatus as AppServerRemoteControlReadyStatus;
+use datax_app_server_daemon::RemoteControlStartOutput as AppServerRemoteControlStartOutput;
+use datax_app_server_protocol::RemoteControlConnectionStatus;
+use datax_arg0::Arg0DispatchPaths;
+use datax_config::LoaderOverrides;
+use datax_protocol::protocol::SessionSource;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_cli::CliConfigOverrides;
 use serde::Serialize;
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
@@ -74,12 +74,12 @@ pub(crate) async fn run(
                 command.json,
                 "Starting app-server daemon with remote control enabled...",
             )?;
-            let output = codex_app_server_daemon::ensure_remote_control_ready().await?;
+            let output = datax_app_server_daemon::ensure_remote_control_ready().await?;
             print_remote_control_start_output(&output, command.json)?;
         }
         Some(RemoteControlSubcommand::Stop) => {
             print_remote_control_progress(command.json, "Stopping remote control...")?;
-            let output = codex_app_server_daemon::run(AppServerLifecycleCommand::Stop).await?;
+            let output = datax_app_server_daemon::run(AppServerLifecycleCommand::Stop).await?;
             print_remote_control_stop_output(&output, command.json)?;
         }
     }
@@ -104,7 +104,7 @@ async fn run_foreground_remote_control(
     root_config_overrides: CliConfigOverrides,
 ) -> anyhow::Result<()> {
     let socket_dir = tempfile::Builder::new()
-        .prefix("codex-rc-")
+        .prefix("datax-rc-")
         .tempdir_in("/tmp")
         .or_else(|_| tempfile::tempdir())
         .context("failed to create private app-server socket directory")?;
@@ -115,12 +115,12 @@ async fn run_foreground_remote_control(
         socket_path: socket_path.clone(),
     };
     let runtime_options = AppServerRuntimeOptions {
-        remote_control_startup_mode: codex_app_server::RemoteControlStartupMode::EnabledEphemeral,
+        remote_control_startup_mode: datax_app_server::RemoteControlStartupMode::EnabledEphemeral,
         install_shutdown_signal_handler: false,
         ..Default::default()
     };
     let (stop_rx, stop_signal_task) = foreground_stop_signal();
-    let mut app_server_task = tokio::spawn(codex_app_server::run_main_with_transport_options(
+    let mut app_server_task = tokio::spawn(datax_app_server::run_main_with_transport_options(
         arg0_paths,
         root_config_overrides,
         LoaderOverrides::default(),
@@ -259,7 +259,7 @@ async fn abort_foreground_app_server(app_server_task: JoinHandle<std::io::Result
 async fn wait_for_foreground_remote_control_ready(
     socket_path: AbsolutePathBuf,
 ) -> anyhow::Result<AppServerRemoteControlReadyStatus> {
-    codex_app_server_daemon::enable_remote_control_on_socket(
+    datax_app_server_daemon::enable_remote_control_on_socket(
         socket_path.as_path(),
         FOREGROUND_SOCKET_CONNECT_TIMEOUT,
         FOREGROUND_SOCKET_CONNECT_RETRY_DELAY,

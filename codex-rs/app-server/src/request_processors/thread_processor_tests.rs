@@ -1,7 +1,7 @@
 mod thread_list_cwd_filter_tests {
     use super::super::normalize_thread_list_cwd_filters;
-    use codex_app_server_protocol::ThreadListCwdFilter;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use datax_app_server_protocol::ThreadListCwdFilter;
+    use datax_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
 
@@ -38,8 +38,8 @@ mod thread_list_cwd_filter_tests {
 
 mod background_terminal_pagination_tests {
     use super::super::paginate_background_terminals;
-    use codex_app_server_protocol::ThreadBackgroundTerminal;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use datax_app_server_protocol::ThreadBackgroundTerminal;
+    use datax_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
 
     fn terminal(process_id: &str) -> ThreadBackgroundTerminal {
@@ -97,7 +97,7 @@ mod background_terminal_pagination_tests {
 
 mod thread_processor_behavior_tests {
     async fn forked_from_id_from_rollout(path: &Path) -> Option<String> {
-        codex_core::read_session_meta_line(path)
+        datax_core::read_session_meta_line(path)
             .await
             .ok()
             .and_then(|meta_line| meta_line.meta.forked_from_id)
@@ -110,37 +110,37 @@ mod thread_processor_behavior_tests {
     use anyhow::Result;
     use chrono::DateTime;
     use chrono::Utc;
-    use codex_app_server_protocol::ServerRequestPayload;
-    use codex_app_server_protocol::ThreadItem;
-    use codex_app_server_protocol::ToolRequestUserInputParams;
-    use codex_config::CloudConfigBundleLoader;
-    use codex_config::LoaderOverrides;
-    use codex_config::SessionThreadConfig;
-    use codex_config::StaticThreadConfigLoader;
-    use codex_config::ThreadConfigSource;
-    use codex_model_provider_info::ModelProviderInfo;
-    use codex_model_provider_info::WireApi;
-    use codex_protocol::ThreadId;
-    use codex_protocol::config_types::CollaborationMode;
-    use codex_protocol::config_types::ModeKind;
-    use codex_protocol::config_types::Settings;
-    use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_DANGER_FULL_ACCESS;
-    use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY;
-    use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
-    use codex_protocol::models::PermissionProfile;
-    use codex_protocol::openai_models::ReasoningEffort;
-    use codex_protocol::permissions::FileSystemAccessMode;
-    use codex_protocol::permissions::FileSystemPath;
-    use codex_protocol::permissions::FileSystemSandboxEntry;
-    use codex_protocol::permissions::NetworkSandboxPolicy;
-    use codex_protocol::protocol::AskForApproval;
-    use codex_protocol::protocol::SessionSource;
-    use codex_protocol::protocol::SubAgentSource;
-    use codex_protocol::protocol::TurnEnvironmentSelections;
-    use codex_state::ThreadMetadataBuilder;
-    use codex_thread_store::StoredThread;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use datax_app_server_protocol::ServerRequestPayload;
+    use datax_app_server_protocol::ThreadItem;
+    use datax_app_server_protocol::ToolRequestUserInputParams;
+    use datax_config::CloudConfigBundleLoader;
+    use datax_config::LoaderOverrides;
+    use datax_config::SessionThreadConfig;
+    use datax_config::StaticThreadConfigLoader;
+    use datax_config::ThreadConfigSource;
+    use datax_model_provider_info::ModelProviderInfo;
+    use datax_model_provider_info::WireApi;
+    use datax_protocol::ThreadId;
+    use datax_protocol::config_types::CollaborationMode;
+    use datax_protocol::config_types::ModeKind;
+    use datax_protocol::config_types::Settings;
+    use datax_protocol::models::BUILT_IN_PERMISSION_PROFILE_DANGER_FULL_ACCESS;
+    use datax_protocol::models::BUILT_IN_PERMISSION_PROFILE_READ_ONLY;
+    use datax_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
+    use datax_protocol::models::PermissionProfile;
+    use datax_protocol::openai_models::ReasoningEffort;
+    use datax_protocol::permissions::FileSystemAccessMode;
+    use datax_protocol::permissions::FileSystemPath;
+    use datax_protocol::permissions::FileSystemSandboxEntry;
+    use datax_protocol::permissions::NetworkSandboxPolicy;
+    use datax_protocol::protocol::AskForApproval;
+    use datax_protocol::protocol::SessionSource;
+    use datax_protocol::protocol::SubAgentSource;
+    use datax_protocol::protocol::TurnEnvironmentSelections;
+    use datax_state::ThreadMetadataBuilder;
+    use datax_thread_store::StoredThread;
+    use datax_utils_absolute_path::test_support::PathBufExt;
+    use datax_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
     use serde_json::Value;
     use serde_json::json;
@@ -163,7 +163,7 @@ mod thread_processor_behavior_tests {
         };
         match namespace {
             Some(namespace) => {
-                DynamicToolSpec::Namespace(codex_app_server_protocol::DynamicToolNamespaceSpec {
+                DynamicToolSpec::Namespace(datax_app_server_protocol::DynamicToolNamespaceSpec {
                     name: namespace.to_string(),
                     description: "test namespace".to_string(),
                     tools: vec![DynamicToolNamespaceTool::Function(function)],
@@ -270,7 +270,7 @@ mod thread_processor_behavior_tests {
             defer_loading: true,
         };
         let tools = vec![DynamicToolSpec::Namespace(
-            codex_app_server_protocol::DynamicToolNamespaceSpec {
+            datax_app_server_protocol::DynamicToolNamespaceSpec {
                 name: "codex_app".to_string(),
                 description: "test namespace".to_string(),
                 tools: vec![
@@ -287,7 +287,7 @@ mod thread_processor_behavior_tests {
     #[test]
     fn thread_turns_list_merges_in_progress_active_turn_before_agent_status_running() {
         let persisted_items = vec![RolloutItem::EventMsg(EventMsg::UserMessage(
-            codex_protocol::protocol::UserMessageEvent {
+            datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "persisted".to_string(),
                 images: None,
@@ -483,7 +483,7 @@ mod thread_processor_behavior_tests {
             cwd: PathBuf::from("/tmp"),
             cli_version: "0.0.0".to_string(),
             source: SessionSource::Cli,
-            thread_source: Some(codex_protocol::protocol::ThreadSource::User),
+            thread_source: Some(datax_protocol::protocol::ThreadSource::User),
             agent_nickname: None,
             agent_role: None,
             agent_path: None,
@@ -510,11 +510,11 @@ mod thread_processor_behavior_tests {
     #[test]
     fn requested_permissions_trust_project_uses_permission_profile_intent() {
         let cwd = test_path_buf("/tmp/project").abs();
-        let full_access_profile = codex_protocol::models::PermissionProfile::Disabled;
-        let workspace_write_profile = codex_protocol::models::PermissionProfile::workspace_write();
-        let read_only_profile = codex_protocol::models::PermissionProfile::read_only();
+        let full_access_profile = datax_protocol::models::PermissionProfile::Disabled;
+        let workspace_write_profile = datax_protocol::models::PermissionProfile::workspace_write();
+        let read_only_profile = datax_protocol::models::PermissionProfile::read_only();
         let split_write_profile =
-            codex_protocol::models::PermissionProfile::from_runtime_permissions(
+            datax_protocol::models::PermissionProfile::from_runtime_permissions(
                 &FileSystemSandboxPolicy::restricted(vec![
                     FileSystemSandboxEntry {
                         path: FileSystemPath::Path { path: cwd.clone() },
@@ -757,9 +757,9 @@ mod thread_processor_behavior_tests {
             model: "gpt-5".to_string(),
             model_provider_id: "openai".to_string(),
             service_tier: Some("flex".to_string()),
-            approval_policy: codex_protocol::protocol::AskForApproval::OnRequest,
-            approvals_reviewer: codex_protocol::config_types::ApprovalsReviewer::User,
-            permission_profile: codex_protocol::models::PermissionProfile::Disabled,
+            approval_policy: datax_protocol::protocol::AskForApproval::OnRequest,
+            approvals_reviewer: datax_protocol::config_types::ApprovalsReviewer::User,
+            permission_profile: datax_protocol::models::PermissionProfile::Disabled,
             active_permission_profile: None,
             environments: TurnEnvironmentSelections::new(cwd, Vec::new()),
             workspace_roots: Vec::new(),
@@ -797,7 +797,7 @@ mod thread_processor_behavior_tests {
             thread_id,
             PathBuf::from("/tmp/rollout.jsonl"),
             Utc::now(),
-            codex_protocol::protocol::SessionSource::default(),
+            datax_protocol::protocol::SessionSource::default(),
         );
         builder.model_provider = Some("mock_provider".to_string());
         let mut metadata = builder.build("mock_provider");
@@ -990,9 +990,9 @@ mod thread_processor_behavior_tests {
 
     #[tokio::test]
     async fn read_summary_from_rollout_returns_empty_preview_when_no_user_message() -> Result<()> {
-        use codex_protocol::protocol::RolloutItem;
-        use codex_protocol::protocol::RolloutLine;
-        use codex_protocol::protocol::SessionMetaLine;
+        use datax_protocol::protocol::RolloutItem;
+        use datax_protocol::protocol::RolloutLine;
+        use datax_protocol::protocol::SessionMetaLine;
         use std::fs;
         use std::fs::FileTimes;
 
@@ -1047,9 +1047,9 @@ mod thread_processor_behavior_tests {
 
     #[tokio::test]
     async fn read_summary_from_rollout_preserves_agent_nickname() -> Result<()> {
-        use codex_protocol::protocol::RolloutItem;
-        use codex_protocol::protocol::RolloutLine;
-        use codex_protocol::protocol::SessionMetaLine;
+        use datax_protocol::protocol::RolloutItem;
+        use datax_protocol::protocol::RolloutLine;
+        use datax_protocol::protocol::SessionMetaLine;
         use std::fs;
 
         let temp_dir = TempDir::new()?;
@@ -1070,7 +1070,7 @@ mod thread_processor_behavior_tests {
                 agent_nickname: None,
                 agent_role: None,
             }),
-            thread_source: Some(codex_protocol::protocol::ThreadSource::Subagent),
+            thread_source: Some(datax_protocol::protocol::ThreadSource::Subagent),
             agent_nickname: Some("atlas".to_string()),
             agent_role: Some("explorer".to_string()),
             model_provider: Some("test-provider".to_string()),
@@ -1098,9 +1098,9 @@ mod thread_processor_behavior_tests {
 
     #[tokio::test]
     async fn read_summary_from_rollout_preserves_forked_from_id() -> Result<()> {
-        use codex_protocol::protocol::RolloutItem;
-        use codex_protocol::protocol::RolloutLine;
-        use codex_protocol::protocol::SessionMetaLine;
+        use datax_protocol::protocol::RolloutItem;
+        use datax_protocol::protocol::RolloutLine;
+        use datax_protocol::protocol::SessionMetaLine;
         use std::fs;
 
         let temp_dir = TempDir::new()?;
@@ -1143,7 +1143,7 @@ mod thread_processor_behavior_tests {
         let (outgoing_tx, mut outgoing_rx) = tokio::sync::mpsc::channel(8);
         let outgoing = Arc::new(OutgoingMessageSender::new(
             outgoing_tx,
-            codex_analytics::AnalyticsEventsClient::disabled(),
+            datax_analytics::AnalyticsEventsClient::disabled(),
         ));
         let thread_outgoing = ThreadScopedOutgoingMessageSender::new(
             outgoing.clone(),
@@ -1222,7 +1222,7 @@ mod thread_processor_behavior_tests {
             PathBuf::from("/"),
             "0.0.0".to_string(),
             source,
-            Some(codex_protocol::protocol::ThreadSource::Subagent),
+            Some(datax_protocol::protocol::ThreadSource::Subagent),
             Some("atlas".to_string()),
             Some("explorer".to_string()),
             /*git_sha*/ None,
@@ -1260,7 +1260,7 @@ mod thread_processor_behavior_tests {
             state.cancel_tx = Some(cancel_tx);
             state.track_current_turn_event(
                 "turn-1",
-                &EventMsg::TurnStarted(codex_protocol::protocol::TurnStartedEvent {
+                &EventMsg::TurnStarted(datax_protocol::protocol::TurnStartedEvent {
                     turn_id: "turn-1".to_string(),
                     trace_id: None,
                     started_at: None,

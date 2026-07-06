@@ -1,8 +1,8 @@
 use std::path::Path;
 
-use codex_arg0::Arg0DispatchPaths;
-use codex_arg0::Arg0PathEntryGuard;
-use codex_arg0::arg0_dispatch;
+use datax_arg0::Arg0DispatchPaths;
+use datax_arg0::Arg0PathEntryGuard;
+use datax_arg0::arg0_dispatch;
 use tempfile::TempDir;
 
 pub struct TestBinaryDispatchGuard {

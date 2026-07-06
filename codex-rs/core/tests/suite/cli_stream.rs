@@ -1,10 +1,10 @@
-use codex_git_utils::collect_git_info;
-use codex_login::CODEX_ACCESS_TOKEN_ENV_VAR;
-use codex_login::CODEX_API_KEY_ENV_VAR;
-use codex_protocol::protocol::GitInfo;
 use core_test_support::fs_wait;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
+use datax_git_utils::collect_git_info;
+use datax_login::CODEX_ACCESS_TOKEN_ENV_VAR;
+use datax_login::CODEX_API_KEY_ENV_VAR;
+use datax_protocol::protocol::GitInfo;
 use pretty_assertions::assert_eq;
 use std::io;
 #[cfg(unix)]
@@ -32,7 +32,7 @@ const CLOUD_CONFIG_BUNDLE_PATH: &str = "/backend-api/wham/config/bundle";
 const CLI_TIMEOUT: Duration = Duration::from_secs(30);
 
 fn repo_root() -> std::path::PathBuf {
-    codex_utils_cargo_bin::repo_root().expect("failed to resolve repo root")
+    datax_utils_cargo_bin::repo_root().expect("failed to resolve repo root")
 }
 
 fn cli_sse_response() -> String {
@@ -68,7 +68,7 @@ async fn mount_personal_access_token_startup(server: &MockServer) {
 
 #[expect(clippy::unwrap_used)]
 fn personal_access_token_exec_command(server: &MockServer, home: &TempDir) -> Command {
-    let bin = codex_utils_cargo_bin::cargo_bin("codex").unwrap();
+    let bin = datax_utils_cargo_bin::cargo_bin("codex").unwrap();
     let mut cmd = Command::new(bin);
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
@@ -93,7 +93,7 @@ impl Drop for ChildProcessCleanupGuard {
     fn drop(&mut self) {
         #[cfg(unix)]
         {
-            let _ = codex_utils_pty::process_group::kill_process_group(self.0);
+            let _ = datax_utils_pty::process_group::kill_process_group(self.0);
         }
 
         #[cfg(windows)]
@@ -157,7 +157,7 @@ async fn responses_mode_stream_cli_supports_personal_access_tokens() {
 
     assert!(
         output.status.success(),
-        "codex-cli exec failed: {}",
+        "datax-cli exec failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
     let request = resp_mock.single_request();
@@ -227,7 +227,7 @@ async fn responses_mode_stream_cli() {
         "model_providers.mock={{ name = \"mock\", base_url = \"{}/v1\", env_key = \"PATH\", wire_api = \"responses\" }}",
         server.uri()
     );
-    let bin = codex_utils_cargo_bin::cargo_bin("codex").unwrap();
+    let bin = datax_utils_cargo_bin::cargo_bin("codex").unwrap();
     let mut cmd = Command::new(bin);
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
@@ -269,7 +269,7 @@ async fn responses_mode_stream_cli_supports_openai_base_url_config_override() {
     let resp_mock = responses::mount_sse_once(&server, sse).await;
 
     let home = TempDir::new().unwrap();
-    let bin = codex_utils_cargo_bin::cargo_bin("codex").unwrap();
+    let bin = datax_utils_cargo_bin::cargo_bin("codex").unwrap();
     let mut cmd = Command::new(bin);
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
@@ -321,7 +321,7 @@ async fn exec_cli_applies_model_instructions_file() {
 
     let home = TempDir::new().unwrap();
     let repo_root = repo_root();
-    let bin = codex_utils_cargo_bin::cargo_bin("codex").unwrap();
+    let bin = datax_utils_cargo_bin::cargo_bin("codex").unwrap();
     let mut cmd = Command::new(bin);
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
@@ -391,7 +391,7 @@ async fn exec_cli_profile_applies_model_instructions_file() {
     .unwrap();
 
     let repo_root = repo_root();
-    let bin = codex_utils_cargo_bin::cargo_bin("codex").unwrap();
+    let bin = datax_utils_cargo_bin::cargo_bin("codex").unwrap();
     let mut cmd = Command::new(bin);
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
@@ -436,7 +436,7 @@ async fn responses_api_stream_cli() {
     let repo_root = repo_root();
 
     let home = TempDir::new().unwrap();
-    let bin = codex_utils_cargo_bin::cargo_bin("codex").unwrap();
+    let bin = datax_utils_cargo_bin::cargo_bin("codex").unwrap();
     let mut cmd = Command::new(bin);
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
@@ -477,7 +477,7 @@ async fn integration_creates_and_checks_session_file() -> anyhow::Result<()> {
     let repo_root = repo_root();
 
     // 4. Run the codex CLI and invoke `exec`, which is what records a session.
-    let bin = codex_utils_cargo_bin::cargo_bin("codex").unwrap();
+    let bin = datax_utils_cargo_bin::cargo_bin("codex").unwrap();
     let mut cmd = Command::new(bin);
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
@@ -492,7 +492,7 @@ async fn integration_creates_and_checks_session_file() -> anyhow::Result<()> {
     let output = run_cli_command(&mut cmd).unwrap();
     assert!(
         output.status.success(),
-        "codex-cli exec failed: {}",
+        "datax-cli exec failed: {}",
         String::from_utf8_lossy(&output.stderr)
     );
 
@@ -593,7 +593,7 @@ async fn integration_creates_and_checks_session_file() -> anyhow::Result<()> {
     // Second run: resume should update the existing file.
     let marker2 = format!("integration-resume-{}", Uuid::new_v4());
     let prompt2 = format!("echo {marker2}");
-    let bin2 = codex_utils_cargo_bin::cargo_bin("codex").unwrap();
+    let bin2 = datax_utils_cargo_bin::cargo_bin("codex").unwrap();
     let mut cmd2 = Command::new(bin2);
     cmd2.arg("exec")
         .arg("--skip-git-repo-check")

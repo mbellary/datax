@@ -1,10 +1,10 @@
 use std::fs;
 use std::path::Path;
 
-use codex_extension_api::LoadedUserInstructions;
-use codex_extension_api::UserInstructions;
-use codex_extension_api::UserInstructionsProvider;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_extension_api::LoadedUserInstructions;
+use datax_extension_api::UserInstructions;
+use datax_extension_api::UserInstructionsProvider;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 

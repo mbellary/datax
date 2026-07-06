@@ -1,15 +1,15 @@
 use super::*;
 
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_config::ConfigLayerEntry;
-use codex_config::ConfigLayerStack;
-use codex_config::ConfigRequirements;
-use codex_config::ConfigRequirementsToml;
-use codex_config::permissions_toml::NetworkDomainPermissionToml;
-use codex_config::permissions_toml::NetworkDomainPermissionsToml;
-use codex_execpolicy::Decision;
-use codex_execpolicy::NetworkRuleProtocol;
-use codex_execpolicy::Policy;
+use datax_app_server_protocol::ConfigLayerSource;
+use datax_config::ConfigLayerEntry;
+use datax_config::ConfigLayerStack;
+use datax_config::ConfigRequirements;
+use datax_config::ConfigRequirementsToml;
+use datax_config::permissions_toml::NetworkDomainPermissionToml;
+use datax_config::permissions_toml::NetworkDomainPermissionsToml;
+use datax_execpolicy::Decision;
+use datax_execpolicy::NetworkRuleProtocol;
+use datax_execpolicy::Policy;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
 
@@ -164,7 +164,7 @@ strip_request_headers = ["x-api-key"]
         .expect("higher layer should apply");
     let config = accumulator.finish().expect("merged config should build");
 
-    assert_eq!(config.network.mode, codex_network_proxy::NetworkMode::Full);
+    assert_eq!(config.network.mode, datax_network_proxy::NetworkMode::Full);
     assert!(config.network.mitm);
     assert_eq!(
         config.network.allowed_domains(),

@@ -9,8 +9,8 @@ Usage: build-datax-package-archive.sh \
   --entrypoint-dir <dir> \
   --archive-dir <dir> \
   [--bwrap-bin <path>] \
-  [--codex-command-runner-bin <path>] \
-  [--codex-windows-sandbox-setup-bin <path>] \
+  [--datax-command-runner-bin <path>] \
+  [--datax-windows-sandbox-setup-bin <path>] \
   [--target-suffixed-entrypoint]
 EOF
 }
@@ -48,18 +48,18 @@ while [[ $# -gt 0 ]]; do
       bwrap_bin_provided="true"
       shift 2
       ;;
-    --codex-command-runner-bin)
+    --datax-command-runner-bin)
       resource_args+=(
-        --codex-command-runner-bin
-        "${2:?--codex-command-runner-bin requires a value}"
+        --datax-command-runner-bin
+        "${2:?--datax-command-runner-bin requires a value}"
       )
       command_runner_bin_provided="true"
       shift 2
       ;;
-    --codex-windows-sandbox-setup-bin)
+    --datax-windows-sandbox-setup-bin)
       resource_args+=(
-        --codex-windows-sandbox-setup-bin
-        "${2:?--codex-windows-sandbox-setup-bin requires a value}"
+        --datax-windows-sandbox-setup-bin
+        "${2:?--datax-windows-sandbox-setup-bin requires a value}"
       )
       sandbox_setup_bin_provided="true"
       shift 2
@@ -92,9 +92,9 @@ case "$bundle" in
     archive_stem="datax-package"
     ;;
   app-server)
-    variant="codex-app-server"
-    entrypoint="codex-app-server"
-    archive_stem="codex-app-server-package"
+    variant="datax-app-server"
+    entrypoint="datax-app-server"
+    archive_stem="datax-app-server-package"
     ;;
   *)
     echo "No Datax package variant for bundle: $bundle" >&2
@@ -122,13 +122,13 @@ case "$target" in
     fi
     ;;
   *windows*)
-    command_runner_bin="${entrypoint_dir%/}/codex-command-runner.exe"
-    sandbox_setup_bin="${entrypoint_dir%/}/codex-windows-sandbox-setup.exe"
+    command_runner_bin="${entrypoint_dir%/}/datax-command-runner.exe"
+    sandbox_setup_bin="${entrypoint_dir%/}/datax-windows-sandbox-setup.exe"
     if [[ "$command_runner_bin_provided" == "false" && -f "$command_runner_bin" ]]; then
-      resource_args+=(--codex-command-runner-bin "$command_runner_bin")
+      resource_args+=(--datax-command-runner-bin "$command_runner_bin")
     fi
     if [[ "$sandbox_setup_bin_provided" == "false" && -f "$sandbox_setup_bin" ]]; then
-      resource_args+=(--codex-windows-sandbox-setup-bin "$sandbox_setup_bin")
+      resource_args+=(--datax-windows-sandbox-setup-bin "$sandbox_setup_bin")
     fi
     ;;
 esac

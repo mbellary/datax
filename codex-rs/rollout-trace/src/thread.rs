@@ -5,9 +5,9 @@
 //! thread-local event methods here avoids repeatedly plumbing `thread_id`
 //! through session code.
 
-use codex_protocol::protocol::AgentStatus;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::SessionSource;
+use datax_protocol::protocol::AgentStatus;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::SessionSource;
 use serde::Serialize;
 use std::path::Path;
 use std::path::PathBuf;

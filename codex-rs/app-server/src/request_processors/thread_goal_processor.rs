@@ -1,9 +1,9 @@
 use super::*;
-use codex_goal_extension::GoalObjectiveUpdate;
-use codex_goal_extension::GoalService;
-use codex_goal_extension::GoalServiceError;
-use codex_goal_extension::GoalSetRequest;
-use codex_goal_extension::GoalTokenBudgetUpdate;
+use datax_goal_extension::GoalObjectiveUpdate;
+use datax_goal_extension::GoalService;
+use datax_goal_extension::GoalServiceError;
+use datax_goal_extension::GoalSetRequest;
+use datax_goal_extension::GoalTokenBudgetUpdate;
 
 #[derive(Clone)]
 pub(crate) struct ThreadGoalRequestProcessor {
@@ -230,7 +230,7 @@ impl ThreadGoalRequestProcessor {
                 return Ok(state_db);
             }
         } else {
-            codex_rollout::find_thread_path_by_id_str(
+            datax_rollout::find_thread_path_by_id_str(
                 &self.config.codex_home,
                 &thread_id.to_string(),
                 self.state_db.as_deref(),
@@ -259,7 +259,7 @@ impl ThreadGoalRequestProcessor {
                     "ephemeral thread does not support goals: {thread_id}"
                 ))
             })?,
-            None => codex_rollout::find_thread_path_by_id_str(
+            None => datax_rollout::find_thread_path_by_id_str(
                 &self.config.codex_home,
                 &thread_id.to_string(),
                 self.state_db.as_deref(),
@@ -366,7 +366,7 @@ impl ThreadGoalRequestProcessor {
     }
 }
 
-pub(super) fn api_thread_goal_from_state(goal: codex_state::ThreadGoal) -> ThreadGoal {
+pub(super) fn api_thread_goal_from_state(goal: datax_state::ThreadGoal) -> ThreadGoal {
     ThreadGoal {
         thread_id: goal.thread_id.to_string(),
         objective: goal.objective,
@@ -379,14 +379,14 @@ pub(super) fn api_thread_goal_from_state(goal: codex_state::ThreadGoal) -> Threa
     }
 }
 
-fn api_thread_goal_status_from_state(status: codex_state::ThreadGoalStatus) -> ThreadGoalStatus {
+fn api_thread_goal_status_from_state(status: datax_state::ThreadGoalStatus) -> ThreadGoalStatus {
     match status {
-        codex_state::ThreadGoalStatus::Active => ThreadGoalStatus::Active,
-        codex_state::ThreadGoalStatus::Paused => ThreadGoalStatus::Paused,
-        codex_state::ThreadGoalStatus::Blocked => ThreadGoalStatus::Blocked,
-        codex_state::ThreadGoalStatus::UsageLimited => ThreadGoalStatus::UsageLimited,
-        codex_state::ThreadGoalStatus::BudgetLimited => ThreadGoalStatus::BudgetLimited,
-        codex_state::ThreadGoalStatus::Complete => ThreadGoalStatus::Complete,
+        datax_state::ThreadGoalStatus::Active => ThreadGoalStatus::Active,
+        datax_state::ThreadGoalStatus::Paused => ThreadGoalStatus::Paused,
+        datax_state::ThreadGoalStatus::Blocked => ThreadGoalStatus::Blocked,
+        datax_state::ThreadGoalStatus::UsageLimited => ThreadGoalStatus::UsageLimited,
+        datax_state::ThreadGoalStatus::BudgetLimited => ThreadGoalStatus::BudgetLimited,
+        datax_state::ThreadGoalStatus::Complete => ThreadGoalStatus::Complete,
     }
 }
 

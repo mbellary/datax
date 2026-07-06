@@ -1,6 +1,6 @@
 use crate::ModelsManagerConfig;
 use crate::manager::ModelsManager;
-use codex_protocol::openai_models::TruncationPolicyConfig;
+use datax_protocol::openai_models::TruncationPolicyConfig;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 

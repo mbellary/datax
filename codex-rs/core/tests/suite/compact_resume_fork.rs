@@ -9,18 +9,6 @@ use super::compact::COMPACT_WARNING_MESSAGE;
 use super::compact::FIRST_REPLY;
 use super::compact::SUMMARY_TEXT;
 use anyhow::Result;
-use codex_core::CodexThread;
-use codex_core::ThreadManager;
-use codex_core::compact::SUMMARIZATION_PROMPT;
-use codex_core::config::Config;
-use codex_core::spawn::CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::Settings;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::WarningEvent;
-use codex_protocol::user_input::UserInput;
 use core_test_support::context_snapshot;
 use core_test_support::context_snapshot::ContextSnapshotOptions;
 use core_test_support::context_snapshot::ContextSnapshotRenderMode;
@@ -35,6 +23,18 @@ use core_test_support::responses::sse;
 use core_test_support::test_codex::local_selections;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
+use datax_core::CodexThread;
+use datax_core::ThreadManager;
+use datax_core::compact::SUMMARIZATION_PROMPT;
+use datax_core::config::Config;
+use datax_core::spawn::CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR;
+use datax_protocol::config_types::CollaborationMode;
+use datax_protocol::config_types::ModeKind;
+use datax_protocol::config_types::Settings;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::WarningEvent;
+use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
@@ -549,7 +549,7 @@ async fn snapshot_rollback_followup_turn_trims_context_updates() -> Result<()> {
     std::fs::create_dir_all(&override_cwd)?;
     core_test_support::submit_thread_settings(
         &conversation,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        datax_protocol::protocol::ThreadSettingsOverrides {
             environments: Some(local_selections(override_cwd.clone())),
             collaboration_mode: Some(CollaborationMode {
                 mode: ModeKind::Default,
@@ -822,8 +822,8 @@ async fn resume_conversation(
     config: &Config,
     path: std::path::PathBuf,
 ) -> Arc<CodexThread> {
-    let auth_manager = codex_core::test_support::auth_manager_from_auth(
-        codex_login::CodexAuth::from_api_key("dummy"),
+    let auth_manager = datax_core::test_support::auth_manager_from_auth(
+        datax_login::CodexAuth::from_api_key("dummy"),
     );
     Box::pin(manager.resume_thread_from_rollout(
         config.clone(),

@@ -13,7 +13,7 @@ use crate::endpoint::realtime_websocket::protocol::SessionAudioInput;
 use crate::endpoint::realtime_websocket::protocol::SessionAudioOutput;
 use crate::endpoint::realtime_websocket::protocol::SessionType;
 use crate::endpoint::realtime_websocket::protocol::SessionUpdateSession;
-use codex_protocol::protocol::ConversationTextRole;
+use datax_protocol::protocol::ConversationTextRole;
 
 pub(super) fn conversation_item_create_message(
     text: String,

@@ -2,12 +2,12 @@
 
 use anyhow::Context;
 use assert_cmd::prelude::*;
-use codex_apply_patch::CODEX_CORE_APPLY_PATCH_ARG1;
 use core_test_support::responses::ev_apply_patch_custom_tool_call;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::mount_sse_sequence;
 use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
+use datax_apply_patch::CODEX_CORE_APPLY_PATCH_ARG1;
 use std::fs;
 use std::process::Command;
 use tempfile::tempdir;
@@ -22,7 +22,7 @@ fn test_standalone_exec_cli_can_use_apply_patch() -> anyhow::Result<()> {
     let absolute_path = tmp.path().join(relative_path);
     fs::write(&absolute_path, "original content\n")?;
 
-    Command::new(codex_utils_cargo_bin::cargo_bin("codex-exec")?)
+    Command::new(datax_utils_cargo_bin::cargo_bin("datax-exec")?)
         .arg(CODEX_CORE_APPLY_PATCH_ARG1)
         .arg(
             r#"*** Begin Patch

@@ -1,7 +1,7 @@
-use codex_config::AppsRequirementsToml;
-use codex_config::ConfigLayerStack;
-use codex_config::types::AppToolApproval;
-use codex_config::types::AppsConfigToml;
+use datax_config::AppsRequirementsToml;
+use datax_config::ConfigLayerStack;
+use datax_config::types::AppToolApproval;
+use datax_config::types::AppsConfigToml;
 use serde::Deserialize;
 
 /// The effective enablement and approval policy for one app tool.

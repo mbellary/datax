@@ -53,35 +53,35 @@ use crate::store::PluginInstallResult as StorePluginInstallResult;
 use crate::store::PluginStore;
 use crate::store::PluginStoreError;
 use crate::tool_suggest_metadata::ToolSuggestMetadataCache;
-use codex_analytics::AnalyticsEventsClient;
-use codex_app_server_protocol::AuthMode;
-use codex_config::ConfigLayerStack;
-use codex_config::clear_user_plugin;
-use codex_config::set_user_plugin_enabled;
-use codex_config::types::PluginConfig;
-use codex_config::types::ToolSuggestDisabledTool;
-use codex_config::types::ToolSuggestDiscoverableType;
-use codex_core_skills::PluginSkillSnapshots;
-use codex_core_skills::SkillMetadata;
-use codex_core_skills::config_rules::SkillConfigRules;
-use codex_core_skills::config_rules::skill_config_rules_from_stack;
-use codex_hooks::plugin_hook_declarations;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_plugin::AppConnectorId;
-use codex_plugin::PluginCapabilitySummary;
-use codex_plugin::PluginId;
-use codex_plugin::PluginIdError;
-use codex_plugin::PluginTelemetryMetadata;
-use codex_plugin::app_connector_ids_from_declarations;
-use codex_plugin::prompt_safe_plugin_description;
-use codex_protocol::protocol::HookEventName;
-use codex_protocol::protocol::Product;
-use codex_tools::DiscoverablePluginInfo;
-use codex_tools::DiscoverableTool;
-use codex_tools::filter_request_plugin_install_discoverable_tools_for_client;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_plugins::PluginSkillRoot;
+use datax_analytics::AnalyticsEventsClient;
+use datax_app_server_protocol::AuthMode;
+use datax_config::ConfigLayerStack;
+use datax_config::clear_user_plugin;
+use datax_config::set_user_plugin_enabled;
+use datax_config::types::PluginConfig;
+use datax_config::types::ToolSuggestDisabledTool;
+use datax_config::types::ToolSuggestDiscoverableType;
+use datax_core_skills::PluginSkillSnapshots;
+use datax_core_skills::SkillMetadata;
+use datax_core_skills::config_rules::SkillConfigRules;
+use datax_core_skills::config_rules::skill_config_rules_from_stack;
+use datax_hooks::plugin_hook_declarations;
+use datax_login::AuthManager;
+use datax_login::CodexAuth;
+use datax_plugin::AppConnectorId;
+use datax_plugin::PluginCapabilitySummary;
+use datax_plugin::PluginId;
+use datax_plugin::PluginIdError;
+use datax_plugin::PluginTelemetryMetadata;
+use datax_plugin::app_connector_ids_from_declarations;
+use datax_plugin::prompt_safe_plugin_description;
+use datax_protocol::protocol::HookEventName;
+use datax_protocol::protocol::Product;
+use datax_tools::DiscoverablePluginInfo;
+use datax_tools::DiscoverableTool;
+use datax_tools::filter_request_plugin_install_discoverable_tools_for_client;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_plugins::PluginSkillRoot;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -1741,7 +1741,7 @@ impl PluginsManager {
             ));
         }
         let manifest =
-            if codex_utils_plugins::find_plugin_manifest_path(source_path.as_path()).is_some() {
+            if datax_utils_plugins::find_plugin_manifest_path(source_path.as_path()).is_some() {
                 load_plugin_manifest(source_path.as_path())
             } else {
                 plugin
@@ -1766,7 +1766,7 @@ impl PluginsManager {
             &plugin_id,
             &manifest,
             self.restriction_product,
-            &codex_core_skills::config_rules::skill_config_rules_from_stack(
+            &datax_core_skills::config_rules::skill_config_rules_from_stack(
                 &config.config_layer_stack,
             ),
             /*plugin_skill_snapshots*/ None,

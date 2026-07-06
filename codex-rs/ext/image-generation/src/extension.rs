@@ -1,19 +1,19 @@
 use std::sync::Arc;
 
-use codex_core::config::Config;
-use codex_extension_api::ConfigContributor;
-use codex_extension_api::ExtensionData;
-use codex_extension_api::ExtensionFuture;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_extension_api::ThreadLifecycleContributor;
-use codex_extension_api::ThreadStartInput;
-use codex_extension_api::ToolCall;
-use codex_extension_api::ToolContributor;
-use codex_extension_api::ToolExecutor;
-use codex_login::AuthManager;
-use codex_model_provider::create_model_provider;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_core::config::Config;
+use datax_extension_api::ConfigContributor;
+use datax_extension_api::ExtensionData;
+use datax_extension_api::ExtensionFuture;
+use datax_extension_api::ExtensionRegistryBuilder;
+use datax_extension_api::ThreadLifecycleContributor;
+use datax_extension_api::ThreadStartInput;
+use datax_extension_api::ToolCall;
+use datax_extension_api::ToolContributor;
+use datax_extension_api::ToolExecutor;
+use datax_login::AuthManager;
+use datax_model_provider::create_model_provider;
+use datax_model_provider_info::ModelProviderInfo;
+use datax_utils_absolute_path::AbsolutePathBuf;
 
 use crate::backend::CodexImagesBackend;
 use crate::tool::ImageGenerationTool;

@@ -1,5 +1,4 @@
 use anyhow::Result;
-use codex_features::Feature;
 use core_test_support::apps_test_server::AppsTestServer;
 use core_test_support::apps_test_server::SEARCH_CALENDAR_CREATE_TOOL;
 use core_test_support::apps_test_server::SEARCH_CALENDAR_NAMESPACE;
@@ -11,6 +10,7 @@ use core_test_support::responses::ev_response_created;
 use core_test_support::responses::namespace_child_tool;
 use core_test_support::responses::sse;
 use core_test_support::skip_if_no_network;
+use datax_features::Feature;
 use serde_json::Value;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

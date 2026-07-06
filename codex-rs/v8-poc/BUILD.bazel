@@ -6,7 +6,7 @@ codex_rust_crate(
         "@rules_rs//rs/experimental/platforms/constraints:windows_msvc": [],
         "//conditions:default": ["sandbox"],
     }),
-    crate_name = "codex_v8_poc",
+    crate_name = "datax_v8_poc",
     deps_extra = ["@crates//:v8"],
 )
 

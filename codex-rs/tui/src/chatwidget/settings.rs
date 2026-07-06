@@ -713,7 +713,7 @@ impl ChatWidget {
             && (previous_model != next_model || previous_effort != next_effort)
         {
             let mut message = format!("Model changed to {next_model}");
-            if !next_model.starts_with("codex-auto-") {
+            if !next_model.starts_with("datax-auto-") {
                 let reasoning_label = match next_effort.as_ref() {
                     None | Some(ReasoningEffortConfig::None) => "default",
                     Some(effort) => effort.as_str(),

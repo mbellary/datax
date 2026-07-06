@@ -5,7 +5,7 @@
 # Usage (source-only):
 #   source scripts/test-remote-env.sh
 #   cd codex-rs
-#   just test -p codex-core --test all remote_test_env_can_connect_and_use_filesystem
+#   just test -p datax-core --test all remote_test_env_can_connect_and_use_filesystem
 #   codex_remote_env_cleanup
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,7 +24,7 @@ setup_remote_env() {
   local remote_exec_server_port
   local remote_exec_server_stdout_path
 
-  container_name="${CODEX_TEST_REMOTE_ENV_CONTAINER_NAME:-codex-remote-test-env-local-$(date +%s)-${RANDOM}}"
+  container_name="${CODEX_TEST_REMOTE_ENV_CONTAINER_NAME:-datax-remote-test-env-local-$(date +%s)-${RANDOM}}"
   codex_binary_path="${REPO_ROOT}/codex-rs/target/debug/datax"
 
   if ! command -v docker >/dev/null 2>&1; then
@@ -44,7 +44,7 @@ setup_remote_env() {
 
   (
     cd "${REPO_ROOT}/codex-rs"
-    cargo build -p codex-cli --bin datax
+    cargo build -p datax-cli --bin datax
   )
 
   if [[ ! -f "${codex_binary_path}" ]]; then
@@ -65,10 +65,10 @@ setup_remote_env() {
   fi
 
   if [[ -z "${CODEX_TEST_REMOTE_EXEC_SERVER_URL:-}" ]]; then
-    remote_codex_path="/tmp/codex-remote-env/codex"
+    remote_codex_path="/tmp/datax-remote-env/codex"
     remote_exec_server_port="31987"
-    remote_exec_server_stdout_path="/tmp/codex-remote-env/exec-server.stdout"
-    docker exec "${container_name}" sh -lc "mkdir -p /tmp/codex-remote-env"
+    remote_exec_server_stdout_path="/tmp/datax-remote-env/exec-server.stdout"
+    docker exec "${container_name}" sh -lc "mkdir -p /tmp/datax-remote-env"
     docker cp "${codex_binary_path}" "${container_name}:${remote_codex_path}"
     docker exec "${container_name}" chmod +x "${remote_codex_path}"
     remote_exec_server_pid="$(

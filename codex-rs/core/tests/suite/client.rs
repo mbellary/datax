@@ -1,54 +1,3 @@
-use codex_config::ConfigLayerStack;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_core::ModelClient;
-use codex_core::NewThread;
-use codex_core::Prompt;
-use codex_core::ResponseEvent;
-use codex_core::ThreadManager;
-use codex_core::resolve_installation_id;
-use codex_core::thread_store_from_config;
-use codex_extension_api::empty_extension_registry;
-use codex_features::Feature;
-use codex_login::AuthKeyringBackendKind;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::default_client::originator;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::WireApi;
-use codex_model_provider_info::built_in_model_providers;
-use codex_models_manager::bundled_models_response;
-use codex_otel::SessionTelemetry;
-use codex_otel::TelemetryAuthMode;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::CollaborationMode;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::ModelProviderAuthInfo;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::config_types::Settings;
-use codex_protocol::config_types::Verbosity;
-use codex_protocol::error::CodexErr;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::DEFAULT_IMAGE_DETAIL;
-use codex_protocol::models::FunctionCallOutputContentItem;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ImageDetail;
-use codex_protocol::models::LocalShellAction;
-use codex_protocol::models::LocalShellExecAction;
-use codex_protocol::models::LocalShellStatus;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::models::ReasoningItemContent;
-use codex_protocol::models::ReasoningItemReasoningSummary;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::models::WebSearchAction;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::SessionMeta;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::user_input::UserInput;
 use core_test_support::PathBufExt;
 use core_test_support::TestCodexResponsesRequestKind;
 use core_test_support::apps_test_server::AppsTestServer;
@@ -73,6 +22,57 @@ use core_test_support::test_codex::TestCodex;
 use core_test_support::test_codex::local_selections;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
+use datax_config::ConfigLayerStack;
+use datax_config::types::AuthCredentialsStoreMode;
+use datax_core::ModelClient;
+use datax_core::NewThread;
+use datax_core::Prompt;
+use datax_core::ResponseEvent;
+use datax_core::ThreadManager;
+use datax_core::resolve_installation_id;
+use datax_core::thread_store_from_config;
+use datax_extension_api::empty_extension_registry;
+use datax_features::Feature;
+use datax_login::AuthKeyringBackendKind;
+use datax_login::AuthManager;
+use datax_login::CodexAuth;
+use datax_login::default_client::originator;
+use datax_model_provider_info::ModelProviderInfo;
+use datax_model_provider_info::WireApi;
+use datax_model_provider_info::built_in_model_providers;
+use datax_models_manager::bundled_models_response;
+use datax_otel::SessionTelemetry;
+use datax_otel::TelemetryAuthMode;
+use datax_protocol::ThreadId;
+use datax_protocol::config_types::CollaborationMode;
+use datax_protocol::config_types::ModeKind;
+use datax_protocol::config_types::ModelProviderAuthInfo;
+use datax_protocol::config_types::ReasoningSummary;
+use datax_protocol::config_types::Settings;
+use datax_protocol::config_types::Verbosity;
+use datax_protocol::error::CodexErr;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::DEFAULT_IMAGE_DETAIL;
+use datax_protocol::models::FunctionCallOutputContentItem;
+use datax_protocol::models::FunctionCallOutputPayload;
+use datax_protocol::models::ImageDetail;
+use datax_protocol::models::LocalShellAction;
+use datax_protocol::models::LocalShellExecAction;
+use datax_protocol::models::LocalShellStatus;
+use datax_protocol::models::MessagePhase;
+use datax_protocol::models::ReasoningItemContent;
+use datax_protocol::models::ReasoningItemReasoningSummary;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::models::WebSearchAction;
+use datax_protocol::openai_models::ReasoningEffort;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutLine;
+use datax_protocol::protocol::SessionMeta;
+use datax_protocol::protocol::SessionMetaLine;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::user_input::UserInput;
 use dunce::canonicalize as normalize_path;
 use futures::StreamExt;
 use pretty_assertions::assert_eq;
@@ -100,7 +100,7 @@ const TEST_INSTALLATION_ID: &str = "11111111-1111-4111-8111-111111111111";
 fn test_turn_responses_metadata(
     _client: &ModelClient,
     thread_id: ThreadId,
-) -> codex_core::CodexResponsesMetadata {
+) -> datax_core::CodexResponsesMetadata {
     let thread_id = thread_id.to_string();
     test_responses_metadata(
         TEST_INSTALLATION_ID,
@@ -551,7 +551,7 @@ move /y tokens.next tokens.txt >nul
             // Match the model-provider default to avoid brittle shell-startup timing in CI.
             timeout_ms: non_zero_u64(/*value*/ 5_000),
             refresh_interval_ms: 60_000,
-            cwd: codex_utils_absolute_path::AbsolutePathBuf::try_from(self.tempdir.path())
+            cwd: datax_utils_absolute_path::AbsolutePathBuf::try_from(self.tempdir.path())
                 .expect("tempdir should be absolute"),
         }
     }
@@ -591,10 +591,10 @@ async fn resume_includes_initial_messages_and_sends_prior_items() {
     .unwrap();
 
     // Prior item: user message (should be delivered)
-    let prior_user = codex_protocol::models::ResponseItem::Message {
+    let prior_user = datax_protocol::models::ResponseItem::Message {
         id: None,
         role: "user".to_string(),
-        content: vec![codex_protocol::models::ContentItem::InputText {
+        content: vec![datax_protocol::models::ContentItem::InputText {
             text: "resumed user message".to_string(),
         }],
         phase: None,
@@ -613,10 +613,10 @@ async fn resume_includes_initial_messages_and_sends_prior_items() {
     .unwrap();
 
     // Prior item: system message (excluded from API history)
-    let prior_system = codex_protocol::models::ResponseItem::Message {
+    let prior_system = datax_protocol::models::ResponseItem::Message {
         id: None,
         role: "system".to_string(),
-        content: vec![codex_protocol::models::ContentItem::OutputText {
+        content: vec![datax_protocol::models::ContentItem::OutputText {
             text: "resumed system instruction".to_string(),
         }],
         phase: None,
@@ -635,10 +635,10 @@ async fn resume_includes_initial_messages_and_sends_prior_items() {
     .unwrap();
 
     // Prior item: assistant message
-    let prior_item = codex_protocol::models::ResponseItem::Message {
+    let prior_item = datax_protocol::models::ResponseItem::Message {
         id: None,
         role: "assistant".to_string(),
-        content: vec![codex_protocol::models::ContentItem::OutputText {
+        content: vec![datax_protocol::models::ContentItem::OutputText {
             text: "resumed assistant message".to_string(),
         }],
         phase: Some(MessagePhase::Commentary),
@@ -1198,11 +1198,11 @@ async fn send_provider_auth_request(server: &MockServer, auth: ModelProviderAuth
     config.model_provider = provider.clone();
     let effort = config.model_reasoning_effort.clone();
     let summary = config.model_reasoning_summary;
-    let model = codex_core::test_support::get_model_offline(config.model.as_deref());
+    let model = datax_core::test_support::get_model_offline(config.model.as_deref());
     config.model = Some(model.clone());
     let config = Arc::new(config);
     let model_info =
-        codex_core::test_support::construct_model_info_offline(model.as_str(), &config);
+        datax_core::test_support::construct_model_info_offline(model.as_str(), &config);
     let thread_id = ThreadId::new();
     let session_telemetry = SessionTelemetry::new(
         thread_id,
@@ -1252,7 +1252,7 @@ async fn send_provider_auth_request(server: &MockServer, auth: ModelProviderAuth
             summary.unwrap_or(ReasoningSummary::Auto),
             /*service_tier*/ None,
             &responses_metadata,
-            &codex_rollout_trace::InferenceTraceContext::disabled(),
+            &datax_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
         .expect("responses stream to start");
@@ -1450,7 +1450,7 @@ async fn prefers_apikey_when_config_prefers_apikey_even_with_chatgpt_tokens() {
     .await
     .expect("Failed to load CodexAuth")
     .expect("No CodexAuth found in codex_home");
-    let auth_manager = codex_core::test_support::auth_manager_from_auth(auth);
+    let auth_manager = datax_core::test_support::auth_manager_from_auth(auth);
     let installation_id = resolve_installation_id(&config.codex_home)
         .await
         .expect("resolve installation id");
@@ -1458,9 +1458,9 @@ async fn prefers_apikey_when_config_prefers_apikey_even_with_chatgpt_tokens() {
         &config,
         auth_manager,
         SessionSource::Exec,
-        Arc::new(codex_exec_server::EnvironmentManager::default_for_tests()),
+        Arc::new(datax_exec_server::EnvironmentManager::default_for_tests()),
         empty_extension_registry(),
-        Arc::new(codex_core::test_support::EmptyUserInstructionsProvider),
+        Arc::new(datax_core::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
         thread_store_from_config(&config, /*state_db*/ None),
         /*state_db*/ None,
@@ -1988,7 +1988,7 @@ async fn skills_use_aliases_in_developer_message_under_budget_pressure() {
     let codex_home_parent = TempDir::new().unwrap();
     let long_home_parent = codex_home_parent
         .path()
-        .join("codex-home-with-long-shared-prefix-for-skill-alias-budget-test");
+        .join("datax-home-with-long-shared-prefix-for-skill-alias-budget-test");
     std::fs::create_dir_all(&long_home_parent).expect("create long home parent");
     let codex_home = Arc::new(TempDir::new_in(long_home_parent).unwrap());
     let skill_root = codex_home.path().join("skills");
@@ -2227,7 +2227,7 @@ async fn user_turn_collaboration_mode_overrides_model_and_effort() -> anyhow::Re
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(config.cwd.clone())),
                 approval_policy: Some(config.permissions.approval_policy.value()),
                 sandbox_policy: Some(config.legacy_sandbox_policy()),
@@ -2401,14 +2401,14 @@ async fn user_turn_explicit_reasoning_summary_overrides_model_catalog_default() 
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(config.cwd.clone())),
                 approval_policy: Some(config.permissions.approval_policy.value()),
                 sandbox_policy: Some(config.legacy_sandbox_policy()),
                 summary: Some(ReasoningSummary::Concise),
-                collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                    mode: codex_protocol::config_types::ModeKind::Default,
-                    settings: codex_protocol::config_types::Settings {
+                collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                    mode: datax_protocol::config_types::ModeKind::Default,
+                    settings: datax_protocol::config_types::Settings {
                         model: session_configured.model,
                         reasoning_effort: None,
                         developer_instructions: None,
@@ -2809,14 +2809,14 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
     config.model_provider = provider.clone();
     let effort = config.model_reasoning_effort.clone();
     let summary = config.model_reasoning_summary;
-    let model = codex_core::test_support::get_model_offline(config.model.as_deref());
+    let model = datax_core::test_support::get_model_offline(config.model.as_deref());
     config.model = Some(model.clone());
     let config = Arc::new(config);
     let model_info =
-        codex_core::test_support::construct_model_info_offline(model.as_str(), &config);
+        datax_core::test_support::construct_model_info_offline(model.as_str(), &config);
     let thread_id = ThreadId::new();
     let auth_manager =
-        codex_core::test_support::auth_manager_from_auth(CodexAuth::from_api_key("Test API Key"));
+        datax_core::test_support::auth_manager_from_auth(CodexAuth::from_api_key("Test API Key"));
     let session_telemetry = SessionTelemetry::new(
         thread_id,
         model.as_str(),
@@ -2927,7 +2927,7 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
             summary.unwrap_or(ReasoningSummary::Auto),
             /*service_tier*/ None,
             &responses_metadata,
-            &codex_rollout_trace::InferenceTraceContext::disabled(),
+            &datax_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
         .expect("responses stream to start");

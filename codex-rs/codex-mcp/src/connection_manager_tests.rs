@@ -20,17 +20,17 @@ use crate::tools::ToolInfo;
 use crate::tools::filter_tools;
 use crate::tools::normalize_tools_for_model_with_prefix;
 use crate::tools::tool_with_model_visible_input_schema;
-use codex_config::AppToolApproval;
-use codex_config::Constrained;
-use codex_config::McpServerConfig;
-use codex_config::McpServerToolConfig;
-use codex_config::types::AuthKeyringBackendKind;
-use codex_exec_server::EnvironmentManager;
-use codex_protocol::ToolName;
-use codex_protocol::mcp::McpServerInfo;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::GranularApprovalConfig;
-use codex_protocol::protocol::McpAuthStatus;
+use datax_config::AppToolApproval;
+use datax_config::Constrained;
+use datax_config::McpServerConfig;
+use datax_config::McpServerToolConfig;
+use datax_config::types::AuthKeyringBackendKind;
+use datax_exec_server::EnvironmentManager;
+use datax_protocol::ToolName;
+use datax_protocol::mcp::McpServerInfo;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::protocol::GranularApprovalConfig;
+use datax_protocol::protocol::McpAuthStatus;
 use futures::FutureExt;
 use pretty_assertions::assert_eq;
 use rmcp::model::CreateElicitationRequestParams;
@@ -92,7 +92,7 @@ fn create_codex_apps_tools_cache_context(
 
 fn create_test_server_info(title: &str) -> McpServerInfo {
     McpServerInfo {
-        name: "codex-apps".to_string(),
+        name: "datax-apps".to_string(),
         title: Some(title.to_string()),
         version: "1.0.0".to_string(),
         description: None,
@@ -251,7 +251,7 @@ async fn disabled_permissions_auto_accept_elicitation_with_empty_form_schema() {
 
     let response = sender(
         NumberOrString::Number(1),
-        codex_rmcp_client::Elicitation::Mcp(
+        datax_rmcp_client::Elicitation::Mcp(
             CreateElicitationRequestParams::FormElicitationParams {
                 meta: None,
                 message: "Confirm?".to_string(),
@@ -286,7 +286,7 @@ async fn disabled_permissions_do_not_auto_accept_elicitation_with_requested_fiel
 
     let response = sender(
         NumberOrString::Number(1),
-        codex_rmcp_client::Elicitation::Mcp(
+        datax_rmcp_client::Elicitation::Mcp(
             CreateElicitationRequestParams::FormElicitationParams {
                 meta: None,
                 message: "What should I say?".to_string(),
@@ -1141,7 +1141,7 @@ async fn list_all_tools_adds_server_metadata_to_cached_tools() {
     manager.server_metadata.insert(
         server_name.to_string(),
         McpServerMetadata {
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             pollutes_memory: true,
             origin: Some(McpServerOrigin::StreamableHttp(
                 "https://docs.example".to_string(),
@@ -1212,7 +1212,7 @@ async fn no_local_runtime_fails_local_stdio_but_keeps_local_http_server() {
                     env_vars: Vec::new(),
                     cwd: None,
                 },
-                environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+                environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
                 enabled: true,
                 required: false,
                 supports_parallel_tool_calls: false,
@@ -1237,7 +1237,7 @@ async fn no_local_runtime_fails_local_stdio_but_keeps_local_http_server() {
                     http_headers: None,
                     env_http_headers: None,
                 },
-                environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+                environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
                 enabled: true,
                 required: false,
                 supports_parallel_tool_calls: false,
@@ -1345,7 +1345,7 @@ fn mcp_init_error_display_prompts_for_github_pat() {
                 http_headers: None,
                 env_http_headers: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: false,
@@ -1398,7 +1398,7 @@ fn mcp_init_error_display_reports_generic_errors() {
                 http_headers: None,
                 env_http_headers: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: false,

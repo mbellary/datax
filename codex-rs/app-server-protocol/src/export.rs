@@ -20,7 +20,7 @@ use crate::protocol::common::EXPERIMENTAL_SERVER_METHODS;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
-use codex_protocol::protocol::RolloutLine;
+use datax_protocol::protocol::RolloutLine;
 use schemars::JsonSchema;
 use schemars::schema_for;
 use serde::Serialize;
@@ -2351,7 +2351,7 @@ mod tests {
     }
 
     fn schema_root() -> Result<PathBuf> {
-        let typescript_index = codex_utils_cargo_bin::find_resource!("schema/typescript/index.ts")
+        let typescript_index = datax_utils_cargo_bin::find_resource!("schema/typescript/index.ts")
             .context("resolve TypeScript schema index.ts")?;
         let schema_root = typescript_index
             .parent()

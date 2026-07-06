@@ -2,22 +2,22 @@ use crate::history_cell::PlainHistoryCell;
 use crate::legacy_core::config::Config;
 use crate::legacy_core::config::Permissions;
 use crate::session_state::SessionNetworkProxyRuntime;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::ConfigLayerEntry;
-use codex_config::ConfigLayerStack;
-use codex_config::ConfigLayerStackOrdering;
-use codex_config::ManagedHooksRequirementsToml;
-use codex_config::NetworkConstraints;
-use codex_config::NetworkDomainPermissionToml;
-use codex_config::NetworkUnixSocketPermissionToml;
-use codex_config::RequirementSource;
-use codex_config::ResidencyRequirement;
-use codex_config::SandboxModeRequirement;
-use codex_config::WebSearchModeRequirement;
-use codex_config::format_config_layer_source;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::NetworkSandboxPolicy;
+use datax_app_server_protocol::ConfigLayerSource;
+use datax_config::CONFIG_TOML_FILE;
+use datax_config::ConfigLayerEntry;
+use datax_config::ConfigLayerStack;
+use datax_config::ConfigLayerStackOrdering;
+use datax_config::ManagedHooksRequirementsToml;
+use datax_config::NetworkConstraints;
+use datax_config::NetworkDomainPermissionToml;
+use datax_config::NetworkUnixSocketPermissionToml;
+use datax_config::RequirementSource;
+use datax_config::ResidencyRequirement;
+use datax_config::SandboxModeRequirement;
+use datax_config::WebSearchModeRequirement;
+use datax_config::format_config_layer_source;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::permissions::NetworkSandboxPolicy;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use toml::Value as TomlValue;
@@ -556,38 +556,38 @@ mod tests {
     use super::sandbox_mode_is_allowed_by_permissions;
     use super::session_all_proxy_url;
     use crate::legacy_core::config::Permissions;
-    use codex_app_server_protocol::AskForApproval;
-    use codex_app_server_protocol::ConfigLayerSource;
-    use codex_config::ConfigLayerEntry;
-    use codex_config::ConfigLayerStack;
-    use codex_config::ConfigRequirements;
-    use codex_config::ConfigRequirementsToml;
-    use codex_config::Constrained;
-    use codex_config::ConstrainedWithSource;
-    use codex_config::ConstraintError;
-    use codex_config::FeatureRequirementsToml;
-    use codex_config::FilesystemConstraints;
-    use codex_config::HookEventsToml;
-    use codex_config::HookHandlerConfig;
-    use codex_config::ManagedHooksRequirementsToml;
-    use codex_config::MatcherGroup;
-    use codex_config::McpServerIdentity;
-    use codex_config::McpServerRequirement;
-    use codex_config::NetworkConstraints;
-    use codex_config::NetworkDomainPermissionToml;
-    use codex_config::NetworkDomainPermissionsToml;
-    use codex_config::NetworkUnixSocketPermissionToml;
-    use codex_config::NetworkUnixSocketPermissionsToml;
-    use codex_config::RequirementSource;
-    use codex_config::ResidencyRequirement;
-    use codex_config::SandboxModeRequirement;
-    use codex_config::Sourced;
-    use codex_config::WebSearchModeRequirement;
-    use codex_config::sandbox_mode_requirement_for_permission_profile;
-    use codex_protocol::config_types::ApprovalsReviewer;
-    use codex_protocol::config_types::WebSearchMode;
-    use codex_protocol::models::PermissionProfile;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use datax_app_server_protocol::AskForApproval;
+    use datax_app_server_protocol::ConfigLayerSource;
+    use datax_config::ConfigLayerEntry;
+    use datax_config::ConfigLayerStack;
+    use datax_config::ConfigRequirements;
+    use datax_config::ConfigRequirementsToml;
+    use datax_config::Constrained;
+    use datax_config::ConstrainedWithSource;
+    use datax_config::ConstraintError;
+    use datax_config::FeatureRequirementsToml;
+    use datax_config::FilesystemConstraints;
+    use datax_config::HookEventsToml;
+    use datax_config::HookHandlerConfig;
+    use datax_config::ManagedHooksRequirementsToml;
+    use datax_config::MatcherGroup;
+    use datax_config::McpServerIdentity;
+    use datax_config::McpServerRequirement;
+    use datax_config::NetworkConstraints;
+    use datax_config::NetworkDomainPermissionToml;
+    use datax_config::NetworkDomainPermissionsToml;
+    use datax_config::NetworkUnixSocketPermissionToml;
+    use datax_config::NetworkUnixSocketPermissionsToml;
+    use datax_config::RequirementSource;
+    use datax_config::ResidencyRequirement;
+    use datax_config::SandboxModeRequirement;
+    use datax_config::Sourced;
+    use datax_config::WebSearchModeRequirement;
+    use datax_config::sandbox_mode_requirement_for_permission_profile;
+    use datax_protocol::config_types::ApprovalsReviewer;
+    use datax_protocol::config_types::WebSearchMode;
+    use datax_protocol::models::PermissionProfile;
+    use datax_utils_absolute_path::AbsolutePathBuf;
     use ratatui::text::Line;
     use std::collections::BTreeMap;
     use toml::Value as TomlValue;
@@ -701,7 +701,7 @@ mod tests {
                     "docs".to_string(),
                     McpServerRequirement {
                         identity: McpServerIdentity::Command {
-                            command: "codex-mcp".to_string(),
+                            command: "datax-mcp".to_string(),
                         },
                     },
                 )]),
@@ -780,7 +780,7 @@ mod tests {
                 "docs".to_string(),
                 McpServerRequirement {
                     identity: McpServerIdentity::Command {
-                        command: "codex-mcp".to_string(),
+                        command: "datax-mcp".to_string(),
                     },
                 },
             )])),

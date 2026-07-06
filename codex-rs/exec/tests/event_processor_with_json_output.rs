@@ -1,79 +1,79 @@
-use codex_app_server_protocol::CollabAgentState as ApiCollabAgentState;
-use codex_app_server_protocol::CollabAgentStatus as ApiCollabAgentStatus;
-use codex_app_server_protocol::CollabAgentTool;
-use codex_app_server_protocol::CollabAgentToolCallStatus as ApiCollabAgentToolCallStatus;
-use codex_app_server_protocol::CommandAction;
-use codex_app_server_protocol::CommandExecutionSource;
-use codex_app_server_protocol::CommandExecutionStatus as ApiCommandExecutionStatus;
-use codex_app_server_protocol::ErrorNotification;
-use codex_app_server_protocol::FileUpdateChange as ApiFileUpdateChange;
-use codex_app_server_protocol::ItemCompletedNotification;
-use codex_app_server_protocol::ItemStartedNotification;
-use codex_app_server_protocol::McpToolCallError;
-use codex_app_server_protocol::McpToolCallResult;
-use codex_app_server_protocol::McpToolCallStatus as ApiMcpToolCallStatus;
-use codex_app_server_protocol::PatchApplyStatus as ApiPatchApplyStatus;
-use codex_app_server_protocol::PatchChangeKind as ApiPatchChangeKind;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadTokenUsage;
-use codex_app_server_protocol::TokenUsageBreakdown;
-use codex_app_server_protocol::Turn;
-use codex_app_server_protocol::TurnCompletedNotification;
-use codex_app_server_protocol::TurnError;
-use codex_app_server_protocol::TurnPlanStep;
-use codex_app_server_protocol::TurnPlanStepStatus;
-use codex_app_server_protocol::TurnPlanUpdatedNotification;
-use codex_app_server_protocol::TurnStartedNotification;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::WebSearchAction as ApiWebSearchAction;
-use codex_protocol::SessionId;
-use codex_protocol::ThreadId;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::WebSearchAction;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::SessionConfiguredEvent;
-use codex_utils_absolute_path::test_support::PathBufExt;
-use codex_utils_absolute_path::test_support::test_path_buf;
+use datax_app_server_protocol::CollabAgentState as ApiCollabAgentState;
+use datax_app_server_protocol::CollabAgentStatus as ApiCollabAgentStatus;
+use datax_app_server_protocol::CollabAgentTool;
+use datax_app_server_protocol::CollabAgentToolCallStatus as ApiCollabAgentToolCallStatus;
+use datax_app_server_protocol::CommandAction;
+use datax_app_server_protocol::CommandExecutionSource;
+use datax_app_server_protocol::CommandExecutionStatus as ApiCommandExecutionStatus;
+use datax_app_server_protocol::ErrorNotification;
+use datax_app_server_protocol::FileUpdateChange as ApiFileUpdateChange;
+use datax_app_server_protocol::ItemCompletedNotification;
+use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::McpToolCallError;
+use datax_app_server_protocol::McpToolCallResult;
+use datax_app_server_protocol::McpToolCallStatus as ApiMcpToolCallStatus;
+use datax_app_server_protocol::PatchApplyStatus as ApiPatchApplyStatus;
+use datax_app_server_protocol::PatchChangeKind as ApiPatchChangeKind;
+use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::ThreadItem;
+use datax_app_server_protocol::ThreadTokenUsage;
+use datax_app_server_protocol::TokenUsageBreakdown;
+use datax_app_server_protocol::Turn;
+use datax_app_server_protocol::TurnCompletedNotification;
+use datax_app_server_protocol::TurnError;
+use datax_app_server_protocol::TurnPlanStep;
+use datax_app_server_protocol::TurnPlanStepStatus;
+use datax_app_server_protocol::TurnPlanUpdatedNotification;
+use datax_app_server_protocol::TurnStartedNotification;
+use datax_app_server_protocol::TurnStatus;
+use datax_app_server_protocol::WebSearchAction as ApiWebSearchAction;
+use datax_protocol::SessionId;
+use datax_protocol::ThreadId;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::models::WebSearchAction;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::SessionConfiguredEvent;
+use datax_utils_absolute_path::test_support::PathBufExt;
+use datax_utils_absolute_path::test_support::test_path_buf;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
-use codex_exec::AgentMessageItem;
-use codex_exec::CodexStatus;
-use codex_exec::CollabAgentState;
-use codex_exec::CollabAgentStatus;
-use codex_exec::CollabTool;
-use codex_exec::CollabToolCallItem;
-use codex_exec::CollabToolCallStatus;
-use codex_exec::CollectedThreadEvents;
-use codex_exec::CommandExecutionItem;
-use codex_exec::CommandExecutionStatus;
-use codex_exec::ErrorItem;
-use codex_exec::EventProcessorWithJsonOutput;
-use codex_exec::ExecThreadItem;
-use codex_exec::FileChangeItem;
-use codex_exec::FileUpdateChange as ExecFileUpdateChange;
-use codex_exec::ItemCompletedEvent;
-use codex_exec::ItemStartedEvent;
-use codex_exec::ItemUpdatedEvent;
-use codex_exec::McpToolCallItem;
-use codex_exec::McpToolCallItemError;
-use codex_exec::McpToolCallItemResult;
-use codex_exec::McpToolCallStatus;
-use codex_exec::PatchApplyStatus;
-use codex_exec::PatchChangeKind;
-use codex_exec::ReasoningItem;
-use codex_exec::ThreadErrorEvent;
-use codex_exec::ThreadEvent;
-use codex_exec::ThreadItemDetails;
-use codex_exec::ThreadStartedEvent;
-use codex_exec::TodoItem;
-use codex_exec::TodoListItem;
-use codex_exec::TurnCompletedEvent;
-use codex_exec::TurnFailedEvent;
-use codex_exec::TurnStartedEvent;
-use codex_exec::Usage;
-use codex_exec::WebSearchItem;
+use datax_exec::AgentMessageItem;
+use datax_exec::CodexStatus;
+use datax_exec::CollabAgentState;
+use datax_exec::CollabAgentStatus;
+use datax_exec::CollabTool;
+use datax_exec::CollabToolCallItem;
+use datax_exec::CollabToolCallStatus;
+use datax_exec::CollectedThreadEvents;
+use datax_exec::CommandExecutionItem;
+use datax_exec::CommandExecutionStatus;
+use datax_exec::ErrorItem;
+use datax_exec::EventProcessorWithJsonOutput;
+use datax_exec::ExecThreadItem;
+use datax_exec::FileChangeItem;
+use datax_exec::FileUpdateChange as ExecFileUpdateChange;
+use datax_exec::ItemCompletedEvent;
+use datax_exec::ItemStartedEvent;
+use datax_exec::ItemUpdatedEvent;
+use datax_exec::McpToolCallItem;
+use datax_exec::McpToolCallItemError;
+use datax_exec::McpToolCallItemResult;
+use datax_exec::McpToolCallStatus;
+use datax_exec::PatchApplyStatus;
+use datax_exec::PatchChangeKind;
+use datax_exec::ReasoningItem;
+use datax_exec::ThreadErrorEvent;
+use datax_exec::ThreadEvent;
+use datax_exec::ThreadItemDetails;
+use datax_exec::ThreadStartedEvent;
+use datax_exec::TodoItem;
+use datax_exec::TodoListItem;
+use datax_exec::TurnCompletedEvent;
+use datax_exec::TurnFailedEvent;
+use datax_exec::TurnStartedEvent;
+use datax_exec::Usage;
+use datax_exec::WebSearchItem;
 
 #[test]
 fn map_todo_items_preserves_text_and_completion_state() {
@@ -114,11 +114,11 @@ fn session_configured_produces_thread_started_event() {
         parent_thread_id: None,
         thread_source: None,
         thread_name: None,
-        model: "codex-mini-latest".to_string(),
+        model: "datax-mini-latest".to_string(),
         model_provider_id: "test-provider".to_string(),
         service_tier: None,
         approval_policy: AskForApproval::Never,
-        approvals_reviewer: codex_protocol::config_types::ApprovalsReviewer::User,
+        approvals_reviewer: datax_protocol::config_types::ApprovalsReviewer::User,
         permission_profile: PermissionProfile::read_only(),
         active_permission_profile: None,
         cwd: test_path_buf("/tmp/project").abs(),
@@ -145,7 +145,7 @@ fn turn_started_emits_turn_started_event() {
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: TurnStatus::InProgress,
                 error: None,
@@ -1111,7 +1111,7 @@ fn plan_update_emits_started_then_updated_then_completed() {
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: TurnStatus::Completed,
                 error: None,
@@ -1171,7 +1171,7 @@ fn plan_update_after_completion_starts_new_todo_list_with_new_id() {
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: TurnStatus::Completed,
                 error: None,
@@ -1219,7 +1219,7 @@ fn token_usage_update_is_emitted_on_turn_completion() {
 
     let usage_update =
         processor.collect_thread_events(ServerNotification::ThreadTokenUsageUpdated(
-            codex_app_server_protocol::ThreadTokenUsageUpdatedNotification {
+            datax_app_server_protocol::ThreadTokenUsageUpdatedNotification {
                 thread_id: "thread-1".to_string(),
                 turn_id: "turn-1".to_string(),
                 token_usage: ThreadTokenUsage {
@@ -1254,7 +1254,7 @@ fn token_usage_update_is_emitted_on_turn_completion() {
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: TurnStatus::Completed,
                 error: None,
@@ -1289,7 +1289,7 @@ fn turn_completion_recovers_final_message_from_turn_items() {
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::TurnItemsView::Full,
                 items: vec![ThreadItem::AgentMessage {
                     id: "msg-1".to_string(),
                     text: "final answer".to_string(),
@@ -1362,7 +1362,7 @@ fn turn_completion_reconciles_started_items_from_turn_items() {
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::TurnItemsView::Full,
                 items: vec![ThreadItem::CommandExecution {
                     id: "cmd-1".to_string(),
                     command: "ls".to_string(),
@@ -1430,7 +1430,7 @@ fn turn_completion_overwrites_stale_final_message_from_turn_items() {
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::TurnItemsView::Full,
                 items: vec![ThreadItem::AgentMessage {
                     id: "msg-1".to_string(),
                     text: "final answer".to_string(),
@@ -1480,7 +1480,7 @@ fn turn_completion_preserves_streamed_final_message_when_turn_items_are_empty() 
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: TurnStatus::Completed,
                 error: None,
@@ -1529,7 +1529,7 @@ fn failed_turn_clears_stale_final_message() {
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: TurnStatus::Failed,
                 error: Some(TurnError {
@@ -1557,7 +1557,7 @@ fn turn_completion_falls_back_to_final_plan_text() {
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::TurnItemsView::Full,
                 items: vec![ThreadItem::Plan {
                     id: "plan-1".to_string(),
                     text: "ship the typed adapter".to_string(),
@@ -1612,7 +1612,7 @@ fn turn_failure_prefers_structured_error_message() {
             thread_id: "thread-1".to_string(),
             turn: Turn {
                 id: "turn-1".to_string(),
-                items_view: codex_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::TurnItemsView::Full,
                 items: Vec::new(),
                 status: TurnStatus::Failed,
                 error: None,
@@ -1640,12 +1640,12 @@ fn model_reroute_surfaces_as_error_item() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
     let collected = processor.collect_thread_events(ServerNotification::ModelRerouted(
-        codex_app_server_protocol::ModelReroutedNotification {
+        datax_app_server_protocol::ModelReroutedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             from_model: "gpt-5".to_string(),
             to_model: "gpt-5-mini".to_string(),
-            reason: codex_app_server_protocol::ModelRerouteReason::HighRiskCyberActivity,
+            reason: datax_app_server_protocol::ModelRerouteReason::HighRiskCyberActivity,
         },
     ));
 

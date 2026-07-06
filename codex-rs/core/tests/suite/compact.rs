@@ -1,32 +1,5 @@
 use anyhow::Result;
 use anyhow::anyhow;
-use codex_core::CodexThread;
-use codex_core::compact::SUMMARIZATION_PROMPT;
-use codex_core::compact::SUMMARY_PREFIX;
-use codex_core::config::Config;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::built_in_model_providers;
-use codex_models_manager::bundled_models_response;
-use codex_protocol::config_types::AutoCompactTokenLimitScope;
-use codex_protocol::items::TurnItem;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::HookEventName;
-use codex_protocol::protocol::HookRunStatus;
-use codex_protocol::protocol::ItemCompletedEvent;
-use codex_protocol::protocol::ItemStartedEvent;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::WarningEvent;
-use codex_protocol::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
 use core_test_support::PathBufExt;
 use core_test_support::context_snapshot;
 use core_test_support::context_snapshot::ContextSnapshotOptions;
@@ -43,6 +16,33 @@ use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::test_path_buf;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_match;
+use datax_core::CodexThread;
+use datax_core::compact::SUMMARIZATION_PROMPT;
+use datax_core::compact::SUMMARY_PREFIX;
+use datax_core::config::Config;
+use datax_features::Feature;
+use datax_login::CodexAuth;
+use datax_model_provider_info::ModelProviderInfo;
+use datax_model_provider_info::built_in_model_providers;
+use datax_models_manager::bundled_models_response;
+use datax_protocol::config_types::AutoCompactTokenLimitScope;
+use datax_protocol::items::TurnItem;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::openai_models::ModelInfo;
+use datax_protocol::openai_models::ModelsResponse;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::HookEventName;
+use datax_protocol::protocol::HookRunStatus;
+use datax_protocol::protocol::ItemCompletedEvent;
+use datax_protocol::protocol::ItemStartedEvent;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutLine;
+use datax_protocol::protocol::WarningEvent;
+use datax_protocol::user_input::UserInput;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_path_uri::PathUri;
 use std::path::PathBuf;
 
 use core_test_support::responses::ev_assistant_message;
@@ -155,14 +155,14 @@ fn disabled_permission_user_turn(text: impl Into<String>, cwd: PathBuf, model: S
         final_output_json_schema: None,
         responsesapi_client_metadata: None,
         additional_context: Default::default(),
-        thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+        thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
             environments: Some(local_selections(cwd.abs())),
             approval_policy: Some(AskForApproval::Never),
             sandbox_policy: Some(sandbox_policy),
             permission_profile,
-            collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                mode: codex_protocol::config_types::ModeKind::Default,
-                settings: codex_protocol::config_types::Settings {
+            collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                mode: datax_protocol::config_types::ModeKind::Default,
+                settings: datax_protocol::config_types::Settings {
                     model,
                     reasoning_effort: None,
                     developer_instructions: None,
@@ -447,7 +447,7 @@ fn assert_pre_sampling_switch_compaction_requests(
     );
 }
 
-async fn assert_compaction_uses_turn_lifecycle_id(codex: &std::sync::Arc<codex_core::CodexThread>) {
+async fn assert_compaction_uses_turn_lifecycle_id(codex: &std::sync::Arc<datax_core::CodexThread>) {
     let mut turn_started_id = None;
     let mut turn_completed_id = None;
     let mut compact_started_id = None;
@@ -2030,16 +2030,16 @@ async fn auto_compact_runs_after_resume_when_token_usage_is_over_limit() {
     let remote_summary = "REMOTE_COMPACT_SUMMARY";
 
     let compacted_history = vec![
-        codex_protocol::models::ResponseItem::Message {
+        datax_protocol::models::ResponseItem::Message {
             id: None,
             role: "assistant".to_string(),
-            content: vec![codex_protocol::models::ContentItem::OutputText {
+            content: vec![datax_protocol::models::ContentItem::OutputText {
                 text: remote_summary.to_string(),
             }],
             phase: None,
             internal_chat_message_metadata_passthrough: None,
         },
-        codex_protocol::models::ResponseItem::Compaction {
+        datax_protocol::models::ResponseItem::Compaction {
             id: None,
             encrypted_content: "ENCRYPTED_COMPACTION_SUMMARY".to_string(),
             internal_chat_message_metadata_passthrough: None,
@@ -4156,16 +4156,16 @@ async fn auto_compact_counts_encrypted_reasoning_before_last_user() {
     .await;
 
     let compacted_history = vec![
-        codex_protocol::models::ResponseItem::Message {
+        datax_protocol::models::ResponseItem::Message {
             id: None,
             role: "assistant".to_string(),
-            content: vec![codex_protocol::models::ContentItem::OutputText {
+            content: vec![datax_protocol::models::ContentItem::OutputText {
                 text: "REMOTE_COMPACT_SUMMARY".to_string(),
             }],
             phase: None,
             internal_chat_message_metadata_passthrough: None,
         },
-        codex_protocol::models::ResponseItem::Compaction {
+        datax_protocol::models::ResponseItem::Compaction {
             id: None,
             encrypted_content: "ENCRYPTED_COMPACTION_SUMMARY".to_string(),
             internal_chat_message_metadata_passthrough: None,
@@ -4284,16 +4284,16 @@ async fn auto_compact_runs_when_reasoning_header_clears_between_turns() {
     mount_response_sequence(&server, responses).await;
 
     let compacted_history = vec![
-        codex_protocol::models::ResponseItem::Message {
+        datax_protocol::models::ResponseItem::Message {
             id: None,
             role: "assistant".to_string(),
-            content: vec![codex_protocol::models::ContentItem::OutputText {
+            content: vec![datax_protocol::models::ContentItem::OutputText {
                 text: "REMOTE_COMPACT_SUMMARY".to_string(),
             }],
             phase: None,
             internal_chat_message_metadata_passthrough: None,
         },
-        codex_protocol::models::ResponseItem::Compaction {
+        datax_protocol::models::ResponseItem::Compaction {
             id: None,
             encrypted_content: "ENCRYPTED_COMPACTION_SUMMARY".to_string(),
             internal_chat_message_metadata_passthrough: None,
@@ -4394,7 +4394,7 @@ async fn snapshot_request_shape_pre_turn_compaction_including_incoming_user_mess
     }
     core_test_support::submit_thread_settings(
         &codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        datax_protocol::protocol::ThreadSettingsOverrides {
             environments: Some(local_selections(
                 test_path_buf(PRETURN_CONTEXT_DIFF_CWD).abs(),
             )),

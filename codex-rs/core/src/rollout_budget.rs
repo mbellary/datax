@@ -1,6 +1,6 @@
 use crate::config::RolloutBudgetConfig;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::TokenUsage;
+use datax_protocol::ThreadId;
+use datax_protocol::protocol::TokenUsage;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::sync::MutexGuard;

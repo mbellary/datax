@@ -1,13 +1,13 @@
 use super::*;
 use crate::legacy_core::config::PermissionProfileCatalogEntry;
-use codex_protocol::models::ActivePermissionProfile;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_DANGER_FULL_ACCESS;
-use codex_protocol::models::ManagedFileSystemPermissions;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_protocol::permissions::NetworkSandboxPolicy;
+use datax_protocol::models::ActivePermissionProfile;
+use datax_protocol::models::BUILT_IN_PERMISSION_PROFILE_DANGER_FULL_ACCESS;
+use datax_protocol::models::ManagedFileSystemPermissions;
+use datax_protocol::permissions::FileSystemAccessMode;
+use datax_protocol::permissions::FileSystemPath;
+use datax_protocol::permissions::FileSystemSandboxEntry;
+use datax_protocol::permissions::FileSystemSpecialPath;
+use datax_protocol::permissions::NetworkSandboxPolicy;
 use pretty_assertions::assert_eq;
 
 fn app_server_workspace_write_profile(extra_root: AbsolutePathBuf) -> PermissionProfile {
@@ -52,8 +52,8 @@ fn app_server_workspace_write_profile(extra_root: AbsolutePathBuf) -> Permission
 fn windows_sandbox_requirements_stack(
     allowed_sandbox_implementations: Vec<WindowsSandboxModeToml>,
 ) -> ConfigLayerStack {
-    let requirements_toml = codex_config::ConfigRequirementsToml {
-        windows: Some(codex_config::WindowsRequirementsToml {
+    let requirements_toml = datax_config::ConfigRequirementsToml {
+        windows: Some(datax_config::WindowsRequirementsToml {
             allowed_sandbox_implementations: Some(allowed_sandbox_implementations),
         }),
         ..Default::default()
@@ -61,11 +61,11 @@ fn windows_sandbox_requirements_stack(
     requirements_stack(requirements_toml)
 }
 
-fn requirements_stack(requirements_toml: codex_config::ConfigRequirementsToml) -> ConfigLayerStack {
-    let mut requirements_with_sources = codex_config::ConfigRequirementsWithSources::default();
+fn requirements_stack(requirements_toml: datax_config::ConfigRequirementsToml) -> ConfigLayerStack {
+    let mut requirements_with_sources = datax_config::ConfigRequirementsWithSources::default();
     requirements_with_sources
         .merge_unset_fields(RequirementSource::Unknown, requirements_toml.clone());
-    let requirements = codex_config::ConfigRequirements::try_from(requirements_with_sources)
+    let requirements = datax_config::ConfigRequirements::try_from(requirements_with_sources)
         .expect("windows sandbox requirements");
 
     ConfigLayerStack::new(Vec::new(), requirements, requirements_toml)
@@ -113,10 +113,10 @@ async fn profile_permissions_selection_popup_snapshot() {
 async fn profile_permissions_selection_popup_with_disallowed_full_access_snapshot() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.config.explicit_permission_profile_mode = true;
-    chat.config.config_layer_stack = requirements_stack(codex_config::ConfigRequirementsToml {
+    chat.config.config_layer_stack = requirements_stack(datax_config::ConfigRequirementsToml {
         allowed_sandbox_modes: Some(vec![
-            codex_config::SandboxModeRequirement::ReadOnly,
-            codex_config::SandboxModeRequirement::WorkspaceWrite,
+            datax_config::SandboxModeRequirement::ReadOnly,
+            datax_config::SandboxModeRequirement::WorkspaceWrite,
         ]),
         ..Default::default()
     });

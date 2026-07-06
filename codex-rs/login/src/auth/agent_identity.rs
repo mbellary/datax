@@ -1,21 +1,21 @@
 use std::future::Future;
 use std::sync::Arc;
 
-use codex_agent_identity::AgentIdentityKey;
-use codex_agent_identity::ChatGptEnvironment;
-use codex_agent_identity::agent_identity_jwks_url;
-use codex_agent_identity::agent_registration_url;
-use codex_agent_identity::agent_task_registration_url;
-use codex_agent_identity::build_abom;
-use codex_agent_identity::decode_agent_identity_jwt;
-use codex_agent_identity::fetch_agent_identity_jwks;
-use codex_agent_identity::generate_agent_key_material;
-use codex_agent_identity::is_retryable_registration_error;
-use codex_agent_identity::public_key_ssh_from_private_key_pkcs8_base64;
-use codex_agent_identity::register_agent_identity;
-use codex_agent_identity::register_agent_task;
-use codex_protocol::account::PlanType as AccountPlanType;
-use codex_protocol::protocol::SessionSource;
+use datax_agent_identity::AgentIdentityKey;
+use datax_agent_identity::ChatGptEnvironment;
+use datax_agent_identity::agent_identity_jwks_url;
+use datax_agent_identity::agent_registration_url;
+use datax_agent_identity::agent_task_registration_url;
+use datax_agent_identity::build_abom;
+use datax_agent_identity::decode_agent_identity_jwt;
+use datax_agent_identity::fetch_agent_identity_jwks;
+use datax_agent_identity::generate_agent_key_material;
+use datax_agent_identity::is_retryable_registration_error;
+use datax_agent_identity::public_key_ssh_from_private_key_pkcs8_base64;
+use datax_agent_identity::register_agent_identity;
+use datax_agent_identity::register_agent_task;
+use datax_protocol::account::PlanType as AccountPlanType;
+use datax_protocol::protocol::SessionSource;
 use thiserror::Error;
 
 use crate::default_client::build_default_auth_reqwest_client;
@@ -346,7 +346,7 @@ mod tests {
     use std::sync::atomic::AtomicUsize;
     use std::sync::atomic::Ordering;
 
-    use codex_agent_identity::generate_agent_key_material;
+    use datax_agent_identity::generate_agent_key_material;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use wiremock::Mock;
@@ -496,7 +496,7 @@ mod tests {
             &header,
             &json!({
                 "iss": "https://chatgpt.com/codex-backend/agent-identity",
-                "aud": "codex-app-server",
+                "aud": "datax-app-server",
                 "iat": 1_700_000_000usize,
                 "exp": 4_000_000_000usize,
                 "agent_runtime_id": record.agent_runtime_id,

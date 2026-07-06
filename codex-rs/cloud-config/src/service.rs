@@ -13,16 +13,16 @@ use crate::metrics::emit_fetch_attempt_metric;
 use crate::metrics::emit_fetch_final_metric;
 use crate::metrics::emit_load_metric;
 use crate::validation::validate_bundle;
-use codex_config::AbsolutePathBuf;
-use codex_config::CloudConfigBundle;
-use codex_config::CloudConfigBundleLoadError;
-use codex_config::CloudConfigBundleLoadErrorCode;
-use codex_core::util::backoff;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::RefreshTokenError;
-use codex_login::UnauthorizedRecovery;
-use codex_protocol::account::PlanType;
+use datax_config::AbsolutePathBuf;
+use datax_config::CloudConfigBundle;
+use datax_config::CloudConfigBundleLoadError;
+use datax_config::CloudConfigBundleLoadErrorCode;
+use datax_core::util::backoff;
+use datax_login::AuthManager;
+use datax_login::CodexAuth;
+use datax_login::RefreshTokenError;
+use datax_login::UnauthorizedRecovery;
+use datax_protocol::account::PlanType;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -115,7 +115,7 @@ where
         &self,
     ) -> Result<Option<CloudConfigBundle>, CloudConfigBundleLoadError> {
         let _timer =
-            codex_otel::start_global_timer("codex.cloud_config_bundle.fetch.duration_ms", &[]);
+            datax_otel::start_global_timer("codex.cloud_config_bundle.fetch.duration_ms", &[]);
         let started_at = Instant::now();
         let load_result = timeout(self.timeout, self.load_startup_bundle())
             .await

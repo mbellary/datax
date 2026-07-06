@@ -1,16 +1,16 @@
 use super::*;
 use crate::ModelsManagerConfig;
 use chrono::Utc;
-use codex_app_server_protocol::AuthMode;
-use codex_login::AuthCredentialsStoreMode;
-use codex_login::AuthKeyringBackendKind;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::ExternalAuth;
-use codex_login::ExternalAuthRefreshContext;
-use codex_login::ExternalAuthTokens;
-use codex_login::TokenData;
-use codex_protocol::openai_models::ModelsResponse;
+use datax_app_server_protocol::AuthMode;
+use datax_login::AuthCredentialsStoreMode;
+use datax_login::AuthKeyringBackendKind;
+use datax_login::AuthManager;
+use datax_login::CodexAuth;
+use datax_login::ExternalAuth;
+use datax_login::ExternalAuthRefreshContext;
+use datax_login::ExternalAuthTokens;
+use datax_login::TokenData;
+use datax_protocol::openai_models::ModelsResponse;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::collections::VecDeque;
@@ -122,7 +122,7 @@ impl ExternalAuth for TestExternalApiKeyAuth {
         AuthMode::ApiKey
     }
 
-    fn resolve(&self) -> codex_login::ExternalAuthFuture<'_, Option<ExternalAuthTokens>> {
+    fn resolve(&self) -> datax_login::ExternalAuthFuture<'_, Option<ExternalAuthTokens>> {
         Box::pin(async {
             Ok(Some(ExternalAuthTokens::access_token_only(
                 "test-external-api-key",
@@ -133,7 +133,7 @@ impl ExternalAuth for TestExternalApiKeyAuth {
     fn refresh(
         &self,
         _context: ExternalAuthRefreshContext,
-    ) -> codex_login::ExternalAuthFuture<'_, ExternalAuthTokens> {
+    ) -> datax_login::ExternalAuthFuture<'_, ExternalAuthTokens> {
         Box::pin(async {
             Ok(ExternalAuthTokens::access_token_only(
                 "test-external-api-key",
@@ -153,7 +153,7 @@ impl ExternalAuth for TestUnresolvedExternalApiKeyAuth {
     fn refresh(
         &self,
         _context: ExternalAuthRefreshContext,
-    ) -> codex_login::ExternalAuthFuture<'_, ExternalAuthTokens> {
+    ) -> datax_login::ExternalAuthFuture<'_, ExternalAuthTokens> {
         Box::pin(async { Err(std::io::Error::other("unresolved test auth")) })
     }
 }
@@ -201,11 +201,11 @@ fn static_manager_for_tests(model_catalog: ModelsResponse) -> StaticModelsManage
 }
 
 async fn chatgpt_auth_tokens_for_tests(codex_home: &Path) -> CodexAuth {
-    let auth_dot_json = codex_login::AuthDotJson {
+    let auth_dot_json = datax_login::AuthDotJson {
         auth_mode: Some(AuthMode::ChatgptAuthTokens),
         openai_api_key: None,
         tokens: Some(TokenData {
-            id_token: codex_login::token_data::parse_chatgpt_jwt_claims(
+            id_token: datax_login::token_data::parse_chatgpt_jwt_claims(
                 "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.\
 eyJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20iLCJodHRwczovL2FwaS5vcGVuYWkuY29tL2F1dGgiOnsiY2hhdGdwdF9wbGFuX3R5cGUiOiJwcm8iLCJjaGF0Z3B0X3VzZXJfaWQiOiJ1c2VyLWlkIiwiY2hhdGdwdF9hY2NvdW50X2lkIjoiYWNjb3VudC1pZCJ9fQ.\
 c2ln",

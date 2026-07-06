@@ -1,18 +1,18 @@
 use std::sync::Arc;
 
-use codex_api::AuthError;
-use codex_api::AuthProvider;
-use codex_api::SharedAuthProvider;
-use codex_aws_auth::AwsAuthContext;
-use codex_aws_auth::AwsAuthError;
-use codex_aws_auth::AwsRequestToSign;
-use codex_client::Request;
-use codex_client::RequestBody;
-use codex_client::RequestCompression;
-use codex_login::auth::BedrockApiKeyAuth;
-use codex_model_provider_info::ModelProviderAwsAuthInfo;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result;
+use datax_api::AuthError;
+use datax_api::AuthProvider;
+use datax_api::SharedAuthProvider;
+use datax_aws_auth::AwsAuthContext;
+use datax_aws_auth::AwsAuthError;
+use datax_aws_auth::AwsRequestToSign;
+use datax_client::Request;
+use datax_client::RequestBody;
+use datax_client::RequestCompression;
+use datax_login::auth::BedrockApiKeyAuth;
+use datax_model_provider_info::ModelProviderAwsAuthInfo;
+use datax_protocol::error::CodexErr;
+use datax_protocol::error::Result;
 use http::HeaderMap;
 
 use crate::BearerAuthProvider;
@@ -160,14 +160,14 @@ impl BedrockMantleSigV4AuthProvider {
 impl AuthProvider for BedrockMantleSigV4AuthProvider {
     fn add_auth_headers(&self, _headers: &mut HeaderMap) {}
 
-    fn apply_auth(&self, request: Request) -> codex_api::AuthProviderFuture<'_> {
+    fn apply_auth(&self, request: Request) -> datax_api::AuthProviderFuture<'_> {
         Box::pin(BedrockMantleSigV4AuthProvider::apply_auth(self, request))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use codex_api::AuthProvider;
+    use datax_api::AuthProvider;
     use http::HeaderValue;
     use pretty_assertions::assert_eq;
 

@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
-use codex_config::McpServerTransportConfig;
-use codex_core::McpManager;
-use codex_core::config::Config;
-use codex_core::config::ConfigBuilder;
-use codex_core_plugins::PluginsManager;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_extension_api::McpServerContribution;
-use codex_extension_api::McpServerContributionContext;
-use codex_extension_api::McpServerContributor;
-use codex_login::CodexAuth;
-use codex_mcp::CODEX_APPS_MCP_SERVER_NAME;
+use datax_config::McpServerTransportConfig;
+use datax_core::McpManager;
+use datax_core::config::Config;
+use datax_core::config::ConfigBuilder;
+use datax_core_plugins::PluginsManager;
+use datax_extension_api::ExtensionRegistryBuilder;
+use datax_extension_api::McpServerContribution;
+use datax_extension_api::McpServerContributionContext;
+use datax_extension_api::McpServerContributor;
+use datax_login::CodexAuth;
+use datax_mcp::CODEX_APPS_MCP_SERVER_NAME;
 use pretty_assertions::assert_eq;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -115,7 +115,7 @@ async fn later_extension_can_remove_same_name_registration() -> TestResult {
         .await?;
     let auth = CodexAuth::create_dummy_chatgpt_auth_for_testing();
     let mut builder = ExtensionRegistryBuilder::new();
-    codex_mcp_extension::install(&mut builder);
+    datax_mcp_extension::install(&mut builder);
     builder.mcp_server_contributor(Arc::new(RemoveCodexApps));
     let manager = McpManager::new_with_extensions(
         Arc::new(PluginsManager::new(config.codex_home.to_path_buf())),
@@ -176,7 +176,7 @@ async fn disabled_apps_remove_reserved_server_config_for_all_hosts() -> TestResu
 
 fn installed_manager(config: &Config) -> McpManager {
     let mut builder = ExtensionRegistryBuilder::new();
-    codex_mcp_extension::install(&mut builder);
+    datax_mcp_extension::install(&mut builder);
     McpManager::new_with_extensions(
         Arc::new(PluginsManager::new(config.codex_home.to_path_buf())),
         Arc::new(builder.build()),
@@ -193,7 +193,7 @@ impl McpServerContributor<Config> for RemoveCodexApps {
     fn contribute<'a>(
         &'a self,
         _context: McpServerContributionContext<'a, Config>,
-    ) -> codex_extension_api::ExtensionFuture<'a, Vec<McpServerContribution>> {
+    ) -> datax_extension_api::ExtensionFuture<'a, Vec<McpServerContribution>> {
         Box::pin(async move {
             vec![McpServerContribution::Remove {
                 name: CODEX_APPS_MCP_SERVER_NAME.to_string(),

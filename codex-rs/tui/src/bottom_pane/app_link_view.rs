@@ -1,11 +1,11 @@
 #[cfg(test)]
 use crate::app_command::AppCommand as Op;
-use codex_app_server_protocol::McpServerElicitationAction;
-use codex_app_server_protocol::RequestId as AppServerRequestId;
-use codex_protocol::ThreadId;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyModifiers;
+use datax_app_server_protocol::McpServerElicitationAction;
+use datax_app_server_protocol::RequestId as AppServerRequestId;
+use datax_protocol::ThreadId;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Constraint;
 use ratatui::layout::Layout;
@@ -84,9 +84,9 @@ impl AppLinkViewParams {
         thread_id: ThreadId,
         server_name: &str,
         request_id: AppServerRequestId,
-        request: &codex_app_server_protocol::McpServerElicitationRequest,
+        request: &datax_app_server_protocol::McpServerElicitationRequest,
     ) -> Option<Self> {
-        let codex_app_server_protocol::McpServerElicitationRequest::Url {
+        let datax_app_server_protocol::McpServerElicitationRequest::Url {
             meta,
             message,
             url,
@@ -875,8 +875,8 @@ mod tests {
         }
     }
 
-    fn auth_url_request(url: &str) -> codex_app_server_protocol::McpServerElicitationRequest {
-        codex_app_server_protocol::McpServerElicitationRequest::Url {
+    fn auth_url_request(url: &str) -> datax_app_server_protocol::McpServerElicitationRequest {
+        datax_app_server_protocol::McpServerElicitationRequest::Url {
             meta: Some(serde_json::json!({
                 "_codex_apps": {
                     "connector_auth_failure": {
@@ -919,7 +919,7 @@ mod tests {
     #[test]
     fn non_codex_apps_url_elicitation_builds_generic_app_link_params() {
         let target = generic_url_target();
-        let request = codex_app_server_protocol::McpServerElicitationRequest::Url {
+        let request = datax_app_server_protocol::McpServerElicitationRequest::Url {
             meta: None,
             message: "Review the payment details to continue.".to_string(),
             url: "https://payments.example/checkout/123".to_string(),
@@ -979,7 +979,7 @@ mod tests {
             "http://payments.example/checkout/123",
             "https://user:pass@payments.example/checkout/123",
         ] {
-            let request = codex_app_server_protocol::McpServerElicitationRequest::Url {
+            let request = datax_app_server_protocol::McpServerElicitationRequest::Url {
                 meta: None,
                 message: "Review the payment details to continue.".to_string(),
                 url: url.to_string(),
@@ -1202,7 +1202,7 @@ mod tests {
         let (tx_raw, mut rx) = unbounded_channel::<AppEvent>();
         let tx = AppEventSender::new(tx_raw);
         let target = generic_url_target();
-        let request = codex_app_server_protocol::McpServerElicitationRequest::Url {
+        let request = datax_app_server_protocol::McpServerElicitationRequest::Url {
             meta: None,
             message: "Review the payment details to continue.".to_string(),
             url: "https://payments.example/checkout/123".to_string(),
@@ -1647,7 +1647,7 @@ mod tests {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
         let tx = AppEventSender::new(tx_raw);
         let target = generic_url_target();
-        let request = codex_app_server_protocol::McpServerElicitationRequest::Url {
+        let request = datax_app_server_protocol::McpServerElicitationRequest::Url {
             meta: None,
             message: "Review the payment details to continue.".to_string(),
             url: "https://payments.example/checkout/123".to_string(),
@@ -1676,7 +1676,7 @@ mod tests {
         let (tx_raw, _rx) = unbounded_channel::<AppEvent>();
         let tx = AppEventSender::new(tx_raw);
         let target = generic_url_target();
-        let request = codex_app_server_protocol::McpServerElicitationRequest::Url {
+        let request = datax_app_server_protocol::McpServerElicitationRequest::Url {
             meta: None,
             message: "Review the payment details to continue.".to_string(),
             url: "https://payments.example/checkout/123".to_string(),

@@ -23,48 +23,48 @@ pub use app::AppExitInfo;
 pub use app::ExitReason;
 use app_server_session::AppServerSession;
 use app_server_session::ThreadParamsMode;
-use codex_app_server_client::AppServerClient;
-use codex_app_server_client::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
-use codex_app_server_client::InProcessAppServerClient;
-use codex_app_server_client::InProcessClientStartArgs;
-use codex_app_server_client::RemoteAppServerClient;
-use codex_app_server_client::RemoteAppServerConnectArgs;
-pub use codex_app_server_client::RemoteAppServerEndpoint;
-use codex_app_server_protocol::Account as AppServerAccount;
-use codex_app_server_protocol::AskForApproval;
-use codex_app_server_protocol::AuthMode as AppServerAuthMode;
-use codex_app_server_protocol::ConfigWarningNotification;
-use codex_app_server_protocol::Thread as AppServerThread;
-use codex_app_server_protocol::ThreadListCwdFilter;
-use codex_app_server_protocol::ThreadListParams;
-use codex_app_server_protocol::ThreadSortKey as AppServerThreadSortKey;
-use codex_app_server_protocol::ThreadSourceKind;
-use codex_cloud_config::cloud_config_bundle_loader_for_storage;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::ConfigLoadError;
-use codex_config::LoaderOverrides;
-use codex_config::format_config_error_with_source;
-use codex_exec_server::EnvironmentManager;
-use codex_exec_server::ExecServerRuntimePaths;
-use codex_login::AuthConfig;
-use codex_login::default_client::originator;
-use codex_login::default_client::set_default_client_residency_requirement;
-use codex_login::enforce_login_restrictions;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::AltScreenMode;
-use codex_protocol::config_types::SandboxMode;
-#[cfg(target_os = "windows")]
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_rollout::StateDbHandle;
-use codex_rollout::state_db;
-use codex_state::log_db;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::canonicalize_existing_preserving_symlinks;
-use codex_utils_home_dir::find_codex_home;
-use codex_utils_oss::ensure_oss_provider_ready;
-use codex_utils_oss::get_default_model_for_oss_provider;
 use color_eyre::eyre::WrapErr;
 use cwd_prompt::CwdPromptAction;
+use datax_app_server_client::AppServerClient;
+use datax_app_server_client::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
+use datax_app_server_client::InProcessAppServerClient;
+use datax_app_server_client::InProcessClientStartArgs;
+use datax_app_server_client::RemoteAppServerClient;
+use datax_app_server_client::RemoteAppServerConnectArgs;
+pub use datax_app_server_client::RemoteAppServerEndpoint;
+use datax_app_server_protocol::Account as AppServerAccount;
+use datax_app_server_protocol::AskForApproval;
+use datax_app_server_protocol::AuthMode as AppServerAuthMode;
+use datax_app_server_protocol::ConfigWarningNotification;
+use datax_app_server_protocol::Thread as AppServerThread;
+use datax_app_server_protocol::ThreadListCwdFilter;
+use datax_app_server_protocol::ThreadListParams;
+use datax_app_server_protocol::ThreadSortKey as AppServerThreadSortKey;
+use datax_app_server_protocol::ThreadSourceKind;
+use datax_cloud_config::cloud_config_bundle_loader_for_storage;
+use datax_config::CloudConfigBundleLoader;
+use datax_config::ConfigLoadError;
+use datax_config::LoaderOverrides;
+use datax_config::format_config_error_with_source;
+use datax_exec_server::EnvironmentManager;
+use datax_exec_server::ExecServerRuntimePaths;
+use datax_login::AuthConfig;
+use datax_login::default_client::originator;
+use datax_login::default_client::set_default_client_residency_requirement;
+use datax_login::enforce_login_restrictions;
+use datax_protocol::ThreadId;
+use datax_protocol::config_types::AltScreenMode;
+use datax_protocol::config_types::SandboxMode;
+#[cfg(target_os = "windows")]
+use datax_protocol::config_types::WindowsSandboxLevel;
+use datax_rollout::StateDbHandle;
+use datax_rollout::state_db;
+use datax_state::log_db;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_absolute_path::canonicalize_existing_preserving_symlinks;
+use datax_utils_home_dir::find_codex_home;
+use datax_utils_oss::ensure_oss_provider_ready;
+use datax_utils_oss::get_default_model_for_oss_provider;
 pub use session_archive_commands::DeleteConfirmation;
 pub use session_archive_commands::SessionArchiveAction;
 pub use session_archive_commands::SessionArchiveCommandOptions;
@@ -83,7 +83,7 @@ use tracing_subscriber::prelude::*;
 use url::Url;
 use uuid::Uuid;
 
-pub(crate) use codex_app_server_client::legacy_core;
+pub(crate) use datax_app_server_client::legacy_core;
 
 mod additional_dirs;
 mod app;
@@ -216,13 +216,13 @@ use crate::startup_hooks_review::load_startup_hooks_review_entry;
 use crate::startup_hooks_review::maybe_run_startup_hooks_review;
 use crate::tui::Tui;
 pub use cli::Cli;
-use codex_arg0::Arg0DispatchPaths;
+use datax_arg0::Arg0DispatchPaths;
 pub use markdown_render::render_markdown_text;
 pub use public_widgets::composer_input::ComposerAction;
 pub use public_widgets::composer_input::ComposerInput;
 // (tests access modules directly within the crate)
 
-const TUI_LOG_FILE_NAME: &str = "codex-tui.log";
+const TUI_LOG_FILE_NAME: &str = "datax-tui.log";
 
 #[cfg(unix)]
 const AUTO_CONNECT_DAEMON_CONNECT_TIMEOUT: std::time::Duration =
@@ -236,7 +236,7 @@ async fn start_embedded_app_server(
     loader_overrides: LoaderOverrides,
     strict_config: bool,
     cloud_config_bundle: CloudConfigBundleLoader,
-    feedback: codex_feedback::CodexFeedback,
+    feedback: datax_feedback::CodexFeedback,
     log_db: Option<log_db::LogDbLayer>,
     state_db: Option<StateDbHandle>,
     environment_manager: Arc<EnvironmentManager>,
@@ -284,8 +284,8 @@ async fn init_state_db_for_app_server_target(
 ) -> std::io::Result<Option<StateDbHandle>> {
     match app_server_target {
         AppServerTarget::Embedded => state_db::try_init(config).await.map(Some).map_err(|err| {
-            let database_path = codex_state::runtime_db_path_for_corruption_error(&err)
-                .unwrap_or_else(|| codex_state::state_db_path(config.sqlite_home.as_path()));
+            let database_path = datax_state::runtime_db_path_for_corruption_error(&err)
+                .unwrap_or_else(|| datax_state::state_db_path(config.sqlite_home.as_path()));
             std::io::Error::other(LocalStateDbStartupError::new(
                 database_path,
                 format!("{err:#}"),
@@ -347,7 +347,7 @@ pub fn resolve_remote_addr(addr: &str) -> color_eyre::Result<RemoteAppServerEndp
     if let Some(socket_path) = addr.strip_prefix("unix://") {
         let socket_path = if socket_path.is_empty() {
             let codex_home = find_codex_home().wrap_err("failed to resolve CODEX_HOME")?;
-            codex_app_server_client::app_server_control_socket_path(&codex_home)
+            datax_app_server_client::app_server_control_socket_path(&codex_home)
                 .map_err(color_eyre::Report::new)?
         } else {
             AbsolutePathBuf::relative_to_current_dir(socket_path)
@@ -396,7 +396,7 @@ async fn connect_remote_app_server(
 ) -> color_eyre::Result<AppServerClient> {
     let app_server = RemoteAppServerClient::connect(RemoteAppServerConnectArgs {
         endpoint,
-        client_name: "codex-tui".to_string(),
+        client_name: "datax-tui".to_string(),
         client_version: env!("CARGO_PKG_VERSION").to_string(),
         experimental_api: true,
         mcp_server_openai_form_elicitation: false,
@@ -410,7 +410,7 @@ async fn connect_remote_app_server(
 
 #[cfg(unix)]
 async fn maybe_probe_default_daemon_socket(codex_home: &Path) -> Option<AbsolutePathBuf> {
-    let socket_path = codex_app_server_client::app_server_control_socket_path(codex_home).ok()?;
+    let socket_path = datax_app_server_client::app_server_control_socket_path(codex_home).ok()?;
     if !socket_path.as_path().try_exists().unwrap_or(false) {
         return None;
     }
@@ -451,7 +451,7 @@ async fn start_app_server(
     loader_overrides: LoaderOverrides,
     strict_config: bool,
     cloud_config_bundle: CloudConfigBundleLoader,
-    feedback: codex_feedback::CodexFeedback,
+    feedback: datax_feedback::CodexFeedback,
     log_db: Option<log_db::LogDbLayer>,
     state_db: Option<StateDbHandle>,
     environment_manager: Arc<EnvironmentManager>,
@@ -491,7 +491,7 @@ pub(crate) async fn start_app_server_for_picker(
         LoaderOverrides::default(),
         /*strict_config*/ false,
         CloudConfigBundleLoader::default(),
-        codex_feedback::CodexFeedback::new(),
+        datax_feedback::CodexFeedback::new(),
         /*log_db*/ None,
         state_db,
         environment_manager,
@@ -525,7 +525,7 @@ async fn start_embedded_app_server_with<F, Fut>(
     loader_overrides: LoaderOverrides,
     strict_config: bool,
     cloud_config_bundle: CloudConfigBundleLoader,
-    feedback: codex_feedback::CodexFeedback,
+    feedback: datax_feedback::CodexFeedback,
     log_db: Option<log_db::LogDbLayer>,
     state_db: Option<StateDbHandle>,
     environment_manager: Arc<EnvironmentManager>,
@@ -560,7 +560,7 @@ where
         session_source: serde_json::from_value(serde_json::json!("cli"))
             .unwrap_or_else(|err| panic!("cli session source should deserialize: {err}")),
         enable_codex_api_key_env: false,
-        client_name: "codex-tui".to_string(),
+        client_name: "datax-tui".to_string(),
         client_version: env!("CARGO_PKG_VERSION").to_string(),
         experimental_api: true,
         mcp_server_openai_form_elicitation: false,
@@ -873,7 +873,7 @@ pub async fn run_main(
     // gpt-oss:20b) and ensure it is present locally. Also, force the built‑in
     let raw_overrides = cli.config_overrides.raw_overrides.clone();
     // `oss` model provider.
-    let overrides_cli = codex_utils_cli::CliConfigOverrides { raw_overrides };
+    let overrides_cli = datax_utils_cli::CliConfigOverrides { raw_overrides };
     let cli_kv_overrides = match overrides_cli.parse_overrides() {
         // Parse `-c` overrides from the CLI.
         Ok(v) => v,
@@ -1070,7 +1070,7 @@ pub async fn run_main(
 
     let otel_originator = originator().value;
     let otel = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        codex_app_server_client::build_otel_provider(
+        datax_app_server_client::build_otel_provider(
             &config,
             env!("CARGO_PKG_VERSION"),
             /*service_name_override*/ None,
@@ -1093,18 +1093,18 @@ pub async fn run_main(
             None
         }
     };
-    if let Some(metrics) = otel.as_ref().and_then(codex_otel::OtelProvider::metrics) {
-        let _ = codex_otel::record_process_start_once(metrics, otel_originator.as_str());
+    if let Some(metrics) = otel.as_ref().and_then(datax_otel::OtelProvider::metrics) {
+        let _ = datax_otel::record_process_start_once(metrics, otel_originator.as_str());
         let telemetry =
-            codex_rollout::sqlite_telemetry_recorder(metrics.clone(), otel_originator.as_str());
-        let _ = codex_state::install_process_db_telemetry(telemetry);
+            datax_rollout::sqlite_telemetry_recorder(metrics.clone(), otel_originator.as_str());
+        let _ = datax_state::install_process_db_telemetry(telemetry);
     }
     let state_db = init_state_db_for_app_server_target(&config, &app_server_target).await?;
 
     let effective_toml = config.config_layer_stack.effective_config();
     match effective_toml.try_into() {
         Ok(config_toml) => {
-            match codex_app_server_client::migrate_personality_if_needed(
+            match datax_app_server_client::migrate_personality_if_needed(
                 &config.codex_home,
                 &config_toml,
                 state_db.clone(),
@@ -1216,7 +1216,7 @@ pub async fn run_main(
         (None, None)
     };
 
-    let feedback = codex_feedback::CodexFeedback::new();
+    let feedback = datax_feedback::CodexFeedback::new();
     let feedback_layer = feedback.logger_layer();
     let feedback_metadata_layer = feedback.metadata_layer();
 
@@ -1287,7 +1287,7 @@ async fn run_ratatui_app(
     overrides: ConfigOverrides,
     cli_kv_overrides: Vec<(String, toml::Value)>,
     mut cloud_config_bundle: CloudConfigBundleLoader,
-    feedback: codex_feedback::CodexFeedback,
+    feedback: datax_feedback::CodexFeedback,
     log_db: Option<log_db::LogDbLayer>,
     state_db: Option<StateDbHandle>,
     environment_manager: Arc<EnvironmentManager>,
@@ -1942,7 +1942,7 @@ async fn load_config_or_exit_with_fallback_cwd(
 async fn load_bootstrap_config_or_exit(
     codex_home: &Path,
     cwd: Option<&AbsolutePathBuf>,
-    cli_kv_overrides: Vec<(String, codex_config::TomlValue)>,
+    cli_kv_overrides: Vec<(String, datax_config::TomlValue)>,
     loader_overrides: LoaderOverrides,
     strict_config: bool,
     cloud_config_bundle: CloudConfigBundleLoader,
@@ -1951,7 +1951,7 @@ async fn load_bootstrap_config_or_exit(
         codex_home,
         cwd,
         cli_kv_overrides,
-        codex_config::ConfigLoadOptions {
+        datax_config::ConfigLoadOptions {
             loader_overrides,
             strict_config,
             cloud_config_bundle,
@@ -2010,12 +2010,12 @@ mod tests {
     use super::*;
     use crate::legacy_core::config::ConfigBuilder;
     use crate::legacy_core::config::ConfigOverrides;
-    use codex_app_server_protocol::AskForApproval;
-    use codex_app_server_protocol::ClientRequest;
-    use codex_app_server_protocol::RequestId;
-    use codex_app_server_protocol::ThreadStartParams;
-    use codex_app_server_protocol::ThreadStartResponse;
-    use codex_config::config_toml::ProjectConfig;
+    use datax_app_server_protocol::AskForApproval;
+    use datax_app_server_protocol::ClientRequest;
+    use datax_app_server_protocol::RequestId;
+    use datax_app_server_protocol::ThreadStartParams;
+    use datax_app_server_protocol::ThreadStartResponse;
+    use datax_config::config_toml::ProjectConfig;
     use pretty_assertions::assert_eq;
     use serial_test::serial;
     use tempfile::TempDir;
@@ -2052,18 +2052,18 @@ mod tests {
             .ok_or_else(|| color_eyre::eyre::eyre!("rollout path is missing a parent directory"))?;
         std::fs::create_dir_all(parent)?;
 
-        let session_meta = codex_protocol::protocol::SessionMeta {
+        let session_meta = datax_protocol::protocol::SessionMeta {
             session_id: thread_id.into(),
             id: thread_id,
             timestamp: meta_rfc3339.to_string(),
             cwd: cwd.to_path_buf(),
             originator: "codex".to_string(),
             cli_version: "0.0.0".to_string(),
-            source: codex_protocol::protocol::SessionSource::Cli,
+            source: datax_protocol::protocol::SessionSource::Cli,
             model_provider: Some(model_provider.to_string()),
             ..Default::default()
         };
-        let session_meta = serde_json::to_value(codex_protocol::protocol::SessionMetaLine {
+        let session_meta = serde_json::to_value(datax_protocol::protocol::SessionMetaLine {
             meta: session_meta,
             git: None,
         })?;
@@ -2133,7 +2133,7 @@ mod tests {
             LoaderOverrides::default(),
             /*strict_config*/ false,
             CloudConfigBundleLoader::default(),
-            codex_feedback::CodexFeedback::new(),
+            datax_feedback::CodexFeedback::new(),
             /*log_db*/ None,
             state_db,
             Arc::new(EnvironmentManager::default_for_tests()),
@@ -2200,7 +2200,7 @@ mod tests {
         assert_eq!(
             resolve_remote_addr("unix://")?,
             RemoteAppServerEndpoint::UnixSocket {
-                socket_path: codex_app_server_client::app_server_control_socket_path(&codex_home)?,
+                socket_path: datax_app_server_client::app_server_control_socket_path(&codex_home)?,
             }
         );
         Ok(())
@@ -2261,7 +2261,7 @@ mod tests {
     async fn default_daemon_auto_connect_probes_socket_only() -> color_eyre::Result<()> {
         let codex_home = TempDir::new()?;
         let socket_path =
-            codex_app_server_client::app_server_control_socket_path(codex_home.path())?;
+            datax_app_server_client::app_server_control_socket_path(codex_home.path())?;
         std::fs::create_dir_all(socket_path.as_path().parent().expect("socket parent"))?;
         let _listener = tokio::net::UnixListener::bind(socket_path.as_path())?;
 
@@ -2577,7 +2577,7 @@ mod tests {
         )?;
 
         let mut app_server = AppServerSession::new(
-            codex_app_server_client::AppServerClient::InProcess(
+            datax_app_server_client::AppServerClient::InProcess(
                 start_test_embedded_app_server(config.clone()).await?,
             ),
             ThreadParamsMode::Embedded,
@@ -2628,7 +2628,7 @@ mod tests {
             .build()
             .await?;
         let mut app_server = AppServerSession::new(
-            codex_app_server_client::AppServerClient::InProcess(
+            datax_app_server_client::AppServerClient::InProcess(
                 start_test_embedded_app_server(config.clone()).await?,
             ),
             ThreadParamsMode::Embedded,
@@ -2813,7 +2813,7 @@ mod tests {
             std::fs::create_dir_all(rollout_dir)?;
             std::fs::write(&rollout_path, "")?;
 
-            let state_runtime = codex_state::StateRuntime::init(
+            let state_runtime = datax_state::StateRuntime::init(
                 config.codex_home.to_path_buf(),
                 config.model_provider_id.clone(),
             )
@@ -2829,7 +2829,7 @@ mod tests {
             let created_at = chrono::DateTime::parse_from_rfc3339("2025-02-01T10:00:00Z")
                 .expect("timestamp should parse")
                 .with_timezone(&chrono::Utc);
-            let mut builder = codex_state::ThreadMetadataBuilder::new(
+            let mut builder = datax_state::ThreadMetadataBuilder::new(
                 thread_id,
                 rollout_path.clone(),
                 created_at,
@@ -2846,7 +2846,7 @@ mod tests {
                 .map_err(std::io::Error::other)?;
 
             let mut app_server = AppServerSession::new(
-                codex_app_server_client::AppServerClient::InProcess(
+                datax_app_server_client::AppServerClient::InProcess(
                     start_test_embedded_app_server(config).await?,
                 ),
                 ThreadParamsMode::Embedded,
@@ -2875,7 +2875,7 @@ mod tests {
             LoaderOverrides::default(),
             /*strict_config*/ false,
             CloudConfigBundleLoader::default(),
-            codex_feedback::CodexFeedback::new(),
+            datax_feedback::CodexFeedback::new(),
             /*log_db*/ None,
             /*state_db*/ None,
             Arc::new(EnvironmentManager::default_for_tests()),
@@ -2915,7 +2915,7 @@ mod tests {
 
         assert_eq!(
             startup_error.state_db_path(),
-            codex_state::state_db_path(occupied_sqlite_home.as_path()).as_path()
+            datax_state::state_db_path(occupied_sqlite_home.as_path()).as_path()
         );
         assert!(
             startup_error
@@ -2933,7 +2933,7 @@ mod tests {
         let mut config = build_config(&temp_dir).await?;
         let sqlite_home = temp_dir.path().join("sqlite-home");
         std::fs::create_dir_all(&sqlite_home)?;
-        let logs_db_path = codex_state::logs_db_path(&sqlite_home);
+        let logs_db_path = datax_state::logs_db_path(&sqlite_home);
         std::fs::write(&logs_db_path, "not a sqlite database")?;
         config.sqlite_home = sqlite_home;
 
@@ -2949,7 +2949,7 @@ mod tests {
 
         assert_eq!(startup_error.database_path(), logs_db_path.as_path());
         assert!(
-            codex_state::sqlite_error_detail_is_corruption(startup_error.detail()),
+            datax_state::sqlite_error_detail_is_corruption(startup_error.detail()),
             "startup error should preserve the SQLite corruption cause, got: {}",
             startup_error.detail()
         );
@@ -2980,7 +2980,7 @@ mod tests {
     }
     #[tokio::test]
     async fn untrusted_project_skips_trust_prompt() -> std::io::Result<()> {
-        use codex_protocol::config_types::TrustLevel;
+        use datax_protocol::config_types::TrustLevel;
         let temp_dir = TempDir::new()?;
         let mut config = build_config(&temp_dir).await?;
         config.active_project = ProjectConfig {

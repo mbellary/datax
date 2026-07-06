@@ -14,77 +14,77 @@ use app_test_support::test_absolute_path;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use chrono::Utc;
-use codex_app_server_protocol::AskForApproval;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::CommandExecutionApprovalDecision;
-use codex_app_server_protocol::CommandExecutionRequestApprovalResponse;
-use codex_app_server_protocol::FileChangeApprovalDecision;
-use codex_app_server_protocol::FileChangeRequestApprovalResponse;
-use codex_app_server_protocol::ItemStartedNotification;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::McpToolCallAppContext;
-use codex_app_server_protocol::PatchApplyStatus;
-use codex_app_server_protocol::PatchChangeKind;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::SessionSource;
-use codex_app_server_protocol::ThreadGoalClearResponse;
-use codex_app_server_protocol::ThreadGoalSetResponse;
-use codex_app_server_protocol::ThreadGoalStatus;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadListResponse;
-use codex_app_server_protocol::ThreadMetadataGitInfoUpdateParams;
-use codex_app_server_protocol::ThreadMetadataUpdateParams;
-use codex_app_server_protocol::ThreadReadParams;
-use codex_app_server_protocol::ThreadReadResponse;
-use codex_app_server_protocol::ThreadResumeInitialTurnsPageParams;
-use codex_app_server_protocol::ThreadResumeParams;
-use codex_app_server_protocol::ThreadResumeResponse;
-use codex_app_server_protocol::ThreadSource;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::ThreadStatus;
-use codex_app_server_protocol::ThreadUnsubscribeParams;
-use codex_app_server_protocol::TurnItemsView;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::TurnStatus;
-use codex_app_server_protocol::UserInput;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_core::ARCHIVED_SESSIONS_SUBDIR;
-use codex_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::Personality;
-use codex_protocol::mcp::CallToolResult;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::AgentMessageEvent;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ImageGenerationEndEvent;
-use codex_protocol::protocol::McpInvocation;
-use codex_protocol::protocol::McpToolCallEndEvent;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::SessionMeta;
-use codex_protocol::protocol::SessionMetaLine;
-use codex_protocol::protocol::SessionSource as RolloutSessionSource;
-use codex_protocol::protocol::TokenCountEvent;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::protocol::TokenUsageInfo;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_protocol::protocol::TurnAbortedEvent;
-use codex_protocol::protocol::TurnStartedEvent;
-use codex_protocol::user_input::ByteRange;
-use codex_protocol::user_input::TextElement;
-use codex_rollout::append_rollout_item_to_path;
-use codex_rollout::read_session_meta_line;
-use codex_state::StateRuntime;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::LegacyAppPathString;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
+use datax_app_server_protocol::AskForApproval;
+use datax_app_server_protocol::ClientInfo;
+use datax_app_server_protocol::CommandExecutionApprovalDecision;
+use datax_app_server_protocol::CommandExecutionRequestApprovalResponse;
+use datax_app_server_protocol::FileChangeApprovalDecision;
+use datax_app_server_protocol::FileChangeRequestApprovalResponse;
+use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::JSONRPCError;
+use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::McpToolCallAppContext;
+use datax_app_server_protocol::PatchApplyStatus;
+use datax_app_server_protocol::PatchChangeKind;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::ServerRequest;
+use datax_app_server_protocol::SessionSource;
+use datax_app_server_protocol::ThreadGoalClearResponse;
+use datax_app_server_protocol::ThreadGoalSetResponse;
+use datax_app_server_protocol::ThreadGoalStatus;
+use datax_app_server_protocol::ThreadItem;
+use datax_app_server_protocol::ThreadListResponse;
+use datax_app_server_protocol::ThreadMetadataGitInfoUpdateParams;
+use datax_app_server_protocol::ThreadMetadataUpdateParams;
+use datax_app_server_protocol::ThreadReadParams;
+use datax_app_server_protocol::ThreadReadResponse;
+use datax_app_server_protocol::ThreadResumeInitialTurnsPageParams;
+use datax_app_server_protocol::ThreadResumeParams;
+use datax_app_server_protocol::ThreadResumeResponse;
+use datax_app_server_protocol::ThreadSource;
+use datax_app_server_protocol::ThreadStartParams;
+use datax_app_server_protocol::ThreadStartResponse;
+use datax_app_server_protocol::ThreadStatus;
+use datax_app_server_protocol::ThreadUnsubscribeParams;
+use datax_app_server_protocol::TurnItemsView;
+use datax_app_server_protocol::TurnStartParams;
+use datax_app_server_protocol::TurnStartResponse;
+use datax_app_server_protocol::TurnStatus;
+use datax_app_server_protocol::UserInput;
+use datax_config::types::AuthCredentialsStoreMode;
+use datax_core::ARCHIVED_SESSIONS_SUBDIR;
+use datax_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
+use datax_protocol::ThreadId;
+use datax_protocol::config_types::Personality;
+use datax_protocol::mcp::CallToolResult;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::protocol::AgentMessageEvent;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::ImageGenerationEndEvent;
+use datax_protocol::protocol::McpInvocation;
+use datax_protocol::protocol::McpToolCallEndEvent;
+use datax_protocol::protocol::MultiAgentVersion;
+use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::SessionMeta;
+use datax_protocol::protocol::SessionMetaLine;
+use datax_protocol::protocol::SessionSource as RolloutSessionSource;
+use datax_protocol::protocol::TokenCountEvent;
+use datax_protocol::protocol::TokenUsage;
+use datax_protocol::protocol::TokenUsageInfo;
+use datax_protocol::protocol::TurnAbortReason;
+use datax_protocol::protocol::TurnAbortedEvent;
+use datax_protocol::protocol::TurnStartedEvent;
+use datax_protocol::user_input::ByteRange;
+use datax_protocol::user_input::TextElement;
+use datax_rollout::append_rollout_item_to_path;
+use datax_rollout::read_session_meta_line;
+use datax_state::StateRuntime;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_path_uri::LegacyAppPathString;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::fs::FileTimes;
@@ -1387,7 +1387,7 @@ async fn thread_goal_set_edits_objective_without_resetting_usage() -> Result<()>
             thread_id,
             /*time_delta_seconds*/ 12,
             /*token_delta*/ 50,
-            codex_state::GoalAccountingMode::ActiveOnly,
+            datax_state::GoalAccountingMode::ActiveOnly,
             Some(persisted_goal.goal_id.as_str()),
         )
         .await?;
@@ -1603,7 +1603,7 @@ async fn thread_goal_lifecycle_emits_analytics_and_clear_deletes_goal() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(get_id)),
     )
     .await??;
-    let get: codex_app_server_protocol::ThreadGoalGetResponse = to_response(get_resp)?;
+    let get: datax_app_server_protocol::ThreadGoalGetResponse = to_response(get_resp)?;
     assert_eq!(None, get.goal);
 
     let clear_again_id = mcp
@@ -3232,7 +3232,7 @@ async fn thread_resume_replays_pending_file_change_request_approval() -> Result<
     let expected_readme_path = workspace.join("README.md");
     let expected_file_change = ThreadItem::FileChange {
         id: "patch-call".to_string(),
-        changes: vec![codex_app_server_protocol::FileUpdateChange {
+        changes: vec![datax_app_server_protocol::FileUpdateChange {
             path: expected_readme_path.to_string_lossy().into_owned(),
             kind: PatchChangeKind::Add,
             diff: "new line\n".to_string(),
@@ -3914,7 +3914,7 @@ request_max_retries = 0
 stream_max_retries = 0
 
 [mcp_servers.required_broken]
-command = "codex-definitely-not-a-real-binary"
+command = "datax-definitely-not-a-real-binary"
 required = true
 "#
         ),

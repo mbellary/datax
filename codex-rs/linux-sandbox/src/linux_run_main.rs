@@ -25,11 +25,11 @@ use crate::launcher::exec_bwrap;
 use crate::launcher::preferred_bwrap_supports_argv0;
 use crate::proxy_routing::activate_proxy_routes_in_netns;
 use crate::proxy_routing::prepare_host_proxy_route_spec;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::FileSystemSandboxPolicy;
-use codex_protocol::protocol::NetworkSandboxPolicy;
-use codex_sandboxing::landlock::CODEX_LINUX_SANDBOX_ARG0;
+use datax_protocol::error::Result as CodexResult;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::protocol::FileSystemSandboxPolicy;
+use datax_protocol::protocol::NetworkSandboxPolicy;
+use datax_sandboxing::landlock::CODEX_LINUX_SANDBOX_ARG0;
 
 static BWRAP_CHILD_PID: AtomicI32 = AtomicI32::new(0);
 static PENDING_FORWARDED_SIGNAL: AtomicI32 = AtomicI32::new(0);
@@ -396,7 +396,7 @@ fn build_bwrap_argv(
     })
 }
 
-fn exit_with_bwrap_build_error(err: codex_protocol::error::CodexErr) -> ! {
+fn exit_with_bwrap_build_error(err: datax_protocol::error::CodexErr) -> ! {
     eprintln!("error building bubblewrap command: {err}");
     std::process::exit(1);
 }
@@ -1244,7 +1244,7 @@ fn synthetic_mount_marker_dir(path: &Path) -> PathBuf {
 fn synthetic_mount_registry_root() -> PathBuf {
     let effective_uid = unsafe { libc::geteuid() };
     std::env::temp_dir().join(format!(
-        "codex-bwrap-synthetic-mount-targets-{effective_uid}"
+        "datax-bwrap-synthetic-mount-targets-{effective_uid}"
     ))
 }
 

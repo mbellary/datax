@@ -5,27 +5,27 @@ use crate::sandboxing::ExecOptions;
 use crate::shell::ShellType;
 use crate::tools::sandboxing::SandboxAttempt;
 use crate::tools::sandboxing::managed_network_for_sandbox_permissions;
-#[cfg(target_os = "macos")]
-use codex_network_proxy::CODEX_PROXY_GIT_SSH_COMMAND_MARKER;
-use codex_network_proxy::CUSTOM_CA_ENV_KEYS;
-use codex_network_proxy::ConfigReloader;
-use codex_network_proxy::ConfigReloaderFuture;
-use codex_network_proxy::ConfigState;
-use codex_network_proxy::NetworkProxy;
-use codex_network_proxy::NetworkProxyConfig;
-use codex_network_proxy::NetworkProxyConstraints;
-use codex_network_proxy::NetworkProxyState;
-use codex_network_proxy::PROXY_ACTIVE_ENV_KEY;
-use codex_network_proxy::PROXY_ENV_KEYS;
-#[cfg(target_os = "macos")]
-use codex_network_proxy::PROXY_GIT_SSH_COMMAND_ENV_KEY;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::PermissionProfile;
-use codex_sandboxing::SandboxManager;
-use codex_sandboxing::SandboxType;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
 use core_test_support::PathBufExt;
+#[cfg(target_os = "macos")]
+use datax_network_proxy::CODEX_PROXY_GIT_SSH_COMMAND_MARKER;
+use datax_network_proxy::CUSTOM_CA_ENV_KEYS;
+use datax_network_proxy::ConfigReloader;
+use datax_network_proxy::ConfigReloaderFuture;
+use datax_network_proxy::ConfigState;
+use datax_network_proxy::NetworkProxy;
+use datax_network_proxy::NetworkProxyConfig;
+use datax_network_proxy::NetworkProxyConstraints;
+use datax_network_proxy::NetworkProxyState;
+use datax_network_proxy::PROXY_ACTIVE_ENV_KEY;
+use datax_network_proxy::PROXY_ENV_KEYS;
+#[cfg(target_os = "macos")]
+use datax_network_proxy::PROXY_GIT_SSH_COMMAND_ENV_KEY;
+use datax_protocol::config_types::WindowsSandboxLevel;
+use datax_protocol::models::PermissionProfile;
+use datax_sandboxing::SandboxManager;
+use datax_sandboxing::SandboxType;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_path_uri::PathUri;
 use pretty_assertions::assert_eq;
 use std::path::PathBuf;
 use std::process::Command;
@@ -63,7 +63,7 @@ fn shell_with_snapshot(
 }
 
 async fn test_network_proxy() -> anyhow::Result<NetworkProxy> {
-    let state = codex_network_proxy::build_config_state(
+    let state = datax_network_proxy::build_config_state(
         NetworkProxyConfig::default(),
         NetworkProxyConstraints::default(),
     )?;
@@ -916,7 +916,7 @@ fn run_snapshot_path_probe_with_runtime_path_prepend(
         "-lc".to_string(),
         "printf '%s' \"$PATH\"".to_string(),
     ];
-    let package_path_dir = dir.path().join("codex-path");
+    let package_path_dir = dir.path().join("datax-path");
     let mut env = HashMap::from([("PATH".to_string(), "/worktree/bin".to_string())]);
     let mut runtime_path_prepends = RuntimePathPrepends::default();
     runtime_path_prepends.prepend(&mut env, package_path_dir.as_path());
@@ -962,7 +962,7 @@ fn maybe_wrap_shell_lc_with_snapshot_preserves_zsh_fork_path_prepend() {
     ];
     let zsh_path = dir
         .path()
-        .join("codex-resources")
+        .join("datax-resources")
         .join("zsh")
         .join("bin")
         .join("zsh");

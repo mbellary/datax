@@ -1,14 +1,14 @@
 use crate::install_wfp_filters_for_account;
 use crate::setup_error::sanitize_setup_metric_tag_value;
 use anyhow::Result;
-use codex_otel::OtelExporter;
-use codex_otel::OtelProvider;
-use codex_otel::OtelSettings;
-use codex_otel::StatsigMetricsSettings;
+use datax_otel::OtelExporter;
+use datax_otel::OtelProvider;
+use datax_otel::OtelSettings;
+use datax_otel::StatsigMetricsSettings;
 use std::collections::BTreeMap;
 use std::path::Path;
 
-const WFP_SETUP_SERVICE_NAME: &str = "codex-windows-sandbox-setup";
+const WFP_SETUP_SERVICE_NAME: &str = "datax-windows-sandbox-setup";
 const WFP_SETUP_SUCCESS_METRIC: &str = "codex.windows_sandbox.wfp_setup_success";
 const WFP_SETUP_FAILURE_METRIC: &str = "codex.windows_sandbox.wfp_setup_failure";
 

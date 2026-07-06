@@ -1,22 +1,22 @@
 use super::*;
-use codex_mcp::ElicitationReviewRequest;
-use codex_mcp::ElicitationReviewer;
-use codex_mcp::ElicitationReviewerHandle;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::mcp_approval_meta::APPROVAL_KIND_KEY as MCP_ELICITATION_APPROVAL_KIND_KEY;
-use codex_protocol::mcp_approval_meta::APPROVAL_KIND_MCP_TOOL_CALL as MCP_ELICITATION_APPROVAL_KIND_MCP_TOOL_CALL;
-use codex_protocol::mcp_approval_meta::APPROVAL_KIND_TOOL_SUGGESTION as MCP_ELICITATION_APPROVAL_KIND_TOOL_SUGGESTION;
-use codex_protocol::mcp_approval_meta::APPROVALS_REVIEWER_KEY as MCP_ELICITATION_APPROVALS_REVIEWER_KEY;
-use codex_protocol::mcp_approval_meta::CONNECTOR_DESCRIPTION_KEY as MCP_ELICITATION_CONNECTOR_DESCRIPTION_KEY;
-use codex_protocol::mcp_approval_meta::CONNECTOR_ID_KEY as MCP_ELICITATION_CONNECTOR_ID_KEY;
-use codex_protocol::mcp_approval_meta::CONNECTOR_NAME_KEY as MCP_ELICITATION_CONNECTOR_NAME_KEY;
-use codex_protocol::mcp_approval_meta::REQUEST_TYPE_APPROVAL_REQUEST as MCP_ELICITATION_REQUEST_TYPE_APPROVAL_REQUEST;
-use codex_protocol::mcp_approval_meta::REQUEST_TYPE_KEY as MCP_ELICITATION_REQUEST_TYPE_KEY;
-use codex_protocol::mcp_approval_meta::TOOL_DESCRIPTION_KEY as MCP_ELICITATION_TOOL_DESCRIPTION_KEY;
-use codex_protocol::mcp_approval_meta::TOOL_NAME_KEY as MCP_ELICITATION_TOOL_NAME_KEY;
-use codex_protocol::mcp_approval_meta::TOOL_PARAMS_KEY as MCP_ELICITATION_TOOL_PARAMS_KEY;
-use codex_protocol::mcp_approval_meta::TOOL_TITLE_KEY as MCP_ELICITATION_TOOL_TITLE_KEY;
-use codex_rmcp_client::Elicitation;
+use datax_mcp::ElicitationReviewRequest;
+use datax_mcp::ElicitationReviewer;
+use datax_mcp::ElicitationReviewerHandle;
+use datax_protocol::config_types::ApprovalsReviewer;
+use datax_protocol::mcp_approval_meta::APPROVAL_KIND_KEY as MCP_ELICITATION_APPROVAL_KIND_KEY;
+use datax_protocol::mcp_approval_meta::APPROVAL_KIND_MCP_TOOL_CALL as MCP_ELICITATION_APPROVAL_KIND_MCP_TOOL_CALL;
+use datax_protocol::mcp_approval_meta::APPROVAL_KIND_TOOL_SUGGESTION as MCP_ELICITATION_APPROVAL_KIND_TOOL_SUGGESTION;
+use datax_protocol::mcp_approval_meta::APPROVALS_REVIEWER_KEY as MCP_ELICITATION_APPROVALS_REVIEWER_KEY;
+use datax_protocol::mcp_approval_meta::CONNECTOR_DESCRIPTION_KEY as MCP_ELICITATION_CONNECTOR_DESCRIPTION_KEY;
+use datax_protocol::mcp_approval_meta::CONNECTOR_ID_KEY as MCP_ELICITATION_CONNECTOR_ID_KEY;
+use datax_protocol::mcp_approval_meta::CONNECTOR_NAME_KEY as MCP_ELICITATION_CONNECTOR_NAME_KEY;
+use datax_protocol::mcp_approval_meta::REQUEST_TYPE_APPROVAL_REQUEST as MCP_ELICITATION_REQUEST_TYPE_APPROVAL_REQUEST;
+use datax_protocol::mcp_approval_meta::REQUEST_TYPE_KEY as MCP_ELICITATION_REQUEST_TYPE_KEY;
+use datax_protocol::mcp_approval_meta::TOOL_DESCRIPTION_KEY as MCP_ELICITATION_TOOL_DESCRIPTION_KEY;
+use datax_protocol::mcp_approval_meta::TOOL_NAME_KEY as MCP_ELICITATION_TOOL_NAME_KEY;
+use datax_protocol::mcp_approval_meta::TOOL_PARAMS_KEY as MCP_ELICITATION_TOOL_PARAMS_KEY;
+use datax_protocol::mcp_approval_meta::TOOL_TITLE_KEY as MCP_ELICITATION_TOOL_TITLE_KEY;
+use datax_rmcp_client::Elicitation;
 use rmcp::model::ElicitationAction;
 use rmcp::model::Meta;
 use serde_json::Map;
@@ -85,7 +85,7 @@ impl Session {
         &self,
         config: &Config,
     ) -> HashMap<String, McpServerConfig> {
-        codex_mcp::configured_mcp_servers(&self.runtime_mcp_config(config).await)
+        datax_mcp::configured_mcp_servers(&self.runtime_mcp_config(config).await)
     }
 
     pub(crate) fn mcp_elicitation_reviewer(self: &Arc<Self>) -> ElicitationReviewerHandle {
@@ -110,7 +110,7 @@ impl Session {
         {
             return McpServerElicitationOutcome {
                 response: Some(ElicitationResponse {
-                    action: codex_rmcp_client::ElicitationAction::Accept,
+                    action: datax_rmcp_client::ElicitationAction::Accept,
                     content: Some(serde_json::json!({})),
                     meta: None,
                 }),
@@ -137,7 +137,7 @@ impl Session {
                         };
                     }
                 };
-                codex_protocol::approvals::ElicitationRequest::Form {
+                datax_protocol::approvals::ElicitationRequest::Form {
                     meta,
                     message,
                     requested_schema,
@@ -147,7 +147,7 @@ impl Session {
                 meta,
                 message,
                 requested_schema,
-            } => codex_protocol::approvals::ElicitationRequest::OpenAiForm {
+            } => datax_protocol::approvals::ElicitationRequest::OpenAiForm {
                 meta,
                 message,
                 requested_schema,
@@ -157,7 +157,7 @@ impl Session {
                 message,
                 url,
                 elicitation_id,
-            } => codex_protocol::approvals::ElicitationRequest::Url {
+            } => datax_protocol::approvals::ElicitationRequest::Url {
                 meta,
                 message,
                 url,
@@ -187,10 +187,10 @@ impl Session {
         }
         let id = match request_id {
             rmcp::model::NumberOrString::String(value) => {
-                codex_protocol::mcp::RequestId::String(value.to_string())
+                datax_protocol::mcp::RequestId::String(value.to_string())
             }
             rmcp::model::NumberOrString::Number(value) => {
-                codex_protocol::mcp::RequestId::Integer(value)
+                datax_protocol::mcp::RequestId::Integer(value)
             }
         };
         let event = EventMsg::ElicitationRequest(ElicitationRequestEvent {
@@ -314,7 +314,7 @@ impl Session {
         let auth = self.services.auth_manager.auth().await;
         let config = self.get_config().await;
         let mcp_config = self.runtime_mcp_config(config.as_ref()).await;
-        let tool_plugin_provenance = codex_mcp::tool_plugin_provenance(&mcp_config);
+        let tool_plugin_provenance = datax_mcp::tool_plugin_provenance(&mcp_config);
         let mcp_servers =
             effective_mcp_servers_from_configured(mcp_servers, &mcp_config, auth.as_ref());
         let host_owned_codex_apps_enabled =
@@ -658,7 +658,7 @@ fn plugin_install_elicitation_telemetry_metadata(
     let EventMsg::ElicitationRequest(ElicitationRequestEvent { request, .. }) = event else {
         return None;
     };
-    let codex_protocol::approvals::ElicitationRequest::Form {
+    let datax_protocol::approvals::ElicitationRequest::Form {
         meta: Some(Value::Object(meta)),
         ..
     } = request

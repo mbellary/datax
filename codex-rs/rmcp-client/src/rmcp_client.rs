@@ -10,11 +10,11 @@ use std::time::Instant;
 
 use anyhow::Result;
 use anyhow::anyhow;
-use codex_api::SharedAuthProvider;
-use codex_client::maybe_build_rustls_client_config_with_custom_ca;
-use codex_config::types::AuthKeyringBackendKind;
-use codex_config::types::McpServerEnvVar;
-use codex_exec_server::HttpClient;
+use datax_api::SharedAuthProvider;
+use datax_client::maybe_build_rustls_client_config_with_custom_ca;
+use datax_config::types::AuthKeyringBackendKind;
+use datax_config::types::McpServerEnvVar;
+use datax_exec_server::HttpClient;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use oauth2::TokenResponse;
@@ -73,7 +73,7 @@ use crate::stdio_server_launcher::StdioServerProcessHandle;
 use crate::stdio_server_launcher::StdioServerTransport;
 use crate::utils::apply_default_headers;
 use crate::utils::build_default_headers;
-use codex_config::types::OAuthCredentialsStoreMode;
+use datax_config::types::OAuthCredentialsStoreMode;
 
 #[path = "streamable_http_retry.rs"]
 mod streamable_http_retry;
@@ -455,7 +455,7 @@ impl RmcpClient {
             .peer()
             .peer_info()
             .ok_or_else(|| anyhow!("handshake succeeded but server info was missing"))?;
-        let initialize_result = initialize_result_rmcp.clone();
+        let initialize_result = initialize_result_rmcp.as_ref().clone();
 
         {
             let mut initialize_context = self.initialize_context.lock().await;

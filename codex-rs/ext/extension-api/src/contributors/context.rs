@@ -1,4 +1,4 @@
-use codex_protocol::ThreadId;
+use datax_protocol::ThreadId;
 
 use crate::ExtensionData;
 

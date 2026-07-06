@@ -15,36 +15,36 @@ use crate::config_manager::ConfigManager;
 use crate::error_code::internal_error;
 use crate::outgoing_message::ConnectionRequestId;
 use crate::outgoing_message::OutgoingMessageSender;
-use codex_analytics::AnalyticsEventsClient;
-use codex_analytics::ExternalAgentConfigImportCompletedInput;
-use codex_analytics::ExternalAgentConfigImportFailureInput;
-use codex_app_server_protocol::CommandMigration;
-use codex_app_server_protocol::ExternalAgentConfigDetectParams;
-use codex_app_server_protocol::ExternalAgentConfigDetectResponse;
-use codex_app_server_protocol::ExternalAgentConfigImportCompletedNotification;
-use codex_app_server_protocol::ExternalAgentConfigImportHistoriesReadResponse;
-use codex_app_server_protocol::ExternalAgentConfigImportHistory;
-use codex_app_server_protocol::ExternalAgentConfigImportItemTypeFailure as ProtocolImportFailure;
-use codex_app_server_protocol::ExternalAgentConfigImportItemTypeSuccess as ProtocolImportSuccess;
-use codex_app_server_protocol::ExternalAgentConfigImportParams;
-use codex_app_server_protocol::ExternalAgentConfigImportProgressNotification;
-use codex_app_server_protocol::ExternalAgentConfigImportResponse;
-use codex_app_server_protocol::ExternalAgentConfigImportTypeResult as ProtocolImportTypeResult;
-use codex_app_server_protocol::ExternalAgentConfigMigrationItem;
-use codex_app_server_protocol::ExternalAgentConfigMigrationItemType;
-use codex_app_server_protocol::HookMigration;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::McpServerMigration;
-use codex_app_server_protocol::MigrationDetails;
-use codex_app_server_protocol::PluginsMigration;
-use codex_app_server_protocol::ServerNotification;
-use codex_arg0::Arg0DispatchPaths;
-use codex_core::ThreadManager;
-use codex_external_agent_sessions::ExternalAgentSessionMigration as CoreSessionMigration;
-use codex_rollout::StateDbHandle;
-use codex_state::ExternalAgentConfigImportFailureRecord;
-use codex_state::ExternalAgentConfigImportSuccessRecord;
-use codex_thread_store::ThreadStore;
+use datax_analytics::AnalyticsEventsClient;
+use datax_analytics::ExternalAgentConfigImportCompletedInput;
+use datax_analytics::ExternalAgentConfigImportFailureInput;
+use datax_app_server_protocol::CommandMigration;
+use datax_app_server_protocol::ExternalAgentConfigDetectParams;
+use datax_app_server_protocol::ExternalAgentConfigDetectResponse;
+use datax_app_server_protocol::ExternalAgentConfigImportCompletedNotification;
+use datax_app_server_protocol::ExternalAgentConfigImportHistoriesReadResponse;
+use datax_app_server_protocol::ExternalAgentConfigImportHistory;
+use datax_app_server_protocol::ExternalAgentConfigImportItemTypeFailure as ProtocolImportFailure;
+use datax_app_server_protocol::ExternalAgentConfigImportItemTypeSuccess as ProtocolImportSuccess;
+use datax_app_server_protocol::ExternalAgentConfigImportParams;
+use datax_app_server_protocol::ExternalAgentConfigImportProgressNotification;
+use datax_app_server_protocol::ExternalAgentConfigImportResponse;
+use datax_app_server_protocol::ExternalAgentConfigImportTypeResult as ProtocolImportTypeResult;
+use datax_app_server_protocol::ExternalAgentConfigMigrationItem;
+use datax_app_server_protocol::ExternalAgentConfigMigrationItemType;
+use datax_app_server_protocol::HookMigration;
+use datax_app_server_protocol::JSONRPCErrorError;
+use datax_app_server_protocol::McpServerMigration;
+use datax_app_server_protocol::MigrationDetails;
+use datax_app_server_protocol::PluginsMigration;
+use datax_app_server_protocol::ServerNotification;
+use datax_arg0::Arg0DispatchPaths;
+use datax_core::ThreadManager;
+use datax_external_agent_sessions::ExternalAgentSessionMigration as CoreSessionMigration;
+use datax_rollout::StateDbHandle;
+use datax_state::ExternalAgentConfigImportFailureRecord;
+use datax_state::ExternalAgentConfigImportSuccessRecord;
+use datax_thread_store::ThreadStore;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
@@ -164,7 +164,7 @@ impl ExternalAgentConfigRequestProcessor {
                         sessions: details
                             .sessions
                             .into_iter()
-                            .map(|session| codex_app_server_protocol::SessionMigration {
+                            .map(|session| datax_app_server_protocol::SessionMigration {
                                 path: session.path,
                                 cwd: session.cwd,
                                 title: session.title,
@@ -185,7 +185,7 @@ impl ExternalAgentConfigRequestProcessor {
                         subagents: details
                             .subagents
                             .into_iter()
-                            .map(|subagent| codex_app_server_protocol::SubagentMigration {
+                            .map(|subagent| datax_app_server_protocol::SubagentMigration {
                                 name: subagent.name,
                             })
                             .collect(),
@@ -698,7 +698,7 @@ async fn record_completed_import_notification(
 }
 
 fn protocol_import_history(
-    record: codex_state::ExternalAgentConfigImportHistoryRecord,
+    record: datax_state::ExternalAgentConfigImportHistoryRecord,
 ) -> Result<ExternalAgentConfigImportHistory, JSONRPCErrorError> {
     let successes = record
         .successes

@@ -15,28 +15,28 @@ use axum::http::StatusCode;
 use axum::http::Uri;
 use axum::http::header::AUTHORIZATION;
 use axum::routing::get;
-use codex_app_server_protocol::AppInfo;
-use codex_app_server_protocol::AppMetadata;
-use codex_app_server_protocol::AppTemplateSummary;
-use codex_app_server_protocol::AppTemplateUnavailableReason;
-use codex_app_server_protocol::HookEventName;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::PluginAuthPolicy;
-use codex_app_server_protocol::PluginAvailability;
-use codex_app_server_protocol::PluginInstallPolicy;
-use codex_app_server_protocol::PluginReadParams;
-use codex_app_server_protocol::PluginReadResponse;
-use codex_app_server_protocol::PluginShareDiscoverability;
-use codex_app_server_protocol::PluginSharePrincipal;
-use codex_app_server_protocol::PluginSharePrincipalRole;
-use codex_app_server_protocol::PluginSharePrincipalType;
-use codex_app_server_protocol::PluginSkillReadParams;
-use codex_app_server_protocol::PluginSkillReadResponse;
-use codex_app_server_protocol::PluginSource;
-use codex_app_server_protocol::RequestId;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_app_server_protocol::AppInfo;
+use datax_app_server_protocol::AppMetadata;
+use datax_app_server_protocol::AppTemplateSummary;
+use datax_app_server_protocol::AppTemplateUnavailableReason;
+use datax_app_server_protocol::HookEventName;
+use datax_app_server_protocol::JSONRPCError;
+use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::PluginAuthPolicy;
+use datax_app_server_protocol::PluginAvailability;
+use datax_app_server_protocol::PluginInstallPolicy;
+use datax_app_server_protocol::PluginReadParams;
+use datax_app_server_protocol::PluginReadResponse;
+use datax_app_server_protocol::PluginShareDiscoverability;
+use datax_app_server_protocol::PluginSharePrincipal;
+use datax_app_server_protocol::PluginSharePrincipalRole;
+use datax_app_server_protocol::PluginSharePrincipalType;
+use datax_app_server_protocol::PluginSkillReadParams;
+use datax_app_server_protocol::PluginSkillReadResponse;
+use datax_app_server_protocol::PluginSource;
+use datax_app_server_protocol::RequestId;
+use datax_config::types::AuthCredentialsStoreMode;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use tempfile::TempDir;
@@ -955,7 +955,7 @@ async fn plugin_read_returns_share_context_for_shared_local_plugin() -> Result<(
     )?;
     write_plugin_marketplace(
         repo_root.path(),
-        "codex-curated",
+        "datax-curated",
         "demo-plugin",
         "./demo-plugin",
     )?;
@@ -1098,7 +1098,7 @@ async fn plugin_read_keeps_remote_version_when_share_principals_are_missing() ->
     )?;
     write_plugin_marketplace(
         repo_root.path(),
-        "codex-curated",
+        "datax-curated",
         "demo-plugin",
         "./demo-plugin",
     )?;
@@ -1191,7 +1191,7 @@ async fn plugin_read_falls_back_to_local_share_context_without_remote_auth() -> 
     write_plugins_enabled_config(&codex_home)?;
     write_plugin_marketplace(
         repo_root.path(),
-        "codex-curated",
+        "datax-curated",
         "demo-plugin",
         "./demo-plugin",
     )?;
@@ -1244,7 +1244,7 @@ async fn plugin_read_fails_on_malformed_share_mapping() -> Result<()> {
     write_plugins_enabled_config(&codex_home)?;
     write_plugin_marketplace(
         repo_root.path(),
-        "codex-curated",
+        "datax-curated",
         "demo-plugin",
         "./demo-plugin",
     )?;
@@ -1300,7 +1300,7 @@ async fn plugin_read_returns_plugin_details_with_bundle_contents() -> Result<()>
     std::fs::write(
         repo_root.path().join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "demo-plugin",
@@ -1449,7 +1449,7 @@ enabled = true
 enabled = false
 "#,
     )?;
-    write_installed_plugin(&codex_home, "codex-curated", "demo-plugin")?;
+    write_installed_plugin(&codex_home, "datax-curated", "demo-plugin")?;
 
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
@@ -1471,7 +1471,7 @@ enabled = false
     .await??;
     let response: PluginReadResponse = to_response(response)?;
 
-    assert_eq!(response.plugin.marketplace_name, "codex-curated");
+    assert_eq!(response.plugin.marketplace_name, "datax-curated");
     assert_eq!(response.plugin.marketplace_path, Some(marketplace_path));
     assert_eq!(response.plugin.summary.id, "demo-plugin@codex-curated");
     assert_eq!(response.plugin.summary.name, "demo-plugin");
@@ -1548,15 +1548,15 @@ enabled = false
     assert_eq!(
         response.plugin.hooks,
         vec![
-            codex_app_server_protocol::PluginHookSummary {
+            datax_app_server_protocol::PluginHookSummary {
                 key: "demo-plugin@codex-curated:hooks/hooks.json:pre_tool_use:0:0".to_string(),
                 event_name: HookEventName::PreToolUse,
             },
-            codex_app_server_protocol::PluginHookSummary {
+            datax_app_server_protocol::PluginHookSummary {
                 key: "demo-plugin@codex-curated:hooks/hooks.json:pre_tool_use:0:1".to_string(),
                 event_name: HookEventName::PreToolUse,
             },
-            codex_app_server_protocol::PluginHookSummary {
+            datax_app_server_protocol::PluginHookSummary {
                 key: "demo-plugin@codex-curated:hooks/hooks.json:session_start:0:0".to_string(),
                 event_name: HookEventName::SessionStart,
             },
@@ -1781,7 +1781,7 @@ async fn plugin_read_accepts_legacy_string_default_prompt() -> Result<()> {
     std::fs::write(
         repo_root.path().join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "demo-plugin",
@@ -1915,7 +1915,7 @@ async fn plugin_read_returns_invalid_request_when_plugin_is_missing() -> Result<
     std::fs::write(
         repo_root.path().join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "demo-plugin",
@@ -1968,7 +1968,7 @@ async fn plugin_read_returns_invalid_request_when_plugin_manifest_is_missing() -
     std::fs::write(
         repo_root.path().join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "codex-curated",
+  "name": "datax-curated",
   "plugins": [
     {
       "name": "demo-plugin",

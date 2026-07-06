@@ -1,6 +1,6 @@
-use codex_config::HooksFile;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_plugins::find_plugin_manifest_path;
+use datax_config::HooksFile;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_plugins::find_plugin_manifest_path;
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
 use std::fs;
@@ -9,12 +9,12 @@ use std::path::Path;
 const MAX_DEFAULT_PROMPT_COUNT: usize = 3;
 const MAX_DEFAULT_PROMPT_LEN: usize = 128;
 
-pub type PluginManifest = codex_plugin::manifest::PluginManifest<AbsolutePathBuf>;
-pub type PluginManifestHooks = codex_plugin::manifest::PluginManifestHooks<AbsolutePathBuf>;
-pub type PluginManifestInterface = codex_plugin::manifest::PluginManifestInterface<AbsolutePathBuf>;
+pub type PluginManifest = datax_plugin::manifest::PluginManifest<AbsolutePathBuf>;
+pub type PluginManifestHooks = datax_plugin::manifest::PluginManifestHooks<AbsolutePathBuf>;
+pub type PluginManifestInterface = datax_plugin::manifest::PluginManifestInterface<AbsolutePathBuf>;
 pub type PluginManifestMcpServers =
-    codex_plugin::manifest::PluginManifestMcpServers<AbsolutePathBuf>;
-pub type PluginManifestPaths = codex_plugin::manifest::PluginManifestPaths<AbsolutePathBuf>;
+    datax_plugin::manifest::PluginManifestMcpServers<AbsolutePathBuf>;
+pub type PluginManifestPaths = datax_plugin::manifest::PluginManifestPaths<AbsolutePathBuf>;
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -479,13 +479,13 @@ mod tests {
     use super::MAX_DEFAULT_PROMPT_LEN;
     use super::PluginManifest;
     use super::load_plugin_manifest;
-    use codex_exec_server::EnvironmentManager;
-    use codex_exec_server::LOCAL_ENVIRONMENT_ID;
-    use codex_plugin::PluginProvider;
-    use codex_plugin::ResolvedPlugin;
-    use codex_protocol::capabilities::CapabilityRootLocation;
-    use codex_protocol::capabilities::SelectedCapabilityRoot;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use datax_exec_server::EnvironmentManager;
+    use datax_exec_server::LOCAL_ENVIRONMENT_ID;
+    use datax_plugin::PluginProvider;
+    use datax_plugin::ResolvedPlugin;
+    use datax_protocol::capabilities::CapabilityRootLocation;
+    use datax_protocol::capabilities::SelectedCapabilityRoot;
+    use datax_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use std::fs;
     use std::path::Path;

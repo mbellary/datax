@@ -31,8 +31,8 @@ use crate::workspace_acl::protect_workspace_agents_dir;
 use crate::workspace_acl::protect_workspace_codex_dir;
 use anyhow::Context;
 use anyhow::Result;
-use codex_protocol::models::PermissionProfile;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_protocol::models::PermissionProfile;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::path::Path;
@@ -453,9 +453,9 @@ mod tests {
     use crate::cap::load_or_create_cap_sids;
     use crate::cap::workspace_write_cap_sid_for_root;
     use crate::resolved_permissions::ResolvedWindowsSandboxPermissions;
-    use codex_protocol::models::PermissionProfile;
-    use codex_protocol::permissions::NetworkSandboxPolicy;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use datax_protocol::models::PermissionProfile;
+    use datax_protocol::permissions::NetworkSandboxPolicy;
+    use datax_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
     use std::path::Path;
@@ -568,7 +568,7 @@ mod tests {
     #[test]
     fn legacy_session_capability_roots_use_runtime_workspace_roots_for_workspace_root() {
         let tmp = TempDir::new().expect("tempdir");
-        let codex_home = tmp.path().join("codex-home");
+        let codex_home = tmp.path().join("datax-home");
         let workspace_root = tmp.path().join("workspace");
         let command_cwd = workspace_root.join("subdir");
         std::fs::create_dir_all(&codex_home).expect("create codex home");
@@ -604,7 +604,7 @@ mod tests {
     #[test]
     fn root_capability_sids_only_include_active_roots() {
         let temp = TempDir::new().expect("tempdir");
-        let codex_home = temp.path().join("codex-home");
+        let codex_home = temp.path().join("datax-home");
         let workspace = temp.path().join("workspace");
         let active_root = temp.path().join("active-root");
         let stale_root = temp.path().join("stale-root");
@@ -641,7 +641,7 @@ mod tests {
     #[test]
     fn legacy_deny_path_includes_nested_active_root_sid() {
         let temp = TempDir::new().expect("tempdir");
-        let codex_home = temp.path().join("codex-home");
+        let codex_home = temp.path().join("datax-home");
         let workspace = temp.path().join("workspace");
         let protected_dir = workspace.join(".codex");
         let nested_root = protected_dir.join("nested-root");
@@ -677,7 +677,7 @@ mod tests {
     #[test]
     fn legacy_capability_roots_use_effective_write_roots() {
         let temp = TempDir::new().expect("tempdir");
-        let codex_home = temp.path().join("codex-home");
+        let codex_home = temp.path().join("datax-home");
         let workspace = temp.path().join("workspace");
         let active_root = temp.path().join("active-root");
         let sandbox_root = codex_home.join(".sandbox");

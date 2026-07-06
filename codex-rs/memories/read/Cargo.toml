@@ -1,11 +1,11 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-memories-read"
+name = "datax-memories-read"
 version.workspace = true
 
 [lib]
-name = "codex_memories_read"
+name = "datax_memories_read"
 path = "src/lib.rs"
 doctest = false
 
@@ -13,9 +13,9 @@ doctest = false
 workspace = true
 
 [dependencies]
-codex-protocol = { workspace = true }
-codex-shell-command = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
+datax-protocol = { workspace = true }
+datax-shell-command = { workspace = true }
+datax-utils-absolute-path = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

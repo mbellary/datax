@@ -4,29 +4,6 @@ use crate::phase1;
 use crate::phase2;
 use crate::runtime::MemoryStartupContext;
 use crate::start_memories_startup_task;
-use codex_config::types::MemoriesConfig;
-use codex_features::Feature;
-use codex_git_utils::diff_since_latest_init;
-use codex_git_utils::reset_git_repository;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_model_provider::ModelProvider;
-use codex_model_provider::ModelProviderFuture;
-use codex_model_provider::ProviderAccountResult;
-use codex_model_provider::SharedModelProvider;
-use codex_model_provider::create_model_provider;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::protocol::SessionSource;
 use core_test_support::responses::ResponseMock;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_assistant_message;
@@ -38,6 +15,29 @@ use core_test_support::responses::start_mock_server;
 use core_test_support::test_codex::TestCodex;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
+use datax_config::types::MemoriesConfig;
+use datax_features::Feature;
+use datax_git_utils::diff_since_latest_init;
+use datax_git_utils::reset_git_repository;
+use datax_login::AuthManager;
+use datax_login::CodexAuth;
+use datax_model_provider::ModelProvider;
+use datax_model_provider::ModelProviderFuture;
+use datax_model_provider::ProviderAccountResult;
+use datax_model_provider::SharedModelProvider;
+use datax_model_provider::create_model_provider;
+use datax_model_provider_info::ModelProviderInfo;
+use datax_protocol::ThreadId;
+use datax_protocol::config_types::ServiceTier;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::openai_models::ModelsResponse;
+use datax_protocol::openai_models::ReasoningEffort;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutLine;
+use datax_protocol::protocol::SessionSource;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use std::path::PathBuf;
@@ -282,7 +282,7 @@ async fn memories_startup_phase1_uses_live_thread_service_tier_and_detached_meta
 
     core_test_support::submit_thread_settings(
         &test.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        datax_protocol::protocol::ThreadSettingsOverrides {
             service_tier: Some(Some(ServiceTier::Fast.request_value().to_string())),
             ..Default::default()
         },
@@ -328,7 +328,7 @@ async fn memories_startup_phase1_uses_live_thread_service_tier_and_detached_meta
     context
         .stream_stage_one_prompt(
             &test.config,
-            &codex_core::Prompt::default(),
+            &datax_core::Prompt::default(),
             &request_context,
         )
         .await?;
@@ -534,9 +534,9 @@ async fn build_test_codex_with_memories_config(
         .await
 }
 
-async fn init_state_db(home: &Arc<TempDir>) -> anyhow::Result<Arc<codex_state::StateRuntime>> {
+async fn init_state_db(home: &Arc<TempDir>) -> anyhow::Result<Arc<datax_state::StateRuntime>> {
     let db =
-        codex_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".into()).await?;
+        datax_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".into()).await?;
     db.mark_backfill_complete(/*last_watermark*/ None).await?;
     Ok(db)
 }
@@ -561,7 +561,7 @@ async fn trigger_memories_startup(test: &TestCodex) {
 async fn memory_startup_context_with_provider(
     test: &TestCodex,
     provider: SharedModelProvider,
-) -> (Arc<MemoryStartupContext>, Arc<codex_core::config::Config>) {
+) -> (Arc<MemoryStartupContext>, Arc<datax_core::config::Config>) {
     let config_snapshot = test.codex.config_snapshot().await;
     let mut config = test.config.clone();
     config
@@ -628,14 +628,14 @@ impl ModelProvider for MockMemoryModelProvider {
         &self,
         codex_home: PathBuf,
         config_model_catalog: Option<ModelsResponse>,
-    ) -> codex_models_manager::manager::SharedModelsManager {
+    ) -> datax_models_manager::manager::SharedModelsManager {
         self.delegate
             .models_manager(codex_home, config_model_catalog)
     }
 }
 
 async fn seed_stage1_output(
-    db: &codex_state::StateRuntime,
+    db: &datax_state::StateRuntime,
     codex_home: &Path,
     updated_at: chrono::DateTime<chrono::Utc>,
     raw_memory: &str,
@@ -643,7 +643,7 @@ async fn seed_stage1_output(
     rollout_slug: &str,
 ) -> anyhow::Result<ThreadId> {
     let thread_id = ThreadId::new();
-    let mut metadata_builder = codex_state::ThreadMetadataBuilder::new(
+    let mut metadata_builder = datax_state::ThreadMetadataBuilder::new(
         thread_id,
         codex_home.join(format!("rollout-{thread_id}.jsonl")),
         updated_at,
@@ -669,7 +669,7 @@ async fn seed_stage1_output(
 }
 
 async fn seed_stage1_candidate(
-    db: &codex_state::StateRuntime,
+    db: &datax_state::StateRuntime,
     codex_home: &Path,
     updated_at: chrono::DateTime<chrono::Utc>,
     rollout_slug: &str,
@@ -691,7 +691,7 @@ async fn seed_stage1_candidate(
     let jsonl = serde_json::to_string(&line)?;
     tokio::fs::write(&rollout_path, format!("{jsonl}\n")).await?;
 
-    let mut metadata_builder = codex_state::ThreadMetadataBuilder::new(
+    let mut metadata_builder = datax_state::ThreadMetadataBuilder::new(
         thread_id,
         rollout_path,
         updated_at,
@@ -762,7 +762,7 @@ async fn wait_for_request(mock: &ResponseMock, expected_count: usize) -> Vec<Res
 async fn wait_for_service_tier(
     test: &TestCodex,
     expected_service_tier: Option<String>,
-) -> anyhow::Result<codex_core::ThreadConfigSnapshot> {
+) -> anyhow::Result<datax_core::ThreadConfigSnapshot> {
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
         let config_snapshot = test.codex.config_snapshot().await;
@@ -804,7 +804,7 @@ async fn wait_for_phase2_workspace_reset(memory_root: &Path) -> anyhow::Result<(
 }
 
 async fn seed_stage1_output_for_existing_thread(
-    db: &codex_state::StateRuntime,
+    db: &datax_state::StateRuntime,
     thread_id: ThreadId,
     updated_at: i64,
     raw_memory: &str,
@@ -820,7 +820,7 @@ async fn seed_stage1_output_for_existing_thread(
         )
         .await?;
     let ownership_token = match claim {
-        codex_state::Stage1JobClaimOutcome::Claimed { ownership_token } => ownership_token,
+        datax_state::Stage1JobClaimOutcome::Claimed { ownership_token } => ownership_token,
         other => panic!("unexpected stage-1 claim outcome: {other:?}"),
     };
 

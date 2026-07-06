@@ -1128,8 +1128,8 @@ fn workspace_messages_feature_disabled(err: &BackendRequestError) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_backend_client::TokenUsageProfileDailyBucket;
-    use codex_backend_client::TokenUsageProfileStats;
+    use datax_backend_client::TokenUsageProfileDailyBucket;
+    use datax_backend_client::TokenUsageProfileStats;
     use pretty_assertions::assert_eq;
 
     #[test]

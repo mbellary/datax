@@ -1,11 +1,11 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-image-generation-extension"
+name = "datax-image-generation-extension"
 version.workspace = true
 
 [lib]
-name = "codex_image_generation_extension"
+name = "datax_image_generation_extension"
 path = "src/lib.rs"
 doctest = false
 
@@ -13,17 +13,17 @@ doctest = false
 workspace = true
 
 [dependencies]
-codex-api = { workspace = true }
-codex-core = { workspace = true }
-codex-extension-api = { workspace = true }
-codex-login = { workspace = true }
-codex-model-provider = { workspace = true }
-codex-model-provider-info = { workspace = true }
-codex-protocol = { workspace = true }
-codex-tools = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-image = { workspace = true }
-codex-utils-path-uri = { workspace = true }
+datax-api = { workspace = true }
+datax-core = { workspace = true }
+datax-extension-api = { workspace = true }
+datax-login = { workspace = true }
+datax-model-provider = { workspace = true }
+datax-model-provider-info = { workspace = true }
+datax-protocol = { workspace = true }
+datax-tools = { workspace = true }
+datax-utils-absolute-path = { workspace = true }
+datax-utils-image = { workspace = true }
+datax-utils-path-uri = { workspace = true }
 http = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

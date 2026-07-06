@@ -1,25 +1,4 @@
 use anyhow::Result;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::openai_models::ApplyPatchToolType;
-use codex_protocol::openai_models::ConfigShellToolType;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelVisibility;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::openai_models::ReasoningEffortPreset;
-use codex_protocol::openai_models::TruncationPolicyConfig;
-use codex_protocol::openai_models::default_input_modalities;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::request_permissions::PermissionGrantScope;
-use codex_protocol::request_permissions::RequestPermissionsResponse;
-use codex_protocol::user_input::UserInput;
 use core_test_support::TempDirExt;
 use core_test_support::responses::ev_apply_patch_custom_tool_call;
 use core_test_support::responses::ev_assistant_message;
@@ -36,6 +15,27 @@ use core_test_support::test_codex::local_selections;
 use core_test_support::test_codex::test_codex;
 use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::wait_for_event;
+use datax_features::Feature;
+use datax_login::CodexAuth;
+use datax_models_manager::manager::RefreshStrategy;
+use datax_protocol::config_types::ApprovalsReviewer;
+use datax_protocol::config_types::ReasoningSummary;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::openai_models::ApplyPatchToolType;
+use datax_protocol::openai_models::ConfigShellToolType;
+use datax_protocol::openai_models::ModelInfo;
+use datax_protocol::openai_models::ModelVisibility;
+use datax_protocol::openai_models::ModelsResponse;
+use datax_protocol::openai_models::ReasoningEffort;
+use datax_protocol::openai_models::ReasoningEffortPreset;
+use datax_protocol::openai_models::TruncationPolicyConfig;
+use datax_protocol::openai_models::default_input_modalities;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
+use datax_protocol::request_permissions::PermissionGrantScope;
+use datax_protocol::request_permissions::RequestPermissionsResponse;
+use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use wiremock::MockServer;
@@ -143,7 +143,7 @@ async fn remote_model_override_uses_catalog_model_for_strict_auto_review() -> Re
 
     core_test_support::submit_thread_settings(
         &codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        datax_protocol::protocol::ThreadSettingsOverrides {
             model: Some(model.to_string()),
             ..Default::default()
         },
@@ -162,7 +162,7 @@ async fn remote_model_override_uses_catalog_model_for_strict_auto_review() -> Re
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(cwd_path)),
                 approval_policy: Some(AskForApproval::OnRequest),
                 sandbox_policy: Some(sandbox_policy),

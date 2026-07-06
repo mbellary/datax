@@ -545,7 +545,7 @@ mod tests {
                 "model-with-reasoning",
                 "reasoning",
                 "weekly-limit",
-                "codex-version",
+                "datax-version",
                 "used-tokens",
                 "total-input-tokens",
                 "total-output-tokens",

@@ -66,28 +66,28 @@ use crate::outgoing_message::QueuedOutgoingMessage;
 use crate::transport::CHANNEL_CAPACITY;
 use crate::transport::OutboundConnectionState;
 use crate::transport::route_outgoing_envelope;
-use codex_analytics::AppServerRpcTransport;
-use codex_app_server_protocol::ClientNotification;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ConfigWarningNotification;
-use codex_app_server_protocol::InitializeParams;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::Result;
-use codex_app_server_protocol::ServerNotification;
-use codex_app_server_protocol::ServerRequest;
-use codex_arg0::Arg0DispatchPaths;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::LoaderOverrides;
-use codex_config::ThreadConfigLoader;
-use codex_core::config::Config;
-use codex_core::resolve_installation_id;
-use codex_exec_server::EnvironmentManager;
-use codex_feedback::CodexFeedback;
-use codex_login::AuthManager;
-use codex_protocol::protocol::SessionSource;
-pub use codex_rollout::StateDbHandle;
-pub use codex_state::log_db::LogDbLayer;
+use datax_analytics::AppServerRpcTransport;
+use datax_app_server_protocol::ClientNotification;
+use datax_app_server_protocol::ClientRequest;
+use datax_app_server_protocol::ConfigWarningNotification;
+use datax_app_server_protocol::InitializeParams;
+use datax_app_server_protocol::JSONRPCErrorError;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::Result;
+use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::ServerRequest;
+use datax_arg0::Arg0DispatchPaths;
+use datax_config::CloudConfigBundleLoader;
+use datax_config::LoaderOverrides;
+use datax_config::ThreadConfigLoader;
+use datax_core::config::Config;
+use datax_core::resolve_installation_id;
+use datax_exec_server::EnvironmentManager;
+use datax_feedback::CodexFeedback;
+use datax_login::AuthManager;
+use datax_protocol::protocol::SessionSource;
+pub use datax_rollout::StateDbHandle;
+pub use datax_state::log_db::LogDbLayer;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio::time::timeout;
@@ -729,17 +729,17 @@ async fn start_uninitialized(args: InProcessStartArgs) -> IoResult<InProcessClie
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_app_server_protocol::ClientInfo;
-    use codex_app_server_protocol::ConfigRequirementsReadResponse;
-    use codex_app_server_protocol::ExternalAgentConfigImportCompletedNotification;
-    use codex_app_server_protocol::SessionSource as ApiSessionSource;
-    use codex_app_server_protocol::ThreadStartParams;
-    use codex_app_server_protocol::ThreadStartResponse;
-    use codex_app_server_protocol::Turn;
-    use codex_app_server_protocol::TurnCompletedNotification;
-    use codex_app_server_protocol::TurnItemsView;
-    use codex_app_server_protocol::TurnStatus;
-    use codex_core::config::ConfigBuilder;
+    use datax_app_server_protocol::ClientInfo;
+    use datax_app_server_protocol::ConfigRequirementsReadResponse;
+    use datax_app_server_protocol::ExternalAgentConfigImportCompletedNotification;
+    use datax_app_server_protocol::SessionSource as ApiSessionSource;
+    use datax_app_server_protocol::ThreadStartParams;
+    use datax_app_server_protocol::ThreadStartResponse;
+    use datax_app_server_protocol::Turn;
+    use datax_app_server_protocol::TurnCompletedNotification;
+    use datax_app_server_protocol::TurnItemsView;
+    use datax_app_server_protocol::TurnStatus;
+    use datax_core::config::ConfigBuilder;
     use pretty_assertions::assert_eq;
     use std::path::Path;
     use tempfile::TempDir;
@@ -766,7 +766,7 @@ mod tests {
     ) -> InProcessClientHandle {
         let codex_home = TempDir::new().expect("temp dir");
         let config = Arc::new(build_test_config(codex_home.path()).await);
-        let state_db = codex_rollout::state_db::try_init(config.as_ref())
+        let state_db = datax_rollout::state_db::try_init(config.as_ref())
             .await
             .expect("state db should initialize for in-process test");
         let args = InProcessStartArgs {
@@ -776,7 +776,7 @@ mod tests {
             loader_overrides: LoaderOverrides::default(),
             strict_config: false,
             cloud_config_bundle: CloudConfigBundleLoader::default(),
-            thread_config_loader: Arc::new(codex_config::NoopThreadConfigLoader),
+            thread_config_loader: Arc::new(datax_config::NoopThreadConfigLoader),
             feedback: CodexFeedback::new(),
             log_db: None,
             state_db: Some(state_db),
@@ -786,7 +786,7 @@ mod tests {
             enable_codex_api_key_env: false,
             initialize: InitializeParams {
                 client_info: ClientInfo {
-                    name: "codex-in-process-test".to_string(),
+                    name: "datax-in-process-test".to_string(),
                     title: None,
                     version: "0.0.0".to_string(),
                 },

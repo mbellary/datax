@@ -1,6 +1,6 @@
 use super::*;
-use codex_app_server_protocol::AccountTokenUsageDailyBucket;
-use codex_app_server_protocol::AccountTokenUsageSummary;
+use datax_app_server_protocol::AccountTokenUsageDailyBucket;
+use datax_app_server_protocol::AccountTokenUsageSummary;
 use insta::assert_snapshot;
 use pretty_assertions::assert_eq;
 

@@ -10,10 +10,10 @@
 mod backends;
 
 use anyhow::Result;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::PermissionProfile;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_pty::SpawnedProcess;
+use datax_protocol::config_types::WindowsSandboxLevel;
+use datax_protocol::models::PermissionProfile;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_pty::SpawnedProcess;
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;

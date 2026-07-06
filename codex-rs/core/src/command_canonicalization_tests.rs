@@ -20,7 +20,7 @@ fn canonicalizes_word_only_shell_scripts_to_inner_command() {
             "cargo".to_string(),
             "test".to_string(),
             "-p".to_string(),
-            "codex-core".to_string(),
+            "datax-core".to_string(),
         ]
     );
     assert_eq!(

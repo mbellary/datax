@@ -1,9 +1,9 @@
 use super::*;
-use codex_config::AbsolutePathBuf;
-use codex_config::CloudConfigFragment;
-use codex_config::CloudConfigTomlBundle;
-use codex_config::CloudRequirementsFragment;
-use codex_config::CloudRequirementsTomlBundle;
+use datax_config::AbsolutePathBuf;
+use datax_config::CloudConfigFragment;
+use datax_config::CloudConfigTomlBundle;
+use datax_config::CloudRequirementsFragment;
+use datax_config::CloudRequirementsTomlBundle;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use tempfile::tempdir;

@@ -5,5 +5,5 @@ codex_rust_crate(
     compile_data = glob([
         "templates/**",
     ]),
-    crate_name = "codex_memories_extension",
+    crate_name = "datax_memories_extension",
 )

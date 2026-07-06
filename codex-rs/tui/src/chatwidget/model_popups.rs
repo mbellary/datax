@@ -155,14 +155,14 @@ impl ChatWidget {
     }
 
     fn is_auto_model(model: &str) -> bool {
-        model.starts_with("codex-auto-")
+        model.starts_with("datax-auto-")
     }
 
     fn auto_model_order(model: &str) -> usize {
         match model {
-            "codex-auto-fast" => 0,
-            "codex-auto-balanced" => 1,
-            "codex-auto-thorough" => 2,
+            "datax-auto-fast" => 0,
+            "datax-auto-balanced" => 1,
+            "datax-auto-thorough" => 2,
             _ => 3,
         }
     }

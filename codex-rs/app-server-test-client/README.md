@@ -11,7 +11,7 @@ cargo build -p codex-cli --bin datax
 
 # 2) Start websocket app-server in background
 cargo run -p codex-app-server-test-client -- \
-  --codex-bin ./target/debug/codex \
+  --datax-bin ./target/debug/codex \
   serve --listen ws://127.0.0.1:4222 --kill
 
 # 3) Call app-server (defaults to ws://127.0.0.1:4222)
@@ -39,7 +39,7 @@ retries ephemeral turns while the installed remote bundle finishes syncing.
 cargo build -p codex-cli --bin datax
 
 cargo run -p codex-app-server-test-client -- \
-  --codex-bin ./target/debug/codex \
+  --datax-bin ./target/debug/codex \
   plugin-analytics-smoke \
   --plugin-id linear@openai-curated-remote
 ```
@@ -72,7 +72,7 @@ local `<plugin>@<marketplace>` ID.
 
 ```bash
 cargo run -p codex-app-server-test-client -- \
-  --codex-bin ./target/debug/codex \
+  --datax-bin ./target/debug/codex \
   plugin-analytics-mutation-smoke \
   --remote-plugin-id <REMOTE_PLUGIN_ID> \
   --confirm-account-mutation \
@@ -95,7 +95,7 @@ For a dirty or uncertain result, retry cleanup with:
 
 ```bash
 cargo run -p codex-app-server-test-client -- \
-  --codex-bin ./target/debug/codex \
+  --datax-bin ./target/debug/codex \
   plugin-remote-uninstall \
   --remote-plugin-id <REMOTE_PLUGIN_ID> \
   --confirm-account-mutation

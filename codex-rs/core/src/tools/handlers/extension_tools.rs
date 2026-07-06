@@ -1,16 +1,16 @@
 use std::sync::Arc;
 use std::sync::Weak;
 
-use codex_protocol::items::TurnItem;
-use codex_tools::ConversationHistory;
-use codex_tools::ExtensionTurnItem;
-use codex_tools::ToolCall as ExtensionToolCall;
-use codex_tools::ToolEnvironment;
-use codex_tools::ToolName;
-use codex_tools::ToolSearchInfo;
-use codex_tools::ToolSpec;
-use codex_tools::TurnItemEmissionFuture;
-use codex_tools::TurnItemEmitter;
+use datax_protocol::items::TurnItem;
+use datax_tools::ConversationHistory;
+use datax_tools::ExtensionTurnItem;
+use datax_tools::ToolCall as ExtensionToolCall;
+use datax_tools::ToolEnvironment;
+use datax_tools::ToolName;
+use datax_tools::ToolSearchInfo;
+use datax_tools::ToolSpec;
+use datax_tools::TurnItemEmissionFuture;
+use datax_tools::TurnItemEmitter;
 
 use crate::sandboxing::SandboxPermissions;
 use crate::session::session::Session;
@@ -23,10 +23,10 @@ use crate::tools::handlers::apply_granted_turn_permissions;
 use crate::tools::registry::CoreToolRuntime;
 use crate::tools::registry::ToolExecutor;
 
-pub(crate) struct ExtensionToolAdapter(Arc<dyn codex_tools::ToolExecutor<ExtensionToolCall>>);
+pub(crate) struct ExtensionToolAdapter(Arc<dyn datax_tools::ToolExecutor<ExtensionToolCall>>);
 
 impl ExtensionToolAdapter {
-    pub(crate) fn new(executor: Arc<dyn codex_tools::ToolExecutor<ExtensionToolCall>>) -> Self {
+    pub(crate) fn new(executor: Arc<dyn datax_tools::ToolExecutor<ExtensionToolCall>>) -> Self {
         Self(executor)
     }
 }
@@ -52,7 +52,7 @@ impl ToolExecutor<ToolInvocation> for ExtensionToolAdapter {
         self.0.search_info()
     }
 
-    fn handle(&self, invocation: ToolInvocation) -> codex_tools::ToolExecutorFuture<'_> {
+    fn handle(&self, invocation: ToolInvocation) -> datax_tools::ToolExecutorFuture<'_> {
         Box::pin(async move { self.0.handle(to_extension_call(&invocation).await).await })
     }
 }
@@ -101,7 +101,7 @@ impl TurnItemEmitter for CoreTurnItemEmitter {
                 turn.as_ref(),
                 TurnItemContributorPolicy::Run(turn.extension_data.as_ref()),
                 &mut item,
-                turn.collaboration_mode.mode == codex_protocol::config_types::ModeKind::Plan,
+                turn.collaboration_mode.mode == datax_protocol::config_types::ModeKind::Plan,
             )
             .await;
             session.emit_turn_item_completed(turn.as_ref(), item).await;
@@ -158,17 +158,17 @@ async fn to_extension_call(invocation: &ToolInvocation) -> ExtensionToolCall {
 mod tests {
     use std::sync::Arc;
 
-    use codex_extension_api::ExtensionData;
-    use codex_extension_api::TurnItemContributor;
-    use codex_protocol::items::TurnItem;
-    use codex_protocol::items::WebSearchItem;
-    use codex_protocol::models::ContentItem;
-    use codex_protocol::models::ResponseItem;
-    use codex_protocol::models::WebSearchAction;
-    use codex_protocol::protocol::EventMsg;
-    use codex_tools::ExtensionTurnItem;
-    use codex_utils_absolute_path::test_support::PathExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use datax_extension_api::ExtensionData;
+    use datax_extension_api::TurnItemContributor;
+    use datax_protocol::items::TurnItem;
+    use datax_protocol::items::WebSearchItem;
+    use datax_protocol::models::ContentItem;
+    use datax_protocol::models::ResponseItem;
+    use datax_protocol::models::WebSearchAction;
+    use datax_protocol::protocol::EventMsg;
+    use datax_tools::ExtensionTurnItem;
+    use datax_utils_absolute_path::test_support::PathExt;
+    use datax_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use tokio::sync::Mutex;
@@ -186,17 +186,17 @@ mod tests {
 
     struct StubExtensionExecutor;
 
-    impl codex_extension_api::ToolExecutor<codex_tools::ToolCall> for StubExtensionExecutor {
-        fn tool_name(&self) -> codex_tools::ToolName {
-            codex_tools::ToolName::plain("extension_echo")
+    impl datax_extension_api::ToolExecutor<datax_tools::ToolCall> for StubExtensionExecutor {
+        fn tool_name(&self) -> datax_tools::ToolName {
+            datax_tools::ToolName::plain("extension_echo")
         }
 
-        fn spec(&self) -> codex_tools::ToolSpec {
-            codex_tools::ToolSpec::Function(codex_tools::ResponsesApiTool {
+        fn spec(&self) -> datax_tools::ToolSpec {
+            datax_tools::ToolSpec::Function(datax_tools::ResponsesApiTool {
                 name: "extension_echo".to_string(),
                 description: "Echoes arguments.".to_string(),
                 strict: true,
-                parameters: codex_tools::parse_tool_input_schema(&json!({
+                parameters: datax_tools::parse_tool_input_schema(&json!({
                     "type": "object",
                     "properties": {
                         "message": { "type": "string" },
@@ -210,37 +210,37 @@ mod tests {
             })
         }
 
-        fn handle(&self, _call: codex_tools::ToolCall) -> codex_tools::ToolExecutorFuture<'_> {
+        fn handle(&self, _call: datax_tools::ToolCall) -> datax_tools::ToolExecutorFuture<'_> {
             Box::pin(async {
                 Ok(
-                    Box::new(codex_tools::JsonToolOutput::new(json!({ "ok": true })))
-                        as Box<dyn codex_tools::ToolOutput>,
+                    Box::new(datax_tools::JsonToolOutput::new(json!({ "ok": true })))
+                        as Box<dyn datax_tools::ToolOutput>,
                 )
             })
         }
     }
 
     struct CapturingExtensionExecutor {
-        captured_call: Arc<Mutex<Option<codex_tools::ToolCall>>>,
+        captured_call: Arc<Mutex<Option<datax_tools::ToolCall>>>,
     }
 
-    impl codex_extension_api::ToolExecutor<codex_tools::ToolCall> for CapturingExtensionExecutor {
-        fn tool_name(&self) -> codex_tools::ToolName {
-            codex_tools::ToolName::plain("extension_echo")
+    impl datax_extension_api::ToolExecutor<datax_tools::ToolCall> for CapturingExtensionExecutor {
+        fn tool_name(&self) -> datax_tools::ToolName {
+            datax_tools::ToolName::plain("extension_echo")
         }
 
-        fn spec(&self) -> codex_tools::ToolSpec {
-            codex_tools::ToolSpec::Function(codex_tools::ResponsesApiTool {
+        fn spec(&self) -> datax_tools::ToolSpec {
+            datax_tools::ToolSpec::Function(datax_tools::ResponsesApiTool {
                 name: "extension_echo".to_string(),
                 description: "Captures arguments.".to_string(),
                 strict: false,
-                parameters: codex_tools::JsonSchema::default(),
+                parameters: datax_tools::JsonSchema::default(),
                 output_schema: None,
                 defer_loading: None,
             })
         }
 
-        fn handle(&self, call: codex_tools::ToolCall) -> codex_tools::ToolExecutorFuture<'_> {
+        fn handle(&self, call: datax_tools::ToolCall) -> datax_tools::ToolExecutorFuture<'_> {
             Box::pin(self.handle_call(call))
         }
     }
@@ -248,8 +248,8 @@ mod tests {
     impl CapturingExtensionExecutor {
         async fn handle_call(
             &self,
-            call: codex_tools::ToolCall,
-        ) -> Result<Box<dyn codex_tools::ToolOutput>, codex_tools::FunctionCallError> {
+            call: datax_tools::ToolCall,
+        ) -> Result<Box<dyn datax_tools::ToolOutput>, datax_tools::FunctionCallError> {
             let item = ExtensionTurnItem::WebSearch(WebSearchItem {
                 id: call.call_id.clone(),
                 query: "rust trait object".to_string(),
@@ -262,8 +262,8 @@ mod tests {
             call.turn_item_emitter.emit_completed(item).await;
             *self.captured_call.lock().await = Some(call);
             Ok(
-                Box::new(codex_tools::JsonToolOutput::new(json!({ "ok": true })))
-                    as Box<dyn codex_tools::ToolOutput>,
+                Box::new(datax_tools::JsonToolOutput::new(json!({ "ok": true })))
+                    as Box<dyn datax_tools::ToolOutput>,
             )
         }
     }
@@ -278,13 +278,13 @@ mod tests {
             cancellation_token: tokio_util::sync::CancellationToken::new(),
             tracker: Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new())),
             call_id: "call-extension".to_string(),
-            tool_name: codex_tools::ToolName::plain("extension_echo"),
+            tool_name: datax_tools::ToolName::plain("extension_echo"),
             source: ToolCallSource::Direct,
             payload: ToolPayload::Function {
                 arguments: json!({ "message": "hello" }).to_string(),
             },
         };
-        let output = codex_tools::JsonToolOutput::new(json!({ "ok": true }));
+        let output = datax_tools::JsonToolOutput::new(json!({ "ok": true }));
 
         assert_eq!(
             CoreToolRuntime::pre_tool_use_payload(&handler, &invocation),
@@ -347,7 +347,7 @@ mod tests {
             cancellation_token: tokio_util::sync::CancellationToken::new(),
             tracker: Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new())),
             call_id: "call-extension".to_string(),
-            tool_name: codex_tools::ToolName::plain("extension_echo"),
+            tool_name: datax_tools::ToolName::plain("extension_echo"),
             source: ToolCallSource::Direct,
             payload: ToolPayload::Function {
                 arguments: json!({ "message": "hello" }).to_string(),
@@ -365,7 +365,7 @@ mod tests {
         assert_eq!(captured_call.call_id, "call-extension");
         assert_eq!(
             captured_call.tool_name,
-            codex_tools::ToolName::plain("extension_echo")
+            datax_tools::ToolName::plain("extension_echo")
         );
         assert_eq!(captured_call.model, model);
         assert_eq!(captured_call.truncation_policy, truncation_policy);
@@ -440,7 +440,7 @@ mod tests {
             _thread_store: &'a ExtensionData,
             turn_store: &'a ExtensionData,
             _item: &'a mut TurnItem,
-        ) -> codex_extension_api::ExtensionFuture<'a, Result<(), String>> {
+        ) -> datax_extension_api::ExtensionFuture<'a, Result<(), String>> {
             Box::pin(async move {
                 turn_store.insert(ExtensionTurnItemContributorRan);
                 Ok(())
@@ -451,7 +451,7 @@ mod tests {
     #[tokio::test]
     async fn extension_completion_runs_turn_item_contributors() {
         let (mut session, turn) = crate::session::tests::make_session_and_context().await;
-        let mut builder = codex_extension_api::ExtensionRegistryBuilder::new();
+        let mut builder = datax_extension_api::ExtensionRegistryBuilder::new();
         builder.turn_item_contributor(Arc::new(RecordExtensionTurnItemContributor));
         session.services.extensions = Arc::new(builder.build());
         let session = Arc::new(session);
@@ -461,7 +461,7 @@ mod tests {
             turn: Arc::downgrade(&turn),
         };
 
-        codex_tools::TurnItemEmitter::emit_completed(
+        datax_tools::TurnItemEmitter::emit_completed(
             &emitter,
             ExtensionTurnItem::WebSearch(WebSearchItem {
                 id: "search-1".to_string(),
@@ -478,23 +478,23 @@ mod tests {
         );
     }
 
-    impl codex_extension_api::ToolExecutor<codex_tools::ToolCall> for ImageGenerationExtensionExecutor {
-        fn tool_name(&self) -> codex_tools::ToolName {
-            codex_tools::ToolName::namespaced("image_gen", "imagegen")
+    impl datax_extension_api::ToolExecutor<datax_tools::ToolCall> for ImageGenerationExtensionExecutor {
+        fn tool_name(&self) -> datax_tools::ToolName {
+            datax_tools::ToolName::namespaced("image_gen", "imagegen")
         }
 
-        fn spec(&self) -> codex_tools::ToolSpec {
-            codex_tools::ToolSpec::Function(codex_tools::ResponsesApiTool {
+        fn spec(&self) -> datax_tools::ToolSpec {
+            datax_tools::ToolSpec::Function(datax_tools::ResponsesApiTool {
                 name: "imagegen".to_string(),
                 description: "Generates an image.".to_string(),
                 strict: false,
-                parameters: codex_tools::JsonSchema::default(),
+                parameters: datax_tools::JsonSchema::default(),
                 output_schema: None,
                 defer_loading: None,
             })
         }
 
-        fn handle(&self, call: codex_tools::ToolCall) -> codex_tools::ToolExecutorFuture<'_> {
+        fn handle(&self, call: datax_tools::ToolCall) -> datax_tools::ToolExecutorFuture<'_> {
             Box::pin(self.handle_call(call))
         }
     }
@@ -502,11 +502,11 @@ mod tests {
     impl ImageGenerationExtensionExecutor {
         async fn handle_call(
             &self,
-            call: codex_tools::ToolCall,
-        ) -> Result<Box<dyn codex_tools::ToolOutput>, codex_tools::FunctionCallError> {
+            call: datax_tools::ToolCall,
+        ) -> Result<Box<dyn datax_tools::ToolOutput>, datax_tools::FunctionCallError> {
             call.turn_item_emitter
                 .emit_started(ExtensionTurnItem::ImageGeneration(
-                    codex_protocol::items::ImageGenerationItem {
+                    datax_protocol::items::ImageGenerationItem {
                         id: call.call_id.clone(),
                         status: "in_progress".to_string(),
                         revised_prompt: None,
@@ -517,7 +517,7 @@ mod tests {
                 .await;
             call.turn_item_emitter
                 .emit_completed(ExtensionTurnItem::ImageGeneration(
-                    codex_protocol::items::ImageGenerationItem {
+                    datax_protocol::items::ImageGenerationItem {
                         id: call.call_id,
                         status: "completed".to_string(),
                         revised_prompt: Some("A tiny blue square".to_string()),
@@ -527,8 +527,8 @@ mod tests {
                 ))
                 .await;
             Ok(
-                Box::new(codex_tools::JsonToolOutput::new(json!({ "ok": true })))
-                    as Box<dyn codex_tools::ToolOutput>,
+                Box::new(datax_tools::JsonToolOutput::new(json!({ "ok": true })))
+                    as Box<dyn datax_tools::ToolOutput>,
             )
         }
     }
@@ -548,7 +548,7 @@ mod tests {
             cancellation_token: tokio_util::sync::CancellationToken::new(),
             tracker: Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new())),
             call_id: "call-image".to_string(),
-            tool_name: codex_tools::ToolName::namespaced("image_gen", "imagegen"),
+            tool_name: datax_tools::ToolName::namespaced("image_gen", "imagegen"),
             source: ToolCallSource::Direct,
             payload: ToolPayload::Function {
                 arguments: "{}".to_string(),
@@ -580,7 +580,7 @@ mod tests {
 
         assert_eq!(
             started_item,
-            codex_protocol::items::ImageGenerationItem {
+            datax_protocol::items::ImageGenerationItem {
                 id: "call-image".to_string(),
                 status: "in_progress".to_string(),
                 revised_prompt: None,
@@ -590,7 +590,7 @@ mod tests {
         );
         assert_eq!(
             completed_item,
-            codex_protocol::items::ImageGenerationItem {
+            datax_protocol::items::ImageGenerationItem {
                 id: "call-image".to_string(),
                 status: "completed".to_string(),
                 revised_prompt: Some("A tiny blue square".to_string()),

@@ -1,12 +1,12 @@
-use codex_otel::MetricsClient;
-use codex_otel::MetricsConfig;
-use codex_otel::MetricsError;
-use codex_otel::Result;
+use datax_otel::MetricsClient;
+use datax_otel::MetricsConfig;
+use datax_otel::MetricsError;
+use datax_otel::Result;
 use opentelemetry_sdk::metrics::InMemoryMetricExporter;
 
 fn build_in_memory_client() -> Result<MetricsClient> {
     let exporter = InMemoryMetricExporter::default();
-    let config = MetricsConfig::in_memory("test", "codex-cli", env!("CARGO_PKG_VERSION"), exporter);
+    let config = MetricsConfig::in_memory("test", "datax-cli", env!("CARGO_PKG_VERSION"), exporter);
     MetricsClient::new(config)
 }
 
@@ -15,7 +15,7 @@ fn build_in_memory_client() -> Result<MetricsClient> {
 fn invalid_tag_component_is_rejected() -> Result<()> {
     let err = MetricsConfig::in_memory(
         "test",
-        "codex-cli",
+        "datax-cli",
         env!("CARGO_PKG_VERSION"),
         InMemoryMetricExporter::default(),
     )

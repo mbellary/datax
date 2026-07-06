@@ -1,10 +1,10 @@
 use crate::manifest::PluginManifest;
 use crate::manifest::load_plugin_manifest;
 use crate::manifest::parse_plugin_manifest;
-use codex_plugin::PluginId;
-use codex_plugin::validate_plugin_segment;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_plugins::find_plugin_manifest_path;
+use datax_plugin::PluginId;
+use datax_plugin::validate_plugin_segment;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_plugins::find_plugin_manifest_path;
 use semver::Version;
 use serde::Deserialize;
 use serde::Serialize;

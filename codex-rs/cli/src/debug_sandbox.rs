@@ -6,26 +6,26 @@ mod seatbelt;
 use std::path::PathBuf;
 use std::process::Stdio;
 
-use codex_config::LoaderOverrides;
-use codex_core::config::Config;
-use codex_core::config::ConfigBuilder;
-use codex_core::config::ConfigOverrides;
-use codex_core::config::NetworkProxyAuditMetadata;
-use codex_core::exec_env::create_env;
+use datax_config::LoaderOverrides;
+use datax_core::config::Config;
+use datax_core::config::ConfigBuilder;
+use datax_core::config::ConfigOverrides;
+use datax_core::config::NetworkProxyAuditMetadata;
+use datax_core::exec_env::create_env;
 #[cfg(target_os = "macos")]
-use codex_core::spawn::CODEX_SANDBOX_ENV_VAR;
-use codex_core::spawn::CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR;
-use codex_protocol::config_types::SandboxMode;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_sandboxing::landlock::allow_network_for_proxy;
-use codex_sandboxing::landlock::create_linux_sandbox_command_args_for_permission_profile;
+use datax_core::spawn::CODEX_SANDBOX_ENV_VAR;
+use datax_core::spawn::CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR;
+use datax_protocol::config_types::SandboxMode;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_sandboxing::landlock::allow_network_for_proxy;
+use datax_sandboxing::landlock::create_linux_sandbox_command_args_for_permission_profile;
 #[cfg(target_os = "macos")]
-use codex_sandboxing::seatbelt::CreateSeatbeltCommandArgsParams;
+use datax_sandboxing::seatbelt::CreateSeatbeltCommandArgsParams;
 #[cfg(target_os = "macos")]
-use codex_sandboxing::seatbelt::create_seatbelt_command_args;
-use codex_sandboxing::with_managed_mitm_ca_readable_root;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_cli::CliConfigOverrides;
+use datax_sandboxing::seatbelt::create_seatbelt_command_args;
+use datax_sandboxing::with_managed_mitm_ca_readable_root;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_cli::CliConfigOverrides;
 use tokio::process::Child;
 use tokio::process::Command as TokioCommand;
 use toml::Value as TomlValue;
@@ -257,7 +257,7 @@ async fn run_command_under_sandbox(
     };
     let network = network_proxy
         .as_ref()
-        .map(codex_core::config::StartedNetworkProxy::proxy);
+        .map(datax_core::config::StartedNetworkProxy::proxy);
     // Proxy containment depends on whether a proxy is active, not whether its
     // policy came from managed requirements.
     let enforce_managed_network = network.is_some();
@@ -307,7 +307,7 @@ async fn run_command_under_sandbox(
             #[expect(clippy::expect_used)]
             let codex_linux_sandbox_exe = config
                 .codex_linux_sandbox_exe
-                .expect("codex-linux-sandbox executable not found");
+                .expect("datax-linux-sandbox executable not found");
             let use_legacy_landlock = config.features.use_legacy_landlock();
             let network_sandbox_policy = runtime_permission_profile.network_sandbox_policy();
             let args = create_linux_sandbox_command_args_for_permission_profile(
@@ -321,7 +321,7 @@ async fn run_command_under_sandbox(
             spawn_debug_sandbox_child(
                 codex_linux_sandbox_exe,
                 args,
-                Some("codex-linux-sandbox"),
+                Some("datax-linux-sandbox"),
                 cwd.to_path_buf(),
                 network_sandbox_policy,
                 env,
@@ -369,10 +369,10 @@ async fn run_command_under_windows_session(
     workspace_roots: Vec<AbsolutePathBuf>,
     env: std::collections::HashMap<String, String>,
 ) -> ! {
-    use codex_core::windows_sandbox::WindowsSandboxLevelExt;
-    use codex_protocol::config_types::WindowsSandboxLevel;
-    use codex_windows_sandbox::WindowsSandboxSessionRequest;
-    use codex_windows_sandbox::spawn_windows_sandbox_session_for_level;
+    use datax_core::windows_sandbox::WindowsSandboxLevelExt;
+    use datax_protocol::config_types::WindowsSandboxLevel;
+    use datax_windows_sandbox::WindowsSandboxSessionRequest;
+    use datax_windows_sandbox::spawn_windows_sandbox_session_for_level;
 
     let permission_profile = config.permissions.effective_permission_profile();
     let empty_paths: &[AbsolutePathBuf] = &[];
@@ -405,7 +405,7 @@ async fn run_command_under_windows_session(
         }
     };
 
-    let exit_code = codex_windows_sandbox::forward_sandbox_session_stdio(spawned).await;
+    let exit_code = datax_windows_sandbox::forward_sandbox_session_stdio(spawned).await;
     std::process::exit(exit_code);
 }
 
@@ -873,7 +873,7 @@ mod tests {
             .permissions
             .permission_profile()
             .file_system_sandbox_policy();
-        let expected = codex_protocol::models::PermissionProfile::workspace_write()
+        let expected = datax_protocol::models::PermissionProfile::workspace_write()
             .file_system_sandbox_policy();
         assert!(
             expected

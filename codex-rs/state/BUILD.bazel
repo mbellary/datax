@@ -8,5 +8,5 @@ codex_rust_crate(
         "memory_migrations/**",
         "migrations/**",
     ]),
-    crate_name = "codex_state",
+    crate_name = "datax_state",
 )

@@ -23,25 +23,25 @@ use crate::responses_retry::handle_retryable_response_stream_error;
 use crate::session::session::Session;
 use crate::session::turn::built_tools;
 use crate::session::turn_context::TurnContext;
-use codex_analytics::CompactionImplementation;
-use codex_analytics::CompactionPhase;
-use codex_analytics::CompactionReason;
-use codex_analytics::CompactionTrigger;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::items::ContextCompactionItem;
-use codex_protocol::items::TurnItem;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::CompactedItem;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::protocol::TruncationPolicy;
-use codex_protocol::protocol::TurnStartedEvent;
-use codex_rollout_trace::CompactionCheckpointTracePayload;
-use codex_rollout_trace::InferenceTraceContext;
-use codex_utils_output_truncation::approx_token_count;
-use codex_utils_output_truncation::truncate_text;
+use datax_analytics::CompactionImplementation;
+use datax_analytics::CompactionPhase;
+use datax_analytics::CompactionReason;
+use datax_analytics::CompactionTrigger;
+use datax_protocol::error::CodexErr;
+use datax_protocol::error::Result as CodexResult;
+use datax_protocol::items::ContextCompactionItem;
+use datax_protocol::items::TurnItem;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::protocol::CompactedItem;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::TokenUsage;
+use datax_protocol::protocol::TruncationPolicy;
+use datax_protocol::protocol::TurnStartedEvent;
+use datax_rollout_trace::CompactionCheckpointTracePayload;
+use datax_rollout_trace::InferenceTraceContext;
+use datax_utils_output_truncation::approx_token_count;
+use datax_utils_output_truncation::truncate_text;
 use futures::StreamExt;
 use tokio_util::sync::CancellationToken;
 use tracing::info;
@@ -134,7 +134,7 @@ async fn run_remote_compact_task_inner(
             attempt
                 .track(
                     sess.as_ref(),
-                    codex_analytics::CompactionStatus::Interrupted,
+                    datax_analytics::CompactionStatus::Interrupted,
                     Some(&error),
                     analytics_details,
                 )
@@ -572,8 +572,8 @@ fn truncate_message_text_to_token_budget(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use codex_protocol::models::ContentItem;
-    use codex_protocol::models::MessagePhase;
+    use datax_protocol::models::ContentItem;
+    use datax_protocol::models::MessagePhase;
     use pretty_assertions::assert_eq;
     use tokio::sync::mpsc;
     use tokio_util::sync::CancellationToken;

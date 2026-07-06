@@ -1,11 +1,11 @@
 use super::Config;
 use super::ConfigTomlLoadResult;
 use super::ManagedFeatures;
-use codex_config::types::AuthKeyringBackendKind;
-use codex_features::Feature;
-use codex_features::FeatureConfigSource;
-use codex_features::FeatureOverrides;
-use codex_features::Features;
+use datax_config::types::AuthKeyringBackendKind;
+use datax_features::Feature;
+use datax_features::FeatureConfigSource;
+use datax_features::FeatureOverrides;
+use datax_features::Features;
 
 impl Config {
     pub fn auth_keyring_backend_kind(&self) -> AuthKeyringBackendKind {

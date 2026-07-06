@@ -1,31 +1,31 @@
 use super::*;
 use crate::config::Config;
 use crate::config::ConfigBuilder;
-use codex_app_server_protocol::ConfigLayerSource;
-use codex_config::CONFIG_TOML_FILE;
-use codex_config::ConfigLayerEntry;
-use codex_config::ConfigLayerStack;
-use codex_config::ConfigLayerStackOrdering;
-use codex_config::ConfigRequirements;
-use codex_config::ConfigRequirementsToml;
-use codex_config::LoaderOverrides;
-use codex_config::RequirementSource;
-use codex_config::RequirementsExecPolicy;
-use codex_config::Sourced;
-use codex_config::config_toml::ConfigToml;
-use codex_config::config_toml::ProjectConfig;
-use codex_protocol::config_types::TrustLevel;
-use codex_protocol::config_types::WindowsSandboxLevel;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::FileSystemSpecialPath;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::GranularApprovalConfig;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_app_server_protocol::ConfigLayerSource;
+use datax_config::CONFIG_TOML_FILE;
+use datax_config::ConfigLayerEntry;
+use datax_config::ConfigLayerStack;
+use datax_config::ConfigLayerStackOrdering;
+use datax_config::ConfigRequirements;
+use datax_config::ConfigRequirementsToml;
+use datax_config::LoaderOverrides;
+use datax_config::RequirementSource;
+use datax_config::RequirementsExecPolicy;
+use datax_config::Sourced;
+use datax_config::config_toml::ConfigToml;
+use datax_config::config_toml::ProjectConfig;
+use datax_protocol::config_types::TrustLevel;
+use datax_protocol::config_types::WindowsSandboxLevel;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::permissions::FileSystemAccessMode;
+use datax_protocol::permissions::FileSystemPath;
+use datax_protocol::permissions::FileSystemSandboxEntry;
+use datax_protocol::permissions::FileSystemSandboxPolicy;
+use datax_protocol::permissions::FileSystemSpecialPath;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::GranularApprovalConfig;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::path::Path;
@@ -84,7 +84,7 @@ async fn write_project_trust_config(
     trusted_projects: &[(&Path, TrustLevel)],
 ) -> std::io::Result<()> {
     tokio::fs::write(
-        codex_home.join(codex_config::CONFIG_TOML_FILE),
+        codex_home.join(datax_config::CONFIG_TOML_FILE),
         toml::to_string(&ConfigToml {
             projects: Some(
                 trusted_projects
@@ -346,15 +346,15 @@ async fn merges_requirements_exec_policy_network_rules() -> anyhow::Result<()> {
     let mut requirements_exec_policy = Policy::empty();
     requirements_exec_policy.add_network_rule(
         "blocked.example.com",
-        codex_execpolicy::NetworkRuleProtocol::Https,
+        datax_execpolicy::NetworkRuleProtocol::Https,
         Decision::Forbidden,
         /*justification*/ None,
     )?;
 
     let requirements = ConfigRequirements {
-        exec_policy: Some(codex_config::Sourced::new(
-            codex_config::RequirementsExecPolicy::new(requirements_exec_policy),
-            codex_config::RequirementSource::Unknown,
+        exec_policy: Some(datax_config::Sourced::new(
+            datax_config::RequirementsExecPolicy::new(requirements_exec_policy),
+            datax_config::RequirementSource::Unknown,
         )),
         ..ConfigRequirements::default()
     };
@@ -393,15 +393,15 @@ host_executable(name = "git", paths = ["{git_path_literal}"])
     let mut requirements_exec_policy = Policy::empty();
     requirements_exec_policy.add_network_rule(
         "blocked.example.com",
-        codex_execpolicy::NetworkRuleProtocol::Https,
+        datax_execpolicy::NetworkRuleProtocol::Https,
         Decision::Forbidden,
         /*justification*/ None,
     )?;
 
     let requirements = ConfigRequirements {
-        exec_policy: Some(codex_config::Sourced::new(
-            codex_config::RequirementsExecPolicy::new(requirements_exec_policy),
-            codex_config::RequirementSource::Unknown,
+        exec_policy: Some(datax_config::Sourced::new(
+            datax_config::RequirementsExecPolicy::new(requirements_exec_policy),
+            datax_config::RequirementSource::Unknown,
         )),
         ..ConfigRequirements::default()
     };
@@ -491,7 +491,7 @@ async fn ignore_user_project_rules_keeps_system_policy_files() {
     )
     .expect("write policy file");
     let config_file =
-        AbsolutePathBuf::from_absolute_path(config_dir.join(codex_config::CONFIG_TOML_FILE))
+        AbsolutePathBuf::from_absolute_path(config_dir.join(datax_config::CONFIG_TOML_FILE))
             .expect("absolute config file");
     let layer = ConfigLayerEntry::new(
         ConfigLayerSource::System { file: config_file },

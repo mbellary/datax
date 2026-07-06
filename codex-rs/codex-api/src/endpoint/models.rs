@@ -2,10 +2,10 @@ use crate::auth::SharedAuthProvider;
 use crate::endpoint::session::EndpointSession;
 use crate::error::ApiError;
 use crate::provider::Provider;
-use codex_client::HttpTransport;
-use codex_client::RequestTelemetry;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelsResponse;
+use datax_client::HttpTransport;
+use datax_client::RequestTelemetry;
+use datax_protocol::openai_models::ModelInfo;
+use datax_protocol::openai_models::ModelsResponse;
 use http::HeaderMap;
 use http::Method;
 use http::header::ETAG;
@@ -32,7 +32,7 @@ impl<T: HttpTransport> ModelsClient<T> {
         "models"
     }
 
-    fn append_client_version_query(req: &mut codex_client::Request, client_version: &str) {
+    fn append_client_version_query(req: &mut datax_client::Request, client_version: &str) {
         let separator = if req.url.contains('?') { '&' } else { '?' };
         req.url = format!("{}{}client_version={client_version}", req.url, separator);
     }
@@ -78,10 +78,10 @@ mod tests {
     use super::*;
     use crate::auth::AuthProvider;
     use crate::provider::RetryConfig;
-    use codex_client::Request;
-    use codex_client::Response;
-    use codex_client::StreamResponse;
-    use codex_client::TransportError;
+    use datax_client::Request;
+    use datax_client::Response;
+    use datax_client::StreamResponse;
+    use datax_client::TransportError;
     use http::HeaderMap;
     use http::StatusCode;
     use pretty_assertions::assert_eq;

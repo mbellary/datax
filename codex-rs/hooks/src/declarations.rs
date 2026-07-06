@@ -1,5 +1,5 @@
-use codex_plugin::PluginHookSource;
-use codex_protocol::protocol::HookEventName;
+use datax_plugin::PluginHookSource;
+use datax_protocol::protocol::HookEventName;
 
 /// Minimal declaration metadata for one bundled plugin hook handler.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -38,12 +38,12 @@ pub(crate) fn plugin_hook_key_source(plugin_id: &str, source_relative_path: &str
 
 #[cfg(test)]
 mod tests {
-    use codex_config::HookEventsToml;
-    use codex_config::HookHandlerConfig;
-    use codex_config::MatcherGroup;
-    use codex_plugin::PluginId;
-    use codex_utils_absolute_path::test_support::PathBufExt;
-    use codex_utils_absolute_path::test_support::test_path_buf;
+    use datax_config::HookEventsToml;
+    use datax_config::HookHandlerConfig;
+    use datax_config::MatcherGroup;
+    use datax_plugin::PluginId;
+    use datax_utils_absolute_path::test_support::PathBufExt;
+    use datax_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
 
     use super::*;

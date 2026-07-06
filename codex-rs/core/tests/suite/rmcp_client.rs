@@ -17,35 +17,18 @@ use std::time::Duration;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerEnvVar;
-use codex_config::types::McpServerTransportConfig;
-use codex_core::config::Config;
-use codex_exec_server::CreateDirectoryOptions;
-use codex_exec_server::Environment;
-use codex_exec_server::HttpRequestParams;
-use codex_login::CodexAuth;
-use codex_mcp::MCP_SANDBOX_STATE_META_CAPABILITY;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_utils_path_uri::LegacyAppPathString;
+use datax_config::types::McpServerConfig;
+use datax_config::types::McpServerEnvVar;
+use datax_config::types::McpServerTransportConfig;
+use datax_core::config::Config;
+use datax_exec_server::CreateDirectoryOptions;
+use datax_exec_server::Environment;
+use datax_exec_server::HttpRequestParams;
+use datax_login::CodexAuth;
+use datax_mcp::MCP_SANDBOX_STATE_META_CAPABILITY;
+use datax_models_manager::manager::RefreshStrategy;
+use datax_utils_path_uri::LegacyAppPathString;
 
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::openai_models::ConfigShellToolType;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelVisibility;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::openai_models::ReasoningEffortPreset;
-use codex_protocol::openai_models::TruncationPolicyConfig;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::McpInvocation;
-use codex_protocol::protocol::McpToolCallBeginEvent;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::UserInput;
-use codex_utils_cargo_bin::cargo_bin;
-use codex_utils_path_uri::PathUri;
 use core_test_support::assert_regex_match;
 use core_test_support::responses;
 use core_test_support::responses::mount_models_once;
@@ -60,6 +43,23 @@ use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::test_environment;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_mcp_server;
+use datax_protocol::config_types::ReasoningSummary;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::openai_models::ConfigShellToolType;
+use datax_protocol::openai_models::InputModality;
+use datax_protocol::openai_models::ModelInfo;
+use datax_protocol::openai_models::ModelVisibility;
+use datax_protocol::openai_models::ModelsResponse;
+use datax_protocol::openai_models::ReasoningEffortPreset;
+use datax_protocol::openai_models::TruncationPolicyConfig;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::McpInvocation;
+use datax_protocol::protocol::McpToolCallBeginEvent;
+use datax_protocol::protocol::Op;
+use datax_protocol::user_input::UserInput;
+use datax_utils_cargo_bin::cargo_bin;
+use datax_utils_path_uri::PathUri;
 use image::DynamicImage;
 use image::GenericImageView;
 use image::ImageBuffer;
@@ -138,13 +138,13 @@ fn user_turn_with_permission_profile(
         final_output_json_schema: None,
         responsesapi_client_metadata: None,
         additional_context: Default::default(),
-        thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+        thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
             approval_policy: Some(AskForApproval::Never),
             sandbox_policy: Some(sandbox_policy),
             permission_profile,
-            collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                mode: codex_protocol::config_types::ModeKind::Default,
-                settings: codex_protocol::config_types::Settings {
+            collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                mode: datax_protocol::config_types::ModeKind::Default,
+                settings: datax_protocol::config_types::Settings {
                     model,
                     reasoning_effort: None,
                     developer_instructions: None,
@@ -167,7 +167,7 @@ fn remote_aware_environment_id() -> String {
     if test_environment().is_remote() {
         REMOTE_MCP_ENVIRONMENT.to_string()
     } else {
-        codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string()
+        datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string()
     }
 }
 
@@ -272,7 +272,7 @@ struct TestMcpServerOptions {
 impl Default for TestMcpServerOptions {
     fn default() -> Self {
         Self {
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             supports_parallel_tool_calls: false,
             tool_timeout_sec: None,
         }
@@ -1623,7 +1623,7 @@ async fn stdio_image_responses_are_sanitized_for_text_only_model() -> anyhow::Re
                 description: Some("Test model without image input support".to_string()),
                 default_reasoning_level: None,
                 supported_reasoning_levels: vec![ReasoningEffortPreset {
-                    effort: codex_protocol::openai_models::ReasoningEffort::Medium,
+                    effort: datax_protocol::openai_models::ReasoningEffort::Medium,
                     description: "Medium".to_string(),
                 }],
                 shell_type: ConfigShellToolType::Default,

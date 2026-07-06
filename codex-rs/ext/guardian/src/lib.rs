@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use codex_core::config::Config;
-use codex_extension_api::AgentSpawnFuture;
-use codex_extension_api::AgentSpawner;
-use codex_extension_api::ExtensionFuture;
-use codex_extension_api::ExtensionRegistryBuilder;
-use codex_extension_api::ThreadLifecycleContributor;
-use codex_extension_api::ThreadStartInput;
-use codex_protocol::ThreadId;
+use datax_core::config::Config;
+use datax_extension_api::AgentSpawnFuture;
+use datax_extension_api::AgentSpawner;
+use datax_extension_api::ExtensionFuture;
+use datax_extension_api::ExtensionRegistryBuilder;
+use datax_extension_api::ThreadLifecycleContributor;
+use datax_extension_api::ThreadStartInput;
+use datax_protocol::ThreadId;
 
 /// Guardian extension dependencies supplied by the host at construction time.
 #[derive(Clone, Debug)]

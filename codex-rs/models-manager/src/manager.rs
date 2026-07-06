@@ -2,14 +2,14 @@ use super::cache::ModelsCacheManager;
 use crate::collaboration_mode_presets::builtin_collaboration_mode_presets;
 use crate::config::ModelsManagerConfig;
 use crate::model_info;
-use codex_app_server_protocol::AuthMode;
-use codex_login::AuthManager;
-use codex_protocol::config_types::CollaborationModeMask;
-use codex_protocol::error::Result as CoreResult;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::openai_models::ModelVisibility;
-use codex_protocol::openai_models::ModelsResponse;
+use datax_app_server_protocol::AuthMode;
+use datax_login::AuthManager;
+use datax_protocol::config_types::CollaborationModeMask;
+use datax_protocol::error::Result as CoreResult;
+use datax_protocol::openai_models::ModelInfo;
+use datax_protocol::openai_models::ModelPreset;
+use datax_protocol::openai_models::ModelVisibility;
+use datax_protocol::openai_models::ModelsResponse;
 use std::fmt;
 use std::future::Future;
 use std::path::PathBuf;
@@ -383,7 +383,7 @@ impl OpenAiModelsManager {
     /// Attempt to satisfy the refresh from the cache when it matches the provider and TTL.
     async fn try_load_cache(&self) -> bool {
         let _timer =
-            codex_otel::start_global_timer("codex.remote_models.load_cache.duration_ms", &[]);
+            datax_otel::start_global_timer("codex.remote_models.load_cache.duration_ms", &[]);
         let client_version = crate::client_version_to_whole();
         info!(client_version, "models cache: evaluating cache eligibility");
         // TODO(celia-oai): Include provider identity in cache eligibility so switching

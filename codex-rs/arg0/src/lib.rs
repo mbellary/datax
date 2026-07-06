@@ -4,13 +4,13 @@ use std::future::Future;
 use std::path::Path;
 use std::path::PathBuf;
 
-use codex_apply_patch::CODEX_CORE_APPLY_PATCH_ARG1;
-use codex_exec_server::CODEX_FS_HELPER_ARG1;
-use codex_install_context::InstallContext;
-use codex_sandboxing::landlock::CODEX_LINUX_SANDBOX_ARG0;
-use codex_utils_home_dir::find_codex_home;
+use datax_apply_patch::CODEX_CORE_APPLY_PATCH_ARG1;
+use datax_exec_server::CODEX_FS_HELPER_ARG1;
+use datax_install_context::InstallContext;
+use datax_sandboxing::landlock::CODEX_LINUX_SANDBOX_ARG0;
+use datax_utils_home_dir::find_codex_home;
 #[cfg(target_os = "windows")]
-use codex_windows_sandbox::CODEX_WINDOWS_SANDBOX_ARG1;
+use datax_windows_sandbox::CODEX_WINDOWS_SANDBOX_ARG1;
 #[cfg(unix)]
 use std::os::unix::fs::symlink;
 use tempfile::TempDir;
@@ -18,7 +18,7 @@ use tempfile::TempDir;
 const APPLY_PATCH_ARG0: &str = "apply_patch";
 const MISSPELLED_APPLY_PATCH_ARG0: &str = "applypatch";
 #[cfg(unix)]
-const EXECVE_WRAPPER_ARG0: &str = "codex-execve-wrapper";
+const EXECVE_WRAPPER_ARG0: &str = "datax-execve-wrapper";
 const LOCK_FILENAME: &str = ".lock";
 const TOKIO_WORKER_STACK_SIZE_BYTES: usize = 16 * 1024 * 1024;
 
@@ -82,7 +82,7 @@ pub fn arg0_dispatch() -> Option<Arg0PathEntryGuard> {
             Err(_) => std::process::exit(1),
         };
         let exit_code = runtime.block_on(
-            codex_shell_escalation::run_shell_escalation_execve_wrapper(file, argv),
+            datax_shell_escalation::run_shell_escalation_execve_wrapper(file, argv),
         );
         match exit_code {
             Ok(exit_code) => std::process::exit(exit_code),
@@ -92,18 +92,18 @@ pub fn arg0_dispatch() -> Option<Arg0PathEntryGuard> {
 
     if exe_name == CODEX_LINUX_SANDBOX_ARG0 {
         // Safety: [`run_main`] never returns.
-        codex_linux_sandbox::run_main();
+        datax_linux_sandbox::run_main();
     } else if exe_name == APPLY_PATCH_ARG0 || exe_name == MISSPELLED_APPLY_PATCH_ARG0 {
-        codex_apply_patch::main();
+        datax_apply_patch::main();
     }
 
     let argv1 = args.next().unwrap_or_default();
     if argv1 == CODEX_FS_HELPER_ARG1 {
-        codex_exec_server::run_fs_helper_main();
+        datax_exec_server::run_fs_helper_main();
     }
     #[cfg(target_os = "windows")]
     if argv1 == CODEX_WINDOWS_SANDBOX_ARG1 {
-        codex_windows_sandbox::run_windows_sandbox_wrapper_main();
+        datax_windows_sandbox::run_windows_sandbox_wrapper_main();
     }
     if argv1 == CODEX_CORE_APPLY_PATCH_ARG1 {
         let patch_arg = args.next().and_then(|s| s.to_str().map(str::to_owned));
@@ -111,7 +111,7 @@ pub fn arg0_dispatch() -> Option<Arg0PathEntryGuard> {
             Some(patch_arg) => {
                 let mut stdout = std::io::stdout();
                 let mut stderr = std::io::stderr();
-                let cwd = match codex_utils_absolute_path::AbsolutePathBuf::current_dir() {
+                let cwd = match datax_utils_absolute_path::AbsolutePathBuf::current_dir() {
                     Ok(cwd) => cwd,
                     Err(_) => std::process::exit(1),
                 };
@@ -123,12 +123,12 @@ pub fn arg0_dispatch() -> Option<Arg0PathEntryGuard> {
                     Err(_) => std::process::exit(1),
                 };
                 let cwd = cwd.into();
-                match runtime.block_on(codex_apply_patch::apply_patch(
+                match runtime.block_on(datax_apply_patch::apply_patch(
                     &patch_arg,
                     &cwd,
                     &mut stdout,
                     &mut stderr,
-                    codex_exec_server::LOCAL_FS.as_ref(),
+                    datax_exec_server::LOCAL_FS.as_ref(),
                     /*sandbox*/ None,
                 )) {
                     Ok(_) => 0,
@@ -189,7 +189,7 @@ fn prepare_path_env_var_with_aliases(
 ///
 /// When the current executable is invoked through the hard-link or alias named
 /// `codex-linux-sandbox` we *directly* execute
-/// [`codex_linux_sandbox::run_main`] (which never returns). Otherwise we:
+/// [`datax_linux_sandbox::run_main`] (which never returns). Otherwise we:
 ///
 /// 1.  Load `.env` values from `~/.codex/.env` before creating any threads.
 /// 2.  Spawn a main runtime thread with a controlled stack size.
@@ -201,7 +201,7 @@ fn prepare_path_env_var_with_aliases(
 /// 5.  Execute the provided async `main_fn` inside that runtime, forwarding any
 ///     error. Note that `main_fn` receives [`Arg0DispatchPaths`], which
 ///     contains the helper executable paths needed to construct
-///     [`codex_core::config::Config`].
+///     [`datax_core::config::Config`].
 ///
 /// This function should be used to wrap any `main()` function in binary crates
 /// in this workspace that depends on these helper CLIs.
@@ -220,7 +220,7 @@ where
     // stack budget as Tokio workers; `Runtime::block_on` otherwise runs the
     // top-level future on the caller's OS stack.
     let handle = std::thread::Builder::new()
-        .name("codex-main".to_string())
+        .name("datax-main".to_string())
         .stack_size(TOKIO_WORKER_STACK_SIZE_BYTES)
         .spawn(move || {
             let runtime = build_runtime()?;
@@ -360,7 +360,7 @@ fn prepare_path_entry_for_codex_aliases(
     }
 
     let temp_dir = tempfile::Builder::new()
-        .prefix("codex-arg0")
+        .prefix("datax-arg0")
         .tempdir_in(&temp_root)?;
     let path = temp_dir.path();
 
@@ -522,10 +522,10 @@ mod tests {
     use super::run_main_with_arg0_guard;
     #[cfg(unix)]
     use anyhow::ensure;
-    use codex_install_context::CodexPackageLayout;
-    use codex_install_context::InstallContext;
-    use codex_install_context::InstallMethod;
-    use codex_utils_absolute_path::AbsolutePathBuf;
+    use datax_install_context::CodexPackageLayout;
+    use datax_install_context::InstallContext;
+    use datax_install_context::InstallMethod;
+    use datax_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use std::fs;
     use std::fs::File;
@@ -556,7 +556,7 @@ mod tests {
         let arg0_dir = temp_dir.path().join("arg0");
         let package_dir = temp_dir.path().join("package");
         let bin_dir = package_dir.join("bin");
-        let path_dir = package_dir.join("codex-path");
+        let path_dir = package_dir.join("datax-path");
         let existing_dir = temp_dir.path().join("existing-bin");
         fs::create_dir_all(&arg0_dir)?;
         fs::create_dir_all(&bin_dir)?;
@@ -586,7 +586,7 @@ mod tests {
     fn linux_sandbox_exe_path_prefers_codex_linux_sandbox_alias() -> std::io::Result<()> {
         let temp_dir = TempDir::new()?;
         let lock_file = create_lock(temp_dir.path())?;
-        let alias_path = temp_dir.path().join("codex-linux-sandbox");
+        let alias_path = temp_dir.path().join("datax-linux-sandbox");
         let path_entry = Arg0PathEntryGuard::new(
             temp_dir,
             lock_file,
@@ -665,7 +665,7 @@ mod tests {
     #[test]
     fn run_main_with_arg0_guard_keeps_aliases_alive_until_main_returns() -> anyhow::Result<()> {
         let temp_dir = TempDir::new()?;
-        let alias_path = temp_dir.path().join("codex-helper-alias");
+        let alias_path = temp_dir.path().join("datax-helper-alias");
         fs::write(&alias_path, b"")?;
         let lock_file = create_lock(temp_dir.path())?;
         let path_entry = Arg0PathEntryGuard::new(

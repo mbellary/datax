@@ -1,6 +1,6 @@
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::LoginAccountParams;
-use codex_app_server_protocol::LoginAccountResponse;
+use datax_app_server_protocol::ClientRequest;
+use datax_app_server_protocol::LoginAccountParams;
+use datax_app_server_protocol::LoginAccountResponse;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::Widget;

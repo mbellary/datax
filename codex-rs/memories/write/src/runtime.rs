@@ -1,39 +1,39 @@
-use codex_core::CodexThread;
-use codex_core::ModelClient;
-use codex_core::NewThread;
-use codex_core::Prompt;
-use codex_core::ResponseEvent;
-use codex_core::StartThreadOptions;
-use codex_core::ThreadManager;
-use codex_core::config::Config;
-use codex_core::content_items_to_text;
-use codex_core::detached_memory_responses_metadata;
-use codex_core::resolve_installation_id;
-use codex_features::Feature;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::auth_env_telemetry::collect_auth_env_telemetry;
-use codex_login::default_client::originator;
-use codex_model_provider::ModelProvider;
-use codex_model_provider::SharedModelProvider;
-use codex_model_provider::create_model_provider;
-use codex_otel::SessionTelemetry;
-use codex_otel::TelemetryAuthMode;
-use codex_protocol::SessionId;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::protocol::InitialHistory;
-use codex_protocol::protocol::InternalSessionSource;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::protocol::ThreadSource;
-use codex_protocol::protocol::TokenUsage;
-use codex_protocol::user_input::UserInput;
-use codex_rollout_trace::InferenceTraceContext;
-use codex_state::StateRuntime;
-use codex_terminal_detection::user_agent;
+use datax_core::CodexThread;
+use datax_core::ModelClient;
+use datax_core::NewThread;
+use datax_core::Prompt;
+use datax_core::ResponseEvent;
+use datax_core::StartThreadOptions;
+use datax_core::ThreadManager;
+use datax_core::config::Config;
+use datax_core::content_items_to_text;
+use datax_core::detached_memory_responses_metadata;
+use datax_core::resolve_installation_id;
+use datax_features::Feature;
+use datax_login::AuthManager;
+use datax_login::CodexAuth;
+use datax_login::auth_env_telemetry::collect_auth_env_telemetry;
+use datax_login::default_client::originator;
+use datax_model_provider::ModelProvider;
+use datax_model_provider::SharedModelProvider;
+use datax_model_provider::create_model_provider;
+use datax_otel::SessionTelemetry;
+use datax_otel::TelemetryAuthMode;
+use datax_protocol::SessionId;
+use datax_protocol::ThreadId;
+use datax_protocol::config_types::ReasoningSummary;
+use datax_protocol::openai_models::ModelInfo;
+use datax_protocol::openai_models::ReasoningEffort;
+use datax_protocol::protocol::InitialHistory;
+use datax_protocol::protocol::InternalSessionSource;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::ThreadSource;
+use datax_protocol::protocol::TokenUsage;
+use datax_protocol::user_input::UserInput;
+use datax_rollout_trace::InferenceTraceContext;
+use datax_state::StateRuntime;
+use datax_terminal_detection::user_agent;
 use futures::StreamExt;
 use std::sync::Arc;
 use std::time::Duration;
@@ -53,7 +53,7 @@ pub(crate) struct StageOneRequestContext {
 }
 
 impl StageOneRequestContext {
-    pub(crate) fn start_timer(&self, name: &str) -> Option<codex_otel::Timer> {
+    pub(crate) fn start_timer(&self, name: &str) -> Option<datax_otel::Timer> {
         self.session_telemetry.start_timer(name, &[]).ok()
     }
 
@@ -183,7 +183,7 @@ impl MemoryStartupContext {
         self.session_telemetry.histogram(name, value, tags);
     }
 
-    pub(crate) fn start_timer(&self, name: &str) -> Option<codex_otel::Timer> {
+    pub(crate) fn start_timer(&self, name: &str) -> Option<datax_otel::Timer> {
         self.session_telemetry.start_timer(name, &[]).ok()
     }
 
@@ -271,7 +271,7 @@ impl MemoryStartupContext {
                 ResponseEvent::OutputTextDelta(delta) => result.push_str(&delta),
                 ResponseEvent::OutputItemDone(item) => {
                     if result.is_empty()
-                        && let codex_protocol::models::ResponseItem::Message { content, .. } = item
+                        && let datax_protocol::models::ResponseItem::Message { content, .. } = item
                         && let Some(text) = content_items_to_text(&content)
                     {
                         result.push_str(&text);

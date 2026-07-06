@@ -2,10 +2,10 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
 
-use codex_config::ConfigLayerSource;
-use codex_config::ConfigLayerStackOrdering;
-use codex_core::config::Config;
-use codex_git_utils::get_git_repo_root;
+use datax_config::ConfigLayerSource;
+use datax_config::ConfigLayerStackOrdering;
+use datax_core::config::Config;
+use datax_git_utils::get_git_repo_root;
 use unicode_segmentation::UnicodeSegmentation;
 
 use super::CheckStatus;
@@ -135,7 +135,7 @@ fn terminal_title_item_id(item: &str) -> Option<&'static str> {
         "context-used" | "context-usage" => Some("context-used"),
         "five-hour-limit" => Some("five-hour-limit"),
         "weekly-limit" => Some("weekly-limit"),
-        "codex-version" => Some("codex-version"),
+        "datax-version" => Some("datax-version"),
         "used-tokens" => Some("used-tokens"),
         "total-input-tokens" => Some("total-input-tokens"),
         "total-output-tokens" => Some("total-output-tokens"),

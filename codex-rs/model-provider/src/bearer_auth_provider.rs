@@ -1,4 +1,4 @@
-use codex_api::AuthProvider;
+use datax_api::AuthProvider;
 use http::HeaderMap;
 use http::HeaderValue;
 
@@ -60,8 +60,8 @@ mod tests {
         };
 
         assert_eq!(
-            codex_api::auth_header_telemetry(&auth),
-            codex_api::AuthHeaderTelemetry {
+            datax_api::auth_header_telemetry(&auth),
+            datax_api::AuthHeaderTelemetry {
                 attached: true,
                 name: Some("authorization"),
             }

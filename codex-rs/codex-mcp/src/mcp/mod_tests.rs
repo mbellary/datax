@@ -1,17 +1,17 @@
 use super::*;
 use crate::McpPluginAttribution;
 use crate::McpServerRegistration;
-use codex_config::Constrained;
-use codex_config::types::AppToolApproval;
-use codex_config::types::AuthKeyringBackendKind;
-use codex_login::CodexAuth;
-use codex_plugin::AppConnectorId;
-use codex_plugin::PluginCapabilitySummary;
-use codex_protocol::models::ManagedFileSystemPermissions;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::GranularApprovalConfig;
+use datax_config::Constrained;
+use datax_config::types::AppToolApproval;
+use datax_config::types::AuthKeyringBackendKind;
+use datax_login::CodexAuth;
+use datax_plugin::AppConnectorId;
+use datax_plugin::PluginCapabilitySummary;
+use datax_protocol::models::ManagedFileSystemPermissions;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::GranularApprovalConfig;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -299,7 +299,7 @@ async fn effective_mcp_servers_preserve_runtime_servers() {
                 http_headers: None,
                 env_http_headers: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: false,
@@ -324,7 +324,7 @@ async fn effective_mcp_servers_preserve_runtime_servers() {
                 http_headers: None,
                 env_http_headers: None,
             },
-            environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+            environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
             enabled: true,
             required: false,
             supports_parallel_tool_calls: false,

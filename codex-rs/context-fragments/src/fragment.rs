@@ -1,6 +1,6 @@
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseInputItem;
-use codex_protocol::models::ResponseItem;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::ResponseInputItem;
+use datax_protocol::models::ResponseItem;
 
 /// Type-erased registration for a contextual user fragment.
 ///

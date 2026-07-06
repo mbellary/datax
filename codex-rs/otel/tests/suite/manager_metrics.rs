@@ -2,13 +2,13 @@ use crate::harness::attributes_to_map;
 use crate::harness::build_metrics_with_defaults;
 use crate::harness::find_metric;
 use crate::harness::latest_metrics;
-use codex_otel::PLUGIN_INSTALL_ELICITATION_SENT_METRIC;
-use codex_otel::PLUGIN_INSTALL_SUGGESTION_METRIC;
-use codex_otel::Result;
-use codex_otel::SessionTelemetry;
-use codex_otel::TelemetryAuthMode;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::SessionSource;
+use datax_otel::PLUGIN_INSTALL_ELICITATION_SENT_METRIC;
+use datax_otel::PLUGIN_INSTALL_SUGGESTION_METRIC;
+use datax_otel::Result;
+use datax_otel::SessionTelemetry;
+use datax_otel::TelemetryAuthMode;
+use datax_protocol::ThreadId;
+use datax_protocol::protocol::SessionSource;
 use opentelemetry_sdk::metrics::data::AggregatedMetrics;
 use opentelemetry_sdk::metrics::data::MetricData;
 use pretty_assertions::assert_eq;
@@ -17,7 +17,7 @@ use std::collections::BTreeMap;
 // Ensures SessionTelemetry attaches metadata tags when forwarding metrics.
 #[test]
 fn manager_attaches_metadata_tags_to_metrics() -> Result<()> {
-    let (metrics, exporter) = build_metrics_with_defaults(&[("service", "codex-cli")])?;
+    let (metrics, exporter) = build_metrics_with_defaults(&[("service", "datax-cli")])?;
     let manager = SessionTelemetry::new(
         ThreadId::new(),
         "gpt-5.1",
@@ -65,7 +65,7 @@ fn manager_attaches_metadata_tags_to_metrics() -> Result<()> {
         ),
         ("model".to_string(), "gpt-5.1".to_string()),
         ("originator".to_string(), "test_originator".to_string()),
-        ("service".to_string(), "codex-cli".to_string()),
+        ("service".to_string(), "datax-cli".to_string()),
         ("session_source".to_string(), "cli".to_string()),
         ("source".to_string(), "tui".to_string()),
     ]);

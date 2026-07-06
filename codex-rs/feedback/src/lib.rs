@@ -11,9 +11,9 @@ use std::time::Duration;
 
 use anyhow::Result;
 use anyhow::anyhow;
-use codex_login::AuthEnvTelemetry;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::SessionSource;
+use datax_login::AuthEnvTelemetry;
+use datax_protocol::ThreadId;
+use datax_protocol::protocol::SessionSource;
 use tracing::Event;
 use tracing::Level;
 use tracing::field::Visit;
@@ -28,7 +28,7 @@ pub use feedback_diagnostics::FeedbackDiagnostic;
 pub use feedback_diagnostics::FeedbackDiagnostics;
 
 /// Filename used for the redacted `codex doctor --json` feedback attachment.
-pub const DOCTOR_REPORT_ATTACHMENT_FILENAME: &str = "codex-doctor-report.json";
+pub const DOCTOR_REPORT_ATTACHMENT_FILENAME: &str = "datax-doctor-report.json";
 /// Filename used for the Windows sandbox log feedback attachment.
 pub const WINDOWS_SANDBOX_LOG_ATTACHMENT_FILENAME: &str = "windows-sandbox.log";
 const DEFAULT_MAX_BYTES: usize = 4 * 1024 * 1024; // 4 MiB
@@ -408,7 +408,7 @@ impl FeedbackSnapshot {
 
     pub fn save_to_temp_file(&self) -> io::Result<PathBuf> {
         let dir = std::env::temp_dir();
-        let filename = format!("codex-feedback-{}.log", self.thread_id);
+        let filename = format!("datax-feedback-{}.log", self.thread_id);
         let path = dir.join(filename);
         fs::write(&path, self.as_bytes())?;
         Ok(path)
@@ -549,7 +549,7 @@ impl FeedbackSnapshot {
         if include_logs {
             attachments.push(Attachment {
                 buffer: logs_override.unwrap_or_else(|| self.bytes.clone()),
-                filename: String::from("codex-logs.log"),
+                filename: String::from("datax-logs.log"),
                 content_type: Some("text/plain".to_string()),
                 ty: None,
             });
@@ -725,7 +725,7 @@ mod tests {
 
     #[test]
     fn feedback_attachments_gate_connectivity_diagnostics() {
-        let extra_filename = format!("codex-feedback-extra-{}.jsonl", ThreadId::new());
+        let extra_filename = format!("datax-feedback-extra-{}.jsonl", ThreadId::new());
         let extra_path = std::env::temp_dir().join(&extra_filename);
         let extra_attachment_path = FeedbackAttachmentPath {
             path: extra_path.clone(),
@@ -758,7 +758,7 @@ mod tests {
                 .map(|attachment| attachment.filename.as_str())
                 .collect::<Vec<_>>(),
             vec![
-                "codex-logs.log",
+                "datax-logs.log",
                 DOCTOR_REPORT_ATTACHMENT_FILENAME,
                 FEEDBACK_DIAGNOSTICS_ATTACHMENT_FILENAME,
                 extra_filename.as_str()
@@ -788,7 +788,7 @@ mod tests {
                 .iter()
                 .map(|attachment| attachment.filename.as_str())
                 .collect::<Vec<_>>(),
-            vec!["codex-logs.log"]
+            vec!["datax-logs.log"]
         );
         assert_eq!(attachments_without_diagnostics[0].buffer, vec![1]);
         fs::remove_file(extra_path).expect("extra attachment should be removed");

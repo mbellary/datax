@@ -1,6 +1,6 @@
-use codex_plugin::PluginCapabilitySummary;
-use codex_protocol::protocol::PLUGINS_INSTRUCTIONS_CLOSE_TAG;
-use codex_protocol::protocol::PLUGINS_INSTRUCTIONS_OPEN_TAG;
+use datax_plugin::PluginCapabilitySummary;
+use datax_protocol::protocol::PLUGINS_INSTRUCTIONS_CLOSE_TAG;
+use datax_protocol::protocol::PLUGINS_INSTRUCTIONS_OPEN_TAG;
 
 use super::ContextualUserFragment;
 

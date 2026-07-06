@@ -56,10 +56,10 @@ class WorkflowArtifact:
 
 
 BINARY_COMPONENTS = {
-    "codex-responses-api-proxy": BinaryComponent(
-        artifact_prefix="codex-responses-api-proxy",
-        dest_dir="codex-responses-api-proxy",
-        binary_basename="codex-responses-api-proxy",
+    "datax-responses-api-proxy": BinaryComponent(
+        artifact_prefix="datax-responses-api-proxy",
+        dest_dir="datax-responses-api-proxy",
+        binary_basename="datax-responses-api-proxy",
     ),
 }
 

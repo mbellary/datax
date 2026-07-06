@@ -1,26 +1,26 @@
-use codex_config::types::PluginConfig;
-use codex_core::config::Config;
-use codex_core::config::ConfigBuilder;
-use codex_core_plugins::PluginInstallRequest;
-use codex_core_plugins::PluginsManager;
-use codex_core_plugins::marketplace::MarketplacePluginInstallPolicy;
-use codex_core_plugins::marketplace::find_marketplace_manifest_path;
-use codex_core_plugins::marketplace_add::MarketplaceAddRequest;
-use codex_core_plugins::marketplace_add::add_marketplace;
-use codex_core_plugins::marketplace_add::is_local_marketplace_source;
-use codex_external_agent_migration::build_mcp_config_from_external;
-use codex_external_agent_migration::count_missing_commands;
-use codex_external_agent_migration::count_missing_subagents;
-use codex_external_agent_migration::hook_migration_event_names;
-use codex_external_agent_migration::import_commands;
-use codex_external_agent_migration::import_hooks;
-use codex_external_agent_migration::import_subagents;
-use codex_external_agent_migration::missing_command_names;
-use codex_external_agent_migration::missing_subagent_names;
-use codex_external_agent_sessions::ExternalAgentSessionMigration;
-use codex_external_agent_sessions::detect_recent_sessions;
-use codex_plugin::PluginId;
-use codex_protocol::protocol::Product;
+use datax_config::types::PluginConfig;
+use datax_core::config::Config;
+use datax_core::config::ConfigBuilder;
+use datax_core_plugins::PluginInstallRequest;
+use datax_core_plugins::PluginsManager;
+use datax_core_plugins::marketplace::MarketplacePluginInstallPolicy;
+use datax_core_plugins::marketplace::find_marketplace_manifest_path;
+use datax_core_plugins::marketplace_add::MarketplaceAddRequest;
+use datax_core_plugins::marketplace_add::add_marketplace;
+use datax_core_plugins::marketplace_add::is_local_marketplace_source;
+use datax_external_agent_migration::build_mcp_config_from_external;
+use datax_external_agent_migration::count_missing_commands;
+use datax_external_agent_migration::count_missing_subagents;
+use datax_external_agent_migration::hook_migration_event_names;
+use datax_external_agent_migration::import_commands;
+use datax_external_agent_migration::import_hooks;
+use datax_external_agent_migration::import_subagents;
+use datax_external_agent_migration::missing_command_names;
+use datax_external_agent_migration::missing_subagent_names;
+use datax_external_agent_sessions::ExternalAgentSessionMigration;
+use datax_external_agent_sessions::detect_recent_sessions;
+use datax_plugin::PluginId;
+use datax_protocol::protocol::Product;
 use serde_json::Value as JsonValue;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -1925,7 +1925,7 @@ fn emit_migration_metric(
     item_type: ExternalAgentConfigMigrationItemType,
     skills_count: Option<usize>,
 ) {
-    let Some(metrics) = codex_otel::global() else {
+    let Some(metrics) = datax_otel::global() else {
         return;
     };
     let tags = migration_metric_tags(item_type, skills_count);

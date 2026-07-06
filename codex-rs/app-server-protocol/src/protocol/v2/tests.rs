@@ -1,43 +1,43 @@
 use super::*;
-use codex_protocol::approvals::ElicitationRequest as CoreElicitationRequest;
-use codex_protocol::config_types::MultiAgentMode;
-use codex_protocol::items::AgentMessageContent;
-use codex_protocol::items::AgentMessageItem;
-use codex_protocol::items::FileChangeItem;
-use codex_protocol::items::ImageViewItem;
-use codex_protocol::items::McpToolCallItem;
-use codex_protocol::items::McpToolCallStatus as CoreMcpToolCallStatus;
-use codex_protocol::items::ReasoningItem;
-use codex_protocol::items::TurnItem;
-use codex_protocol::items::UserMessageItem;
-use codex_protocol::items::WebSearchItem;
-use codex_protocol::mcp::CallToolResult;
-use codex_protocol::mcp::McpServerInfo;
-use codex_protocol::memory_citation::MemoryCitation as CoreMemoryCitation;
-use codex_protocol::memory_citation::MemoryCitationEntry as CoreMemoryCitationEntry;
-use codex_protocol::models::AdditionalPermissionProfile as CoreAdditionalPermissionProfile;
-use codex_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
-use codex_protocol::models::FileSystemPermissions as CoreFileSystemPermissions;
-use codex_protocol::models::ImageDetail;
-use codex_protocol::models::MessagePhase;
-use codex_protocol::models::NetworkPermissions as CoreNetworkPermissions;
-use codex_protocol::models::WebSearchAction as CoreWebSearchAction;
-use codex_protocol::permissions::FileSystemAccessMode as CoreFileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath as CoreFileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry as CoreFileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSpecialPath as CoreFileSystemSpecialPath;
-use codex_protocol::protocol::AgentStatus as CoreAgentStatus;
-use codex_protocol::protocol::AskForApproval as CoreAskForApproval;
-use codex_protocol::protocol::ConversationTextRole;
-use codex_protocol::protocol::GranularApprovalConfig as CoreGranularApprovalConfig;
-use codex_protocol::protocol::NetworkAccess as CoreNetworkAccess;
-use codex_protocol::request_permissions::RequestPermissionProfile as CoreRequestPermissionProfile;
-use codex_protocol::user_input::UserInput as CoreUserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_absolute_path::test_support::PathBufExt;
-use codex_utils_absolute_path::test_support::test_path_buf;
-use codex_utils_path_uri::LegacyAppPathString;
-use codex_utils_path_uri::PathUri;
+use datax_protocol::approvals::ElicitationRequest as CoreElicitationRequest;
+use datax_protocol::config_types::MultiAgentMode;
+use datax_protocol::items::AgentMessageContent;
+use datax_protocol::items::AgentMessageItem;
+use datax_protocol::items::FileChangeItem;
+use datax_protocol::items::ImageViewItem;
+use datax_protocol::items::McpToolCallItem;
+use datax_protocol::items::McpToolCallStatus as CoreMcpToolCallStatus;
+use datax_protocol::items::ReasoningItem;
+use datax_protocol::items::TurnItem;
+use datax_protocol::items::UserMessageItem;
+use datax_protocol::items::WebSearchItem;
+use datax_protocol::mcp::CallToolResult;
+use datax_protocol::mcp::McpServerInfo;
+use datax_protocol::memory_citation::MemoryCitation as CoreMemoryCitation;
+use datax_protocol::memory_citation::MemoryCitationEntry as CoreMemoryCitationEntry;
+use datax_protocol::models::AdditionalPermissionProfile as CoreAdditionalPermissionProfile;
+use datax_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
+use datax_protocol::models::FileSystemPermissions as CoreFileSystemPermissions;
+use datax_protocol::models::ImageDetail;
+use datax_protocol::models::MessagePhase;
+use datax_protocol::models::NetworkPermissions as CoreNetworkPermissions;
+use datax_protocol::models::WebSearchAction as CoreWebSearchAction;
+use datax_protocol::permissions::FileSystemAccessMode as CoreFileSystemAccessMode;
+use datax_protocol::permissions::FileSystemPath as CoreFileSystemPath;
+use datax_protocol::permissions::FileSystemSandboxEntry as CoreFileSystemSandboxEntry;
+use datax_protocol::permissions::FileSystemSpecialPath as CoreFileSystemSpecialPath;
+use datax_protocol::protocol::AgentStatus as CoreAgentStatus;
+use datax_protocol::protocol::AskForApproval as CoreAskForApproval;
+use datax_protocol::protocol::ConversationTextRole;
+use datax_protocol::protocol::GranularApprovalConfig as CoreGranularApprovalConfig;
+use datax_protocol::protocol::NetworkAccess as CoreNetworkAccess;
+use datax_protocol::request_permissions::RequestPermissionProfile as CoreRequestPermissionProfile;
+use datax_protocol::user_input::UserInput as CoreUserInput;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_absolute_path::test_support::PathBufExt;
+use datax_utils_absolute_path::test_support::test_path_buf;
+use datax_utils_path_uri::LegacyAppPathString;
+use datax_utils_path_uri::PathUri;
 use pretty_assertions::assert_eq;
 use serde_json::Value as JsonValue;
 use serde_json::json;
@@ -80,7 +80,7 @@ fn thread_sources_round_trip_as_scalar_labels() {
             source
         );
 
-        let core_source: codex_protocol::protocol::ThreadSource = source.clone().into();
+        let core_source: datax_protocol::protocol::ThreadSource = source.clone().into();
         assert_eq!(ThreadSource::from(core_source), source);
     }
 }
@@ -1533,7 +1533,7 @@ fn sandbox_policy_round_trips_external_sandbox_network_access() {
     let core_policy = v2_policy.to_core();
     assert_eq!(
         core_policy,
-        codex_protocol::protocol::SandboxPolicy::ExternalSandbox {
+        datax_protocol::protocol::SandboxPolicy::ExternalSandbox {
             network_access: CoreNetworkAccess::Enabled,
         }
     );
@@ -1551,7 +1551,7 @@ fn sandbox_policy_round_trips_read_only_network_access() {
     let core_policy = v2_policy.to_core();
     assert_eq!(
         core_policy,
-        codex_protocol::protocol::SandboxPolicy::ReadOnly {
+        datax_protocol::protocol::SandboxPolicy::ReadOnly {
             network_access: true,
         }
     );
@@ -2197,7 +2197,7 @@ fn sandbox_policy_round_trips_workspace_write_access() {
     let core_policy = v2_policy.to_core();
     assert_eq!(
         core_policy,
-        codex_protocol::protocol::SandboxPolicy::WorkspaceWrite {
+        datax_protocol::protocol::SandboxPolicy::WorkspaceWrite {
             writable_roots: vec![],
             network_access: true,
             exclude_tmpdir_env_var: false,
@@ -2588,13 +2588,13 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
         id: "patch-1".to_string(),
         changes: [(
             PathBuf::from("README.md"),
-            codex_protocol::protocol::FileChange::Add {
+            datax_protocol::protocol::FileChange::Add {
                 content: "hello\n".to_string(),
             },
         )]
         .into_iter()
         .collect(),
-        status: Some(codex_protocol::protocol::PatchApplyStatus::Completed),
+        status: Some(datax_protocol::protocol::PatchApplyStatus::Completed),
         auto_approved: None,
         stdout: Some("Done!".to_string()),
         stderr: Some(String::new()),
@@ -3332,7 +3332,7 @@ fn plugin_share_params_and_response_serialization_use_camel_case_fields() {
             plugin_id: "gmail@codex-curated".to_string(),
             plugin_name: "gmail".to_string(),
             plugin_path,
-            marketplace_name: "codex-curated".to_string(),
+            marketplace_name: "datax-curated".to_string(),
             marketplace_path,
             remote_version: Some("1.2.3".to_string()),
         })
@@ -3342,7 +3342,7 @@ fn plugin_share_params_and_response_serialization_use_camel_case_fields() {
             "pluginId": "gmail@codex-curated",
             "pluginName": "gmail",
             "pluginPath": plugin_path_json,
-            "marketplaceName": "codex-curated",
+            "marketplaceName": "datax-curated",
             "marketplacePath": marketplace_path_json,
             "remoteVersion": "1.2.3",
         }),
@@ -3818,7 +3818,7 @@ fn turn_start_params_round_trip_multi_agent_mode() {
 
     assert_eq!(
         params.multi_agent_mode,
-        Some(codex_protocol::config_types::MultiAgentMode::Proactive)
+        Some(datax_protocol::config_types::MultiAgentMode::Proactive)
     );
     assert_eq!(
         crate::experimental_api::ExperimentalApi::experimental_reason(&params),
@@ -3839,7 +3839,7 @@ fn thread_start_params_round_trip_multi_agent_mode() {
 
     assert_eq!(
         params.multi_agent_mode,
-        Some(codex_protocol::config_types::MultiAgentMode::Proactive)
+        Some(datax_protocol::config_types::MultiAgentMode::Proactive)
     );
     assert_eq!(
         crate::experimental_api::ExperimentalApi::experimental_reason(&params),
@@ -3906,9 +3906,9 @@ fn thread_settings_update_params_preserve_field_level_experimental_gates() {
 
     let collaboration_mode = ThreadSettingsUpdateParams {
         thread_id: "thread_123".to_string(),
-        collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-            mode: codex_protocol::config_types::ModeKind::Plan,
-            settings: codex_protocol::config_types::Settings {
+        collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+            mode: datax_protocol::config_types::ModeKind::Plan,
+            settings: datax_protocol::config_types::Settings {
                 model: "mock-model".to_string(),
                 reasoning_effort: None,
                 developer_instructions: None,

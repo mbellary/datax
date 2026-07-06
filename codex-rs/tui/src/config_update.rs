@@ -4,24 +4,24 @@
 //! when a config mutation must be owned by the app server rather than written
 //! to the local `config.toml` directly.
 
-use codex_app_server_client::AppServerRequestHandle;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::ConfigBatchWriteParams;
-use codex_app_server_protocol::ConfigEdit;
-use codex_app_server_protocol::ConfigReadParams;
-use codex_app_server_protocol::ConfigReadResponse;
-use codex_app_server_protocol::ConfigWriteResponse;
-use codex_app_server_protocol::MergeStrategy;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::SkillsConfigWriteParams;
-use codex_app_server_protocol::SkillsConfigWriteResponse;
-use codex_config::loader::project_trust_key;
-use codex_features::FEATURES;
-use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
-use codex_protocol::config_types::TrustLevel;
-use codex_utils_absolute_path::AbsolutePathBuf;
 use color_eyre::eyre::Result;
 use color_eyre::eyre::WrapErr;
+use datax_app_server_client::AppServerRequestHandle;
+use datax_app_server_protocol::ClientRequest;
+use datax_app_server_protocol::ConfigBatchWriteParams;
+use datax_app_server_protocol::ConfigEdit;
+use datax_app_server_protocol::ConfigReadParams;
+use datax_app_server_protocol::ConfigReadResponse;
+use datax_app_server_protocol::ConfigWriteResponse;
+use datax_app_server_protocol::MergeStrategy;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::SkillsConfigWriteParams;
+use datax_app_server_protocol::SkillsConfigWriteResponse;
+use datax_config::loader::project_trust_key;
+use datax_features::FEATURES;
+use datax_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
+use datax_protocol::config_types::TrustLevel;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use serde_json::Value as JsonValue;
 use std::fmt::Display;
 use std::path::Path;
@@ -84,9 +84,9 @@ pub(crate) fn build_service_tier_selection_edits(service_tier: Option<&str>) -> 
             let config_value = if service_tier == SERVICE_TIER_DEFAULT_REQUEST_VALUE {
                 SERVICE_TIER_DEFAULT_REQUEST_VALUE
             } else {
-                match codex_protocol::config_types::ServiceTier::from_request_value(service_tier) {
-                    Some(codex_protocol::config_types::ServiceTier::Fast) => "fast",
-                    Some(codex_protocol::config_types::ServiceTier::Flex) => "flex",
+                match datax_protocol::config_types::ServiceTier::from_request_value(service_tier) {
+                    Some(datax_protocol::config_types::ServiceTier::Fast) => "fast",
+                    Some(datax_protocol::config_types::ServiceTier::Flex) => "flex",
                     None => service_tier,
                 }
             };

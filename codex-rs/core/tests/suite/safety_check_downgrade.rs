@@ -1,14 +1,4 @@
 use anyhow::Result;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::CodexErrorInfo;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ModelRerouteReason;
-use codex_protocol::protocol::ModelVerification;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::UserInput;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_function_call;
 use core_test_support::responses::ev_model_verification_metadata;
@@ -25,6 +15,16 @@ use core_test_support::test_codex::local_selections;
 use core_test_support::test_codex::test_codex;
 use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::wait_for_event;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::CodexErrorInfo;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::ModelRerouteReason;
+use datax_protocol::protocol::ModelVerification;
+use datax_protocol::protocol::Op;
+use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use wiremock::ResponseTemplate;
 
@@ -46,14 +46,14 @@ fn disabled_text_turn(test: &TestCodex, text: &str) -> Op {
         final_output_json_schema: None,
         responsesapi_client_metadata: None,
         additional_context: Default::default(),
-        thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+        thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
             environments: Some(local_selections(test.config.cwd.clone())),
             approval_policy: Some(AskForApproval::Never),
             sandbox_policy: Some(sandbox_policy),
             permission_profile,
-            collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                mode: codex_protocol::config_types::ModeKind::Default,
-                settings: codex_protocol::config_types::Settings {
+            collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                mode: datax_protocol::config_types::ModeKind::Default,
+                settings: datax_protocol::config_types::Settings {
                     model: REQUESTED_MODEL.to_string(),
                     reasoning_effort: test.config.model_reasoning_effort.clone(),
                     developer_instructions: None,

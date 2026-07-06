@@ -1,4 +1,4 @@
-use codex_otel::MetricsClient;
+use datax_otel::MetricsClient;
 
 use crate::MEMORY_TOOLS_NAMESPACE;
 

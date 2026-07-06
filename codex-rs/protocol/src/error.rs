@@ -14,9 +14,9 @@ use chrono::DateTime;
 use chrono::Datelike;
 use chrono::Local;
 use chrono::Utc;
-use codex_async_utils::CancelErr;
-use codex_utils_string::truncate_middle_chars;
-use codex_utils_string::truncate_middle_with_token_budget;
+use datax_async_utils::CancelErr;
+use datax_utils_string::truncate_middle_chars;
+use datax_utils_string::truncate_middle_with_token_budget;
 use reqwest::StatusCode;
 use serde_json;
 use std::io;
@@ -136,7 +136,7 @@ pub enum CodexErr {
     /// Sandbox error
     #[error("sandbox error: {0}")]
     Sandbox(#[from] SandboxErr),
-    #[error("codex-linux-sandbox was required but not provided")]
+    #[error("datax-linux-sandbox was required but not provided")]
     LandlockSandboxExecutableNotProvided,
     #[error("unsupported operation: {0}")]
     UnsupportedOperation(String),

@@ -3,8 +3,8 @@ use std::sync::RwLock;
 use std::time::Duration;
 use std::time::Instant;
 
-use codex_core::config::Config;
-use codex_login::CodexAuth;
+use datax_core::config::Config;
+use datax_login::CodexAuth;
 use serde::Deserialize;
 
 use crate::chatgpt_client::chatgpt_get_request_with_timeout;

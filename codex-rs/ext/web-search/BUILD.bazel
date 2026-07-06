@@ -5,5 +5,5 @@ codex_rust_crate(
     compile_data = [
         "web_run_description.md",
     ],
-    crate_name = "codex_web_search_extension",
+    crate_name = "datax_web_search_extension",
 )

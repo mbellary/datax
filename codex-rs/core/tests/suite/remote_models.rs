@@ -1,27 +1,5 @@
 #![cfg(not(target_os = "windows"))]
 use anyhow::Result;
-use codex_login::CodexAuth;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::built_in_model_providers;
-use codex_models_manager::bundled_models_response;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_models_manager::manager::SharedModelsManager;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::openai_models::ConfigShellToolType;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::openai_models::ModelVisibility;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::openai_models::ReasoningEffortPreset;
-use codex_protocol::openai_models::TruncationPolicyConfig;
-use codex_protocol::openai_models::default_input_modalities;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExecCommandSource;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::UserInput;
 use core_test_support::TempDirExt;
 use core_test_support::load_default_config_for_test;
 use core_test_support::responses::ev_assistant_message;
@@ -41,6 +19,28 @@ use core_test_support::test_codex::test_codex;
 use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_match;
+use datax_login::CodexAuth;
+use datax_model_provider_info::ModelProviderInfo;
+use datax_model_provider_info::built_in_model_providers;
+use datax_models_manager::bundled_models_response;
+use datax_models_manager::manager::RefreshStrategy;
+use datax_models_manager::manager::SharedModelsManager;
+use datax_protocol::config_types::ReasoningSummary;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::openai_models::ConfigShellToolType;
+use datax_protocol::openai_models::ModelInfo;
+use datax_protocol::openai_models::ModelPreset;
+use datax_protocol::openai_models::ModelVisibility;
+use datax_protocol::openai_models::ModelsResponse;
+use datax_protocol::openai_models::ReasoningEffort;
+use datax_protocol::openai_models::ReasoningEffortPreset;
+use datax_protocol::openai_models::TruncationPolicyConfig;
+use datax_protocol::openai_models::default_input_modalities;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::ExecCommandSource;
+use datax_protocol::protocol::Op;
+use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use tempfile::TempDir;
@@ -51,7 +51,7 @@ use tokio::time::timeout;
 use wiremock::BodyPrintLimit;
 use wiremock::MockServer;
 
-const REMOTE_MODEL_SLUG: &str = "codex-test";
+const REMOTE_MODEL_SLUG: &str = "datax-test";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn remote_models_get_model_info_uses_longest_matching_prefix() -> Result<()> {
@@ -97,9 +97,9 @@ async fn remote_models_get_model_info_uses_longest_matching_prefix() -> Result<(
         base_url: Some(format!("{}/v1", server.uri())),
         ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
     };
-    let manager = codex_core::test_support::models_manager_with_provider(
+    let manager = datax_core::test_support::models_manager_with_provider(
         codex_home.path().to_path_buf(),
-        codex_core::test_support::auth_manager_from_auth(auth),
+        datax_core::test_support::auth_manager_from_auth(auth),
         provider,
     );
 
@@ -544,7 +544,7 @@ async fn remote_models_remote_model_uses_unified_exec() -> Result<()> {
 
     core_test_support::submit_thread_settings(
         &codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        datax_protocol::protocol::ThreadSettingsOverrides {
             model: Some(REMOTE_MODEL_SLUG.to_string()),
             ..Default::default()
         },
@@ -582,7 +582,7 @@ async fn remote_models_remote_model_uses_unified_exec() -> Result<()> {
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(cwd_path)),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
@@ -616,7 +616,7 @@ async fn remote_models_truncation_policy_without_override_preserves_remote() -> 
         .start()
         .await;
 
-    let slug = "codex-test-truncation-policy";
+    let slug = "datax-test-truncation-policy";
     let remote_model = test_remote_model_with_policy(
         slug,
         ModelVisibility::List,
@@ -662,7 +662,7 @@ async fn remote_models_truncation_policy_with_tool_output_override() -> Result<(
         .start()
         .await;
 
-    let slug = "codex-test-truncation-override";
+    let slug = "datax-test-truncation-override";
     let remote_model = test_remote_model_with_policy(
         slug,
         ModelVisibility::List,
@@ -791,7 +791,7 @@ async fn remote_models_apply_remote_base_instructions() -> Result<()> {
 
     core_test_support::submit_thread_settings(
         &codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        datax_protocol::protocol::ThreadSettingsOverrides {
             model: Some(model.to_string()),
             ..Default::default()
         },
@@ -810,7 +810,7 @@ async fn remote_models_apply_remote_base_instructions() -> Result<()> {
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
             additional_context: Default::default(),
-            thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+            thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
                 environments: Some(local_selections(cwd_path)),
                 approval_policy: Some(AskForApproval::Never),
                 sandbox_policy: Some(sandbox_policy),
@@ -856,9 +856,9 @@ async fn remote_models_do_not_append_removed_builtin_presets() -> Result<()> {
         base_url: Some(format!("{}/v1", server.uri())),
         ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
     };
-    let manager = codex_core::test_support::models_manager_with_provider(
+    let manager = datax_core::test_support::models_manager_with_provider(
         codex_home.path().to_path_buf(),
-        codex_core::test_support::auth_manager_from_auth(auth),
+        datax_core::test_support::auth_manager_from_auth(auth),
         provider,
     );
 
@@ -917,9 +917,9 @@ async fn remote_models_merge_adds_new_high_priority_first() -> Result<()> {
         base_url: Some(format!("{}/v1", server.uri())),
         ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
     };
-    let manager = codex_core::test_support::models_manager_with_provider(
+    let manager = datax_core::test_support::models_manager_with_provider(
         codex_home.path().to_path_buf(),
-        codex_core::test_support::auth_manager_from_auth(auth),
+        datax_core::test_support::auth_manager_from_auth(auth),
         provider,
     );
 
@@ -964,9 +964,9 @@ async fn remote_models_merge_replaces_overlapping_model() -> Result<()> {
         base_url: Some(format!("{}/v1", server.uri())),
         ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
     };
-    let manager = codex_core::test_support::models_manager_with_provider(
+    let manager = datax_core::test_support::models_manager_with_provider(
         codex_home.path().to_path_buf(),
-        codex_core::test_support::auth_manager_from_auth(auth),
+        datax_core::test_support::auth_manager_from_auth(auth),
         provider,
     );
 
@@ -1008,9 +1008,9 @@ async fn remote_models_merge_preserves_bundled_models_on_empty_response() -> Res
         base_url: Some(format!("{}/v1", server.uri())),
         ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
     };
-    let manager = codex_core::test_support::models_manager_with_provider(
+    let manager = datax_core::test_support::models_manager_with_provider(
         codex_home.path().to_path_buf(),
-        codex_core::test_support::auth_manager_from_auth(auth),
+        datax_core::test_support::auth_manager_from_auth(auth),
         provider,
     );
 
@@ -1050,9 +1050,9 @@ async fn remote_models_request_times_out_after_5s() -> Result<()> {
         base_url: Some(format!("{}/v1", server.uri())),
         ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
     };
-    let manager = codex_core::test_support::models_manager_with_provider(
+    let manager = datax_core::test_support::models_manager_with_provider(
         codex_home.path().to_path_buf(),
-        codex_core::test_support::auth_manager_from_auth(auth),
+        datax_core::test_support::auth_manager_from_auth(auth),
         provider,
     );
 
@@ -1101,7 +1101,7 @@ async fn remote_models_hide_picker_only_models() -> Result<()> {
 
     let server = MockServer::start().await;
     let remote_model = test_remote_model(
-        "codex-auto-balanced",
+        "datax-auto-balanced",
         ModelVisibility::Hide,
         /*priority*/ 0,
     );
@@ -1120,9 +1120,9 @@ async fn remote_models_hide_picker_only_models() -> Result<()> {
         base_url: Some(format!("{}/v1", server.uri())),
         ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
     };
-    let manager = codex_core::test_support::models_manager_with_provider(
+    let manager = datax_core::test_support::models_manager_with_provider(
         codex_home.path().to_path_buf(),
-        codex_core::test_support::auth_manager_from_auth(auth),
+        datax_core::test_support::auth_manager_from_auth(auth),
         provider,
     );
 
@@ -1134,7 +1134,7 @@ async fn remote_models_hide_picker_only_models() -> Result<()> {
     let available = manager.list_models(RefreshStrategy::OnlineIfUncached).await;
     let hidden = available
         .iter()
-        .find(|model| model.model == "codex-auto-balanced")
+        .find(|model| model.model == "datax-auto-balanced")
         .expect("hidden remote model should be listed");
     assert!(!hidden.show_in_picker, "hidden models should remain hidden");
     assert_eq!(
@@ -1175,7 +1175,7 @@ fn bundled_model_slug() -> String {
 }
 
 fn bundled_default_model_slug() -> String {
-    codex_core::test_support::all_model_presets()
+    datax_core::test_support::all_model_presets()
         .iter()
         .find(|preset| preset.is_default)
         .expect("bundled models should include a default")

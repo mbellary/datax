@@ -3,11 +3,11 @@
 use anyhow::Context;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_login::AuthKeyringBackendKind;
-use codex_login::ServerOptions;
-use codex_login::auth::load_auth_dot_json;
-use codex_login::run_device_code_login;
+use datax_config::types::AuthCredentialsStoreMode;
+use datax_login::AuthKeyringBackendKind;
+use datax_login::ServerOptions;
+use datax_login::auth::load_auth_dot_json;
+use datax_login::run_device_code_login;
 use serde_json::json;
 use std::sync::Arc;
 use std::sync::atomic::AtomicUsize;

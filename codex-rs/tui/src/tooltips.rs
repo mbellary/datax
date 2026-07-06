@@ -1,5 +1,5 @@
-use codex_features::FEATURES;
-use codex_protocol::account::PlanType;
+use datax_features::FEATURES;
+use datax_protocol::account::PlanType;
 use lazy_static::lazy_static;
 use rand::Rng;
 
@@ -125,7 +125,7 @@ pub(crate) mod announcement {
     use crate::version::CODEX_CLI_VERSION;
     use chrono::NaiveDate;
     use chrono::Utc;
-    use codex_protocol::account::PlanType;
+    use datax_protocol::account::PlanType;
     use regex_lite::Regex;
     use serde::Deserialize;
     use std::sync::OnceLock;

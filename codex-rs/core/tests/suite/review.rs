@@ -1,22 +1,3 @@
-use codex_core::CodexThread;
-use codex_core::REVIEW_PROMPT;
-use codex_core::config::Config;
-use codex_core::review_format::render_review_output_text;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::ENVIRONMENT_CONTEXT_OPEN_TAG;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::ExitedReviewModeEvent;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::ReviewCodeLocation;
-use codex_protocol::protocol::ReviewFinding;
-use codex_protocol::protocol::ReviewLineRange;
-use codex_protocol::protocol::ReviewOutputEvent;
-use codex_protocol::protocol::ReviewRequest;
-use codex_protocol::protocol::ReviewTarget;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::user_input::UserInput;
 use core_test_support::PathBufExt;
 use core_test_support::responses;
 use core_test_support::responses::ResponseMock;
@@ -26,6 +7,25 @@ use core_test_support::skip_if_no_network;
 use core_test_support::test_codex::local_selections;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
+use datax_core::CodexThread;
+use datax_core::REVIEW_PROMPT;
+use datax_core::config::Config;
+use datax_core::review_format::render_review_output_text;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::protocol::ENVIRONMENT_CONTEXT_OPEN_TAG;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::ExitedReviewModeEvent;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::ReviewCodeLocation;
+use datax_protocol::protocol::ReviewFinding;
+use datax_protocol::protocol::ReviewLineRange;
+use datax_protocol::protocol::ReviewOutputEvent;
+use datax_protocol::protocol::ReviewRequest;
+use datax_protocol::protocol::ReviewTarget;
+use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutLine;
+use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -525,10 +525,10 @@ async fn review_input_isolated_from_parent_history() {
             .unwrap();
 
         // Prior user message (enveloped response_item)
-        let user = codex_protocol::models::ResponseItem::Message {
+        let user = datax_protocol::models::ResponseItem::Message {
             id: None,
             role: "user".to_string(),
-            content: vec![codex_protocol::models::ContentItem::InputText {
+            content: vec![datax_protocol::models::ContentItem::InputText {
                 text: "parent: earlier user message".to_string(),
             }],
             phase: None,
@@ -545,10 +545,10 @@ async fn review_input_isolated_from_parent_history() {
             .unwrap();
 
         // Prior assistant message (enveloped response_item)
-        let assistant = codex_protocol::models::ResponseItem::Message {
+        let assistant = datax_protocol::models::ResponseItem::Message {
             id: None,
             role: "assistant".to_string(),
-            content: vec![codex_protocol::models::ContentItem::OutputText {
+            content: vec![datax_protocol::models::ContentItem::OutputText {
                 text: "parent: assistant reply".to_string(),
             }],
             phase: None,
@@ -823,7 +823,7 @@ async fn review_uses_overridden_cwd_for_base_branch_merge_base() {
 
     core_test_support::submit_thread_settings(
         &codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        datax_protocol::protocol::ThreadSettingsOverrides {
             environments: Some(local_selections(repo_path.to_path_buf().abs())),
             ..Default::default()
         },

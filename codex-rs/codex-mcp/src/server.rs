@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use codex_config::AppToolApproval;
-use codex_config::McpServerConfig;
-use codex_config::McpServerTransportConfig;
+use datax_config::AppToolApproval;
+use datax_config::McpServerConfig;
+use datax_config::McpServerTransportConfig;
 
 /// The runtime launch strategy for an effective MCP server.
 #[derive(Debug, Clone)]

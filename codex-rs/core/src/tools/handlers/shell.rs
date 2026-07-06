@@ -1,5 +1,5 @@
-use codex_features::Feature;
-use codex_protocol::models::ShellCommandToolCallParams;
+use datax_features::Feature;
+use datax_protocol::models::ShellCommandToolCallParams;
 use serde_json::Value as JsonValue;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
@@ -23,10 +23,10 @@ use crate::tools::runtimes::shell::ShellRequest;
 use crate::tools::runtimes::shell::ShellRuntime;
 use crate::tools::runtimes::shell::ShellRuntimeBackend;
 use crate::tools::sandboxing::ToolCtx;
-use codex_protocol::models::AdditionalPermissionProfile;
-use codex_protocol::protocol::ExecCommandSource;
-use codex_tools::ToolName;
-use codex_utils_path_uri::PathUri;
+use datax_protocol::models::AdditionalPermissionProfile;
+use datax_protocol::protocol::ExecCommandSource;
+use datax_tools::ToolName;
+use datax_utils_path_uri::PathUri;
 
 mod shell_command;
 
@@ -130,7 +130,7 @@ async fn run_exec_like(args: RunExecLikeArgs) -> Result<FunctionToolOutput, Func
         && !effective_additional_permissions.permissions_preapproved
         && !matches!(
             turn.approval_policy.value(),
-            codex_protocol::protocol::AskForApproval::OnRequest
+            datax_protocol::protocol::AskForApproval::OnRequest
         )
     {
         let approval_policy = turn.approval_policy.value();
@@ -176,7 +176,7 @@ async fn run_exec_like(args: RunExecLikeArgs) -> Result<FunctionToolOutput, Func
             permission_profile: turn.permission_profile(),
             windows_sandbox_level: turn.windows_sandbox_level,
             sandbox_permissions: if effective_additional_permissions.permissions_preapproved {
-                codex_protocol::models::SandboxPermissions::UseDefault
+                datax_protocol::models::SandboxPermissions::UseDefault
             } else {
                 effective_additional_permissions.sandbox_permissions
             },
@@ -239,7 +239,7 @@ async fn run_exec_like(args: RunExecLikeArgs) -> Result<FunctionToolOutput, Func
         .await?;
     Ok(FunctionToolOutput {
         body: vec![
-            codex_protocol::models::FunctionCallOutputContentItem::InputText { text: content },
+            datax_protocol::models::FunctionCallOutputContentItem::InputText { text: content },
         ],
         success: Some(true),
         post_tool_use_response,

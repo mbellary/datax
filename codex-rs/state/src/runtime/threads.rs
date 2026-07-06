@@ -1,6 +1,6 @@
 use super::*;
 use crate::SortDirection;
-use codex_protocol::protocol::SessionSource;
+use datax_protocol::protocol::SessionSource;
 use std::sync::atomic::AtomicI64;
 use std::sync::atomic::Ordering;
 
@@ -552,7 +552,7 @@ ON CONFLICT(id) DO NOTHING
             metadata
                 .thread_source
                 .as_ref()
-                .map(codex_protocol::protocol::ThreadSource::as_str),
+                .map(datax_protocol::protocol::ThreadSource::as_str),
         )
         .bind(metadata.agent_nickname.as_deref())
         .bind(metadata.agent_role.as_deref())
@@ -832,7 +832,7 @@ ON CONFLICT(id) DO UPDATE SET
             metadata
                 .thread_source
                 .as_ref()
-                .map(codex_protocol::protocol::ThreadSource::as_str),
+                .map(datax_protocol::protocol::ThreadSource::as_str),
         )
         .bind(metadata.agent_nickname.as_deref())
         .bind(metadata.agent_role.as_deref())
@@ -1341,11 +1341,11 @@ mod tests {
     use crate::runtime::test_support::test_thread_metadata;
     use crate::runtime::test_support::unique_temp_dir;
     use anyhow::Result;
-    use codex_protocol::protocol::EventMsg;
-    use codex_protocol::protocol::GitInfo;
-    use codex_protocol::protocol::SessionMeta;
-    use codex_protocol::protocol::SessionMetaLine;
-    use codex_protocol::protocol::SessionSource;
+    use datax_protocol::protocol::EventMsg;
+    use datax_protocol::protocol::GitInfo;
+    use datax_protocol::protocol::SessionMeta;
+    use datax_protocol::protocol::SessionMetaLine;
+    use datax_protocol::protocol::SessionSource;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::path::PathBuf;
@@ -2039,7 +2039,7 @@ mod tests {
                 multi_agent_version: None,
             },
             git: Some(GitInfo {
-                commit_hash: Some(codex_git_utils::GitSha::new("rollout-sha")),
+                commit_hash: Some(datax_git_utils::GitSha::new("rollout-sha")),
                 branch: Some("rollout-branch".to_string()),
                 repository_url: Some("git@example.com:openai/codex.git".to_string()),
             }),
@@ -2674,16 +2674,16 @@ mod tests {
             SessionSource::Cli,
         );
         let items = vec![RolloutItem::EventMsg(EventMsg::TokenCount(
-            codex_protocol::protocol::TokenCountEvent {
-                info: Some(codex_protocol::protocol::TokenUsageInfo {
-                    total_token_usage: codex_protocol::protocol::TokenUsage {
+            datax_protocol::protocol::TokenCountEvent {
+                info: Some(datax_protocol::protocol::TokenUsageInfo {
+                    total_token_usage: datax_protocol::protocol::TokenUsage {
                         input_tokens: 0,
                         cached_input_tokens: 0,
                         output_tokens: 0,
                         reasoning_output_tokens: 0,
                         total_tokens: 321,
                     },
-                    last_token_usage: codex_protocol::protocol::TokenUsage::default(),
+                    last_token_usage: datax_protocol::protocol::TokenUsage::default(),
                     model_context_window: None,
                 }),
                 rate_limits: None,

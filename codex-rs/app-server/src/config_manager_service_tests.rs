@@ -1,13 +1,13 @@
 use super::*;
 use anyhow::Result;
-use codex_app_server_protocol::AppConfig;
-use codex_app_server_protocol::AppToolApproval;
-use codex_app_server_protocol::AppsConfig;
-use codex_app_server_protocol::AskForApproval;
-use codex_config::CloudConfigBundleLoader;
-use codex_config::LoaderOverrides;
-use codex_config::test_support::CloudConfigBundleFixture;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_app_server_protocol::AppConfig;
+use datax_app_server_protocol::AppToolApproval;
+use datax_app_server_protocol::AppsConfig;
+use datax_app_server_protocol::AskForApproval;
+use datax_config::CloudConfigBundleLoader;
+use datax_config::LoaderOverrides;
+use datax_config::test_support::CloudConfigBundleFixture;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use tempfile::tempdir;
 
@@ -203,12 +203,12 @@ async fn batch_write_rejects_legacy_profile_selector() -> Result<()> {
     let error = service
         .batch_write(ConfigBatchWriteParams {
             edits: vec![
-                codex_app_server_protocol::ConfigEdit {
+                datax_app_server_protocol::ConfigEdit {
                     key_path: "model".to_string(),
                     value: serde_json::json!("gpt-work"),
                     merge_strategy: MergeStrategy::Replace,
                 },
-                codex_app_server_protocol::ConfigEdit {
+                datax_app_server_protocol::ConfigEdit {
                     key_path: "profile".to_string(),
                     value: serde_json::json!("work"),
                     merge_strategy: MergeStrategy::Replace,

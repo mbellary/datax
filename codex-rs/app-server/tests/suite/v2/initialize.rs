@@ -3,20 +3,20 @@ use app_test_support::TestAppServer;
 use app_test_support::create_final_assistant_message_sse_response;
 use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::to_response;
-use codex_app_server_protocol::ClientInfo;
-use codex_app_server_protocol::InitializeCapabilities;
-use codex_app_server_protocol::InitializeResponse;
-use codex_app_server_protocol::JSONRPCMessage;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_cargo_bin::cargo_bin;
 use core_test_support::fs_wait;
+use datax_app_server_protocol::ClientInfo;
+use datax_app_server_protocol::InitializeCapabilities;
+use datax_app_server_protocol::InitializeResponse;
+use datax_app_server_protocol::JSONRPCMessage;
+use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::ThreadStartParams;
+use datax_app_server_protocol::ThreadStartResponse;
+use datax_app_server_protocol::TurnStartParams;
+use datax_app_server_protocol::TurnStartResponse;
+use datax_app_server_protocol::UserInput as V2UserInput;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_cargo_bin::cargo_bin;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use std::path::Path;
@@ -100,7 +100,7 @@ async fn initialize_codex_backend_does_not_override_originator() -> Result<()> {
     let message = timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.initialize_with_client_info(ClientInfo {
-            name: "codex-backend".to_string(),
+            name: "datax-backend".to_string(),
             title: Some("Codex Backend".to_string()),
             version: "0.1.0".to_string(),
         }),
@@ -265,7 +265,7 @@ async fn turn_start_notify_payload_includes_initialize_client_name() -> Result<(
     let server = create_mock_responses_server_sequence_unchecked(responses).await;
     let codex_home = TempDir::new()?;
     let notify_file = codex_home.path().join("notify.json");
-    let notify_capture = cargo_bin("codex-app-server-test-notify-capture")?;
+    let notify_capture = cargo_bin("datax-app-server-test-notify-capture")?;
     let notify_capture = notify_capture
         .to_str()
         .expect("notify capture path should be valid UTF-8");

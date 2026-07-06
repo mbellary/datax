@@ -1,12 +1,12 @@
-use codex_otel::MetricsClient;
-use codex_otel::MetricsConfig;
-use codex_otel::Result;
-use codex_otel::RuntimeMetricTotals;
-use codex_otel::RuntimeMetricsSummary;
-use codex_otel::SessionTelemetry;
-use codex_otel::TelemetryAuthMode;
-use codex_protocol::ThreadId;
-use codex_protocol::protocol::SessionSource;
+use datax_otel::MetricsClient;
+use datax_otel::MetricsConfig;
+use datax_otel::Result;
+use datax_otel::RuntimeMetricTotals;
+use datax_otel::RuntimeMetricsSummary;
+use datax_otel::SessionTelemetry;
+use datax_otel::TelemetryAuthMode;
+use datax_protocol::ThreadId;
+use datax_protocol::protocol::SessionSource;
 use eventsource_stream::Event as StreamEvent;
 use opentelemetry_sdk::metrics::InMemoryMetricExporter;
 use pretty_assertions::assert_eq;
@@ -17,7 +17,7 @@ use tokio_tungstenite::tungstenite::Message;
 fn runtime_metrics_summary_collects_tool_api_and_streaming_metrics() -> Result<()> {
     let exporter = InMemoryMetricExporter::default();
     let metrics = MetricsClient::new(
-        MetricsConfig::in_memory("test", "codex-cli", env!("CARGO_PKG_VERSION"), exporter)
+        MetricsConfig::in_memory("test", "datax-cli", env!("CARGO_PKG_VERSION"), exporter)
             .with_runtime_reader(),
     )?;
     let manager = SessionTelemetry::new(
@@ -79,14 +79,14 @@ fn runtime_metrics_summary_collects_tool_api_and_streaming_metrics() -> Result<(
     manager.log_sse_event(&sse_response, Duration::from_millis(120));
     let ws_response: std::result::Result<
         Option<std::result::Result<Message, tokio_tungstenite::tungstenite::Error>>,
-        codex_api::ApiError,
+        datax_api::ApiError,
     > = Ok(Some(Ok(Message::Text(
         r#"{"type":"response.created"}"#.into(),
     ))));
     manager.record_websocket_event(&ws_response, Duration::from_millis(80));
     let ws_timing_response: std::result::Result<
         Option<std::result::Result<Message, tokio_tungstenite::tungstenite::Error>>,
-        codex_api::ApiError,
+        datax_api::ApiError,
     > = Ok(Some(Ok(Message::Text(
         r#"{"type":"responsesapi.websocket_timing","timing_metrics":{"responses_duration_excl_engine_and_client_tool_time_ms":124,"engine_service_total_ms":457,"engine_iapi_ttft_total_ms":211,"engine_service_ttft_total_ms":233,"engine_iapi_tbt_across_engine_calls_ms":377,"engine_service_tbt_across_engine_calls_ms":399}}"#
             .into(),

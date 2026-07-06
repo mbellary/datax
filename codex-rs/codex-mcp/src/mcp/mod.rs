@@ -18,21 +18,21 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use async_channel::unbounded;
-use codex_config::Constrained;
-use codex_config::McpServerConfig;
-use codex_config::McpServerTransportConfig;
-use codex_config::types::AppToolApproval;
-use codex_config::types::AuthKeyringBackendKind;
-use codex_config::types::OAuthCredentialsStoreMode;
-use codex_login::CodexAuth;
-use codex_plugin::PluginCapabilitySummary;
-use codex_protocol::mcp::McpServerInfo;
-use codex_protocol::mcp::Resource;
-use codex_protocol::mcp::ResourceTemplate;
-use codex_protocol::mcp::Tool;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::McpAuthStatus;
+use datax_config::Constrained;
+use datax_config::McpServerConfig;
+use datax_config::McpServerTransportConfig;
+use datax_config::types::AppToolApproval;
+use datax_config::types::AuthKeyringBackendKind;
+use datax_config::types::OAuthCredentialsStoreMode;
+use datax_login::CodexAuth;
+use datax_plugin::PluginCapabilitySummary;
+use datax_protocol::mcp::McpServerInfo;
+use datax_protocol::mcp::Resource;
+use datax_protocol::mcp::ResourceTemplate;
+use datax_protocol::mcp::Tool;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::McpAuthStatus;
 use rmcp::model::ElicitationCapability;
 use rmcp::model::ReadResourceRequestParams;
 use rmcp::model::ReadResourceResult;
@@ -97,7 +97,7 @@ pub struct McpPermissionPromptAutoApproveContext {
     pub tool_approval_mode: Option<AppToolApproval>,
 }
 
-/// MCP runtime settings derived from `codex_core::config::Config`.
+/// MCP runtime settings derived from `datax_core::config::Config`.
 ///
 /// This struct should contain only long-lived configuration values that the
 /// `codex-mcp` crate needs to construct server transports, enforce MCP
@@ -488,7 +488,7 @@ fn mcp_server_config_for_url(url: String, apps_mcp_product_sku: Option<&str>) ->
             http_headers,
             env_http_headers: None,
         },
-        environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+        environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
         enabled: true,
         required: false,
         supports_parallel_tool_calls: false,

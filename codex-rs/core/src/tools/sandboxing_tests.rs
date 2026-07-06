@@ -1,15 +1,15 @@
 use super::*;
 use crate::sandboxing::SandboxPermissions;
 use crate::tools::hook_names::HookToolName;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::protocol::GranularApprovalConfig;
-use codex_sandboxing::SandboxCommand;
-use codex_sandboxing::SandboxManager;
-use codex_sandboxing::SandboxType;
-use codex_utils_absolute_path::AbsolutePathBuf;
-use codex_utils_path_uri::PathUri;
+use datax_protocol::permissions::FileSystemAccessMode;
+use datax_protocol::permissions::FileSystemPath;
+use datax_protocol::permissions::FileSystemSandboxEntry;
+use datax_protocol::protocol::GranularApprovalConfig;
+use datax_sandboxing::SandboxCommand;
+use datax_sandboxing::SandboxManager;
+use datax_sandboxing::SandboxType;
+use datax_utils_absolute_path::AbsolutePathBuf;
+use datax_utils_path_uri::PathUri;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::collections::HashMap;
@@ -207,7 +207,7 @@ fn exec_server_env_keeps_command_native_and_carries_sandbox_context() {
         .try_into()
         .expect("absolute cwd");
     let cwd_uri = PathUri::from_abs_path(&cwd);
-    let exec_server_permissions = codex_protocol::models::PermissionProfile::workspace_write();
+    let exec_server_permissions = datax_protocol::models::PermissionProfile::workspace_write();
     let permissions = exec_server_permissions
         .clone()
         .materialize_project_roots_with_workspace_roots(std::slice::from_ref(&cwd));
@@ -223,7 +223,7 @@ fn exec_server_env_keeps_command_native_and_carries_sandbox_context() {
         workspace_roots: std::slice::from_ref(&cwd),
         codex_linux_sandbox_exe: None,
         use_legacy_landlock: false,
-        windows_sandbox_level: codex_protocol::config_types::WindowsSandboxLevel::Disabled,
+        windows_sandbox_level: datax_protocol::config_types::WindowsSandboxLevel::Disabled,
         windows_sandbox_private_desktop: false,
         network_denial_cancellation_token: None,
     };
@@ -255,11 +255,11 @@ fn exec_server_env_keeps_command_native_and_carries_sandbox_context() {
     assert_eq!(request.sandbox, SandboxType::None);
     assert_eq!(
         request.exec_server_sandbox,
-        Some(codex_exec_server::FileSystemSandboxContext {
+        Some(datax_exec_server::FileSystemSandboxContext {
             permissions: exec_server_permissions.into(),
             cwd: Some(cwd_uri),
             workspace_roots: Vec::new(),
-            windows_sandbox_level: codex_protocol::config_types::WindowsSandboxLevel::Disabled,
+            windows_sandbox_level: datax_protocol::config_types::WindowsSandboxLevel::Disabled,
             windows_sandbox_private_desktop: false,
             use_legacy_landlock: false,
         })

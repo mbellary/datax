@@ -1,8 +1,8 @@
-use codex_backend_client::Client as BackendClient;
-use codex_core::config::Config;
-use codex_login::AuthManager;
-use codex_protocol::protocol::RateLimitSnapshot;
-use codex_protocol::protocol::RateLimitWindow;
+use datax_backend_client::Client as BackendClient;
+use datax_core::config::Config;
+use datax_login::AuthManager;
+use datax_protocol::protocol::RateLimitSnapshot;
+use datax_protocol::protocol::RateLimitWindow;
 use tracing::info;
 use tracing::warn;
 

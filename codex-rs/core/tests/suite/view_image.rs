@@ -3,32 +3,6 @@
 use anyhow::Context;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use codex_exec_server::CreateDirectoryOptions;
-use codex_exec_server::LOCAL_ENVIRONMENT_ID;
-use codex_exec_server::REMOTE_ENVIRONMENT_ID;
-use codex_exec_server::RemoveOptions;
-use codex_login::CodexAuth;
-use codex_protocol::config_types::ReasoningSummary;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::openai_models::ConfigShellToolType;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelVisibility;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::openai_models::ReasoningEffort;
-use codex_protocol::openai_models::ReasoningEffortPreset;
-use codex_protocol::openai_models::TruncationPolicyConfig;
-use codex_protocol::permissions::FileSystemAccessMode;
-use codex_protocol::permissions::FileSystemPath;
-use codex_protocol::permissions::FileSystemSandboxEntry;
-use codex_protocol::permissions::FileSystemSandboxPolicy;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::TurnEnvironmentSelection;
-use codex_protocol::user_input::UserInput;
-use codex_utils_path_uri::PathUri;
 use core_test_support::PathBufExt;
 use core_test_support::PathExt;
 use core_test_support::get_remote_test_env;
@@ -48,6 +22,32 @@ use core_test_support::test_codex::local;
 use core_test_support::test_codex::test_codex;
 use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::wait_for_event_with_timeout;
+use datax_exec_server::CreateDirectoryOptions;
+use datax_exec_server::LOCAL_ENVIRONMENT_ID;
+use datax_exec_server::REMOTE_ENVIRONMENT_ID;
+use datax_exec_server::RemoveOptions;
+use datax_login::CodexAuth;
+use datax_protocol::config_types::ReasoningSummary;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::openai_models::ConfigShellToolType;
+use datax_protocol::openai_models::InputModality;
+use datax_protocol::openai_models::ModelInfo;
+use datax_protocol::openai_models::ModelVisibility;
+use datax_protocol::openai_models::ModelsResponse;
+use datax_protocol::openai_models::ReasoningEffort;
+use datax_protocol::openai_models::ReasoningEffortPreset;
+use datax_protocol::openai_models::TruncationPolicyConfig;
+use datax_protocol::permissions::FileSystemAccessMode;
+use datax_protocol::permissions::FileSystemPath;
+use datax_protocol::permissions::FileSystemSandboxEntry;
+use datax_protocol::permissions::FileSystemSandboxPolicy;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::TurnEnvironmentSelection;
+use datax_protocol::user_input::UserInput;
+use datax_utils_path_uri::PathUri;
 use image::DynamicImage;
 use image::GenericImageView;
 use image::ImageBuffer;
@@ -80,13 +80,13 @@ fn disabled_user_turn(test: &TestCodex, items: Vec<UserInput>, model: String) ->
         final_output_json_schema: None,
         responsesapi_client_metadata: None,
         additional_context: Default::default(),
-        thread_settings: codex_protocol::protocol::ThreadSettingsOverrides {
+        thread_settings: datax_protocol::protocol::ThreadSettingsOverrides {
             approval_policy: Some(AskForApproval::Never),
             sandbox_policy: Some(sandbox_policy),
             permission_profile,
-            collaboration_mode: Some(codex_protocol::config_types::CollaborationMode {
-                mode: codex_protocol::config_types::ModeKind::Default,
-                settings: codex_protocol::config_types::Settings {
+            collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
+                mode: datax_protocol::config_types::ModeKind::Default,
+                settings: datax_protocol::config_types::Settings {
                     model,
                     reasoning_effort: None,
                     developer_instructions: None,
@@ -342,13 +342,13 @@ async fn view_image_tool_attaches_local_image() -> anyhow::Result<()> {
         codex,
         |event| match event {
             EventMsg::ItemStarted(event) => {
-                if matches!(&event.item, codex_protocol::items::TurnItem::ImageView(_)) {
+                if matches!(&event.item, datax_protocol::items::TurnItem::ImageView(_)) {
                     item_started = Some(event.item.clone());
                 }
                 false
             }
             EventMsg::ItemCompleted(event) => {
-                if matches!(&event.item, codex_protocol::items::TurnItem::ImageView(_)) {
+                if matches!(&event.item, datax_protocol::items::TurnItem::ImageView(_)) {
                     item_completed = Some(event.item.clone());
                 }
                 false
@@ -367,14 +367,14 @@ async fn view_image_tool_attaches_local_image() -> anyhow::Result<()> {
     .await;
 
     match item_started.expect("view image item started event emitted") {
-        codex_protocol::items::TurnItem::ImageView(item) => {
+        datax_protocol::items::TurnItem::ImageView(item) => {
             assert_eq!(item.id, call_id);
             assert_eq!(item.path, abs_path);
         }
         other => panic!("expected ImageView item, got {other:?}"),
     }
     match item_completed.expect("view image item completed event emitted") {
-        codex_protocol::items::TurnItem::ImageView(item) => {
+        datax_protocol::items::TurnItem::ImageView(item) => {
             assert_eq!(item.id, call_id);
             assert_eq!(item.path, abs_path);
         }

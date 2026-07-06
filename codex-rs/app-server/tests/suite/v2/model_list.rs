@@ -7,20 +7,20 @@ use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use app_test_support::write_models_cache;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::Model;
-use codex_app_server_protocol::ModelListParams;
-use codex_app_server_protocol::ModelListResponse;
-use codex_app_server_protocol::ModelServiceTier;
-use codex_app_server_protocol::ModelUpgradeInfo;
-use codex_app_server_protocol::ReasoningEffortOption;
-use codex_app_server_protocol::RequestId;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::openai_models::ModelsResponse;
 use core_test_support::responses::mount_models_once;
+use datax_app_server_protocol::JSONRPCError;
+use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::Model;
+use datax_app_server_protocol::ModelListParams;
+use datax_app_server_protocol::ModelListResponse;
+use datax_app_server_protocol::ModelServiceTier;
+use datax_app_server_protocol::ModelUpgradeInfo;
+use datax_app_server_protocol::ReasoningEffortOption;
+use datax_app_server_protocol::RequestId;
+use datax_config::types::AuthCredentialsStoreMode;
+use datax_protocol::openai_models::ModelInfo;
+use datax_protocol::openai_models::ModelPreset;
+use datax_protocol::openai_models::ModelsResponse;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use tempfile::TempDir;
@@ -78,7 +78,7 @@ fn model_from_preset(preset: &ModelPreset) -> Model {
 fn expected_visible_models() -> Vec<Model> {
     // Filter by supported_in_api to support testing with both ChatGPT and non-ChatGPT auth modes.
     let mut presets = ModelPreset::filter_by_auth(
-        codex_core::test_support::all_model_presets().clone(),
+        datax_core::test_support::all_model_presets().clone(),
         /*chatgpt_mode*/ false,
     );
 

@@ -2,8 +2,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
-use codex_api::AuthProvider;
-use codex_api::SharedAuthProvider;
+use datax_api::AuthProvider;
+use datax_api::SharedAuthProvider;
 use http::HeaderMap;
 use http::HeaderValue;
 use tokio::io::AsyncReadExt;

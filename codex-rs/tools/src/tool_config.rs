@@ -1,10 +1,10 @@
-use codex_features::Feature;
-use codex_features::Features;
-use codex_protocol::config_types::ModeKind;
-use codex_protocol::config_types::TUI_VISIBLE_COLLABORATION_MODES;
-use codex_protocol::openai_models::ConfigShellToolType;
-use codex_protocol::openai_models::ModelInfo;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_features::Feature;
+use datax_features::Features;
+use datax_protocol::config_types::ModeKind;
+use datax_protocol::config_types::TUI_VISIBLE_COLLABORATION_MODES;
+use datax_protocol::openai_models::ConfigShellToolType;
+use datax_protocol::openai_models::ModelInfo;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -105,7 +105,7 @@ pub fn shell_type_for_model_and_features(
         match unified_exec_feature_mode {
             UnifiedExecFeatureMode::Disabled => shell_command_type,
             UnifiedExecFeatureMode::Direct | UnifiedExecFeatureMode::ZshFork => {
-                if codex_utils_pty::conpty_supported() {
+                if datax_utils_pty::conpty_supported() {
                     ConfigShellToolType::UnifiedExec
                 } else {
                     ConfigShellToolType::ShellCommand

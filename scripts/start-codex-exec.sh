@@ -21,7 +21,7 @@ esac
 remote_host="$1"
 shift
 
-remote_path='~/code/codex-sync'
+remote_path='~/code/datax-sync'
 local_exec_server_port="${CODEX_REMOTE_EXEC_SERVER_LOCAL_PORT:-8765}"
 remote_exec_server_start_timeout_seconds="${CODEX_REMOTE_EXEC_SERVER_START_TIMEOUT_SECONDS:-15}"
 
@@ -84,8 +84,8 @@ rsync \
   "${remote_host}:${remote_path}/" \
   >&2
 
-remote_exec_server_log_path="/tmp/codex-exec-server-${sync_instance_id}.log"
-remote_exec_server_pid_path="/tmp/codex-exec-server-${sync_instance_id}.pid"
+remote_exec_server_log_path="/tmp/datax-exec-server-${sync_instance_id}.log"
+remote_exec_server_pid_path="/tmp/datax-exec-server-${sync_instance_id}.pid"
 
 remote_start_output="$(
   ssh "${remote_host}" bash -s -- \
@@ -97,11 +97,11 @@ set -euo pipefail
 remote_exec_server_log_path="$1"
 remote_exec_server_pid_path="$2"
 remote_exec_server_start_timeout_seconds="$3"
-remote_repo_root="$HOME/code/codex-sync"
+remote_repo_root="$HOME/code/datax-sync"
 remote_codex_rs="$remote_repo_root/codex-rs"
 
 cd "${remote_codex_rs}"
-cargo build -p codex-cli --bin datax
+cargo build -p datax-cli --bin datax
 
 rm -f "${remote_exec_server_log_path}" "${remote_exec_server_pid_path}"
 nohup ./target/debug/codex exec-server --listen ws://127.0.0.1:0 \

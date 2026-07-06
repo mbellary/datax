@@ -4,17 +4,17 @@ use std::time::Duration;
 
 use anyhow::Result;
 use bytes::Bytes;
-use codex_api::AuthProvider;
-use codex_api::Compression;
-use codex_api::Provider;
-use codex_api::ResponseEvent;
-use codex_api::ResponsesClient;
-use codex_client::HttpTransport;
-use codex_client::Request;
-use codex_client::Response;
-use codex_client::StreamResponse;
-use codex_client::TransportError;
-use codex_protocol::models::ResponseItem;
+use datax_api::AuthProvider;
+use datax_api::Compression;
+use datax_api::Provider;
+use datax_api::ResponseEvent;
+use datax_api::ResponsesClient;
+use datax_client::HttpTransport;
+use datax_client::Request;
+use datax_client::Response;
+use datax_client::StreamResponse;
+use datax_client::TransportError;
+use datax_protocol::models::ResponseItem;
 use futures::StreamExt;
 use http::HeaderMap;
 use http::StatusCode;
@@ -62,7 +62,7 @@ fn provider(name: &str) -> Provider {
         base_url: "https://example.com/v1".to_string(),
         query_params: None,
         headers: HeaderMap::new(),
-        retry: codex_api::RetryConfig {
+        retry: datax_api::RetryConfig {
             max_attempts: 1,
             base_delay: Duration::from_millis(1),
             retry_429: false,

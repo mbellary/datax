@@ -1,23 +1,23 @@
-use codex_analytics::GuardianApprovalRequestSource;
-use codex_analytics::GuardianReviewAnalyticsResult;
-use codex_analytics::GuardianReviewDecision;
-use codex_analytics::GuardianReviewFailureReason;
-use codex_analytics::GuardianReviewTerminalStatus;
-use codex_analytics::GuardianReviewTrackContext;
-use codex_analytics::GuardianReviewedAction;
-use codex_protocol::config_types::ApprovalsReviewer;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::CodexErrorInfo;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::GuardianAssessmentDecisionSource;
-use codex_protocol::protocol::GuardianAssessmentEvent;
-use codex_protocol::protocol::GuardianAssessmentStatus;
-use codex_protocol::protocol::GuardianRiskLevel;
-use codex_protocol::protocol::GuardianUserAuthorization;
-use codex_protocol::protocol::ReviewDecision;
-use codex_protocol::protocol::SubAgentSource;
-use codex_protocol::protocol::TurnAbortReason;
-use codex_protocol::protocol::WarningEvent;
+use datax_analytics::GuardianApprovalRequestSource;
+use datax_analytics::GuardianReviewAnalyticsResult;
+use datax_analytics::GuardianReviewDecision;
+use datax_analytics::GuardianReviewFailureReason;
+use datax_analytics::GuardianReviewTerminalStatus;
+use datax_analytics::GuardianReviewTrackContext;
+use datax_analytics::GuardianReviewedAction;
+use datax_protocol::config_types::ApprovalsReviewer;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::CodexErrorInfo;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::GuardianAssessmentDecisionSource;
+use datax_protocol::protocol::GuardianAssessmentEvent;
+use datax_protocol::protocol::GuardianAssessmentStatus;
+use datax_protocol::protocol::GuardianRiskLevel;
+use datax_protocol::protocol::GuardianUserAuthorization;
+use datax_protocol::protocol::ReviewDecision;
+use datax_protocol::protocol::SubAgentSource;
+use datax_protocol::protocol::TurnAbortReason;
+use datax_protocol::protocol::WarningEvent;
 use std::sync::Arc;
 use tokio::sync::oneshot;
 use tokio::time::Instant;
@@ -181,11 +181,11 @@ pub(crate) fn routes_approval_to_guardian_with_reviewer(
 }
 
 pub(crate) fn is_guardian_reviewer_source(
-    session_source: &codex_protocol::protocol::SessionSource,
+    session_source: &datax_protocol::protocol::SessionSource,
 ) -> bool {
     matches!(
         session_source,
-        codex_protocol::protocol::SessionSource::SubAgent(SubAgentSource::Other(label))
+        datax_protocol::protocol::SessionSource::SubAgent(SubAgentSource::Other(label))
             if label == GUARDIAN_REVIEWER_NAME
     )
 }
@@ -668,7 +668,7 @@ pub(crate) fn spawn_approval_request_review(
 pub(super) struct GuardianReviewSessionConfig {
     pub(super) spawn_config: crate::config::Config,
     model: String,
-    reasoning_effort: Option<codex_protocol::openai_models::ReasoningEffort>,
+    reasoning_effort: Option<datax_protocol::openai_models::ReasoningEffort>,
     default_review_model_id: String,
     catalog_contains_auto_review: bool,
     model_overridden: bool,
@@ -687,12 +687,12 @@ pub(super) async fn guardian_review_session_config(
     let available_models = session
         .services
         .models_manager
-        .list_models(codex_models_manager::manager::RefreshStrategy::Offline)
+        .list_models(datax_models_manager::manager::RefreshStrategy::Offline)
         .await;
     let default_review_model_id = turn.provider.approval_review_preferred_model();
     let preferred_reasoning_effort = |supports_low: bool, fallback| {
         if supports_low {
-            Some(codex_protocol::openai_models::ReasoningEffort::Low)
+            Some(datax_protocol::openai_models::ReasoningEffort::Low)
         } else {
             fallback
         }
@@ -712,7 +712,7 @@ pub(super) async fn guardian_review_session_config(
             preset
                 .supported_reasoning_efforts
                 .iter()
-                .any(|effort| effort.effort == codex_protocol::openai_models::ReasoningEffort::Low),
+                .any(|effort| effort.effort == datax_protocol::openai_models::ReasoningEffort::Low),
             Some(preset.default_reasoning_effort.clone()),
         );
         (review_model_id.to_string(), reasoning_effort)
@@ -721,7 +721,7 @@ pub(super) async fn guardian_review_session_config(
             turn.model_info
                 .supported_reasoning_levels
                 .iter()
-                .any(|preset| preset.effort == codex_protocol::openai_models::ReasoningEffort::Low),
+                .any(|preset| preset.effort == datax_protocol::openai_models::ReasoningEffort::Low),
             turn.reasoning_effort
                 .clone()
                 .or_else(|| turn.model_info.default_reasoning_level.clone()),

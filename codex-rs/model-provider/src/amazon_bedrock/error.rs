@@ -1,5 +1,5 @@
-use codex_api::ApiError;
-use codex_protocol::error::CodexErr;
+use datax_api::ApiError;
+use datax_protocol::error::CodexErr;
 use http::StatusCode;
 
 pub(super) const BEDROCK_EXPIRED_SIGNATURE_MESSAGE: &str = concat!(
@@ -9,7 +9,7 @@ pub(super) const BEDROCK_EXPIRED_SIGNATURE_MESSAGE: &str = concat!(
 );
 
 pub(super) fn map_api_error(error: ApiError) -> CodexErr {
-    let mut error = codex_api::map_api_error(error);
+    let mut error = datax_api::map_api_error(error);
     if let CodexErr::UnexpectedStatus(response) = &mut error
         && response.status == StatusCode::UNAUTHORIZED
         && response.body.contains("Signature expired:")

@@ -1,13 +1,13 @@
-use codex_otel::MetricsClient;
-use codex_otel::MetricsConfig;
-use codex_otel::OtelExporter;
-use codex_otel::OtelHttpProtocol;
-use codex_otel::OtelProvider;
-use codex_otel::OtelSettings;
-use codex_otel::Result;
-use codex_otel::current_span_w3c_trace_context;
-use codex_otel::set_parent_from_w3c_trace_context;
-use codex_protocol::protocol::W3cTraceContext;
+use datax_otel::MetricsClient;
+use datax_otel::MetricsConfig;
+use datax_otel::OtelExporter;
+use datax_otel::OtelHttpProtocol;
+use datax_otel::OtelProvider;
+use datax_otel::OtelSettings;
+use datax_otel::Result;
+use datax_otel::current_span_w3c_trace_context;
+use datax_otel::set_parent_from_w3c_trace_context;
+use datax_protocol::protocol::W3cTraceContext;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::io::Read as _;
@@ -175,7 +175,7 @@ fn otlp_http_exporter_sends_metrics_to_collector() -> Result<()> {
 
     let metrics = MetricsClient::new(MetricsConfig::otlp(
         "test",
-        "codex-cli",
+        "datax-cli",
         env!("CARGO_PKG_VERSION"),
         OtelExporter::OtlpHttp {
             endpoint: format!("http://{addr}/v1/metrics"),
@@ -267,7 +267,7 @@ fn otlp_http_exporter_sends_logs_to_collector()
 
     let otel = OtelProvider::from(&OtelSettings {
         environment: "test".to_string(),
-        service_name: "codex-cli".to_string(),
+        service_name: "datax-cli".to_string(),
         service_version: env!("CARGO_PKG_VERSION").to_string(),
         codex_home: PathBuf::from("."),
         exporter: OtelExporter::OtlpHttp {
@@ -326,7 +326,7 @@ fn otlp_http_exporter_sends_logs_to_collector()
 fn otel_provider_rejects_header_unsafe_configured_tracestate() {
     let result = OtelProvider::from(&OtelSettings {
         environment: "test".to_string(),
-        service_name: "codex-cli".to_string(),
+        service_name: "datax-cli".to_string(),
         service_version: env!("CARGO_PKG_VERSION").to_string(),
         codex_home: PathBuf::from("."),
         exporter: OtelExporter::None,
@@ -391,7 +391,7 @@ fn otlp_http_exporter_sends_traces_to_collector()
 
     let otel = OtelProvider::from(&OtelSettings {
         environment: "test".to_string(),
-        service_name: "codex-cli".to_string(),
+        service_name: "datax-cli".to_string(),
         service_version: env!("CARGO_PKG_VERSION").to_string(),
         codex_home: PathBuf::from("."),
         exporter: OtelExporter::None,
@@ -478,7 +478,7 @@ fn otlp_http_exporter_sends_traces_to_collector()
         &body.chars().take(2000).collect::<String>()
     );
     assert!(
-        body.contains("codex-cli"),
+        body.contains("datax-cli"),
         "expected service name not found; body prefix: {}",
         &body.chars().take(2000).collect::<String>()
     );
@@ -536,7 +536,7 @@ async fn otlp_http_exporter_sends_traces_to_collector_in_tokio_runtime()
 
     let otel = OtelProvider::from(&OtelSettings {
         environment: "test".to_string(),
-        service_name: "codex-cli".to_string(),
+        service_name: "datax-cli".to_string(),
         service_version: env!("CARGO_PKG_VERSION").to_string(),
         codex_home: PathBuf::from("."),
         exporter: OtelExporter::None,
@@ -591,7 +591,7 @@ async fn otlp_http_exporter_sends_traces_to_collector_in_tokio_runtime()
         &body.chars().take(2000).collect::<String>()
     );
     assert!(
-        body.contains("codex-cli"),
+        body.contains("datax-cli"),
         "expected service name not found; body prefix: {}",
         &body.chars().take(2000).collect::<String>()
     );
@@ -647,7 +647,7 @@ fn otlp_http_exporter_sends_traces_to_collector_in_current_thread_tokio_runtime(
         let result = runtime.block_on(async move {
             let otel = OtelProvider::from(&OtelSettings {
                 environment: "test".to_string(),
-                service_name: "codex-cli".to_string(),
+                service_name: "datax-cli".to_string(),
                 service_version: env!("CARGO_PKG_VERSION").to_string(),
                 codex_home: PathBuf::from("."),
                 exporter: OtelExporter::None,
@@ -713,7 +713,7 @@ fn otlp_http_exporter_sends_traces_to_collector_in_current_thread_tokio_runtime(
         &body.chars().take(2000).collect::<String>()
     );
     assert!(
-        body.contains("codex-cli"),
+        body.contains("datax-cli"),
         "expected service name not found; body prefix: {}",
         &body.chars().take(2000).collect::<String>()
     );

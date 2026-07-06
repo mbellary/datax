@@ -1,11 +1,11 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-skills-extension"
+name = "datax-skills-extension"
 version.workspace = true
 
 [lib]
-name = "codex_skills_extension"
+name = "datax_skills_extension"
 path = "src/lib.rs"
 test = false
 doctest = false
@@ -14,15 +14,15 @@ doctest = false
 workspace = true
 
 [dependencies]
-codex-core-skills = { workspace = true }
-codex-exec-server = { workspace = true }
-codex-extension-api = { workspace = true }
-codex-mcp = { workspace = true }
-codex-protocol = { workspace = true }
-codex-tools = { workspace = true }
-codex-utils-absolute-path = { workspace = true }
-codex-utils-path-uri = { workspace = true }
-codex-utils-string = { workspace = true }
+datax-core-skills = { workspace = true }
+datax-exec-server = { workspace = true }
+datax-extension-api = { workspace = true }
+datax-mcp = { workspace = true }
+datax-protocol = { workspace = true }
+datax-tools = { workspace = true }
+datax-utils-absolute-path = { workspace = true }
+datax-utils-path-uri = { workspace = true }
+datax-utils-string = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

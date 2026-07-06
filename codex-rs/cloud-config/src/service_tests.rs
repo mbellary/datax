@@ -8,17 +8,17 @@ use crate::cache::CloudConfigBundleCache;
 use crate::metrics::bundle_shape_tag;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use codex_backend_client::ConfigBundleResponse;
-use codex_backend_client::DeliveredTomlFragment;
-use codex_config::AbsolutePathBuf;
-use codex_config::CloudConfigFragment;
-use codex_config::CloudConfigTomlBundle;
-use codex_config::CloudRequirementsFragment;
-use codex_config::CloudRequirementsTomlBundle;
-use codex_config::types::AuthCredentialsStoreMode;
-use codex_login::AuthKeyringBackendKind;
-use codex_login::auth::AgentIdentityAuth;
-use codex_login::auth::AgentIdentityAuthRecord;
+use datax_backend_client::ConfigBundleResponse;
+use datax_backend_client::DeliveredTomlFragment;
+use datax_config::AbsolutePathBuf;
+use datax_config::CloudConfigFragment;
+use datax_config::CloudConfigTomlBundle;
+use datax_config::CloudRequirementsFragment;
+use datax_config::CloudRequirementsTomlBundle;
+use datax_config::types::AuthCredentialsStoreMode;
+use datax_login::AuthKeyringBackendKind;
+use datax_login::auth::AgentIdentityAuth;
+use datax_login::auth::AgentIdentityAuthRecord;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::collections::VecDeque;
@@ -96,7 +96,7 @@ async fn auth_manager_with_plan(plan_type: &str) -> Arc<AuthManager> {
 
 async fn auth_manager_with_agent_identity_business_plan() -> Arc<AuthManager> {
     let key_material =
-        codex_agent_identity::generate_agent_key_material().expect("generate agent key material");
+        datax_agent_identity::generate_agent_key_material().expect("generate agent key material");
     AuthManager::from_auth_for_testing(CodexAuth::AgentIdentity(
         AgentIdentityAuth::from_record(
             AgentIdentityAuthRecord {
@@ -1024,7 +1024,7 @@ async fn refresh_from_remote_updates_cached_bundle() {
 #[test]
 fn bundle_response_conversion_preserves_fragment_order() {
     let response = ConfigBundleResponse {
-        config_toml: Some(Some(Box::new(codex_backend_client::DeliveredConfigToml {
+        config_toml: Some(Some(Box::new(datax_backend_client::DeliveredConfigToml {
             enterprise_managed: Some(Some(vec![
                 DeliveredTomlFragment::new(
                     "cfg_high".to_string(),
@@ -1039,7 +1039,7 @@ fn bundle_response_conversion_preserves_fragment_order() {
             ])),
         }))),
         requirements_toml: Some(Some(Box::new(
-            codex_backend_client::DeliveredRequirementsToml {
+            datax_backend_client::DeliveredRequirementsToml {
                 enterprise_managed: Some(Some(vec![DeliveredTomlFragment::new(
                     "req_high".to_string(),
                     "High requirements".to_string(),

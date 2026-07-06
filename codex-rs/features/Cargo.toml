@@ -1,20 +1,20 @@
 [package]
 edition.workspace = true
 license.workspace = true
-name = "codex-features"
+name = "datax-features"
 version.workspace = true
 
 [lib]
 doctest = false
-name = "codex_features"
+name = "datax_features"
 path = "src/lib.rs"
 
 [lints]
 workspace = true
 
 [dependencies]
-codex-otel = { workspace = true }
-codex-protocol = { workspace = true }
+datax-otel = { workspace = true }
+datax-protocol = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 toml = { workspace = true }

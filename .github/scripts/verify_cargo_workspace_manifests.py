@@ -20,10 +20,10 @@ ROOT = Path(__file__).resolve().parents[2]
 CARGO_RS_ROOT = ROOT / "codex-rs"
 WORKSPACE_PACKAGE_FIELDS = ("version", "edition", "license")
 TOP_LEVEL_NAME_EXCEPTIONS = {
-    "windows-sandbox-rs": "codex-windows-sandbox",
+    "windows-sandbox-rs": "datax-windows-sandbox",
 }
 UTILITY_NAME_EXCEPTIONS = {
-    "path-utils": "codex-utils-path",
+    "path-utils": "datax-utils-path",
 }
 MANIFEST_FEATURE_EXCEPTIONS = {
     "codex-rs/code-mode/Cargo.toml": {"sandbox": ("v8/v8_enable_sandbox",)},
@@ -212,11 +212,11 @@ def expected_package_name(path: Path) -> str | None:
         directory = parts[0]
         return TOP_LEVEL_NAME_EXCEPTIONS.get(
             directory,
-            directory if directory.startswith("codex-") else f"codex-{directory}",
+            directory if directory.startswith("datax-") else f"datax-{directory}",
         )
     if len(parts) == 3 and parts[0] == "utils" and parts[2] == "Cargo.toml":
         directory = parts[1]
-        return UTILITY_NAME_EXCEPTIONS.get(directory, f"codex-utils-{directory}")
+        return UTILITY_NAME_EXCEPTIONS.get(directory, f"datax-utils-{directory}")
     return None
 
 

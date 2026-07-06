@@ -6,18 +6,6 @@ use anyhow::Result;
 use anyhow::anyhow;
 use chrono::DateTime;
 use chrono::Utc;
-use codex_core::TimeFuture;
-use codex_core::TimeProvider;
-use codex_core::config::CurrentTimeReminderConfig;
-use codex_features::CurrentTimeSource;
-use codex_features::Feature;
-use codex_model_provider_info::built_in_model_providers;
-use codex_protocol::ThreadId;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::protocol::CodexErrorInfo;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::UserInput;
 use core_test_support::assert_regex_match;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_assistant_message;
@@ -32,6 +20,18 @@ use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
+use datax_core::TimeFuture;
+use datax_core::TimeProvider;
+use datax_core::config::CurrentTimeReminderConfig;
+use datax_features::CurrentTimeSource;
+use datax_features::Feature;
+use datax_model_provider_info::built_in_model_providers;
+use datax_protocol::ThreadId;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::protocol::CodexErrorInfo;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
+use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
@@ -74,7 +74,7 @@ fn current_time_reminders(request: &ResponsesRequest) -> Vec<String> {
 }
 
 fn enable_current_time_reminder(
-    config: &mut codex_core::config::Config,
+    config: &mut datax_core::config::Config,
     interval: u64,
     clock_source: CurrentTimeSource,
 ) {

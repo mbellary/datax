@@ -3,11 +3,11 @@ use chrono::Local;
 use chrono::Utc;
 use reqwest::header::HeaderMap;
 
-use codex_core::config::Config;
-use codex_login::AuthManager;
+use datax_core::config::Config;
+use datax_login::AuthManager;
 
 pub fn set_user_agent_suffix(suffix: &str) {
-    if let Ok(mut guard) = codex_login::default_client::USER_AGENT_SUFFIX.lock() {
+    if let Ok(mut guard) = datax_login::default_client::USER_AGENT_SUFFIX.lock() {
         guard.replace(suffix.to_string());
     }
 }
@@ -65,17 +65,17 @@ pub async fn build_chatgpt_headers() -> HeaderMap {
     use reqwest::header::USER_AGENT;
 
     set_user_agent_suffix("codex_cloud_tasks_tui");
-    let ua = codex_login::default_client::get_codex_user_agent();
+    let ua = datax_login::default_client::get_codex_user_agent();
     let mut headers = HeaderMap::new();
     headers.insert(
         USER_AGENT,
-        HeaderValue::from_str(&ua).unwrap_or(HeaderValue::from_static("codex-cli")),
+        HeaderValue::from_str(&ua).unwrap_or(HeaderValue::from_static("datax-cli")),
     );
     if let Some(am) = load_auth_manager(/*chatgpt_base_url*/ None).await
         && let Some(auth) = am.auth().await
         && auth.uses_codex_backend()
     {
-        headers.extend(codex_model_provider::auth_provider_from_auth(&auth).to_auth_headers());
+        headers.extend(datax_model_provider::auth_provider_from_auth(&auth).to_auth_headers());
     }
     headers
 }

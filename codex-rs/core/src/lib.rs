@@ -1,5 +1,6 @@
 //! Root of the `codex-core` library.
 
+#![recursion_limit = "256"]
 // Prevent accidental direct writes to stdout/stderr in library code. All
 // user-visible output must go through the appropriate abstraction (e.g.,
 // the TUI or the tracing stack).
@@ -61,7 +62,7 @@ pub use network_proxy_loader::MtimeConfigReloader;
 pub use network_proxy_loader::build_network_proxy_state;
 pub use network_proxy_loader::build_network_proxy_state_and_reloader;
 mod original_image_detail;
-pub use codex_mcp::SandboxState;
+pub use datax_mcp::SandboxState;
 mod mcp_openai_file;
 mod mcp_tool_call;
 pub(crate) mod mention_syntax;
@@ -104,10 +105,10 @@ pub mod test_support;
 mod unified_exec;
 pub mod windows_sandbox;
 pub use client::X_RESPONSESAPI_INCLUDE_TIMING_METRICS_HEADER;
-pub use codex_protocol::config_types::ModelProviderAuthInfo;
+pub use datax_protocol::config_types::ModelProviderAuthInfo;
 mod event_mapping;
 pub mod review_format;
-pub use codex_prompts as review_prompts;
+pub use datax_prompts as review_prompts;
 mod thread_manager;
 pub(crate) mod web_search;
 pub(crate) mod windows_sandbox_read_grants;
@@ -185,10 +186,10 @@ pub use client::X_CODEX_TURN_METADATA_HEADER;
 pub use client_common::Prompt;
 pub use client_common::ResponseEvent;
 pub use client_common::ResponseStream;
-pub use codex_prompts::REVIEW_PROMPT;
 pub use compact::content_items_to_text;
 pub use current_time::TimeFuture;
 pub use current_time::TimeProvider;
+pub use datax_prompts::REVIEW_PROMPT;
 pub use event_mapping::parse_turn_item;
 pub use exec_policy::ExecPolicyError;
 pub use exec_policy::check_execpolicy_for_warnings;

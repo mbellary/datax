@@ -1,11 +1,11 @@
-use codex_execpolicy_legacy::ArgType;
-use codex_execpolicy_legacy::Error;
-use codex_execpolicy_legacy::ExecCall;
-use codex_execpolicy_legacy::MatchedArg;
-use codex_execpolicy_legacy::MatchedExec;
-use codex_execpolicy_legacy::PolicyParser;
-use codex_execpolicy_legacy::Result;
-use codex_execpolicy_legacy::ValidExec;
+use datax_execpolicy_legacy::ArgType;
+use datax_execpolicy_legacy::Error;
+use datax_execpolicy_legacy::ExecCall;
+use datax_execpolicy_legacy::MatchedArg;
+use datax_execpolicy_legacy::MatchedExec;
+use datax_execpolicy_legacy::PolicyParser;
+use datax_execpolicy_legacy::Result;
+use datax_execpolicy_legacy::ValidExec;
 
 extern crate codex_execpolicy_legacy;
 

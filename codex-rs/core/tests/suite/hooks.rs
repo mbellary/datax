@@ -3,25 +3,6 @@ use std::path::Path;
 
 use anyhow::Context;
 use anyhow::Result;
-use codex_core::config::Config;
-use codex_core::config::Constrained;
-use codex_features::Feature;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_model_provider_info::built_in_model_providers;
-use codex_plugin::PluginHookSource;
-use codex_plugin::PluginId;
-use codex_protocol::items::parse_hook_prompt_fragment;
-use codex_protocol::models::ContentItem;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::RolloutItem;
-use codex_protocol::protocol::RolloutLine;
-use codex_protocol::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
 use core_test_support::hooks::trust_discovered_hooks;
 use core_test_support::hooks::trust_hooks;
 use core_test_support::managed_network_requirements_loader;
@@ -44,6 +25,25 @@ use core_test_support::streaming_sse::StreamingSseChunk;
 use core_test_support::streaming_sse::start_streaming_sse_server;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
+use datax_core::config::Config;
+use datax_core::config::Constrained;
+use datax_features::Feature;
+use datax_model_provider_info::ModelProviderInfo;
+use datax_model_provider_info::built_in_model_providers;
+use datax_plugin::PluginHookSource;
+use datax_plugin::PluginId;
+use datax_protocol::items::parse_hook_prompt_fragment;
+use datax_protocol::models::ContentItem;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutLine;
+use datax_protocol::user_input::UserInput;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use std::sync::Arc;
@@ -108,11 +108,11 @@ fn trust_plugin_hooks(config: &mut Config, plugin_hook_sources: Vec<PluginHookSo
         .features
         .enable(Feature::CodexHooks)
         .expect("test config should allow feature update");
-    let listed = codex_hooks::list_hooks(codex_hooks::HooksConfig {
+    let listed = datax_hooks::list_hooks(datax_hooks::HooksConfig {
         feature_enabled: true,
         config_layer_stack: Some(config.config_layer_stack.clone()),
         plugin_hook_sources,
-        ..codex_hooks::HooksConfig::default()
+        ..datax_hooks::HooksConfig::default()
     });
     assert!(
         !listed.hooks.is_empty(),
@@ -3079,7 +3079,7 @@ print(json.dumps({{
         plugin_data_root,
         source_path: plugin_hooks_path_abs,
         source_relative_path: "hooks/hooks.json".to_string(),
-        hooks: serde_json::from_str::<codex_config::HooksFile>(plugin_hooks_json)
+        hooks: serde_json::from_str::<datax_config::HooksFile>(plugin_hooks_json)
             .context("parse plugin hooks")?
             .hooks,
     }];
@@ -3101,7 +3101,7 @@ print(json.dumps({{
 
     test.submit_turn_with_policy(
         "run the shell command blocked by a plugin hook",
-        codex_protocol::protocol::SandboxPolicy::DangerFullAccess,
+        datax_protocol::protocol::SandboxPolicy::DangerFullAccess,
     )
     .await?;
 

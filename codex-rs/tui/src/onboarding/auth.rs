@@ -7,20 +7,20 @@
 
 #![allow(clippy::unwrap_used)]
 
-use codex_app_server_client::AppServerRequestHandle;
-use codex_app_server_protocol::AccountLoginCompletedNotification;
-use codex_app_server_protocol::AccountUpdatedNotification;
-#[cfg(test)]
-use codex_app_server_protocol::AuthMode as AppServerAuthMode;
-use codex_app_server_protocol::CancelLoginAccountParams;
-use codex_app_server_protocol::ClientRequest;
-use codex_app_server_protocol::LoginAccountParams;
-use codex_app_server_protocol::LoginAccountResponse;
-use codex_login::read_openai_api_key_from_env;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
 use crossterm::event::KeyModifiers;
+use datax_app_server_client::AppServerRequestHandle;
+use datax_app_server_protocol::AccountLoginCompletedNotification;
+use datax_app_server_protocol::AccountUpdatedNotification;
+#[cfg(test)]
+use datax_app_server_protocol::AuthMode as AppServerAuthMode;
+use datax_app_server_protocol::CancelLoginAccountParams;
+use datax_app_server_protocol::ClientRequest;
+use datax_app_server_protocol::LoginAccountParams;
+use datax_app_server_protocol::LoginAccountResponse;
+use datax_login::read_openai_api_key_from_env;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Constraint;
 use ratatui::layout::Layout;
@@ -38,7 +38,7 @@ use ratatui::widgets::Paragraph;
 use ratatui::widgets::WidgetRef;
 use ratatui::widgets::Wrap;
 
-use codex_protocol::config_types::ForcedLoginMethod;
+use datax_protocol::config_types::ForcedLoginMethod;
 use std::cell::Cell;
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -94,8 +94,8 @@ pub(crate) enum SignInOption {
 }
 
 const API_KEY_DISABLED_MESSAGE: &str = "API key login is disabled.";
-fn onboarding_request_id() -> codex_app_server_protocol::RequestId {
-    codex_app_server_protocol::RequestId::String(Uuid::new_v4().to_string())
+fn onboarding_request_id() -> datax_app_server_protocol::RequestId {
+    datax_app_server_protocol::RequestId::String(Uuid::new_v4().to_string())
 }
 
 pub(super) async fn cancel_login_attempt(
@@ -103,7 +103,7 @@ pub(super) async fn cancel_login_attempt(
     login_id: String,
 ) {
     let _ = request_handle
-        .request_typed::<codex_app_server_protocol::CancelLoginAccountResponse>(
+        .request_typed::<datax_app_server_protocol::CancelLoginAccountResponse>(
             ClientRequest::CancelLoginAccount {
                 request_id: onboarding_request_id(),
                 params: CancelLoginAccountParams { login_id },
@@ -1007,14 +1007,14 @@ pub(super) fn maybe_open_auth_url_in_browser(request_handle: &AppServerRequestHa
 mod tests {
     use super::*;
     use crate::legacy_core::config::ConfigBuilder;
-    use codex_app_server_client::AppServerRequestHandle;
-    use codex_app_server_client::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
-    use codex_app_server_client::InProcessAppServerClient;
-    use codex_app_server_client::InProcessClientStartArgs;
-    use codex_arg0::Arg0DispatchPaths;
-    use codex_cloud_config::cloud_config_bundle_loader_for_storage;
-    use codex_config::types::AuthCredentialsStoreMode;
-    use codex_login::AuthKeyringBackendKind;
+    use datax_app_server_client::AppServerRequestHandle;
+    use datax_app_server_client::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
+    use datax_app_server_client::InProcessAppServerClient;
+    use datax_app_server_client::InProcessClientStartArgs;
+    use datax_arg0::Arg0DispatchPaths;
+    use datax_cloud_config::cloud_config_bundle_loader_for_storage;
+    use datax_config::types::AuthCredentialsStoreMode;
+    use datax_login::AuthKeyringBackendKind;
 
     use pretty_assertions::assert_eq;
     use std::sync::Arc;
@@ -1043,11 +1043,11 @@ mod tests {
                 /*auth_route_config*/ None,
             )
             .await,
-            feedback: codex_feedback::CodexFeedback::new(),
+            feedback: datax_feedback::CodexFeedback::new(),
             log_db: None,
             state_db: None,
             environment_manager: Arc::new(
-                codex_app_server_client::EnvironmentManager::default_for_tests(),
+                datax_app_server_client::EnvironmentManager::default_for_tests(),
             ),
             config_warnings: Vec::new(),
             session_source: serde_json::from_value(serde_json::json!("cli"))

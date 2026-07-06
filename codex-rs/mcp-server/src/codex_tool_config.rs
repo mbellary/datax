@@ -1,13 +1,13 @@
 //! Configuration object accepted by the `codex` MCP tool-call.
 
-use codex_arg0::Arg0DispatchPaths;
-use codex_core::config::Config;
-use codex_core::config::ConfigBuilder;
-use codex_core::config::ConfigOverrides;
-use codex_protocol::ThreadId;
-use codex_protocol::config_types::SandboxMode;
-use codex_protocol::protocol::AskForApproval;
-use codex_utils_json_to_toml::json_to_toml;
+use datax_arg0::Arg0DispatchPaths;
+use datax_core::config::Config;
+use datax_core::config::ConfigBuilder;
+use datax_core::config::ConfigOverrides;
+use datax_protocol::ThreadId;
+use datax_protocol::config_types::SandboxMode;
+use datax_protocol::protocol::AskForApproval;
+use datax_utils_json_to_toml::json_to_toml;
 use rmcp::model::JsonObject;
 use rmcp::model::Tool;
 use schemars::JsonSchema;
@@ -236,7 +236,7 @@ pub(crate) fn create_tool_for_codex_tool_call_reply_param() -> Tool {
     let input_schema = create_tool_input_schema(schema, "Codex reply tool schema should serialize");
 
     Tool::new(
-        "codex-reply",
+        "datax-reply",
         "Continue a Codex conversation by providing the thread id and prompt.",
         input_schema,
     )
@@ -415,7 +415,7 @@ mod tests {
             ],
             "type": "object",
           },
-          "name": "codex-reply",
+          "name": "datax-reply",
           "outputSchema": {
             "properties": {
               "content": {

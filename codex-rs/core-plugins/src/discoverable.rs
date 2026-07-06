@@ -1,9 +1,9 @@
 use anyhow::Context;
-use codex_app_server_protocol::PluginAvailability;
-use codex_app_server_protocol::PluginInstallPolicy;
-use codex_core_skills::config_rules::skill_config_rules_from_stack;
-use codex_login::CodexAuth;
-use codex_plugin::PluginId;
+use datax_app_server_protocol::PluginAvailability;
+use datax_app_server_protocol::PluginInstallPolicy;
+use datax_core_skills::config_rules::skill_config_rules_from_stack;
+use datax_login::CodexAuth;
+use datax_plugin::PluginId;
 use std::collections::HashSet;
 use tracing::warn;
 

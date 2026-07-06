@@ -87,7 +87,7 @@ fn unique_capture_path(name: &str) -> PathBuf {
         .expect("system clock should be after Unix epoch")
         .as_nanos();
     std::env::temp_dir().join(format!(
-        "codex-plugin-analytics-capture-{name}-{}-{nonce}.jsonl",
+        "datax-plugin-analytics-capture-{name}-{}-{nonce}.jsonl",
         process::id()
     ))
 }

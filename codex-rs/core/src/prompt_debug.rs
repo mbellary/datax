@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use codex_exec_server::EnvironmentManager;
-use codex_exec_server::ExecServerRuntimePaths;
-use codex_extension_api::UserInstructionsProvider;
-use codex_login::AuthManager;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CodexResult;
-use codex_protocol::models::ResponseItem;
-use codex_protocol::protocol::SessionSource;
-use codex_protocol::user_input::UserInput;
+use datax_exec_server::EnvironmentManager;
+use datax_exec_server::ExecServerRuntimePaths;
+use datax_extension_api::UserInstructionsProvider;
+use datax_login::AuthManager;
+use datax_protocol::error::CodexErr;
+use datax_protocol::error::Result as CodexResult;
+use datax_protocol::models::ResponseItem;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::user_input::UserInput;
 use tokio_util::sync::CancellationToken;
 
 use crate::config::Config;
@@ -19,7 +19,7 @@ use crate::session::turn::built_tools;
 use crate::state_db_bridge::StateDbHandle;
 use crate::thread_manager::ThreadManager;
 use crate::thread_manager::thread_store_from_config;
-use codex_extension_api::empty_extension_registry;
+use datax_extension_api::empty_extension_registry;
 
 /// Build the model-visible `input` list for a single debug turn.
 #[doc(hidden)]

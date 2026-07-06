@@ -1,7 +1,7 @@
 use super::super::protocol::RemoteControlPairingStatusRequest;
 use super::super::protocol::StartRemoteControlPairingRequest;
 use super::*;
-use codex_login::AuthKeyringBackendKind;
+use datax_login::AuthKeyringBackendKind;
 use pretty_assertions::assert_eq;
 use std::io;
 

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use codex_app_server_protocol::JSONRPCMessage;
+use datax_app_server_protocol::JSONRPCMessage;
 use futures::Sink;
 use futures::SinkExt;
 use futures::Stream;
@@ -847,8 +847,8 @@ mod tests {
     use std::task::Poll;
     use std::time::Duration;
 
-    use codex_app_server_protocol::JSONRPCRequest;
-    use codex_app_server_protocol::RequestId;
+    use datax_app_server_protocol::JSONRPCRequest;
+    use datax_app_server_protocol::RequestId;
     use futures::Sink;
     use futures::Stream;
     use futures::channel::mpsc as futures_mpsc;

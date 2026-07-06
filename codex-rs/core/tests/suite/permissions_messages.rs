@@ -1,17 +1,4 @@
 use anyhow::Result;
-use codex_config::ConfigLayerStack;
-use codex_core::ForkSnapshot;
-use codex_core::config::Constrained;
-use codex_core::context::ContextualUserFragment;
-use codex_core::context::PermissionsInstructions;
-use codex_core::load_exec_policy;
-use codex_protocol::models::PermissionProfile;
-use codex_protocol::permissions::NetworkSandboxPolicy;
-use codex_protocol::protocol::AskForApproval;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::Op;
-use codex_protocol::user_input::UserInput;
-use codex_utils_absolute_path::AbsolutePathBuf;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
@@ -21,6 +8,19 @@ use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
+use datax_config::ConfigLayerStack;
+use datax_core::ForkSnapshot;
+use datax_core::config::Constrained;
+use datax_core::context::ContextualUserFragment;
+use datax_core::context::PermissionsInstructions;
+use datax_core::load_exec_policy;
+use datax_protocol::models::PermissionProfile;
+use datax_protocol::permissions::NetworkSandboxPolicy;
+use datax_protocol::protocol::AskForApproval;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::Op;
+use datax_protocol::user_input::UserInput;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use std::collections::HashSet;
 use tempfile::TempDir;
@@ -105,7 +105,7 @@ async fn permissions_message_added_on_override_change() -> Result<()> {
 
     core_test_support::submit_thread_settings(
         &test.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        datax_protocol::protocol::ThreadSettingsOverrides {
             approval_policy: Some(AskForApproval::Never),
             ..Default::default()
         },
@@ -234,7 +234,7 @@ async fn permissions_message_omitted_when_disabled() -> Result<()> {
 
     core_test_support::submit_thread_settings(
         &test.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        datax_protocol::protocol::ThreadSettingsOverrides {
             approval_policy: Some(AskForApproval::Never),
             ..Default::default()
         },
@@ -316,7 +316,7 @@ async fn resume_replays_permissions_messages() -> Result<()> {
 
     core_test_support::submit_thread_settings(
         &initial.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        datax_protocol::protocol::ThreadSettingsOverrides {
             approval_policy: Some(AskForApproval::Never),
             ..Default::default()
         },
@@ -416,7 +416,7 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
 
     core_test_support::submit_thread_settings(
         &initial.codex,
-        codex_protocol::protocol::ThreadSettingsOverrides {
+        datax_protocol::protocol::ThreadSettingsOverrides {
             approval_policy: Some(AskForApproval::Never),
             ..Default::default()
         },

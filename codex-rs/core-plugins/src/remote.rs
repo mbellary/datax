@@ -2,19 +2,19 @@ use crate::app_mcp_routing::apply_app_mcp_routing_policy;
 use crate::loader::plugin_app_declarations_from_value;
 use crate::store::PLUGINS_CACHE_DIR;
 use crate::store::PluginStore;
-use codex_app_server_protocol::JSONRPCErrorError;
-use codex_app_server_protocol::PluginAuthPolicy;
-use codex_app_server_protocol::PluginAvailability;
-use codex_app_server_protocol::PluginInstallPolicy;
-use codex_app_server_protocol::PluginInterface;
-use codex_app_server_protocol::SkillInterface;
-use codex_login::CodexAuth;
-use codex_login::default_client::build_reqwest_client;
-use codex_plugin::AppConnectorId;
-use codex_plugin::AppDeclaration;
-use codex_plugin::PluginId;
-use codex_plugin::app_connector_ids_from_declarations;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_app_server_protocol::JSONRPCErrorError;
+use datax_app_server_protocol::PluginAuthPolicy;
+use datax_app_server_protocol::PluginAvailability;
+use datax_app_server_protocol::PluginInstallPolicy;
+use datax_app_server_protocol::PluginInterface;
+use datax_app_server_protocol::SkillInterface;
+use datax_login::CodexAuth;
+use datax_login::default_client::build_reqwest_client;
+use datax_plugin::AppConnectorId;
+use datax_plugin::AppDeclaration;
+use datax_plugin::PluginId;
+use datax_plugin::app_connector_ids_from_declarations;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use reqwest::RequestBuilder;
 use serde::Deserialize;
 use serde::Serialize;
@@ -1832,7 +1832,7 @@ fn authenticated_request(
 ) -> Result<RequestBuilder, RemotePluginCatalogError> {
     Ok(request
         .timeout(REMOTE_PLUGIN_CATALOG_TIMEOUT)
-        .headers(codex_model_provider::auth_provider_from_auth(auth).to_auth_headers())
+        .headers(datax_model_provider::auth_provider_from_auth(auth).to_auth_headers())
         .header(OAI_PRODUCT_SKU_HEADER, CODEX_PRODUCT_SKU))
 }
 

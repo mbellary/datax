@@ -6,30 +6,30 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use clap::ArgGroup;
-use codex_config::types::AppToolApproval;
-use codex_config::types::McpServerConfig;
-use codex_config::types::McpServerOAuthConfig;
-use codex_config::types::McpServerTransportConfig;
-use codex_core::McpManager;
-use codex_core::config::Config;
-use codex_core::config::ConfigBuilder;
-use codex_core::config::LoaderOverrides;
-use codex_core::config::edit::ConfigEditsBuilder;
-use codex_core::config::find_codex_home;
-use codex_core::config::load_global_mcp_servers;
-use codex_core_plugins::PluginsManager;
-use codex_mcp::McpOAuthLoginSupport;
-use codex_mcp::ResolvedMcpOAuthScopes;
-use codex_mcp::compute_auth_statuses;
-use codex_mcp::discover_supported_scopes;
-use codex_mcp::oauth_login_support;
-use codex_mcp::resolve_oauth_scopes;
-use codex_mcp::should_retry_without_scopes;
-use codex_protocol::protocol::McpAuthStatus;
-use codex_rmcp_client::delete_oauth_tokens;
-use codex_rmcp_client::perform_oauth_login;
-use codex_utils_cli::CliConfigOverrides;
-use codex_utils_cli::format_env_display;
+use datax_config::types::AppToolApproval;
+use datax_config::types::McpServerConfig;
+use datax_config::types::McpServerOAuthConfig;
+use datax_config::types::McpServerTransportConfig;
+use datax_core::McpManager;
+use datax_core::config::Config;
+use datax_core::config::ConfigBuilder;
+use datax_core::config::LoaderOverrides;
+use datax_core::config::edit::ConfigEditsBuilder;
+use datax_core::config::find_codex_home;
+use datax_core::config::load_global_mcp_servers;
+use datax_core_plugins::PluginsManager;
+use datax_mcp::McpOAuthLoginSupport;
+use datax_mcp::ResolvedMcpOAuthScopes;
+use datax_mcp::compute_auth_statuses;
+use datax_mcp::discover_supported_scopes;
+use datax_mcp::oauth_login_support;
+use datax_mcp::resolve_oauth_scopes;
+use datax_mcp::should_retry_without_scopes;
+use datax_protocol::protocol::McpAuthStatus;
+use datax_rmcp_client::delete_oauth_tokens;
+use datax_rmcp_client::perform_oauth_login;
+use datax_utils_cli::CliConfigOverrides;
+use datax_utils_cli::format_env_display;
 
 /// Subcommands:
 /// - `list`   — list configured servers (with `--json`)
@@ -210,8 +210,8 @@ impl McpCli {
 async fn perform_oauth_login_retry_without_scopes(
     name: &str,
     url: &str,
-    store_mode: codex_config::types::OAuthCredentialsStoreMode,
-    keyring_backend_kind: codex_config::types::AuthKeyringBackendKind,
+    store_mode: datax_config::types::OAuthCredentialsStoreMode,
+    keyring_backend_kind: datax_config::types::AuthKeyringBackendKind,
     http_headers: Option<HashMap<String, String>>,
     env_http_headers: Option<HashMap<String, String>>,
     resolved_scopes: &ResolvedMcpOAuthScopes,
@@ -345,7 +345,7 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
 
     let new_entry = McpServerConfig {
         transport: transport.clone(),
-        environment_id: codex_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
+        environment_id: datax_config::DEFAULT_MCP_SERVER_ENVIRONMENT_ID.to_string(),
         enabled: true,
         required: false,
         supports_parallel_tool_calls: false,

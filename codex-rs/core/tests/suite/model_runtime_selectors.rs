@@ -1,21 +1,4 @@
 use anyhow::Result;
-use codex_core::config::Config;
-use codex_features::Feature;
-use codex_login::CodexAuth;
-use codex_models_manager::manager::RefreshStrategy;
-use codex_models_manager::manager::SharedModelsManager;
-use codex_models_manager::model_info::model_info_from_slug;
-use codex_protocol::openai_models::InputModality;
-use codex_protocol::openai_models::ModelInfo;
-use codex_protocol::openai_models::ModelPreset;
-use codex_protocol::openai_models::ModelVisibility;
-use codex_protocol::openai_models::ModelsResponse;
-use codex_protocol::openai_models::ToolMode;
-use codex_protocol::protocol::EventMsg;
-use codex_protocol::protocol::MultiAgentVersion;
-use codex_protocol::protocol::Op;
-use codex_protocol::protocol::ThreadSettingsOverrides;
-use codex_protocol::user_input::UserInput;
 use core_test_support::responses;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -28,6 +11,23 @@ use core_test_support::skip_if_no_network;
 use core_test_support::submit_thread_settings;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
+use datax_core::config::Config;
+use datax_features::Feature;
+use datax_login::CodexAuth;
+use datax_models_manager::manager::RefreshStrategy;
+use datax_models_manager::manager::SharedModelsManager;
+use datax_models_manager::model_info::model_info_from_slug;
+use datax_protocol::openai_models::InputModality;
+use datax_protocol::openai_models::ModelInfo;
+use datax_protocol::openai_models::ModelPreset;
+use datax_protocol::openai_models::ModelVisibility;
+use datax_protocol::openai_models::ModelsResponse;
+use datax_protocol::openai_models::ToolMode;
+use datax_protocol::protocol::EventMsg;
+use datax_protocol::protocol::MultiAgentVersion;
+use datax_protocol::protocol::Op;
+use datax_protocol::protocol::ThreadSettingsOverrides;
+use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use tokio::time::Duration;
@@ -181,8 +181,8 @@ async fn remote_tool_mode_selector_overrides_feature_flags() -> Result<()> {
     assert!(
         direct_tools
             .iter()
-            .all(|name| name != codex_code_mode::PUBLIC_TOOL_NAME
-                && name != codex_code_mode::WAIT_TOOL_NAME),
+            .all(|name| name != datax_code_mode::PUBLIC_TOOL_NAME
+                && name != datax_code_mode::WAIT_TOOL_NAME),
         "direct mode should override enabled code mode flags: {direct_tools:?}"
     );
 
@@ -194,8 +194,8 @@ async fn remote_tool_mode_selector_overrides_feature_flags() -> Result<()> {
         tool_names(&code_mode_only_body),
         vec![
             // Code-mode entrypoints.
-            codex_code_mode::PUBLIC_TOOL_NAME.to_string(),
-            codex_code_mode::WAIT_TOOL_NAME.to_string(),
+            datax_code_mode::PUBLIC_TOOL_NAME.to_string(),
+            datax_code_mode::WAIT_TOOL_NAME.to_string(),
             "request_user_input".to_string(),
             // Hosted Responses tools.
             "web_search".to_string(),
@@ -214,7 +214,7 @@ async fn remote_tool_mode_selector_overrides_feature_flags() -> Result<()> {
     assert!(
         tool_names(&unsupported_response.body)
             .iter()
-            .any(|name| name == codex_code_mode::PUBLIC_TOOL_NAME)
+            .any(|name| name == datax_code_mode::PUBLIC_TOOL_NAME)
     );
     assert_eq!(
         unsupported_response

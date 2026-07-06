@@ -1,14 +1,14 @@
 use clap::Parser;
-use codex_app_server::AppServerRuntimeOptions;
-use codex_app_server::AppServerTransport;
-use codex_app_server::AppServerWebsocketAuthArgs;
-use codex_app_server::PluginStartupTasks;
-use codex_app_server::run_main_with_transport_options;
-use codex_arg0::Arg0DispatchPaths;
-use codex_arg0::arg0_dispatch_or_else;
-use codex_config::LoaderOverrides;
-use codex_protocol::protocol::SessionSource;
-use codex_utils_cli::CliConfigOverrides;
+use datax_app_server::AppServerRuntimeOptions;
+use datax_app_server::AppServerTransport;
+use datax_app_server::AppServerWebsocketAuthArgs;
+use datax_app_server::PluginStartupTasks;
+use datax_app_server::run_main_with_transport_options;
+use datax_arg0::Arg0DispatchPaths;
+use datax_arg0::arg0_dispatch_or_else;
+use datax_config::LoaderOverrides;
+use datax_protocol::protocol::SessionSource;
+use datax_utils_cli::CliConfigOverrides;
 use std::path::PathBuf;
 
 // Debug-only test hook: lets integration tests point the server at a temporary
@@ -59,7 +59,7 @@ struct AppServerArgs {
 }
 
 fn main() -> anyhow::Result<()> {
-    let remote_control_disabled = codex_app_server::take_remote_control_disabled_env();
+    let remote_control_disabled = datax_app_server::take_remote_control_disabled_env();
     arg0_dispatch_or_else(move |arg0_paths: Arg0DispatchPaths| async move {
         let AppServerArgs {
             config_overrides,
@@ -87,9 +87,9 @@ fn main() -> anyhow::Result<()> {
         }
         runtime_options.remote_control_startup_mode =
             match (remote_control, remote_control_disabled) {
-                (true, _) => codex_app_server::RemoteControlStartupMode::EnabledEphemeral,
-                (false, true) => codex_app_server::RemoteControlStartupMode::DisabledEphemeral,
-                (false, false) => codex_app_server::RemoteControlStartupMode::ResolvePersisted,
+                (true, _) => datax_app_server::RemoteControlStartupMode::EnabledEphemeral,
+                (false, true) => datax_app_server::RemoteControlStartupMode::DisabledEphemeral,
+                (false, false) => datax_app_server::RemoteControlStartupMode::ResolvePersisted,
             };
 
         run_main_with_transport_options(

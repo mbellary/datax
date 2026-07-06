@@ -1,10 +1,10 @@
-use codex_api::OpenAiVerbosity;
-use codex_api::ResponsesApiRequest;
-use codex_api::TextControls;
-use codex_api::create_text_param_for_request;
-use codex_protocol::config_types::ServiceTier;
-use codex_protocol::models::FunctionCallOutputPayload;
-use codex_protocol::models::ImageDetail;
+use datax_api::OpenAiVerbosity;
+use datax_api::ResponsesApiRequest;
+use datax_api::TextControls;
+use datax_api::create_text_param_for_request;
+use datax_protocol::config_types::ServiceTier;
+use datax_protocol::models::FunctionCallOutputPayload;
+use datax_protocol::models::ImageDetail;
 use pretty_assertions::assert_eq;
 
 use super::*;

@@ -1,28 +1,28 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use codex_api::ModelsClient;
-use codex_api::RequestTelemetry;
-use codex_api::ReqwestTransport;
-use codex_api::TransportError;
-use codex_api::auth_header_telemetry;
-use codex_api::map_api_error;
-use codex_feedback::FeedbackRequestTags;
-use codex_feedback::emit_feedback_request_tags_with_auth_env;
-use codex_login::AuthEnvTelemetry;
-use codex_login::AuthManager;
-use codex_login::CodexAuth;
-use codex_login::collect_auth_env_telemetry;
-use codex_login::default_client::build_reqwest_client;
-use codex_model_provider_info::ModelProviderInfo;
-use codex_models_manager::manager::ModelsEndpointClient;
-use codex_models_manager::manager::ModelsEndpointFuture;
-use codex_otel::TelemetryAuthMode;
-use codex_protocol::error::CodexErr;
-use codex_protocol::error::Result as CoreResult;
-use codex_protocol::openai_models::ModelInfo;
-use codex_response_debug_context::extract_response_debug_context;
-use codex_response_debug_context::telemetry_transport_error_message;
+use datax_api::ModelsClient;
+use datax_api::RequestTelemetry;
+use datax_api::ReqwestTransport;
+use datax_api::TransportError;
+use datax_api::auth_header_telemetry;
+use datax_api::map_api_error;
+use datax_feedback::FeedbackRequestTags;
+use datax_feedback::emit_feedback_request_tags_with_auth_env;
+use datax_login::AuthEnvTelemetry;
+use datax_login::AuthManager;
+use datax_login::CodexAuth;
+use datax_login::collect_auth_env_telemetry;
+use datax_login::default_client::build_reqwest_client;
+use datax_model_provider_info::ModelProviderInfo;
+use datax_models_manager::manager::ModelsEndpointClient;
+use datax_models_manager::manager::ModelsEndpointFuture;
+use datax_otel::TelemetryAuthMode;
+use datax_protocol::error::CodexErr;
+use datax_protocol::error::Result as CoreResult;
+use datax_protocol::openai_models::ModelInfo;
+use datax_response_debug_context::extract_response_debug_context;
+use datax_response_debug_context::telemetry_transport_error_message;
 use http::HeaderMap;
 use tokio::time::timeout;
 
@@ -68,7 +68,7 @@ impl OpenAiModelsEndpoint {
         client_version: &str,
     ) -> CoreResult<(Vec<ModelInfo>, Option<String>)> {
         let _timer =
-            codex_otel::start_global_timer("codex.remote_models.fetch_update.duration_ms", &[]);
+            datax_otel::start_global_timer("codex.remote_models.fetch_update.duration_ms", &[]);
         let auth = self.auth().await;
         let auth_mode = auth.as_ref().map(CodexAuth::auth_mode);
         let api_provider = self.provider_info.to_api_provider(auth_mode)?;
@@ -216,7 +216,7 @@ mod tests {
     use std::num::NonZeroU64;
 
     use super::*;
-    use codex_protocol::config_types::ModelProviderAuthInfo;
+    use datax_protocol::config_types::ModelProviderAuthInfo;
 
     fn provider_info_with_command_auth() -> ModelProviderInfo {
         ModelProviderInfo {

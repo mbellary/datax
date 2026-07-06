@@ -10,27 +10,27 @@ use app_test_support::create_mock_responses_server_sequence;
 use app_test_support::to_response;
 use app_test_support::write_mock_responses_config_toml;
 use axum::Router;
-use codex_app_server_protocol::ItemCompletedNotification;
-use codex_app_server_protocol::JSONRPCError;
-use codex_app_server_protocol::JSONRPCResponse;
-use codex_app_server_protocol::McpElicitationSchema;
-use codex_app_server_protocol::McpServerElicitationAction;
-use codex_app_server_protocol::McpServerElicitationRequest;
-use codex_app_server_protocol::McpServerElicitationRequestParams;
-use codex_app_server_protocol::McpServerElicitationRequestResponse;
-use codex_app_server_protocol::McpServerToolCallParams;
-use codex_app_server_protocol::McpServerToolCallResponse;
-use codex_app_server_protocol::McpToolCallStatus;
-use codex_app_server_protocol::RequestId;
-use codex_app_server_protocol::ServerRequest;
-use codex_app_server_protocol::ThreadItem;
-use codex_app_server_protocol::ThreadStartParams;
-use codex_app_server_protocol::ThreadStartResponse;
-use codex_app_server_protocol::TurnStartParams;
-use codex_app_server_protocol::TurnStartResponse;
-use codex_app_server_protocol::UserInput as V2UserInput;
-use codex_utils_pty::DEFAULT_OUTPUT_BYTES_CAP;
 use core_test_support::responses;
+use datax_app_server_protocol::ItemCompletedNotification;
+use datax_app_server_protocol::JSONRPCError;
+use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::McpElicitationSchema;
+use datax_app_server_protocol::McpServerElicitationAction;
+use datax_app_server_protocol::McpServerElicitationRequest;
+use datax_app_server_protocol::McpServerElicitationRequestParams;
+use datax_app_server_protocol::McpServerElicitationRequestResponse;
+use datax_app_server_protocol::McpServerToolCallParams;
+use datax_app_server_protocol::McpServerToolCallResponse;
+use datax_app_server_protocol::McpToolCallStatus;
+use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::ServerRequest;
+use datax_app_server_protocol::ThreadItem;
+use datax_app_server_protocol::ThreadStartParams;
+use datax_app_server_protocol::ThreadStartResponse;
+use datax_app_server_protocol::TurnStartParams;
+use datax_app_server_protocol::TurnStartResponse;
+use datax_app_server_protocol::UserInput as V2UserInput;
+use datax_utils_pty::DEFAULT_OUTPUT_BYTES_CAP;
 use pretty_assertions::assert_eq;
 use rmcp::handler::server::ServerHandler;
 use rmcp::model::BooleanSchema;
@@ -218,7 +218,7 @@ url = "{mcp_server_url}/mcp"
     let thread_start_id = mcp
         .send_thread_start_request(ThreadStartParams {
             model: Some("mock-model".to_string()),
-            approval_policy: Some(codex_app_server_protocol::AskForApproval::UnlessTrusted),
+            approval_policy: Some(datax_app_server_protocol::AskForApproval::UnlessTrusted),
             ..Default::default()
         })
         .await?;
@@ -328,7 +328,7 @@ url = "{mcp_server_url}/mcp"
     let thread_start_id = mcp
         .send_thread_start_request(ThreadStartParams {
             model: Some("mock-model".to_string()),
-            approval_policy: Some(codex_app_server_protocol::AskForApproval::UnlessTrusted),
+            approval_policy: Some(datax_app_server_protocol::AskForApproval::UnlessTrusted),
             ..Default::default()
         })
         .await?;

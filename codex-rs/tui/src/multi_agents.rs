@@ -7,20 +7,20 @@
 use crate::history_cell::PlainHistoryCell;
 use crate::render::line_utils::prefix_lines;
 use crate::text_formatting::truncate_text;
-use codex_app_server_protocol::CollabAgentState;
-use codex_app_server_protocol::CollabAgentStatus;
-use codex_app_server_protocol::CollabAgentTool;
-use codex_app_server_protocol::CollabAgentToolCallStatus;
-use codex_app_server_protocol::SubAgentActivityKind;
-use codex_app_server_protocol::ThreadItem;
-use codex_protocol::ThreadId;
-use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 #[cfg(target_os = "macos")]
 use crossterm::event::KeyEventKind;
 #[cfg(target_os = "macos")]
 use crossterm::event::KeyModifiers;
+use datax_app_server_protocol::CollabAgentState;
+use datax_app_server_protocol::CollabAgentStatus;
+use datax_app_server_protocol::CollabAgentTool;
+use datax_app_server_protocol::CollabAgentToolCallStatus;
+use datax_app_server_protocol::SubAgentActivityKind;
+use datax_app_server_protocol::ThreadItem;
+use datax_protocol::ThreadId;
+use datax_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::text::Span;

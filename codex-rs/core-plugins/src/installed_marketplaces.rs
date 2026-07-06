@@ -1,9 +1,9 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use codex_config::ConfigLayerStack;
-use codex_plugin::validate_plugin_segment;
-use codex_utils_absolute_path::AbsolutePathBuf;
+use datax_config::ConfigLayerStack;
+use datax_plugin::validate_plugin_segment;
+use datax_utils_absolute_path::AbsolutePathBuf;
 use tracing::warn;
 
 use crate::marketplace::find_marketplace_manifest_path;

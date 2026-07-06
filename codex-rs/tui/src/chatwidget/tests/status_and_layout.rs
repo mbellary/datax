@@ -2,7 +2,7 @@ use super::*;
 use crate::bottom_pane::goal_status_indicator_line;
 use crate::chatwidget::rate_limits::NUDGE_MODEL_SLUG;
 use crate::chatwidget::rate_limits::get_limits_duration;
-use codex_app_server_protocol::SpendControlLimitSnapshot;
+use datax_app_server_protocol::SpendControlLimitSnapshot;
 use pretty_assertions::assert_eq;
 use ratatui::backend::TestBackend;
 use serial_test::serial;
@@ -432,7 +432,7 @@ async fn configured_pet_load_is_deferred_until_after_construction() {
         has_chatgpt_account: false,
         has_codex_backend_auth: false,
         model_catalog: test_model_catalog(&cfg),
-        feedback: codex_feedback::CodexFeedback::new(),
+        feedback: datax_feedback::CodexFeedback::new(),
         is_first_run: true,
         status_account_display: None,
         runtime_model_provider_base_url: None,
@@ -1529,7 +1529,7 @@ fn update_thread_goal(chat: &mut ChatWidget, thread_id: ThreadId, status: AppThr
     goal.thread_id = thread_id.clone();
     chat.handle_server_notification(
         ServerNotification::ThreadGoalUpdated(
-            codex_app_server_protocol::ThreadGoalUpdatedNotification {
+            datax_app_server_protocol::ThreadGoalUpdatedNotification {
                 thread_id,
                 turn_id: None,
                 goal,
@@ -1779,7 +1779,7 @@ async fn ambient_pet_stays_hidden_until_a_pet_is_selected() {
 #[tokio::test]
 #[serial]
 async fn ambient_pet_screen_bottom_anchor_uses_terminal_bottom() {
-    use codex_config::types::TuiPetAnchor;
+    use datax_config::types::TuiPetAnchor;
     use ratatui::layout::Rect;
 
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
@@ -2465,7 +2465,7 @@ async fn interrupted_turn_clears_visible_running_hook() {
         &mut chat,
         hook_started_run(
             "pre-tool-use:0:/tmp/hooks.json",
-            codex_app_server_protocol::HookEventName::PreToolUse,
+            datax_app_server_protocol::HookEventName::PreToolUse,
             Some("checking command policy"),
         ),
     );
@@ -2491,7 +2491,7 @@ async fn completed_turn_clears_visible_running_hook() {
         &mut chat,
         hook_started_run(
             "post-tool-use:0:/tmp/hooks.json",
-            codex_app_server_protocol::HookEventName::PostToolUse,
+            datax_app_server_protocol::HookEventName::PostToolUse,
             /*status_message*/ None,
         ),
     );
@@ -2700,7 +2700,7 @@ async fn renamed_thread_footer_title_snapshot() {
     chat.thread_id = Some(thread_id);
     chat.handle_server_notification(
         ServerNotification::ThreadNameUpdated(
-            codex_app_server_protocol::ThreadNameUpdatedNotification {
+            datax_app_server_protocol::ThreadNameUpdatedNotification {
                 thread_id: thread_id.to_string(),
                 thread_name: Some("Roadmap cleanup".to_string()),
             },
@@ -2800,11 +2800,11 @@ async fn status_line_goal_active_token_budget_footer_snapshot() {
     chat.refresh_status_line();
     chat.handle_server_notification(
         ServerNotification::ThreadGoalUpdated(
-            codex_app_server_protocol::ThreadGoalUpdatedNotification {
+            datax_app_server_protocol::ThreadGoalUpdatedNotification {
                 thread_id: "thread-1".to_string(),
                 turn_id: None,
                 goal: test_thread_goal(
-                    codex_app_server_protocol::ThreadGoalStatus::Active,
+                    datax_app_server_protocol::ThreadGoalStatus::Active,
                     /*token_budget*/ Some(50_000),
                     /*tokens_used*/ 40_000,
                 ),
@@ -2836,14 +2836,14 @@ async fn status_line_goal_complete_elapsed_footer_snapshot() {
     chat.config.tui_status_line = Some(vec!["model-name".to_string()]);
     chat.refresh_status_line();
     let mut goal = test_thread_goal(
-        codex_app_server_protocol::ThreadGoalStatus::Complete,
+        datax_app_server_protocol::ThreadGoalStatus::Complete,
         /*token_budget*/ None,
         /*tokens_used*/ 40_000,
     );
     goal.time_used_seconds = 2 * 24 * 60 * 60 + 23 * 60 * 60 + 42 * 60;
     chat.handle_server_notification(
         ServerNotification::ThreadGoalUpdated(
-            codex_app_server_protocol::ThreadGoalUpdatedNotification {
+            datax_app_server_protocol::ThreadGoalUpdatedNotification {
                 thread_id: "thread-1".to_string(),
                 turn_id: None,
                 goal,
@@ -2870,11 +2870,11 @@ async fn session_configured_clears_goal_status_footer() {
     chat.set_feature_enabled(Feature::Goals, /*enabled*/ true);
     chat.handle_server_notification(
         ServerNotification::ThreadGoalUpdated(
-            codex_app_server_protocol::ThreadGoalUpdatedNotification {
+            datax_app_server_protocol::ThreadGoalUpdatedNotification {
                 thread_id: "thread-1".to_string(),
                 turn_id: None,
                 goal: test_thread_goal(
-                    codex_app_server_protocol::ThreadGoalStatus::Active,
+                    datax_app_server_protocol::ThreadGoalStatus::Active,
                     /*token_budget*/ Some(50_000),
                     /*tokens_used*/ 40_000,
                 ),
@@ -2927,7 +2927,7 @@ async fn thread_goal_update_for_other_thread_is_ignored() {
     chat.thread_id = Some(ThreadId::new());
     let other_thread_id = ThreadId::new().to_string();
     let mut goal = test_thread_goal(
-        codex_app_server_protocol::ThreadGoalStatus::BudgetLimited,
+        datax_app_server_protocol::ThreadGoalStatus::BudgetLimited,
         /*token_budget*/ Some(50_000),
         /*tokens_used*/ 50_000,
     );
@@ -2935,7 +2935,7 @@ async fn thread_goal_update_for_other_thread_is_ignored() {
 
     chat.handle_server_notification(
         ServerNotification::ThreadGoalUpdated(
-            codex_app_server_protocol::ThreadGoalUpdatedNotification {
+            datax_app_server_protocol::ThreadGoalUpdatedNotification {
                 thread_id: other_thread_id,
                 turn_id: Some("turn-other".to_string()),
                 goal,
@@ -2953,7 +2953,7 @@ async fn thread_goal_update_for_other_thread_is_ignored() {
 fn goal_status_indicator_formats_statuses_and_budgets() {
     assert_eq!(
         goal_status_indicator_from_app_goal(&test_thread_goal(
-            codex_app_server_protocol::ThreadGoalStatus::Active,
+            datax_app_server_protocol::ThreadGoalStatus::Active,
             /*token_budget*/ Some(50_000),
             /*tokens_used*/ 40_000,
         )),
@@ -2963,7 +2963,7 @@ fn goal_status_indicator_formats_statuses_and_budgets() {
     );
     assert_eq!(
         goal_status_indicator_from_app_goal(&test_thread_goal(
-            codex_app_server_protocol::ThreadGoalStatus::Active,
+            datax_app_server_protocol::ThreadGoalStatus::Active,
             /*token_budget*/ None,
             /*tokens_used*/ 0,
         )),
@@ -2973,7 +2973,7 @@ fn goal_status_indicator_formats_statuses_and_budgets() {
     );
     assert_eq!(
         goal_status_indicator_from_app_goal(&test_thread_goal(
-            codex_app_server_protocol::ThreadGoalStatus::Blocked,
+            datax_app_server_protocol::ThreadGoalStatus::Blocked,
             /*token_budget*/ None,
             /*tokens_used*/ 0,
         )),
@@ -2981,7 +2981,7 @@ fn goal_status_indicator_formats_statuses_and_budgets() {
     );
     assert_eq!(
         goal_status_indicator_from_app_goal(&test_thread_goal(
-            codex_app_server_protocol::ThreadGoalStatus::UsageLimited,
+            datax_app_server_protocol::ThreadGoalStatus::UsageLimited,
             /*token_budget*/ None,
             /*tokens_used*/ 0,
         )),
@@ -2989,7 +2989,7 @@ fn goal_status_indicator_formats_statuses_and_budgets() {
     );
     assert_eq!(
         goal_status_indicator_from_app_goal(&test_thread_goal(
-            codex_app_server_protocol::ThreadGoalStatus::BudgetLimited,
+            datax_app_server_protocol::ThreadGoalStatus::BudgetLimited,
             /*token_budget*/ Some(50_000),
             /*tokens_used*/ 51_000,
         )),
@@ -2999,7 +2999,7 @@ fn goal_status_indicator_formats_statuses_and_budgets() {
     );
     assert_eq!(
         goal_status_indicator_from_app_goal(&test_thread_goal(
-            codex_app_server_protocol::ThreadGoalStatus::BudgetLimited,
+            datax_app_server_protocol::ThreadGoalStatus::BudgetLimited,
             /*token_budget*/ None,
             /*tokens_used*/ 0,
         )),
@@ -3007,7 +3007,7 @@ fn goal_status_indicator_formats_statuses_and_budgets() {
     );
     assert_eq!(
         goal_status_indicator_from_app_goal(&test_thread_goal(
-            codex_app_server_protocol::ThreadGoalStatus::Complete,
+            datax_app_server_protocol::ThreadGoalStatus::Complete,
             /*token_budget*/ Some(50_000),
             /*tokens_used*/ 40_000,
         )),
@@ -3067,11 +3067,11 @@ fn goal_status_indicator_line_formats_goal_text() {
 }
 
 fn test_thread_goal(
-    status: codex_app_server_protocol::ThreadGoalStatus,
+    status: datax_app_server_protocol::ThreadGoalStatus,
     token_budget: Option<i64>,
     tokens_used: i64,
-) -> codex_app_server_protocol::ThreadGoal {
-    codex_app_server_protocol::ThreadGoal {
+) -> datax_app_server_protocol::ThreadGoal {
+    datax_app_server_protocol::ThreadGoal {
         thread_id: "thread-1".to_string(),
         objective: "Keep improving the benchmark".to_string(),
         status,
@@ -3242,7 +3242,7 @@ async fn user_prompt_submit_app_server_hook_notifications_render_snapshot() {
                 execution_mode: AppServerHookExecutionMode::Sync,
                 scope: AppServerHookScope::Turn,
                 source_path: PathBuf::from(test_path_display("/tmp/hooks.json")).abs(),
-                source: codex_app_server_protocol::HookSource::User,
+                source: datax_app_server_protocol::HookSource::User,
                 display_order: 0,
                 status: AppServerHookRunStatus::Running,
                 status_message: Some("checking go-workflow input policy".to_string()),
@@ -3265,7 +3265,7 @@ async fn user_prompt_submit_app_server_hook_notifications_render_snapshot() {
                 execution_mode: AppServerHookExecutionMode::Sync,
                 scope: AppServerHookScope::Turn,
                 source_path: PathBuf::from(test_path_display("/tmp/hooks.json")).abs(),
-                source: codex_app_server_protocol::HookSource::User,
+                source: datax_app_server_protocol::HookSource::User,
                 display_order: 0,
                 status: AppServerHookRunStatus::Stopped,
                 status_message: Some("checking go-workflow input policy".to_string()),
@@ -3302,7 +3302,7 @@ async fn user_prompt_submit_app_server_hook_notifications_render_snapshot() {
 #[tokio::test]
 async fn pre_tool_use_hook_events_render_snapshot() {
     assert_hook_events_snapshot(
-        codex_app_server_protocol::HookEventName::PreToolUse,
+        datax_app_server_protocol::HookEventName::PreToolUse,
         "pre-tool-use:0:/tmp/hooks.json",
         "warming the shell",
         "pre_tool_use_hook_events_render_snapshot",
@@ -3313,7 +3313,7 @@ async fn pre_tool_use_hook_events_render_snapshot() {
 #[tokio::test]
 async fn post_tool_use_hook_events_render_snapshot() {
     assert_hook_events_snapshot(
-        codex_app_server_protocol::HookEventName::PostToolUse,
+        datax_app_server_protocol::HookEventName::PostToolUse,
         "post-tool-use:0:/tmp/hooks.json",
         "warming the shell",
         "post_tool_use_hook_events_render_snapshot",
@@ -3329,7 +3329,7 @@ async fn completed_hook_with_no_entries_stays_out_of_history() {
         &mut chat,
         hook_started_run(
             "post-tool-use:0:/tmp/hooks.json",
-            codex_app_server_protocol::HookEventName::PostToolUse,
+            datax_app_server_protocol::HookEventName::PostToolUse,
             /*status_message*/ None,
         ),
     );
@@ -3341,8 +3341,8 @@ async fn completed_hook_with_no_entries_stays_out_of_history() {
         &mut chat,
         hook_completed_run(
             "post-tool-use:0:/tmp/hooks.json",
-            codex_app_server_protocol::HookEventName::PostToolUse,
-            codex_app_server_protocol::HookRunStatus::Completed,
+            datax_app_server_protocol::HookEventName::PostToolUse,
+            datax_app_server_protocol::HookRunStatus::Completed,
             Vec::new(),
         ),
     );
@@ -3366,7 +3366,7 @@ async fn quiet_hook_linger_starts_when_delayed_redraw_reveals_hook() {
         &mut chat,
         hook_started_run(
             "post-tool-use:0:/tmp/hooks.json",
-            codex_app_server_protocol::HookEventName::PostToolUse,
+            datax_app_server_protocol::HookEventName::PostToolUse,
             Some("checking output policy"),
         ),
     );
@@ -3377,8 +3377,8 @@ async fn quiet_hook_linger_starts_when_delayed_redraw_reveals_hook() {
         &mut chat,
         hook_completed_run(
             "post-tool-use:0:/tmp/hooks.json",
-            codex_app_server_protocol::HookEventName::PostToolUse,
-            codex_app_server_protocol::HookRunStatus::Completed,
+            datax_app_server_protocol::HookEventName::PostToolUse,
+            datax_app_server_protocol::HookRunStatus::Completed,
             Vec::new(),
         ),
     );
@@ -3400,10 +3400,10 @@ async fn blocked_and_failed_hooks_render_feedback_and_errors() {
         &mut chat,
         hook_completed_run(
             "pre-tool-use:0:/tmp/hooks.json",
-            codex_app_server_protocol::HookEventName::PreToolUse,
-            codex_app_server_protocol::HookRunStatus::Blocked,
-            vec![codex_app_server_protocol::HookOutputEntry {
-                kind: codex_app_server_protocol::HookOutputEntryKind::Feedback,
+            datax_app_server_protocol::HookEventName::PreToolUse,
+            datax_app_server_protocol::HookRunStatus::Blocked,
+            vec![datax_app_server_protocol::HookOutputEntry {
+                kind: datax_app_server_protocol::HookOutputEntryKind::Feedback,
                 text: "run tests before touching the fixture".to_string(),
             }],
         ),
@@ -3412,10 +3412,10 @@ async fn blocked_and_failed_hooks_render_feedback_and_errors() {
         &mut chat,
         hook_completed_run(
             "post-tool-use:1:/tmp/hooks.json",
-            codex_app_server_protocol::HookEventName::PostToolUse,
-            codex_app_server_protocol::HookRunStatus::Failed,
-            vec![codex_app_server_protocol::HookOutputEntry {
-                kind: codex_app_server_protocol::HookOutputEntryKind::Error,
+            datax_app_server_protocol::HookEventName::PostToolUse,
+            datax_app_server_protocol::HookRunStatus::Failed,
+            vec![datax_app_server_protocol::HookOutputEntry {
+                kind: datax_app_server_protocol::HookOutputEntryKind::Error,
                 text: "hook exited with code 7".to_string(),
             }],
         ),
@@ -3446,7 +3446,7 @@ async fn completed_hook_with_output_flushes_immediately() {
         &mut chat,
         hook_started_run(
             "pre-tool-use:0:/tmp/hooks.json:tool-call-1",
-            codex_app_server_protocol::HookEventName::PreToolUse,
+            datax_app_server_protocol::HookEventName::PreToolUse,
             Some("checking command"),
         ),
     );
@@ -3457,10 +3457,10 @@ async fn completed_hook_with_output_flushes_immediately() {
         &mut chat,
         hook_completed_run(
             "pre-tool-use:0:/tmp/hooks.json:tool-call-1",
-            codex_app_server_protocol::HookEventName::PreToolUse,
-            codex_app_server_protocol::HookRunStatus::Blocked,
-            vec![codex_app_server_protocol::HookOutputEntry {
-                kind: codex_app_server_protocol::HookOutputEntryKind::Feedback,
+            datax_app_server_protocol::HookEventName::PreToolUse,
+            datax_app_server_protocol::HookRunStatus::Blocked,
+            vec![datax_app_server_protocol::HookOutputEntry {
+                kind: datax_app_server_protocol::HookOutputEntryKind::Feedback,
                 text: "command blocked by policy".to_string(),
             }],
         ),
@@ -3485,7 +3485,7 @@ async fn completed_hook_output_precedes_following_assistant_message() {
         &mut chat,
         hook_started_run(
             "pre-tool-use:0:/tmp/hooks.json:tool-call-1",
-            codex_app_server_protocol::HookEventName::PreToolUse,
+            datax_app_server_protocol::HookEventName::PreToolUse,
             Some("checking command"),
         ),
     );
@@ -3495,10 +3495,10 @@ async fn completed_hook_output_precedes_following_assistant_message() {
         &mut chat,
         hook_completed_run(
             "pre-tool-use:0:/tmp/hooks.json:tool-call-1",
-            codex_app_server_protocol::HookEventName::PreToolUse,
-            codex_app_server_protocol::HookRunStatus::Blocked,
-            vec![codex_app_server_protocol::HookOutputEntry {
-                kind: codex_app_server_protocol::HookOutputEntryKind::Feedback,
+            datax_app_server_protocol::HookEventName::PreToolUse,
+            datax_app_server_protocol::HookRunStatus::Blocked,
+            vec![datax_app_server_protocol::HookOutputEntry {
+                kind: datax_app_server_protocol::HookOutputEntryKind::Feedback,
                 text: "command blocked by policy".to_string(),
             }],
         ),
@@ -3543,7 +3543,7 @@ async fn completed_same_id_hook_output_survives_restart() {
         &mut chat,
         hook_started_run(
             hook_id,
-            codex_app_server_protocol::HookEventName::Stop,
+            datax_app_server_protocol::HookEventName::Stop,
             Some("checking stop condition"),
         ),
     );
@@ -3552,10 +3552,10 @@ async fn completed_same_id_hook_output_survives_restart() {
         &mut chat,
         hook_completed_run(
             hook_id,
-            codex_app_server_protocol::HookEventName::Stop,
-            codex_app_server_protocol::HookRunStatus::Stopped,
-            vec![codex_app_server_protocol::HookOutputEntry {
-                kind: codex_app_server_protocol::HookOutputEntryKind::Stop,
+            datax_app_server_protocol::HookEventName::Stop,
+            datax_app_server_protocol::HookRunStatus::Stopped,
+            vec![datax_app_server_protocol::HookOutputEntry {
+                kind: datax_app_server_protocol::HookOutputEntryKind::Stop,
                 text: "continue with more context".to_string(),
             }],
         ),
@@ -3564,7 +3564,7 @@ async fn completed_same_id_hook_output_survives_restart() {
         &mut chat,
         hook_started_run(
             hook_id,
-            codex_app_server_protocol::HookEventName::Stop,
+            datax_app_server_protocol::HookEventName::Stop,
             Some("checking stop condition"),
         ),
     );
@@ -3596,7 +3596,7 @@ async fn identical_parallel_running_hooks_collapse_to_count() {
             &mut chat,
             hook_started_run(
                 &format!("pre-tool-use:0:/tmp/hooks.json:{tool_call_id}"),
-                codex_app_server_protocol::HookEventName::PreToolUse,
+                datax_app_server_protocol::HookEventName::PreToolUse,
                 Some("checking command policy"),
             ),
         );
@@ -3620,7 +3620,7 @@ async fn overlapping_hook_live_cell_tracks_parallel_quiet_hooks() {
         &mut chat,
         hook_started_run(
             "pre-tool-use:0:/tmp/hooks.json",
-            codex_app_server_protocol::HookEventName::PreToolUse,
+            datax_app_server_protocol::HookEventName::PreToolUse,
             Some("checking command policy"),
         ),
     );
@@ -3632,7 +3632,7 @@ async fn overlapping_hook_live_cell_tracks_parallel_quiet_hooks() {
         &mut chat,
         hook_started_run(
             "post-tool-use:1:/tmp/hooks.json",
-            codex_app_server_protocol::HookEventName::PostToolUse,
+            datax_app_server_protocol::HookEventName::PostToolUse,
             Some("checking output policy"),
         ),
     );
@@ -3644,8 +3644,8 @@ async fn overlapping_hook_live_cell_tracks_parallel_quiet_hooks() {
         &mut chat,
         hook_completed_run(
             "pre-tool-use:0:/tmp/hooks.json",
-            codex_app_server_protocol::HookEventName::PreToolUse,
-            codex_app_server_protocol::HookRunStatus::Completed,
+            datax_app_server_protocol::HookEventName::PreToolUse,
+            datax_app_server_protocol::HookRunStatus::Completed,
             Vec::new(),
         ),
     );
@@ -3660,8 +3660,8 @@ async fn overlapping_hook_live_cell_tracks_parallel_quiet_hooks() {
         &mut chat,
         hook_completed_run(
             "post-tool-use:1:/tmp/hooks.json",
-            codex_app_server_protocol::HookEventName::PostToolUse,
-            codex_app_server_protocol::HookRunStatus::Completed,
+            datax_app_server_protocol::HookEventName::PostToolUse,
+            datax_app_server_protocol::HookRunStatus::Completed,
             Vec::new(),
         ),
     );
@@ -3691,7 +3691,7 @@ async fn running_hook_does_not_displace_active_exec_cell() {
         &mut chat,
         hook_started_run(
             "post-tool-use:0:/tmp/hooks.json",
-            codex_app_server_protocol::HookEventName::PostToolUse,
+            datax_app_server_protocol::HookEventName::PostToolUse,
             Some("checking output policy"),
         ),
     );
@@ -3713,8 +3713,8 @@ async fn running_hook_does_not_displace_active_exec_cell() {
         &mut chat,
         hook_completed_run(
             "post-tool-use:0:/tmp/hooks.json",
-            codex_app_server_protocol::HookEventName::PostToolUse,
-            codex_app_server_protocol::HookRunStatus::Completed,
+            datax_app_server_protocol::HookEventName::PostToolUse,
+            datax_app_server_protocol::HookRunStatus::Completed,
             Vec::new(),
         ),
     );
@@ -3745,7 +3745,7 @@ async fn hidden_active_hook_does_not_add_transcript_separator() {
         &mut chat,
         hook_started_run(
             "post-tool-use:0:/tmp/hooks.json",
-            codex_app_server_protocol::HookEventName::PostToolUse,
+            datax_app_server_protocol::HookEventName::PostToolUse,
             Some("checking output policy"),
         ),
     );
@@ -3783,7 +3783,7 @@ async fn hook_completed_before_reveal_renders_completed_without_running_flash() 
         &mut chat,
         hook_started_run(
             "session-start:0:/tmp/hooks.json",
-            codex_app_server_protocol::HookEventName::SessionStart,
+            datax_app_server_protocol::HookEventName::SessionStart,
             Some("warming the shell"),
         ),
     );
@@ -3793,10 +3793,10 @@ async fn hook_completed_before_reveal_renders_completed_without_running_flash() 
         &mut chat,
         hook_completed_run(
             "session-start:0:/tmp/hooks.json",
-            codex_app_server_protocol::HookEventName::SessionStart,
-            codex_app_server_protocol::HookRunStatus::Completed,
-            vec![codex_app_server_protocol::HookOutputEntry {
-                kind: codex_app_server_protocol::HookOutputEntryKind::Context,
+            datax_app_server_protocol::HookEventName::SessionStart,
+            datax_app_server_protocol::HookRunStatus::Completed,
+            vec![datax_app_server_protocol::HookOutputEntry {
+                kind: datax_app_server_protocol::HookOutputEntryKind::Context,
                 text: "session context\nsecond line".to_string(),
             }],
         ),
@@ -3815,7 +3815,7 @@ async fn hook_completed_before_reveal_renders_completed_without_running_flash() 
 #[tokio::test]
 async fn session_start_hook_events_render_snapshot() {
     assert_hook_events_snapshot(
-        codex_app_server_protocol::HookEventName::SessionStart,
+        datax_app_server_protocol::HookEventName::SessionStart,
         "session-start:0:/tmp/hooks.json",
         "warming the shell",
         "session_start_hook_events_render_snapshot",
@@ -3825,13 +3825,13 @@ async fn session_start_hook_events_render_snapshot() {
 
 fn hook_started_run(
     id: &str,
-    event_name: codex_app_server_protocol::HookEventName,
+    event_name: datax_app_server_protocol::HookEventName,
     status_message: Option<&str>,
-) -> codex_app_server_protocol::HookRunSummary {
+) -> datax_app_server_protocol::HookRunSummary {
     hook_run_summary(
         id,
         event_name,
-        codex_app_server_protocol::HookRunStatus::Running,
+        datax_app_server_protocol::HookRunStatus::Running,
         status_message,
         Vec::new(),
     )
@@ -3839,10 +3839,10 @@ fn hook_started_run(
 
 fn hook_completed_run(
     id: &str,
-    event_name: codex_app_server_protocol::HookEventName,
-    status: codex_app_server_protocol::HookRunStatus,
-    entries: Vec<codex_app_server_protocol::HookOutputEntry>,
-) -> codex_app_server_protocol::HookRunSummary {
+    event_name: datax_app_server_protocol::HookEventName,
+    status: datax_app_server_protocol::HookRunStatus,
+    entries: Vec<datax_app_server_protocol::HookOutputEntry>,
+) -> datax_app_server_protocol::HookRunSummary {
     hook_run_summary(
         id, event_name, status, /*status_message*/ None, entries,
     )
@@ -3850,25 +3850,25 @@ fn hook_completed_run(
 
 fn hook_run_summary(
     id: &str,
-    event_name: codex_app_server_protocol::HookEventName,
-    status: codex_app_server_protocol::HookRunStatus,
+    event_name: datax_app_server_protocol::HookEventName,
+    status: datax_app_server_protocol::HookRunStatus,
     status_message: Option<&str>,
-    entries: Vec<codex_app_server_protocol::HookOutputEntry>,
-) -> codex_app_server_protocol::HookRunSummary {
-    codex_app_server_protocol::HookRunSummary {
+    entries: Vec<datax_app_server_protocol::HookOutputEntry>,
+) -> datax_app_server_protocol::HookRunSummary {
+    datax_app_server_protocol::HookRunSummary {
         id: id.to_string(),
         event_name,
-        handler_type: codex_app_server_protocol::HookHandlerType::Command,
-        execution_mode: codex_app_server_protocol::HookExecutionMode::Sync,
-        scope: codex_app_server_protocol::HookScope::Turn,
+        handler_type: datax_app_server_protocol::HookHandlerType::Command,
+        execution_mode: datax_app_server_protocol::HookExecutionMode::Sync,
+        scope: datax_app_server_protocol::HookScope::Turn,
         source_path: PathBuf::from(test_path_display("/tmp/hooks.json")).abs(),
-        source: codex_app_server_protocol::HookSource::User,
+        source: datax_app_server_protocol::HookSource::User,
         display_order: 0,
         status,
         status_message: status_message.map(str::to_string),
         started_at: 1,
-        completed_at: (status != codex_app_server_protocol::HookRunStatus::Running).then_some(2),
-        duration_ms: (status != codex_app_server_protocol::HookRunStatus::Running).then_some(1),
+        completed_at: (status != datax_app_server_protocol::HookRunStatus::Running).then_some(2),
+        duration_ms: (status != datax_app_server_protocol::HookRunStatus::Running).then_some(1),
         entries,
     }
 }
@@ -3921,7 +3921,7 @@ async fn chatwidget_exec_and_status_layout_vt100_snapshot() {
         &mut chat,
         AppServerThreadItem::CommandExecution {
             id: "c1".into(),
-            command: codex_shell_command::parse_command::shlex_join(&command),
+            command: datax_shell_command::parse_command::shlex_join(&command),
             cwd: cwd.clone().into(),
             process_id: None,
             source: ExecCommandSource::Agent,
@@ -3936,7 +3936,7 @@ async fn chatwidget_exec_and_status_layout_vt100_snapshot() {
         &mut chat,
         AppServerThreadItem::CommandExecution {
             id: "c1".into(),
-            command: codex_shell_command::parse_command::shlex_join(&command),
+            command: datax_shell_command::parse_command::shlex_join(&command),
             cwd: cwd.into(),
             process_id: None,
             source: ExecCommandSource::Agent,

@@ -17,7 +17,7 @@ This milestone deliberately targets the app-server public API boundary. Internal
 - [x] (2026-07-06T16:42:31Z) Re-read `docs/plans/Provisional-Datax-Migration-Plan-Phase1.md`, `docs/plans/Recommended-Datax-Migration-Execution-Model.md`, and `PLANS.md`.
 - [x] (2026-07-06T16:42:31Z) Identified Phase 1.4 as app-server model and protocol rename: `thread` to `chat`, `turn` to `interaction`, and `item` to `message` at the public app-server API boundary.
 - [x] (2026-07-06T16:42:31Z) Performed initial dependency discovery across `codex-rs/app-server-protocol`, `codex-rs/app-server`, generated schemas, generated TypeScript bindings, and v2 integration tests.
-- [ ] Create GitHub issue and draft PR for Phase 1.4 after the initial planning commit is pushed.
+- [x] (2026-07-06T16:42:31Z) Created GitHub issue #7 and draft PR #8 for Phase 1.4.
 - [ ] Rename protocol source modules and exported v2 request, response, notification, and shared model types.
 - [ ] Update app-server request dispatch, processor modules, and route method strings from thread and turn resources to chat and interaction resources.
 - [ ] Regenerate app-server JSON schema fixtures and TypeScript bindings.
@@ -86,9 +86,9 @@ The table below tracks files and file sets that belong to Phase 1.4. Rows marked
 
 | Filename | Modified | Remarks Notes |
 | --- | --- | --- |
-| `docs/plans/datax_migration_phase1_4_app_server_protocol/app_server_protocol_rename_execplan.md` | `In-Progress` | Living ExecPlan for Phase 1.4. |
-| `docs/plans/datax_migration_phase1_4_app_server_protocol/github_issue.md` | `Pending` | GitHub issue body for milestone scope and acceptance criteria. |
-| `docs/plans/datax_migration_phase1_4_app_server_protocol/pull_request.md` | `Pending` | Draft PR body for milestone summary and staged validation notes. |
+| `docs/plans/datax_migration_phase1_4_app_server_protocol/app_server_protocol_rename_execplan.md` | `In-Progress` | Living ExecPlan for Phase 1.4; updated with GitHub artifact URLs. |
+| `docs/plans/datax_migration_phase1_4_app_server_protocol/github_issue.md` | `Completed` | GitHub issue body used to create issue #7. |
+| `docs/plans/datax_migration_phase1_4_app_server_protocol/pull_request.md` | `Completed` | Draft PR body used to create PR #8. |
 | `codex-rs/app-server-protocol/src/protocol/v2/mod.rs` | `Pending` | Module exports for thread, turn, and item protocol modules must change to chat, interaction, and message modules. |
 | `codex-rs/app-server-protocol/src/protocol/v2/thread.rs` | `Pending` | Primary public thread/chat request, response, and notification types. Expected to be moved or replaced by `chat.rs`. |
 | `codex-rs/app-server-protocol/src/protocol/v2/turn.rs` | `Pending` | Primary public turn/interaction types. Expected to be moved or replaced by `interaction.rs`. |
@@ -250,7 +250,9 @@ Because public method aliases are intentionally not added, a temporary compile f
 
 ## Artifacts and Notes
 
-GitHub issue and draft PR URLs will be recorded here after creation.
+GitHub issue: https://github.com/mbellary/datax/issues/7
+
+Draft pull request: https://github.com/mbellary/datax/pull/8
 
 Initial discovery command:
 
@@ -267,3 +269,4 @@ App-server request dispatch should route method strings such as `chat/start`, `c
 ## Change Notes
 
 - 2026-07-06: Created the initial Phase 1.4 ExecPlan, file inventory, dependency order, validation matrix, and acceptance commands before implementation edits. This records the approved staged-test policy and keeps the protocol rename bounded to app-server public API surfaces.
+- 2026-07-06: Created and recorded GitHub issue #7 and draft PR #8 so subsequent implementation commits are attached to the milestone.

@@ -24,6 +24,7 @@ Phase 1.3 makes the Rust workspace internally consistent with the Datax product 
 - [x] (2026-07-06T12:40:22Z) Updated this ExecPlan with final inventory status, decisions, validation command status, and outcome notes.
 - [x] (2026-07-06T13:20:00Z) Fixed `codex-rs/.config/nextest.toml` package filters after user validation showed `just test -p datax-cli` failed during nextest config parsing.
 - [x] (2026-07-06T13:35:00Z) Corrected `codex-rs/Cargo.lock` Rama helper packages from `0.3.0-rc1` to `0.3.0-alpha.4` after user validation showed Rust 1.95 rejected the rc packages.
+- [x] (2026-07-06T13:45:00Z) Fixed `datax-rmcp-client` initialization compile error by cloning the `InitializeResult` inside RMCP's `Arc`.
 
 ## Surprises & Discoveries
 
@@ -44,6 +45,9 @@ Phase 1.3 makes the Rust workspace internally consistent with the Datax product 
 
 - Observation: Refreshing `codex-rs/Cargo.lock` selected `rama-error`, `rama-macros`, and `rama-utils` `0.3.0-rc1`, but the repository toolchain is Rust 1.95 and those rc packages require Rust 1.96.
   Evidence: User-run validation failed with `rustc 1.95.0 is not supported by the following packages`; the direct Rama dependencies in `codex-rs/network-proxy/Cargo.toml` are pinned to `=0.3.0-alpha.4`, so the helper packages were locked back to `0.3.0-alpha.4` with `cargo update -p ... --precise 0.3.0-alpha.4`.
+
+- Observation: RMCP's `peer_info()` returns an `Arc<InitializeResult>` with the locked dependency graph, while `McpClient::initialize` returns an owned `InitializeResult`.
+  Evidence: User-run validation failed compiling `datax-rmcp-client` with `expected InitializeResult, found Arc<InitializeResult>` at `rmcp-client/src/rmcp_client.rs:485`.
 
 ## Decision Log
 
@@ -104,6 +108,7 @@ The table below tracks files and file sets that belong to Phase 1.3. Rows marked
 | `codex-rs/**/Cargo.toml` | `Completed` | Rust crate package names, dependency keys, library names, and binary names renamed where they represent internal Datax crates and binaries. |
 | `codex-rs/**/BUILD.bazel` | `Completed` | Bazel crate target names and `crate_name` values renamed; `codex_rust_crate` and `codex-rs` path references remain documented exceptions. |
 | `codex-rs/**/*.rs` | `Completed` | External workspace crate paths changed from `codex_*::` to `datax_*::`; internal modules such as `crate::codex_thread` are not crate imports and are deferred exceptions. |
+| `codex-rs/rmcp-client/src/rmcp_client.rs` | `Completed` | Adjusted RMCP initialize result handling to return an owned `InitializeResult` after `peer_info()` returns an `Arc`. |
 | `codex-rs/**/*.bzl` | `Not Required` | Inspected for Phase 1.3. Existing `codex-rs` path handling and `codex_rust_crate` helper infrastructure are retained exceptions. |
 | `MODULE.bazel` | `Not Required` | Inspected; it references the `codex-rs` workspace path, not internal Rust package names requiring Phase 1.3 modification. |
 | `MODULE.bazel.lock` | `Completed` | Refreshed with `PATH=/tmp/datax-bazel-bin:$PATH just bazel-lock-update` after installing temporary Bazelisk outside the repo. |

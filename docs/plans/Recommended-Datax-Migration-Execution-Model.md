@@ -124,13 +124,13 @@ implementation begins:
 
 Use these branch names unless a later milestone needs a more precise name:
 
-- `codex/datax-migration-phase1-1-repo-prep`
-- `codex/datax-migration-phase1-2-product-rename`
-- `codex/datax-migration-phase1-3-rust-workspace`
-- `codex/datax-migration-phase1-4-app-server-protocol`
-- `codex/datax-migration-phase1-5-persistence-fixtures`
-- `codex/datax-migration-phase1-6-test-isolation`
-- `codex/datax-migration-phase1-7-freeze-report`
+- `datax/migration-phase1-1-repo-prep`
+- `datax/migration-phase1-2-product-rename`
+- `datax/migration-phase1-3-rust-workspace`
+- `datax/migration-phase1-4-app-server-protocol`
+- `datax/migration-phase1-5-persistence-fixtures`
+- `datax/migration-phase1-6-test-isolation`
+- `datax/migration-phase1-7-freeze-report`
 
 ## Incremental Validation Strategy
 

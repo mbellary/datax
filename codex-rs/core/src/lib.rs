@@ -1,5 +1,6 @@
 //! Root of the `codex-core` library.
 
+#![recursion_limit = "256"]
 // Prevent accidental direct writes to stdout/stderr in library code. All
 // user-visible output must go through the appropriate abstraction (e.g.,
 // the TUI or the tracing stack).
@@ -22,12 +23,12 @@ mod codex_thread;
 mod compact_remote;
 mod compact_remote_v2;
 mod config_lock;
-pub use datax_thread::BackgroundTerminalInfo;
-pub use datax_thread::CodexThread;
-pub use datax_thread::CodexThreadSettingsOverrides;
-pub use datax_thread::ThreadConfigSnapshot;
-pub use datax_thread::TryStartTurnIfIdleError;
-pub use datax_thread::TryStartTurnIfIdleRejectionReason;
+pub use codex_thread::BackgroundTerminalInfo;
+pub use codex_thread::CodexThread;
+pub use codex_thread::CodexThreadSettingsOverrides;
+pub use codex_thread::ThreadConfigSnapshot;
+pub use codex_thread::TryStartTurnIfIdleError;
+pub use codex_thread::TryStartTurnIfIdleRejectionReason;
 pub use session::turn_context::TurnContext;
 mod agent;
 mod attestation;

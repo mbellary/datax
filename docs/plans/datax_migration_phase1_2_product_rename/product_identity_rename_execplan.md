@@ -214,6 +214,8 @@ After implementation, record the validation commands listed below and paste conc
 
 Validation commands are documented per phase because builds are slow. For the remainder of Phase 1, test and build commands should be staged in each ExecPlan and deferred for the user's post-implementation batch run unless the user explicitly asks to run them during the phase. This Phase 1.2 plan keeps already-run lightweight checks as evidence, but future phase work should default to documenting commands rather than executing tests.
 
+Notebook containing test execution results: migration-phase1-2-product-rename.ipynb
+
 From the repository root, run the whitespace check and expect no output:
 
     git diff --check

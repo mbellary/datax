@@ -1,6 +1,6 @@
 #![allow(warnings, clippy::all)]
 
-use codex_utils_path as path_utils;
+use datax_utils_path as path_utils;
 use std::cmp::Reverse;
 use std::ffi::OsStr;
 use std::io;
@@ -20,7 +20,7 @@ use super::SESSIONS_SUBDIR;
 use super::compression;
 use crate::protocol::EventMsg;
 use crate::state_db;
-use codex_file_search as file_search;
+use datax_file_search as file_search;
 use datax_protocol::ThreadId;
 use datax_protocol::protocol::RolloutItem;
 use datax_protocol::protocol::RolloutLine;

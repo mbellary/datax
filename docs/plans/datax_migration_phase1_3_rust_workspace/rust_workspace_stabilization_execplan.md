@@ -26,6 +26,7 @@ Phase 1.3 makes the Rust workspace internally consistent with the Datax product 
 - [x] (2026-07-06T13:35:00Z) Corrected `codex-rs/Cargo.lock` Rama helper packages from `0.3.0-rc1` to `0.3.0-alpha.4` after user validation showed Rust 1.95 rejected the rc packages.
 - [x] (2026-07-06T13:45:00Z) Fixed `datax-rmcp-client` initialization compile error by cloning the `InitializeResult` inside RMCP's `Arc`.
 - [x] (2026-07-06T13:55:00Z) Fixed `datax-mcp` compile error caused by a mechanical rewrite from local module `codex_apps` to nonexistent crate `datax_apps`.
+- [x] (2026-07-06T14:05:00Z) Fixed remaining stale external crate aliases such as `codex_utils_path`, `codex_file_search`, `codex_backend_client`, `codex_prompts`, and `codex_cli`.
 
 ## Surprises & Discoveries
 
@@ -52,6 +53,9 @@ Phase 1.3 makes the Rust workspace internally consistent with the Datax product 
 
 - Observation: The `codex_apps` module in `datax-mcp` is an internal module, not an external crate import, so it must remain referenced as `codex_apps`.
   Evidence: User-run validation failed compiling `datax-mcp` with unresolved import `datax_apps` in `codex-mcp/src/lib.rs`; the symbols are defined in `codex-rs/codex-mcp/src/codex_apps.rs`.
+
+- Observation: Rust alias imports such as `use codex_utils_path as path_utils;` are external crate identifiers and must follow renamed library crate names.
+  Evidence: User-run validation failed compiling `datax-rollout` with unresolved imports for `codex_utils_path` and `codex_file_search`; static search found the same external alias pattern in rollout, cloud tasks, TUI, app-server, core, and TUI tests.
 
 ## Decision Log
 
@@ -113,6 +117,15 @@ The table below tracks files and file sets that belong to Phase 1.3. Rows marked
 | `codex-rs/**/BUILD.bazel` | `Completed` | Bazel crate target names and `crate_name` values renamed; `codex_rust_crate` and `codex-rs` path references remain documented exceptions. |
 | `codex-rs/**/*.rs` | `Completed` | External workspace crate paths changed from `codex_*::` to `datax_*::`; internal modules such as `crate::codex_thread` are not crate imports and are deferred exceptions. |
 | `codex-rs/codex-mcp/src/lib.rs` | `Completed` | Restored public re-exports for `CodexAppsToolsCacheKey` and `codex_apps_tools_cache_key` to the local `codex_apps` module. |
+| `codex-rs/rollout/src/list.rs` | `Completed` | Updated stale external crate aliases to `datax_utils_path` and `datax_file_search`. |
+| `codex-rs/rollout/src/recorder.rs` | `Completed` | Updated stale external crate alias to `datax_utils_path`. |
+| `codex-rs/cloud-tasks-client/src/http.rs` | `Completed` | Updated stale external crate alias to `datax_backend_client`. |
+| `codex-rs/tui/src/file_search.rs` | `Completed` | Updated stale external crate alias to `datax_file_search`. |
+| `codex-rs/tui/src/session_resume.rs` | `Completed` | Updated stale external crate alias to `datax_utils_path`. |
+| `codex-rs/tui/src/resume_picker.rs` | `Completed` | Updated stale external crate alias to `datax_utils_path`. |
+| `codex-rs/app-server/src/fuzzy_file_search.rs` | `Completed` | Updated stale external crate alias to `datax_file_search`. |
+| `codex-rs/core/src/lib.rs` | `Completed` | Updated review prompt crate re-export to `datax_prompts`. |
+| `codex-rs/tui/tests/all.rs` | `Completed` | Updated cargo-shear dev-dependency import to `datax_cli`. |
 | `codex-rs/rmcp-client/src/rmcp_client.rs` | `Completed` | Adjusted RMCP initialize result handling to return an owned `InitializeResult` after `peer_info()` returns an `Arc`. |
 | `codex-rs/**/*.bzl` | `Not Required` | Inspected for Phase 1.3. Existing `codex-rs` path handling and `codex_rust_crate` helper infrastructure are retained exceptions. |
 | `MODULE.bazel` | `Not Required` | Inspected; it references the `codex-rs` workspace path, not internal Rust package names requiring Phase 1.3 modification. |

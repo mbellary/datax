@@ -49,7 +49,6 @@ use crate::config::RolloutConfigView;
 use crate::default_client::originator;
 use crate::state_db;
 use crate::state_db::StateDbHandle;
-use codex_utils_path as path_utils;
 use datax_git_utils::collect_git_info;
 use datax_git_utils::get_git_repo_root;
 use datax_protocol::protocol::GitInfo as ProtocolGitInfo;
@@ -63,6 +62,7 @@ use datax_protocol::protocol::SessionMetaLine;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::ThreadSource;
 use datax_state::StateRuntime;
+use datax_utils_path as path_utils;
 
 /// Writes canonical session rollout items to JSONL.
 ///

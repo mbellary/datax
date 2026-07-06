@@ -1,4 +1,4 @@
-"""Cargo builds for source-built Codex package artifacts."""
+"""Cargo builds for source-built Datax package artifacts."""
 
 import os
 import subprocess
@@ -8,10 +8,10 @@ from pathlib import Path
 from .targets import REPO_ROOT
 from .targets import PackageVariant
 from .targets import TargetSpec
-from .v8 import resolve_codex_v8_cargo_env
+from .v8 import resolve_datax_v8_cargo_env
 
 
-CODEX_RS_ROOT = REPO_ROOT / "codex-rs"
+RUST_WORKSPACE_ROOT = REPO_ROOT / "codex-rs"
 
 
 @dataclass(frozen=True)
@@ -62,14 +62,14 @@ def build_source_binaries(
 
         cargo_env = None
         if entrypoint_bin is None:
-            codex_v8_env = resolve_codex_v8_cargo_env(spec)
-            if codex_v8_env:
-                cargo_env = {**os.environ, **codex_v8_env}
+            datax_v8_env = resolve_datax_v8_cargo_env(spec)
+            if datax_v8_env:
+                cargo_env = {**os.environ, **datax_v8_env}
 
         print("+", " ".join(cmd))
         subprocess.run(
             cmd,
-            cwd=CODEX_RS_ROOT,
+            cwd=RUST_WORKSPACE_ROOT,
             check=True,
             env=cargo_env,
         )
@@ -154,13 +154,13 @@ def cargo_profile_output_dir(spec: TargetSpec, profile: str) -> Path:
 def cargo_target_dir() -> Path:
     target_dir = os.environ.get("CARGO_TARGET_DIR")
     if target_dir is None:
-        return CODEX_RS_ROOT / "target"
+        return RUST_WORKSPACE_ROOT / "target"
 
     path = Path(target_dir)
     if path.is_absolute():
         return path
 
-    return CODEX_RS_ROOT / path
+    return RUST_WORKSPACE_ROOT / path
 
 
 def cargo_profile_dirname(profile: str) -> str:

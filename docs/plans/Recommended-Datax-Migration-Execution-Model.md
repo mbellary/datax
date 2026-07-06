@@ -53,7 +53,9 @@ For each Phase 1 milestone:
 - Create a draft pull request early so progress, CI, and review notes are
   attached to the milestone.
 - Implement incrementally and update the ExecPlan as a living document.
-- Run targeted build and test commands for the crates or packages changed.
+- Document targeted build and test commands for the crates or packages changed.
+- Defer test and build execution until the post-implementation migration test
+  pass unless the user explicitly asks to run a command during the milestone.
 - Run `just fmt` from `codex-rs` after code changes.
 - Run `just fix -p <project>` before finalizing substantial Rust changes.
 - Ask before running the complete `just test` suite.
@@ -86,8 +88,9 @@ A Phase 1 milestone is complete only when:
   reference is intentional.
 - The Public Surface Checklist has been reviewed and any touched surfaces have
   matching tests, generated artifacts, compatibility notes, or deferrals.
-- The Validation Matrix commands required for the milestone have been run, or
-  any skipped commands are recorded with the reason and follow-up owner.
+- The Validation Matrix commands required for the milestone are recorded
+  exactly, including deferred commands that the user will run during the
+  post-implementation migration test pass.
 - The dedicated branch, GitHub issue, and draft pull request exist and point to
   the same milestone scope.
 - The pull request is reviewable as a migration-only change and does not
@@ -136,10 +139,12 @@ Use these branch names unless a later milestone needs a more precise name:
 
 Build and test costs are expected to be high, so validation should be staged.
 
-Run narrow checks after each meaningful rename band. Prefer crate-specific
-commands such as `just test -p <crate>` over workspace-wide commands while the
-change is still in progress. Use the full suite only at planned stabilization
-points and only after approval.
+Record narrow checks after each meaningful rename band. Prefer documenting
+crate-specific commands such as `just test -p <crate>` over workspace-wide
+commands while the change is still in progress. The user will run the recorded
+commands after the implementation phases are complete and report results. Run
+commands during a milestone only when the user explicitly approves or requests
+that specific validation.
 
 When generated artifacts are affected, regenerate them in the same milestone as
 the source shape change. For app-server protocol changes, run the app-server

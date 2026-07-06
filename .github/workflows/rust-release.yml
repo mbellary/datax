@@ -80,7 +80,7 @@ jobs:
             target: aarch64-apple-darwin
             bundle: primary
             artifact_name: aarch64-apple-darwin
-            binaries: "codex codex-responses-api-proxy"
+            binaries: "datax codex-responses-api-proxy"
             build_dmg: "true"
           - runner: macos-15-xlarge
             target: aarch64-apple-darwin
@@ -92,7 +92,7 @@ jobs:
             target: x86_64-apple-darwin
             bundle: primary
             artifact_name: x86_64-apple-darwin
-            binaries: "codex codex-responses-api-proxy"
+            binaries: "datax codex-responses-api-proxy"
             build_dmg: "true"
           - runner: macos-15-xlarge
             target: x86_64-apple-darwin
@@ -105,7 +105,7 @@ jobs:
             target: x86_64-unknown-linux-musl
             bundle: primary
             artifact_name: x86_64-unknown-linux-musl
-            binaries: "codex codex-responses-api-proxy bwrap"
+            binaries: "datax codex-responses-api-proxy bwrap"
             build_dmg: "false"
           - runner: ${{ github.event.repository.name }}-linux-x64-xl
             target: x86_64-unknown-linux-musl
@@ -117,7 +117,7 @@ jobs:
             target: aarch64-unknown-linux-musl
             bundle: primary
             artifact_name: aarch64-unknown-linux-musl
-            binaries: "codex codex-responses-api-proxy bwrap"
+            binaries: "datax codex-responses-api-proxy bwrap"
             build_dmg: "false"
           - runner: ${{ github.event.repository.name }}-linux-arm64
             target: aarch64-unknown-linux-musl
@@ -340,21 +340,21 @@ jobs:
           done
 
           if [[ "${{ matrix.target }}" == *linux* && "${{ matrix.bundle }}" == "primary" ]]; then
-            bundle_root="${RUNNER_TEMP}/codex-${{ matrix.target }}-bundle"
+            bundle_root="${RUNNER_TEMP}/datax-${{ matrix.target }}-bundle"
             rm -rf "$bundle_root"
-            mkdir -p "$bundle_root/codex-resources"
-            cp "$dest/codex-${{ matrix.target }}" "$bundle_root/codex"
-            cp "$dest/bwrap-${{ matrix.target }}" "$bundle_root/codex-resources/bwrap"
-            chmod 0755 "$bundle_root/codex" "$bundle_root/codex-resources/bwrap"
-            tar -C "$bundle_root" -cf - codex codex-resources/bwrap |
-              zstd -T0 -19 -o "$dest/codex-${{ matrix.target }}-bundle.tar.zst"
+            mkdir -p "$bundle_root/datax-resources"
+            cp "$dest/datax-${{ matrix.target }}" "$bundle_root/datax"
+            cp "$dest/bwrap-${{ matrix.target }}" "$bundle_root/datax-resources/bwrap"
+            chmod 0755 "$bundle_root/datax" "$bundle_root/datax-resources/bwrap"
+            tar -C "$bundle_root" -cf - datax datax-resources/bwrap |
+              zstd -T0 -19 -o "$dest/datax-${{ matrix.target }}-bundle.tar.zst"
           fi
 
           if [[ "${{ matrix.build_dmg }}" == "true" ]]; then
-            cp target/${{ matrix.target }}/release/codex-${{ matrix.target }}.dmg "$dest/codex-${{ matrix.target }}.dmg"
+            cp target/${{ matrix.target }}/release/datax-${{ matrix.target }}.dmg "$dest/datax-${{ matrix.target }}.dmg"
           fi
 
-      - name: Build Codex package archive
+      - name: Build Datax package archive
         if: ${{ runner.os != 'macOS' }}
         shell: bash
         env:
@@ -362,7 +362,7 @@ jobs:
           BUNDLE: ${{ matrix.bundle }}
         run: |
           set -euo pipefail
-          bash "${GITHUB_WORKSPACE}/.github/scripts/build-codex-package-archive.sh" \
+          bash "${GITHUB_WORKSPACE}/.github/scripts/build-datax-package-archive.sh" \
             --target "$TARGET" \
             --bundle "$BUNDLE" \
             --entrypoint-dir "target/${TARGET}/release" \
@@ -404,7 +404,7 @@ jobs:
             "${GITHUB_WORKSPACE}/sdk/python/scripts/update_sdk_artifacts.py"
             stage-runtime
             "$stage_dir"
-            "dist/${{ matrix.target }}/codex-package-${{ matrix.target }}.tar.gz"
+            "dist/${{ matrix.target }}/datax-package-${{ matrix.target }}.tar.gz"
             --codex-version "${GITHUB_REF_NAME}"
             --platform-tag "$platform_tag"
           )
@@ -484,7 +484,7 @@ jobs:
           - target: aarch64-apple-darwin
             bundle: primary
             artifact_name: aarch64-apple-darwin
-            binaries: "codex codex-responses-api-proxy"
+            binaries: "datax codex-responses-api-proxy"
           - target: aarch64-apple-darwin
             bundle: app-server
             artifact_name: aarch64-apple-darwin-app-server
@@ -492,7 +492,7 @@ jobs:
           - target: x86_64-apple-darwin
             bundle: primary
             artifact_name: x86_64-apple-darwin
-            binaries: "codex codex-responses-api-proxy"
+            binaries: "datax codex-responses-api-proxy"
           - target: x86_64-apple-darwin
             bundle: app-server
             artifact_name: x86_64-apple-darwin-app-server
@@ -558,7 +558,7 @@ jobs:
               --identifier "$binary" \
               --options runtime \
               --timestamp true \
-              --entitlements .github/scripts/macos-signing/codex.entitlements.plist
+              --entitlements .github/scripts/macos-signingdatax.entitlements.plist
 
             mkdir -p "${report_dir}/${binary}"
             rcodesign print-signature-info "$signed_path" \
@@ -602,7 +602,7 @@ jobs:
           - target: aarch64-apple-darwin
             bundle: primary
             artifact_name: aarch64-apple-darwin
-            binaries: "codex codex-responses-api-proxy"
+            binaries: "datax codex-responses-api-proxy"
             build_dmg: "true"
           - target: aarch64-apple-darwin
             bundle: app-server
@@ -612,7 +612,7 @@ jobs:
           - target: x86_64-apple-darwin
             bundle: primary
             artifact_name: x86_64-apple-darwin
-            binaries: "codex codex-responses-api-proxy"
+            binaries: "datax codex-responses-api-proxy"
             build_dmg: "true"
           - target: x86_64-apple-darwin
             bundle: app-server
@@ -649,9 +649,9 @@ jobs:
 
           target="${{ matrix.target }}"
           release_dir="target/${target}/release"
-          dmg_root="${RUNNER_TEMP}/codex-dmg-root-${target}"
+          dmg_root="${RUNNER_TEMP}/datax-dmg-root-${target}"
           volname="Codex (${target})"
-          dmg_path="${release_dir}/codex-${target}.dmg"
+          dmg_path="${release_dir}datax-${target}.dmg"
 
           rm -rf "$dmg_root"
           mkdir -p "$dmg_root"
@@ -683,7 +683,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ${{ matrix.artifact_name }}-unsigned-dmg
-          path: codex-rs/target/${{ matrix.target }}/release/codex-${{ matrix.target }}.dmg
+          path: codex-rs/target/${{ matrix.target }}/release/datax-${{ matrix.target }}.dmg
           if-no-files-found: error
 
       - name: Stage macOS artifacts
@@ -697,14 +697,14 @@ jobs:
             cp "target/${{ matrix.target }}/release/${binary}" "$dest/${binary}-${{ matrix.target }}"
           done
 
-      - name: Build Codex package archive
+      - name: Build Datax package archive
         shell: bash
         env:
           TARGET: ${{ matrix.target }}
           BUNDLE: ${{ matrix.bundle }}
         run: |
           set -euo pipefail
-          bash "${GITHUB_WORKSPACE}/.github/scripts/build-codex-package-archive.sh" \
+          bash "${GITHUB_WORKSPACE}/.github/scripts/build-datax-package-archive.sh" \
             --target "$TARGET" \
             --bundle "$BUNDLE" \
             --entrypoint-dir "target/${TARGET}/release" \
@@ -738,7 +738,7 @@ jobs:
             "${GITHUB_WORKSPACE}/sdk/python/scripts/update_sdk_artifacts.py" \
             stage-runtime \
             "$stage_dir" \
-            "dist/${{ matrix.target }}/codex-package-${{ matrix.target }}.tar.gz" \
+            "dist/${{ matrix.target }}/datax-package-${{ matrix.target }}.tar.gz" \
             --codex-version "${GITHUB_REF_NAME}" \
             --platform-tag "$platform_tag"
           "${RUNNER_TEMP}/python-runtime-build-venv/bin/python" -m build --wheel --outdir "$wheel_dir" "$stage_dir"
@@ -830,7 +830,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          dmg_path="${RUNNER_TEMP}/unsigned-dmg/codex-${TARGET}.dmg"
+          dmg_path="${RUNNER_TEMP}/unsigned-dmg/datax-${TARGET}.dmg"
           report_dir="${GITHUB_WORKSPACE}/macos-dmg-signing-verification/${TARGET}"
           if [[ ! -f "$dmg_path" ]]; then
             echo "Unsigned DMG $dmg_path not found"
@@ -858,7 +858,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ${{ matrix.artifact_name }}-signed-dmg
-          path: ${{ runner.temp }}/unsigned-dmg/codex-${{ matrix.target }}.dmg
+          path: ${{ runner.temp }}/unsigned-dmg/datax-${{ matrix.target }}.dmg
           if-no-files-found: error
 
       - name: Upload DMG signing verification
@@ -889,7 +889,7 @@ jobs:
           - target: aarch64-apple-darwin
             bundle: primary
             artifact_name: aarch64-apple-darwin
-            binaries: "codex codex-responses-api-proxy"
+            binaries: "datax codex-responses-api-proxy"
             verify_dmg: "true"
           - target: aarch64-apple-darwin
             bundle: app-server
@@ -899,7 +899,7 @@ jobs:
           - target: x86_64-apple-darwin
             bundle: primary
             artifact_name: x86_64-apple-darwin
-            binaries: "codex codex-responses-api-proxy"
+            binaries: "datax codex-responses-api-proxy"
             verify_dmg: "true"
           - target: x86_64-apple-darwin
             bundle: app-server
@@ -938,7 +938,7 @@ jobs:
 
           target="${{ matrix.target }}"
           packaged_dir="dist/${target}"
-          expected_entitlements="${GITHUB_WORKSPACE}/.github/scripts/macos-signing/codex.entitlements.plist"
+          expected_entitlements="${GITHUB_WORKSPACE}/.github/scripts/macos-signingdatax.entitlements.plist"
 
           verify_signed_binary() {
             local path="$1"
@@ -974,8 +974,8 @@ jobs:
 
           case "${{ matrix.bundle }}" in
             primary)
-              package_stem="codex-package"
-              package_entrypoint="codex"
+              package_stem="datax-package"
+              package_entrypoint="datax"
               ;;
             app-server)
               package_stem="codex-app-server-package"
@@ -997,8 +997,8 @@ jobs:
             exit 0
           fi
 
-          dmg_path="${RUNNER_TEMP}/signed-dmg/codex-${target}.dmg"
-          mount_dir="${RUNNER_TEMP}/codex-dmg-mount-${target}"
+          dmg_path="${RUNNER_TEMP}/signed-dmg/datax-${target}.dmg"
+          mount_dir="${RUNNER_TEMP}/datax-dmg-mount-${target}"
           if [[ ! -f "$dmg_path" ]]; then
             echo "Signed DMG $dmg_path not found"
             exit 1
@@ -1022,7 +1022,7 @@ jobs:
 
           cleanup_mount
           trap - EXIT
-          cp "$dmg_path" "dist/${target}/codex-${target}.dmg"
+          cp "$dmg_path" "dist/${target}/datax-${target}.dmg"
 
       - name: Upload verified macOS artifacts
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -1118,14 +1118,14 @@ jobs:
       - name: List
         run: ls -R dist/
 
-      - name: Add Codex package checksum manifest
+      - name: Add Datax package checksum manifest
         run: |
           set -euo pipefail
 
-          manifest="dist/codex-package_SHA256SUMS"
+          manifest="dist/datax-package_SHA256SUMS"
           tmp_manifest="$(mktemp)"
           find dist -type f \
-            \( -name 'codex-package-*.tar.gz' -o -name 'codex-app-server-package-*.tar.gz' \) \
+            \( -name 'datax-package-*.tar.gz' -o -name 'codex-app-server-package-*.tar.gz' \) \
             -print |
             sort |
             while IFS= read -r archive; do
@@ -1134,7 +1134,7 @@ jobs:
             done > "$tmp_manifest"
 
           if [[ ! -s "$tmp_manifest" ]]; then
-            echo "No Codex package archives found for checksum manifest"
+            echo "No Datax package archives found for checksum manifest"
             exit 1
           fi
 
@@ -1195,7 +1195,7 @@ jobs:
             --release-version "$RELEASE_VERSION" \
             --workflow-url "$workflow_url" \
             --artifacts-dir "${GITHUB_WORKSPACE}/dist" \
-            --package codex \
+            --package datax \
             --package codex-responses-api-proxy \
             --package codex-sdk
 
@@ -1288,10 +1288,10 @@ jobs:
           tag="$RELEASE_TAG"
           mkdir -p dist/npm
           patterns=(
-            "codex-npm-${version}.tgz"
-            "codex-npm-linux-*-${version}.tgz"
-            "codex-npm-darwin-*-${version}.tgz"
-            "codex-npm-win32-*-${version}.tgz"
+            "datax-npm-${version}.tgz"
+            "datax-npm-linux-*-${version}.tgz"
+            "datax-npm-darwin-*-${version}.tgz"
+            "datax-npm-win32-*-${version}.tgz"
             "codex-responses-api-proxy-npm-${version}.tgz"
             "codex-sdk-npm-${version}.tgz"
           )
@@ -1314,19 +1314,19 @@ jobs:
             prefix="${NPM_TAG}-"
           fi
 
-          root_tarball="dist/npm/codex-npm-${VERSION}.tgz"
+          root_tarball="dist/npm/datax-npm-${VERSION}.tgz"
           sdk_tarball="dist/npm/codex-sdk-npm-${VERSION}.tgz"
-          # Keep this list in sync with CODEX_PLATFORM_PACKAGES in
-          # codex-cli/scripts/build_npm_package.py. The root wrapper advances
-          # @openai/codex@latest as soon as it publishes, so every platform
+          # Keep this list in sync with DATAX_PLATFORM_PACKAGES in
+          # datax-cli/scripts/build_npm_package.py. The root wrapper advances
+          # datax@latest as soon as it publishes, so every platform
           # package it aliases must already exist in the registry first.
           platform_tarballs=(
-            "dist/npm/codex-npm-linux-x64-${VERSION}.tgz"
-            "dist/npm/codex-npm-linux-arm64-${VERSION}.tgz"
-            "dist/npm/codex-npm-darwin-x64-${VERSION}.tgz"
-            "dist/npm/codex-npm-darwin-arm64-${VERSION}.tgz"
-            "dist/npm/codex-npm-win32-x64-${VERSION}.tgz"
-            "dist/npm/codex-npm-win32-arm64-${VERSION}.tgz"
+            "dist/npm/datax-npm-linux-x64-${VERSION}.tgz"
+            "dist/npm/datax-npm-linux-arm64-${VERSION}.tgz"
+            "dist/npm/datax-npm-darwin-x64-${VERSION}.tgz"
+            "dist/npm/datax-npm-darwin-arm64-${VERSION}.tgz"
+            "dist/npm/datax-npm-win32-x64-${VERSION}.tgz"
+            "dist/npm/datax-npm-win32-arm64-${VERSION}.tgz"
           )
 
           for required_tarball in "${platform_tarballs[@]}" "${root_tarball}"; do
@@ -1358,7 +1358,7 @@ jobs:
           done
 
           # npm returns HTTP 409 when concurrent publishes update the same
-          # packument. Every platform tarball is a version of @openai/codex,
+          # packument. Every platform tarball is a version of datax,
           # so publish all tarballs serially.
           tarballs=(
             "${platform_tarballs[@]}"
@@ -1375,12 +1375,12 @@ jobs:
             tag=""
 
             case "${filename}" in
-              codex-npm-linux-*-"${VERSION}".tgz|codex-npm-darwin-*-"${VERSION}".tgz|codex-npm-win32-*-"${VERSION}".tgz)
-                platform="${filename#codex-npm-}"
+              datax-npm-linux-*-"${VERSION}".tgz|datax-npm-darwin-*-"${VERSION}".tgz|datax-npm-win32-*-"${VERSION}".tgz)
+                platform="${filename#datax-npm-}"
                 platform="${platform%-${VERSION}.tgz}"
                 tag="${prefix}${platform}"
                 ;;
-              codex-npm-"${VERSION}".tgz|codex-responses-api-proxy-npm-"${VERSION}".tgz|codex-sdk-npm-"${VERSION}".tgz)
+              datax-npm-"${VERSION}".tgz|codex-responses-api-proxy-npm-"${VERSION}".tgz|codex-sdk-npm-"${VERSION}".tgz)
                 tag="${NPM_TAG}"
                 ;;
               *)

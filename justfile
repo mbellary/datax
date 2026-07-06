@@ -11,16 +11,16 @@ python := if os_family() == "windows" { "python" } else { "python3" }
 help:
     just -l
 
-# `codex`
-alias c := codex
-codex *args:
-    cargo run --bin codex -- {args}
+# `datax`
+alias d := datax
+datax *args:
+    cargo run --bin datax -- {args}
 
-# `codex exec`
+# `datax exec`
 exec *args:
-    cargo run --bin codex -- exec {args}
+    cargo run --bin datax -- exec {args}
 
-# Start `codex exec-server` and run codex-tui.
+# Start `datax exec-server` and run codex-tui.
 [no-cd]
 [positional-arguments]
 [unix]
@@ -34,7 +34,7 @@ file-search *args:
 # Build the CLI and run the app-server test client
 app-server-test-client *args:
     cargo build -p codex-cli
-    cargo run -p codex-app-server-test-client -- --codex-bin ./target/debug/codex {args}
+    cargo run -p codex-app-server-test-client -- --codex-bin ./target/debug/datax {args}
 
 # Format the justfile, Rust, Bazel/Starlark, Python SDK code, and Python scripts.
 fmt:
@@ -95,17 +95,17 @@ bench *args:
 bench-smoke:
     just bench -- --test
 
-# Build and run Codex from source using Bazel.
+# Build and run Datax from source using Bazel.
 # On Unix, use `[no-cd]` and `--run_under="cd $PWD &&"` to ensure Bazel runs
 # the command in the current working directory.
 [no-cd]
 [unix]
-bazel-codex *args:
-    bazel run //codex-rs/cli:codex --run_under="cd $PWD &&" -- "$@"
+bazel-datax *args:
+    bazel run //codex-rs/cli:datax --run_under="cd $PWD &&" -- "$@"
 
 [windows]
-bazel-codex *args:
-    bazel run //codex-rs/cli:codex --run_under='cd /d "{{ invocation_directory_native() }}" &&' -- @($args | Select-Object -Skip 1)
+bazel-datax *args:
+    bazel run //codex-rs/cli:datax --run_under='cd /d "{{ invocation_directory_native() }}" &&' -- @($args | Select-Object -Skip 1)
 
 [no-cd]
 bazel-lock-update:

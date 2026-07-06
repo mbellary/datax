@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stage and optionally package the @openai/codex npm module."""
+"""Stage and optionally package the Datax npm module."""
 
 import argparse
 import json
@@ -11,53 +11,53 @@ import tempfile
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-CODEX_CLI_ROOT = SCRIPT_DIR.parent
-REPO_ROOT = CODEX_CLI_ROOT.parent
+DATAX_CLI_ROOT = SCRIPT_DIR.parent
+REPO_ROOT = DATAX_CLI_ROOT.parent
 RESPONSES_API_PROXY_NPM_ROOT = REPO_ROOT / "codex-rs" / "responses-api-proxy" / "npm"
-CODEX_SDK_ROOT = REPO_ROOT / "sdk" / "typescript"
-CODEX_NPM_NAME = "@openai/codex"
-CODEX_PACKAGE_COMPONENT = "codex-package"
+DATAX_SDK_ROOT = REPO_ROOT / "sdk" / "typescript"
+DATAX_NPM_NAME = "datax"
+DATAX_PACKAGE_COMPONENT = "datax-package"
 
-# `npm_name` is the local optional-dependency alias consumed by `bin/codex.js`.
-# The underlying package published to npm is always `@openai/codex`.
-CODEX_PLATFORM_PACKAGES: dict[str, dict[str, str]] = {
-    "codex-linux-x64": {
-        "npm_name": "@openai/codex-linux-x64",
+# `npm_name` is the local optional-dependency alias consumed by `bin/datax.js`.
+# The underlying package published to npm is always `datax`.
+DATAX_PLATFORM_PACKAGES: dict[str, dict[str, str]] = {
+    "datax-linux-x64": {
+        "npm_name": "datax-linux-x64",
         "npm_tag": "linux-x64",
         "target_triple": "x86_64-unknown-linux-musl",
         "os": "linux",
         "cpu": "x64",
     },
-    "codex-linux-arm64": {
-        "npm_name": "@openai/codex-linux-arm64",
+    "datax-linux-arm64": {
+        "npm_name": "datax-linux-arm64",
         "npm_tag": "linux-arm64",
         "target_triple": "aarch64-unknown-linux-musl",
         "os": "linux",
         "cpu": "arm64",
     },
-    "codex-darwin-x64": {
-        "npm_name": "@openai/codex-darwin-x64",
+    "datax-darwin-x64": {
+        "npm_name": "datax-darwin-x64",
         "npm_tag": "darwin-x64",
         "target_triple": "x86_64-apple-darwin",
         "os": "darwin",
         "cpu": "x64",
     },
-    "codex-darwin-arm64": {
-        "npm_name": "@openai/codex-darwin-arm64",
+    "datax-darwin-arm64": {
+        "npm_name": "datax-darwin-arm64",
         "npm_tag": "darwin-arm64",
         "target_triple": "aarch64-apple-darwin",
         "os": "darwin",
         "cpu": "arm64",
     },
-    "codex-win32-x64": {
-        "npm_name": "@openai/codex-win32-x64",
+    "datax-win32-x64": {
+        "npm_name": "datax-win32-x64",
         "npm_tag": "win32-x64",
         "target_triple": "x86_64-pc-windows-msvc",
         "os": "win32",
         "cpu": "x64",
     },
-    "codex-win32-arm64": {
-        "npm_name": "@openai/codex-win32-arm64",
+    "datax-win32-arm64": {
+        "npm_name": "datax-win32-arm64",
         "npm_tag": "win32-arm64",
         "target_triple": "aarch64-pc-windows-msvc",
         "os": "win32",
@@ -66,35 +66,35 @@ CODEX_PLATFORM_PACKAGES: dict[str, dict[str, str]] = {
 }
 
 PACKAGE_EXPANSIONS: dict[str, list[str]] = {
-    "codex": ["codex", *CODEX_PLATFORM_PACKAGES],
+    "datax": ["datax", *DATAX_PLATFORM_PACKAGES],
 }
 
 PACKAGE_NATIVE_COMPONENTS: dict[str, list[str]] = {
-    "codex": [],
-    "codex-linux-x64": [CODEX_PACKAGE_COMPONENT],
-    "codex-linux-arm64": [CODEX_PACKAGE_COMPONENT],
-    "codex-darwin-x64": [CODEX_PACKAGE_COMPONENT],
-    "codex-darwin-arm64": [CODEX_PACKAGE_COMPONENT],
-    "codex-win32-x64": [CODEX_PACKAGE_COMPONENT],
-    "codex-win32-arm64": [CODEX_PACKAGE_COMPONENT],
+    "datax": [],
+    "datax-linux-x64": [DATAX_PACKAGE_COMPONENT],
+    "datax-linux-arm64": [DATAX_PACKAGE_COMPONENT],
+    "datax-darwin-x64": [DATAX_PACKAGE_COMPONENT],
+    "datax-darwin-arm64": [DATAX_PACKAGE_COMPONENT],
+    "datax-win32-x64": [DATAX_PACKAGE_COMPONENT],
+    "datax-win32-arm64": [DATAX_PACKAGE_COMPONENT],
     "codex-responses-api-proxy": ["codex-responses-api-proxy"],
     "codex-sdk": [],
 }
 
 PACKAGE_TARGET_FILTERS: dict[str, str] = {
     package_name: package_config["target_triple"]
-    for package_name, package_config in CODEX_PLATFORM_PACKAGES.items()
+    for package_name, package_config in DATAX_PLATFORM_PACKAGES.items()
 }
 
 PACKAGE_CHOICES = tuple(PACKAGE_NATIVE_COMPONENTS)
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Build or stage the Codex CLI npm package.")
+    parser = argparse.ArgumentParser(description="Build or stage the Datax CLI npm package.")
     parser.add_argument(
         "--package",
         choices=PACKAGE_CHOICES,
-        default="codex",
-        help="Which npm package to stage (default: codex).",
+        default="datax",
+        help="Which npm package to stage (default: datax).",
     )
     parser.add_argument(
         "--version",
@@ -174,12 +174,12 @@ def main() -> int:
 
         if release_version:
             staging_dir_str = str(staging_dir)
-            if package == "codex":
+            if package == "datax":
                 print(
                     f"Staged version {version} for release in {staging_dir_str}\n\n"
                     "Verify the CLI:\n"
-                    f"    node {staging_dir_str}/bin/codex.js --version\n"
-                    f"    node {staging_dir_str}/bin/codex.js --help\n\n"
+                    f"    node {staging_dir_str}/bin/datax.js --version\n"
+                    f"    node {staging_dir_str}/bin/datax.js --help\n\n"
                 )
             elif package == "codex-responses-api-proxy":
                 print(
@@ -187,7 +187,7 @@ def main() -> int:
                     "Verify the responses API proxy:\n"
                     f"    node {staging_dir_str}/bin/codex-responses-api-proxy.js --help\n\n"
                 )
-            elif package in CODEX_PLATFORM_PACKAGES:
+            elif package in DATAX_PLATFORM_PACKAGES:
                 print(
                     f"Staged version {version} for release in {staging_dir_str}\n\n"
                     "Verify native payload contents:\n"
@@ -222,7 +222,7 @@ def prepare_staging_dir(staging_dir: Path | None) -> tuple[Path, bool]:
             raise RuntimeError(f"Staging directory {staging_dir} is not empty.")
         return staging_dir, False
 
-    temp_dir = Path(tempfile.mkdtemp(prefix="codex-npm-stage-"))
+    temp_dir = Path(tempfile.mkdtemp(prefix="datax-npm-stage-"))
     return temp_dir, True
 
 
@@ -230,18 +230,18 @@ def stage_sources(staging_dir: Path, version: str, package: str) -> None:
     package_json: dict
     package_json_path: Path | None = None
 
-    if package == "codex":
+    if package == "datax":
         bin_dir = staging_dir / "bin"
         bin_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(CODEX_CLI_ROOT / "bin" / "codex.js", bin_dir / "codex.js")
+        shutil.copy2(DATAX_CLI_ROOT / "bin" / "datax.js", bin_dir / "datax.js")
 
         readme_src = REPO_ROOT / "README.md"
         if readme_src.exists():
             shutil.copy2(readme_src, staging_dir / "README.md")
 
-        package_json_path = CODEX_CLI_ROOT / "package.json"
-    elif package in CODEX_PLATFORM_PACKAGES:
-        platform_package = CODEX_PLATFORM_PACKAGES[package]
+        package_json_path = DATAX_CLI_ROOT / "package.json"
+    elif package in DATAX_PLATFORM_PACKAGES:
+        platform_package = DATAX_PLATFORM_PACKAGES[package]
         platform_npm_tag = platform_package["npm_tag"]
         platform_version = compute_platform_package_version(version, platform_npm_tag)
 
@@ -249,24 +249,24 @@ def stage_sources(staging_dir: Path, version: str, package: str) -> None:
         if readme_src.exists():
             shutil.copy2(readme_src, staging_dir / "README.md")
 
-        with open(CODEX_CLI_ROOT / "package.json", "r", encoding="utf-8") as fh:
-            codex_package_json = json.load(fh)
+        with open(DATAX_CLI_ROOT / "package.json", "r", encoding="utf-8") as fh:
+            datax_package_json = json.load(fh)
 
         package_json = {
-            "name": CODEX_NPM_NAME,
+            "name": DATAX_NPM_NAME,
             "version": platform_version,
-            "license": codex_package_json.get("license", "Apache-2.0"),
+            "license": datax_package_json.get("license", "Apache-2.0"),
             "os": [platform_package["os"]],
             "cpu": [platform_package["cpu"]],
             "files": ["vendor"],
-            "repository": codex_package_json.get("repository"),
+            "repository": datax_package_json.get("repository"),
         }
 
-        engines = codex_package_json.get("engines")
+        engines = datax_package_json.get("engines")
         if isinstance(engines, dict):
             package_json["engines"] = engines
 
-        package_manager = codex_package_json.get("packageManager")
+        package_manager = datax_package_json.get("packageManager")
         if isinstance(package_manager, str):
             package_json["packageManager"] = package_manager
     elif package == "codex-responses-api-proxy":
@@ -281,8 +281,8 @@ def stage_sources(staging_dir: Path, version: str, package: str) -> None:
 
         package_json_path = RESPONSES_API_PROXY_NPM_ROOT / "package.json"
     elif package == "codex-sdk":
-        package_json_path = CODEX_SDK_ROOT / "package.json"
-        stage_codex_sdk_sources(staging_dir)
+        package_json_path = DATAX_SDK_ROOT / "package.json"
+        stage_datax_sdk_sources(staging_dir)
     else:
         raise RuntimeError(f"Unknown package '{package}'.")
 
@@ -291,15 +291,15 @@ def stage_sources(staging_dir: Path, version: str, package: str) -> None:
             package_json = json.load(fh)
         package_json["version"] = version
 
-    if package == "codex":
-        package_json["files"] = ["bin/codex.js"]
+    if package == "datax":
+        package_json["files"] = ["bin/datax.js"]
         package_json["optionalDependencies"] = {
-            CODEX_PLATFORM_PACKAGES[platform_package]["npm_name"]: (
-                f"npm:{CODEX_NPM_NAME}@"
-                f"{compute_platform_package_version(version, CODEX_PLATFORM_PACKAGES[platform_package]['npm_tag'])}"
+            DATAX_PLATFORM_PACKAGES[platform_package]["npm_name"]: (
+                f"npm:{DATAX_NPM_NAME}@"
+                f"{compute_platform_package_version(version, DATAX_PLATFORM_PACKAGES[platform_package]['npm_tag'])}"
             )
-            for platform_package in PACKAGE_EXPANSIONS["codex"]
-            if platform_package != "codex"
+            for platform_package in PACKAGE_EXPANSIONS["datax"]
+            if platform_package != "datax"
         }
 
     elif package == "codex-sdk":
@@ -310,7 +310,7 @@ def stage_sources(staging_dir: Path, version: str, package: str) -> None:
         dependencies = package_json.get("dependencies")
         if not isinstance(dependencies, dict):
             dependencies = {}
-        dependencies[CODEX_NPM_NAME] = version
+        dependencies[DATAX_NPM_NAME] = version
         package_json["dependencies"] = dependencies
 
     with open(staging_dir / "package.json", "w", encoding="utf-8") as out:
@@ -329,15 +329,15 @@ def run_command(cmd: list[str], cwd: Path | None = None) -> None:
     subprocess.run(cmd, cwd=cwd, check=True)
 
 
-def stage_codex_sdk_sources(staging_dir: Path) -> None:
-    package_root = CODEX_SDK_ROOT
+def stage_datax_sdk_sources(staging_dir: Path) -> None:
+    package_root = DATAX_SDK_ROOT
 
     run_command(["pnpm", "install", "--frozen-lockfile"], cwd=package_root)
     run_command(["pnpm", "run", "build"], cwd=package_root)
 
     dist_src = package_root / "dist"
     if not dist_src.exists():
-        raise RuntimeError("codex-sdk build did not produce a dist directory.")
+        raise RuntimeError("datax SDK build did not produce a dist directory.")
 
     shutil.copytree(dist_src, staging_dir / "dist")
 
@@ -382,14 +382,14 @@ def copy_native_binaries(
 
         dest_target_dir = vendor_dest / target_dir.name
 
-        if CODEX_PACKAGE_COMPONENT in components_set:
+        if DATAX_PACKAGE_COMPONENT in components_set:
             if dest_target_dir.exists():
                 shutil.rmtree(dest_target_dir)
             shutil.copytree(target_dir, dest_target_dir)
         else:
             dest_target_dir.mkdir(parents=True, exist_ok=True)
 
-        for component in sorted(components_set - {CODEX_PACKAGE_COMPONENT}):
+        for component in sorted(components_set - {DATAX_PACKAGE_COMPONENT}):
             src_component_dir = target_dir / component
             if not src_component_dir.exists():
                 raise RuntimeError(
@@ -407,11 +407,12 @@ def copy_native_binaries(
             missing_list = ", ".join(missing_targets)
             raise RuntimeError(f"Missing target directories in vendor source: {missing_list}")
 
+
 def run_npm_pack(staging_dir: Path, output_path: Path) -> Path:
     output_path = output_path.resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with tempfile.TemporaryDirectory(prefix="codex-npm-pack-") as pack_dir_str:
+    with tempfile.TemporaryDirectory(prefix="datax-npm-pack-") as pack_dir_str:
         pack_dir = Path(pack_dir_str)
         npm_cache_dir = pack_dir / "npm-cache"
         npm_logs_dir = pack_dir / "npm-logs"

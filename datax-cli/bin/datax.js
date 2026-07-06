@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Unified entry point for the Codex CLI.
+// Unified entry point for the Datax CLI.
 
 import { spawn } from "node:child_process";
 import { existsSync, realpathSync } from "fs";
@@ -13,12 +13,12 @@ const __dirname = path.dirname(__filename);
 const require = createRequire(import.meta.url);
 
 const PLATFORM_PACKAGE_BY_TARGET = {
-  "x86_64-unknown-linux-musl": "@openai/codex-linux-x64",
-  "aarch64-unknown-linux-musl": "@openai/codex-linux-arm64",
-  "x86_64-apple-darwin": "@openai/codex-darwin-x64",
-  "aarch64-apple-darwin": "@openai/codex-darwin-arm64",
-  "x86_64-pc-windows-msvc": "@openai/codex-win32-x64",
-  "aarch64-pc-windows-msvc": "@openai/codex-win32-arm64",
+  "x86_64-unknown-linux-musl": "datax-linux-x64",
+  "aarch64-unknown-linux-musl": "datax-linux-arm64",
+  "x86_64-apple-darwin": "datax-darwin-x64",
+  "aarch64-apple-darwin": "datax-darwin-arm64",
+  "x86_64-pc-windows-msvc": "datax-win32-x64",
+  "aarch64-pc-windows-msvc": "datax-win32-arm64",
 };
 
 const { platform, arch } = process;
@@ -75,7 +75,7 @@ if (!platformPackage) {
   throw new Error(`Unsupported target triple: ${targetTriple}`);
 }
 
-function findCodexExecutable() {
+function findDataxExecutable() {
   let vendorRoot;
   try {
     const packageJsonPath = require.resolve(`${platformPackage}/package.json`);
@@ -84,27 +84,27 @@ function findCodexExecutable() {
     vendorRoot = path.join(__dirname, "..", "vendor");
   }
 
-  const codexExecutable = path.join(
+  const dataxExecutable = path.join(
     vendorRoot,
     targetTriple,
     "bin",
-    process.platform === "win32" ? "codex.exe" : "codex",
+    process.platform === "win32" ? "datax.exe" : "datax",
   );
-  if (existsSync(codexExecutable)) {
-    return codexExecutable;
+  if (existsSync(dataxExecutable)) {
+    return dataxExecutable;
   }
 
   const packageManager = detectPackageManager();
   const updateCommand =
     packageManager === "bun"
-      ? "bun install -g @openai/codex@latest"
-      : "npm install -g @openai/codex@latest";
+      ? "bun install -g datax@latest"
+      : "npm install -g datax@latest";
   throw new Error(
-    `Missing optional dependency ${platformPackage}. Reinstall Codex: ${updateCommand}`,
+    `Missing optional dependency ${platformPackage}. Reinstall Datax: ${updateCommand}`,
   );
 }
 
-const binaryPath = findCodexExecutable();
+const binaryPath = findDataxExecutable();
 
 // Use an asynchronous spawn instead of spawnSync so that Node is able to
 // respond to signals (e.g. Ctrl-C / SIGINT) while the native binary is
@@ -113,7 +113,7 @@ const binaryPath = findCodexExecutable();
 // receives a fatal signal, both processes exit in a predictable manner.
 
 /**
- * Use heuristics to detect the package manager that was used to install Codex
+ * Use heuristics to detect the package manager that was used to install Datax
  * in order to give the user a hint about how to update it.
  */
 function detectPackageManager() {
@@ -139,12 +139,12 @@ function detectPackageManager() {
 
 const packageManagerEnvVar =
   detectPackageManager() === "bun"
-    ? "CODEX_MANAGED_BY_BUN"
-    : "CODEX_MANAGED_BY_NPM";
+    ? "DATAX_MANAGED_BY_BUN"
+    : "DATAX_MANAGED_BY_NPM";
 const env = {
   ...process.env,
   [packageManagerEnvVar]: "1",
-  CODEX_MANAGED_PACKAGE_ROOT: realpathSync(path.join(__dirname, "..")),
+  DATAX_MANAGED_PACKAGE_ROOT: realpathSync(path.join(__dirname, "..")),
 };
 
 const child = spawn(binaryPath, process.argv.slice(2), {

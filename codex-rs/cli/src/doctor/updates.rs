@@ -131,9 +131,9 @@ fn push_cached_version_details(details: &mut Vec<String>, version_file: &Path) {
 
 fn update_action_label(context: &InstallContext) -> &'static str {
     match &context.method {
-        InstallMethod::Npm => "npm install -g @openai/codex",
-        InstallMethod::Bun => "bun install -g @openai/codex",
-        InstallMethod::Brew => "brew upgrade --cask codex",
+        InstallMethod::Npm => "npm install -g datax",
+        InstallMethod::Bun => "bun install -g datax",
+        InstallMethod::Brew => "brew upgrade --cask datax",
         InstallMethod::Standalone { .. } => "standalone installer",
         InstallMethod::Other => "manual or unknown",
     }
@@ -221,7 +221,7 @@ mod tests {
                 method: InstallMethod::Npm,
                 package_layout: None,
             }),
-            "npm install -g @openai/codex"
+            "npm install -g datax"
         );
         assert_eq!(
             update_action_label(&InstallContext {

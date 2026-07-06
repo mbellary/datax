@@ -208,13 +208,53 @@ After implementation, record the validation commands listed below and paste conc
 
 Validation commands are documented per phase because builds are slow. For the remainder of Phase 1, test and build commands should be staged in each ExecPlan and deferred for the user's post-implementation batch run unless the user explicitly asks to run them during the phase. This Phase 1.2 plan keeps already-run lightweight checks as evidence, but future phase work should default to documenting commands rather than executing tests.
 
-- After all Phase 1 implementation phases are complete, run `git diff --check` from the repository root and expect no whitespace errors.
-- After all Phase 1 implementation phases are complete, run `just fmt-check` from the repository root and expect no formatting diffs.
-- After all Phase 1 implementation phases are complete, run package-builder unit tests for the renamed script package with Python unittest and expect all tests in that helper package to pass.
-- After all Phase 1 implementation phases are complete, run `just test -p codex-cli` from `codex-rs` and expect the CLI crate tests to pass.
-- After all Phase 1 implementation phases are complete, run a package staging smoke test with a temporary staging directory for the Datax npm meta package and expect staged `package.json` to expose a `datax` bin and Datax optional dependency names.
-- After all Phase 1 implementation phases are complete, run static searches for this milestone’s package surfaces and expect no old product identity references except documented exceptions.
-- Do not run the complete `just test` suite without user approval.
+From the repository root, run the whitespace check and expect no output:
+
+    git diff --check
+
+From `codex-rs`, run the formatter and expect it to complete successfully:
+
+    just fmt
+
+From the repository root, run the formatter check and expect no formatting diffs:
+
+    just fmt-check
+
+From the repository root, run Python syntax validation for renamed packaging scripts and expect it to complete successfully:
+
+    python3 -m py_compile datax-cli/scripts/build_npm_package.py scripts/stage_npm_packages.py scripts/build_datax_package.py scripts/datax_package/*.py
+
+From the repository root, run package-builder unit tests and expect all tests in the renamed helper package to pass:
+
+    python3 -m unittest discover -s scripts/datax_package -p 'test_*.py'
+
+From `codex-rs`, run the targeted CLI crate tests and expect them to pass:
+
+    just test -p codex-cli
+
+From the repository root, run the local launcher smoke test and expect it to print a version after the native binary has been built or staged:
+
+    node datax-cli/bin/datax.js --version
+
+From the repository root, run the npm package staging smoke test and expect the staged `package.json` to expose `name: datax`, `bin.datax`, and Datax platform optional dependencies:
+
+    tmpdir=$(mktemp -d /tmp/datax-npm-stage.XXXXXX)
+    python3 datax-cli/scripts/build_npm_package.py --version 0.0.0-dev --staging-dir "$tmpdir"
+    sed -n '1,120p' "$tmpdir/package.json"
+
+From the repository root, run the forbidden mixed-case spelling search and expect no matches. The search term is split here only so the forbidden spelling is not checked into the plan:
+
+    rg -n "Data""X" docs/plans .github datax-cli scripts codex-rs/cli codex-rs/tui README.md package.json pnpm-workspace.yaml MODULE.bazel
+
+From the repository root, run the unresolved inventory-status search and expect no matches:
+
+    rg -n '\| `[^`]+` \| `(Pending|In-Progress|Failed)`' docs/plans/datax_migration_phase1_2_product_rename/product_identity_rename_execplan.md
+
+From the repository root, run the malformed rename-fragment search and expect no matches:
+
+    rg -n "RUNNER_TEMP\}datax|unsigned-dmgdatax|signed-dmgdatax|releasedatax|npmdatax|openaidatax|datax-rs|datax-command-runner|datax-windows-sandbox" .github datax-cli scripts codex-rs docs README.md package.json pnpm-workspace.yaml MODULE.bazel justfile
+
+Do not run the complete `just test` suite without user approval.
 
 Acceptance for this milestone is that a reviewer can inspect staged package metadata and installer/release scripts and see Datax package names, `datax` executable paths, and Datax repository identity. Any remaining upstream product references must either be protected sandbox identifiers, upstream provenance, or explicitly deferred in this plan.
 

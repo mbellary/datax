@@ -1,4 +1,4 @@
-"""Version discovery for Codex packages."""
+"""Version discovery for Datax packages."""
 
 import re
 

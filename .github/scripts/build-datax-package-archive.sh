@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: build-codex-package-archive.sh \
+Usage: build-datax-package-archive.sh \
   --target <rust-target> \
   --bundle <primary|app-server> \
   --entrypoint-dir <dir> \
@@ -87,9 +87,9 @@ fi
 
 case "$bundle" in
   primary)
-    variant="codex"
-    entrypoint="codex"
-    archive_stem="codex-package"
+    variant="datax"
+    entrypoint="datax"
+    archive_stem="datax-package"
     ;;
   app-server)
     variant="codex-app-server"
@@ -97,7 +97,7 @@ case "$bundle" in
     archive_stem="codex-app-server-package"
     ;;
   *)
-    echo "No Codex package variant for bundle: $bundle" >&2
+    echo "No Datax package variant for bundle: $bundle" >&2
     exit 1
     ;;
 esac
@@ -155,7 +155,7 @@ zstd_archive_path="${archive_dir}/${archive_stem}-${target}.tar.zst"
 rm -rf "$package_dir"
 
 python_args=(
-  "${repo_root}/scripts/build_codex_package.py"
+  "${repo_root}/scripts/build_datax_package.py"
   --target "$target"
   --variant "$variant"
   --entrypoint-bin "${entrypoint_dir%/}/${entrypoint_name}${exe_suffix}"

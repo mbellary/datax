@@ -1,4 +1,4 @@
-"""Codex-built V8 artifact overrides for package Cargo builds."""
+"""Datax-built V8 artifact overrides for package Cargo builds."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ class RustyV8ArtifactPair:
     binding: Path
 
 
-def resolve_codex_v8_cargo_env(
+def resolve_datax_v8_cargo_env(
     spec: TargetSpec,
     *,
     environ: Mapping[str, str] | None = None,
@@ -46,14 +46,14 @@ def resolve_codex_v8_cargo_env(
             "Cargo package builds need RUSTY_V8_ARCHIVE and RUSTY_V8_SRC_BINDING_PATH set together."
         )
 
-    artifacts = fetch_codex_v8_artifacts(spec, cache_root=cache_root)
+    artifacts = fetch_datax_v8_artifacts(spec, cache_root=cache_root)
     return {
         "RUSTY_V8_ARCHIVE": str(artifacts.archive),
         "RUSTY_V8_SRC_BINDING_PATH": str(artifacts.binding),
     }
 
 
-def fetch_codex_v8_artifacts(
+def fetch_datax_v8_artifacts(
     spec: TargetSpec,
     *,
     version: str | None = None,
@@ -61,12 +61,12 @@ def fetch_codex_v8_artifacts(
 ) -> RustyV8ArtifactPair:
     if spec.is_windows:
         raise RuntimeError(
-            f"No Codex-built V8 release artifacts for target: {spec.target}"
+            f"No Datax-built V8 release artifacts for target: {spec.target}"
         )
 
     version = version or resolved_v8_crate_version()
     release_url = (
-        f"https://github.com/openai/codex/releases/download/rusty-v8-v{version}"
+        f"https://github.com/mbellary/datax/releases/download/rusty-v8-v{version}"
     )
     target = spec.target
     cache_dir = (cache_root or default_cache_root()) / f"rusty-v8-{version}-{target}"
@@ -105,7 +105,7 @@ def resolved_v8_crate_version() -> str:
 
 
 def default_cache_root() -> Path:
-    return Path(tempfile.gettempdir()) / "codex-package"
+    return Path(tempfile.gettempdir()) / "datax-package"
 
 
 def load_checksums(checksums_path: Path, artifact_names: set[str]) -> dict[str, str]:
@@ -152,7 +152,7 @@ def ensure_valid_artifact(artifact: Path, checksum: str, url: str) -> None:
 
     artifact.unlink(missing_ok=True)
     raise RuntimeError(
-        f"Codex-built V8 artifact {artifact} failed checksum validation."
+        f"Datax-built V8 artifact {artifact} failed checksum validation."
     )
 
 

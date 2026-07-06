@@ -1,4 +1,4 @@
-"""Canonical Codex package directory layout."""
+"""Canonical Datax package directory layout."""
 
 import json
 import shutil
@@ -39,8 +39,8 @@ def build_package_dir(
     inputs: PackageInputs,
 ) -> None:
     bin_dir = package_dir / "bin"
-    resources_dir = package_dir / "codex-resources"
-    path_dir = package_dir / "codex-path"
+    resources_dir = package_dir / "datax-resources"
+    path_dir = package_dir / "datax-path"
     bin_dir.mkdir()
     resources_dir.mkdir()
     path_dir.mkdir()
@@ -83,10 +83,10 @@ def build_package_dir(
         "target": spec.target,
         "variant": variant.name,
         "entrypoint": f"bin/{entrypoint_name}",
-        "resourcesDir": "codex-resources",
-        "pathDir": "codex-path",
+        "resourcesDir": "datax-resources",
+        "pathDir": "datax-path",
     }
-    write_json(package_dir / "codex-package.json", metadata)
+    write_json(package_dir / "datax-package.json", metadata)
 
 
 def validate_package_dir(
@@ -98,17 +98,17 @@ def validate_package_dir(
 ) -> None:
     required_dirs = [
         Path("bin"),
-        Path("codex-resources"),
-        Path("codex-path"),
+        Path("datax-resources"),
+        Path("datax-path"),
     ]
     for relative_dir in required_dirs:
         path = package_dir / relative_dir
         if not path.is_dir():
             raise RuntimeError(f"Missing package directory: {relative_dir}")
 
-    metadata_path = package_dir / "codex-package.json"
+    metadata_path = package_dir / "datax-package.json"
     if not metadata_path.is_file():
-        raise RuntimeError("Missing package metadata: codex-package.json")
+        raise RuntimeError("Missing package metadata: datax-package.json")
 
     with open(metadata_path, encoding="utf-8") as fh:
         metadata = json.load(fh)
@@ -118,8 +118,8 @@ def validate_package_dir(
         "target": spec.target,
         "variant": variant.name,
         "entrypoint": f"bin/{variant.entrypoint_name(spec)}",
-        "resourcesDir": "codex-resources",
-        "pathDir": "codex-path",
+        "resourcesDir": "datax-resources",
+        "pathDir": "datax-path",
     }
     for key, expected in expected_metadata.items():
         actual = metadata.get(key)
@@ -130,24 +130,24 @@ def validate_package_dir(
 
     required_files = [
         Path("bin") / variant.entrypoint_name(spec),
-        Path("codex-path") / spec.rg_name,
+        Path("datax-path") / spec.rg_name,
     ]
     executable_files = list(required_files)
 
     if include_zsh:
-        zsh_path = Path("codex-resources") / ZSH_RESOURCE_PATH
+        zsh_path = Path("datax-resources") / ZSH_RESOURCE_PATH
         required_files.append(zsh_path)
         executable_files.append(zsh_path)
 
     if spec.is_linux:
-        required_files.append(Path("codex-resources") / "bwrap")
-        executable_files.append(Path("codex-resources") / "bwrap")
+        required_files.append(Path("datax-resources") / "bwrap")
+        executable_files.append(Path("datax-resources") / "bwrap")
 
     if spec.is_windows:
         required_files.extend(
             [
-                Path("codex-resources") / "codex-command-runner.exe",
-                Path("codex-resources") / "codex-windows-sandbox-setup.exe",
+                Path("datax-resources") / "codex-command-runner.exe",
+                Path("datax-resources") / "codex-windows-sandbox-setup.exe",
             ]
         )
 

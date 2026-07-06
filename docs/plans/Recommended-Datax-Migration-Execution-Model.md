@@ -53,7 +53,11 @@ For each Phase 1 milestone:
 - Create a draft pull request early so progress, CI, and review notes are
   attached to the milestone.
 - Implement incrementally and update the ExecPlan as a living document.
-- Run targeted build and test commands for the crates or packages changed.
+- Document targeted build and test commands for the crates or packages changed.
+  The commands must be written as explicit command lines, not just described in
+  prose.
+- Defer test and build execution until the post-implementation migration test
+  pass unless the user explicitly asks to run a command during the milestone.
 - Run `just fmt` from `codex-rs` after code changes.
 - Run `just fix -p <project>` before finalizing substantial Rust changes.
 - Ask before running the complete `just test` suite.
@@ -86,8 +90,11 @@ A Phase 1 milestone is complete only when:
   reference is intentional.
 - The Public Surface Checklist has been reviewed and any touched surfaces have
   matching tests, generated artifacts, compatibility notes, or deferrals.
-- The Validation Matrix commands required for the milestone have been run, or
-  any skipped commands are recorded with the reason and follow-up owner.
+- The Validation Matrix commands required for the milestone are recorded
+  exactly, including deferred commands that the user will run during the
+  post-implementation migration test pass.
+- The `Validation and Acceptance` section includes the explicit command lines
+  needed for the milestone, grouped by working directory and expected result.
 - The dedicated branch, GitHub issue, and draft pull request exist and point to
   the same milestone scope.
 - The pull request is reviewable as a migration-only change and does not
@@ -114,6 +121,9 @@ implementation begins:
 - Validation Matrix: list the exact build, format, generation, and test
   commands planned for the milestone, including which checks are targeted and
   which require approval because they run the complete suite.
+- Validation and Acceptance: include the runnable command lines inline, grouped
+  by working directory, and state the expected outcome for each command. Do not
+  rely only on the Validation Matrix or prose summaries.
 - Rollback or Recovery Note: describe the expected rollback path for the
   milestone, including any generated artifacts, lockfiles, or renamed files
   that need special attention.
@@ -136,10 +146,33 @@ Use these branch names unless a later milestone needs a more precise name:
 
 Build and test costs are expected to be high, so validation should be staged.
 
-Run narrow checks after each meaningful rename band. Prefer crate-specific
-commands such as `just test -p <crate>` over workspace-wide commands while the
-change is still in progress. Use the full suite only at planned stabilization
-points and only after approval.
+Record narrow checks after each meaningful rename band. Prefer documenting
+crate-specific commands such as `just test -p <crate>` over workspace-wide
+commands while the change is still in progress. The user will run the recorded
+commands after the implementation phases are complete and report results. Run
+commands during a milestone only when the user explicitly approves or requests
+that specific validation.
+
+Each milestone ExecPlan must include a command list in `Validation and
+Acceptance` with this shape:
+
+    From the repository root, run the whitespace check and expect no output:
+
+        git diff --check
+
+    From `codex-rs`, run the targeted crate tests and expect them to pass:
+
+        just test -p <crate>
+
+    From the repository root, run any static migration search and expect no
+    unexpected matches:
+
+        rg -n "<pattern>" <paths>
+
+The command list should include all required formatting, generation, build,
+test, smoke, and static-search commands for the milestone. If a command is
+deferred, keep the command line in the list and mark its status as `Deferred`
+in the Validation Matrix.
 
 When generated artifacts are affected, regenerate them in the same milestone as
 the source shape change. For app-server protocol changes, run the app-server

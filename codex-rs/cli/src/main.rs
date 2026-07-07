@@ -431,7 +431,7 @@ type HostSandboxArgs = UnsupportedSandboxArgs;
 #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
 #[derive(Debug, Parser)]
 struct UnsupportedSandboxArgs {
-    /// Layer $CODEX_HOME/<name>.config.toml on top of the base user config.
+    /// Layer $DATAX_HOME/<name>.config.toml on top of the base user config.
     #[arg(long = "profile", short = 'p')]
     pub config_profile: Option<ProfileV2Name>,
 
@@ -1681,7 +1681,7 @@ async fn run_exec_server_command(
     strict_config: bool,
 ) -> anyhow::Result<()> {
     let codex_self_exe = arg0_paths
-        .codex_self_exe
+        .datax_self_exe
         .clone()
         .ok_or_else(|| anyhow::anyhow!("Codex executable path is not configured"))?;
     let runtime_paths = datax_exec_server::ExecServerRuntimePaths::new(

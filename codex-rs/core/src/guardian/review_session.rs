@@ -786,7 +786,7 @@ async fn run_review_on_session(
     let reviewed_action_truncated = prompt_items.reviewed_action_truncated;
     let transcript_cursor = prompt_items.transcript_cursor;
     let token_usage_at_review_start = review_session
-        .codex
+        .datax
         .session
         .total_token_usage()
         .await
@@ -876,7 +876,7 @@ async fn run_review_on_session(
 async fn append_guardian_followup_reminder(review_session: &GuardianReviewSession) {
     let reminder: ResponseItem = ContextualUserFragment::into(GuardianFollowupReviewReminder);
     review_session
-        .codex
+        .datax
         .session
         .inject_no_new_turn(vec![reminder], /*current_turn_context*/ None)
         .await;

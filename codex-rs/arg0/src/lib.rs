@@ -191,7 +191,7 @@ fn prepare_path_env_var_with_aliases(
 /// `codex-linux-sandbox` we *directly* execute
 /// [`datax_linux_sandbox::run_main`] (which never returns). Otherwise we:
 ///
-/// 1.  Load `.env` values from `~/.codex/.env` before creating any threads.
+/// 1.  Load `.env` values from `~/.datax/.env` before creating any threads.
 /// 2.  Spawn a main runtime thread with a controlled stack size.
 /// 3.  Construct a Tokio multi-thread runtime.
 /// 4.  Capture the current executable path and derive the
@@ -272,7 +272,7 @@ fn linux_sandbox_exe_path(
     // re-exec through a path whose basename still triggers arg0 dispatch on
     // bubblewrap builds that do not support `--argv0`.
     path_entry_guard
-        .and_then(|path_entry| path_entry.paths().codex_linux_sandbox_exe.clone())
+        .and_then(|path_entry| path_entry.paths().datax_linux_sandbox_exe.clone())
         .or(current_exe)
 }
 
@@ -285,7 +285,7 @@ fn build_runtime() -> anyhow::Result<tokio::runtime::Runtime> {
 
 const ILLEGAL_ENV_VAR_PREFIX: &str = "CODEX_";
 
-/// Load env vars from ~/.codex/.env.
+/// Load env vars from ~/.datax/.env.
 ///
 /// Security: Do not allow `.env` files to create or modify any variables
 /// with names starting with `CODEX_`.
@@ -343,7 +343,7 @@ fn prepare_path_entry_for_codex_aliases(
     }
 
     std::fs::create_dir_all(&codex_home)?;
-    // Use a CODEX_HOME-scoped temp root to avoid cluttering the top-level directory.
+    // Use a DATAX_HOME-scoped temp root to avoid cluttering the top-level directory.
     let temp_root = codex_home.join("tmp").join("arg0");
     std::fs::create_dir_all(&temp_root)?;
     #[cfg(unix)]
@@ -683,7 +683,7 @@ mod tests {
             Some(PathBuf::from("/usr/bin/codex")),
             |paths| async move {
                 let alias_path = paths
-                    .codex_linux_sandbox_exe
+                    .datax_linux_sandbox_exe
                     .or(paths.main_execve_wrapper_exe)
                     .expect("unix dispatch should create at least one alias path");
                 ensure!(

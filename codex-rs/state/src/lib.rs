@@ -2,7 +2,7 @@
 //!
 //! This crate is intentionally small and focused: it extracts rollout metadata
 //! from JSONL rollouts and mirrors it into a local SQLite database. Backfill
-//! orchestration and rollout scanning live in `codex-core`.
+//! orchestration and rollout scanning live in `datax-core`.
 
 const _: () = assert!(
     libsqlite3_sys::SQLITE_VERSION_NUMBER >= 3_051_003,
@@ -91,7 +91,7 @@ pub use telemetry::record_backfill_gate;
 pub use telemetry::record_fallback;
 
 /// Environment variable for overriding the SQLite state database home directory.
-pub const SQLITE_HOME_ENV: &str = "CODEX_SQLITE_HOME";
+pub const SQLITE_HOME_ENV: &str = "DATAX_SQLITE_HOME";
 
 pub const LOGS_DB_FILENAME: &str = "logs_2.sqlite";
 pub const GOALS_DB_FILENAME: &str = "goals_1.sqlite";

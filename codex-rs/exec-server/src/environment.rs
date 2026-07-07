@@ -96,10 +96,10 @@ impl EnvironmentManager {
         Self::from_default_provider_url(exec_server_url, local_runtime_paths).await
     }
 
-    /// Builds a manager from `CODEX_HOME` and local runtime paths used when
+    /// Builds a manager from `DATAX_HOME` and local runtime paths used when
     /// creating local filesystem helpers.
     ///
-    /// If `CODEX_HOME/environments.toml` is present, it defines the configured
+    /// If `DATAX_HOME/environments.toml` is present, it defines the configured
     /// environments. Otherwise this preserves the legacy
     /// `CODEX_EXEC_SERVER_URL` behavior.
     pub async fn from_codex_home(
@@ -114,7 +114,7 @@ impl EnvironmentManager {
     }
 
     /// Builds a manager from the legacy environment-variable provider without
-    /// reading user config files from `CODEX_HOME`.
+    /// reading user config files from `DATAX_HOME`.
     pub async fn from_env(
         local_runtime_paths: Option<ExecServerRuntimePaths>,
     ) -> Result<Self, ExecServerError> {

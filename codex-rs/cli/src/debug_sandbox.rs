@@ -306,7 +306,7 @@ async fn run_command_under_sandbox(
         SandboxType::Landlock => {
             #[expect(clippy::expect_used)]
             let codex_linux_sandbox_exe = config
-                .codex_linux_sandbox_exe
+                .datax_linux_sandbox_exe
                 .expect("datax-linux-sandbox executable not found");
             let use_legacy_landlock = config.features.use_legacy_landlock();
             let network_sandbox_policy = runtime_permission_profile.network_sandbox_policy();

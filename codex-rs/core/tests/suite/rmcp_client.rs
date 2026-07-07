@@ -371,7 +371,7 @@ async fn call_structured_tool(
     .await;
 
     fixture
-        .codex
+        .datax
         .submit(read_only_user_turn(fixture, "call the requested rmcp tool"))
         .await?;
 
@@ -446,7 +446,7 @@ async fn openai_form_capability_updates_for_loaded_thread() -> anyhow::Result<()
     );
 
     fixture
-        .codex
+        .datax
         .set_openai_form_elicitation_support(/*supported*/ true)
         .await?;
     let supported = call_structured_tool(
@@ -606,7 +606,7 @@ async fn stdio_server_round_trip() -> anyhow::Result<()> {
     wait_for_mcp_server(&fixture.codex, server_name).await?;
 
     fixture
-        .codex
+        .datax
         .submit(read_only_user_turn(&fixture, "call the rmcp echo tool"))
         .await?;
 
@@ -1002,7 +1002,7 @@ async fn stdio_mcp_parallel_tool_calls_default_false_runs_serially() -> anyhow::
     wait_for_mcp_server(&fixture.codex, server_name).await?;
 
     fixture
-        .codex
+        .datax
         // Keep this baseline on the mutable sync tool so read-only hints do not
         // make the call parallel-safe. Bypass read-only turn permissions so
         // approval behavior does not block the scheduling assertion.
@@ -1143,7 +1143,7 @@ async fn stdio_mcp_read_only_tool_calls_run_concurrently_without_server_opt_in()
     wait_for_mcp_server(&fixture.codex, server_name).await?;
 
     fixture
-        .codex
+        .datax
         .submit(read_only_user_turn(
             &fixture,
             "call the rmcp sync_readonly tool twice",
@@ -1232,7 +1232,7 @@ async fn stdio_mcp_parallel_tool_calls_opt_in_runs_concurrently() -> anyhow::Res
     wait_for_mcp_server(&fixture.codex, server_name).await?;
 
     fixture
-        .codex
+        .datax
         // Exercise the server opt-in with the mutable sync tool rather than the
         // read-only sync_readonly tool. Bypass read-only turn permissions so
         // approval behavior does not block the scheduling assertion.
@@ -1323,7 +1323,7 @@ async fn stdio_image_responses_round_trip() -> anyhow::Result<()> {
     wait_for_mcp_server(&fixture.codex, server_name).await?;
 
     fixture
-        .codex
+        .datax
         .submit(read_only_user_turn(&fixture, "call the rmcp image tool"))
         .await?;
 
@@ -1477,7 +1477,7 @@ async fn stdio_image_responses_resize_large_image() -> anyhow::Result<()> {
     wait_for_mcp_server(&fixture.codex, server_name).await?;
 
     fixture
-        .codex
+        .datax
         .submit(read_only_user_turn(
             &fixture,
             "call the rmcp image_scenario tool",
@@ -1565,7 +1565,7 @@ async fn stdio_image_responses_preserve_original_detail_metadata() -> anyhow::Re
     wait_for_mcp_server(&fixture.codex, server_name).await?;
 
     fixture
-        .codex
+        .datax
         .submit(read_only_user_turn(
             &fixture,
             "call the rmcp image_scenario tool",
@@ -1718,7 +1718,7 @@ async fn stdio_image_responses_are_sanitized_for_text_only_model() -> anyhow::Re
     assert_eq!(models_mock.requests().len(), 1);
 
     fixture
-        .codex
+        .datax
         .submit(read_only_user_turn_with_model(
             &fixture,
             "call the rmcp image tool",
@@ -1819,7 +1819,7 @@ async fn stdio_server_propagates_whitelisted_env_vars() -> anyhow::Result<()> {
     wait_for_mcp_server(&fixture.codex, server_name).await?;
 
     fixture
-        .codex
+        .datax
         .submit(read_only_user_turn(&fixture, "call the rmcp echo tool"))
         .await?;
 
@@ -1944,7 +1944,7 @@ async fn stdio_server_propagates_explicit_local_env_var_source() -> anyhow::Resu
     wait_for_mcp_server(&fixture.codex, server_name).await?;
 
     fixture
-        .codex
+        .datax
         .submit(read_only_user_turn(&fixture, "call the rmcp echo tool"))
         .await?;
 
@@ -2042,7 +2042,7 @@ async fn remote_stdio_env_var_source_does_not_copy_local_env() -> anyhow::Result
     wait_for_mcp_server(&fixture.codex, server_name).await?;
 
     fixture
-        .codex
+        .datax
         .submit(read_only_user_turn(&fixture, "call the rmcp echo tool"))
         .await?;
 
@@ -2227,7 +2227,7 @@ async fn streamable_http_tool_call_round_trip() -> anyhow::Result<()> {
 
     // Phase 4: submit the user turn that should trigger the MCP tool call.
     fixture
-        .codex
+        .datax
         .submit(read_only_user_turn(
             &fixture,
             "call the rmcp streamable http echo tool",
@@ -2295,8 +2295,8 @@ async fn streamable_http_tool_call_round_trip() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// This test writes to a fallback credentials file in CODEX_HOME.
-/// Ideally, we wouldn't need to serialize the test but it's much more cumbersome to wire CODEX_HOME through the code.
+/// This test writes to a fallback credentials file in DATAX_HOME.
+/// Ideally, we wouldn't need to serialize the test but it's much more cumbersome to wire DATAX_HOME through the code.
 #[test]
 #[serial(codex_home)]
 fn streamable_http_with_oauth_round_trip() -> anyhow::Result<()> {
@@ -2371,10 +2371,10 @@ async fn streamable_http_with_oauth_round_trip_impl() -> anyhow::Result<()> {
     };
     let server_url = http_server.url().to_string();
 
-    // Phase 3: seed an isolated CODEX_HOME with fallback OAuth tokens for this
+    // Phase 3: seed an isolated DATAX_HOME with fallback OAuth tokens for this
     // server so the test does not share credentials with other suite cases.
     let temp_home = Arc::new(tempdir()?);
-    let _codex_home_guard = EnvVarGuard::set("CODEX_HOME", temp_home.path().as_os_str());
+    let _codex_home_guard = EnvVarGuard::set("DATAX_HOME", temp_home.path().as_os_str());
     write_fallback_oauth_tokens(
         temp_home.path(),
         server_name,
@@ -2416,7 +2416,7 @@ async fn streamable_http_with_oauth_round_trip_impl() -> anyhow::Result<()> {
 
     // Phase 6: submit the user turn that should invoke the OAuth-backed tool.
     fixture
-        .codex
+        .datax
         .submit(read_only_user_turn(
             &fixture,
             "call the rmcp streamable http oauth echo tool",

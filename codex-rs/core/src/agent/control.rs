@@ -557,7 +557,7 @@ impl AgentControl {
         let parent_thread = state.get_thread(*parent_thread_id).await.ok()?;
         Some(
             parent_thread
-                .codex
+                .datax
                 .session
                 .services
                 .turn_environments

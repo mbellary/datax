@@ -311,7 +311,7 @@ async fn remote_compact_replaces_history_for_followups() -> Result<()> {
         test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing()),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
     let session_id = harness.test().session_configured.session_id.to_string();
     let thread_id = harness.test().session_configured.thread_id.to_string();
 
@@ -546,7 +546,7 @@ async fn assert_remote_manual_compact_request_parity(
         });
     }
     let harness = TestCodexHarness::with_builder(builder).await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
     let image_url =
         "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII="
             .to_string();
@@ -813,7 +813,7 @@ async fn remote_compact_v2_reuses_compaction_trigger_for_followups() -> Result<(
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
 
     let responses_mock = responses::mount_sse_sequence(
         harness.server(),
@@ -953,7 +953,7 @@ async fn remote_compact_v2_retries_failures_with_stream_retry_budget() -> Result
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
 
     let responses_mock = responses::mount_response_sequence(
         harness.server(),
@@ -1063,7 +1063,7 @@ async fn remote_compact_v2_accepts_additional_output_items_before_compaction() -
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
 
     let responses_mock = responses::mount_sse_sequence(
         harness.server(),
@@ -1242,7 +1242,7 @@ async fn remote_compact_runs_automatically() -> Result<()> {
         test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing()),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
     let session_id = harness.test().session_configured.session_id.to_string();
     let thread_id = harness.test().session_configured.thread_id.to_string();
 
@@ -1385,7 +1385,7 @@ async fn remote_compact_trims_function_call_history_to_fit_context_window() -> R
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
 
     responses::mount_sse_sequence(
         harness.server(),
@@ -1512,7 +1512,7 @@ async fn remote_compact_rewrites_multiple_trailing_function_call_outputs() -> Re
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
 
     responses::mount_sse_sequence(
         harness.server(),
@@ -1629,7 +1629,7 @@ async fn auto_remote_compact_trims_function_call_history_to_fit_context_window()
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
 
     responses::mount_sse_sequence(
         harness.server(),
@@ -1877,7 +1877,7 @@ async fn auto_remote_compact_failure_stops_agent_loop() -> Result<()> {
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
 
     mount_sse_once(
         harness.server(),
@@ -1986,7 +1986,7 @@ async fn remote_compact_trim_estimate_uses_session_base_instructions() -> Result
             }),
     )
     .await?;
-    let baseline_codex = baseline_harness.test().codex.clone();
+    let baseline_codex = baseline_harness.test().datax.clone();
 
     responses::mount_sse_sequence(
         baseline_harness.server(),
@@ -2094,7 +2094,7 @@ async fn remote_compact_trim_estimate_uses_session_base_instructions() -> Result
             }),
     )
     .await?;
-    let override_codex = override_harness.test().codex.clone();
+    let override_codex = override_harness.test().datax.clone();
 
     responses::mount_sse_sequence(
         override_harness.server(),
@@ -2194,7 +2194,7 @@ async fn remote_manual_compact_emits_context_compaction_items() -> Result<()> {
         test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing()),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
 
     mount_sse_once(
         harness.server(),
@@ -2275,7 +2275,7 @@ async fn remote_manual_compact_failure_emits_task_error_event() -> Result<()> {
         test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing()),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
 
     mount_sse_once(
         harness.server(),
@@ -2340,7 +2340,7 @@ async fn remote_compact_persists_replacement_history_in_rollout() -> Result<()> 
         test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing()),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
     let rollout_path = harness
         .test()
         .session_configured
@@ -2527,7 +2527,7 @@ async fn remote_compact_and_resume_refresh_stale_developer_instructions() -> Res
     .await;
 
     initial
-        .codex
+        .datax
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "start remote compact flow".into(),
@@ -2545,7 +2545,7 @@ async fn remote_compact_and_resume_refresh_stale_developer_instructions() -> Res
     wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     initial
-        .codex
+        .datax
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "after compact in same session".into(),
@@ -2570,7 +2570,7 @@ async fn remote_compact_and_resume_refresh_stale_developer_instructions() -> Res
     let resumed = resume_builder.resume(&server, home, rollout_path).await?;
 
     resumed
-        .codex
+        .datax
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "after resume".into(),
@@ -3198,7 +3198,7 @@ async fn snapshot_request_shape_remote_compact_resume_restates_realtime_end() ->
     start_realtime_conversation(initial.codex.as_ref()).await?;
 
     initial
-        .codex
+        .datax
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_ONE".to_string(),
@@ -3228,7 +3228,7 @@ async fn snapshot_request_shape_remote_compact_resume_restates_realtime_end() ->
     let resumed = resume_builder.resume(&server, home, rollout_path).await?;
 
     resumed
-        .codex
+        .datax
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "USER_TWO".to_string(),
@@ -3279,7 +3279,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_including_incoming_us
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
 
     let responses_mock = responses::mount_sse_sequence(
         harness.server(),
@@ -3382,7 +3382,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_strips_incoming_model
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
 
     let initial_turn_request_mock = responses::mount_sse_once(
         harness.server(),
@@ -3517,7 +3517,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_context_window_exceed
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
 
     let responses_mock = responses::mount_sse_sequence(
         harness.server(),
@@ -3623,7 +3623,7 @@ async fn remote_pre_turn_compact_response_seeds_turn_state() -> Result<()> {
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
 
     let responses_mock = responses::mount_response_sequence(
         harness.server(),
@@ -3696,7 +3696,7 @@ async fn remote_mid_turn_compact_v1_sends_turn_state_over_http() -> Result<()> {
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
     let responses_mock = responses::mount_response_sequence(
         harness.server(),
         vec![
@@ -3780,7 +3780,7 @@ async fn remote_mid_turn_compact_v2_sends_turn_state_over_http() -> Result<()> {
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
     let responses_mock = responses::mount_response_sequence(
         harness.server(),
         vec![
@@ -3972,7 +3972,7 @@ async fn snapshot_request_shape_remote_mid_turn_continuation_compaction() -> Res
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
 
     let responses_mock = responses::mount_sse_sequence(
         harness.server(),
@@ -4045,7 +4045,7 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_summary_only_reinject
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
 
     let initial_turn_request_mock = responses::mount_sse_once(
         harness.server(),
@@ -4133,7 +4133,7 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_multi_summary_reinjec
             }),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
 
     let setup_turn_request_mock = responses::mount_sse_once(
         harness.server(),
@@ -4242,7 +4242,7 @@ async fn snapshot_request_shape_remote_manual_compact_without_previous_user_mess
         test_codex().with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing()),
     )
     .await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
 
     let responses_mock = responses::mount_sse_once(
         harness.server(),

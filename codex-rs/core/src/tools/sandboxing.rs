@@ -445,7 +445,7 @@ impl<'a> SandboxAttempt<'a> {
                 network,
                 sandbox_policy_cwd: self.sandbox_cwd,
                 codex_linux_sandbox_exe: self
-                    .codex_linux_sandbox_exe
+                    .datax_linux_sandbox_exe
                     .map(std::path::PathBuf::as_path),
                 use_legacy_landlock: self.use_legacy_landlock,
                 windows_sandbox_level: self.windows_sandbox_level,

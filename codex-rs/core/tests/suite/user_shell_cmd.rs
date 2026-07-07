@@ -56,7 +56,7 @@ async fn user_shell_cmd_ls_and_cat_in_temp_dir() {
         .build(&server)
         .await
         .expect("create new conversation")
-        .codex;
+        .datax;
 
     // 1) shell command should list the file
     let list_cmd = "ls".to_string();
@@ -209,7 +209,7 @@ async fn user_shell_command_does_not_replace_active_turn() -> anyhow::Result<()>
         turn_permission_fields(PermissionProfile::Disabled, cwd.as_path());
 
     fixture
-        .codex
+        .datax
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "run model shell command".to_string(),
@@ -249,7 +249,7 @@ async fn user_shell_command_does_not_replace_active_turn() -> anyhow::Result<()>
     #[cfg(not(windows))]
     let user_shell_command = "printf user-shell".to_string();
     fixture
-        .codex
+        .datax
         .submit(Op::RunUserShellCommand {
             command: user_shell_command,
         })

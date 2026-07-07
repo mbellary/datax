@@ -13,10 +13,10 @@ use owo_colors::OwoColorize;
 
 #[derive(Debug, Parser)]
 #[command(name = "datax-state-logs")]
-#[command(about = "Tail Codex logs from the dedicated logs SQLite DB with simple filters")]
+#[command(about = "Tail Datax logs from the dedicated logs SQLite DB with simple filters")]
 struct Args {
-    /// Path to CODEX_HOME. Defaults to $CODEX_HOME or ~/.codex.
-    #[arg(long, env = "CODEX_HOME")]
+    /// Path to DATAX_HOME. Defaults to $DATAX_HOME or ~/.datax.
+    #[arg(long, env = "DATAX_HOME")]
     codex_home: Option<PathBuf>,
 
     /// Direct path to the logs SQLite database. Overrides --codex-home.
@@ -141,9 +141,9 @@ fn resolve_db_path(args: &Args) -> anyhow::Result<PathBuf> {
 
 fn default_codex_home() -> PathBuf {
     if let Some(home) = home_dir() {
-        return home.join(".codex");
+        return home.join(".datax");
     }
-    PathBuf::from(".codex")
+    PathBuf::from(".datax")
 }
 
 fn build_filter(args: &Args) -> anyhow::Result<LogFilter> {

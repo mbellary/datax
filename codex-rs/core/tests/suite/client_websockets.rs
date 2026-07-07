@@ -1345,7 +1345,7 @@ async fn responses_websocket_usage_limit_error_emits_rate_limit_event() {
         .expect("build websocket codex");
 
     let submission_id = test
-        .codex
+        .datax
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -1435,7 +1435,7 @@ async fn responses_websocket_invalid_request_error_with_status_is_forwarded() {
         .expect("build websocket codex");
 
     let submission_id = test
-        .codex
+        .datax
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),

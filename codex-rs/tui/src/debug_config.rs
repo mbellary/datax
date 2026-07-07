@@ -632,12 +632,12 @@ mod tests {
         let system_file = if cfg!(windows) {
             absolute_path("C:\\etc\\codex\\config.toml")
         } else {
-            absolute_path("/etc/codex/config.toml")
+            absolute_path("/etc/datax/config.toml")
         };
         let project_folder = if cfg!(windows) {
-            absolute_path("C:\\repo\\.codex")
+            absolute_path("C:\\repo\\.datax")
         } else {
-            absolute_path("/repo/.codex")
+            absolute_path("/repo/.datax")
         };
 
         let layers = vec![
@@ -673,7 +673,7 @@ mod tests {
         let requirements_file = if cfg!(windows) {
             absolute_path("C:\\ProgramData\\OpenAI\\Codex\\requirements.toml")
         } else {
-            absolute_path("/etc/codex/requirements.toml")
+            absolute_path("/etc/datax/requirements.toml")
         };
         let denied_path = if cfg!(windows) {
             absolute_path("C:\\Users\\alice\\.gitconfig")
@@ -793,9 +793,9 @@ mod tests {
         };
 
         let user_file = if cfg!(windows) {
-            absolute_path("C:\\users\\alice\\.codex\\config.toml")
+            absolute_path("C:\\users\\alice\\.datax\\config.toml")
         } else {
-            absolute_path("/home/alice/.codex/config.toml")
+            absolute_path("/home/alice/.datax/config.toml")
         };
         let stack = ConfigLayerStack::new(
             vec![ConfigLayerEntry::new(
@@ -872,7 +872,7 @@ mod tests {
         let requirements_file = if cfg!(windows) {
             absolute_path("C:\\ProgramData\\OpenAI\\Codex\\requirements.toml")
         } else {
-            absolute_path("/etc/codex/requirements.toml")
+            absolute_path("/etc/datax/requirements.toml")
         };
         let denied_path = if cfg!(windows) {
             absolute_path("C:\\Users\\alice\\.gitconfig")

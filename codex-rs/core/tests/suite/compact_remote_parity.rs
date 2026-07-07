@@ -303,7 +303,7 @@ async fn run_manual_session(
 
     let harness = build_harness(mode, settings, /*hooks*/ false).await?;
     let rollout_path = rollout_path(&harness);
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
 
     let responses_mock = responses::mount_sse_sequence(harness.server(), response_bodies).await;
     let compact_mock = mount_legacy_compact_if_needed(&harness, mode).await;
@@ -361,7 +361,7 @@ async fn run_pre_turn_auto_session(mode: Mode) -> Result<Capture> {
     };
     let harness = build_auto_harness(mode).await?;
     let rollout_path = rollout_path(&harness);
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
     let responses_mock = responses::mount_sse_sequence(harness.server(), response_bodies).await;
     let compact_mock = mount_legacy_compact_if_needed(&harness, mode).await;
 
@@ -419,7 +419,7 @@ async fn run_mid_turn_auto_session(mode: Mode) -> Result<Capture> {
     };
     let harness = build_auto_harness(mode).await?;
     let rollout_path = rollout_path(&harness);
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
     let responses_mock = responses::mount_sse_sequence(harness.server(), response_bodies).await;
     let compact_mock = mount_legacy_compact_if_needed(&harness, mode).await;
 
@@ -458,7 +458,7 @@ async fn run_manual_hook_session(mode: Mode) -> Result<Value> {
         ],
     };
     let harness = build_harness(mode, RunSettings::default(), /*hooks*/ true).await?;
-    let codex = harness.test().codex.clone();
+    let codex = harness.test().datax.clone();
     responses::mount_sse_sequence(harness.server(), response_bodies).await;
     let compact_mock = mount_legacy_compact_if_needed(&harness, mode).await;
 
@@ -996,8 +996,8 @@ fn normalize_tmp_prefix_before_marker(text: &mut String, marker: &str) {
             .or_else(|| prefix.rfind("/tmp/.tmp"))
             .or(windows_appdata_temp_start);
         if let Some(start_index) = start {
-            text.replace_range(start_index..marker_index, "<CODEX_HOME>");
-            search_start = start_index + "<CODEX_HOME>".len() + marker.len();
+            text.replace_range(start_index..marker_index, "<DATAX_HOME>");
+            search_start = start_index + "<DATAX_HOME>".len() + marker.len();
         } else {
             search_start = marker_index + marker.len();
         }
@@ -1013,8 +1013,8 @@ fn normalize_string_rewrites_linux_temp_skill_paths() {
 
     assert_eq!(
         text,
-        "file: <CODEX_HOME>/skills/.system/imagegen/SKILL.md and \
-         <CODEX_HOME>/skills/custom/SKILL.md"
+        "file: <DATAX_HOME>/skills/.system/imagegen/SKILL.md and \
+         <DATAX_HOME>/skills/custom/SKILL.md"
     );
 }
 
@@ -1027,8 +1027,8 @@ fn normalize_string_rewrites_windows_temp_skill_paths() {
 
     assert_eq!(
         text,
-        "file: <CODEX_HOME>/skills/.system/imagegen/SKILL.md and \
-         <CODEX_HOME>\\skills\\custom\\SKILL.md"
+        "file: <DATAX_HOME>/skills/.system/imagegen/SKILL.md and \
+         <DATAX_HOME>\\skills\\custom\\SKILL.md"
     );
 }
 

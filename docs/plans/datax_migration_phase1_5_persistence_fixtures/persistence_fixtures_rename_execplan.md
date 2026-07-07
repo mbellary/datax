@@ -16,10 +16,10 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
 - [x] (2026-07-07 00:00Z) Read `PLANS.md`, `docs/plans/Recommended-Datax-Migration-Execution-Model.md`, and `docs/plans/Provisional-Datax-Migration-Plan-Phase1.md`.
 - [x] (2026-07-07 00:00Z) Performed broad and focused searches for `.codex`, `CODEX_HOME`, `CODEX_SQLITE_HOME`, config persistence, fixture, and snapshot surfaces.
 - [x] (2026-07-07 00:00Z) Identified the initial file inventory and dependency order before implementation edits.
-- [ ] Create the GitHub issue and draft pull request for this milestone.
-- [ ] Rename the Datax-owned home, config, state, and project-folder persistence sources.
-- [ ] Update generated config and app-server schema artifacts if source descriptions change.
-- [ ] Update owned fixtures and snapshots that encode the renamed persistence strings.
+- [x] (2026-07-07 00:00Z) Created GitHub issue #9 and draft PR #10 for this milestone.
+- [x] (2026-07-07 00:00Z) Renamed the Datax-owned home, config, state, and project-folder persistence sources.
+- [x] (2026-07-07 00:00Z) Updated generated config and app-server schema artifacts for Datax persistence descriptions without running generators.
+- [x] (2026-07-07 00:00Z) Updated owned fixtures and snapshots that encode the renamed persistence strings, excluding `.codex-plugin` manifest paths.
 - [ ] Run allowed formatting/static checks, document deferred test/build commands, commit, and push.
 
 ## Surprises & Discoveries
@@ -32,6 +32,10 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
   Evidence: `codex-rs/app-server-protocol/schema/json/v2/ConfigReadResponse.json` and related generated schema files contain descriptions for `$CODEX_HOME/config.toml` and `.codex/` project folders.
 - Observation: Some `.snap.new` files already exist under TUI snapshot folders before this milestone starts.
   Evidence: `find codex-rs -path '*snapshots*' -type f -name '*.snap'` output included sibling `.snap.new` paths in the working tree scan. This milestone will not accept or delete pre-existing pending snapshots unless a changed source requires it.
+- Observation: The default project metadata carveout is declared in `codex-rs/protocol/src/permissions.rs`, and linux sandbox only consumes the resulting filesystem policy.
+  Evidence: `rg -n "PROTECTED_METADATA_CODEX_PATH_NAME|append_default_read_only_project_root_subpath_if_no_explicit_rule" codex-rs/protocol/src/permissions.rs` shows `.codex` being added to the default protected project-root subpaths.
+- Observation: The broad fixture/snapshot pass must not rewrite Rust member access or Cargo metadata just because it contains a dotted `codex` segment.
+  Evidence: Static checks found and corrected accidental internal member rewrites such as `codex_error_info`, `codex_home`, and the `datax-protocol` dependency alias before formatting.
 
 ## Decision Log
 
@@ -47,7 +51,11 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
 
 ## Outcomes & Retrospective
 
-Not completed yet. This section will record the final renamed surfaces, generated artifacts, deferred validation commands, and any remaining exceptions before the milestone branch is ready to merge.
+Implementation updated the Datax-owned persistence defaults and fixtures so fresh runs use `DATAX_HOME`, `DATAX_SQLITE_HOME`, `~/.datax`, `.datax`, and `/etc/datax` for owned local state, config, and project metadata. The pass also updated generated schema descriptions, app-server examples, CLI/test fixtures, sandbox carveout expectations, and TUI snapshots that render those persistence paths.
+
+The `.codex-plugin` manifest directory remains unchanged as a plugin format exception. Internal Rust identifiers such as `codex_home` also remain when they are implementation API names rather than persisted path strings. During the broad pass, static scans caught and corrected accidental internal rewrites before formatting.
+
+Expensive generation, build, lint, and test commands remain deferred to the user per migration instructions. The exact commands are listed in the validation sections below.
 
 ## Baseline
 
@@ -108,42 +116,45 @@ Finally run formatting and static checks. Test/build commands remain deferred fo
 
 | Filename | Modified | Remarks Notes |
 | --- | --- | --- |
-| `docs/plans/datax_migration_phase1_5_persistence_fixtures/persistence_fixtures_rename_execplan.md` | `In-Progress` | Living ExecPlan for this milestone. |
-| `docs/plans/datax_migration_phase1_5_persistence_fixtures/github_issue.md` | `Pending` | Record the milestone issue once created. |
-| `docs/plans/datax_migration_phase1_5_persistence_fixtures/pull_request.md` | `Pending` | Record the draft PR once created. |
-| `codex-rs/utils/home-dir/src/lib.rs` | `Pending` | Source of default home env var and fallback directory; should become `DATAX_HOME` and `.datax` while keeping the existing public helper name unless required. |
-| `codex-rs/state/src/lib.rs` | `Pending` | Source of SQLite override env var; should become `DATAX_SQLITE_HOME`. |
-| `codex-rs/config/src/config_toml.rs` | `Pending` | Config schema comments mention `~/.codex`, `$CODEX_HOME`, and `.codex`; source descriptions drive generated schema. |
-| `codex-rs/config/src/types.rs` | `Pending` | Config type comments mention `CODEX_HOME`; source descriptions drive generated schema. |
-| `codex-rs/config/src/loader/mod.rs` | `Pending` | Config loader docs and project folder discovery mention `/etc/codex`, `$CODEX_HOME`, and `.codex`. |
-| `codex-rs/config/src/loader/layer_io.rs` | `Pending` | Managed config default path still uses `/etc/codex/managed_config.toml`. |
-| `codex-rs/config/src/state.rs` | `Pending` | Config layer comments expose `.codex` and `$CODEX_HOME` descriptions. |
-| `codex-rs/config/src/loader/README.md` | `Pending` | Build-adjacent developer README documents config layer order and project folder names. |
-| `codex-rs/config/src/cloud_config_layers_tests.rs` | `Pending` | Test expectations include `/home/alice/.codex/config.toml`. |
-| `codex-rs/config/src/loader/tests.rs` | `Pending` | Loader tests may encode project config folder behavior. |
-| `codex-rs/config/src/config_requirements.rs` | `Pending` | Requirement tests include `com.openai.codex` and `com.codex`; inspect whether these are managed-domain examples or product-owned defaults. |
-| `codex-rs/core/src/config/config_tests.rs` | `Pending` | Core config tests likely assert home and config layer behavior. |
-| `codex-rs/core/src/config/config_loader_tests.rs` | `Pending` | Core config loader tests likely assert project `.codex` discovery. |
-| `codex-rs/core/src/config/permissions_tests.rs` | `Pending` | Test fixture creates a `.codex` home path; inspect whether this is just a temporary directory or user-visible expectation. |
-| `codex-rs/core/config.schema.json` | `Pending` | Generated config schema must be refreshed if config comments change. |
-| `codex-rs/app-server-protocol/schema/json/v1/InitializeResponse.json` | `Pending` | Generated schema currently describes `$CODEX_HOME`; source may need regeneration. |
-| `codex-rs/app-server-protocol/schema/json/v2/ConfigReadResponse.json` | `Pending` | Generated schema currently describes `$CODEX_HOME` and `.codex`. |
-| `codex-rs/app-server-protocol/schema/json/v2/ConfigWriteResponse.json` | `Pending` | Generated schema currently describes `$CODEX_HOME` and `.codex`. |
-| `codex-rs/app-server-protocol/schema/json/codex_app_server_protocol.schemas.json` | `Pending` | Aggregate generated schema currently contains persistence descriptions. |
-| `codex-rs/app-server-protocol/schema/json/codex_app_server_protocol.v2.schemas.json` | `Pending` | Aggregate generated v2 schema currently contains persistence descriptions. |
-| `codex-rs/app-server-protocol/schema/typescript/InitializeResponse.ts` | `Pending` | Generated TypeScript docs may contain `$CODEX_HOME`. |
-| `codex-rs/linux-sandbox/src/bwrap.rs` | `Pending` | Sandbox hidden-project folder protection currently includes `.codex`; Datax project folder should be protected. |
-| `codex-rs/linux-sandbox/tests/suite/landlock.rs` | `Pending` | Landlock tests create and assert `.codex` protection. |
-| `codex-rs/linux-sandbox/README.md` | `Pending` | README documents `.codex` protection and may need `.datax`. |
-| `codex-rs/linux-sandbox/src/proxy_routing.rs` | `Pending` | Reads `CODEX_HOME` for temp proxy path; should follow the Datax home env if this is product-owned runtime behavior. |
-| `codex-rs/network-proxy/src/certs.rs` | `Pending` | Error text says `CODEX_HOME`; inspect and update if using Datax home resolver. |
-| `codex-rs/network-proxy/src/socks5.rs` | `Pending` | Comment mentions shared test `CODEX_HOME`; inspect for user-visible or source-of-truth impact. |
-| `codex-rs/app-server-transport/src/transport/mod.rs` | `Pending` | Error text says failed to resolve `CODEX_HOME`; update if home resolver moves to `DATAX_HOME`. |
-| `codex-rs/thread-store/src/local/update_thread_metadata.rs` | `Pending` | Contains `https://github.com/openai/codex` origin URL test data; inspect whether provenance exception or Datax-owned fixture. |
-| `codex-rs/analytics/src/analytics_client_tests.rs` | `Pending` | Tests include `.codex/skills` paths; inspect whether path anonymization expectations should become `.datax`. |
-| `codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__hooks_browser_view__tests__hooks_browser_events.snap` | `Pending` | Snapshot text includes "Codex ends its turn"; likely owned UI snapshot rename. |
-| `codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__hooks_browser_view__tests__hooks_browser_events_with_issues.snap` | `Pending` | Snapshot text includes "Codex ends its turn"; likely owned UI snapshot rename. |
-| `codex-rs/tui/src/snapshots/codex_tui__model_migration__tests__model_migration_prompt.snap` | `Pending` | Snapshot contains model migration product text; inspect whether belongs to fixture/snapshot rename. |
+| `docs/plans/datax_migration_phase1_5_persistence_fixtures/persistence_fixtures_rename_execplan.md` | `Completed` | Living ExecPlan for this milestone. |
+| `docs/plans/datax_migration_phase1_5_persistence_fixtures/github_issue.md` | `Completed` | Records milestone issue #9. |
+| `docs/plans/datax_migration_phase1_5_persistence_fixtures/pull_request.md` | `Completed` | Records draft PR #10. |
+| `codex-rs/utils/home-dir/src/lib.rs` | `Completed` | Source of default home env var and fallback directory; should become `DATAX_HOME` and `.datax` while keeping the existing public helper name unless required. |
+| `codex-rs/state/src/lib.rs` | `Completed` | Source of SQLite override env var; should become `DATAX_SQLITE_HOME`. |
+| `codex-rs/config/src/config_toml.rs` | `Completed` | Config schema comments mention `~/.codex`, `$CODEX_HOME`, and `.codex`; source descriptions drive generated schema. |
+| `codex-rs/config/src/types.rs` | `Completed` | Config type comments mention `CODEX_HOME`; source descriptions drive generated schema. |
+| `codex-rs/config/src/loader/mod.rs` | `Completed` | Config loader docs and project folder discovery mention `/etc/codex`, `$CODEX_HOME`, and `.codex`. |
+| `codex-rs/config/src/loader/layer_io.rs` | `Completed` | Managed config default path still uses `/etc/codex/managed_config.toml`. |
+| `codex-rs/config/src/state.rs` | `Completed` | Config layer comments expose `.codex` and `$CODEX_HOME` descriptions. |
+| `codex-rs/config/src/loader/README.md` | `Completed` | Build-adjacent developer README documents config layer order and project folder names. |
+| `codex-rs/config/src/cloud_config_layers_tests.rs` | `Completed` | Test expectations include `/home/alice/.codex/config.toml`. |
+| `codex-rs/config/src/loader/tests.rs` | `Completed` | Loader tests may encode project config folder behavior. |
+| `codex-rs/config/src/config_requirements.rs` | `Completed` | Requirement tests include `com.openai.codex` and `com.codex`; inspect whether these are managed-domain examples or product-owned defaults. |
+| `codex-rs/core/src/config/config_tests.rs` | `Completed` | Core config tests likely assert home and config layer behavior. |
+| `codex-rs/core/src/config/config_loader_tests.rs` | `Completed` | Core config loader tests likely assert project `.codex` discovery. |
+| `codex-rs/core/src/config/permissions_tests.rs` | `Completed` | Test fixture creates a `.codex` home path; inspect whether this is just a temporary directory or user-visible expectation. |
+| `codex-rs/core/config.schema.json` | `Completed` | Generated config schema must be refreshed if config comments change. |
+| `codex-rs/app-server-protocol/schema/json/v1/InitializeResponse.json` | `Completed` | Generated schema currently describes `$CODEX_HOME`; source may need regeneration. |
+| `codex-rs/app-server-protocol/schema/json/v2/ConfigReadResponse.json` | `Completed` | Generated schema currently describes `$CODEX_HOME` and `.codex`. |
+| `codex-rs/app-server-protocol/schema/json/v2/ConfigWriteResponse.json` | `Completed` | Generated schema currently describes `$CODEX_HOME` and `.codex`. |
+| `codex-rs/app-server-protocol/schema/json/codex_app_server_protocol.schemas.json` | `Completed` | Aggregate generated schema currently contains persistence descriptions. |
+| `codex-rs/app-server-protocol/schema/json/codex_app_server_protocol.v2.schemas.json` | `Completed` | Aggregate generated v2 schema currently contains persistence descriptions. |
+| `codex-rs/app-server-protocol/schema/typescript/InitializeResponse.ts` | `Completed` | Generated TypeScript docs may contain `$CODEX_HOME`. |
+| `codex-rs/protocol/src/config_types.rs` | `Completed` | Profile-v2 comments mention `$CODEX_HOME`; source descriptions may flow into schemas. |
+| `codex-rs/protocol/src/protocol.rs` | `Completed` | Sandbox policy docs and tests mention `.codex`; inspect for Datax-owned project metadata protection. |
+| `codex-rs/protocol/src/permissions.rs` | `Completed` | Source of default protected project metadata path; should protect `.datax` instead of `.codex` for Datax project config. |
+| `codex-rs/linux-sandbox/src/bwrap.rs` | `Completed` | Sandbox hidden-project folder protection currently includes `.codex`; Datax project folder should be protected. |
+| `codex-rs/linux-sandbox/tests/suite/landlock.rs` | `Completed` | Landlock tests create and assert `.codex` protection. |
+| `codex-rs/linux-sandbox/README.md` | `Completed` | README documents `.codex` protection and may need `.datax`. |
+| `codex-rs/linux-sandbox/src/proxy_routing.rs` | `Completed` | Reads `CODEX_HOME` for temp proxy path; should follow the Datax home env if this is product-owned runtime behavior. |
+| `codex-rs/network-proxy/src/certs.rs` | `Completed` | Error text says `CODEX_HOME`; inspect and update if using Datax home resolver. |
+| `codex-rs/network-proxy/src/socks5.rs` | `Completed` | Comment mentions shared test `CODEX_HOME`; inspect for user-visible or source-of-truth impact. |
+| `codex-rs/app-server-transport/src/transport/mod.rs` | `Completed` | Error text says failed to resolve `CODEX_HOME`; update if home resolver moves to `DATAX_HOME`. |
+| `codex-rs/thread-store/src/local/update_thread_metadata.rs` | `Completed` | Contains `https://github.com/openai/codex` origin URL test data; inspect whether provenance exception or Datax-owned fixture. |
+| `codex-rs/analytics/src/analytics_client_tests.rs` | `Completed` | Tests include `.codex/skills` paths; inspect whether path anonymization expectations should become `.datax`. |
+| `codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__hooks_browser_view__tests__hooks_browser_events.snap` | `Completed` | Snapshot text includes "Codex ends its turn"; likely owned UI snapshot rename. |
+| `codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__hooks_browser_view__tests__hooks_browser_events_with_issues.snap` | `Completed` | Snapshot text includes "Codex ends its turn"; likely owned UI snapshot rename. |
+| `codex-rs/tui/src/snapshots/codex_tui__model_migration__tests__model_migration_prompt.snap` | `Completed` | Snapshot contains model migration product text; inspect whether belongs to fixture/snapshot rename. |
 | `codex-rs/tui/tests/fixtures/oss-story.jsonl` | `Not Required` | Large recorded story fixture contains incidental words such as "returned" and `codex_event`; this is not Datax persistence behavior for Phase 1.5. |
 | `codex-rs/tools/tests/fixtures/json_schema_policy/*.json` | `Not Required` | Third-party tool schemas use generic JSON Schema words such as `items` or vendor fields like `thread_ts`; not Datax product persistence. |
 | `codex-rs/vendor/bubblewrap/**` | `Not Required` | Third-party vendor files; not Datax product-owned text. |
@@ -158,7 +169,7 @@ Update `codex-rs/state/src/lib.rs` so `SQLITE_HOME_ENV` is `DATAX_SQLITE_HOME`. 
 
 Update config loader source comments and project folder discovery from `.codex` to `.datax`, including any tests that create project-local config folders. Update system paths from `/etc/codex` to `/etc/datax` where they are Datax-owned defaults. For macOS or Windows managed preference identifiers, inspect first: if they are compatibility IDs or MDM domains that must remain temporarily, record them in the exception register.
 
-Update sandbox path protection to protect `.datax` in project roots. If `.codex` protection is still needed as a compatibility hardening exception for old checkouts, keep it only with a clear comment; otherwise replace the Datax-owned hidden folder.
+Update sandbox path protection to protect `.datax` in project roots. The default filesystem policy is declared in `codex-rs/protocol/src/permissions.rs`; linux sandbox tests should then match the generated policy behavior. If `.codex` protection is still needed as a compatibility hardening exception for old checkouts, keep it only with a clear comment; otherwise replace the Datax-owned hidden folder.
 
 Regenerate `codex-rs/core/config.schema.json` with `just write-config-schema` if config schema comments changed. Regenerate app-server schema artifacts with `just write-app-server-schema` if app-server protocol schemas still contain old persistence descriptions after source changes.
 
@@ -202,12 +213,12 @@ Expected result: formatting completes successfully.
 
 | Command | Working Directory | Status | Expected Result |
 | --- | --- | --- | --- |
-| `git diff --check` | repository root | Deferred | No whitespace errors. |
-| `rg -n 'Data[X]' docs/plans/datax_migration_phase1_5_persistence_fixtures` | repository root | Deferred | No forbidden mixed-case product spelling. |
-| `rg -n 'CODEX_HOME|CODEX_SQLITE_HOME|\\.codex' codex-rs/utils/home-dir codex-rs/config/src codex-rs/core/src/config codex-rs/state/src codex-rs/linux-sandbox/src codex-rs/app-server-transport/src codex-rs/network-proxy/src` | repository root | Deferred | Only documented exceptions remain. |
+| `git diff --check` | repository root | Completed | No whitespace errors. |
+| `rg -n 'Data[X]' docs codex-rs --glob '!vendor/**'` | repository root | Completed | No forbidden mixed-case product spelling. |
+| Literal persistence string scan documented below | repository root | Completed | Only `.codex-plugin` manifest format exceptions remain. |
 | `just write-config-schema` | `codex-rs` | Deferred | Config schema regenerated if source descriptions changed. |
 | `just write-app-server-schema` | `codex-rs` | Deferred | App-server schema artifacts regenerated if generated descriptions changed. |
-| `just fmt` | `codex-rs` | Pending | Formatting completes successfully. |
+| `just fmt` | `codex-rs` | Completed | Formatting completed successfully. |
 | `just fix -p datax-utils-home-dir` | `codex-rs` | Deferred | Lints for home-dir changes pass or are fixed. |
 | `just fix -p datax-config` | `codex-rs` | Deferred | Lints for config changes pass or are fixed. |
 | `just fix -p datax-state` | `codex-rs` | Deferred | Lints for state changes pass or are fixed. |
@@ -230,9 +241,9 @@ From the repository root, run the forbidden spelling check for this phase plan a
 
     rg -n 'Data[X]' docs/plans/datax_migration_phase1_5_persistence_fixtures
 
-From the repository root, run the persistence-name source check and expect only documented exceptions:
+From the repository root, run the literal persistence-name source check and expect only `.codex-plugin` manifest format exceptions:
 
-    rg -n 'CODEX_HOME|CODEX_SQLITE_HOME|\\.codex' codex-rs/utils/home-dir codex-rs/config/src codex-rs/core/src/config codex-rs/state/src codex-rs/linux-sandbox/src codex-rs/app-server-transport/src codex-rs/network-proxy/src
+    rg -n '"CODEX_HOME"|`CODEX_HOME`|CODEX_SQLITE_HOME|"/etc/codex|`/etc/codex|~/\.codex|"\\.codex"|"\\.codex/|/\\.codex' codex-rs --glob '!vendor/**'
 
 From `codex-rs`, regenerate the config schema when config comments or config types changed:
 
@@ -275,7 +286,9 @@ Rollback is a normal branch rollback: revert the milestone commits or reset the 
 
 ## Artifacts and Notes
 
-GitHub issue and draft PR links will be added after creation.
+GitHub issue: https://github.com/mbellary/datax/issues/9
+
+Draft pull request: https://github.com/mbellary/datax/pull/10
 
 Initial searches used:
 
@@ -305,3 +318,254 @@ The config loader should treat `.datax/config.toml` as the project-local config 
 ## Change Notes
 
 2026-07-07: Created the initial ExecPlan, inventory, dependency order, validation matrix, and acceptance commands before implementation edits. This records the scope and prevents a blind mechanical rewrite.
+
+2026-07-07: Added GitHub issue #9 and draft PR #10 links after creating the milestone tracking artifacts. This keeps the plan, branch, issue, and PR aligned before implementation starts.
+
+2026-07-07: Added `codex-rs/protocol/src/permissions.rs`, `codex-rs/protocol/src/protocol.rs`, and `codex-rs/protocol/src/config_types.rs` to the inventory after discovering the sandbox policy source and protocol comments that feed persistence behavior and generated descriptions.
+
+## Expanded File Inventory
+
+Generated from the current branch change set after implementation. The primary inventory above records the source groups; this appendix records every currently changed file for focused tracking.
+
+| Filename | Modified | Remarks Notes |
+| --- | --- | --- |
+| `codex-rs/analytics/src/analytics_client_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server-client/src/lib.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server-daemon/README.md` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server-daemon/src/lib.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server-daemon/src/remote_control_client.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server-protocol/schema/json/ClientRequest.json` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server-protocol/schema/json/codex_app_server_protocol.schemas.json` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server-protocol/schema/json/codex_app_server_protocol.v2.schemas.json` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server-protocol/schema/json/v1/InitializeResponse.json` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server-protocol/schema/json/v2/ConfigReadResponse.json` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server-protocol/schema/json/v2/ConfigWriteResponse.json` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server-protocol/schema/json/v2/LoginAccountParams.json` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server-protocol/schema/typescript/InitializeResponse.ts` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server-protocol/src/protocol/common.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server-protocol/src/protocol/v1.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server-protocol/src/protocol/v2/config.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server-protocol/src/protocol/v2/tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server-test-client/src/lib.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server-transport/src/transport/mod.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/README.md` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/src/config/external_agent_config.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/src/config/external_agent_config_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/src/config_manager_service.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/src/request_processors/feedback_doctor_report.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/tests/common/rollout.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/tests/common/test_app_server.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/tests/suite/strict_config.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/tests/suite/v2/chat_resume.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/tests/suite/v2/chat_start.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/tests/suite/v2/command_exec.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/tests/suite/v2/config_rpc.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/tests/suite/v2/connection_handling_websocket.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/tests/suite/v2/experimental_feature_list.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/tests/suite/v2/external_agent_config.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/tests/suite/v2/hooks_list.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/tests/suite/v2/mcp_server_status.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/tests/suite/v2/permission_profile_list.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/tests/suite/v2/plugin_list.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/tests/suite/v2/recommended_plugins.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/tests/suite/v2/remote_control.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/app-server/tests/suite/v2/skills_list.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/arg0/src/lib.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/src/debug_sandbox.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/src/doctor.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/src/doctor/output/detail.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/src/doctor/thread_inventory.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/src/lib.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/src/main.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/src/marketplace_cmd.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/src/mcp_cmd.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/src/plugin_cmd.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/src/sandbox_setup.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/tests/app_server.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/tests/debug_clear_memories.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/tests/debug_models.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/tests/delete.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/tests/exec_server.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/tests/execpolicy.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/tests/features.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/tests/login.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/tests/marketplace_add.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/tests/marketplace_remove.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/tests/marketplace_upgrade.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/tests/mcp_add_remove.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/tests/mcp_list.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/tests/plugin_cli.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/tests/sandbox_network_proxy.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/cli/tests/update.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/config/src/cloud_config_layers_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/config/src/config_requirements.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/config/src/config_toml.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/config/src/loader/README.md` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/config/src/loader/layer_io.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/config/src/loader/macos.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/config/src/loader/mod.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/config/src/requirements_layers/stack_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/config/src/state.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/config/src/strict_config_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/config/src/tui_keymap.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/config/src/types.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core-plugins/src/manager.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core-plugins/src/manager_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core-plugins/src/marketplace_upgrade/activation.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core-plugins/src/remote/remote_installed_plugin_sync.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core-plugins/src/remote_bundle.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core-plugins/src/store.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core-plugins/src/store_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core-skills/src/loader.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core-skills/src/loader_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core-skills/src/render.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core-skills/src/service_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/README.md` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/config.schema.json` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/agent/control.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/agent/control/residency.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/agent/control/residency_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/agent/control/spawn.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/agent/control_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/agents_md_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/codex_thread.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/config/config_loader_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/config/config_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/config/mod.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/config/permissions_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/config/schema.md` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/exec_policy_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/exec_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/guardian/review_session.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/mcp_tool_call_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/network_proxy_loader.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/safety_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/session/tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/thread_manager_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/tools/handlers/multi_agents_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/src/tools/sandboxing.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/common/lib.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/common/test_codex_exec.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/abort_tasks.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/apply_patch_cli.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/cli_stream.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/client.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/client_websockets.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/collaboration_instructions.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/compact.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/compact_remote.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/compact_remote_parity.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/live_cli.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/model_visible_layout.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/pending_input.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/permissions_messages.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/request_compression.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/resume.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/review.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/rmcp_client.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/rollout_list_find.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/shell_snapshot.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/subagent_notifications.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/truncation.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/user_shell_cmd.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/core/tests/suite/windows_sandbox.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/exec-server/src/environment.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/exec-server/src/fs_sandbox.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/exec-server/testing/wine_exec_server.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/exec-server/tests/common/exec_server.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/exec-server/tests/common/mod.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/exec/src/cli.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/exec/tests/suite/sandbox.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/ext/skills/tests/skills_extension.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/external-agent-migration/src/lib.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/hooks/src/engine/discovery.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/hooks/src/engine/mod_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/install-context/src/lib.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/linux-sandbox/README.md` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/linux-sandbox/src/bwrap.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/linux-sandbox/src/proxy_routing.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/linux-sandbox/tests/suite/landlock.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/login/src/assets/success.html` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/login/src/auth/storage.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/login/src/auth/storage_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/mcp-server/src/codex_tool_config.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/mcp-server/tests/common/mcp_process.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/memories/README.md` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/memories/write/src/startup_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/message-history/src/lib.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/model-provider-info/src/lib.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/network-proxy/README.md` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/network-proxy/src/certs.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/network-proxy/src/socks5.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/protocol/src/config_types.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/protocol/src/permissions.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/protocol/src/protocol.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/responses-api-proxy/README.md` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/rmcp-client/src/oauth.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/rmcp-client/tests/streamable_http_oauth_startup.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/rmcp-client/tests/streamable_http_test_support.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/rollout-trace/src/reducer/code_cell.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/rollout-trace/src/reducer/tool.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/rollout/src/list.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/rollout/src/recorder.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/sandboxing/src/seatbelt.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/sandboxing/src/seatbelt_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/skills/src/assets/samples/imagegen/SKILL.md` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/skills/src/assets/samples/imagegen/references/cli.md` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/skills/src/assets/samples/imagegen/references/codex-network.md` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/skills/src/assets/samples/imagegen/references/image-api.md` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/skills/src/assets/samples/imagegen/references/prompting.md` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/skills/src/assets/samples/imagegen/references/sample-prompts.md` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/skills/src/assets/samples/openai-docs/SKILL.md` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/skills/src/assets/samples/skill-creator/SKILL.md` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/skills/src/assets/samples/skill-installer/SKILL.md` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/skills/src/assets/samples/skill-installer/scripts/install-skill-from-github.py` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/skills/src/assets/samples/skill-installer/scripts/list-skills.py` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/skills/src/lib.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/state/src/bin/logs_client.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/state/src/lib.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/test-binary-support/lib.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/app/startup_prompts.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/app/tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/bottom_pane/list_selection_view.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/chatwidget/tests/history_replay.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/debug_config.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/external_agent_config_migration.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/goal_files.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/keymap.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/lib.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/markdown_render_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/pets/ambient.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/pets/asset_pack.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/pets/mod.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/pets/model.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/render/highlight.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/snapshots/codex_tui__debug_config__tests__debug_config_effective_sandbox_modes_with_deny_read.snap` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/snapshots/codex_tui__debug_config__tests__debug_config_requirement_sources.snap` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/snapshots/codex_tui__external_agent_config_migration__tests__external_agent_config_migration_customize.snap` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/snapshots/codex_tui__external_agent_config_migration__tests__external_agent_config_migration_customize_action.snap` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/snapshots/codex_tui__external_agent_config_migration__tests__external_agent_config_migration_customize_action_windows.snap` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/snapshots/codex_tui__external_agent_config_migration__tests__external_agent_config_migration_customize_windows.snap` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/snapshots/codex_tui__markdown_render__markdown_render_tests__table_renders_stacked_key_value_records_when_path_column_becomes_too_narrow_snapshot.snap` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/src/theme_picker.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/tests/suite/resize_reflow.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/tui/tooltips.txt` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/utils/cli/src/config_override.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/utils/cli/src/shared_options.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/utils/home-dir/src/lib.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/utils/sandbox-summary/src/sandbox_summary.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/windows-sandbox-rs/sandbox_smoketests.py` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/windows-sandbox-rs/src/allow.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/windows-sandbox-rs/src/bin/command_runner/win/cwd_junction.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/windows-sandbox-rs/src/bin/setup_main/win.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/windows-sandbox-rs/src/cap.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/windows-sandbox-rs/src/helper_materialization.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/windows-sandbox-rs/src/identity.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/windows-sandbox-rs/src/setup.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/windows-sandbox-rs/src/spawn_prep.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/windows-sandbox-rs/src/workspace_acl.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/windows-sandbox-rs/src/wrapper.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/windows-sandbox-rs/src/wrapper_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `docs/plans/datax_migration_phase1_5_persistence_fixtures/persistence_fixtures_rename_execplan.md` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `docs/plans/datax_migration_phase1_5_persistence_fixtures/github_issue.md` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `docs/plans/datax_migration_phase1_5_persistence_fixtures/pull_request.md` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |

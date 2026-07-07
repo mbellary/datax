@@ -303,7 +303,7 @@ async fn resume_switches_models_preserves_base_instructions() -> Result<()> {
     });
     let resumed = resume_builder.resume(&server, home, rollout_path).await?;
     resumed
-        .codex
+        .datax
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "Resume with different model".into(),
@@ -321,7 +321,7 @@ async fn resume_switches_models_preserves_base_instructions() -> Result<()> {
     .await;
 
     resumed
-        .codex
+        .datax
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "Second turn after resume".into(),
@@ -432,7 +432,7 @@ async fn resume_model_switch_is_not_duplicated_after_pre_turn_override() -> Resu
     )
     .await?;
     resumed
-        .codex
+        .datax
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "first turn after override".into(),

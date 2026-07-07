@@ -381,7 +381,7 @@ impl TraceReducer {
             bail!("tool call start did not include thread or Codex turn context");
         };
         self.rollout
-            .codex_turns
+            .datax_turns
             .get(codex_turn_id)
             .map(|turn| turn.thread_id.clone())
             .with_context(|| {

@@ -306,7 +306,7 @@ impl AgentControl {
             let client_metadata = match state.get_thread(*parent_thread_id).await {
                 Ok(parent_thread) => {
                     parent_thread
-                        .codex
+                        .datax
                         .session
                         .app_server_client_metadata()
                         .await
@@ -328,7 +328,7 @@ impl AgentControl {
             emit_subagent_session_started(
                 &new_thread
                     .thread
-                    .codex
+                    .datax
                     .session
                     .services
                     .analytics_events_client,

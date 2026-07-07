@@ -186,7 +186,7 @@ pub fn fetch_dotslash_file(
 
 /// Returns a default `Config` whose on-disk state is confined to the provided
 /// temporary directory. Using a per-test directory keeps tests hermetic and
-/// avoids clobbering a developer’s real `~/.codex`.
+/// avoids clobbering a developer’s real `~/.datax`.
 pub async fn load_default_config_for_test(codex_home: &TempDir) -> Config {
     load_default_config_for_test_with_cloud_config_bundle(
         codex_home,
@@ -241,7 +241,7 @@ pub fn find_codex_linux_sandbox_exe() -> Result<PathBuf, CargoBinError> {
     if let Some(path) = TEST_ARG0_PATH_ENTRY
         .get()
         .and_then(Option::as_ref)
-        .and_then(|path_entry| path_entry.paths().codex_linux_sandbox_exe.clone())
+        .and_then(|path_entry| path_entry.paths().datax_linux_sandbox_exe.clone())
     {
         return Ok(path);
     }

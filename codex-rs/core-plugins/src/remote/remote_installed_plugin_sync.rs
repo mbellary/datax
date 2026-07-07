@@ -563,7 +563,7 @@ mod tests {
         .expect("valid plugin id");
         let metadata_path = PluginStore::new(codex_home.path().to_path_buf())
             .plugin_base_root(&plugin_id)
-            .join(".codex-remote-plugin-install.json");
+            .join(".datax-remote-plugin-install.json");
         assert_eq!(
             serde_json::from_str::<serde_json::Value>(
                 &std::fs::read_to_string(metadata_path.as_path())

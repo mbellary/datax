@@ -605,7 +605,7 @@ async fn resume_and_fork_do_not_restore_thread_environments_from_rollout() {
         .expect("resume source thread");
     let resumed_turn = resumed
         .thread
-        .codex
+        .datax
         .session
         .new_turn_with_sub_id("resume-turn".to_string(), SessionSettingsUpdate::default())
         .await
@@ -632,7 +632,7 @@ async fn resume_and_fork_do_not_restore_thread_environments_from_rollout() {
         .expect("fork source thread");
     let forked_turn = forked
         .thread
-        .codex
+        .datax
         .session
         .new_turn_with_sub_id("fork-turn".to_string(), SessionSettingsUpdate::default())
         .await

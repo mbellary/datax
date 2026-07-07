@@ -266,7 +266,7 @@ async fn non_openai_responses_requests_omit_item_passthrough_metadata() {
         .build(&server)
         .await
         .unwrap()
-        .codex;
+        .datax;
 
     codex
         .submit(Op::UserInput {
@@ -1284,7 +1284,7 @@ async fn includes_base_instructions_override_in_request() {
         .build(&server)
         .await
         .expect("create new conversation")
-        .codex;
+        .datax;
 
     codex
         .submit(Op::UserInput {
@@ -1510,7 +1510,7 @@ async fn includes_user_instructions_message_in_request() {
         .build(&server)
         .await
         .expect("create new conversation")
-        .codex;
+        .datax;
 
     codex
         .submit(Op::UserInput {
@@ -1598,7 +1598,7 @@ async fn includes_apps_guidance_as_developer_message_for_chatgpt_auth() {
         .build(&server)
         .await
         .expect("create new conversation")
-        .codex;
+        .datax;
 
     codex
         .submit(Op::UserInput {
@@ -1661,7 +1661,7 @@ async fn omits_apps_guidance_for_api_key_auth_even_when_feature_enabled() {
         .build(&server)
         .await
         .expect("create new conversation")
-        .codex;
+        .datax;
 
     codex
         .submit(Op::UserInput {
@@ -1720,7 +1720,7 @@ async fn omits_apps_guidance_when_configured_off() {
         .build(&server)
         .await
         .expect("create new conversation")
-        .codex;
+        .datax;
 
     codex
         .submit(Op::UserInput {
@@ -1797,7 +1797,7 @@ async fn omits_apps_guidance_when_orchestrator_mcp_is_disabled() {
         .build(&server)
         .await
         .expect("create new conversation")
-        .codex;
+        .datax;
 
     codex
         .submit(Op::UserInput {
@@ -1879,7 +1879,7 @@ async fn omits_environment_context_when_configured_off() {
         .build(&server)
         .await
         .expect("create new conversation")
-        .codex;
+        .datax;
 
     codex
         .submit(Op::UserInput {
@@ -1936,7 +1936,7 @@ async fn skills_append_to_developer_message() {
         .build(&server)
         .await
         .expect("create new conversation")
-        .codex;
+        .datax;
 
     codex
         .submit(Op::UserInput {
@@ -2019,7 +2019,7 @@ async fn skills_use_aliases_in_developer_message_under_budget_pressure() {
         .build(&server)
         .await
         .expect("create new conversation")
-        .codex;
+        .datax;
 
     codex
         .submit(Op::UserInput {
@@ -2696,7 +2696,7 @@ async fn includes_developer_instructions_message_in_request() {
         .build(&server)
         .await
         .expect("create new conversation")
-        .codex;
+        .datax;
 
     codex
         .submit(Op::UserInput {
@@ -3002,7 +3002,7 @@ async fn token_count_includes_rate_limits_snapshot() {
         .build(&server)
         .await
         .expect("create conversation")
-        .codex;
+        .datax;
 
     codex
         .submit(Op::UserInput {
@@ -3431,7 +3431,7 @@ async fn azure_overrides_assign_properties_used_for_responses_url() {
         .build(&server)
         .await
         .expect("create new conversation")
-        .codex;
+        .datax;
 
     codex
         .submit(Op::UserInput {
@@ -3520,7 +3520,7 @@ async fn env_var_overrides_loaded_auth() {
         .build(&server)
         .await
         .expect("create new conversation")
-        .codex;
+        .datax;
 
     codex
         .submit(Op::UserInput {
@@ -3576,7 +3576,7 @@ async fn history_dedupes_streamed_and_final_messages_across_turns() {
         .build(&server)
         .await
         .expect("create new conversation")
-        .codex;
+        .datax;
 
     // Turn 1: user sends U1; wait for completion.
     codex

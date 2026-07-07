@@ -259,7 +259,7 @@ async fn apply_patch_cli_uses_codex_self_exe_with_linux_sandbox_helper_alias() -
     let codex_linux_sandbox_exe = harness
         .test()
         .config
-        .codex_linux_sandbox_exe
+        .datax_linux_sandbox_exe
         .as_ref()
         .expect("linux test config should include codex-linux-sandbox helper");
     assert_eq!(

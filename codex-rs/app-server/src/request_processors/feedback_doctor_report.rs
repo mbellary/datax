@@ -36,7 +36,7 @@ pub(crate) struct DoctorFeedbackReport {
 /// returned tags without overriding explicit client-provided tags.
 pub(crate) async fn doctor_feedback_report(config: &Config) -> Option<DoctorFeedbackReport> {
     let executable = config
-        .codex_self_exe
+        .datax_self_exe
         .clone()
         .or_else(|| std::env::current_exe().ok())?;
 

@@ -401,7 +401,7 @@ async fn snapshot_model_visible_layout_resume_with_personality_change() -> Resul
         resume_override_cwd.as_path(),
     );
     resumed
-        .codex
+        .datax
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "resume and change personality".into(),
@@ -516,7 +516,7 @@ async fn snapshot_model_visible_layout_resume_override_matches_rollout_model() -
     )
     .await?;
     resumed
-        .codex
+        .datax
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "first resumed turn after model override".into(),

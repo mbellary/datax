@@ -773,7 +773,7 @@ mod tests {
         );
         let metadata_path = store
             .plugin_base_root(&result.plugin_id)
-            .join(".codex-remote-plugin-install.json");
+            .join(".datax-remote-plugin-install.json");
         assert_eq!(
             serde_json::from_str::<serde_json::Value>(
                 &std::fs::read_to_string(metadata_path.as_path())

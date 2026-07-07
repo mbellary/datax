@@ -46,7 +46,7 @@ pub(crate) fn current_test_binary_helper_paths() -> anyhow::Result<(PathBuf, Opt
     let codex_linux_sandbox_exe = if cfg!(target_os = "linux") {
         TEST_BINARY_DISPATCH_GUARD
             .as_ref()
-            .and_then(|guard| guard.paths().codex_linux_sandbox_exe.clone())
+            .and_then(|guard| guard.paths().datax_linux_sandbox_exe.clone())
             .or_else(|| Some(current_exe.clone()))
     } else {
         None
@@ -202,7 +202,7 @@ fn linux_sandbox_exe(
     #[cfg(target_os = "linux")]
     {
         guard
-            .and_then(|guard| guard.paths().codex_linux_sandbox_exe.clone())
+            .and_then(|guard| guard.paths().datax_linux_sandbox_exe.clone())
             .or_else(|| Some(current_exe.to_path_buf()))
     }
     #[cfg(not(target_os = "linux"))]

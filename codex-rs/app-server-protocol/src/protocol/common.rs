@@ -19,7 +19,7 @@ use ts_rs::TS;
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Display, JsonSchema, TS)]
 #[serde(rename_all = "lowercase")]
 pub enum AuthMode {
-    /// OpenAI API key provided by the caller and stored by Codex.
+    /// OpenAI API key provided by the caller and stored by Datax.
     ApiKey,
     /// ChatGPT OAuth managed by Codex (tokens persisted and refreshed by Codex).
     Chatgpt,

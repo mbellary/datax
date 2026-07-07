@@ -150,7 +150,7 @@ async fn run_add(args: AddMarketplaceArgs) -> Result<()> {
         json,
     } = args;
 
-    let codex_home = find_codex_home().context("failed to resolve CODEX_HOME")?;
+    let codex_home = find_codex_home().context("failed to resolve DATAX_HOME")?;
     let outcome = add_marketplace(
         codex_home.to_path_buf(),
         MarketplaceAddRequest {
@@ -375,7 +375,7 @@ async fn run_upgrade(
     let config = Config::load_with_cli_overrides(overrides)
         .await
         .context("failed to load configuration")?;
-    let codex_home = find_codex_home().context("failed to resolve CODEX_HOME")?;
+    let codex_home = find_codex_home().context("failed to resolve DATAX_HOME")?;
     let manager = PluginsManager::new(codex_home.to_path_buf());
     let plugins_input = config.plugins_config_input();
     let outcome = manager
@@ -393,7 +393,7 @@ async fn run_remove(args: RemoveMarketplaceArgs) -> Result<()> {
         marketplace_name,
         json,
     } = args;
-    let codex_home = find_codex_home().context("failed to resolve CODEX_HOME")?;
+    let codex_home = find_codex_home().context("failed to resolve DATAX_HOME")?;
     let outcome = remove_marketplace(
         codex_home.to_path_buf(),
         MarketplaceRemoveRequest { marketplace_name },

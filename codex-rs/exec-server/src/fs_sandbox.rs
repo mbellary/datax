@@ -431,7 +431,7 @@ mod tests {
         )]);
         let readable = AbsolutePathBuf::from_absolute_path(
             runtime_paths
-                .codex_self_exe
+                .datax_self_exe
                 .parent()
                 .expect("current exe parent"),
         )
@@ -634,7 +634,7 @@ mod tests {
         let mut policy = restricted_policy(Vec::new());
         let readable = AbsolutePathBuf::from_absolute_path(
             runtime_paths
-                .codex_self_exe
+                .datax_self_exe
                 .parent()
                 .expect("current exe parent"),
         )

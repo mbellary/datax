@@ -29,14 +29,14 @@ impl From<CoreRealtimeAudioFrame> for ChatRealtimeAudioChunk {
             sample_rate,
             num_channels,
             samples_per_channel,
-            message_id,
+            item_id,
         } = value;
         Self {
             data,
             sample_rate,
             num_channels,
             samples_per_channel,
-            message_id,
+            message_id: item_id,
         }
     }
 }
@@ -55,7 +55,7 @@ impl From<ChatRealtimeAudioChunk> for CoreRealtimeAudioFrame {
             sample_rate,
             num_channels,
             samples_per_channel,
-            message_id,
+            item_id: message_id,
         }
     }
 }

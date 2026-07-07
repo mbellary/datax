@@ -33,11 +33,31 @@ v2_enum_from_core!(
     }
 );
 
-v2_enum_from_core!(
-    pub enum HookScope from CoreHookScope {
-        Chat, Interaction
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub enum HookScope {
+    Chat,
+    Interaction,
+}
+
+impl HookScope {
+    pub fn to_core(self) -> CoreHookScope {
+        match self {
+            Self::Chat => CoreHookScope::Thread,
+            Self::Interaction => CoreHookScope::Turn,
+        }
     }
-);
+}
+
+impl From<CoreHookScope> for HookScope {
+    fn from(value: CoreHookScope) -> Self {
+        match value {
+            CoreHookScope::Thread => Self::Chat,
+            CoreHookScope::Turn => Self::Interaction,
+        }
+    }
+}
 
 v2_enum_from_core!(
     pub enum HookSource from CoreHookSource {

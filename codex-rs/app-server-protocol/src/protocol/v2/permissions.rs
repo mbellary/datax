@@ -754,14 +754,32 @@ pub struct PermissionsRequestApprovalParams {
     pub permissions: RequestPermissionProfile,
 }
 
-v2_enum_from_core!(
-    #[derive(Default)]
-    pub enum PermissionGrantScope from CorePermissionGrantScope {
-        #[default]
-        Interaction,
-        Session
+#[derive(Serialize, Deserialize, Debug, Default, Clone, Copy, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub enum PermissionGrantScope {
+    #[default]
+    Interaction,
+    Session,
+}
+
+impl PermissionGrantScope {
+    pub fn to_core(self) -> CorePermissionGrantScope {
+        match self {
+            Self::Interaction => CorePermissionGrantScope::Turn,
+            Self::Session => CorePermissionGrantScope::Session,
+        }
     }
-);
+}
+
+impl From<CorePermissionGrantScope> for PermissionGrantScope {
+    fn from(value: CorePermissionGrantScope) -> Self {
+        match value {
+            CorePermissionGrantScope::Turn => Self::Interaction,
+            CorePermissionGrantScope::Session => Self::Session,
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]

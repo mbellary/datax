@@ -544,7 +544,7 @@ impl TraceReducer {
             bail!("{event_name} {runtime_cell_id} did not include a thread id");
         };
         self.rollout
-            .datax_turns
+            .codex_turns
             .get(codex_turn_id)
             .map(|turn| turn.thread_id.clone())
             .with_context(|| {

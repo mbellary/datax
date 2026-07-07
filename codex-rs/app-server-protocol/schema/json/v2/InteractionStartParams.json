@@ -508,7 +508,7 @@
           "type": "null"
         }
       ],
-      "description": "Override the approval policy for this turn and subsequent interactions."
+      "description": "Override the approval policy for this interaction and subsequent interactions."
     },
     "approvalsReviewer": {
       "anyOf": [
@@ -519,7 +519,7 @@
           "type": "null"
         }
       ],
-      "description": "Override where approval requests are routed for review on this turn and subsequent interactions."
+      "description": "Override where approval requests are routed for review on this interaction and subsequent interactions."
     },
     "chatId": {
       "type": "string"
@@ -531,7 +531,7 @@
       ]
     },
     "cwd": {
-      "description": "Override the working directory for this turn and subsequent interactions.",
+      "description": "Override the working directory for this interaction and subsequent interactions.",
       "type": [
         "string",
         "null"
@@ -546,7 +546,7 @@
           "type": "null"
         }
       ],
-      "description": "Override the reasoning effort for this turn and subsequent interactions."
+      "description": "Override the reasoning effort for this interaction and subsequent interactions."
     },
     "input": {
       "items": {
@@ -555,14 +555,14 @@
       "type": "array"
     },
     "model": {
-      "description": "Override the model for this turn and subsequent interactions.",
+      "description": "Override the model for this interaction and subsequent interactions.",
       "type": [
         "string",
         "null"
       ]
     },
     "outputSchema": {
-      "description": "Optional JSON Schema used to constrain the final assistant message for this turn."
+      "description": "Optional JSON Schema used to constrain the final assistant message for this interaction."
     },
     "personality": {
       "anyOf": [
@@ -573,7 +573,7 @@
           "type": "null"
         }
       ],
-      "description": "Override the personality for this turn and subsequent interactions."
+      "description": "Override the personality for this interaction and subsequent interactions."
     },
     "sandboxPolicy": {
       "anyOf": [
@@ -584,10 +584,10 @@
           "type": "null"
         }
       ],
-      "description": "Override the sandbox policy for this turn and subsequent interactions."
+      "description": "Override the sandbox policy for this interaction and subsequent interactions."
     },
     "serviceTier": {
-      "description": "Override the service tier for this turn and subsequent interactions.",
+      "description": "Override the service tier for this interaction and subsequent interactions.",
       "type": [
         "string",
         "null"
@@ -602,7 +602,7 @@
           "type": "null"
         }
       ],
-      "description": "Override the reasoning summary for this turn and subsequent interactions."
+      "description": "Override the reasoning summary for this interaction and subsequent interactions."
     }
   },
   "required": [

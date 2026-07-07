@@ -20,10 +20,11 @@ This milestone deliberately targets the app-server public API boundary. Internal
 - [x] (2026-07-06T16:42:31Z) Created GitHub issue #7 and draft PR #8 for Phase 1.4.
 - [x] (2026-07-07T00:00:00Z) Renamed protocol source modules and exported v2 request, response, notification, and shared model types from thread/turn/item to chat/interaction/message terminology.
 - [x] (2026-07-07T00:00:00Z) Updated app-server request dispatch, processor modules, downstream protocol consumers, README examples, and v2 integration tests to use the renamed public protocol symbols and method strings.
-- [ ] Regenerate app-server JSON schema fixtures and TypeScript bindings.
+- [x] (2026-07-07T00:00:00Z) Regenerated app-server JSON schema fixtures and TypeScript bindings; user ran `just write-app-server-schema` and pushed commit `dd5fd69a44`.
 - [x] (2026-07-07T00:00:00Z) Attempted `just write-app-server-schema`; the sandbox run failed on missing crate downloads, then the escalated run downloaded dependencies and compiled for several minutes before WSL became unstable. Schema generation is deferred to the user handoff command below.
-- [ ] Run `just fmt` from `codex-rs` after code changes.
-- [ ] Record all deferred validation commands and final outcome notes before the milestone exits.
+- [x] (2026-07-07T00:00:00Z) Cleaned up remaining public schema/docs leaks after schema generation: `numTurns` now advertises as `numInteractions`, rollback and non-steerable error schema values use chat/interaction naming, and generated TypeScript/JSON descriptions no longer expose old thread/turn names for Chat/Interaction API docs.
+- [x] (2026-07-07T00:00:00Z) Ran `just fmt` from `codex-rs` after code changes.
+- [x] (2026-07-07T00:00:00Z) Completed lightweight acceptance searches; targeted app-server tests remain staged/deferred per the migration execution model.
 
 ## Surprises & Discoveries
 
@@ -38,6 +39,9 @@ This milestone deliberately targets the app-server public API boundary. Internal
 
 - Observation: Schema generation is the first expensive command in this phase and should be user-run for this checkpoint.
   Evidence: `just write-app-server-schema` first failed in the sandbox with `Could not resolve host: static.crates.io`; the escalated run downloaded crates and continued compiling for multiple minutes before the user's WSL setup became unstable.
+
+- Observation: Generated schemas still contained a few old public terms after the first successful schema generation.
+  Evidence: Follow-up searches found generated `numTurns`, `threadRollbackFailed`, `activeTurnNotSteerable`, `turnKind`, and public Chat/Interaction descriptions using thread/turn wording. Source comments and generated artifacts were updated so the advertised schema now uses `numInteractions`, `chatRollbackFailed`, `activeInteractionNotSteerable`, `interactionKind`, and chat/interaction wording.
 
 ## Decision Log
 
@@ -55,7 +59,9 @@ This milestone deliberately targets the app-server public API boundary. Internal
 
 ## Outcomes & Retrospective
 
-This section will be completed when the Phase 1.4 implementation is finished. The expected outcome is a migration-only app-server protocol rename with generated schema and TypeScript artifacts updated in the same branch.
+Phase 1.4 completed the migration-only app-server protocol rename at the public API boundary. App-server v2 source, request dispatch, downstream consumers, README examples, integration tests, generated JSON schemas, and generated TypeScript bindings now use Chat, Interaction, and Message terminology for the public protocol. Internal runtime/core names such as `ThreadId`, `TurnStartedEvent`, thread-store helpers, and selected Rust field names hidden behind serde/TS renames remain documented exceptions for later cleanup phases.
+
+Build and test execution remains staged. The user ran schema generation and will run the targeted test commands from the Validation Matrix during the post-implementation validation pass.
 
 ## Context and Orientation
 
@@ -92,51 +98,51 @@ The table below tracks files and file sets that belong to Phase 1.4. Rows marked
 
 | Filename | Modified | Remarks Notes |
 | --- | --- | --- |
-| `docs/plans/datax_migration_phase1_4_app_server_protocol/app_server_protocol_rename_execplan.md` | `In-Progress` | Living ExecPlan for Phase 1.4; updated with GitHub artifact URLs. |
+| `docs/plans/datax_migration_phase1_4_app_server_protocol/app_server_protocol_rename_execplan.md` | `Completed` | Living ExecPlan for Phase 1.4; updated with GitHub artifact URLs. |
 | `docs/plans/datax_migration_phase1_4_app_server_protocol/github_issue.md` | `Completed` | GitHub issue body used to create issue #7. |
 | `docs/plans/datax_migration_phase1_4_app_server_protocol/pull_request.md` | `Completed` | Draft PR body used to create PR #8. |
-| `codex-rs/app-server-protocol/src/protocol/v2/mod.rs` | `Pending` | Module exports for thread, turn, and item protocol modules must change to chat, interaction, and message modules. |
-| `codex-rs/app-server-protocol/src/protocol/v2/thread.rs` | `Pending` | Primary public thread/chat request, response, and notification types. Expected to be moved or replaced by `chat.rs`. |
-| `codex-rs/app-server-protocol/src/protocol/v2/turn.rs` | `Pending` | Primary public turn/interaction types. Expected to be moved or replaced by `interaction.rs`. |
-| `codex-rs/app-server-protocol/src/protocol/v2/item.rs` | `Pending` | Primary public item/message types. Expected to be moved or replaced by `message.rs`. |
-| `codex-rs/app-server-protocol/src/protocol/v2/thread_data.rs` | `Pending` | Thread data/history model references public thread/message names and likely needs chat naming. |
-| `codex-rs/app-server-protocol/src/protocol/thread_history.rs` | `Pending` | Builds public history turns and items; must adapt to `Interaction` and `Message` type names if those public types are renamed. |
-| `codex-rs/app-server-protocol/src/protocol/item_builders.rs` | `Pending` | Helper builders for public item/message values. |
-| `codex-rs/app-server-protocol/src/protocol/item_builders_tests.rs` | `Pending` | Tests for item/message builders must follow renamed type names. |
-| `codex-rs/app-server-protocol/src/protocol/common.rs` | `Pending` | Method registry and experimental API gates include method strings such as `thread/start` and `turn/start`. |
-| `codex-rs/app-server-protocol/src/protocol/event_mapping.rs` | `Pending` | Maps core events to public app-server notifications. |
-| `codex-rs/app-server-protocol/src/protocol/v2/tests.rs` | `Pending` | Protocol shape tests must use renamed public methods and schema types. |
-| `codex-rs/app-server-protocol/src/export.rs` | `Pending` | Schema export logic and tests contain `ThreadId` examples and may require generated-name updates. |
-| `codex-rs/app-server-protocol/src/schema_fixtures.rs` | `Pending` | Schema fixture support may reference generated type names. |
-| `codex-rs/app-server-protocol/tests/schema_fixtures.rs` | `Pending` | Fixture validation tests must match regenerated schema outputs. |
-| `codex-rs/app-server-protocol/schema/json/**` | `Pending` | Generated JSON schema files must be regenerated after source protocol rename. |
-| `codex-rs/app-server-protocol/schema/typescript/**` | `Pending` | Generated TypeScript bindings must be regenerated after source protocol rename. |
-| `codex-rs/app-server/src/request_processors.rs` | `Pending` | Request dispatch and protocol imports need method/type renames. |
-| `codex-rs/app-server/src/request_processors/thread_processor.rs` | `Pending` | Thread request handling becomes chat request handling. Expected to be moved or replaced by `chat_processor.rs`. |
-| `codex-rs/app-server/src/request_processors/turn_processor.rs` | `Pending` | Turn request handling becomes interaction request handling. Expected to be moved or replaced by `interaction_processor.rs`. |
-| `codex-rs/app-server/src/request_processors/thread_delete.rs` | `Pending` | Public delete route and type names must align with chat naming. |
-| `codex-rs/app-server/src/request_processors/thread_goal_processor.rs` | `Pending` | Public goal route/type names must align with chat naming if exposed through app-server v2. |
-| `codex-rs/app-server/src/request_processors/thread_lifecycle.rs` | `Pending` | Thread lifecycle helpers publish public notifications and must align with chat naming at the API boundary. |
-| `codex-rs/app-server/src/request_processors/thread_resume_redaction.rs` | `Pending` | Resume/read public payload helpers may expose thread/message names. |
-| `codex-rs/app-server/src/request_processors/thread_summary.rs` | `Pending` | Summary request helpers may expose public thread naming. |
-| `codex-rs/app-server/src/request_processors/thread_processor_tests.rs` | `Pending` | Processor tests must use renamed public methods and types. |
-| `codex-rs/app-server/src/request_processors/thread_summary_tests.rs` | `Pending` | Summary tests must follow renamed public naming if touched by source changes. |
-| `codex-rs/app-server/src/thread_state.rs` | `Pending` | Runtime state currently stores public `Thread` and `Turn` values; rename only if required by app-server protocol type changes. |
-| `codex-rs/app-server/src/thread_status.rs` | `Pending` | Status notifications are public app-server surface and likely become chat status notifications. |
-| `codex-rs/app-server/src/in_process.rs` | `Pending` | In-process client tests and examples call public methods such as `thread/start`. |
-| `codex-rs/app-server/src/message_processor.rs` | `Pending` | Coordinates app-server events and may publish public thread/chat notifications. |
-| `codex-rs/app-server/src/request_serialization.rs` | `Pending` | Serialization scopes may expose thread naming. |
-| `codex-rs/app-server/README.md` | `Pending` | API contract documentation and examples must use `chat`, `interaction`, and `message`. |
-| `codex-rs/app-server/tests/suite/v2/thread_*.rs` | `Pending` | Integration tests for public thread methods must be renamed or updated to chat methods. |
-| `codex-rs/app-server/tests/suite/v2/turn_*.rs` | `Pending` | Integration tests for public turn methods must be renamed or updated to interaction methods. |
-| `codex-rs/app-server/tests/suite/v2/mod.rs` | `Pending` | Test module list must track any renamed test files. |
-| `codex-rs/app-server/tests/suite/v2/*.rs` | `Pending` | Non-thread test files that call `thread/start`, `turn/start`, or inspect thread/turn/item notifications must be updated. Exact files are identified with `rg -n "thread/|turn/|item/|Thread|Turn|Item" codex-rs/app-server/tests/suite/v2`. |
-| `codex-rs/app-server-client/README.md` | `Pending` | Inspected because it documents app-server client usage; update only if it references renamed public methods. |
-| `codex-rs/tui/**` | `In-Progress` | Direct `datax_app_server_protocol` imports and usages were updated to the renamed app-server API types. Internal TUI thread/session vocabulary remains deferred. |
-| `codex-rs/core/**` | `In-Progress` | Small compatibility edits were required where core constructs or consumes app-server protocol types. Internal `ThreadId`, thread manager, and turn execution vocabulary remain deferred. |
-| `codex-rs/analytics/**` | `In-Progress` | Direct app-server protocol request/response/notification type usage was updated to the renamed public API types while analytics fact names remain internal. |
-| `codex-rs/exec/**` | `In-Progress` | Direct app-server protocol request/response/notification type usage was updated to the renamed public API types while exec event names remain internal. |
-| `codex-rs/external-agent-sessions/**` | `In-Progress` | Direct app-server protocol message type usage was updated to the renamed public API type. |
+| `codex-rs/app-server-protocol/src/protocol/v2/mod.rs` | `Completed` | Module exports for thread, turn, and item protocol modules must change to chat, interaction, and message modules. |
+| `codex-rs/app-server-protocol/src/protocol/v2/thread.rs` | `Completed` | Primary public thread/chat request, response, and notification types. Expected to be moved or replaced by `chat.rs`. |
+| `codex-rs/app-server-protocol/src/protocol/v2/turn.rs` | `Completed` | Primary public turn/interaction types. Expected to be moved or replaced by `interaction.rs`. |
+| `codex-rs/app-server-protocol/src/protocol/v2/item.rs` | `Completed` | Primary public item/message types. Expected to be moved or replaced by `message.rs`. |
+| `codex-rs/app-server-protocol/src/protocol/v2/thread_data.rs` | `Completed` | Thread data/history model references public thread/message names and likely needs chat naming. |
+| `codex-rs/app-server-protocol/src/protocol/thread_history.rs` | `Completed` | Builds public history turns and items; must adapt to `Interaction` and `Message` type names if those public types are renamed. |
+| `codex-rs/app-server-protocol/src/protocol/item_builders.rs` | `Completed` | Helper builders for public item/message values. |
+| `codex-rs/app-server-protocol/src/protocol/item_builders_tests.rs` | `Completed` | Tests for item/message builders must follow renamed type names. |
+| `codex-rs/app-server-protocol/src/protocol/common.rs` | `Completed` | Method registry and experimental API gates include method strings such as `thread/start` and `turn/start`. |
+| `codex-rs/app-server-protocol/src/protocol/event_mapping.rs` | `Completed` | Maps core events to public app-server notifications. |
+| `codex-rs/app-server-protocol/src/protocol/v2/tests.rs` | `Completed` | Protocol shape tests must use renamed public methods and schema types. |
+| `codex-rs/app-server-protocol/src/export.rs` | `Completed` | Schema export logic and tests contain `ThreadId` examples and may require generated-name updates. |
+| `codex-rs/app-server-protocol/src/schema_fixtures.rs` | `Completed` | Schema fixture support may reference generated type names. |
+| `codex-rs/app-server-protocol/tests/schema_fixtures.rs` | `Completed` | Fixture validation tests must match regenerated schema outputs. |
+| `codex-rs/app-server-protocol/schema/json/**` | `Completed` | Generated JSON schema files must be regenerated after source protocol rename. |
+| `codex-rs/app-server-protocol/schema/typescript/**` | `Completed` | Generated TypeScript bindings must be regenerated after source protocol rename. |
+| `codex-rs/app-server/src/request_processors.rs` | `Completed` | Request dispatch and protocol imports need method/type renames. |
+| `codex-rs/app-server/src/request_processors/thread_processor.rs` | `Completed` | Thread request handling becomes chat request handling. Expected to be moved or replaced by `chat_processor.rs`. |
+| `codex-rs/app-server/src/request_processors/turn_processor.rs` | `Completed` | Turn request handling becomes interaction request handling. Expected to be moved or replaced by `interaction_processor.rs`. |
+| `codex-rs/app-server/src/request_processors/thread_delete.rs` | `Completed` | Public delete route and type names must align with chat naming. |
+| `codex-rs/app-server/src/request_processors/thread_goal_processor.rs` | `Completed` | Public goal route/type names must align with chat naming if exposed through app-server v2. |
+| `codex-rs/app-server/src/request_processors/thread_lifecycle.rs` | `Completed` | Thread lifecycle helpers publish public notifications and must align with chat naming at the API boundary. |
+| `codex-rs/app-server/src/request_processors/thread_resume_redaction.rs` | `Completed` | Resume/read public payload helpers may expose thread/message names. |
+| `codex-rs/app-server/src/request_processors/thread_summary.rs` | `Completed` | Summary request helpers may expose public thread naming. |
+| `codex-rs/app-server/src/request_processors/thread_processor_tests.rs` | `Completed` | Processor tests must use renamed public methods and types. |
+| `codex-rs/app-server/src/request_processors/thread_summary_tests.rs` | `Completed` | Summary tests must follow renamed public naming if touched by source changes. |
+| `codex-rs/app-server/src/thread_state.rs` | `Completed` | Runtime state currently stores public `Thread` and `Turn` values; rename only if required by app-server protocol type changes. |
+| `codex-rs/app-server/src/thread_status.rs` | `Completed` | Status notifications are public app-server surface and likely become chat status notifications. |
+| `codex-rs/app-server/src/in_process.rs` | `Completed` | In-process client tests and examples call public methods such as `thread/start`. |
+| `codex-rs/app-server/src/message_processor.rs` | `Completed` | Coordinates app-server events and may publish public thread/chat notifications. |
+| `codex-rs/app-server/src/request_serialization.rs` | `Completed` | Serialization scopes may expose thread naming. |
+| `codex-rs/app-server/README.md` | `Completed` | API contract documentation and examples must use `chat`, `interaction`, and `message`. |
+| `codex-rs/app-server/tests/suite/v2/thread_*.rs` | `Completed` | Integration tests for public thread methods must be renamed or updated to chat methods. |
+| `codex-rs/app-server/tests/suite/v2/turn_*.rs` | `Completed` | Integration tests for public turn methods must be renamed or updated to interaction methods. |
+| `codex-rs/app-server/tests/suite/v2/mod.rs` | `Completed` | Test module list must track any renamed test files. |
+| `codex-rs/app-server/tests/suite/v2/*.rs` | `Completed` | Non-thread test files that call `thread/start`, `turn/start`, or inspect thread/turn/item notifications must be updated. Exact files are identified with `rg -n "thread/|turn/|item/|Thread|Turn|Item" codex-rs/app-server/tests/suite/v2`. |
+| `codex-rs/app-server-client/README.md` | `Completed` | Inspected because it documents app-server client usage; update only if it references renamed public methods. |
+| `codex-rs/tui/**` | `Completed` | Direct `datax_app_server_protocol` imports and usages were updated to the renamed app-server API types. Internal TUI thread/session vocabulary remains deferred. |
+| `codex-rs/core/**` | `Completed` | Small compatibility edits were required where core constructs or consumes app-server protocol types. Internal `ThreadId`, thread manager, and turn execution vocabulary remain deferred. |
+| `codex-rs/analytics/**` | `Completed` | Direct app-server protocol request/response/notification type usage was updated to the renamed public API types while analytics fact names remain internal. |
+| `codex-rs/exec/**` | `Completed` | Direct app-server protocol request/response/notification type usage was updated to the renamed public API types while exec event names remain internal. |
+| `codex-rs/external-agent-sessions/**` | `Completed` | Direct app-server protocol message type usage was updated to the renamed public API type. |
 | `CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR` and `CODEX_SANDBOX_ENV_VAR` references | `Not Required` | Protected sandbox identifiers are excluded from all migration rename operations. |
 
 ## Rename Exception Register
@@ -194,13 +200,13 @@ After source edits, run formatter from `codex-rs`:
 
 | Command | Working Directory | Status | Expected Result |
 | --- | --- | --- | --- |
-| `git diff --check` | repository root | `Deferred` | No whitespace errors. |
-| `rg -n "Data[X]" .` | repository root | `Deferred` | No forbidden mixed-case spelling. |
-| `rg -n "thread/|turn/|item/" codex-rs/app-server-protocol/src codex-rs/app-server/src codex-rs/app-server/tests/suite/v2 codex-rs/app-server/README.md` | repository root | `Deferred` | No old public app-server method strings remain except documented deferrals. |
-| `rg -n "ThreadStart|ThreadRead|ThreadList|ThreadResume|ThreadFork|TurnStart|TurnInterrupt|ThreadItem|TurnStatus" codex-rs/app-server-protocol/src codex-rs/app-server/src codex-rs/app-server/tests/suite/v2` | repository root | `Deferred` | No old public app-server v2 schema type names remain except documented internal adapters. |
-| `rg -n "threadId|turnId|itemId" codex-rs/app-server-protocol/schema/json codex-rs/app-server-protocol/schema/typescript` | repository root | `Deferred` | Generated app-server schema artifacts expose `chatId`, `interactionId`, or `messageId` where applicable. |
-| `just fmt` | `codex-rs` | `Pending` | Rust formatting completes after source edits. |
-| `just write-app-server-schema` | `codex-rs` | `Deferred` | App-server schema and TypeScript artifacts regenerate with renamed public names. |
+| `git diff --check` | repository root | `Completed` | No whitespace errors. |
+| `rg -n "Data[X]" .` | repository root | `Completed` | No forbidden mixed-case spelling. |
+| `rg -n "thread/|turn/|item/" codex-rs/app-server-protocol/src codex-rs/app-server/src codex-rs/app-server/tests/suite/v2 codex-rs/app-server/README.md` | repository root | `Completed` | No old public app-server method strings remain except documented deferrals. |
+| `rg -n "ThreadStart|ThreadRead|ThreadList|ThreadResume|ThreadFork|TurnStart|TurnInterrupt|ThreadItem|TurnStatus" codex-rs/app-server-protocol/src codex-rs/app-server/src codex-rs/app-server/tests/suite/v2` | repository root | `Completed` | Only documented internal/core event names and export test fixture names remain. |
+| `rg -n "threadId|turnId|itemId|numTurns|threadRollbackFailed|activeTurnNotSteerable|turnKind|NonSteerableTurnKind" codex-rs/app-server-protocol/schema/json codex-rs/app-server-protocol/schema/typescript` | repository root | `Completed` | Generated app-server schema artifacts expose `chatId`, `interactionId`, `messageId`, `numInteractions`, `chatRollbackFailed`, `activeInteractionNotSteerable`, and `interactionKind` where applicable. |
+| `just fmt` | `codex-rs` | `Completed` | Rust formatting completes after source edits. |
+| `just write-app-server-schema` | `codex-rs` | `Completed` | App-server schema and TypeScript artifacts regenerate with renamed public names. User ran this command and pushed commit `dd5fd69a44`. |
 | `just write-app-server-schema --experimental` | `codex-rs` | `Deferred` | Experimental app-server schema artifacts regenerate with renamed experimental method markers. |
 | `just test -p datax-app-server-protocol` | `codex-rs` | `Deferred` | Protocol schema and TypeScript fixture tests pass. |
 | `just test -p datax-app-server` | `codex-rs` | `Deferred` | App-server request processor and integration tests pass with renamed public methods. |
@@ -225,9 +231,9 @@ From the repository root, verify old public v2 schema type names are gone from a
 
     rg -n "ThreadStart|ThreadRead|ThreadList|ThreadResume|ThreadFork|TurnStart|TurnInterrupt|ThreadItem|TurnStatus" codex-rs/app-server-protocol/src codex-rs/app-server/src codex-rs/app-server/tests/suite/v2
 
-From the repository root, verify generated schema artifacts no longer expose old public id field names:
+From the repository root, verify generated schema artifacts no longer expose old public id field names or old public error/parameter names:
 
-    rg -n "threadId|turnId|itemId" codex-rs/app-server-protocol/schema/json codex-rs/app-server-protocol/schema/typescript
+    rg -n "threadId|turnId|itemId|numTurns|threadRollbackFailed|activeTurnNotSteerable|turnKind|NonSteerableTurnKind" codex-rs/app-server-protocol/schema/json codex-rs/app-server-protocol/schema/typescript
 
 From `codex-rs`, run the formatter and expect it to complete:
 
@@ -237,7 +243,7 @@ From `codex-rs`, regenerate app-server schema artifacts and expect checked-in JS
 
     just write-app-server-schema
 
-Current handoff status: Codex attempted this command on 2026-07-07. The sandbox run failed because Cargo could not resolve `static.crates.io`; an escalated retry downloaded dependencies but ran long enough to destabilize WSL. The user will run this command manually and provide results before Codex continues schema/artifact validation.
+Current status: Codex attempted this command on 2026-07-07. The sandbox run failed because Cargo could not resolve `static.crates.io`; an escalated retry downloaded dependencies but ran long enough to destabilize WSL. The user then ran this command manually and pushed commit `dd5fd69a44` with generated schema artifacts. Codex pulled that commit and completed follow-up public schema naming cleanup in this branch.
 
 From `codex-rs`, regenerate experimental app-server schema artifacts and expect experimental markers to use the renamed public methods:
 

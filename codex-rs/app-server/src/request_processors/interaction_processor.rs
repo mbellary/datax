@@ -920,7 +920,7 @@ impl InteractionRequestProcessor {
                         let error = InteractionError {
                             message: message.clone(),
                             codex_error_info: Some(CodexErrorInfo::ActiveTurnNotSteerable {
-                                turn_kind: turn_kind.into(),
+                                interaction_kind: turn_kind.into(),
                             }),
                             additional_details: None,
                         };

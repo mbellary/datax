@@ -11,10 +11,10 @@ import type { InteractionsPage } from "./InteractionsPage";
 import type { SandboxPolicy } from "./SandboxPolicy";
 
 export type ChatResumeResponse = {chat: Chat, model: string, modelProvider: string, serviceTier: string | null, cwd: AbsolutePathBuf, /**
- * Environment-native paths to instruction source files currently loaded for this thread.
+ * Environment-native paths to instruction source files currently loaded for this chat.
  */
 instructionSources: Array<LegacyAppPathString>, approvalPolicy: AskForApproval, /**
- * Reviewer currently used for approval requests on this thread.
+ * Reviewer currently used for approval requests on this chat.
  */
 approvalsReviewer: ApprovalsReviewer, /**
  * Legacy sandbox policy retained for compatibility. Experimental clients

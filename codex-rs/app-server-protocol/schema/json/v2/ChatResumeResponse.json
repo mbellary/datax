@@ -131,14 +131,14 @@
               "type": "null"
             }
           ],
-          "description": "Optional analytics source classification for this thread."
+          "description": "Optional analytics source classification for this chat."
         },
         "cliVersion": {
-          "description": "Version of the CLI that created the thread.",
+          "description": "Version of the CLI that created the chat.",
           "type": "string"
         },
         "createdAt": {
-          "description": "Unix timestamp (in seconds) when the thread was created.",
+          "description": "Unix timestamp (in seconds) when the chat was created.",
           "format": "int64",
           "type": "integer"
         },
@@ -148,14 +148,14 @@
               "$ref": "#/definitions/AbsolutePathBuf"
             }
           ],
-          "description": "Working directory captured for the thread."
+          "description": "Working directory captured for the chat."
         },
         "ephemeral": {
-          "description": "Whether the thread is ephemeral and should not be materialized on disk.",
+          "description": "Whether the chat is ephemeral and should not be materialized on disk.",
           "type": "boolean"
         },
         "forkedFromId": {
-          "description": "Source thread id when this thread was created by forking another thread.",
+          "description": "Source chat id when this chat was created by forking another chat.",
           "type": [
             "string",
             "null"
@@ -170,7 +170,7 @@
               "type": "null"
             }
           ],
-          "description": "Optional Git metadata captured when the thread was created."
+          "description": "Optional Git metadata captured when the chat was created."
         },
         "id": {
           "type": "string"
@@ -183,36 +183,36 @@
           "type": "array"
         },
         "modelProvider": {
-          "description": "Model provider used for this thread (for example, 'openai').",
+          "description": "Model provider used for this chat (for example, 'openai').",
           "type": "string"
         },
         "name": {
-          "description": "Optional user-facing thread title.",
+          "description": "Optional user-facing chat title.",
           "type": [
             "string",
             "null"
           ]
         },
         "parentChatId": {
-          "description": "The ID of the parent thread. This will only be set if this thread is a subagent.",
+          "description": "The ID of the parent chat. This will only be set if this chat is a subagent.",
           "type": [
             "string",
             "null"
           ]
         },
         "path": {
-          "description": "[UNSTABLE] Path to the thread on disk.",
+          "description": "[UNSTABLE] Path to the chat on disk.",
           "type": [
             "string",
             "null"
           ]
         },
         "preview": {
-          "description": "Usually the first user message in the thread, if available.",
+          "description": "Usually the first user message in the chat, if available.",
           "type": "string"
         },
         "recencyAt": {
-          "description": "Unix timestamp (in seconds) used for thread recency ordering.",
+          "description": "Unix timestamp (in seconds) used for chat recency ordering.",
           "format": "int64",
           "type": [
             "integer",
@@ -229,7 +229,7 @@
               "$ref": "#/definitions/SessionSource"
             }
           ],
-          "description": "Origin of the thread (CLI, VSCode, codex exec, codex app-server, etc.)."
+          "description": "Origin of the chat (CLI, VSCode, codex exec, codex app-server, etc.)."
         },
         "status": {
           "allOf": [
@@ -237,10 +237,10 @@
               "$ref": "#/definitions/ChatStatus"
             }
           ],
-          "description": "Current runtime status for the thread."
+          "description": "Current runtime status for the chat."
         },
         "updatedAt": {
-          "description": "Unix timestamp (in seconds) when the thread was last updated.",
+          "description": "Unix timestamp (in seconds) when the chat was last updated.",
           "format": "int64",
           "type": "integer"
         }
@@ -358,7 +358,7 @@
             "internalServerError",
             "unauthorized",
             "badRequest",
-            "threadRollbackFailed",
+            "chatRollbackFailed",
             "sandboxError",
             "other"
           ],
@@ -413,7 +413,7 @@
         },
         {
           "additionalProperties": false,
-          "description": "The response SSE stream disconnected in the middle of a turn before completion.",
+          "description": "The response SSE stream disconnected in the middle of an interaction before completion.",
           "properties": {
             "responseStreamDisconnected": {
               "properties": {
@@ -461,24 +461,24 @@
         },
         {
           "additionalProperties": false,
-          "description": "Returned when `interaction/start` or `interaction/steer` is submitted while the current active turn cannot accept same-turn steering, for example `/review` or manual `/compact`.",
+          "description": "Returned when `interaction/start` or `interaction/steer` is submitted while the current active interaction cannot accept same-interaction steering, for example `/review` or manual `/compact`.",
           "properties": {
-            "activeTurnNotSteerable": {
+            "activeInteractionNotSteerable": {
               "properties": {
-                "turnKind": {
-                  "$ref": "#/definitions/NonSteerableTurnKind"
+                "interactionKind": {
+                  "$ref": "#/definitions/NonSteerableInteractionKind"
                 }
               },
               "required": [
-                "turnKind"
+                "interactionKind"
               ],
               "type": "object"
             }
           },
           "required": [
-            "activeTurnNotSteerable"
+            "activeInteractionNotSteerable"
           ],
-          "title": "ActiveTurnNotSteerableCodexErrorInfo",
+          "title": "ActiveInteractionNotSteerableCodexErrorInfo",
           "type": "object"
         }
       ]
@@ -779,7 +779,7 @@
     "Interaction": {
       "properties": {
         "completedAt": {
-          "description": "Unix timestamp (in seconds) when the turn completed.",
+          "description": "Unix timestamp (in seconds) when the interaction completed.",
           "format": "int64",
           "type": [
             "integer",
@@ -787,7 +787,7 @@
           ]
         },
         "durationMs": {
-          "description": "Duration between turn start and completion in milliseconds, if known.",
+          "description": "Duration between interaction start and completion in milliseconds, if known.",
           "format": "int64",
           "type": [
             "integer",
@@ -809,7 +809,7 @@
           "type": "string"
         },
         "messages": {
-          "description": "Chat messages currently included in this turn payload.",
+          "description": "Chat messages currently included in this interaction payload.",
           "items": {
             "$ref": "#/definitions/Message"
           },
@@ -822,10 +822,10 @@
             }
           ],
           "default": "full",
-          "description": "Describes how much of `messages` has been loaded for this turn."
+          "description": "Describes how much of `messages` has been loaded for this interaction."
         },
         "startedAt": {
-          "description": "Unix timestamp (in seconds) when the turn started.",
+          "description": "Unix timestamp (in seconds) when the interaction started.",
           "format": "int64",
           "type": [
             "integer",
@@ -874,21 +874,21 @@
     "InteractionMessagesView": {
       "oneOf": [
         {
-          "description": "`messages` was not loaded for this turn. The field is intentionally empty.",
+          "description": "`messages` was not loaded for this interaction. The field is intentionally empty.",
           "enum": [
             "notLoaded"
           ],
           "type": "string"
         },
         {
-          "description": "`messages` contains only a display summary for this turn.",
+          "description": "`messages` contains only a display summary for this interaction.",
           "enum": [
             "summary"
           ],
           "type": "string"
         },
         {
-          "description": "`messages` contains every Message available from persisted app-server history for this turn.",
+          "description": "`messages` contains every Message available from persisted app-server history for this interaction.",
           "enum": [
             "full"
           ],
@@ -1814,7 +1814,7 @@
       ],
       "type": "string"
     },
-    "NonSteerableTurnKind": {
+    "NonSteerableInteractionKind": {
       "enum": [
         "review",
         "compact"
@@ -2396,7 +2396,7 @@
           "$ref": "#/definitions/ApprovalsReviewer"
         }
       ],
-      "description": "Reviewer currently used for approval requests on this thread."
+      "description": "Reviewer currently used for approval requests on this chat."
     },
     "chat": {
       "$ref": "#/definitions/Chat"
@@ -2418,7 +2418,7 @@
     },
     "instructionSources": {
       "default": [],
-      "description": "Environment-native paths to instruction source files currently loaded for this thread.",
+      "description": "Environment-native paths to instruction source files currently loaded for this chat.",
       "items": {
         "$ref": "#/definitions/LegacyAppPathString"
       },

@@ -9,26 +9,26 @@ import type { ChatResumeInitialInteractionsPageParams } from "./ChatResumeInitia
 import type { SandboxMode } from "./SandboxMode";
 
 /**
- * There are three ways to resume a thread:
- * 1. By chat_id: load the thread from disk by chat_id and resume it.
- * 2. By history: instantiate the thread from memory and resume it.
- * 3. By path: load the thread from disk by path and resume it.
+ * There are three ways to resume a chat:
+ * 1. By chat_id: load the chat from disk by chat_id and resume it.
+ * 2. By history: instantiate the chat from memory and resume it.
+ * 3. By path: load the chat from disk by path and resume it.
  *
- * For non-running threads, the precedence is: history > non-empty path > chat_id.
- * If using history or a non-empty path for a non-running thread, the chat_id
+ * For non-running chats, the precedence is: history > non-empty path > chat_id.
+ * If using history or a non-empty path for a non-running chat, the chat_id
  * param will be ignored.
  *
- * If chat_id identifies a running thread, app-server rejoins that thread and
+ * If chat_id identifies a running chat, app-server rejoins that chat and
  * treats a non-empty path as a consistency check against the active rollout path.
  * Empty string path values are treated as absent.
  *
  * Prefer using chat_id whenever possible.
  */
 export type ChatResumeParams = {chatId: string, /**
- * Configuration overrides for the resumed thread, if any.
+ * Configuration overrides for the resumed chat, if any.
  */
 model?: string | null, modelProvider?: string | null, serviceTier?: string | null | null, cwd?: string | null, approvalPolicy?: AskForApproval | null, /**
- * Override where approval requests are routed for review on this thread
+ * Override where approval requests are routed for review on this chat
  * and subsequent interactions.
  */
 approvalsReviewer?: ApprovalsReviewer | null, sandbox?: SandboxMode | null, config?: { [key in string]?: JsonValue } | null, baseInstructions?: string | null, developerInstructions?: string | null, personality?: Personality | null, /**

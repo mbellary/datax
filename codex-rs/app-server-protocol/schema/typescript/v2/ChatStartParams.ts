@@ -10,10 +10,10 @@ import type { ChatStartSource } from "./ChatStartSource";
 import type { SandboxMode } from "./SandboxMode";
 
 export type ChatStartParams = {model?: string | null, modelProvider?: string | null, serviceTier?: string | null | null, cwd?: string | null, approvalPolicy?: AskForApproval | null, /**
- * Override where approval requests are routed for review on this thread
+ * Override where approval requests are routed for review on this chat
  * and subsequent interactions.
  */
 approvalsReviewer?: ApprovalsReviewer | null, sandbox?: SandboxMode | null, config?: { [key in string]?: JsonValue } | null, serviceName?: string | null, baseInstructions?: string | null, developerInstructions?: string | null, personality?: Personality | null, ephemeral?: boolean | null, sessionStartSource?: ChatStartSource | null, /**
- * Optional client-supplied analytics source classification for this thread.
+ * Optional client-supplied analytics source classification for this chat.
  */
 chatSource?: ChatSource | null};

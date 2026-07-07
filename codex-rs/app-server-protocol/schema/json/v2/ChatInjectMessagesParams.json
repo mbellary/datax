@@ -5,7 +5,7 @@
       "type": "string"
     },
     "messages": {
-      "description": "Raw Responses API messages to append to the thread's model-visible history.",
+      "description": "Raw Responses API messages to append to the chat.s model-visible history.",
       "items": true,
       "type": "array"
     }

@@ -4,7 +4,7 @@ use datax_protocol::config_types::SandboxMode as CoreSandboxMode;
 use datax_protocol::protocol::AskForApproval as CoreAskForApproval;
 use datax_protocol::protocol::CodexErrorInfo as CoreCodexErrorInfo;
 use datax_protocol::protocol::GranularApprovalConfig as CoreGranularApprovalConfig;
-use datax_protocol::protocol::NonSteerableTurnKind as CoreNonSteerableTurnKind;
+use datax_protocol::protocol::NonSteerableTurnKind as CoreNonSteerableInteractionKind;
 use schemars::JsonSchema;
 use schemars::r#gen::SchemaGenerator;
 use schemars::schema::InstanceType;
@@ -56,7 +56,7 @@ pub(super) const fn default_enabled() -> bool {
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub enum NonSteerableTurnKind {
+pub enum NonSteerableInteractionKind {
     Review,
     Compact,
 }
@@ -87,9 +87,11 @@ pub enum CodexErrorInfo {
     InternalServerError,
     Unauthorized,
     BadRequest,
+    #[serde(rename = "chatRollbackFailed")]
+    #[ts(rename = "chatRollbackFailed")]
     ThreadRollbackFailed,
     SandboxError,
-    /// The response SSE stream disconnected in the middle of a turn before completion.
+    /// The response SSE stream disconnected in the middle of an interaction before completion.
     ResponseStreamDisconnected {
         #[serde(rename = "httpStatusCode")]
         #[ts(rename = "httpStatusCode")]
@@ -101,12 +103,15 @@ pub enum CodexErrorInfo {
         #[ts(rename = "httpStatusCode")]
         http_status_code: Option<u16>,
     },
-    /// Returned when `interaction/start` or `interaction/steer` is submitted while the current active turn
-    /// cannot accept same-turn steering, for example `/review` or manual `/compact`.
+    /// Returned when `interaction/start` or `interaction/steer` is submitted while the current
+    /// active interaction cannot accept same-interaction steering, for example `/review` or
+    /// manual `/compact`.
+    #[serde(rename = "activeInteractionNotSteerable")]
+    #[ts(rename = "activeInteractionNotSteerable")]
     ActiveTurnNotSteerable {
-        #[serde(rename = "turnKind")]
-        #[ts(rename = "turnKind")]
-        turn_kind: NonSteerableTurnKind,
+        #[serde(rename = "interactionKind")]
+        #[ts(rename = "interactionKind")]
+        interaction_kind: NonSteerableInteractionKind,
     },
     Other,
 }
@@ -137,7 +142,7 @@ impl From<CoreCodexErrorInfo> for CodexErrorInfo {
             }
             CoreCodexErrorInfo::ActiveTurnNotSteerable { turn_kind } => {
                 CodexErrorInfo::ActiveTurnNotSteerable {
-                    turn_kind: turn_kind.into(),
+                    interaction_kind: turn_kind.into(),
                 }
             }
             CoreCodexErrorInfo::Other => CodexErrorInfo::Other,
@@ -145,11 +150,11 @@ impl From<CoreCodexErrorInfo> for CodexErrorInfo {
     }
 }
 
-impl From<CoreNonSteerableTurnKind> for NonSteerableTurnKind {
-    fn from(value: CoreNonSteerableTurnKind) -> Self {
+impl From<CoreNonSteerableInteractionKind> for NonSteerableInteractionKind {
+    fn from(value: CoreNonSteerableInteractionKind) -> Self {
         match value {
-            CoreNonSteerableTurnKind::Review => Self::Review,
-            CoreNonSteerableTurnKind::Compact => Self::Compact,
+            CoreNonSteerableInteractionKind::Review => Self::Review,
+            CoreNonSteerableInteractionKind::Compact => Self::Compact,
         }
     }
 }

@@ -91,7 +91,7 @@
       ]
     },
     "searchTerm": {
-      "description": "Optional substring filter for the extracted thread title.",
+      "description": "Optional substring filter for the extracted chat title.",
       "type": [
         "string",
         "null"
@@ -130,7 +130,7 @@
       ]
     },
     "useStateDbOnly": {
-      "description": "If true, return from the state DB without scanning JSONL rollouts to repair thread metadata. Omitted or false preserves scan-and-repair behavior.",
+      "description": "If true, return from the state DB without scanning JSONL rollouts to repair chat metadata. Omitted or false preserves scan-and-repair behavior.",
       "type": "boolean"
     }
   },

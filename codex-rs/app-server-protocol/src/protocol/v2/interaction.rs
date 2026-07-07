@@ -70,7 +70,7 @@ pub struct InteractionStartParams {
     #[ts(optional = nullable)]
     pub client_user_message_id: Option<String>,
     pub input: Vec<UserInput>,
-    /// Optional metadata to enrich Codex's ResponsesAPI turn metadata.
+    /// Optional metadata to enrich Codex's ResponsesAPI interaction metadata.
     ///
     /// Entries are flattened into the JSON string sent as
     /// `client_metadata["x-codex-turn-metadata"]` on ResponsesAPI HTTP and websocket requests.
@@ -84,42 +84,42 @@ pub struct InteractionStartParams {
     #[experimental("interaction/start.additionalContext")]
     #[ts(optional = nullable)]
     pub additional_context: Option<HashMap<String, AdditionalContextEntry>>,
-    /// Optional environments for this turn and subsequent interactions.
+    /// Optional environments for this interaction and subsequent interactions.
     ///
-    /// Omitted uses the thread sticky environments. Empty disables
-    /// environment access for this turn. Non-empty selects the first
-    /// environment as the current turn environment for this turn.
+    /// Omitted uses the chat sticky environments. Empty disables
+    /// environment access for this interaction. Non-empty selects the first
+    /// environment as the current interaction environment for this interaction.
     #[experimental("interaction/start.environments")]
     #[ts(optional = nullable)]
     pub environments: Option<Vec<InteractionEnvironmentParams>>,
-    /// Override the working directory for this turn and subsequent interactions.
+    /// Override the working directory for this interaction and subsequent interactions.
     #[ts(optional = nullable)]
     pub cwd: Option<PathBuf>,
-    /// Replace the thread's runtime workspace roots for this turn and
+    /// Replace the chat's runtime workspace roots for this interaction and
     /// subsequent interactions. Paths must be absolute.
     #[experimental("interaction/start.runtimeWorkspaceRoots")]
     #[ts(optional = nullable)]
     pub runtime_workspace_roots: Option<Vec<AbsolutePathBuf>>,
-    /// Override the approval policy for this turn and subsequent interactions.
+    /// Override the approval policy for this interaction and subsequent interactions.
     #[experimental(nested)]
     #[ts(optional = nullable)]
     pub approval_policy: Option<AskForApproval>,
-    /// Override where approval requests are routed for review on this turn and
+    /// Override where approval requests are routed for review on this interaction and
     /// subsequent interactions.
     #[ts(optional = nullable)]
     pub approvals_reviewer: Option<ApprovalsReviewer>,
-    /// Override the sandbox policy for this turn and subsequent interactions.
+    /// Override the sandbox policy for this interaction and subsequent interactions.
     #[ts(optional = nullable)]
     pub sandbox_policy: Option<SandboxPolicy>,
-    /// Select a named permissions profile id for this turn and subsequent
+    /// Select a named permissions profile id for this interaction and subsequent
     /// interactions. Cannot be combined with `sandboxPolicy`.
     #[experimental("interaction/start.permissions")]
     #[ts(optional = nullable)]
     pub permissions: Option<String>,
-    /// Override the model for this turn and subsequent interactions.
+    /// Override the model for this interaction and subsequent interactions.
     #[ts(optional = nullable)]
     pub model: Option<String>,
-    /// Override the service tier for this turn and subsequent interactions.
+    /// Override the service tier for this interaction and subsequent interactions.
     #[serde(
         default,
         deserialize_with = "crate::protocol::serde_helpers::deserialize_double_option",
@@ -128,17 +128,17 @@ pub struct InteractionStartParams {
     )]
     #[ts(optional = nullable)]
     pub service_tier: Option<Option<String>>,
-    /// Override the reasoning effort for this turn and subsequent interactions.
+    /// Override the reasoning effort for this interaction and subsequent interactions.
     #[ts(optional = nullable)]
     pub effort: Option<ReasoningEffort>,
-    /// Override the reasoning summary for this turn and subsequent interactions.
+    /// Override the reasoning summary for this interaction and subsequent interactions.
     #[ts(optional = nullable)]
     pub summary: Option<ReasoningSummary>,
-    /// Override the personality for this turn and subsequent interactions.
+    /// Override the personality for this interaction and subsequent interactions.
     #[ts(optional = nullable)]
     pub personality: Option<Personality>,
     /// Optional JSON Schema used to constrain the final assistant message for
-    /// this turn.
+    /// this interaction.
     #[ts(optional = nullable)]
     pub output_schema: Option<JsonValue>,
 
@@ -176,7 +176,7 @@ pub struct InteractionSteerParams {
     #[ts(optional = nullable)]
     pub client_user_message_id: Option<String>,
     pub input: Vec<UserInput>,
-    /// Optional metadata to enrich Codex's ResponsesAPI turn metadata.
+    /// Optional metadata to enrich Codex's ResponsesAPI interaction metadata.
     ///
     /// Entries are flattened into the JSON string sent as
     /// `client_metadata["x-codex-turn-metadata"]` on ResponsesAPI HTTP and websocket requests.
@@ -190,8 +190,8 @@ pub struct InteractionSteerParams {
     #[experimental("interaction/steer.additionalContext")]
     #[ts(optional = nullable)]
     pub additional_context: Option<HashMap<String, AdditionalContextEntry>>,
-    /// Required active turn id precondition. The request fails when it does not
-    /// match the currently active turn.
+    /// Required active interaction id precondition. The request fails when it does not
+    /// match the currently active interaction.
     #[serde(rename = "expectedInteractionId")]
     #[ts(rename = "expectedInteractionId")]
     pub expected_turn_id: String,
@@ -405,8 +405,8 @@ pub struct InteractionCompletedNotification {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-/// Notification that the turn-level unified diff has changed.
-/// Contains the latest aggregated diff across all file changes in the turn.
+/// Notification that the interaction-level unified diff has changed.
+/// Contains the latest aggregated diff across all file changes in the interaction.
 pub struct InteractionDiffUpdatedNotification {
     pub chat_id: String,
     pub interaction_id: String,

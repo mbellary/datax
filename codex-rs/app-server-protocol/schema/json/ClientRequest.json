@@ -279,7 +279,7 @@
       "type": "object"
     },
     "ChatForkParams": {
-      "description": "There are two ways to fork a thread: 1. By chat_id: load the thread from disk by chat_id and fork it into a new thread. 2. By path: load the thread from disk by path and fork it into a new thread.\n\nIf using a non-empty path, the chat_id param will be ignored. Empty string path values are treated as absent.\n\nPrefer using chat_id whenever possible.",
+      "description": "There are two ways to fork a chat: 1. By chat_id: load the chat from disk by chat_id and fork it into a new chat. 2. By path: load the chat from disk by path and fork it into a new chat.\n\nIf using a non-empty path, the chat_id param will be ignored. Empty string path values are treated as absent.\n\nPrefer using chat_id whenever possible.",
       "properties": {
         "approvalPolicy": {
           "anyOf": [
@@ -300,7 +300,7 @@
               "type": "null"
             }
           ],
-          "description": "Override where approval requests are routed for review on this thread and subsequent interactions."
+          "description": "Override where approval requests are routed for review on this chat and subsequent interactions."
         },
         "baseInstructions": {
           "type": [
@@ -320,7 +320,7 @@
               "type": "null"
             }
           ],
-          "description": "Optional client-supplied analytics source classification for this forked thread."
+          "description": "Optional client-supplied analytics source classification for this forked chat."
         },
         "config": {
           "additionalProperties": true,
@@ -345,7 +345,7 @@
           "type": "boolean"
         },
         "model": {
-          "description": "Configuration overrides for the forked thread, if any.",
+          "description": "Configuration overrides for the forked chat, if any.",
           "type": [
             "string",
             "null"
@@ -452,7 +452,7 @@
           "type": "string"
         },
         "messages": {
-          "description": "Raw Responses API messages to append to the thread's model-visible history.",
+          "description": "Raw Responses API messages to append to the chat.s model-visible history.",
           "items": true,
           "type": "array"
         }
@@ -523,7 +523,7 @@
           ]
         },
         "searchTerm": {
-          "description": "Optional substring filter for the extracted thread title.",
+          "description": "Optional substring filter for the extracted chat title.",
           "type": [
             "string",
             "null"
@@ -562,7 +562,7 @@
           ]
         },
         "useStateDbOnly": {
-          "description": "If true, return from the state DB without scanning JSONL rollouts to repair thread metadata. Omitted or false preserves scan-and-repair behavior.",
+          "description": "If true, return from the state DB without scanning JSONL rollouts to repair chat metadata. Omitted or false preserves scan-and-repair behavior.",
           "type": "boolean"
         }
       },
@@ -636,7 +636,7 @@
               "type": "null"
             }
           ],
-          "description": "Patch the stored Git metadata for this thread. Omit a field to leave it unchanged, set it to `null` to clear it, or provide a string to replace the stored value."
+          "description": "Patch the stored Git metadata for this chat. Omit a field to leave it unchanged, set it to `null` to clear it, or provide a string to replace the stored value."
         }
       },
       "required": [
@@ -660,7 +660,7 @@
       "type": "object"
     },
     "ChatRealtimeAudioChunk": {
-      "description": "EXPERIMENTAL - thread realtime audio chunk.",
+      "description": "EXPERIMENTAL - chat realtime audio chunk.",
       "properties": {
         "data": {
           "type": "string"
@@ -698,7 +698,7 @@
       "type": "object"
     },
     "ChatRealtimeStartTransport": {
-      "description": "EXPERIMENTAL - transport used by thread realtime.",
+      "description": "EXPERIMENTAL - transport used by chat realtime.",
       "oneOf": [
         {
           "properties": {
@@ -742,7 +742,7 @@
     "ChatResumeInitialInteractionsPageParams": {
       "properties": {
         "limit": {
-          "description": "Optional turn page size.",
+          "description": "Optional interaction page size.",
           "format": "uint32",
           "minimum": 0.0,
           "type": [
@@ -759,7 +759,7 @@
               "type": "null"
             }
           ],
-          "description": "How much item detail to include for each returned turn; defaults to summary."
+          "description": "How much message detail to include for each returned interaction; defaults to summary."
         },
         "sortDirection": {
           "anyOf": [
@@ -770,13 +770,13 @@
               "type": "null"
             }
           ],
-          "description": "Optional turn pagination direction; defaults to descending."
+          "description": "Optional interaction pagination direction; defaults to descending."
         }
       },
       "type": "object"
     },
     "ChatResumeParams": {
-      "description": "There are three ways to resume a thread: 1. By chat_id: load the thread from disk by chat_id and resume it. 2. By history: instantiate the thread from memory and resume it. 3. By path: load the thread from disk by path and resume it.\n\nFor non-running threads, the precedence is: history > non-empty path > chat_id. If using history or a non-empty path for a non-running thread, the chat_id param will be ignored.\n\nIf chat_id identifies a running thread, app-server rejoins that thread and treats a non-empty path as a consistency check against the active rollout path. Empty string path values are treated as absent.\n\nPrefer using chat_id whenever possible.",
+      "description": "There are three ways to resume a chat: 1. By chat_id: load the chat from disk by chat_id and resume it. 2. By history: instantiate the chat from memory and resume it. 3. By path: load the chat from disk by path and resume it.\n\nFor non-running chats, the precedence is: history > non-empty path > chat_id. If using history or a non-empty path for a non-running chat, the chat_id param will be ignored.\n\nIf chat_id identifies a running chat, app-server rejoins that chat and treats a non-empty path as a consistency check against the active rollout path. Empty string path values are treated as absent.\n\nPrefer using chat_id whenever possible.",
       "properties": {
         "approvalPolicy": {
           "anyOf": [
@@ -797,7 +797,7 @@
               "type": "null"
             }
           ],
-          "description": "Override where approval requests are routed for review on this thread and subsequent interactions."
+          "description": "Override where approval requests are routed for review on this chat and subsequent interactions."
         },
         "baseInstructions": {
           "type": [
@@ -839,7 +839,7 @@
           "description": "When present, include a `chat/interactions/list` page in the resume response so clients can bootstrap recent interactions without a second request."
         },
         "model": {
-          "description": "Configuration overrides for the resumed thread, if any.",
+          "description": "Configuration overrides for the resumed chat, if any.",
           "type": [
             "string",
             "null"
@@ -888,8 +888,8 @@
         "chatId": {
           "type": "string"
         },
-        "numTurns": {
-          "description": "The number of interactions to drop from the end of the thread. Must be >= 1.\n\nThis only modifies the thread's history and does not revert local file changes that have been made by the agent. Clients are responsible for reverting these changes.",
+        "numInteractions": {
+          "description": "The number of interactions to drop from the end of the chat. Must be >= 1.\n\nThis only modifies the chat.s history and does not revert local file changes that have been made by the agent. Clients are responsible for reverting these changes.",
           "format": "uint32",
           "minimum": 0.0,
           "type": "integer"
@@ -897,7 +897,7 @@
       },
       "required": [
         "chatId",
-        "numTurns"
+        "numInteractions"
       ],
       "type": "object"
     },
@@ -922,7 +922,7 @@
           "type": "string"
         },
         "command": {
-          "description": "Shell command string evaluated by the thread's configured shell. Unlike `command/exec`, this intentionally preserves shell syntax such as pipes, redirects, and quoting. This runs unsandboxed with full access rather than inheriting the thread sandbox policy.",
+          "description": "Shell command string evaluated by the chat configured shell. Unlike `command/exec`, this intentionally preserves shell syntax such as pipes, redirects, and quoting. This runs unsandboxed with full access rather than inheriting the chat sandbox policy.",
           "type": "string"
         }
       },
@@ -979,7 +979,7 @@
               "type": "null"
             }
           ],
-          "description": "Override where approval requests are routed for review on this thread and subsequent interactions."
+          "description": "Override where approval requests are routed for review on this chat and subsequent interactions."
         },
         "baseInstructions": {
           "type": [
@@ -996,7 +996,7 @@
               "type": "null"
             }
           ],
-          "description": "Optional client-supplied analytics source classification for this thread."
+          "description": "Optional client-supplied analytics source classification for this chat."
         },
         "config": {
           "additionalProperties": true,
@@ -2227,21 +2227,21 @@
     "InteractionMessagesView": {
       "oneOf": [
         {
-          "description": "`messages` was not loaded for this turn. The field is intentionally empty.",
+          "description": "`messages` was not loaded for this interaction. The field is intentionally empty.",
           "enum": [
             "notLoaded"
           ],
           "type": "string"
         },
         {
-          "description": "`messages` contains only a display summary for this turn.",
+          "description": "`messages` contains only a display summary for this interaction.",
           "enum": [
             "summary"
           ],
           "type": "string"
         },
         {
-          "description": "`messages` contains every Message available from persisted app-server history for this turn.",
+          "description": "`messages` contains every Message available from persisted app-server history for this interaction.",
           "enum": [
             "full"
           ],
@@ -2260,7 +2260,7 @@
               "type": "null"
             }
           ],
-          "description": "Override the approval policy for this turn and subsequent interactions."
+          "description": "Override the approval policy for this interaction and subsequent interactions."
         },
         "approvalsReviewer": {
           "anyOf": [
@@ -2271,7 +2271,7 @@
               "type": "null"
             }
           ],
-          "description": "Override where approval requests are routed for review on this turn and subsequent interactions."
+          "description": "Override where approval requests are routed for review on this interaction and subsequent interactions."
         },
         "chatId": {
           "type": "string"
@@ -2283,7 +2283,7 @@
           ]
         },
         "cwd": {
-          "description": "Override the working directory for this turn and subsequent interactions.",
+          "description": "Override the working directory for this interaction and subsequent interactions.",
           "type": [
             "string",
             "null"
@@ -2298,7 +2298,7 @@
               "type": "null"
             }
           ],
-          "description": "Override the reasoning effort for this turn and subsequent interactions."
+          "description": "Override the reasoning effort for this interaction and subsequent interactions."
         },
         "input": {
           "items": {
@@ -2307,14 +2307,14 @@
           "type": "array"
         },
         "model": {
-          "description": "Override the model for this turn and subsequent interactions.",
+          "description": "Override the model for this interaction and subsequent interactions.",
           "type": [
             "string",
             "null"
           ]
         },
         "outputSchema": {
-          "description": "Optional JSON Schema used to constrain the final assistant message for this turn."
+          "description": "Optional JSON Schema used to constrain the final assistant message for this interaction."
         },
         "personality": {
           "anyOf": [
@@ -2325,7 +2325,7 @@
               "type": "null"
             }
           ],
-          "description": "Override the personality for this turn and subsequent interactions."
+          "description": "Override the personality for this interaction and subsequent interactions."
         },
         "sandboxPolicy": {
           "anyOf": [
@@ -2336,10 +2336,10 @@
               "type": "null"
             }
           ],
-          "description": "Override the sandbox policy for this turn and subsequent interactions."
+          "description": "Override the sandbox policy for this interaction and subsequent interactions."
         },
         "serviceTier": {
-          "description": "Override the service tier for this turn and subsequent interactions.",
+          "description": "Override the service tier for this interaction and subsequent interactions.",
           "type": [
             "string",
             "null"
@@ -2354,7 +2354,7 @@
               "type": "null"
             }
           ],
-          "description": "Override the reasoning summary for this turn and subsequent interactions."
+          "description": "Override the reasoning summary for this interaction and subsequent interactions."
         }
       },
       "required": [
@@ -2375,7 +2375,7 @@
           ]
         },
         "expectedInteractionId": {
-          "description": "Required active turn id precondition. The request fails when it does not match the currently active turn.",
+          "description": "Required active interaction id precondition. The request fails when it does not match the currently active interaction.",
           "type": "string"
         },
         "input": {

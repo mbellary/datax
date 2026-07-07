@@ -8,9 +8,9 @@ import type { ChatSource } from "./ChatSource";
 import type { SandboxMode } from "./SandboxMode";
 
 /**
- * There are two ways to fork a thread:
- * 1. By chat_id: load the thread from disk by chat_id and fork it into a new thread.
- * 2. By path: load the thread from disk by path and fork it into a new thread.
+ * There are two ways to fork a chat:
+ * 1. By chat_id: load the chat from disk by chat_id and fork it into a new chat.
+ * 2. By path: load the chat from disk by path and fork it into a new chat.
  *
  * If using a non-empty path, the chat_id param will be ignored.
  * Empty string path values are treated as absent.
@@ -18,13 +18,13 @@ import type { SandboxMode } from "./SandboxMode";
  * Prefer using chat_id whenever possible.
  */
 export type ChatForkParams = {chatId: string, /**
- * Configuration overrides for the forked thread, if any.
+ * Configuration overrides for the forked chat, if any.
  */
 model?: string | null, modelProvider?: string | null, serviceTier?: string | null | null, cwd?: string | null, approvalPolicy?: AskForApproval | null, /**
- * Override where approval requests are routed for review on this thread
+ * Override where approval requests are routed for review on this chat
  * and subsequent interactions.
  */
 approvalsReviewer?: ApprovalsReviewer | null, sandbox?: SandboxMode | null, config?: { [key in string]?: JsonValue } | null, baseInstructions?: string | null, developerInstructions?: string | null, ephemeral?: boolean, /**
- * Optional client-supplied analytics source classification for this forked thread.
+ * Optional client-supplied analytics source classification for this forked chat.
  */
 chatSource?: ChatSource | null};

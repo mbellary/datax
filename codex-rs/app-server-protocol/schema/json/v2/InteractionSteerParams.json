@@ -228,7 +228,7 @@
       ]
     },
     "expectedInteractionId": {
-      "description": "Required active turn id precondition. The request fails when it does not match the currently active turn.",
+      "description": "Required active interaction id precondition. The request fails when it does not match the currently active interaction.",
       "type": "string"
     },
     "input": {

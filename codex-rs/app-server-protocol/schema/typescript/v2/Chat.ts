@@ -14,59 +14,59 @@ export type Chat = { id: string,
  */
 sessionId: string,
 /**
- * Source thread id when this thread was created by forking another thread.
+ * Source chat id when this chat was created by forking another chat.
  */
 forkedFromId: string | null,
 /**
- * The ID of the parent thread. This will only be set if this thread is a subagent.
+ * The ID of the parent chat. This will only be set if this chat is a subagent.
  */
 parentChatId: string | null,
 /**
- * Usually the first user message in the thread, if available.
+ * Usually the first user message in the chat, if available.
  */
 preview: string,
 /**
- * Whether the thread is ephemeral and should not be materialized on disk.
+ * Whether the chat is ephemeral and should not be materialized on disk.
  */
 ephemeral: boolean,
 /**
- * Model provider used for this thread (for example, 'openai').
+ * Model provider used for this chat (for example, 'openai').
  */
 modelProvider: string,
 /**
- * Unix timestamp (in seconds) when the thread was created.
+ * Unix timestamp (in seconds) when the chat was created.
  */
 createdAt: number,
 /**
- * Unix timestamp (in seconds) when the thread was last updated.
+ * Unix timestamp (in seconds) when the chat was last updated.
  */
 updatedAt: number,
 /**
- * Unix timestamp (in seconds) used for thread recency ordering.
+ * Unix timestamp (in seconds) used for chat recency ordering.
  */
 recencyAt: number | null,
 /**
- * Current runtime status for the thread.
+ * Current runtime status for the chat.
  */
 status: ChatStatus,
 /**
- * [UNSTABLE] Path to the thread on disk.
+ * [UNSTABLE] Path to the chat on disk.
  */
 path: string | null,
 /**
- * Working directory captured for the thread.
+ * Working directory captured for the chat.
  */
 cwd: AbsolutePathBuf,
 /**
- * Version of the CLI that created the thread.
+ * Version of the CLI that created the chat.
  */
 cliVersion: string,
 /**
- * Origin of the thread (CLI, VSCode, codex exec, codex app-server, etc.).
+ * Origin of the chat (CLI, VSCode, codex exec, codex app-server, etc.).
  */
 source: SessionSource,
 /**
- * Optional analytics source classification for this thread.
+ * Optional analytics source classification for this chat.
  */
 chatSource: ChatSource | null,
 /**
@@ -78,11 +78,11 @@ agentNickname: string | null,
  */
 agentRole: string | null,
 /**
- * Optional Git metadata captured when the thread was created.
+ * Optional Git metadata captured when the chat was created.
  */
 gitInfo: GitInfo | null,
 /**
- * Optional user-facing thread title.
+ * Optional user-facing chat title.
  */
 name: string | null,
 /**

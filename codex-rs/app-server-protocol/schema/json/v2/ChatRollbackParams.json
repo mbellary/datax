@@ -4,8 +4,8 @@
     "chatId": {
       "type": "string"
     },
-    "numTurns": {
-      "description": "The number of interactions to drop from the end of the thread. Must be >= 1.\n\nThis only modifies the thread's history and does not revert local file changes that have been made by the agent. Clients are responsible for reverting these changes.",
+    "numInteractions": {
+      "description": "The number of interactions to drop from the end of the chat. Must be >= 1.\n\nThis only modifies the chat.s history and does not revert local file changes that have been made by the agent. Clients are responsible for reverting these changes.",
       "format": "uint32",
       "minimum": 0.0,
       "type": "integer"
@@ -13,7 +13,7 @@
   },
   "required": [
     "chatId",
-    "numTurns"
+    "numInteractions"
   ],
   "title": "ChatRollbackParams",
   "type": "object"

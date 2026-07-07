@@ -60,9 +60,9 @@ pub enum CommandExecutionApprovalDecision {
     ApplyNetworkPolicyAmendment {
         network_policy_amendment: NetworkPolicyAmendment,
     },
-    /// User denied the command. The agent will continue the turn.
+    /// User denied the command. The agent will continue the interaction.
     Decline,
-    /// User denied the command. The turn will also be immediately interrupted.
+    /// User denied the command. The interaction will also be immediately interrupted.
     Cancel,
 }
 
@@ -96,9 +96,9 @@ pub enum FileChangeApprovalDecision {
     Accept,
     /// User approved the file changes and future changes to the same files should run without prompting.
     AcceptForSession,
-    /// User denied the file changes. The agent will continue the turn.
+    /// User denied the file changes. The agent will continue the interaction.
     Decline,
-    /// User denied the file changes. The turn will also be immediately interrupted.
+    /// User denied the file changes. The interaction will also be immediately interrupted.
     Cancel,
 }
 

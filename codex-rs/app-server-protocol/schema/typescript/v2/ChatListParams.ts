@@ -35,10 +35,10 @@ archived?: boolean | null, /**
  */
 cwd?: string | Array<string> | null, /**
  * If true, return from the state DB without scanning JSONL rollouts to
- * repair thread metadata. Omitted or false preserves scan-and-repair
+ * repair chat metadata. Omitted or false preserves scan-and-repair
  * behavior.
  */
 useStateDbOnly?: boolean, /**
- * Optional substring filter for the extracted thread title.
+ * Optional substring filter for the extracted chat title.
  */
 searchTerm?: string | null};

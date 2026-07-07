@@ -1693,10 +1693,13 @@ impl ChatRequestProcessor {
         request_id: &ConnectionRequestId,
         params: ChatRollbackParams,
     ) -> Result<(), JSONRPCErrorError> {
-        let ChatRollbackParams { chat_id, num_turns } = params;
+        let ChatRollbackParams {
+            chat_id,
+            num_interactions,
+        } = params;
 
-        if num_turns == 0 {
-            return Err(invalid_request("numTurns must be >= 1"));
+        if num_interactions == 0 {
+            return Err(invalid_request("numInteractions must be >= 1"));
         }
 
         let (chat_id, thread) = self.load_thread(&chat_id).await?;
@@ -1723,7 +1726,9 @@ impl ChatRequestProcessor {
             .submit_core_op(
                 request_id,
                 thread.as_ref(),
-                Op::ThreadRollback { num_turns },
+                Op::ThreadRollback {
+                    num_turns: num_interactions,
+                },
             )
             .await
         {

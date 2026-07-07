@@ -136,28 +136,28 @@ pub struct Chat {
     pub id: String,
     /// Session id shared by threads that belong to the same session tree.
     pub session_id: String,
-    /// Source thread id when this thread was created by forking another thread.
+    /// Source chat id when this chat was created by forking another chat.
     pub forked_from_id: Option<String>,
-    /// The ID of the parent thread. This will only be set if this thread is a subagent.
+    /// The ID of the parent chat. This will only be set if this chat is a subagent.
     pub parent_chat_id: Option<String>,
     /// Usually the first user message in the thread, if available.
     pub preview: String,
-    /// Whether the thread is ephemeral and should not be materialized on disk.
+    /// Whether the chat is ephemeral and should not be materialized on disk.
     pub ephemeral: bool,
     /// Model provider used for this thread (for example, 'openai').
     pub model_provider: String,
-    /// Unix timestamp (in seconds) when the thread was created.
+    /// Unix timestamp (in seconds) when the chat was created.
     #[ts(type = "number")]
     pub created_at: i64,
-    /// Unix timestamp (in seconds) when the thread was last updated.
+    /// Unix timestamp (in seconds) when the chat was last updated.
     #[ts(type = "number")]
     pub updated_at: i64,
-    /// Unix timestamp (in seconds) used for thread recency ordering.
+    /// Unix timestamp (in seconds) used for chat recency ordering.
     #[ts(type = "number | null")]
     pub recency_at: Option<i64>,
     /// Current runtime status for the thread.
     pub status: ChatStatus,
-    /// [UNSTABLE] Path to the thread on disk.
+    /// [UNSTABLE] Path to the chat on disk.
     pub path: Option<PathBuf>,
     /// Working directory captured for the thread.
     pub cwd: AbsolutePathBuf,
@@ -171,9 +171,9 @@ pub struct Chat {
     pub agent_nickname: Option<String>,
     /// Optional role (agent_role) assigned to an AgentControl-spawned sub-agent.
     pub agent_role: Option<String>,
-    /// Optional Git metadata captured when the thread was created.
+    /// Optional Git metadata captured when the chat was created.
     pub git_info: Option<GitInfo>,
-    /// Optional user-facing thread title.
+    /// Optional user-facing chat title.
     pub name: Option<String>,
     /// Only populated on `chat/resume`, `chat/rollback`, `chat/fork`, and `chat/read`
     /// (when `includeInteractions` is true) responses.

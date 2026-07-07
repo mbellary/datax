@@ -11,35 +11,35 @@ import type { SandboxPolicy } from "./SandboxPolicy";
 import type { UserInput } from "./UserInput";
 
 export type InteractionStartParams = {chatId: string, clientUserMessageId?: string | null, input: Array<UserInput>, /**
- * Override the working directory for this turn and subsequent interactions.
+ * Override the working directory for this interaction and subsequent interactions.
  */
 cwd?: string | null, /**
- * Override the approval policy for this turn and subsequent interactions.
+ * Override the approval policy for this interaction and subsequent interactions.
  */
 approvalPolicy?: AskForApproval | null, /**
- * Override where approval requests are routed for review on this turn and
+ * Override where approval requests are routed for review on this interaction and
  * subsequent interactions.
  */
 approvalsReviewer?: ApprovalsReviewer | null, /**
- * Override the sandbox policy for this turn and subsequent interactions.
+ * Override the sandbox policy for this interaction and subsequent interactions.
  */
 sandboxPolicy?: SandboxPolicy | null, /**
- * Override the model for this turn and subsequent interactions.
+ * Override the model for this interaction and subsequent interactions.
  */
 model?: string | null, /**
- * Override the service tier for this turn and subsequent interactions.
+ * Override the service tier for this interaction and subsequent interactions.
  */
 serviceTier?: string | null | null, /**
- * Override the reasoning effort for this turn and subsequent interactions.
+ * Override the reasoning effort for this interaction and subsequent interactions.
  */
 effort?: ReasoningEffort | null, /**
- * Override the reasoning summary for this turn and subsequent interactions.
+ * Override the reasoning summary for this interaction and subsequent interactions.
  */
 summary?: ReasoningSummary | null, /**
- * Override the personality for this turn and subsequent interactions.
+ * Override the personality for this interaction and subsequent interactions.
  */
 personality?: Personality | null, /**
  * Optional JSON Schema used to constrain the final assistant message for
- * this turn.
+ * this interaction.
  */
 outputSchema?: JsonValue | null};

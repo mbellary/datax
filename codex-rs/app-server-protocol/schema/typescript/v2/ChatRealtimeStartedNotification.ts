@@ -4,6 +4,6 @@
 import type { RealtimeConversationVersion } from "../RealtimeConversationVersion";
 
 /**
- * EXPERIMENTAL - emitted when thread realtime startup is accepted.
+ * EXPERIMENTAL - emitted when chat realtime startup is accepted.
  */
 export type ChatRealtimeStartedNotification = { chatId: string, realtimeSessionId: string | null, version: RealtimeConversationVersion, };

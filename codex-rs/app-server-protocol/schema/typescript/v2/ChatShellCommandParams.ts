@@ -4,9 +4,9 @@
 
 export type ChatShellCommandParams = { chatId: string,
 /**
- * Shell command string evaluated by the thread's configured shell.
+ * Shell command string evaluated by the chat configured shell.
  * Unlike `command/exec`, this intentionally preserves shell syntax
  * such as pipes, redirects, and quoting. This runs unsandboxed with full
- * access rather than inheriting the thread sandbox policy.
+ * access rather than inheriting the chat sandbox policy.
  */
 command: string, };

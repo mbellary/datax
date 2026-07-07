@@ -258,14 +258,14 @@
           "type": "object"
         },
         {
-          "description": "User denied the command. The agent will continue the turn.",
+          "description": "User denied the command. The agent will continue the interaction.",
           "enum": [
             "decline"
           ],
           "type": "string"
         },
         {
-          "description": "User denied the command. The turn will also be immediately interrupted.",
+          "description": "User denied the command. The interaction will also be immediately interrupted.",
           "enum": [
             "cancel"
           ],

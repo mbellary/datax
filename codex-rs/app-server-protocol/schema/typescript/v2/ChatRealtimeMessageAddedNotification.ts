@@ -4,6 +4,6 @@
 import type { JsonValue } from "../serde_json/JsonValue";
 
 /**
- * EXPERIMENTAL - raw non-audio thread realtime item emitted by the backend.
+ * EXPERIMENTAL - raw non-audio chat realtime item emitted by the backend.
  */
 export type ChatRealtimeMessageAddedNotification = { chatId: string, message: JsonValue, };

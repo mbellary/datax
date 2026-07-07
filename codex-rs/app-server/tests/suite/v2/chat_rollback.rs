@@ -102,7 +102,7 @@ async fn thread_rollback_drops_last_turns_and_persists_to_rollout() -> Result<()
     let rollback_id = mcp
         .send_chat_rollback_request(ChatRollbackParams {
             chat_id: thread.id.clone(),
-            num_turns: 1,
+            num_interactions: 1,
         })
         .await?;
     let rollback_resp: JSONRPCResponse = timeout(

@@ -5,9 +5,9 @@ import type { Chat } from "./Chat";
 
 export type ChatRollbackResponse = {
 /**
- * The updated thread after applying the rollback, with `interactions` populated.
+ * The updated chat after applying the rollback, with `interactions` populated.
  *
- * The ThreadItems stored in each Interaction are lossy since we explicitly do not
+ * The messages stored in each interaction are lossy since we explicitly do not
  * persist all agent interactions, such as command executions. This is the same
  * behavior as `chat/resume`.
  */

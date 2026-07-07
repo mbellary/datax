@@ -45,7 +45,7 @@ pub enum ChatStartSource {
     Clear,
 }
 
-// === Threads, Turns, and Items ===
+// === Chats, Interactions, and Messages ===
 // Chat APIs
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema, TS, ExperimentalApi,
@@ -67,20 +67,20 @@ pub struct ChatStartParams {
     pub service_tier: Option<Option<String>>,
     #[ts(optional = nullable)]
     pub cwd: Option<String>,
-    /// Replace the thread's runtime workspace roots. Paths must be absolute.
+    /// Replace the chat's runtime workspace roots. Paths must be absolute.
     #[experimental("chat/start.runtimeWorkspaceRoots")]
     #[ts(optional = nullable)]
     pub runtime_workspace_roots: Option<Vec<AbsolutePathBuf>>,
     #[experimental(nested)]
     #[ts(optional = nullable)]
     pub approval_policy: Option<AskForApproval>,
-    /// Override where approval requests are routed for review on this thread
+    /// Override where approval requests are routed for review on this chat
     /// and subsequent interactions.
     #[ts(optional = nullable)]
     pub approvals_reviewer: Option<ApprovalsReviewer>,
     #[ts(optional = nullable)]
     pub sandbox: Option<SandboxMode>,
-    /// Named profile id for this thread. Cannot be combined with `sandbox`.
+    /// Named profile id for this chat. Cannot be combined with `sandbox`.
     #[experimental("chat/start.permissions")]
     #[ts(optional = nullable)]
     pub permissions: Option<String>,
@@ -102,15 +102,15 @@ pub struct ChatStartParams {
     pub ephemeral: Option<bool>,
     #[ts(optional = nullable)]
     pub session_start_source: Option<ChatStartSource>,
-    /// Optional client-supplied analytics source classification for this thread.
+    /// Optional client-supplied analytics source classification for this chat.
     #[ts(optional = nullable)]
     pub chat_source: Option<ChatSource>,
-    /// Optional sticky environments for this thread.
+    /// Optional sticky environments for this chat.
     ///
     /// Omitted selects the default environment when environment access is
     /// enabled. Empty disables environment access for interactions that do not
-    /// provide a turn override. Non-empty selects the first environment as the
-    /// current turn environment.
+    /// provide an interaction override. Non-empty selects the first environment as the
+    /// current interaction environment.
     #[experimental("chat/start.environments")]
     #[ts(optional = nullable)]
     pub environments: Option<Vec<InteractionEnvironmentParams>>,
@@ -121,7 +121,7 @@ pub struct ChatStartParams {
     )]
     #[ts(optional = nullable)]
     pub dynamic_tools: Option<Vec<DynamicToolSpec>>,
-    /// Capability roots selected for this thread by the hosting platform.
+    /// Capability roots selected for this chat by the hosting platform.
     #[experimental("chat/start.selectedCapabilityRoots")]
     #[ts(optional = nullable)]
     pub selected_capability_roots: Option<Vec<SelectedCapabilityRoot>>,
@@ -170,12 +170,12 @@ pub struct ChatStartResponse {
     #[experimental("chat/start.runtimeWorkspaceRoots")]
     #[serde(default)]
     pub runtime_workspace_roots: Vec<AbsolutePathBuf>,
-    /// Environment-native paths to instruction source files currently loaded for this thread.
+    /// Environment-native paths to instruction source files currently loaded for this chat.
     #[serde(default)]
     pub instruction_sources: Vec<LegacyAppPathString>,
     #[experimental(nested)]
     pub approval_policy: AskForApproval,
-    /// Reviewer currently used for approval requests on this thread.
+    /// Reviewer currently used for approval requests on this chat.
     pub approvals_reviewer: ApprovalsReviewer,
     /// Legacy sandbox policy retained for compatibility. Experimental clients
     /// should prefer `activePermissionProfile` for profile provenance.
@@ -301,16 +301,16 @@ pub struct ChatSettingsUpdatedNotification {
 )]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-/// There are three ways to resume a thread:
-/// 1. By chat_id: load the thread from disk by chat_id and resume it.
-/// 2. By history: instantiate the thread from memory and resume it.
-/// 3. By path: load the thread from disk by path and resume it.
+/// There are three ways to resume a chat:
+/// 1. By chat_id: load the chat from disk by chat_id and resume it.
+/// 2. By history: instantiate the chat from memory and resume it.
+/// 3. By path: load the chat from disk by path and resume it.
 ///
-/// For non-running threads, the precedence is: history > non-empty path > chat_id.
-/// If using history or a non-empty path for a non-running thread, the chat_id
+/// For non-running chats, the precedence is: history > non-empty path > chat_id.
+/// If using history or a non-empty path for a non-running chat, the chat_id
 /// param will be ignored.
 ///
-/// If chat_id identifies a running thread, app-server rejoins that thread and
+/// If chat_id identifies a running chat, app-server rejoins that chat and
 /// treats a non-empty path as a consistency check against the active rollout path.
 /// Empty string path values are treated as absent.
 ///
@@ -319,15 +319,15 @@ pub struct ChatResumeParams {
     pub chat_id: String,
 
     /// [UNSTABLE] FOR CODEX CLOUD - DO NOT USE.
-    /// If specified, the thread will be resumed with the provided history
+    /// If specified, the chat will be resumed with the provided history
     /// instead of loaded from disk.
     #[experimental("chat/resume.history")]
     #[ts(optional = nullable)]
     pub history: Option<Vec<ResponseItem>>,
 
     /// [UNSTABLE] Specify the rollout path to resume from.
-    /// If specified for a non-running thread, the chat_id param will be ignored.
-    /// If chat_id identifies a running thread, the path must match the active
+    /// If specified for a non-running chat, the chat_id param will be ignored.
+    /// If chat_id identifies a running chat, the path must match the active
     /// rollout path.
     #[experimental("chat/resume.path")]
     #[serde(
@@ -337,7 +337,7 @@ pub struct ChatResumeParams {
     #[ts(optional = nullable)]
     pub path: Option<PathBuf>,
 
-    /// Configuration overrides for the resumed thread, if any.
+    /// Configuration overrides for the resumed chat, if any.
     #[ts(optional = nullable)]
     pub model: Option<String>,
     #[ts(optional = nullable)]
@@ -352,20 +352,20 @@ pub struct ChatResumeParams {
     pub service_tier: Option<Option<String>>,
     #[ts(optional = nullable)]
     pub cwd: Option<String>,
-    /// Replace the thread's runtime workspace roots. Paths must be absolute.
+    /// Replace the chat's runtime workspace roots. Paths must be absolute.
     #[experimental("chat/resume.runtimeWorkspaceRoots")]
     #[ts(optional = nullable)]
     pub runtime_workspace_roots: Option<Vec<AbsolutePathBuf>>,
     #[experimental(nested)]
     #[ts(optional = nullable)]
     pub approval_policy: Option<AskForApproval>,
-    /// Override where approval requests are routed for review on this thread
+    /// Override where approval requests are routed for review on this chat
     /// and subsequent interactions.
     #[ts(optional = nullable)]
     pub approvals_reviewer: Option<ApprovalsReviewer>,
     #[ts(optional = nullable)]
     pub sandbox: Option<SandboxMode>,
-    /// Named profile id for the resumed thread. Cannot be combined with
+    /// Named profile id for the resumed chat. Cannot be combined with
     /// `sandbox`.
     #[experimental("chat/resume.permissions")]
     #[ts(optional = nullable)]
@@ -378,8 +378,8 @@ pub struct ChatResumeParams {
     pub developer_instructions: Option<String>,
     #[ts(optional = nullable)]
     pub personality: Option<Personality>,
-    /// When true, return only thread metadata and live-resume state without
-    /// populating `thread.interactions`. This is useful when the client plans to call
+    /// When true, return only chat metadata and live-resume state without
+    /// populating `chat.interactions`. This is useful when the client plans to call
     /// `chat/interactions/list` immediately after resuming.
     #[experimental("chat/resume.excludeInteractions")]
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -409,12 +409,12 @@ pub struct ChatResumeResponse {
     #[experimental("chat/resume.runtimeWorkspaceRoots")]
     #[serde(default)]
     pub runtime_workspace_roots: Vec<AbsolutePathBuf>,
-    /// Environment-native paths to instruction source files currently loaded for this thread.
+    /// Environment-native paths to instruction source files currently loaded for this chat.
     #[serde(default)]
     pub instruction_sources: Vec<LegacyAppPathString>,
     #[experimental(nested)]
     pub approval_policy: AskForApproval,
-    /// Reviewer currently used for approval requests on this thread.
+    /// Reviewer currently used for approval requests on this chat.
     pub approvals_reviewer: ApprovalsReviewer,
     /// Legacy sandbox policy retained for compatibility. Experimental clients
     /// should prefer `activePermissionProfile` for profile provenance.
@@ -448,13 +448,13 @@ impl ChatResumeResponse {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct ChatResumeInitialInteractionsPageParams {
-    /// Optional turn page size.
+    /// Optional interaction page size.
     #[ts(optional = nullable)]
     pub limit: Option<u32>,
-    /// Optional turn pagination direction; defaults to descending.
+    /// Optional interaction pagination direction; defaults to descending.
     #[ts(optional = nullable)]
     pub sort_direction: Option<SortDirection>,
-    /// How much item detail to include for each returned turn; defaults to summary.
+    /// How much message detail to include for each returned interaction; defaults to summary.
     #[ts(optional = nullable)]
     pub messages_view: Option<InteractionMessagesView>,
 }
@@ -483,9 +483,9 @@ impl From<ChatInteractionsListResponse> for InteractionsPage {
 )]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-/// There are two ways to fork a thread:
-/// 1. By chat_id: load the thread from disk by chat_id and fork it into a new thread.
-/// 2. By path: load the thread from disk by path and fork it into a new thread.
+/// There are two ways to fork a chat:
+/// 1. By chat_id: load the chat from disk by chat_id and fork it into a new chat.
+/// 2. By path: load the chat from disk by path and fork it into a new chat.
 ///
 /// If using a non-empty path, the chat_id param will be ignored.
 /// Empty string path values are treated as absent.
@@ -504,7 +504,7 @@ pub struct ChatForkParams {
     #[ts(optional = nullable)]
     pub path: Option<PathBuf>,
 
-    /// Configuration overrides for the forked thread, if any.
+    /// Configuration overrides for the forked chat, if any.
     #[ts(optional = nullable)]
     pub model: Option<String>,
     #[ts(optional = nullable)]
@@ -519,20 +519,20 @@ pub struct ChatForkParams {
     pub service_tier: Option<Option<String>>,
     #[ts(optional = nullable)]
     pub cwd: Option<String>,
-    /// Replace the thread's runtime workspace roots. Paths must be absolute.
+    /// Replace the chat's runtime workspace roots. Paths must be absolute.
     #[experimental("chat/fork.runtimeWorkspaceRoots")]
     #[ts(optional = nullable)]
     pub runtime_workspace_roots: Option<Vec<AbsolutePathBuf>>,
     #[experimental(nested)]
     #[ts(optional = nullable)]
     pub approval_policy: Option<AskForApproval>,
-    /// Override where approval requests are routed for review on this thread
+    /// Override where approval requests are routed for review on this chat
     /// and subsequent interactions.
     #[ts(optional = nullable)]
     pub approvals_reviewer: Option<ApprovalsReviewer>,
     #[ts(optional = nullable)]
     pub sandbox: Option<SandboxMode>,
-    /// Named profile id for the forked thread. Cannot be combined with
+    /// Named profile id for the forked chat. Cannot be combined with
     /// `sandbox`.
     #[experimental("chat/fork.permissions")]
     #[ts(optional = nullable)]
@@ -545,11 +545,11 @@ pub struct ChatForkParams {
     pub developer_instructions: Option<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub ephemeral: bool,
-    /// Optional client-supplied analytics source classification for this forked thread.
+    /// Optional client-supplied analytics source classification for this forked chat.
     #[ts(optional = nullable)]
     pub chat_source: Option<ChatSource>,
-    /// When true, return only thread metadata and live fork state without
-    /// populating `thread.interactions`. This is useful when the client plans to call
+    /// When true, return only chat metadata and live fork state without
+    /// populating `chat.interactions`. This is useful when the client plans to call
     /// `chat/interactions/list` immediately after forking.
     #[experimental("chat/fork.excludeInteractions")]
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -572,12 +572,12 @@ pub struct ChatForkResponse {
     #[experimental("chat/fork.runtimeWorkspaceRoots")]
     #[serde(default)]
     pub runtime_workspace_roots: Vec<AbsolutePathBuf>,
-    /// Environment-native paths to instruction source files currently loaded for this thread.
+    /// Environment-native paths to instruction source files currently loaded for this chat.
     #[serde(default)]
     pub instruction_sources: Vec<LegacyAppPathString>,
     #[experimental(nested)]
     pub approval_policy: AskForApproval,
-    /// Reviewer currently used for approval requests on this thread.
+    /// Reviewer currently used for approval requests on this chat.
     pub approvals_reviewer: ApprovalsReviewer,
     /// Legacy sandbox policy retained for compatibility. Experimental clients
     /// should prefer `activePermissionProfile` for profile provenance.
@@ -603,7 +603,7 @@ impl ChatForkResponse {
 
 fn instruction_source_path_uris(sources: &[LegacyAppPathString]) -> Vec<PathUri> {
     // Instruction sources are advisory diagnostics. Warn and fail open so a malformed legacy
-    // path cannot fail thread start, resume, or fork.
+    // path cannot fail chat start, resume, or fork.
     sources
         .iter()
         .filter_map(|source| {
@@ -829,7 +829,7 @@ pub struct ChatGoalClearResponse {
 #[ts(export_to = "v2/")]
 pub struct ChatMetadataUpdateParams {
     pub chat_id: String,
-    /// Patch the stored Git metadata for this thread.
+    /// Patch the stored Git metadata for this chat.
     /// Omit a field to leave it unchanged, set it to `null` to clear it, or
     /// provide a string to replace the stored value.
     #[ts(optional = nullable)]
@@ -949,10 +949,10 @@ pub struct ChatCompactStartResponse {}
 #[ts(export_to = "v2/")]
 pub struct ChatShellCommandParams {
     pub chat_id: String,
-    /// Shell command string evaluated by the thread's configured shell.
+    /// Shell command string evaluated by the chat's configured shell.
     /// Unlike `command/exec`, this intentionally preserves shell syntax
     /// such as pipes, redirects, and quoting. This runs unsandboxed with full
-    /// access rather than inheriting the thread sandbox policy.
+    /// access rather than inheriting the chat sandbox policy.
     pub command: String,
 }
 
@@ -1043,20 +1043,22 @@ pub struct ChatBackgroundTerminalsTerminateResponse {
 #[ts(export_to = "v2/")]
 pub struct ChatRollbackParams {
     pub chat_id: String,
-    /// The number of interactions to drop from the end of the thread. Must be >= 1.
+    /// The number of interactions to drop from the end of the chat. Must be >= 1.
     ///
-    /// This only modifies the thread's history and does not revert local file changes
+    /// This only modifies the chat's history and does not revert local file changes
     /// that have been made by the agent. Clients are responsible for reverting these changes.
-    pub num_turns: u32,
+    #[serde(rename = "numInteractions", alias = "numTurns")]
+    #[ts(rename = "numInteractions")]
+    pub num_interactions: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct ChatRollbackResponse {
-    /// The updated thread after applying the rollback, with `interactions` populated.
+    /// The updated chat after applying the rollback, with `interactions` populated.
     ///
-    /// The ThreadItems stored in each Interaction are lossy since we explicitly do not
+    /// The messages stored in each interaction are lossy since we explicitly do not
     /// persist all agent interactions, such as command executions. This is the same
     /// behavior as `chat/resume`.
     #[serde(rename = "chat")]
@@ -1088,23 +1090,23 @@ pub struct ChatListParams {
     /// are returned. When omitted or empty, defaults to interactive sources.
     #[ts(optional = nullable)]
     pub source_kinds: Option<Vec<ChatSourceKind>>,
-    /// Optional archived filter; when set to true, only archived threads are returned.
-    /// If false or null, only non-archived threads are returned.
+    /// Optional archived filter; when set to true, only archived chats are returned.
+    /// If false or null, only non-archived chats are returned.
     #[ts(optional = nullable)]
     pub archived: Option<bool>,
-    /// Optional cwd filter or filters; when set, only threads whose session cwd
+    /// Optional cwd filter or filters; when set, only chats whose session cwd
     /// exactly matches one of these paths are returned.
     #[ts(optional = nullable, type = "string | Array<string> | null")]
     pub cwd: Option<ChatListCwdFilter>,
     /// If true, return from the state DB without scanning JSONL rollouts to
-    /// repair thread metadata. Omitted or false preserves scan-and-repair
+    /// repair chat metadata. Omitted or false preserves scan-and-repair
     /// behavior.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub use_state_db_only: bool,
-    /// Optional substring filter for the extracted thread title.
+    /// Optional substring filter for the extracted chat title.
     #[ts(optional = nullable)]
     pub search_term: Option<String>,
-    /// Optional direct parent thread filter.
+    /// Optional direct parent chat filter.
     #[experimental("chat/list.parentChatId")]
     #[ts(optional = nullable)]
     pub parent_chat_id: Option<String>,
@@ -1130,11 +1132,11 @@ pub struct ChatSearchParams {
     /// are returned. When omitted or empty, defaults to interactive sources.
     #[ts(optional = nullable)]
     pub source_kinds: Option<Vec<ChatSourceKind>>,
-    /// Optional archived filter; when set to true, only archived threads are returned.
-    /// If false or null, only non-archived threads are returned.
+    /// Optional archived filter; when set to true, only archived chats are returned.
+    /// If false or null, only non-archived chats are returned.
     #[ts(optional = nullable)]
     pub archived: Option<bool>,
-    /// Required substring/full-text query for thread search.
+    /// Required substring/full-text query for chat search.
     pub search_term: String,
 }
 
@@ -1189,7 +1191,7 @@ pub struct ChatListResponse {
     /// if None, there are no more messages to return.
     pub next_cursor: Option<String>,
     /// Opaque cursor to pass as `cursor` when reversing `sortDirection`.
-    /// This is only populated when the page contains at least one thread.
+    /// This is only populated when the page contains at least one chat.
     /// Use it with the opposite `sortDirection`; for timestamp sorts it anchors
     /// at the start of the page timestamp so same-second updates are not skipped.
     pub backwards_cursor: Option<String>,
@@ -1214,7 +1216,7 @@ pub struct ChatSearchResponse {
     /// if None, there are no more messages to return.
     pub next_cursor: Option<String>,
     /// Opaque cursor to pass as `cursor` when reversing `sortDirection`.
-    /// This is only populated when the page contains at least one thread.
+    /// This is only populated when the page contains at least one chat.
     /// Use it with the opposite `sortDirection`; for timestamp sorts it anchors
     /// at the start of the page timestamp so same-second updates are not skipped.
     pub backwards_cursor: Option<String>,
@@ -1290,7 +1292,7 @@ pub struct ChatReadResponse {
 #[ts(export_to = "v2/")]
 pub struct ChatInjectMessagesParams {
     pub chat_id: String,
-    /// Raw Responses API messages to append to the thread's model-visible history.
+    /// Raw Responses API messages to append to the chat's model-visible history.
     pub messages: Vec<JsonValue>,
 }
 
@@ -1304,16 +1306,16 @@ pub struct ChatInjectMessagesResponse {}
 #[ts(export_to = "v2/")]
 pub struct ChatInteractionsListParams {
     pub chat_id: String,
-    /// Opaque cursor to pass to the next call to continue after the last turn.
+    /// Opaque cursor to pass to the next call to continue after the last interaction.
     #[ts(optional = nullable)]
     pub cursor: Option<String>,
-    /// Optional turn page size.
+    /// Optional interaction page size.
     #[ts(optional = nullable)]
     pub limit: Option<u32>,
-    /// Optional turn pagination direction; defaults to descending.
+    /// Optional interaction pagination direction; defaults to descending.
     #[ts(optional = nullable)]
     pub sort_direction: Option<SortDirection>,
-    /// How much item detail to include for each returned turn; defaults to summary.
+    /// How much message detail to include for each returned interaction; defaults to summary.
     #[ts(optional = nullable)]
     pub messages_view: Option<InteractionMessagesView>,
 }
@@ -1323,13 +1325,13 @@ pub struct ChatInteractionsListParams {
 #[ts(export_to = "v2/")]
 pub struct ChatInteractionsListResponse {
     pub data: Vec<Interaction>,
-    /// Opaque cursor to pass to the next call to continue after the last turn.
+    /// Opaque cursor to pass to the next call to continue after the last interaction.
     /// if None, there are no more interactions to return.
     pub next_cursor: Option<String>,
     /// Opaque cursor to pass as `cursor` when reversing `sortDirection`.
-    /// This is only populated when the page contains at least one turn.
-    /// Use it with the opposite `sortDirection` to include the anchor turn again
-    /// and catch updates to that turn.
+    /// This is only populated when the page contains at least one interaction.
+    /// Use it with the opposite `sortDirection` to include the anchor interaction again
+    /// and catch updates to that interaction.
     pub backwards_cursor: Option<String>,
 }
 

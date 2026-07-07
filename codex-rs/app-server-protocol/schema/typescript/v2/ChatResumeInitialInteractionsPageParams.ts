@@ -6,14 +6,14 @@ import type { SortDirection } from "./SortDirection";
 
 export type ChatResumeInitialInteractionsPageParams = {
 /**
- * Optional turn page size.
+ * Optional interaction page size.
  */
 limit?: number | null,
 /**
- * Optional turn pagination direction; defaults to descending.
+ * Optional interaction pagination direction; defaults to descending.
  */
 sortDirection?: SortDirection | null,
 /**
- * How much item detail to include for each returned turn; defaults to summary.
+ * How much message detail to include for each returned interaction; defaults to summary.
  */
 messagesView?: InteractionMessagesView | null, };

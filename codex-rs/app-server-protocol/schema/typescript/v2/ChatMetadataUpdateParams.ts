@@ -5,7 +5,7 @@ import type { ChatMetadataGitInfoUpdateParams } from "./ChatMetadataGitInfoUpdat
 
 export type ChatMetadataUpdateParams = { chatId: string,
 /**
- * Patch the stored Git metadata for this thread.
+ * Patch the stored Git metadata for this chat.
  * Omit a field to leave it unchanged, set it to `null` to clear it, or
  * provide a string to replace the stored value.
  */

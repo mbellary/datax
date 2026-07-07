@@ -3,11 +3,11 @@ use crate::outgoing_message::OutgoingEnvelope;
 #[cfg(test)]
 use crate::outgoing_message::OutgoingMessage;
 use crate::outgoing_message::OutgoingMessageSender;
+use datax_app_server_protocol::Chat;
+use datax_app_server_protocol::ChatActiveFlag;
+use datax_app_server_protocol::ChatStatus;
+use datax_app_server_protocol::ChatStatusChangedNotification;
 use datax_app_server_protocol::ServerNotification;
-use datax_app_server_protocol::Thread;
-use datax_app_server_protocol::ThreadActiveFlag;
-use datax_app_server_protocol::ThreadStatus;
-use datax_app_server_protocol::ThreadStatusChangedNotification;
 use datax_protocol::ThreadId;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -25,7 +25,7 @@ pub(crate) struct ThreadWatchManager {
 
 pub(crate) struct ThreadWatchActiveGuard {
     manager: ThreadWatchManager,
-    thread_id: String,
+    chat_id: String,
     guard_type: ThreadWatchActiveGuardType,
     handle: tokio::runtime::Handle,
 }
@@ -33,12 +33,12 @@ pub(crate) struct ThreadWatchActiveGuard {
 impl ThreadWatchActiveGuard {
     fn new(
         manager: ThreadWatchManager,
-        thread_id: String,
+        chat_id: String,
         guard_type: ThreadWatchActiveGuardType,
     ) -> Self {
         Self {
             manager,
-            thread_id,
+            chat_id,
             guard_type,
             handle: tokio::runtime::Handle::current(),
         }
@@ -48,11 +48,11 @@ impl ThreadWatchActiveGuard {
 impl Drop for ThreadWatchActiveGuard {
     fn drop(&mut self) {
         let manager = self.manager.clone();
-        let thread_id = self.thread_id.clone();
+        let chat_id = self.chat_id.clone();
         let guard_type = self.guard_type;
         self.handle.spawn(async move {
             manager
-                .note_active_guard_released(thread_id, guard_type)
+                .note_active_guard_released(chat_id, guard_type)
                 .await;
         });
     }
@@ -89,40 +89,40 @@ impl ThreadWatchManager {
         }
     }
 
-    pub(crate) async fn upsert_thread(&self, thread: Thread) {
+    pub(crate) async fn upsert_thread(&self, thread: Chat) {
         self.mutate_and_publish(move |state| {
             state.upsert_thread(thread.id, /*emit_notification*/ true)
         })
         .await;
     }
 
-    pub(crate) async fn upsert_thread_silently(&self, thread: Thread) {
+    pub(crate) async fn upsert_thread_silently(&self, thread: Chat) {
         self.mutate_and_publish(move |state| {
             state.upsert_thread(thread.id, /*emit_notification*/ false)
         })
         .await;
     }
 
-    pub(crate) async fn remove_thread(&self, thread_id: &str) {
-        let thread_id = thread_id.to_string();
-        self.mutate_and_publish(move |state| state.remove_thread(&thread_id))
+    pub(crate) async fn remove_thread(&self, chat_id: &str) {
+        let chat_id = chat_id.to_string();
+        self.mutate_and_publish(move |state| state.remove_thread(&chat_id))
             .await;
     }
 
-    pub(crate) async fn loaded_status_for_thread(&self, thread_id: &str) -> ThreadStatus {
-        self.state.lock().await.loaded_status_for_thread(thread_id)
+    pub(crate) async fn loaded_status_for_thread(&self, chat_id: &str) -> ChatStatus {
+        self.state.lock().await.loaded_status_for_thread(chat_id)
     }
 
     pub(crate) async fn loaded_statuses_for_threads(
         &self,
-        thread_ids: Vec<String>,
-    ) -> HashMap<String, ThreadStatus> {
+        chat_ids: Vec<String>,
+    ) -> HashMap<String, ChatStatus> {
         let state = self.state.lock().await;
-        thread_ids
+        chat_ids
             .into_iter()
-            .map(|thread_id| {
-                let status = state.loaded_status_for_thread(&thread_id);
-                (thread_id, status)
+            .map(|chat_id| {
+                let status = state.loaded_status_for_thread(&chat_id);
+                (chat_id, status)
             })
             .collect()
     }
@@ -142,8 +142,8 @@ impl ThreadWatchManager {
         self.running_turn_count_tx.subscribe()
     }
 
-    pub(crate) async fn note_turn_started(&self, thread_id: &str) {
-        self.update_runtime_for_thread(thread_id, |runtime| {
+    pub(crate) async fn note_turn_started(&self, chat_id: &str) {
+        self.update_runtime_for_thread(chat_id, |runtime| {
             runtime.is_loaded = true;
             runtime.running = true;
             runtime.has_system_error = false;
@@ -151,16 +151,16 @@ impl ThreadWatchManager {
         .await;
     }
 
-    pub(crate) async fn note_turn_completed(&self, thread_id: &str, _failed: bool) {
-        self.clear_active_state(thread_id).await;
+    pub(crate) async fn note_turn_completed(&self, chat_id: &str, _failed: bool) {
+        self.clear_active_state(chat_id).await;
     }
 
-    pub(crate) async fn note_turn_interrupted(&self, thread_id: &str) {
-        self.clear_active_state(thread_id).await;
+    pub(crate) async fn note_turn_interrupted(&self, chat_id: &str) {
+        self.clear_active_state(chat_id).await;
     }
 
-    pub(crate) async fn note_thread_shutdown(&self, thread_id: &str) {
-        self.update_runtime_for_thread(thread_id, |runtime| {
+    pub(crate) async fn note_thread_shutdown(&self, chat_id: &str) {
+        self.update_runtime_for_thread(chat_id, |runtime| {
             runtime.running = false;
             runtime.pending_permission_requests = 0;
             runtime.pending_user_input_requests = 0;
@@ -169,8 +169,8 @@ impl ThreadWatchManager {
         .await;
     }
 
-    pub(crate) async fn note_system_error(&self, thread_id: &str) {
-        self.update_runtime_for_thread(thread_id, |runtime| {
+    pub(crate) async fn note_system_error(&self, chat_id: &str) {
+        self.update_runtime_for_thread(chat_id, |runtime| {
             runtime.running = false;
             runtime.pending_permission_requests = 0;
             runtime.pending_user_input_requests = 0;
@@ -179,8 +179,8 @@ impl ThreadWatchManager {
         .await;
     }
 
-    async fn clear_active_state(&self, thread_id: &str) {
-        self.update_runtime_for_thread(thread_id, move |runtime| {
+    async fn clear_active_state(&self, chat_id: &str) {
+        self.update_runtime_for_thread(chat_id, move |runtime| {
             runtime.running = false;
             runtime.pending_permission_requests = 0;
             runtime.pending_user_input_requests = 0;
@@ -188,39 +188,33 @@ impl ThreadWatchManager {
         .await;
     }
 
-    pub(crate) async fn note_permission_requested(
-        &self,
-        thread_id: &str,
-    ) -> ThreadWatchActiveGuard {
-        self.note_pending_request(thread_id, ThreadWatchActiveGuardType::Permission)
+    pub(crate) async fn note_permission_requested(&self, chat_id: &str) -> ThreadWatchActiveGuard {
+        self.note_pending_request(chat_id, ThreadWatchActiveGuardType::Permission)
             .await
     }
 
-    pub(crate) async fn note_user_input_requested(
-        &self,
-        thread_id: &str,
-    ) -> ThreadWatchActiveGuard {
-        self.note_pending_request(thread_id, ThreadWatchActiveGuardType::UserInput)
+    pub(crate) async fn note_user_input_requested(&self, chat_id: &str) -> ThreadWatchActiveGuard {
+        self.note_pending_request(chat_id, ThreadWatchActiveGuardType::UserInput)
             .await
     }
 
     async fn note_pending_request(
         &self,
-        thread_id: &str,
+        chat_id: &str,
         guard_type: ThreadWatchActiveGuardType,
     ) -> ThreadWatchActiveGuard {
-        self.update_runtime_for_thread(thread_id, move |runtime| {
+        self.update_runtime_for_thread(chat_id, move |runtime| {
             runtime.is_loaded = true;
             let counter = Self::pending_counter(runtime, guard_type);
             *counter = counter.saturating_add(1);
         })
         .await;
-        ThreadWatchActiveGuard::new(self.clone(), thread_id.to_string(), guard_type)
+        ThreadWatchActiveGuard::new(self.clone(), chat_id.to_string(), guard_type)
     }
 
     async fn mutate_and_publish<F>(&self, mutate: F)
     where
-        F: FnOnce(&mut ThreadWatchState) -> Option<ThreadStatusChangedNotification>,
+        F: FnOnce(&mut ThreadWatchState) -> Option<ChatStatusChangedNotification>,
     {
         let (notification, running_turn_count) = {
             let mut state = self.state.lock().await;
@@ -238,36 +232,33 @@ impl ThreadWatchManager {
             && let Some(outgoing) = &self.outgoing
         {
             outgoing
-                .send_server_notification(ServerNotification::ThreadStatusChanged(notification))
+                .send_server_notification(ChatStatusChanged(notification))
                 .await;
         }
     }
 
-    pub(crate) async fn subscribe(
-        &self,
-        thread_id: ThreadId,
-    ) -> Option<watch::Receiver<ThreadStatus>> {
-        Some(self.state.lock().await.subscribe(thread_id.to_string()))
+    pub(crate) async fn subscribe(&self, chat_id: ThreadId) -> Option<watch::Receiver<ChatStatus>> {
+        Some(self.state.lock().await.subscribe(chat_id.to_string()))
     }
 
     async fn note_active_guard_released(
         &self,
-        thread_id: String,
+        chat_id: String,
         guard_type: ThreadWatchActiveGuardType,
     ) {
-        self.update_runtime_for_thread(&thread_id, move |runtime| {
+        self.update_runtime_for_thread(&chat_id, move |runtime| {
             let counter = Self::pending_counter(runtime, guard_type);
             *counter = counter.saturating_sub(1);
         })
         .await;
     }
 
-    async fn update_runtime_for_thread<F>(&self, thread_id: &str, update: F)
+    async fn update_runtime_for_thread<F>(&self, chat_id: &str, update: F)
     where
         F: FnOnce(&mut RuntimeFacts),
     {
-        let thread_id = thread_id.to_string();
-        self.mutate_and_publish(move |state| state.update_runtime(&thread_id, update))
+        let chat_id = chat_id.to_string();
+        self.mutate_and_publish(move |state| state.update_runtime(&chat_id, update))
             .await;
     }
 
@@ -282,15 +273,12 @@ impl ThreadWatchManager {
     }
 }
 
-pub(crate) fn resolve_thread_status(
-    status: ThreadStatus,
-    has_in_progress_turn: bool,
-) -> ThreadStatus {
+pub(crate) fn resolve_thread_status(status: ChatStatus, has_in_progress_turn: bool) -> ChatStatus {
     // Running-turn events can arrive before the watch runtime state is observed by
     // the listener loop. In that window we prefer to reflect a real active turn as
     // `Active` instead of `Idle`/`NotLoaded`.
-    if has_in_progress_turn && matches!(status, ThreadStatus::Idle | ThreadStatus::NotLoaded) {
-        return ThreadStatus::Active {
+    if has_in_progress_turn && matches!(status, ChatStatus::Idle | ChatStatus::NotLoaded) {
+        return ChatStatus::Active {
             active_flags: Vec::new(),
         };
     }
@@ -301,37 +289,37 @@ pub(crate) fn resolve_thread_status(
 #[derive(Default)]
 struct ThreadWatchState {
     runtime_by_thread_id: HashMap<String, RuntimeFacts>,
-    status_watcher_by_thread_id: HashMap<String, watch::Sender<ThreadStatus>>,
+    status_watcher_by_thread_id: HashMap<String, watch::Sender<ChatStatus>>,
 }
 
 impl ThreadWatchState {
     fn upsert_thread(
         &mut self,
-        thread_id: String,
+        chat_id: String,
         emit_notification: bool,
-    ) -> Option<ThreadStatusChangedNotification> {
-        let previous_status = self.status_for(&thread_id);
+    ) -> Option<ChatStatusChangedNotification> {
+        let previous_status = self.status_for(&chat_id);
         let runtime = self
             .runtime_by_thread_id
-            .entry(thread_id.clone())
+            .entry(chat_id.clone())
             .or_default();
         runtime.is_loaded = true;
-        self.update_status_watcher_for_thread(&thread_id);
+        self.update_status_watcher_for_thread(&chat_id);
         if emit_notification {
-            self.status_changed_notification(thread_id, previous_status)
+            self.status_changed_notification(chat_id, previous_status)
         } else {
             None
         }
     }
 
-    fn remove_thread(&mut self, thread_id: &str) -> Option<ThreadStatusChangedNotification> {
-        let previous_status = self.status_for(thread_id);
-        self.runtime_by_thread_id.remove(thread_id);
-        self.update_status_watcher(thread_id, &ThreadStatus::NotLoaded);
-        if previous_status.is_some() && previous_status != Some(ThreadStatus::NotLoaded) {
-            Some(ThreadStatusChangedNotification {
-                thread_id: thread_id.to_string(),
-                status: ThreadStatus::NotLoaded,
+    fn remove_thread(&mut self, chat_id: &str) -> Option<ChatStatusChangedNotification> {
+        let previous_status = self.status_for(chat_id);
+        self.runtime_by_thread_id.remove(chat_id);
+        self.update_status_watcher(chat_id, &ChatStatus::NotLoaded);
+        if previous_status.is_some() && previous_status != Some(ChatStatus::NotLoaded) {
+            Some(ChatStatusChangedNotification {
+                chat_id: chat_id.to_string(),
+                status: ChatStatus::NotLoaded,
             })
         } else {
             None
@@ -340,50 +328,49 @@ impl ThreadWatchState {
 
     fn update_runtime<F>(
         &mut self,
-        thread_id: &str,
+        chat_id: &str,
         mutate: F,
-    ) -> Option<ThreadStatusChangedNotification>
+    ) -> Option<ChatStatusChangedNotification>
     where
         F: FnOnce(&mut RuntimeFacts),
     {
-        let previous_status = self.status_for(thread_id);
+        let previous_status = self.status_for(chat_id);
         let runtime = self
             .runtime_by_thread_id
-            .entry(thread_id.to_string())
+            .entry(chat_id.to_string())
             .or_default();
         runtime.is_loaded = true;
         mutate(runtime);
-        self.update_status_watcher_for_thread(thread_id);
-        self.status_changed_notification(thread_id.to_string(), previous_status)
+        self.update_status_watcher_for_thread(chat_id);
+        self.status_changed_notification(chat_id.to_string(), previous_status)
     }
 
-    fn status_for(&self, thread_id: &str) -> Option<ThreadStatus> {
+    fn status_for(&self, chat_id: &str) -> Option<ChatStatus> {
         self.runtime_by_thread_id
-            .get(thread_id)
+            .get(chat_id)
             .map(loaded_thread_status)
     }
 
-    fn loaded_status_for_thread(&self, thread_id: &str) -> ThreadStatus {
-        self.status_for(thread_id)
-            .unwrap_or(ThreadStatus::NotLoaded)
+    fn loaded_status_for_thread(&self, chat_id: &str) -> ChatStatus {
+        self.status_for(chat_id).unwrap_or(ChatStatus::NotLoaded)
     }
 
-    fn subscribe(&mut self, thread_id: String) -> watch::Receiver<ThreadStatus> {
-        let status = self.loaded_status_for_thread(&thread_id);
+    fn subscribe(&mut self, chat_id: String) -> watch::Receiver<ChatStatus> {
+        let status = self.loaded_status_for_thread(&chat_id);
         let sender = self
             .status_watcher_by_thread_id
-            .entry(thread_id)
+            .entry(chat_id)
             .or_insert_with(|| watch::channel(status.clone()).0);
         sender.subscribe()
     }
 
-    fn update_status_watcher_for_thread(&mut self, thread_id: &str) {
-        let status = self.loaded_status_for_thread(thread_id);
-        self.update_status_watcher(thread_id, &status);
+    fn update_status_watcher_for_thread(&mut self, chat_id: &str) {
+        let status = self.loaded_status_for_thread(chat_id);
+        self.update_status_watcher(chat_id, &status);
     }
 
-    fn update_status_watcher(&mut self, thread_id: &str, status: &ThreadStatus) {
-        let remove_watcher = if let Some(sender) = self.status_watcher_by_thread_id.get(thread_id) {
+    fn update_status_watcher(&mut self, chat_id: &str, status: &ChatStatus) {
+        let remove_watcher = if let Some(sender) = self.status_watcher_by_thread_id.get(chat_id) {
             let status = status.clone();
             let _ = sender.send_if_modified(|current| {
                 if *current == status {
@@ -398,22 +385,22 @@ impl ThreadWatchState {
             false
         };
         if remove_watcher {
-            self.status_watcher_by_thread_id.remove(thread_id);
+            self.status_watcher_by_thread_id.remove(chat_id);
         }
     }
 
     fn status_changed_notification(
         &self,
-        thread_id: String,
-        previous_status: Option<ThreadStatus>,
-    ) -> Option<ThreadStatusChangedNotification> {
-        let status = self.status_for(&thread_id)?;
+        chat_id: String,
+        previous_status: Option<ChatStatus>,
+    ) -> Option<ChatStatusChangedNotification> {
+        let status = self.status_for(&chat_id)?;
 
         if previous_status.as_ref() == Some(&status) {
             return None;
         }
 
-        Some(ThreadStatusChangedNotification { thread_id, status })
+        Some(ChatStatusChangedNotification { chat_id, status })
     }
 }
 
@@ -426,28 +413,28 @@ struct RuntimeFacts {
     has_system_error: bool,
 }
 
-fn loaded_thread_status(runtime: &RuntimeFacts) -> ThreadStatus {
+fn loaded_thread_status(runtime: &RuntimeFacts) -> ChatStatus {
     if !runtime.is_loaded {
-        return ThreadStatus::NotLoaded;
+        return ChatStatus::NotLoaded;
     }
 
     let mut active_flags = Vec::new();
     if runtime.pending_permission_requests > 0 {
-        active_flags.push(ThreadActiveFlag::WaitingOnApproval);
+        active_flags.push(ChatActiveFlag::WaitingOnApproval);
     }
     if runtime.pending_user_input_requests > 0 {
-        active_flags.push(ThreadActiveFlag::WaitingOnUserInput);
+        active_flags.push(ChatActiveFlag::WaitingOnUserInput);
     }
 
     if runtime.running || !active_flags.is_empty() {
-        return ThreadStatus::Active { active_flags };
+        return ChatStatus::Active { active_flags };
     }
 
     if runtime.has_system_error {
-        return ThreadStatus::SystemError;
+        return ChatStatus::SystemError;
     }
 
-    ThreadStatus::Idle
+    ChatStatus::Idle
 }
 
 #[cfg(test)]
@@ -470,7 +457,7 @@ mod tests {
             manager
                 .loaded_status_for_thread("00000000-0000-0000-0000-000000000003")
                 .await,
-            ThreadStatus::NotLoaded,
+            ChatStatus::NotLoaded,
         );
     }
 
@@ -490,7 +477,7 @@ mod tests {
             manager
                 .loaded_status_for_thread(NON_INTERACTIVE_THREAD_ID)
                 .await,
-            ThreadStatus::Active {
+            ChatStatus::Active {
                 active_flags: vec![],
             },
         );
@@ -511,7 +498,7 @@ mod tests {
             manager
                 .loaded_status_for_thread(INTERACTIVE_THREAD_ID)
                 .await,
-            ThreadStatus::Active {
+            ChatStatus::Active {
                 active_flags: vec![],
             },
         );
@@ -523,8 +510,8 @@ mod tests {
             manager
                 .loaded_status_for_thread(INTERACTIVE_THREAD_ID)
                 .await,
-            ThreadStatus::Active {
-                active_flags: vec![ThreadActiveFlag::WaitingOnApproval],
+            ChatStatus::Active {
+                active_flags: vec![ChatActiveFlag::WaitingOnApproval],
             },
         );
 
@@ -535,10 +522,10 @@ mod tests {
             manager
                 .loaded_status_for_thread(INTERACTIVE_THREAD_ID)
                 .await,
-            ThreadStatus::Active {
+            ChatStatus::Active {
                 active_flags: vec![
-                    ThreadActiveFlag::WaitingOnApproval,
-                    ThreadActiveFlag::WaitingOnUserInput,
+                    ChatActiveFlag::WaitingOnApproval,
+                    ChatActiveFlag::WaitingOnUserInput,
                 ],
             },
         );
@@ -547,8 +534,8 @@ mod tests {
         wait_for_status(
             &manager,
             INTERACTIVE_THREAD_ID,
-            ThreadStatus::Active {
-                active_flags: vec![ThreadActiveFlag::WaitingOnUserInput],
+            ChatStatus::Active {
+                active_flags: vec![ChatActiveFlag::WaitingOnUserInput],
             },
         )
         .await;
@@ -557,7 +544,7 @@ mod tests {
         wait_for_status(
             &manager,
             INTERACTIVE_THREAD_ID,
-            ThreadStatus::Active {
+            ChatStatus::Active {
                 active_flags: vec![],
             },
         )
@@ -570,25 +557,25 @@ mod tests {
             manager
                 .loaded_status_for_thread(INTERACTIVE_THREAD_ID)
                 .await,
-            ThreadStatus::Idle,
+            ChatStatus::Idle,
         );
     }
 
     #[test]
     fn resolves_in_progress_turn_to_active_status() {
-        let status = resolve_thread_status(ThreadStatus::Idle, /*has_in_progress_turn*/ true);
+        let status = resolve_thread_status(ChatStatus::Idle, /*has_in_progress_turn*/ true);
         assert_eq!(
             status,
-            ThreadStatus::Active {
+            ChatStatus::Active {
                 active_flags: Vec::new(),
             }
         );
 
         let status =
-            resolve_thread_status(ThreadStatus::NotLoaded, /*has_in_progress_turn*/ true);
+            resolve_thread_status(ChatStatus::NotLoaded, /*has_in_progress_turn*/ true);
         assert_eq!(
             status,
-            ThreadStatus::Active {
+            ChatStatus::Active {
                 active_flags: Vec::new(),
             }
         );
@@ -597,15 +584,12 @@ mod tests {
     #[test]
     fn keeps_status_when_no_in_progress_turn() {
         assert_eq!(
-            resolve_thread_status(ThreadStatus::Idle, /*has_in_progress_turn*/ false),
-            ThreadStatus::Idle
+            resolve_thread_status(ChatStatus::Idle, /*has_in_progress_turn*/ false),
+            ChatStatus::Idle
         );
         assert_eq!(
-            resolve_thread_status(
-                ThreadStatus::SystemError,
-                /*has_in_progress_turn*/ false
-            ),
-            ThreadStatus::SystemError
+            resolve_thread_status(ChatStatus::SystemError, /*has_in_progress_turn*/ false),
+            ChatStatus::SystemError
         );
     }
 
@@ -626,7 +610,7 @@ mod tests {
             manager
                 .loaded_status_for_thread(INTERACTIVE_THREAD_ID)
                 .await,
-            ThreadStatus::SystemError,
+            ChatStatus::SystemError,
         );
 
         manager.note_turn_started(INTERACTIVE_THREAD_ID).await;
@@ -634,7 +618,7 @@ mod tests {
             manager
                 .loaded_status_for_thread(INTERACTIVE_THREAD_ID)
                 .await,
-            ThreadStatus::Active {
+            ChatStatus::Active {
                 active_flags: vec![],
             },
         );
@@ -657,7 +641,7 @@ mod tests {
             manager
                 .loaded_status_for_thread(INTERACTIVE_THREAD_ID)
                 .await,
-            ThreadStatus::NotLoaded,
+            ChatStatus::NotLoaded,
         );
     }
 
@@ -681,13 +665,13 @@ mod tests {
 
         assert_eq!(
             statuses.get(INTERACTIVE_THREAD_ID),
-            Some(&ThreadStatus::Active {
+            Some(&ChatStatus::Active {
                 active_flags: vec![],
             }),
         );
         assert_eq!(
             statuses.get(NON_INTERACTIVE_THREAD_ID),
-            Some(&ThreadStatus::NotLoaded),
+            Some(&ChatStatus::NotLoaded),
         );
     }
 
@@ -733,18 +717,18 @@ mod tests {
             .await;
         assert_eq!(
             recv_status_changed_notification(&mut outgoing_rx).await,
-            ThreadStatusChangedNotification {
-                thread_id: INTERACTIVE_THREAD_ID.to_string(),
-                status: ThreadStatus::Idle,
+            ChatStatusChangedNotification {
+                chat_id: INTERACTIVE_THREAD_ID.to_string(),
+                status: ChatStatus::Idle,
             },
         );
 
         manager.note_turn_started(INTERACTIVE_THREAD_ID).await;
         assert_eq!(
             recv_status_changed_notification(&mut outgoing_rx).await,
-            ThreadStatusChangedNotification {
-                thread_id: INTERACTIVE_THREAD_ID.to_string(),
-                status: ThreadStatus::Active {
+            ChatStatusChangedNotification {
+                chat_id: INTERACTIVE_THREAD_ID.to_string(),
+                status: ChatStatus::Active {
                     active_flags: vec![],
                 },
             },
@@ -753,9 +737,9 @@ mod tests {
         manager.remove_thread(INTERACTIVE_THREAD_ID).await;
         assert_eq!(
             recv_status_changed_notification(&mut outgoing_rx).await,
-            ThreadStatusChangedNotification {
-                thread_id: INTERACTIVE_THREAD_ID.to_string(),
-                status: ThreadStatus::NotLoaded,
+            ChatStatusChangedNotification {
+                chat_id: INTERACTIVE_THREAD_ID.to_string(),
+                status: ChatStatus::NotLoaded,
             },
         );
     }
@@ -779,21 +763,21 @@ mod tests {
             manager
                 .loaded_status_for_thread(INTERACTIVE_THREAD_ID)
                 .await,
-            ThreadStatus::Idle,
+            ChatStatus::Idle,
         );
         assert!(
             timeout(Duration::from_millis(100), outgoing_rx.recv())
                 .await
                 .is_err(),
-            "silent upsert should not emit thread/status/changed"
+            "silent upsert should not emit chat/status/changed"
         );
 
         manager.note_turn_started(INTERACTIVE_THREAD_ID).await;
         assert_eq!(
             recv_status_changed_notification(&mut outgoing_rx).await,
-            ThreadStatusChangedNotification {
-                thread_id: INTERACTIVE_THREAD_ID.to_string(),
-                status: ThreadStatus::Active {
+            ChatStatusChangedNotification {
+                chat_id: INTERACTIVE_THREAD_ID.to_string(),
+                status: ChatStatus::Active {
                     active_flags: vec![],
                 },
             },
@@ -836,7 +820,7 @@ mod tests {
             .expect("interactive status watcher should remain open");
         assert_eq!(
             *interactive_rx.borrow(),
-            ThreadStatus::Active {
+            ChatStatus::Active {
                 active_flags: vec![],
             },
         );
@@ -846,17 +830,17 @@ mod tests {
                 .is_err(),
             "unrelated thread watcher should not receive an update"
         );
-        assert_eq!(*non_interactive_rx.borrow(), ThreadStatus::Idle);
+        assert_eq!(*non_interactive_rx.borrow(), ChatStatus::Idle);
     }
 
     async fn wait_for_status(
         manager: &ThreadWatchManager,
-        thread_id: &str,
-        expected_status: ThreadStatus,
+        chat_id: &str,
+        expected_status: ChatStatus,
     ) {
         timeout(Duration::from_secs(1), async {
             loop {
-                let status = manager.loaded_status_for_thread(thread_id).await;
+                let status = manager.loaded_status_for_thread(chat_id).await;
                 if status == expected_status {
                     break;
                 }
@@ -869,7 +853,7 @@ mod tests {
 
     async fn recv_status_changed_notification(
         outgoing_rx: &mut mpsc::Receiver<OutgoingEnvelope>,
-    ) -> ThreadStatusChangedNotification {
+    ) -> ChatStatusChangedNotification {
         let envelope = timeout(Duration::from_secs(1), outgoing_rx.recv())
             .await
             .expect("timed out waiting for outgoing notification")
@@ -877,38 +861,36 @@ mod tests {
         let OutgoingEnvelope::Broadcast { message } = envelope else {
             panic!("expected broadcast notification");
         };
-        let OutgoingMessage::AppServerNotification(ServerNotification::ThreadStatusChanged(
-            notification,
-        )) = message
+        let OutgoingMessage::AppServerNotification(ChatStatusChanged(notification)) = message
         else {
-            panic!("expected thread/status/changed notification");
+            panic!("expected chat/status/changed notification");
         };
         notification
     }
 
-    fn test_thread(thread_id: &str, source: datax_app_server_protocol::SessionSource) -> Thread {
-        Thread {
-            id: thread_id.to_string(),
-            session_id: thread_id.to_string(),
+    fn test_thread(chat_id: &str, source: datax_app_server_protocol::SessionSource) -> Chat {
+        Chat {
+            id: chat_id.to_string(),
+            session_id: chat_id.to_string(),
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             preview: String::new(),
             ephemeral: false,
             model_provider: "mock-provider".to_string(),
             created_at: 0,
             updated_at: 0,
             recency_at: Some(0),
-            status: ThreadStatus::NotLoaded,
+            status: ChatStatus::NotLoaded,
             path: None,
             cwd: test_path_buf("/tmp").abs(),
             cli_version: "test".to_string(),
             agent_nickname: None,
             agent_role: None,
             source,
-            thread_source: None,
+            chat_source: None,
             git_info: None,
             name: None,
-            turns: Vec::new(),
+            interactions: Vec::new(),
         }
     }
 }

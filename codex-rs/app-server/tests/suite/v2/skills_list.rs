@@ -8,6 +8,7 @@ use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use app_test_support::write_mock_responses_config_toml_with_chatgpt_base_url;
+use datax_app_server_protocol::ChatStartParams;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::PluginListParams;
 use datax_app_server_protocol::PluginListResponse;
@@ -17,7 +18,6 @@ use datax_app_server_protocol::SkillsExtraRootsSetParams;
 use datax_app_server_protocol::SkillsExtraRootsSetResponse;
 use datax_app_server_protocol::SkillsListParams;
 use datax_app_server_protocol::SkillsListResponse;
-use datax_app_server_protocol::ThreadStartParams;
 use datax_config::types::AuthCredentialsStoreMode;
 use datax_exec_server::CODEX_EXEC_SERVER_URL_ENV_VAR;
 use datax_utils_absolute_path::AbsolutePathBuf;
@@ -774,7 +774,7 @@ async fn skills_changed_notification_is_emitted_after_skill_change() -> Result<(
     );
 
     let thread_start_request_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: None,
             model_provider: None,
             service_tier: None,
@@ -792,7 +792,7 @@ async fn skills_changed_notification_is_emitted_after_skill_change() -> Result<(
             multi_agent_mode: None,
             ephemeral: None,
             session_start_source: None,
-            thread_source: None,
+            chat_source: None,
             dynamic_tools: None,
             environments: None,
             selected_capability_roots: None,

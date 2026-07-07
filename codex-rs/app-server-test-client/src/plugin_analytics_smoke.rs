@@ -3,16 +3,16 @@ use super::loopback_responses_server::LoopbackResponsesServer;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
+use datax_app_server_protocol::ChatStartParams;
 use datax_app_server_protocol::ClientRequest;
 use datax_app_server_protocol::ConfigValueWriteParams;
 use datax_app_server_protocol::ConfigWriteResponse;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStatus;
 use datax_app_server_protocol::MergeStrategy;
 use datax_app_server_protocol::PluginAvailability;
 use datax_app_server_protocol::PluginInstalledParams;
 use datax_app_server_protocol::PluginInstalledResponse;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStatus;
 use datax_app_server_protocol::UserInput;
 use datax_app_server_protocol::WriteStatus;
 use serde_json::Value;
@@ -95,7 +95,7 @@ pub(super) fn run(
 }
 
 fn run_plugin_turn(client: &mut DataxClient, expected: &ExpectedPlugin) -> Result<String> {
-    let thread = client.thread_start(ThreadStartParams {
+    let thread = client.thread_start(ChatStartParams {
         model: Some(MOCK_MODEL_SLUG.to_string()),
         model_provider: Some(MOCK_PROVIDER_ID.to_string()),
         base_instructions: Some(String::new()),
@@ -103,7 +103,7 @@ fn run_plugin_turn(client: &mut DataxClient, expected: &ExpectedPlugin) -> Resul
         ephemeral: Some(true),
         ..Default::default()
     })?;
-    let turn = client.turn_start(TurnStartParams {
+    let turn = client.turn_start(InteractionStartParams {
         thread_id: thread.thread.id.clone(),
         client_user_message_id: None,
         input: vec![UserInput::Mention {
@@ -113,7 +113,7 @@ fn run_plugin_turn(client: &mut DataxClient, expected: &ExpectedPlugin) -> Resul
         ..Default::default()
     })?;
     client.stream_turn(&thread.thread.id, &turn.turn.id)?;
-    if client.last_turn_status != Some(TurnStatus::Completed) {
+    if client.last_turn_status != Some(InteractionStatus::Completed) {
         bail!(
             "plugin analytics smoke turn did not complete: status={:?}, error={:?}",
             client.last_turn_status,
@@ -133,7 +133,7 @@ fn wait_for_plugin_usage(
     loop {
         attempts += 1;
         let turn_id = run_plugin_turn(client, expected)?;
-        // Turn completion is queued after plugin usage, so its captured event is the
+        // Interaction completion is queued after plugin usage, so its captured event is the
         // barrier that tells us whether this attempt resolved the plugin.
         let events = wait_for_turn_analytics(capture_path, &turn_id)?;
         if events.iter().any(|event| {

@@ -149,7 +149,7 @@ async fn request_permissions_routes_to_guardian_when_reviewer_is_enabled() {
         response,
         Some(RequestPermissionsResponse {
             permissions: requested_permissions.clone(),
-            scope: PermissionGrantScope::Turn,
+            scope: PermissionGrantScope::Interaction,
             strict_auto_review: false,
         })
     );
@@ -397,7 +397,7 @@ async fn strict_auto_review_turn_grant_forces_guardian_for_shell_command_policy_
                     }),
                     ..Default::default()
                 },
-                scope: PermissionGrantScope::Turn,
+                scope: PermissionGrantScope::Interaction,
                 strict_auto_review: true,
             },
             datax_exec_server::LOCAL_ENVIRONMENT_ID,

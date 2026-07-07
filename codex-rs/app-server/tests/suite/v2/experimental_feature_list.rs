@@ -6,6 +6,8 @@ use app_test_support::TestAppServer;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::ConfigReadParams;
 use datax_app_server_protocol::ConfigReadResponse;
 use datax_app_server_protocol::ExperimentalFeature;
@@ -17,8 +19,6 @@ use datax_app_server_protocol::ExperimentalFeatureStage;
 use datax_app_server_protocol::JSONRPCError;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
 use datax_config::LoaderOverrides;
 use datax_config::types::AuthCredentialsStoreMode;
 use datax_core::config::ConfigBuilder;
@@ -199,19 +199,19 @@ memories = true
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let thread_start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             cwd: Some(workspace.path().display().to_string()),
             ..Default::default()
         })
         .await?;
-    let ThreadStartResponse { thread, .. } =
-        read_response::<ThreadStartResponse>(&mut mcp, thread_start_id).await?;
+    let ChatStartResponse { thread, .. } =
+        read_response::<ChatStartResponse>(&mut mcp, thread_start_id).await?;
 
     let request_id = mcp
         .send_experimental_feature_list_request(ExperimentalFeatureListParams {
             cursor: None,
             limit: None,
-            thread_id: Some(thread.id),
+            chat_id: Some(thread.id),
         })
         .await?;
 
@@ -236,7 +236,7 @@ async fn experimental_feature_list_rejects_unknown_thread_id() -> Result<()> {
         .send_experimental_feature_list_request(ExperimentalFeatureListParams {
             cursor: None,
             limit: None,
-            thread_id: Some("00000000-0000-4000-8000-000000000001".to_string()),
+            chat_id: Some("00000000-0000-4000-8000-000000000001".to_string()),
         })
         .await?;
     let JSONRPCError { error, .. } = timeout(

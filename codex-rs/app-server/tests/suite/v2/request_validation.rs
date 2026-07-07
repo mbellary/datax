@@ -2,12 +2,12 @@ use anyhow::Result;
 use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use app_test_support::write_mock_responses_config_toml_with_chatgpt_base_url;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::JSONRPCError;
 use datax_app_server_protocol::JSONRPCErrorError;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
 use datax_protocol::models::FunctionCallOutputContentItem;
 use datax_protocol::models::FunctionCallOutputPayload;
 use datax_protocol::models::ImageDetail;
@@ -34,15 +34,15 @@ async fn request_handlers_reject_remote_image_urls() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_request_id = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
     let thread_response: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(thread_request_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_response)?;
-    let thread_id = thread.id;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_response)?;
+    let chat_id = thread.id;
 
     let remote_tool_output = serde_json::to_value(ResponseItem::FunctionCallOutput {
         id: None,
@@ -57,9 +57,9 @@ async fn request_handlers_reject_remote_image_urls() -> Result<()> {
     })?;
     let requests = [
         (
-            "turn/start",
+            "interaction/start",
             json!({
-                "threadId": thread_id,
+                "chatId": chat_id,
                 "input": [{
                     "type": "image",
                     "url": "HTTP://example.com/start.png",
@@ -68,9 +68,9 @@ async fn request_handlers_reject_remote_image_urls() -> Result<()> {
             }),
         ),
         (
-            "turn/steer",
+            "interaction/steer",
             json!({
-                "threadId": thread_id,
+                "chatId": chat_id,
                 "expectedTurnId": "turn-id",
                 "input": [{
                     "type": "image",
@@ -80,10 +80,10 @@ async fn request_handlers_reject_remote_image_urls() -> Result<()> {
             }),
         ),
         (
-            "thread/inject_items",
+            "chat/inject_items",
             json!({
-                "threadId": thread_id,
-                "items": [remote_tool_output]
+                "chatId": chat_id,
+                "messages": [remote_tool_output]
             }),
         ),
     ];

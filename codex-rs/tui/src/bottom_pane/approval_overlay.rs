@@ -404,7 +404,7 @@ impl ApprovalOverlay {
         let scope = if matches!(decision, PermissionsDecision::GrantForSession) {
             PermissionGrantScope::Session
         } else {
-            PermissionGrantScope::Turn
+            PermissionGrantScope::Interaction
         };
         let strict_auto_review = matches!(
             decision,
@@ -686,7 +686,7 @@ fn build_header(request: &ApprovalRequest) -> Box<dyn Renderable> {
             let mut header: Vec<Line<'static>> = Vec::new();
             if let Some(thread_label) = thread_label {
                 header.push(Line::from(vec![
-                    "Thread: ".into(),
+                    "Chat: ".into(),
                     thread_label.clone().bold(),
                 ]));
                 header.push(Line::from(""));
@@ -731,7 +731,7 @@ fn build_header(request: &ApprovalRequest) -> Box<dyn Renderable> {
             let mut header: Vec<Line<'static>> = Vec::new();
             if let Some(thread_label) = thread_label {
                 header.push(Line::from(vec![
-                    "Thread: ".into(),
+                    "Chat: ".into(),
                     thread_label.clone().bold(),
                 ]));
                 header.push(Line::from(""));
@@ -763,7 +763,7 @@ fn build_header(request: &ApprovalRequest) -> Box<dyn Renderable> {
             let mut header: Vec<Box<dyn Renderable>> = Vec::new();
             if let Some(thread_label) = thread_label {
                 header.push(Box::new(Line::from(vec![
-                    "Thread: ".into(),
+                    "Chat: ".into(),
                     thread_label.clone().bold(),
                 ])));
             }
@@ -792,7 +792,7 @@ fn build_header(request: &ApprovalRequest) -> Box<dyn Renderable> {
             let mut lines = Vec::new();
             if let Some(thread_label) = thread_label {
                 lines.push(Line::from(vec![
-                    "Thread: ".into(),
+                    "Chat: ".into(),
                     thread_label.clone().bold(),
                 ]));
                 lines.push(Line::from(""));
@@ -1937,7 +1937,7 @@ mod tests {
             } = ev
             {
                 assert!(response.permissions.is_empty());
-                assert_eq!(response.scope, PermissionGrantScope::Turn);
+                assert_eq!(response.scope, PermissionGrantScope::Interaction);
                 assert!(!response.strict_auto_review);
                 saw_op = true;
                 break;
@@ -1964,7 +1964,7 @@ mod tests {
                 ..
             } = ev
             {
-                assert_eq!(response.scope, PermissionGrantScope::Turn);
+                assert_eq!(response.scope, PermissionGrantScope::Interaction);
                 assert!(response.strict_auto_review);
                 saw_op = true;
                 break;
@@ -2109,7 +2109,7 @@ mod tests {
             keymap.list,
         );
         let rendered = render_overlay_lines(&view, /*width*/ 120);
-        assert!(rendered.contains("Thread: Banach [worker]"));
+        assert!(rendered.contains("Chat: Banach [worker]"));
         assert!(rendered.contains("o to open thread"));
         assert!(!rendered.contains("$ apply_patch"));
     }

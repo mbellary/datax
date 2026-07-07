@@ -11,7 +11,10 @@ use app_test_support::to_response;
 use app_test_support::write_mock_responses_config_toml;
 use axum::Router;
 use core_test_support::responses;
-use datax_app_server_protocol::ItemCompletedNotification;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
 use datax_app_server_protocol::JSONRPCError;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::McpElicitationSchema;
@@ -22,13 +25,10 @@ use datax_app_server_protocol::McpServerElicitationRequestResponse;
 use datax_app_server_protocol::McpServerToolCallParams;
 use datax_app_server_protocol::McpServerToolCallResponse;
 use datax_app_server_protocol::McpToolCallStatus;
+use datax_app_server_protocol::Message;
+use datax_app_server_protocol::MessageCompletedNotification;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::ServerRequest;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_utils_pty::DEFAULT_OUTPUT_BYTES_CAP;
 use pretty_assertions::assert_eq;
@@ -98,7 +98,7 @@ url = "{mcp_server_url}/mcp"
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -108,12 +108,12 @@ url = "{mcp_server_url}/mcp"
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(thread_start_resp)?;
-    let thread_id = thread.id.clone();
+    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let chat_id = thread.id.clone();
 
     let tool_call_request_id = mcp
         .send_mcp_server_tool_call_request(McpServerToolCallParams {
-            thread_id: thread_id.clone(),
+            chat_id: chat_id.clone(),
             server: TEST_SERVER_NAME.to_string(),
             tool: TEST_TOOL_NAME.to_string(),
             arguments: Some(json!({
@@ -141,7 +141,7 @@ url = "{mcp_server_url}/mcp"
         response.structured_content,
         Some(json!({
             "echoed": "hello from app",
-            "threadId": thread_id,
+            "chatId": chat_id,
         }))
     );
     assert_eq!(response.is_error, Some(false));
@@ -166,7 +166,7 @@ async fn mcp_server_tool_call_returns_error_for_unknown_thread() -> Result<()> {
 
     let request_id = mcp
         .send_mcp_server_tool_call_request(McpServerToolCallParams {
-            thread_id: "00000000-0000-4000-8000-000000000000".to_string(),
+            chat_id: "00000000-0000-4000-8000-000000000000".to_string(),
             server: TEST_SERVER_NAME.to_string(),
             tool: TEST_TOOL_NAME.to_string(),
             arguments: Some(json!({})),
@@ -216,7 +216,7 @@ url = "{mcp_server_url}/mcp"
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             approval_policy: Some(datax_app_server_protocol::AskForApproval::UnlessTrusted),
             ..Default::default()
@@ -227,11 +227,11 @@ url = "{mcp_server_url}/mcp"
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
 
     let tool_call_request_id = mcp
         .send_mcp_server_tool_call_request(McpServerToolCallParams {
-            thread_id: thread.id.clone(),
+            chat_id: thread.id.clone(),
             server: TEST_SERVER_NAME.to_string(),
             tool: TEST_TOOL_NAME.to_string(),
             arguments: Some(json!({
@@ -258,8 +258,8 @@ url = "{mcp_server_url}/mcp"
     assert_eq!(
         params,
         McpServerElicitationRequestParams {
-            thread_id: thread.id,
-            turn_id: None,
+            chat_id: thread.id,
+            interaction_id: None,
             server_name: TEST_SERVER_NAME.to_string(),
             request: McpServerElicitationRequest::Form {
                 meta: None,
@@ -326,7 +326,7 @@ url = "{mcp_server_url}/mcp"
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             approval_policy: Some(datax_app_server_protocol::AskForApproval::UnlessTrusted),
             ..Default::default()
@@ -337,11 +337,11 @@ url = "{mcp_server_url}/mcp"
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
 
     let tool_call_request_id = mcp
         .send_mcp_server_tool_call_request(McpServerToolCallParams {
-            thread_id: thread.id.clone(),
+            chat_id: thread.id.clone(),
             server: TEST_SERVER_NAME.to_string(),
             tool: TEST_TOOL_NAME.to_string(),
             arguments: Some(json!({
@@ -362,8 +362,8 @@ url = "{mcp_server_url}/mcp"
     assert_eq!(
         params,
         McpServerElicitationRequestParams {
-            thread_id: thread.id,
-            turn_id: None,
+            chat_id: thread.id,
+            interaction_id: None,
             server_name: TEST_SERVER_NAME.to_string(),
             request: McpServerElicitationRequest::Url {
                 meta: None,
@@ -446,7 +446,7 @@ url = "{mcp_server_url}/mcp"
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -456,11 +456,11 @@ url = "{mcp_server_url}/mcp"
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
 
     let turn_start_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id,
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id,
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "Call the large MCP tool".to_string(),
@@ -474,12 +474,12 @@ url = "{mcp_server_url}/mcp"
         mcp.read_stream_until_response_message(RequestId::Integer(turn_start_id)),
     )
     .await??;
-    let TurnStartResponse { turn, .. } = to_response(turn_start_resp)?;
+    let InteractionStartResponse { turn, .. } = to_response(turn_start_resp)?;
 
     let completed = wait_for_mcp_tool_call_completed(&mut mcp, call_id).await?;
-    assert_eq!(completed.turn_id, turn.id);
+    assert_eq!(completed.interaction_id, turn.id);
 
-    let ThreadItem::McpToolCall {
+    let Message::McpToolCall {
         id,
         server,
         tool,
@@ -507,7 +507,7 @@ url = "{mcp_server_url}/mcp"
     assert!(text.contains("truncated"));
     assert!(text.len() < DEFAULT_OUTPUT_BYTES_CAP + 1024);
 
-    let serialized_item = serde_json::to_string(&ThreadItem::McpToolCall {
+    let serialized_item = serde_json::to_string(&Message::McpToolCall {
         id,
         server,
         tool,
@@ -524,7 +524,7 @@ url = "{mcp_server_url}/mcp"
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -584,10 +584,10 @@ impl ServerHandler for ToolAppsMcpServer {
             .and_then(|arguments| arguments.get("message"))
             .and_then(|value| value.as_str())
             .unwrap_or_default();
-        let thread_id = context
+        let chat_id = context
             .meta
             .0
-            .get("threadId")
+            .get("chatId")
             .and_then(|value| value.as_str())
             .unwrap_or_default();
 
@@ -658,7 +658,7 @@ impl ServerHandler for ToolAppsMcpServer {
 
         let mut result = CallToolResult::structured(json!({
             "echoed": message,
-            "threadId": thread_id,
+            "chatId": chat_id,
         }));
         result.content = vec![Content::text(format!("echo: {message}"))];
         result.meta = Some(meta);
@@ -686,18 +686,18 @@ async fn start_mcp_server() -> Result<(String, JoinHandle<()>)> {
 async fn wait_for_mcp_tool_call_completed(
     mcp: &mut TestAppServer,
     call_id: &str,
-) -> Result<ItemCompletedNotification> {
+) -> Result<MessageCompletedNotification> {
     loop {
         let notification = timeout(
             DEFAULT_READ_TIMEOUT,
-            mcp.read_stream_until_notification_message("item/completed"),
+            mcp.read_stream_until_notification_message("message/completed"),
         )
         .await??;
         let Some(params) = notification.params else {
             continue;
         };
-        let completed: ItemCompletedNotification = serde_json::from_value(params)?;
-        if matches!(&completed.item, ThreadItem::McpToolCall { id, .. } if id == call_id) {
+        let completed: MessageCompletedNotification = serde_json::from_value(params)?;
+        if matches!(&completed.item, Message::McpToolCall { id, .. } if id == call_id) {
             return Ok(completed);
         }
     }

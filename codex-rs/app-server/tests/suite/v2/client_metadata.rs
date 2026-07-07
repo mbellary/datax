@@ -5,6 +5,17 @@ use app_test_support::create_fake_rollout;
 use app_test_support::to_response;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
+use datax_app_server_protocol::ChatForkParams;
+use datax_app_server_protocol::ChatForkResponse;
+use datax_app_server_protocol::ChatResumeParams;
+use datax_app_server_protocol::ChatResumeResponse;
+use datax_app_server_protocol::ChatSource;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
+use datax_app_server_protocol::InteractionSteerParams;
+use datax_app_server_protocol::InteractionSteerResponse;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::ReviewDelivery;
@@ -12,17 +23,6 @@ use datax_app_server_protocol::ReviewStartParams;
 use datax_app_server_protocol::ReviewStartResponse;
 use datax_app_server_protocol::ReviewTarget;
 use datax_app_server_protocol::SessionSource as ApiSessionSource;
-use datax_app_server_protocol::ThreadForkParams;
-use datax_app_server_protocol::ThreadForkResponse;
-use datax_app_server_protocol::ThreadResumeParams;
-use datax_app_server_protocol::ThreadResumeResponse;
-use datax_app_server_protocol::ThreadSource;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
-use datax_app_server_protocol::TurnSteerParams;
-use datax_app_server_protocol::TurnSteerResponse;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_protocol::ThreadId as CoreThreadId;
 use datax_protocol::protocol::SessionSource;
@@ -63,8 +63,8 @@ async fn turn_start_forwards_client_metadata_to_responses_request_v2() -> Result
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams {
-            thread_source: Some(ThreadSource::Feature("automation".to_string())),
+        .send_chat_start_request(ChatStartParams {
+            chat_source: Some(ChatSource::Feature("automation".to_string())),
             ..Default::default()
         })
         .await?;
@@ -73,15 +73,15 @@ async fn turn_start_forwards_client_metadata_to_responses_request_v2() -> Result
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let client_metadata = HashMap::from([
         ("fiber_run_id".to_string(), "fiber-start-123".to_string()),
         ("origin".to_string(), "gaas".to_string()),
     ]);
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id,
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id,
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "Hello".to_string(),
@@ -96,11 +96,11 @@ async fn turn_start_forwards_client_metadata_to_responses_request_v2() -> Result
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let TurnStartResponse { turn } = to_response::<TurnStartResponse>(turn_resp)?;
+    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -112,8 +112,8 @@ async fn turn_start_forwards_client_metadata_to_responses_request_v2() -> Result
         .expect("x-codex-turn-metadata header should be present");
     assert_eq!(metadata["fiber_run_id"].as_str(), Some("fiber-start-123"));
     assert_eq!(metadata["origin"].as_str(), Some("gaas"));
-    assert_eq!(metadata["thread_source"].as_str(), Some("automation"));
-    assert_eq!(metadata["turn_id"].as_str(), Some(turn.id.as_str()));
+    assert_eq!(metadata["chat_source"].as_str(), Some("automation"));
+    assert_eq!(metadata["interaction_id"].as_str(), Some(turn.id.as_str()));
     assert!(metadata.get("installation_id").is_some());
     assert!(metadata.get("session_id").is_some());
     assert_eq!(
@@ -158,12 +158,12 @@ async fn turn_start_sends_fork_lineage_in_turn_metadata_for_thread_fork_v2() -> 
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let ThreadForkResponse { thread, .. } =
+    let ChatForkResponse { thread, .. } =
         fork_fake_rollout_thread(&mut mcp, source_thread_id.clone()).await?;
 
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "Continue".to_string(),
@@ -177,11 +177,11 @@ async fn turn_start_sends_fork_lineage_in_turn_metadata_for_thread_fork_v2() -> 
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let TurnStartResponse { turn } = to_response::<TurnStartResponse>(turn_resp)?;
+    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -192,11 +192,11 @@ async fn turn_start_sends_fork_lineage_in_turn_metadata_for_thread_fork_v2() -> 
         .map(parse_json_header)
         .expect("x-codex-turn-metadata header should be present");
     assert_eq!(
-        metadata["forked_from_thread_id"].as_str(),
+        metadata["forked_from_chat_id"].as_str(),
         Some(source_thread_id.as_str())
     );
-    assert_eq!(metadata["thread_id"].as_str(), Some(thread.id.as_str()));
-    assert_eq!(metadata["turn_id"].as_str(), Some(turn.id.as_str()));
+    assert_eq!(metadata["chat_id"].as_str(), Some(thread.id.as_str()));
+    assert_eq!(metadata["interaction_id"].as_str(), Some(turn.id.as_str()));
 
     Ok(())
 }
@@ -242,12 +242,12 @@ async fn review_start_sends_parent_lineage_in_turn_metadata_for_thread_fork_v2()
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let ThreadForkResponse { thread, .. } =
+    let ChatForkResponse { thread, .. } =
         fork_fake_rollout_thread(&mut mcp, source_thread_id.clone()).await?;
 
     let review_req = mcp
         .send_review_start_request(ReviewStartParams {
-            thread_id: thread.id.clone(),
+            chat_id: thread.id.clone(),
             delivery: Some(ReviewDelivery::Inline),
             target: ReviewTarget::Custom {
                 instructions: "Review the fork".to_string(),
@@ -266,7 +266,7 @@ async fn review_start_sends_parent_lineage_in_turn_metadata_for_thread_fork_v2()
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -280,23 +280,23 @@ async fn review_start_sends_parent_lineage_in_turn_metadata_for_thread_fork_v2()
         request.header("x-openai-subagent").as_deref(),
         Some("review")
     );
-    assert!(metadata.get("forked_from_thread_id").is_none());
+    assert!(metadata.get("forked_from_chat_id").is_none());
     assert_eq!(
-        metadata["parent_thread_id"].as_str(),
+        metadata["parent_chat_id"].as_str(),
         Some(review_thread_id.as_str())
     );
-    let review_request_thread_id = metadata["thread_id"]
+    let review_request_thread_id = metadata["chat_id"]
         .as_str()
-        .expect("review request thread_id should be present");
+        .expect("review request chat_id should be present");
     assert!(review_request_thread_id != review_thread_id.as_str());
     assert_eq!(
         request
             .header("x-codex-window-id")
             .as_deref()
-            .and_then(|window_id| window_id.split_once(':').map(|(thread_id, _)| thread_id)),
+            .and_then(|window_id| window_id.split_once(':').map(|(chat_id, _)| chat_id)),
         Some(review_request_thread_id)
     );
-    assert!(metadata["turn_id"].as_str().is_some());
+    assert!(metadata["interaction_id"].as_str().is_some());
 
     Ok(())
 }
@@ -325,8 +325,8 @@ async fn turn_start_sends_nested_subagent_lineage_after_cold_thread_resume_v2() 
 
     let root_thread_id = CoreThreadId::new();
     let root_thread_id_str = root_thread_id.to_string();
-    let parent_thread_id = CoreThreadId::new();
-    let parent_thread_id_str = parent_thread_id.to_string();
+    let parent_chat_id = CoreThreadId::new();
+    let parent_thread_id_str = parent_chat_id.to_string();
     let subagent_thread_id = create_fake_parented_rollout_with_source(
         codex_home.path(),
         "2025-01-05T12-00-00",
@@ -336,15 +336,15 @@ async fn turn_start_sends_nested_subagent_lineage_after_cold_thread_resume_v2() 
         /*git_info*/ None,
         SessionSource::SubAgent(SubAgentSource::Other("guardian".to_string())),
         root_thread_id.into(),
-        parent_thread_id,
+        parent_chat_id,
     )?;
 
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_req = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: subagent_thread_id.clone(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: subagent_thread_id.clone(),
             ..Default::default()
         })
         .await?;
@@ -353,18 +353,18 @@ async fn turn_start_sends_nested_subagent_lineage_after_cold_thread_resume_v2() 
         mcp.read_stream_until_response_message(RequestId::Integer(resume_req)),
     )
     .await??;
-    let ThreadResumeResponse { thread, .. } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
     assert_eq!(thread.id, subagent_thread_id);
     assert_eq!(thread.session_id, root_thread_id_str);
-    assert_eq!(thread.parent_thread_id, Some(parent_thread_id_str.clone()));
+    assert_eq!(thread.parent_chat_id, Some(parent_thread_id_str.clone()));
     assert_eq!(
         thread.source,
         ApiSessionSource::SubAgent(SubAgentSource::Other("guardian".to_string()))
     );
 
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             input: vec![V2UserInput::Text {
                 text: "Continue".to_string(),
                 text_elements: Vec::new(),
@@ -377,11 +377,11 @@ async fn turn_start_sends_nested_subagent_lineage_after_cold_thread_resume_v2() 
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let TurnStartResponse { turn } = to_response::<TurnStartResponse>(turn_resp)?;
+    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -392,7 +392,7 @@ async fn turn_start_sends_nested_subagent_lineage_after_cold_thread_resume_v2() 
         .map(parse_json_header)
         .expect("x-codex-turn-metadata header should be present");
     assert_eq!(
-        metadata["parent_thread_id"].as_str(),
+        metadata["parent_chat_id"].as_str(),
         Some(parent_thread_id_str.as_str())
     );
     assert_eq!(metadata["subagent_kind"].as_str(), Some("guardian"));
@@ -400,9 +400,9 @@ async fn turn_start_sends_nested_subagent_lineage_after_cold_thread_resume_v2() 
         metadata["session_id"].as_str(),
         Some(thread.session_id.as_str())
     );
-    assert_eq!(metadata["thread_id"].as_str(), Some(thread.id.as_str()));
-    assert_eq!(metadata["turn_id"].as_str(), Some(turn.id.as_str()));
-    assert!(metadata.get("forked_from_thread_id").is_none());
+    assert_eq!(metadata["chat_id"].as_str(), Some(thread.id.as_str()));
+    assert_eq!(metadata["interaction_id"].as_str(), Some(turn.id.as_str()));
+    assert!(metadata.get("forked_from_chat_id").is_none());
 
     Ok(())
 }
@@ -438,20 +438,20 @@ async fn turn_steer_updates_client_metadata_on_follow_up_responses_request_v2() 
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
     let thread_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let start_metadata =
         HashMap::from([("fiber_run_id".to_string(), "fiber-start-123".to_string())]);
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "Run sleep".to_string(),
@@ -466,12 +466,12 @@ async fn turn_steer_updates_client_metadata_on_follow_up_responses_request_v2() 
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let TurnStartResponse { turn } = to_response::<TurnStartResponse>(turn_resp)?;
-    let turn_id = turn.id.clone();
+    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let interaction_id = turn.id.clone();
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/started"),
+        mcp.read_stream_until_notification_message("interaction/started"),
     )
     .await??;
     wait_for_request_count(&request_log, /*expected*/ 1).await?;
@@ -481,8 +481,8 @@ async fn turn_steer_updates_client_metadata_on_follow_up_responses_request_v2() 
         ("origin".to_string(), "gaas".to_string()),
     ]);
     let steer_req = mcp
-        .send_turn_steer_request(TurnSteerParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_steer_request(InteractionSteerParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "Focus on the failure".to_string(),
@@ -490,7 +490,7 @@ async fn turn_steer_updates_client_metadata_on_follow_up_responses_request_v2() 
             }],
             responsesapi_client_metadata: Some(steer_metadata.clone()),
             additional_context: None,
-            expected_turn_id: turn_id.clone(),
+            expected_turn_id: interaction_id.clone(),
         })
         .await?;
     let steer_resp: JSONRPCResponse = timeout(
@@ -498,11 +498,11 @@ async fn turn_steer_updates_client_metadata_on_follow_up_responses_request_v2() 
         mcp.read_stream_until_response_message(RequestId::Integer(steer_req)),
     )
     .await??;
-    let _turn: TurnSteerResponse = to_response::<TurnSteerResponse>(steer_resp)?;
+    let _turn: InteractionSteerResponse = to_response::<InteractionSteerResponse>(steer_resp)?;
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -517,7 +517,10 @@ async fn turn_steer_updates_client_metadata_on_follow_up_responses_request_v2() 
         first_metadata["fiber_run_id"].as_str(),
         Some("fiber-start-123")
     );
-    assert_eq!(first_metadata["turn_id"].as_str(), Some(turn_id.as_str()));
+    assert_eq!(
+        first_metadata["interaction_id"].as_str(),
+        Some(interaction_id.as_str())
+    );
 
     let second_metadata = requests[1]
         .header("x-codex-turn-metadata")
@@ -529,7 +532,10 @@ async fn turn_steer_updates_client_metadata_on_follow_up_responses_request_v2() 
         Some("fiber-steer-456")
     );
     assert_eq!(second_metadata["origin"].as_str(), Some("gaas"));
-    assert_eq!(second_metadata["turn_id"].as_str(), Some(turn_id.as_str()));
+    assert_eq!(
+        second_metadata["interaction_id"].as_str(),
+        Some(interaction_id.as_str())
+    );
 
     Ok(())
 }
@@ -563,8 +569,8 @@ async fn turn_start_forwards_client_metadata_to_responses_websocket_request_body
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams {
-            thread_source: Some(ThreadSource::Feature("automation".to_string())),
+        .send_chat_start_request(ChatStartParams {
+            chat_source: Some(ChatSource::Feature("automation".to_string())),
             ..Default::default()
         })
         .await?;
@@ -573,15 +579,15 @@ async fn turn_start_forwards_client_metadata_to_responses_websocket_request_body
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let client_metadata = HashMap::from([
         ("fiber_run_id".to_string(), "fiber-start-123".to_string()),
         ("origin".to_string(), "gaas".to_string()),
     ]);
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id,
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id,
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "Hello".to_string(),
@@ -596,11 +602,11 @@ async fn turn_start_forwards_client_metadata_to_responses_websocket_request_body
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let TurnStartResponse { turn } = to_response::<TurnStartResponse>(turn_resp)?;
+    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -624,8 +630,8 @@ async fn turn_start_forwards_client_metadata_to_responses_websocket_request_body
         .expect("websocket x-codex-turn-metadata client metadata should be present");
     assert_eq!(metadata["fiber_run_id"].as_str(), Some("fiber-start-123"));
     assert_eq!(metadata["origin"].as_str(), Some("gaas"));
-    assert_eq!(metadata["thread_source"].as_str(), Some("automation"));
-    assert_eq!(metadata["turn_id"].as_str(), Some(turn.id.as_str()));
+    assert_eq!(metadata["chat_source"].as_str(), Some("automation"));
+    assert_eq!(metadata["interaction_id"].as_str(), Some(turn.id.as_str()));
     assert!(metadata.get("session_id").is_some());
     assert_eq!(
         metadata["window_id"].as_str(),
@@ -667,11 +673,11 @@ supports_websockets = {supports_websockets}
 async fn fork_fake_rollout_thread(
     mcp: &mut TestAppServer,
     source_thread_id: String,
-) -> Result<ThreadForkResponse> {
+) -> Result<ChatForkResponse> {
     let fork_req = mcp
-        .send_thread_fork_request(ThreadForkParams {
-            thread_id: source_thread_id,
-            thread_source: Some(ThreadSource::User),
+        .send_chat_fork_request(ChatForkParams {
+            chat_id: source_thread_id,
+            chat_source: Some(ChatSource::User),
             ..Default::default()
         })
         .await?;
@@ -680,7 +686,7 @@ async fn fork_fake_rollout_thread(
         mcp.read_stream_until_response_message(RequestId::Integer(fork_req)),
     )
     .await??;
-    to_response::<ThreadForkResponse>(fork_resp)
+    to_response::<ChatForkResponse>(fork_resp)
 }
 
 fn parse_json_header(value: &str) -> serde_json::Value {

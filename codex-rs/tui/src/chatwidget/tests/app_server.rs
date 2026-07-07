@@ -4,10 +4,10 @@ use pretty_assertions::assert_eq;
 fn thread_settings_for_test(
     model: &str,
     thread_id: ThreadId,
-) -> datax_app_server_protocol::ThreadSettingsUpdatedNotification {
-    datax_app_server_protocol::ThreadSettingsUpdatedNotification {
+) -> datax_app_server_protocol::ChatSettingsUpdatedNotification {
+    datax_app_server_protocol::ChatSettingsUpdatedNotification {
         thread_id: thread_id.to_string(),
-        thread_settings: datax_app_server_protocol::ThreadSettings {
+        thread_settings: datax_app_server_protocol::ChatSettings {
             cwd: test_path_buf("/tmp/thread-settings").abs(),
             approval_policy: AskForApproval::OnRequest,
             approvals_reviewer: datax_app_server_protocol::ApprovalsReviewer::AutoReview,
@@ -107,7 +107,7 @@ async fn thread_settings_updated_updates_visible_state_without_transcript() {
     let _ = drain_insert_history(&mut rx);
 
     chat.handle_server_notification(
-        ServerNotification::ThreadSettingsUpdated(thread_settings_for_test("gpt-5.4", thread_id)),
+        ServerNotification::ChatSettingsUpdated(thread_settings_for_test("gpt-5.4", thread_id)),
         /*replay_kind*/ None,
     );
 
@@ -144,7 +144,7 @@ async fn thread_settings_updated_updates_visible_state_without_transcript() {
     );
 
     chat.handle_server_notification(
-        ServerNotification::ThreadSettingsUpdated(thread_settings_for_test(
+        ServerNotification::ChatSettingsUpdated(thread_settings_for_test(
             "gpt-5.2",
             ThreadId::new(),
         )),
@@ -166,7 +166,7 @@ async fn thread_settings_updated_preserves_default_settings_for_plan_mode() {
     let default_mode = chat.current_collaboration_mode().clone();
 
     chat.handle_server_notification(
-        ServerNotification::ThreadSettingsUpdated(thread_settings_for_test("gpt-plan", thread_id)),
+        ServerNotification::ChatSettingsUpdated(thread_settings_for_test("gpt-plan", thread_id)),
         /*replay_kind*/ None,
     );
 
@@ -202,7 +202,7 @@ async fn collab_spawn_end_shows_requested_model_and_effort() {
     );
 
     chat.handle_server_notification(
-        ServerNotification::ItemStarted(ItemStartedNotification {
+        ServerNotification::MessageStarted(MessageStartedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             started_at_ms: 0,
@@ -221,7 +221,7 @@ async fn collab_spawn_end_shows_requested_model_and_effort() {
         /*replay_kind*/ None,
     );
     chat.handle_server_notification(
-        ServerNotification::ItemCompleted(ItemCompletedNotification {
+        ServerNotification::MessageCompleted(MessageCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             completed_at_ms: 0,
@@ -278,7 +278,7 @@ async fn live_app_server_user_message_item_completed_does_not_duplicate_rendered
     assert!(lines_to_single_string(&inserted[0]).contains("Hi, are you there?"));
 
     chat.handle_server_notification(
-        ServerNotification::ItemCompleted(ItemCompletedNotification {
+        ServerNotification::MessageCompleted(MessageCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             completed_at_ms: 0,
@@ -302,11 +302,11 @@ async fn live_app_server_turn_completed_clears_working_status_after_answer_item(
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.handle_server_notification(
-        ServerNotification::TurnStarted(TurnStartedNotification {
+        ServerNotification::InteractionStarted(InteractionStartedNotification {
             thread_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
@@ -326,7 +326,7 @@ async fn live_app_server_turn_completed_clears_working_status_after_answer_item(
     assert_eq!(status.header(), "Working");
 
     chat.handle_server_notification(
-        ServerNotification::ItemCompleted(ItemCompletedNotification {
+        ServerNotification::MessageCompleted(MessageCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             completed_at_ms: 0,
@@ -346,11 +346,11 @@ async fn live_app_server_turn_completed_clears_working_status_after_answer_item(
     assert!(chat.bottom_pane.is_task_running());
 
     chat.handle_server_notification(
-        ServerNotification::TurnCompleted(TurnCompletedNotification {
+        ServerNotification::InteractionCompleted(InteractionCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: Vec::new(),
                 status: AppServerTurnStatus::Completed,
                 error: None,
@@ -371,11 +371,11 @@ async fn live_app_server_turn_started_sets_feedback_turn_id() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.handle_server_notification(
-        ServerNotification::TurnStarted(TurnStartedNotification {
+        ServerNotification::InteractionStarted(InteractionStartedNotification {
             thread_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
@@ -481,7 +481,7 @@ async fn live_app_server_file_change_item_started_preserves_changes() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.handle_server_notification(
-        ServerNotification::ItemStarted(ItemStartedNotification {
+        ServerNotification::MessageStarted(MessageStartedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             started_at_ms: 0,
@@ -515,7 +515,7 @@ async fn live_app_server_command_execution_strips_shell_wrapper() {
         shlex::try_join(["/bin/zsh", "-lc", script]).expect("round-trippable shell wrapper");
 
     chat.handle_server_notification(
-        ServerNotification::ItemStarted(ItemStartedNotification {
+        ServerNotification::MessageStarted(MessageStartedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             started_at_ms: 0,
@@ -537,7 +537,7 @@ async fn live_app_server_command_execution_strips_shell_wrapper() {
         /*replay_kind*/ None,
     );
     chat.handle_server_notification(
-        ServerNotification::ItemCompleted(ItemCompletedNotification {
+        ServerNotification::MessageCompleted(MessageCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             completed_at_ms: 0,
@@ -593,7 +593,7 @@ async fn live_app_server_collab_wait_items_render_history() {
     );
 
     chat.handle_server_notification(
-        ServerNotification::ItemStarted(ItemStartedNotification {
+        ServerNotification::MessageStarted(MessageStartedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             started_at_ms: 0,
@@ -616,7 +616,7 @@ async fn live_app_server_collab_wait_items_render_history() {
     );
 
     chat.handle_server_notification(
-        ServerNotification::ItemCompleted(ItemCompletedNotification {
+        ServerNotification::MessageCompleted(MessageCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             completed_at_ms: 0,
@@ -670,7 +670,7 @@ async fn live_app_server_collab_spawn_completed_renders_requested_model_and_effo
         ThreadId::from_string("019cff70-2599-75e2-af72-b91781b41a8e").expect("valid thread id");
 
     chat.handle_server_notification(
-        ServerNotification::ItemStarted(ItemStartedNotification {
+        ServerNotification::MessageStarted(MessageStartedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             started_at_ms: 0,
@@ -690,7 +690,7 @@ async fn live_app_server_collab_spawn_completed_renders_requested_model_and_effo
     );
 
     chat.handle_server_notification(
-        ServerNotification::ItemCompleted(ItemCompletedNotification {
+        ServerNotification::MessageCompleted(MessageCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             completed_at_ms: 0,
@@ -731,11 +731,11 @@ async fn live_app_server_failed_turn_does_not_duplicate_error_history() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.handle_server_notification(
-        ServerNotification::TurnStarted(TurnStartedNotification {
+        ServerNotification::InteractionStarted(InteractionStartedNotification {
             thread_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
@@ -766,11 +766,11 @@ async fn live_app_server_failed_turn_does_not_duplicate_error_history() {
     assert!(lines_to_single_string(&first_cells[0]).contains("permission denied"));
 
     chat.handle_server_notification(
-        ServerNotification::TurnCompleted(TurnCompletedNotification {
+        ServerNotification::InteractionCompleted(InteractionCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: Vec::new(),
                 status: AppServerTurnStatus::Failed,
                 error: Some(AppServerTurnError {
@@ -829,11 +829,11 @@ async fn live_app_server_stream_recovery_restores_previous_status_header() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.handle_server_notification(
-        ServerNotification::TurnStarted(TurnStartedNotification {
+        ServerNotification::InteractionStarted(InteractionStartedNotification {
             thread_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
@@ -887,11 +887,11 @@ async fn live_app_server_server_overloaded_error_renders_warning() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.handle_server_notification(
-        ServerNotification::TurnStarted(TurnStartedNotification {
+        ServerNotification::InteractionStarted(InteractionStartedNotification {
             thread_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
@@ -929,11 +929,11 @@ async fn live_app_server_cyber_policy_error_renders_dedicated_notice() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.handle_server_notification(
-        ServerNotification::TurnStarted(TurnStartedNotification {
+        ServerNotification::InteractionStarted(InteractionStartedNotification {
             thread_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
@@ -999,8 +999,8 @@ async fn live_app_server_invalid_thread_name_update_is_ignored() {
     chat.thread_name = Some("original name".to_string());
 
     chat.handle_server_notification(
-        ServerNotification::ThreadNameUpdated(
-            datax_app_server_protocol::ThreadNameUpdatedNotification {
+        ServerNotification::ChatNameUpdated(
+            datax_app_server_protocol::ChatNameUpdatedNotification {
                 thread_id: "not-a-thread-id".to_string(),
                 thread_name: Some("bad update".to_string()),
             },
@@ -1020,8 +1020,8 @@ async fn live_app_server_thread_name_update_shows_resume_hint() {
     chat.thread_id = Some(thread_id);
 
     chat.handle_server_notification(
-        ServerNotification::ThreadNameUpdated(
-            datax_app_server_protocol::ThreadNameUpdatedNotification {
+        ServerNotification::ChatNameUpdated(
+            datax_app_server_protocol::ChatNameUpdatedNotification {
                 thread_id: thread_id.to_string(),
                 thread_name: Some("review-fix".to_string()),
             },
@@ -1041,7 +1041,7 @@ async fn live_app_server_thread_closed_requests_immediate_exit() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.handle_server_notification(
-        ServerNotification::ThreadClosed(ThreadClosedNotification {
+        ServerNotification::ChatClosed(ChatClosedNotification {
             thread_id: "thread-1".to_string(),
         }),
         /*replay_kind*/ None,

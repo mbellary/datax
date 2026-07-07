@@ -7,20 +7,20 @@ use app_test_support::to_response;
 use app_test_support::write_mock_responses_config_toml;
 use app_test_support::write_models_cache;
 use core_test_support::responses;
+use datax_app_server_protocol::ChatReadParams;
+use datax_app_server_protocol::ChatReadResponse;
+use datax_app_server_protocol::ChatSettingsUpdateParams;
+use datax_app_server_protocol::ChatSettingsUpdateResponse;
+use datax_app_server_protocol::ChatSettingsUpdatedNotification;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
 use datax_app_server_protocol::JSONRPCError;
 use datax_app_server_protocol::JSONRPCNotification;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::SandboxPolicy;
-use datax_app_server_protocol::ThreadReadParams;
-use datax_app_server_protocol::ThreadReadResponse;
-use datax_app_server_protocol::ThreadSettingsUpdateParams;
-use datax_app_server_protocol::ThreadSettingsUpdateResponse;
-use datax_app_server_protocol::ThreadSettingsUpdatedNotification;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_core::test_support::all_model_presets;
 use datax_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
@@ -50,8 +50,8 @@ async fn thread_settings_update_emits_notification_and_updates_future_turns() ->
 
     send_thread_settings_update(
         &mut mcp,
-        ThreadSettingsUpdateParams {
-            thread_id: thread.id.clone(),
+        ChatSettingsUpdateParams {
+            chat_id: thread.id.clone(),
             model: Some(model_id.clone()),
             service_tier: Some(Some(service_tier_id.clone())),
             ..Default::default()
@@ -66,7 +66,7 @@ async fn thread_settings_update_emits_notification_and_updates_future_turns() ->
     start_text_turn(&mut mcp, thread.id.clone()).await?;
 
     let updated = read_thread_settings_updated(&mut mcp).await?;
-    assert_eq!(updated.thread_id, thread.id);
+    assert_eq!(updated.chat_id, thread.id);
     assert_eq!(updated.thread_settings.model, model_id);
     assert_eq!(
         updated.thread_settings.service_tier.as_deref(),
@@ -75,12 +75,12 @@ async fn thread_settings_update_emits_notification_and_updates_future_turns() ->
 
     timeout(
         DEFAULT_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
     let read = read_thread_with_turns(&mut mcp, &thread.id).await?;
-    assert_eq!(read.thread.turns.len(), 1);
+    assert_eq!(read.thread.interactions.len(), 1);
 
     let request_bodies = received_response_bodies(&server).await?;
     assert!(
@@ -113,8 +113,8 @@ async fn thread_settings_update_cwd_retargets_default_environment() -> Result<()
 
     send_thread_settings_update(
         &mut mcp,
-        ThreadSettingsUpdateParams {
-            thread_id: thread.id.clone(),
+        ChatSettingsUpdateParams {
+            chat_id: thread.id.clone(),
             cwd: Some(workspace.path().to_path_buf()),
             ..Default::default()
         },
@@ -126,7 +126,7 @@ async fn thread_settings_update_cwd_retargets_default_environment() -> Result<()
     start_text_turn(&mut mcp, thread.id).await?;
     timeout(
         DEFAULT_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -163,14 +163,14 @@ async fn thread_settings_update_while_turn_is_active_emits_notification() -> Res
     start_text_turn(&mut mcp, thread.id.clone()).await?;
     timeout(
         DEFAULT_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/started"),
+        mcp.read_stream_until_notification_message("interaction/started"),
     )
     .await??;
 
     send_thread_settings_update(
         &mut mcp,
-        ThreadSettingsUpdateParams {
-            thread_id: thread.id.clone(),
+        ChatSettingsUpdateParams {
+            chat_id: thread.id.clone(),
             model: Some("mock-model-4".to_string()),
             ..Default::default()
         },
@@ -178,12 +178,12 @@ async fn thread_settings_update_while_turn_is_active_emits_notification() -> Res
     .await?;
 
     let updated = read_thread_settings_updated(&mut mcp).await?;
-    assert_eq!(updated.thread_id, thread.id);
+    assert_eq!(updated.chat_id, thread.id);
     assert_eq!(updated.thread_settings.model, "mock-model-4");
 
     timeout(
         DEFAULT_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
     Ok(())
@@ -206,8 +206,8 @@ async fn thread_settings_update_null_service_tier_uses_default() -> Result<()> {
 
     send_thread_settings_update(
         &mut mcp,
-        ThreadSettingsUpdateParams {
-            thread_id: thread.id.clone(),
+        ChatSettingsUpdateParams {
+            chat_id: thread.id.clone(),
             model: Some(model_id.clone()),
             service_tier: Some(Some(service_tier_id.clone())),
             ..Default::default()
@@ -216,7 +216,7 @@ async fn thread_settings_update_null_service_tier_uses_default() -> Result<()> {
     .await?;
 
     let set_updated = read_thread_settings_updated(&mut mcp).await?;
-    assert_eq!(set_updated.thread_id, thread.id);
+    assert_eq!(set_updated.chat_id, thread.id);
     assert_eq!(
         set_updated.thread_settings.service_tier.as_deref(),
         Some(service_tier_id.as_str())
@@ -224,8 +224,8 @@ async fn thread_settings_update_null_service_tier_uses_default() -> Result<()> {
 
     send_thread_settings_update(
         &mut mcp,
-        ThreadSettingsUpdateParams {
-            thread_id: thread.id.clone(),
+        ChatSettingsUpdateParams {
+            chat_id: thread.id.clone(),
             service_tier: Some(None),
             ..Default::default()
         },
@@ -233,7 +233,7 @@ async fn thread_settings_update_null_service_tier_uses_default() -> Result<()> {
     .await?;
 
     let clear_updated = read_thread_settings_updated(&mut mcp).await?;
-    assert_eq!(clear_updated.thread_id, thread.id);
+    assert_eq!(clear_updated.chat_id, thread.id);
     assert_eq!(clear_updated.thread_settings.model, model_id);
     assert_eq!(
         clear_updated.thread_settings.service_tier.as_deref(),
@@ -243,7 +243,7 @@ async fn thread_settings_update_null_service_tier_uses_default() -> Result<()> {
     start_text_turn(&mut mcp, thread.id).await?;
     timeout(
         DEFAULT_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -271,8 +271,8 @@ async fn thread_settings_update_rejects_sandbox_policy_with_permissions() -> Res
     let thread = start_thread(&mut mcp).await?.thread;
 
     let request_id = mcp
-        .send_thread_settings_update_request(ThreadSettingsUpdateParams {
-            thread_id: thread.id,
+        .send_chat_settings_update_request(ChatSettingsUpdateParams {
+            chat_id: thread.id,
             sandbox_policy: Some(SandboxPolicy::DangerFullAccess),
             permissions: Some(":workspace".to_string()),
             ..Default::default()
@@ -305,13 +305,13 @@ async fn turn_start_settings_override_emits_thread_settings_updated() -> Result<
     let thread = start_thread(&mut mcp).await?.thread;
     timeout(
         DEFAULT_TIMEOUT,
-        mcp.read_stream_until_notification_message("thread/started"),
+        mcp.read_stream_until_notification_message("chat/started"),
     )
     .await??;
 
     let turn_request_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "hello".to_string(),
@@ -326,16 +326,16 @@ async fn turn_start_settings_override_emits_thread_settings_updated() -> Result<
         mcp.read_stream_until_response_message(RequestId::Integer(turn_request_id)),
     )
     .await??;
-    let TurnStartResponse { turn } = to_response(turn_response)?;
+    let InteractionStartResponse { turn } = to_response(turn_response)?;
     assert!(!turn.id.is_empty());
 
     let updated = read_thread_settings_updated(&mut mcp).await?;
-    assert_eq!(updated.thread_id, thread.id);
+    assert_eq!(updated.chat_id, thread.id);
     assert_eq!(updated.thread_settings.model, "mock-model-3");
 
     timeout(
         DEFAULT_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
     Ok(())
@@ -343,22 +343,22 @@ async fn turn_start_settings_override_emits_thread_settings_updated() -> Result<
 
 async fn send_thread_settings_update(
     mcp: &mut TestAppServer,
-    params: ThreadSettingsUpdateParams,
+    params: ChatSettingsUpdateParams,
 ) -> Result<()> {
-    let request_id = mcp.send_thread_settings_update_request(params).await?;
+    let request_id = mcp.send_chat_settings_update_request(params).await?;
     let response: JSONRPCResponse = timeout(
         DEFAULT_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let _: ThreadSettingsUpdateResponse = to_response(response)?;
+    let _: ChatSettingsUpdateResponse = to_response(response)?;
     Ok(())
 }
 
-async fn start_text_turn(mcp: &mut TestAppServer, thread_id: String) -> Result<()> {
+async fn start_text_turn(mcp: &mut TestAppServer, chat_id: String) -> Result<()> {
     let turn_request_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id,
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id,
             input: vec![V2UserInput::Text {
                 text: "hello".to_string(),
                 text_elements: Vec::new(),
@@ -371,14 +371,14 @@ async fn start_text_turn(mcp: &mut TestAppServer, thread_id: String) -> Result<(
         mcp.read_stream_until_response_message(RequestId::Integer(turn_request_id)),
     )
     .await??;
-    let TurnStartResponse { turn } = to_response(turn_response)?;
+    let InteractionStartResponse { turn } = to_response(turn_response)?;
     assert!(!turn.id.is_empty());
     Ok(())
 }
 
-async fn start_thread(mcp: &mut TestAppServer) -> Result<ThreadStartResponse> {
+async fn start_thread(mcp: &mut TestAppServer) -> Result<ChatStartResponse> {
     let request_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -393,12 +393,12 @@ async fn start_thread(mcp: &mut TestAppServer) -> Result<ThreadStartResponse> {
 
 async fn read_thread_with_turns(
     mcp: &mut TestAppServer,
-    thread_id: &str,
-) -> Result<ThreadReadResponse> {
+    chat_id: &str,
+) -> Result<ChatReadResponse> {
     let request_id = mcp
-        .send_thread_read_request(ThreadReadParams {
-            thread_id: thread_id.to_string(),
-            include_turns: true,
+        .send_chat_read_request(ChatReadParams {
+            chat_id: chat_id.to_string(),
+            include_interactions: true,
         })
         .await?;
     let response: JSONRPCResponse = timeout(
@@ -411,15 +411,15 @@ async fn read_thread_with_turns(
 
 async fn read_thread_settings_updated(
     mcp: &mut TestAppServer,
-) -> Result<ThreadSettingsUpdatedNotification> {
+) -> Result<ChatSettingsUpdatedNotification> {
     let notification: JSONRPCNotification = timeout(
         DEFAULT_TIMEOUT,
-        mcp.read_stream_until_notification_message("thread/settings/updated"),
+        mcp.read_stream_until_notification_message("chat/settings/updated"),
     )
     .await??;
     let params = notification
         .params
-        .context("thread/settings/updated should include params")?;
+        .context("chat/settings/updated should include params")?;
     Ok(serde_json::from_value(params)?)
 }
 

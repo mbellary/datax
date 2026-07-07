@@ -5,31 +5,31 @@ use app_test_support::create_mock_responses_server_sequence;
 use app_test_support::create_shell_command_sse_response;
 use app_test_support::format_with_current_shell_display;
 use app_test_support::to_response;
+use datax_app_server_protocol::ChatForkParams;
+use datax_app_server_protocol::ChatForkResponse;
+use datax_app_server_protocol::ChatInteractionsListParams;
+use datax_app_server_protocol::ChatInteractionsListResponse;
+use datax_app_server_protocol::ChatReadParams;
+use datax_app_server_protocol::ChatReadResponse;
+use datax_app_server_protocol::ChatShellCommandParams;
+use datax_app_server_protocol::ChatShellCommandResponse;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::CommandExecutionApprovalDecision;
 use datax_app_server_protocol::CommandExecutionOutputDeltaNotification;
 use datax_app_server_protocol::CommandExecutionRequestApprovalResponse;
 use datax_app_server_protocol::CommandExecutionSource;
 use datax_app_server_protocol::CommandExecutionStatus;
-use datax_app_server_protocol::ItemCompletedNotification;
-use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::InteractionCompletedNotification;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
 use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::Message;
+use datax_app_server_protocol::MessageCompletedNotification;
+use datax_app_server_protocol::MessageStartedNotification;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::ServerRequest;
 use datax_app_server_protocol::SortDirection;
-use datax_app_server_protocol::ThreadForkParams;
-use datax_app_server_protocol::ThreadForkResponse;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadReadParams;
-use datax_app_server_protocol::ThreadReadResponse;
-use datax_app_server_protocol::ThreadShellCommandParams;
-use datax_app_server_protocol::ThreadShellCommandResponse;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::ThreadTurnsListParams;
-use datax_app_server_protocol::ThreadTurnsListResponse;
-use datax_app_server_protocol::TurnCompletedNotification;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_core::shell::default_user_shell;
 use datax_exec_server::CODEX_EXEC_SERVER_URL_ENV_VAR;
@@ -64,19 +64,19 @@ async fn thread_shell_command_history_responses_exclude_persisted_command_execut
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
     let start_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
     let (shell_command, expected_output) = current_shell_output_command("hello from bang")?;
 
     let shell_id = mcp
-        .send_thread_shell_command_request(ThreadShellCommandParams {
-            thread_id: thread.id.clone(),
+        .send_chat_shell_command_request(ChatShellCommandParams {
+            chat_id: thread.id.clone(),
             command: shell_command,
         })
         .await?;
@@ -85,10 +85,10 @@ async fn thread_shell_command_history_responses_exclude_persisted_command_execut
         mcp.read_stream_until_response_message(RequestId::Integer(shell_id)),
     )
     .await??;
-    let _: ThreadShellCommandResponse = to_response::<ThreadShellCommandResponse>(shell_resp)?;
+    let _: ChatShellCommandResponse = to_response::<ChatShellCommandResponse>(shell_resp)?;
 
     let started = wait_for_command_execution_started(&mut mcp, /*expected_id*/ None).await?;
-    let ThreadItem::CommandExecution {
+    let Message::CommandExecution {
         id, source, status, ..
     } = &started.item
     else {
@@ -105,7 +105,7 @@ async fn thread_shell_command_history_responses_exclude_persisted_command_execut
     );
 
     let completed = wait_for_command_execution_completed(&mut mcp, Some(&command_id)).await?;
-    let ThreadItem::CommandExecution {
+    let Message::CommandExecution {
         id,
         source,
         status,
@@ -124,14 +124,14 @@ async fn thread_shell_command_history_responses_exclude_persisted_command_execut
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
     let read_id = mcp
-        .send_thread_read_request(ThreadReadParams {
-            thread_id: thread.id.clone(),
-            include_turns: true,
+        .send_chat_read_request(ChatReadParams {
+            chat_id: thread.id.clone(),
+            include_interactions: true,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -139,17 +139,17 @@ async fn thread_shell_command_history_responses_exclude_persisted_command_execut
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ThreadReadResponse { thread, .. } = to_response::<ThreadReadResponse>(read_resp)?;
-    assert_eq!(thread.turns.len(), 1);
-    assert_no_command_executions(&thread.turns[0].items, "thread/read");
+    let ChatReadResponse { thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
+    assert_eq!(thread.interactions.len(), 1);
+    assert_no_command_executions(&thread.interactions[0].messages, "chat/read");
 
     let turns_list_id = mcp
-        .send_thread_turns_list_request(ThreadTurnsListParams {
-            thread_id: thread.id.clone(),
+        .send_chat_interactions_list_request(ChatInteractionsListParams {
+            chat_id: thread.id.clone(),
             cursor: None,
             limit: None,
             sort_direction: Some(SortDirection::Asc),
-            items_view: None,
+            messages_view: None,
         })
         .await?;
     let turns_list_resp: JSONRPCResponse = timeout(
@@ -157,14 +157,14 @@ async fn thread_shell_command_history_responses_exclude_persisted_command_execut
         mcp.read_stream_until_response_message(RequestId::Integer(turns_list_id)),
     )
     .await??;
-    let ThreadTurnsListResponse { data, .. } =
-        to_response::<ThreadTurnsListResponse>(turns_list_resp)?;
+    let ChatInteractionsListResponse { data, .. } =
+        to_response::<ChatInteractionsListResponse>(turns_list_resp)?;
     assert_eq!(data.len(), 1);
-    assert_no_command_executions(&data[0].items, "thread/turns/list");
+    assert_no_command_executions(&data[0].messages, "chat/interactions/list");
 
     let fork_id = mcp
-        .send_thread_fork_request(ThreadForkParams {
-            thread_id: thread.id,
+        .send_chat_fork_request(ChatForkParams {
+            chat_id: thread.id,
             ..Default::default()
         })
         .await?;
@@ -173,9 +173,9 @@ async fn thread_shell_command_history_responses_exclude_persisted_command_execut
         mcp.read_stream_until_response_message(RequestId::Integer(fork_id)),
     )
     .await??;
-    let ThreadForkResponse { thread, .. } = to_response::<ThreadForkResponse>(fork_resp)?;
-    assert_eq!(thread.turns.len(), 1);
-    assert_no_command_executions(&thread.turns[0].items, "thread/fork");
+    let ChatForkResponse { thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
+    assert_eq!(thread.interactions.len(), 1);
+    assert_no_command_executions(&thread.interactions[0].messages, "chat/fork");
 
     Ok(())
 }
@@ -201,17 +201,17 @@ async fn thread_shell_command_returns_error_when_local_environment_is_disabled()
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
     let start_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
     let shell_id = mcp
-        .send_thread_shell_command_request(ThreadShellCommandParams {
-            thread_id: thread.id,
+        .send_chat_shell_command_request(ChatShellCommandParams {
+            chat_id: thread.id,
             command: "pwd".to_string(),
         })
         .await?;
@@ -256,19 +256,19 @@ async fn thread_shell_command_uses_existing_active_turn() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
     let start_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
     let (shell_command, expected_output) = current_shell_output_command("active turn bang")?;
 
-    let turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+    let interaction_id = mcp
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "run python".to_string(),
@@ -280,13 +280,13 @@ async fn thread_shell_command_uses_existing_active_turn() -> Result<()> {
         .await?;
     let turn_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
-    let TurnStartResponse { turn } = to_response::<TurnStartResponse>(turn_resp)?;
+    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
 
     let agent_started = wait_for_command_execution_started(&mut mcp, Some("call-approve")).await?;
-    let ThreadItem::CommandExecution {
+    let Message::CommandExecution {
         command, source, ..
     } = &agent_started.item
     else {
@@ -308,8 +308,8 @@ async fn thread_shell_command_uses_existing_active_turn() -> Result<()> {
     };
 
     let shell_id = mcp
-        .send_thread_shell_command_request(ThreadShellCommandParams {
-            thread_id: thread.id.clone(),
+        .send_chat_shell_command_request(ChatShellCommandParams {
+            chat_id: thread.id.clone(),
             command: shell_command,
         })
         .await?;
@@ -318,19 +318,19 @@ async fn thread_shell_command_uses_existing_active_turn() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(shell_id)),
     )
     .await??;
-    let _: ThreadShellCommandResponse = to_response::<ThreadShellCommandResponse>(shell_resp)?;
+    let _: ChatShellCommandResponse = to_response::<ChatShellCommandResponse>(shell_resp)?;
 
     let started =
         wait_for_command_execution_started_by_source(&mut mcp, CommandExecutionSource::UserShell)
             .await?;
-    assert_eq!(started.turn_id, turn.id);
+    assert_eq!(started.interaction_id, turn.id);
     let command_id = match &started.item {
-        ThreadItem::CommandExecution { id, .. } => id.clone(),
+        Message::CommandExecution { id, .. } => id.clone(),
         _ => unreachable!("helper returns command execution item"),
     };
     let completed = wait_for_command_execution_completed(&mut mcp, Some(&command_id)).await?;
-    assert_eq!(completed.turn_id, turn.id);
-    let ThreadItem::CommandExecution {
+    assert_eq!(completed.interaction_id, turn.id);
+    let Message::CommandExecution {
         source,
         aggregated_output,
         ..
@@ -348,20 +348,20 @@ async fn thread_shell_command_uses_existing_active_turn() -> Result<()> {
         })?,
     )
     .await?;
-    let _: TurnCompletedNotification = serde_json::from_value(
+    let _: InteractionCompletedNotification = serde_json::from_value(
         timeout(
             DEFAULT_READ_TIMEOUT,
-            mcp.read_stream_until_notification_message("turn/completed"),
+            mcp.read_stream_until_notification_message("interaction/completed"),
         )
         .await??
         .params
-        .expect("turn/completed params"),
+        .expect("interaction/completed params"),
     )?;
 
     let read_id = mcp
-        .send_thread_read_request(ThreadReadParams {
-            thread_id: thread.id,
-            include_turns: true,
+        .send_chat_read_request(ChatReadParams {
+            chat_id: thread.id,
+            include_interactions: true,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -369,19 +369,19 @@ async fn thread_shell_command_uses_existing_active_turn() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ThreadReadResponse { thread, .. } = to_response::<ThreadReadResponse>(read_resp)?;
-    assert_eq!(thread.turns.len(), 1);
-    assert_no_command_executions(&thread.turns[0].items, "thread/read");
+    let ChatReadResponse { thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
+    assert_eq!(thread.interactions.len(), 1);
+    assert_no_command_executions(&thread.interactions[0].messages, "chat/read");
 
     Ok(())
 }
 
-fn assert_no_command_executions(items: &[ThreadItem], context: &str) {
+fn assert_no_command_executions(messages: &[Message], context: &str) {
     assert!(
-        items
+        messages
             .iter()
-            .all(|item| !matches!(item, ThreadItem::CommandExecution { .. })),
-        "{context} should always exclude command executions from returned turns"
+            .all(|item| !matches!(item, Message::CommandExecution { .. })),
+        "{context} should always exclude command executions from returned interactions"
     );
 }
 
@@ -406,17 +406,17 @@ fn current_shell_output_command(text: &str) -> Result<(String, String)> {
 async fn wait_for_command_execution_started(
     mcp: &mut TestAppServer,
     expected_id: Option<&str>,
-) -> Result<ItemStartedNotification> {
+) -> Result<MessageStartedNotification> {
     loop {
         let notif = mcp
-            .read_stream_until_notification_message("item/started")
+            .read_stream_until_notification_message("message/started")
             .await?;
-        let started: ItemStartedNotification = serde_json::from_value(
+        let started: MessageStartedNotification = serde_json::from_value(
             notif
                 .params
-                .ok_or_else(|| anyhow::anyhow!("missing item/started params"))?,
+                .ok_or_else(|| anyhow::anyhow!("missing message/started params"))?,
         )?;
-        let ThreadItem::CommandExecution { id, .. } = &started.item else {
+        let Message::CommandExecution { id, .. } = &started.item else {
             continue;
         };
         if expected_id.is_none() || expected_id == Some(id.as_str()) {
@@ -428,10 +428,10 @@ async fn wait_for_command_execution_started(
 async fn wait_for_command_execution_started_by_source(
     mcp: &mut TestAppServer,
     expected_source: CommandExecutionSource,
-) -> Result<ItemStartedNotification> {
+) -> Result<MessageStartedNotification> {
     loop {
         let started = wait_for_command_execution_started(mcp, /*expected_id*/ None).await?;
-        let ThreadItem::CommandExecution { source, .. } = &started.item else {
+        let Message::CommandExecution { source, .. } = &started.item else {
             continue;
         };
         if source == &expected_source {
@@ -443,17 +443,17 @@ async fn wait_for_command_execution_started_by_source(
 async fn wait_for_command_execution_completed(
     mcp: &mut TestAppServer,
     expected_id: Option<&str>,
-) -> Result<ItemCompletedNotification> {
+) -> Result<MessageCompletedNotification> {
     loop {
         let notif = mcp
-            .read_stream_until_notification_message("item/completed")
+            .read_stream_until_notification_message("message/completed")
             .await?;
-        let completed: ItemCompletedNotification = serde_json::from_value(
+        let completed: MessageCompletedNotification = serde_json::from_value(
             notif
                 .params
-                .ok_or_else(|| anyhow::anyhow!("missing item/completed params"))?,
+                .ok_or_else(|| anyhow::anyhow!("missing message/completed params"))?,
         )?;
-        let ThreadItem::CommandExecution { id, .. } = &completed.item else {
+        let Message::CommandExecution { id, .. } = &completed.item else {
             continue;
         };
         if expected_id.is_none() || expected_id == Some(id.as_str()) {
@@ -464,18 +464,18 @@ async fn wait_for_command_execution_completed(
 
 async fn wait_for_command_execution_output_delta(
     mcp: &mut TestAppServer,
-    item_id: &str,
+    message_id: &str,
 ) -> Result<CommandExecutionOutputDeltaNotification> {
     loop {
         let notif = mcp
-            .read_stream_until_notification_message("item/commandExecution/outputDelta")
+            .read_stream_until_notification_message("message/commandExecution/outputDelta")
             .await?;
         let delta: CommandExecutionOutputDeltaNotification = serde_json::from_value(
             notif
                 .params
                 .ok_or_else(|| anyhow::anyhow!("missing output delta params"))?,
         )?;
-        if delta.item_id == item_id {
+        if delta.message_id == message_id {
             return Ok(delta);
         }
     }

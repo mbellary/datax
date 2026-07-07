@@ -1,3 +1,4 @@
+use datax_app_server_protocol::ChatTokenUsage;
 use datax_app_server_protocol::CollabAgentState as ApiCollabAgentState;
 use datax_app_server_protocol::CollabAgentStatus as ApiCollabAgentStatus;
 use datax_app_server_protocol::CollabAgentTool;
@@ -7,25 +8,24 @@ use datax_app_server_protocol::CommandExecutionSource;
 use datax_app_server_protocol::CommandExecutionStatus as ApiCommandExecutionStatus;
 use datax_app_server_protocol::ErrorNotification;
 use datax_app_server_protocol::FileUpdateChange as ApiFileUpdateChange;
-use datax_app_server_protocol::ItemCompletedNotification;
-use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::Interaction;
+use datax_app_server_protocol::InteractionCompletedNotification;
+use datax_app_server_protocol::InteractionError;
+use datax_app_server_protocol::InteractionPlanStep;
+use datax_app_server_protocol::InteractionPlanStepStatus;
+use datax_app_server_protocol::InteractionPlanUpdatedNotification;
+use datax_app_server_protocol::InteractionStartedNotification;
+use datax_app_server_protocol::InteractionStatus;
 use datax_app_server_protocol::McpToolCallError;
 use datax_app_server_protocol::McpToolCallResult;
 use datax_app_server_protocol::McpToolCallStatus as ApiMcpToolCallStatus;
+use datax_app_server_protocol::Message;
+use datax_app_server_protocol::MessageCompletedNotification;
+use datax_app_server_protocol::MessageStartedNotification;
 use datax_app_server_protocol::PatchApplyStatus as ApiPatchApplyStatus;
 use datax_app_server_protocol::PatchChangeKind as ApiPatchChangeKind;
 use datax_app_server_protocol::ServerNotification;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadTokenUsage;
 use datax_app_server_protocol::TokenUsageBreakdown;
-use datax_app_server_protocol::Turn;
-use datax_app_server_protocol::TurnCompletedNotification;
-use datax_app_server_protocol::TurnError;
-use datax_app_server_protocol::TurnPlanStep;
-use datax_app_server_protocol::TurnPlanStepStatus;
-use datax_app_server_protocol::TurnPlanUpdatedNotification;
-use datax_app_server_protocol::TurnStartedNotification;
-use datax_app_server_protocol::TurnStatus;
 use datax_app_server_protocol::WebSearchAction as ApiWebSearchAction;
 use datax_protocol::SessionId;
 use datax_protocol::ThreadId;
@@ -78,13 +78,13 @@ use datax_exec::WebSearchItem;
 #[test]
 fn map_todo_items_preserves_text_and_completion_state() {
     let items = EventProcessorWithJsonOutput::map_todo_items(&[
-        TurnPlanStep {
+        InteractionPlanStep {
             step: "inspect bootstrap".to_string(),
-            status: TurnPlanStepStatus::InProgress,
+            status: InteractionPlanStepStatus::InProgress,
         },
-        TurnPlanStep {
+        InteractionPlanStep {
             step: "drop legacy notifications".to_string(),
-            status: TurnPlanStepStatus::Completed,
+            status: InteractionPlanStepStatus::Completed,
         },
     ]);
 
@@ -140,20 +140,21 @@ fn session_configured_produces_thread_started_event() {
 fn turn_started_emits_turn_started_event() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let collected =
-        processor.collect_thread_events(ServerNotification::TurnStarted(TurnStartedNotification {
+    let collected = processor.collect_thread_events(ServerNotification::InteractionStarted(
+        InteractionStartedNotification {
             thread_id: "thread-1".to_string(),
-            turn: Turn {
+            turn: Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: Vec::new(),
-                status: TurnStatus::InProgress,
+                status: InteractionStatus::InProgress,
                 error: None,
                 started_at: None,
                 completed_at: None,
                 duration_ms: None,
             },
-        }));
+        },
+    ));
 
     assert_eq!(
         collected,
@@ -167,7 +168,7 @@ fn turn_started_emits_turn_started_event() {
 #[test]
 fn command_execution_started_and_completed_translate_to_thread_events() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
-    let command_item = ThreadItem::CommandExecution {
+    let command_item = Message::CommandExecution {
         id: "cmd-1".to_string(),
         command: "ls".to_string(),
         cwd: test_path_buf("/tmp/project").abs().into(),
@@ -180,13 +181,14 @@ fn command_execution_started_and_completed_translate_to_thread_events() {
         duration_ms: None,
     };
 
-    let started =
-        processor.collect_thread_events(ServerNotification::ItemStarted(ItemStartedNotification {
+    let started = processor.collect_thread_events(ServerNotification::MessageStarted(
+        MessageStartedNotification {
             item: command_item,
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             started_at_ms: 0,
-        }));
+        },
+    ));
     assert_eq!(
         started,
         CollectedThreadEvents {
@@ -205,9 +207,9 @@ fn command_execution_started_and_completed_translate_to_thread_events() {
         }
     );
 
-    let completed = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::CommandExecution {
+    let completed = processor.collect_thread_events(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::CommandExecution {
                 id: "cmd-1".to_string(),
                 command: "ls".to_string(),
                 cwd: test_path_buf("/tmp/project").abs().into(),
@@ -247,9 +249,9 @@ fn command_execution_started_and_completed_translate_to_thread_events() {
 fn empty_reasoning_items_are_ignored() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let collected = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::Reasoning {
+    let collected = processor.collect_thread_events(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::Reasoning {
                 id: "reasoning-1".to_string(),
                 summary: Vec::new(),
                 content: vec!["raw reasoning".to_string()],
@@ -273,9 +275,9 @@ fn empty_reasoning_items_are_ignored() {
 fn unsupported_items_do_not_consume_synthetic_ids() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let ignored = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::Plan {
+    let ignored = processor.collect_thread_events(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::Plan {
                 id: "plan-1".to_string(),
                 text: "ignored plan".to_string(),
             },
@@ -293,9 +295,9 @@ fn unsupported_items_do_not_consume_synthetic_ids() {
         }
     );
 
-    let collected = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::AgentMessage {
+    let collected = processor.collect_thread_events(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::AgentMessage {
                 id: "message-1".to_string(),
                 text: "hello".to_string(),
                 phase: None,
@@ -327,9 +329,9 @@ fn unsupported_items_do_not_consume_synthetic_ids() {
 fn reasoning_items_emit_summary_not_raw_content() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let collected = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::Reasoning {
+    let collected = processor.collect_thread_events(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::Reasoning {
                 id: "reasoning-1".to_string(),
                 summary: vec!["safe summary".to_string()],
                 content: vec!["raw reasoning".to_string()],
@@ -360,9 +362,9 @@ fn reasoning_items_emit_summary_not_raw_content() {
 fn web_search_completion_preserves_query_and_action() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let collected = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::WebSearch {
+    let collected = processor.collect_thread_events(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::WebSearch {
                 id: "search-1".to_string(),
                 query: "rust async await".to_string(),
                 action: Some(ApiWebSearchAction::Search {
@@ -401,9 +403,9 @@ fn web_search_completion_preserves_query_and_action() {
 fn web_search_start_and_completion_reuse_item_id() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let started =
-        processor.collect_thread_events(ServerNotification::ItemStarted(ItemStartedNotification {
-            item: ThreadItem::WebSearch {
+    let started = processor.collect_thread_events(ServerNotification::MessageStarted(
+        MessageStartedNotification {
+            item: Message::WebSearch {
                 id: "search-1".to_string(),
                 query: String::new(),
                 action: None,
@@ -411,11 +413,12 @@ fn web_search_start_and_completion_reuse_item_id() {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             started_at_ms: 0,
-        }));
+        },
+    ));
 
-    let completed = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::WebSearch {
+    let completed = processor.collect_thread_events(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::WebSearch {
                 id: "search-1".to_string(),
                 query: "rust async await".to_string(),
                 action: Some(ApiWebSearchAction::Search {
@@ -470,9 +473,9 @@ fn web_search_start_and_completion_reuse_item_id() {
 fn mcp_tool_call_begin_and_end_emit_item_events() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let started =
-        processor.collect_thread_events(ServerNotification::ItemStarted(ItemStartedNotification {
-            item: ThreadItem::McpToolCall {
+    let started = processor.collect_thread_events(ServerNotification::MessageStarted(
+        MessageStartedNotification {
+            item: Message::McpToolCall {
                 id: "mcp-1".to_string(),
                 server: "server_a".to_string(),
                 tool: "tool_x".to_string(),
@@ -488,10 +491,11 @@ fn mcp_tool_call_begin_and_end_emit_item_events() {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             started_at_ms: 0,
-        }));
-    let completed = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::McpToolCall {
+        },
+    ));
+    let completed = processor.collect_thread_events(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::McpToolCall {
                 id: "mcp-1".to_string(),
                 server: "server_a".to_string(),
                 tool: "tool_x".to_string(),
@@ -562,9 +566,9 @@ fn mcp_tool_call_begin_and_end_emit_item_events() {
 fn mcp_tool_call_failure_sets_failed_status() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let collected = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::McpToolCall {
+    let collected = processor.collect_thread_events(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::McpToolCall {
                 id: "mcp-2".to_string(),
                 server: "server_b".to_string(),
                 tool: "tool_y".to_string(),
@@ -612,9 +616,9 @@ fn mcp_tool_call_failure_sets_failed_status() {
 fn mcp_tool_call_defaults_arguments_and_preserves_structured_content() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let started =
-        processor.collect_thread_events(ServerNotification::ItemStarted(ItemStartedNotification {
-            item: ThreadItem::McpToolCall {
+    let started = processor.collect_thread_events(ServerNotification::MessageStarted(
+        MessageStartedNotification {
+            item: Message::McpToolCall {
                 id: "mcp-3".to_string(),
                 server: "server_c".to_string(),
                 tool: "tool_z".to_string(),
@@ -630,10 +634,11 @@ fn mcp_tool_call_defaults_arguments_and_preserves_structured_content() {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             started_at_ms: 0,
-        }));
-    let completed = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::McpToolCall {
+        },
+    ));
+    let completed = processor.collect_thread_events(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::McpToolCall {
                 id: "mcp-3".to_string(),
                 server: "server_c".to_string(),
                 tool: "tool_z".to_string(),
@@ -710,9 +715,9 @@ fn mcp_tool_call_defaults_arguments_and_preserves_structured_content() {
 fn collab_spawn_begin_and_end_emit_item_events() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let started =
-        processor.collect_thread_events(ServerNotification::ItemStarted(ItemStartedNotification {
-            item: ThreadItem::CollabAgentToolCall {
+    let started = processor.collect_thread_events(ServerNotification::MessageStarted(
+        MessageStartedNotification {
+            item: Message::CollabAgentToolCall {
                 id: "collab-1".to_string(),
                 tool: CollabAgentTool::SpawnAgent,
                 status: ApiCollabAgentToolCallStatus::InProgress,
@@ -726,10 +731,11 @@ fn collab_spawn_begin_and_end_emit_item_events() {
             thread_id: "thread-parent".to_string(),
             turn_id: "turn-1".to_string(),
             started_at_ms: 0,
-        }));
-    let completed = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::CollabAgentToolCall {
+        },
+    ));
+    let completed = processor.collect_thread_events(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::CollabAgentToolCall {
                 id: "collab-1".to_string(),
                 tool: CollabAgentTool::SpawnAgent,
                 status: ApiCollabAgentToolCallStatus::Completed,
@@ -802,9 +808,9 @@ fn collab_spawn_begin_and_end_emit_item_events() {
 fn file_change_completion_maps_change_kinds() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let collected = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::FileChange {
+    let collected = processor.collect_thread_events(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::FileChange {
                 id: "patch-1".to_string(),
                 changes: vec![
                     ApiFileUpdateChange {
@@ -865,9 +871,9 @@ fn file_change_completion_maps_change_kinds() {
 fn file_change_declined_maps_to_failed_status() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let collected = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::FileChange {
+    let collected = processor.collect_thread_events(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::FileChange {
                 id: "patch-2".to_string(),
                 changes: vec![ApiFileUpdateChange {
                     path: "file.txt".to_string(),
@@ -906,9 +912,9 @@ fn file_change_declined_maps_to_failed_status() {
 fn agent_message_item_updates_final_message() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let collected = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::AgentMessage {
+    let collected = processor.collect_thread_events(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::AgentMessage {
                 id: "msg-1".to_string(),
                 text: "hello".to_string(),
                 phase: None,
@@ -941,9 +947,9 @@ fn agent_message_item_updates_final_message() {
 fn agent_message_item_started_is_ignored() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let collected =
-        processor.collect_thread_events(ServerNotification::ItemStarted(ItemStartedNotification {
-            item: ThreadItem::AgentMessage {
+    let collected = processor.collect_thread_events(ServerNotification::MessageStarted(
+        MessageStartedNotification {
+            item: Message::AgentMessage {
                 id: "msg-1".to_string(),
                 text: "hello".to_string(),
                 phase: None,
@@ -952,7 +958,8 @@ fn agent_message_item_started_is_ignored() {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             started_at_ms: 0,
-        }));
+        },
+    ));
 
     assert_eq!(
         collected,
@@ -967,9 +974,9 @@ fn agent_message_item_started_is_ignored() {
 fn reasoning_item_completed_uses_synthetic_id() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let collected = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::Reasoning {
+    let collected = processor.collect_thread_events(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::Reasoning {
                 id: "rs-1".to_string(),
                 summary: vec!["thinking...".to_string()],
                 content: vec!["raw".to_string()],
@@ -1024,19 +1031,19 @@ fn warning_event_produces_error_item() {
 fn plan_update_emits_started_then_updated_then_completed() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let started = processor.collect_thread_events(ServerNotification::TurnPlanUpdated(
-        TurnPlanUpdatedNotification {
+    let started = processor.collect_thread_events(ServerNotification::InteractionPlanUpdated(
+        InteractionPlanUpdatedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             explanation: None,
             plan: vec![
-                TurnPlanStep {
+                InteractionPlanStep {
                     step: "step one".to_string(),
-                    status: TurnPlanStepStatus::Pending,
+                    status: InteractionPlanStepStatus::Pending,
                 },
-                TurnPlanStep {
+                InteractionPlanStep {
                     step: "step two".to_string(),
-                    status: TurnPlanStepStatus::InProgress,
+                    status: InteractionPlanStepStatus::InProgress,
                 },
             ],
         },
@@ -1065,19 +1072,19 @@ fn plan_update_emits_started_then_updated_then_completed() {
         }
     );
 
-    let updated = processor.collect_thread_events(ServerNotification::TurnPlanUpdated(
-        TurnPlanUpdatedNotification {
+    let updated = processor.collect_thread_events(ServerNotification::InteractionPlanUpdated(
+        InteractionPlanUpdatedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             explanation: None,
             plan: vec![
-                TurnPlanStep {
+                InteractionPlanStep {
                     step: "step one".to_string(),
-                    status: TurnPlanStepStatus::Completed,
+                    status: InteractionPlanStepStatus::Completed,
                 },
-                TurnPlanStep {
+                InteractionPlanStep {
                     step: "step two".to_string(),
-                    status: TurnPlanStepStatus::InProgress,
+                    status: InteractionPlanStepStatus::InProgress,
                 },
             ],
         },
@@ -1106,14 +1113,14 @@ fn plan_update_emits_started_then_updated_then_completed() {
         }
     );
 
-    let completed = processor.collect_thread_events(ServerNotification::TurnCompleted(
-        TurnCompletedNotification {
+    let completed = processor.collect_thread_events(ServerNotification::InteractionCompleted(
+        InteractionCompletedNotification {
             thread_id: "thread-1".to_string(),
-            turn: Turn {
+            turn: Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: Vec::new(),
-                status: TurnStatus::Completed,
+                status: InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
@@ -1155,25 +1162,25 @@ fn plan_update_emits_started_then_updated_then_completed() {
 fn plan_update_after_completion_starts_new_todo_list_with_new_id() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let _ = processor.collect_thread_events(ServerNotification::TurnPlanUpdated(
-        TurnPlanUpdatedNotification {
+    let _ = processor.collect_thread_events(ServerNotification::InteractionPlanUpdated(
+        InteractionPlanUpdatedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             explanation: None,
-            plan: vec![TurnPlanStep {
+            plan: vec![InteractionPlanStep {
                 step: "only".to_string(),
-                status: TurnPlanStepStatus::Pending,
+                status: InteractionPlanStepStatus::Pending,
             }],
         },
     ));
-    let _ = processor.collect_thread_events(ServerNotification::TurnCompleted(
-        TurnCompletedNotification {
+    let _ = processor.collect_thread_events(ServerNotification::InteractionCompleted(
+        InteractionCompletedNotification {
             thread_id: "thread-1".to_string(),
-            turn: Turn {
+            turn: Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: Vec::new(),
-                status: TurnStatus::Completed,
+                status: InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
@@ -1182,14 +1189,14 @@ fn plan_update_after_completion_starts_new_todo_list_with_new_id() {
         },
     ));
 
-    let restarted = processor.collect_thread_events(ServerNotification::TurnPlanUpdated(
-        TurnPlanUpdatedNotification {
+    let restarted = processor.collect_thread_events(ServerNotification::InteractionPlanUpdated(
+        InteractionPlanUpdatedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-2".to_string(),
             explanation: None,
-            plan: vec![TurnPlanStep {
+            plan: vec![InteractionPlanStep {
                 step: "again".to_string(),
-                status: TurnPlanStepStatus::Pending,
+                status: InteractionPlanStepStatus::Pending,
             }],
         },
     ));
@@ -1217,30 +1224,29 @@ fn plan_update_after_completion_starts_new_todo_list_with_new_id() {
 fn token_usage_update_is_emitted_on_turn_completion() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let usage_update =
-        processor.collect_thread_events(ServerNotification::ThreadTokenUsageUpdated(
-            datax_app_server_protocol::ThreadTokenUsageUpdatedNotification {
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
-                token_usage: ThreadTokenUsage {
-                    total: TokenUsageBreakdown {
-                        total_tokens: 42,
-                        input_tokens: 10,
-                        cached_input_tokens: 3,
-                        output_tokens: 29,
-                        reasoning_output_tokens: 7,
-                    },
-                    last: TokenUsageBreakdown {
-                        total_tokens: 42,
-                        input_tokens: 10,
-                        cached_input_tokens: 3,
-                        output_tokens: 29,
-                        reasoning_output_tokens: 7,
-                    },
-                    model_context_window: Some(128_000),
+    let usage_update = processor.collect_thread_events(ServerNotification::ChatTokenUsageUpdated(
+        datax_app_server_protocol::ChatTokenUsageUpdatedNotification {
+            thread_id: "thread-1".to_string(),
+            turn_id: "turn-1".to_string(),
+            token_usage: ChatTokenUsage {
+                total: TokenUsageBreakdown {
+                    total_tokens: 42,
+                    input_tokens: 10,
+                    cached_input_tokens: 3,
+                    output_tokens: 29,
+                    reasoning_output_tokens: 7,
                 },
+                last: TokenUsageBreakdown {
+                    total_tokens: 42,
+                    input_tokens: 10,
+                    cached_input_tokens: 3,
+                    output_tokens: 29,
+                    reasoning_output_tokens: 7,
+                },
+                model_context_window: Some(128_000),
             },
-        ));
+        },
+    ));
     assert_eq!(
         usage_update,
         CollectedThreadEvents {
@@ -1249,14 +1255,14 @@ fn token_usage_update_is_emitted_on_turn_completion() {
         }
     );
 
-    let completed = processor.collect_thread_events(ServerNotification::TurnCompleted(
-        TurnCompletedNotification {
+    let completed = processor.collect_thread_events(ServerNotification::InteractionCompleted(
+        InteractionCompletedNotification {
             thread_id: "thread-1".to_string(),
-            turn: Turn {
+            turn: Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: Vec::new(),
-                status: TurnStatus::Completed,
+                status: InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
@@ -1284,19 +1290,19 @@ fn token_usage_update_is_emitted_on_turn_completion() {
 fn turn_completion_recovers_final_message_from_turn_items() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let completed = processor.collect_thread_events(ServerNotification::TurnCompleted(
-        TurnCompletedNotification {
+    let completed = processor.collect_thread_events(ServerNotification::InteractionCompleted(
+        InteractionCompletedNotification {
             thread_id: "thread-1".to_string(),
-            turn: Turn {
+            turn: Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
-                items: vec![ThreadItem::AgentMessage {
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                items: vec![Message::AgentMessage {
                     id: "msg-1".to_string(),
                     text: "final answer".to_string(),
                     phase: None,
                     memory_citation: None,
                 }],
-                status: TurnStatus::Completed,
+                status: InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
@@ -1321,9 +1327,9 @@ fn turn_completion_recovers_final_message_from_turn_items() {
 fn turn_completion_reconciles_started_items_from_turn_items() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let started =
-        processor.collect_thread_events(ServerNotification::ItemStarted(ItemStartedNotification {
-            item: ThreadItem::CommandExecution {
+    let started = processor.collect_thread_events(ServerNotification::MessageStarted(
+        MessageStartedNotification {
+            item: Message::CommandExecution {
                 id: "cmd-1".to_string(),
                 command: "ls".to_string(),
                 cwd: test_path_buf("/tmp/project").abs().into(),
@@ -1338,7 +1344,8 @@ fn turn_completion_reconciles_started_items_from_turn_items() {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             started_at_ms: 0,
-        }));
+        },
+    ));
     assert_eq!(
         started,
         CollectedThreadEvents {
@@ -1357,13 +1364,13 @@ fn turn_completion_reconciles_started_items_from_turn_items() {
         }
     );
 
-    let completed = processor.collect_thread_events(ServerNotification::TurnCompleted(
-        TurnCompletedNotification {
+    let completed = processor.collect_thread_events(ServerNotification::InteractionCompleted(
+        InteractionCompletedNotification {
             thread_id: "thread-1".to_string(),
-            turn: Turn {
+            turn: Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
-                items: vec![ThreadItem::CommandExecution {
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                items: vec![Message::CommandExecution {
                     id: "cmd-1".to_string(),
                     command: "ls".to_string(),
                     cwd: test_path_buf("/tmp/project").abs().into(),
@@ -1375,7 +1382,7 @@ fn turn_completion_reconciles_started_items_from_turn_items() {
                     exit_code: Some(0),
                     duration_ms: Some(3),
                 }],
-                status: TurnStatus::Completed,
+                status: InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
@@ -1411,9 +1418,9 @@ fn turn_completion_reconciles_started_items_from_turn_items() {
 #[test]
 fn turn_completion_overwrites_stale_final_message_from_turn_items() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
-    let _ = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::AgentMessage {
+    let _ = processor.collect_thread_events(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::AgentMessage {
                 id: "msg-stale".to_string(),
                 text: "stale answer".to_string(),
                 phase: None,
@@ -1425,19 +1432,19 @@ fn turn_completion_overwrites_stale_final_message_from_turn_items() {
         },
     ));
 
-    let completed = processor.collect_thread_events(ServerNotification::TurnCompleted(
-        TurnCompletedNotification {
+    let completed = processor.collect_thread_events(ServerNotification::InteractionCompleted(
+        InteractionCompletedNotification {
             thread_id: "thread-1".to_string(),
-            turn: Turn {
+            turn: Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
-                items: vec![ThreadItem::AgentMessage {
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                items: vec![Message::AgentMessage {
                     id: "msg-1".to_string(),
                     text: "final answer".to_string(),
                     phase: None,
                     memory_citation: None,
                 }],
-                status: TurnStatus::Completed,
+                status: InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
@@ -1461,9 +1468,9 @@ fn turn_completion_overwrites_stale_final_message_from_turn_items() {
 #[test]
 fn turn_completion_preserves_streamed_final_message_when_turn_items_are_empty() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
-    let _ = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::AgentMessage {
+    let _ = processor.collect_thread_events(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::AgentMessage {
                 id: "msg-streamed".to_string(),
                 text: "streamed answer".to_string(),
                 phase: None,
@@ -1475,14 +1482,14 @@ fn turn_completion_preserves_streamed_final_message_when_turn_items_are_empty() 
         },
     ));
 
-    let completed = processor.collect_thread_events(ServerNotification::TurnCompleted(
-        TurnCompletedNotification {
+    let completed = processor.collect_thread_events(ServerNotification::InteractionCompleted(
+        InteractionCompletedNotification {
             thread_id: "thread-1".to_string(),
-            turn: Turn {
+            turn: Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: Vec::new(),
-                status: TurnStatus::Completed,
+                status: InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
@@ -1507,9 +1514,9 @@ fn turn_completion_preserves_streamed_final_message_when_turn_items_are_empty() 
 fn failed_turn_clears_stale_final_message() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let collected = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::AgentMessage {
+    let collected = processor.collect_thread_events(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::AgentMessage {
                 id: "msg-1".to_string(),
                 text: "partial answer".to_string(),
                 phase: None,
@@ -1524,15 +1531,15 @@ fn failed_turn_clears_stale_final_message() {
     assert_eq!(collected.status, CodexStatus::Running);
     assert_eq!(processor.final_message(), Some("partial answer"));
 
-    let collected = processor.collect_thread_events(ServerNotification::TurnCompleted(
-        TurnCompletedNotification {
+    let collected = processor.collect_thread_events(ServerNotification::InteractionCompleted(
+        InteractionCompletedNotification {
             thread_id: "thread-1".to_string(),
-            turn: Turn {
+            turn: Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: Vec::new(),
-                status: TurnStatus::Failed,
-                error: Some(TurnError {
+                status: InteractionStatus::Failed,
+                error: Some(InteractionError {
                     message: "turn failed".to_string(),
                     additional_details: None,
                     codex_error_info: None,
@@ -1552,17 +1559,17 @@ fn failed_turn_clears_stale_final_message() {
 fn turn_completion_falls_back_to_final_plan_text() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let completed = processor.collect_thread_events(ServerNotification::TurnCompleted(
-        TurnCompletedNotification {
+    let completed = processor.collect_thread_events(ServerNotification::InteractionCompleted(
+        InteractionCompletedNotification {
             thread_id: "thread-1".to_string(),
-            turn: Turn {
+            turn: Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
-                items: vec![ThreadItem::Plan {
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                items: vec![Message::Plan {
                     id: "plan-1".to_string(),
                     text: "ship the typed adapter".to_string(),
                 }],
-                status: TurnStatus::Completed,
+                status: InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
@@ -1588,7 +1595,7 @@ fn turn_failure_prefers_structured_error_message() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
     let error = processor.collect_thread_events(ServerNotification::Error(ErrorNotification {
-        error: TurnError {
+        error: InteractionError {
             message: "backend failed".to_string(),
             codex_error_info: None,
             additional_details: Some("request id abc".to_string()),
@@ -1607,14 +1614,14 @@ fn turn_failure_prefers_structured_error_message() {
         }
     );
 
-    let failed = processor.collect_thread_events(ServerNotification::TurnCompleted(
-        TurnCompletedNotification {
+    let failed = processor.collect_thread_events(ServerNotification::InteractionCompleted(
+        InteractionCompletedNotification {
             thread_id: "thread-1".to_string(),
-            turn: Turn {
+            turn: Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: Vec::new(),
-                status: TurnStatus::Failed,
+                status: InteractionStatus::Failed,
                 error: None,
                 started_at: None,
                 completed_at: None,

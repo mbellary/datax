@@ -282,9 +282,9 @@ impl ConfigRequestProcessor {
                 return;
             }
         };
-        let thread_ids = self.thread_manager.list_thread_ids().await;
-        for thread_id in thread_ids {
-            let Ok(thread) = self.thread_manager.get_thread(thread_id).await else {
+        let chat_ids = self.thread_manager.list_thread_ids().await;
+        for chat_id in chat_ids {
+            let Ok(thread) = self.thread_manager.get_thread(chat_id).await else {
                 continue;
             };
             thread.refresh_runtime_config(next_config.clone()).await;

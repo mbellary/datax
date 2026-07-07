@@ -4,16 +4,16 @@ use app_test_support::create_final_assistant_message_sse_response;
 use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::to_response;
 use core_test_support::fs_wait;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::ClientInfo;
 use datax_app_server_protocol::InitializeCapabilities;
 use datax_app_server_protocol::InitializeResponse;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
 use datax_app_server_protocol::JSONRPCMessage;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_utils_absolute_path::AbsolutePathBuf;
 use datax_utils_cargo_bin::cargo_bin;
@@ -213,7 +213,7 @@ async fn initialize_opt_out_notification_methods_filters_notifications() -> Resu
             Some(InitializeCapabilities {
                 experimental_api: true,
                 request_attestation: false,
-                opt_out_notification_methods: Some(vec!["thread/started".to_string()]),
+                opt_out_notification_methods: Some(vec!["chat/started".to_string()]),
                 mcp_server_openai_form_elicitation: false,
             }),
         ),
@@ -224,7 +224,7 @@ async fn initialize_opt_out_notification_methods_filters_notifications() -> Resu
     };
 
     let request_id = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
     let response = timeout(DEFAULT_READ_TIMEOUT, async {
         loop {
@@ -236,25 +236,25 @@ async fn initialize_opt_out_notification_methods_filters_notifications() -> Resu
                     return Ok(response);
                 }
                 JSONRPCMessage::Notification(notification)
-                    if notification.method == "thread/started" =>
+                    if notification.method == "chat/started" =>
                 {
-                    anyhow::bail!("thread/started should be filtered by optOutNotificationMethods");
+                    anyhow::bail!("chat/started should be filtered by optOutNotificationMethods");
                 }
                 _ => {}
             }
         }
     })
     .await??;
-    let _: ThreadStartResponse = to_response(response)?;
+    let _: ChatStartResponse = to_response(response)?;
 
     let thread_started = timeout(
         std::time::Duration::from_millis(500),
-        mcp.read_stream_until_notification_message("thread/started"),
+        mcp.read_stream_until_notification_message("chat/started"),
     )
     .await;
     assert!(
         thread_started.is_err(),
-        "thread/started should be filtered by optOutNotificationMethods"
+        "chat/started should be filtered by optOutNotificationMethods"
     );
     Ok(())
 }
@@ -295,18 +295,18 @@ async fn turn_start_notify_payload_includes_initialize_client_name() -> Result<(
     .await??;
 
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
     let thread_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(thread_resp)?;
+    let ChatStartResponse { thread, .. } = to_response(thread_resp)?;
 
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id,
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id,
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "Hello".to_string(),
@@ -320,11 +320,11 @@ async fn turn_start_notify_payload_includes_initialize_client_name() -> Result<(
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let _: TurnStartResponse = to_response(turn_resp)?;
+    let _: InteractionStartResponse = to_response(turn_resp)?;
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 

@@ -86,7 +86,7 @@ async fn detect_home_lists_config_skills_and_agents_md() {
     )
     .expect("write settings");
 
-    let items = service_for_paths(external_agent_home.clone(), codex_home.clone())
+    let messages = service_for_paths(external_agent_home.clone(), codex_home.clone())
         .detect(ExternalAgentConfigDetectOptions {
             include_home: true,
             cwds: None,
@@ -127,7 +127,7 @@ async fn detect_home_lists_config_skills_and_agents_md() {
         },
     ];
 
-    assert_eq!(items, expected);
+    assert_eq!(messages, expected);
 }
 
 #[tokio::test]
@@ -153,7 +153,7 @@ async fn detect_home_lists_recent_sessions() {
     )
     .expect("write session");
 
-    let items = service_for_paths(external_agent_home.clone(), codex_home)
+    let messages = service_for_paths(external_agent_home.clone(), codex_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: true,
             cwds: None,
@@ -162,7 +162,7 @@ async fn detect_home_lists_recent_sessions() {
         .expect("detect");
 
     assert_eq!(
-        items,
+        messages,
         vec![ExternalAgentConfigMigrationItem {
             item_type: ExternalAgentConfigMigrationItemType::Sessions,
             description: format!(
@@ -196,7 +196,7 @@ async fn detect_repo_lists_agents_md_for_each_cwd() {
     )
     .expect("write source");
 
-    let items = service_for_paths(
+    let messages = service_for_paths(
         root.path().join(EXTERNAL_AGENT_DIR),
         root.path().join(".codex"),
     )
@@ -230,7 +230,7 @@ async fn detect_repo_lists_agents_md_for_each_cwd() {
         },
     ];
 
-    assert_eq!(items, expected);
+    assert_eq!(messages, expected);
 }
 
 #[tokio::test]
@@ -273,7 +273,7 @@ async fn detect_repo_still_reports_non_plugin_items_when_home_config_is_invalid(
     )
     .expect("write agents");
 
-    let items = service_for_paths(root.path().join(EXTERNAL_AGENT_DIR), codex_home)
+    let messages = service_for_paths(root.path().join(EXTERNAL_AGENT_DIR), codex_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: false,
             cwds: Some(vec![repo_root.clone()]),
@@ -282,7 +282,7 @@ async fn detect_repo_still_reports_non_plugin_items_when_home_config_is_invalid(
         .expect("detect");
 
     assert_eq!(
-        items,
+        messages,
         vec![
             ExternalAgentConfigMigrationItem {
                 item_type: ExternalAgentConfigMigrationItemType::Config,
@@ -365,7 +365,7 @@ async fn detect_repo_lists_mcp_hooks_commands_and_subagents() {
     )
     .expect("write subagent");
 
-    let items = service_for_paths(
+    let messages = service_for_paths(
         root.path().join(EXTERNAL_AGENT_DIR),
         root.path().join(".codex"),
     )
@@ -377,7 +377,7 @@ async fn detect_repo_lists_mcp_hooks_commands_and_subagents() {
     .expect("detect");
 
     assert_eq!(
-        items,
+        messages,
         vec![
             ExternalAgentConfigMigrationItem {
                 item_type: ExternalAgentConfigMigrationItemType::McpServerConfig,
@@ -458,7 +458,7 @@ async fn detect_repo_skips_hooks_when_only_unsupported_hooks_exist() {
     )
     .expect("write hooks");
 
-    let items = service_for_paths(
+    let messages = service_for_paths(
         root.path().join(EXTERNAL_AGENT_DIR),
         root.path().join(".codex"),
     )
@@ -469,7 +469,7 @@ async fn detect_repo_skips_hooks_when_only_unsupported_hooks_exist() {
     .await
     .expect("detect");
 
-    assert_eq!(items, Vec::<ExternalAgentConfigMigrationItem>::new());
+    assert_eq!(messages, Vec::<ExternalAgentConfigMigrationItem>::new());
 }
 
 #[tokio::test]
@@ -755,7 +755,7 @@ url = "https://example.com/mixed-transport"
     )
     .expect("write config");
 
-    let items = service_for_paths(
+    let messages = service_for_paths(
         root.path().join(EXTERNAL_AGENT_DIR),
         root.path().join(".codex"),
     )
@@ -767,7 +767,7 @@ url = "https://example.com/mixed-transport"
     .expect("detect");
 
     assert_eq!(
-        items,
+        messages,
         vec![ExternalAgentConfigMigrationItem {
             item_type: ExternalAgentConfigMigrationItemType::McpServerConfig,
             description: format!(
@@ -1152,7 +1152,7 @@ async fn detect_home_skips_config_when_target_already_has_supported_fields() {
     )
     .expect("write config");
 
-    let items = service_for_paths(external_agent_home, codex_home)
+    let messages = service_for_paths(external_agent_home, codex_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: true,
             cwds: None,
@@ -1160,7 +1160,7 @@ async fn detect_home_skips_config_when_target_already_has_supported_fields() {
         .await
         .expect("detect");
 
-    assert_eq!(items, Vec::<ExternalAgentConfigMigrationItem>::new());
+    assert_eq!(messages, Vec::<ExternalAgentConfigMigrationItem>::new());
 }
 
 #[tokio::test]
@@ -1173,7 +1173,7 @@ async fn detect_home_skips_skills_when_all_skill_directories_exist() {
     fs::create_dir_all(external_agent_home.join("skills").join("skill-a")).expect("create source");
     fs::create_dir_all(agents_skills.join("skill-a")).expect("create target");
 
-    let items = service_for_paths(external_agent_home, codex_home)
+    let messages = service_for_paths(external_agent_home, codex_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: true,
             cwds: None,
@@ -1181,7 +1181,7 @@ async fn detect_home_skips_skills_when_all_skill_directories_exist() {
         .await
         .expect("detect");
 
-    assert_eq!(items, Vec::<ExternalAgentConfigMigrationItem>::new());
+    assert_eq!(messages, Vec::<ExternalAgentConfigMigrationItem>::new());
 }
 
 #[tokio::test]
@@ -1336,7 +1336,7 @@ async fn detect_repo_prefers_non_empty_external_agent_agents_source() {
     )
     .expect("write external agent source");
 
-    let items = service_for_paths(
+    let messages = service_for_paths(
         root.path().join(EXTERNAL_AGENT_DIR),
         root.path().join(".codex"),
     )
@@ -1348,7 +1348,7 @@ async fn detect_repo_prefers_non_empty_external_agent_agents_source() {
     .expect("detect");
 
     assert_eq!(
-        items,
+        messages,
         vec![ExternalAgentConfigMigrationItem {
             item_type: ExternalAgentConfigMigrationItemType::AgentsMd,
             description: format!(
@@ -1708,7 +1708,7 @@ async fn detect_home_lists_enabled_plugins_from_settings() {
     )
     .expect("write settings");
 
-    let items = service_for_paths(external_agent_home.clone(), codex_home)
+    let messages = service_for_paths(external_agent_home.clone(), codex_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: true,
             cwds: None,
@@ -1717,7 +1717,7 @@ async fn detect_home_lists_enabled_plugins_from_settings() {
         .expect("detect");
 
     assert_eq!(
-        items,
+        messages,
         vec![ExternalAgentConfigMigrationItem {
             item_type: ExternalAgentConfigMigrationItemType::Plugins,
             description: format!(
@@ -1766,7 +1766,7 @@ async fn detect_home_plugins_uses_local_settings_over_project_settings() {
     )
     .expect("write local settings");
 
-    let items = service_for_paths(external_agent_home.clone(), codex_home)
+    let messages = service_for_paths(external_agent_home.clone(), codex_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: true,
             cwds: None,
@@ -1775,7 +1775,7 @@ async fn detect_home_plugins_uses_local_settings_over_project_settings() {
         .expect("detect");
 
     assert_eq!(
-        items,
+        messages,
         vec![ExternalAgentConfigMigrationItem {
             item_type: ExternalAgentConfigMigrationItemType::Plugins,
             description: format!(
@@ -1827,7 +1827,7 @@ enabled = true
     )
     .expect("write codex config");
 
-    let items = service_for_paths(external_agent_home, codex_home)
+    let messages = service_for_paths(external_agent_home, codex_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: false,
             cwds: Some(vec![repo_root.clone()]),
@@ -1836,7 +1836,7 @@ enabled = true
         .expect("detect");
 
     assert_eq!(
-        items,
+        messages,
         vec![ExternalAgentConfigMigrationItem {
             item_type: ExternalAgentConfigMigrationItemType::Plugins,
             description: format!(
@@ -1890,7 +1890,7 @@ enabled = false
     )
     .expect("write codex config");
 
-    let items = service_for_paths(external_agent_home, codex_home)
+    let messages = service_for_paths(external_agent_home, codex_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: false,
             cwds: Some(vec![repo_root]),
@@ -1898,7 +1898,7 @@ enabled = false
         .await
         .expect("detect");
 
-    assert_eq!(items, Vec::<ExternalAgentConfigMigrationItem>::new());
+    assert_eq!(messages, Vec::<ExternalAgentConfigMigrationItem>::new());
 }
 
 #[tokio::test]
@@ -1932,7 +1932,7 @@ async fn detect_repo_skips_plugins_without_explicit_enabled_in_codex() {
     )
     .expect("write codex config");
 
-    let items = service_for_paths(external_agent_home, codex_home)
+    let messages = service_for_paths(external_agent_home, codex_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: false,
             cwds: Some(vec![repo_root]),
@@ -1940,7 +1940,7 @@ async fn detect_repo_skips_plugins_without_explicit_enabled_in_codex() {
         .await
         .expect("detect");
 
-    assert_eq!(items, Vec::<ExternalAgentConfigMigrationItem>::new());
+    assert_eq!(messages, Vec::<ExternalAgentConfigMigrationItem>::new());
 }
 
 #[tokio::test]
@@ -1989,7 +1989,7 @@ enabled = true
     )
     .expect("write project codex config");
 
-    let items = service_for_paths(external_agent_home, codex_home)
+    let messages = service_for_paths(external_agent_home, codex_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: false,
             cwds: Some(vec![repo_root.clone()]),
@@ -1998,7 +1998,7 @@ enabled = true
         .expect("detect");
 
     assert_eq!(
-        items,
+        messages,
         vec![ExternalAgentConfigMigrationItem {
             item_type: ExternalAgentConfigMigrationItemType::Plugins,
             description: format!(
@@ -2034,7 +2034,7 @@ async fn detect_home_skips_plugins_without_marketplace_source() {
     )
     .expect("write settings");
 
-    let items = service_for_paths(external_agent_home, codex_home)
+    let messages = service_for_paths(external_agent_home, codex_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: true,
             cwds: None,
@@ -2042,7 +2042,7 @@ async fn detect_home_skips_plugins_without_marketplace_source() {
         .await
         .expect("detect");
 
-    assert_eq!(items, Vec::<ExternalAgentConfigMigrationItem>::new());
+    assert_eq!(messages, Vec::<ExternalAgentConfigMigrationItem>::new());
 }
 
 #[tokio::test]
@@ -2064,7 +2064,7 @@ async fn detect_home_skips_plugins_with_invalid_marketplace_source() {
     )
     .expect("write settings");
 
-    let items = service_for_paths(external_agent_home, codex_home)
+    let messages = service_for_paths(external_agent_home, codex_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: true,
             cwds: None,
@@ -2072,7 +2072,7 @@ async fn detect_home_skips_plugins_with_invalid_marketplace_source() {
         .await
         .expect("detect");
 
-    assert_eq!(items, Vec::<ExternalAgentConfigMigrationItem>::new());
+    assert_eq!(messages, Vec::<ExternalAgentConfigMigrationItem>::new());
 }
 
 #[tokio::test]
@@ -2173,7 +2173,7 @@ source = "owner/debug-marketplace"
     )
     .expect("write available plugin manifest");
 
-    let items = service_for_paths(external_agent_home, codex_home)
+    let messages = service_for_paths(external_agent_home, codex_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: false,
             cwds: Some(vec![repo_root.clone()]),
@@ -2182,7 +2182,7 @@ source = "owner/debug-marketplace"
         .expect("detect");
 
     assert_eq!(
-        items,
+        messages,
         vec![ExternalAgentConfigMigrationItem {
             item_type: ExternalAgentConfigMigrationItemType::Plugins,
             description: format!(
@@ -2409,7 +2409,7 @@ async fn detect_home_supports_relative_external_agent_plugin_marketplace_path() 
     )
     .expect("write plugin manifest");
 
-    let items = service_for_paths(external_agent_home.clone(), codex_home)
+    let messages = service_for_paths(external_agent_home.clone(), codex_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: true,
             cwds: None,
@@ -2418,7 +2418,7 @@ async fn detect_home_supports_relative_external_agent_plugin_marketplace_path() 
         .expect("detect");
 
     assert_eq!(
-        items,
+        messages,
         vec![ExternalAgentConfigMigrationItem {
             item_type: ExternalAgentConfigMigrationItemType::Plugins,
             description: format!(
@@ -2455,7 +2455,7 @@ async fn detect_home_infers_external_official_marketplace_when_missing_from_sett
     )
     .expect("write settings");
 
-    let items = service_for_paths(external_agent_home.clone(), codex_home)
+    let messages = service_for_paths(external_agent_home.clone(), codex_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: true,
             cwds: None,
@@ -2464,7 +2464,7 @@ async fn detect_home_infers_external_official_marketplace_when_missing_from_sett
         .expect("detect");
 
     assert_eq!(
-        items,
+        messages,
         vec![ExternalAgentConfigMigrationItem {
             item_type: ExternalAgentConfigMigrationItemType::Plugins,
             description: format!(
@@ -2658,7 +2658,7 @@ async fn detect_repo_supports_project_relative_external_agent_plugin_marketplace
     )
     .expect("write plugin manifest");
 
-    let items = service_for_paths(external_agent_home, codex_home)
+    let messages = service_for_paths(external_agent_home, codex_home)
         .detect(ExternalAgentConfigDetectOptions {
             include_home: false,
             cwds: Some(vec![repo_root.clone()]),
@@ -2667,7 +2667,7 @@ async fn detect_repo_supports_project_relative_external_agent_plugin_marketplace
         .expect("detect");
 
     assert_eq!(
-        items,
+        messages,
         vec![ExternalAgentConfigMigrationItem {
             item_type: ExternalAgentConfigMigrationItemType::Plugins,
             description: format!(

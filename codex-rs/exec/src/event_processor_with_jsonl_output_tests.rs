@@ -11,9 +11,9 @@ fn failed_turn_does_not_overwrite_output_last_message_file() {
 
     let mut processor = EventProcessorWithJsonOutput::new(Some(output_path.clone()));
 
-    let collected = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        datax_app_server_protocol::ItemCompletedNotification {
-            item: ThreadItem::AgentMessage {
+    let collected = processor.collect_thread_events(ServerNotification::MessageCompleted(
+        datax_app_server_protocol::MessageCompletedNotification {
+            item: Message::AgentMessage {
                 id: "msg-1".to_string(),
                 text: "partial answer".to_string(),
                 phase: None,
@@ -28,15 +28,15 @@ fn failed_turn_does_not_overwrite_output_last_message_file() {
     assert_eq!(collected.status, CodexStatus::Running);
     assert_eq!(processor.final_message(), Some("partial answer"));
 
-    let status = processor.process_server_notification(ServerNotification::TurnCompleted(
-        datax_app_server_protocol::TurnCompletedNotification {
+    let status = processor.process_server_notification(ServerNotification::InteractionCompleted(
+        datax_app_server_protocol::InteractionCompletedNotification {
             thread_id: "thread-1".to_string(),
-            turn: datax_app_server_protocol::Turn {
+            turn: datax_app_server_protocol::Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: Vec::new(),
-                status: TurnStatus::Failed,
-                error: Some(datax_app_server_protocol::TurnError {
+                status: InteractionStatus::Failed,
+                error: Some(datax_app_server_protocol::InteractionError {
                     message: "turn failed".to_string(),
                     additional_details: None,
                     codex_error_info: None,
@@ -90,9 +90,9 @@ fn runtime_warning_emits_a_non_fatal_error_item() {
 fn mcp_tool_call_result_preserves_meta_in_jsonl_event() {
     let mut processor = EventProcessorWithJsonOutput::new(/*last_message_path*/ None);
 
-    let collected = processor.collect_thread_events(ServerNotification::ItemCompleted(
-        datax_app_server_protocol::ItemCompletedNotification {
-            item: ThreadItem::McpToolCall {
+    let collected = processor.collect_thread_events(ServerNotification::MessageCompleted(
+        datax_app_server_protocol::MessageCompletedNotification {
+            item: Message::McpToolCall {
                 id: "mcp-1".to_string(),
                 server: "search service".to_string(),
                 tool: "web_run".to_string(),

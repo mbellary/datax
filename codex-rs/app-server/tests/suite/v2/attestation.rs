@@ -10,16 +10,16 @@ use core_test_support::responses::WebSocketConnectionConfig;
 use core_test_support::responses::start_websocket_server_with_headers;
 use core_test_support::skip_if_no_network;
 use datax_app_server_protocol::AttestationGenerateResponse;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::ClientInfo;
 use datax_app_server_protocol::InitializeCapabilities;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
 use datax_app_server_protocol::JSONRPCMessage;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::ServerRequest;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_config::types::AuthCredentialsStoreMode;
 use pretty_assertions::assert_eq;
@@ -91,18 +91,18 @@ async fn attestation_generate_round_trip_adds_header_to_responses_websocket_hand
     };
 
     let thread_request_id = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
     let thread_response: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(thread_request_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(thread_response)?;
+    let ChatStartResponse { thread, .. } = to_response(thread_response)?;
 
     let turn_request_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id,
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id,
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "Hello".to_string(),
@@ -116,7 +116,7 @@ async fn attestation_generate_round_trip_adds_header_to_responses_websocket_hand
         mcp.read_stream_until_response_message(RequestId::Integer(turn_request_id)),
     )
     .await??;
-    let _: TurnStartResponse = to_response(turn_response)?;
+    let _: InteractionStartResponse = to_response(turn_response)?;
 
     let mut attestation_requests = 0;
     timeout(DEFAULT_READ_TIMEOUT, async {
@@ -137,7 +137,7 @@ async fn attestation_generate_round_trip_adds_header_to_responses_websocket_hand
                     .await?;
                 }
                 JSONRPCMessage::Notification(notification)
-                    if notification.method == "turn/completed" =>
+                    if notification.method == "interaction/completed" =>
                 {
                     break Ok(());
                 }

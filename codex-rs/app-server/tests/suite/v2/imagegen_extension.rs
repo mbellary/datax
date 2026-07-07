@@ -8,14 +8,14 @@ use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use core_test_support::responses;
-use datax_app_server_protocol::ItemCompletedNotification;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
 use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::Message;
+use datax_app_server_protocol::MessageCompletedNotification;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_config::types::AuthCredentialsStoreMode;
 use pretty_assertions::assert_eq;
@@ -99,11 +99,11 @@ async fn standalone_image_generation_returns_saved_path_hint_to_model() -> Resul
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
-    let ThreadItem::ImageGeneration {
+    let Message::ImageGeneration {
         status,
         revised_prompt,
         result,
@@ -197,7 +197,7 @@ async fn standalone_image_generation_failure_emits_terminal_item() -> Result<()>
     .await??;
     assert_eq!(
         completed.item,
-        ThreadItem::ImageGeneration {
+        Message::ImageGeneration {
             id: call_id.to_string(),
             status: "failed".to_string(),
             revised_prompt: Some("paint a blue whale".to_string()),
@@ -208,7 +208,7 @@ async fn standalone_image_generation_failure_emits_terminal_item() -> Result<()>
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
     let requests = response_mock.requests();
@@ -312,7 +312,7 @@ async fn standalone_image_generation_is_exposed_in_code_mode_only() -> Result<()
     start_image_generation_turn(&mut mcp).await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -375,7 +375,7 @@ generatedImage(result);
     start_image_generation_turn(&mut mcp).await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -460,7 +460,7 @@ async fn run_image_edit_test(
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -478,18 +478,18 @@ async fn run_image_edit_test(
 
 async fn start_turn(mcp: &mut TestAppServer, input: Vec<V2UserInput>) -> Result<()> {
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
     let thread_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id,
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id,
             client_user_message_id: None,
             input,
             ..Default::default()
@@ -500,24 +500,24 @@ async fn start_turn(mcp: &mut TestAppServer, input: Vec<V2UserInput>) -> Result<
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let _turn: TurnStartResponse = to_response::<TurnStartResponse>(turn_resp)?;
+    let _turn: InteractionStartResponse = to_response::<InteractionStartResponse>(turn_resp)?;
 
     Ok(())
 }
 
 async fn wait_for_image_generation_completed(
     mcp: &mut TestAppServer,
-) -> Result<ItemCompletedNotification> {
+) -> Result<MessageCompletedNotification> {
     loop {
         let notification = mcp
-            .read_stream_until_notification_message("item/completed")
+            .read_stream_until_notification_message("message/completed")
             .await?;
-        let completed: ItemCompletedNotification = serde_json::from_value(
+        let completed: MessageCompletedNotification = serde_json::from_value(
             notification
                 .params
-                .context("item/completed notification should include params")?,
+                .context("message/completed notification should include params")?,
         )?;
-        if matches!(&completed.item, ThreadItem::ImageGeneration { .. }) {
+        if matches!(&completed.item, Message::ImageGeneration { .. }) {
             return Ok(completed);
         }
     }

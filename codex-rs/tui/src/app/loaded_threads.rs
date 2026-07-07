@@ -14,8 +14,8 @@
 //! `SessionSource::SubAgent(ThreadSpawn { parent_thread_id, .. })` edges until no new children are
 //! found. The primary thread itself is never included in the output.
 
+use datax_app_server_protocol::Chat;
 use datax_app_server_protocol::SessionSource;
-use datax_app_server_protocol::Thread;
 use datax_protocol::ThreadId;
 use datax_protocol::protocol::SubAgentSource;
 use std::collections::HashMap;
@@ -45,7 +45,7 @@ pub(crate) struct LoadedSubagentThread {
 /// possible because `ThreadId`s are server-assigned UUIDs and the server enforces acyclicity, but
 /// the `included` set guards against re-visiting regardless.
 pub(crate) fn find_loaded_subagent_threads_for_primary(
-    threads: Vec<Thread>,
+    threads: Vec<Chat>,
     primary_thread_id: ThreadId,
 ) -> Vec<LoadedSubagentThread> {
     let mut threads_by_id = HashMap::new();
@@ -117,16 +117,16 @@ fn thread_spawn_parent_thread_id(source: &SessionSource) -> Option<ThreadId> {
 mod tests {
     use super::LoadedSubagentThread;
     use super::find_loaded_subagent_threads_for_primary;
+    use datax_app_server_protocol::Chat;
+    use datax_app_server_protocol::ChatStatus;
     use datax_app_server_protocol::SessionSource;
-    use datax_app_server_protocol::Thread;
-    use datax_app_server_protocol::ThreadStatus;
     use datax_protocol::ThreadId;
     use datax_utils_absolute_path::test_support::PathBufExt;
     use datax_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
 
-    fn test_thread(thread_id: ThreadId, source: SessionSource) -> Thread {
-        Thread {
+    fn test_thread(thread_id: ThreadId, source: SessionSource) -> Chat {
+        Chat {
             id: thread_id.to_string(),
             session_id: thread_id.to_string(),
             forked_from_id: None,
@@ -137,7 +137,7 @@ mod tests {
             created_at: 0,
             updated_at: 0,
             recency_at: Some(0),
-            status: ThreadStatus::Idle,
+            status: ChatStatus::Idle,
             path: None,
             cwd: test_path_buf("/tmp").abs(),
             cli_version: "0.0.0".to_string(),

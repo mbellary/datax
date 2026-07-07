@@ -17,8 +17,8 @@ use crate::session::resolve_multi_agent_version;
 use crate::tasks::InterruptedTurnHistoryMarker;
 use crate::tasks::interrupted_turn_history_marker;
 use datax_analytics::AnalyticsEventsClient;
+use datax_app_server_protocol::InteractionStatus;
 use datax_app_server_protocol::ThreadHistoryBuilder;
-use datax_app_server_protocol::TurnStatus;
 use datax_core_plugins::PluginsManager;
 use datax_exec_server::EnvironmentManager;
 use datax_extension_api::ExtensionDataInit;
@@ -1651,7 +1651,7 @@ fn snapshot_turn_state(history: &InitialHistory) -> SnapshotTurnState {
         let active_turn_snapshot = builder.active_turn_snapshot();
         if active_turn_snapshot
             .as_ref()
-            .is_some_and(|turn| turn.status != TurnStatus::InProgress)
+            .is_some_and(|turn| turn.status != InteractionStatus::InProgress)
         {
             return SnapshotTurnState {
                 ends_mid_turn: false,

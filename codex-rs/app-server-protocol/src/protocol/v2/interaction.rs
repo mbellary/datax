@@ -1,7 +1,7 @@
 use super::ApprovalsReviewer;
 use super::AskForApproval;
+use super::Interaction;
 use super::SandboxPolicy;
-use super::Turn;
 use datax_experimental_api_macros::ExperimentalApi;
 use datax_protocol::config_types::CollaborationMode;
 use datax_protocol::config_types::MultiAgentMode;
@@ -27,18 +27,18 @@ use ts_rs::TS;
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub enum TurnStatus {
+pub enum InteractionStatus {
     Completed,
     Interrupted,
     Failed,
     InProgress,
 }
 
-// Turn APIs
+// Interaction APIs
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS, ExperimentalApi)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub struct TurnEnvironmentParams {
+pub struct InteractionEnvironmentParams {
     pub environment_id: String,
     pub cwd: LegacyAppPathString,
 }
@@ -65,8 +65,8 @@ pub struct AdditionalContextEntry {
 )]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub struct TurnStartParams {
-    pub thread_id: String,
+pub struct InteractionStartParams {
+    pub chat_id: String,
     #[ts(optional = nullable)]
     pub client_user_message_id: Option<String>,
     pub input: Vec<UserInput>,
@@ -76,50 +76,50 @@ pub struct TurnStartParams {
     /// `client_metadata["x-codex-turn-metadata"]` on ResponsesAPI HTTP and websocket requests.
     ///
     /// They are not sent as top-level ResponsesAPI `client_metadata` keys, and reserved keys
-    /// such as `session_id`, `thread_id`, `turn_id`, and `window_id` cannot be overridden.
-    #[experimental("turn/start.responsesapiClientMetadata")]
+    /// such as `session_id`, `chat_id`, `interaction_id`, and `window_id` cannot be overridden.
+    #[experimental("interaction/start.responsesapiClientMetadata")]
     #[ts(optional = nullable)]
     pub responsesapi_client_metadata: Option<HashMap<String, String>>,
     /// Optional client-provided context fragments keyed by an opaque source identifier.
-    #[experimental("turn/start.additionalContext")]
+    #[experimental("interaction/start.additionalContext")]
     #[ts(optional = nullable)]
     pub additional_context: Option<HashMap<String, AdditionalContextEntry>>,
-    /// Optional environments for this turn and subsequent turns.
+    /// Optional environments for this turn and subsequent interactions.
     ///
     /// Omitted uses the thread sticky environments. Empty disables
     /// environment access for this turn. Non-empty selects the first
     /// environment as the current turn environment for this turn.
-    #[experimental("turn/start.environments")]
+    #[experimental("interaction/start.environments")]
     #[ts(optional = nullable)]
-    pub environments: Option<Vec<TurnEnvironmentParams>>,
-    /// Override the working directory for this turn and subsequent turns.
+    pub environments: Option<Vec<InteractionEnvironmentParams>>,
+    /// Override the working directory for this turn and subsequent interactions.
     #[ts(optional = nullable)]
     pub cwd: Option<PathBuf>,
     /// Replace the thread's runtime workspace roots for this turn and
-    /// subsequent turns. Paths must be absolute.
-    #[experimental("turn/start.runtimeWorkspaceRoots")]
+    /// subsequent interactions. Paths must be absolute.
+    #[experimental("interaction/start.runtimeWorkspaceRoots")]
     #[ts(optional = nullable)]
     pub runtime_workspace_roots: Option<Vec<AbsolutePathBuf>>,
-    /// Override the approval policy for this turn and subsequent turns.
+    /// Override the approval policy for this turn and subsequent interactions.
     #[experimental(nested)]
     #[ts(optional = nullable)]
     pub approval_policy: Option<AskForApproval>,
     /// Override where approval requests are routed for review on this turn and
-    /// subsequent turns.
+    /// subsequent interactions.
     #[ts(optional = nullable)]
     pub approvals_reviewer: Option<ApprovalsReviewer>,
-    /// Override the sandbox policy for this turn and subsequent turns.
+    /// Override the sandbox policy for this turn and subsequent interactions.
     #[ts(optional = nullable)]
     pub sandbox_policy: Option<SandboxPolicy>,
     /// Select a named permissions profile id for this turn and subsequent
-    /// turns. Cannot be combined with `sandboxPolicy`.
-    #[experimental("turn/start.permissions")]
+    /// interactions. Cannot be combined with `sandboxPolicy`.
+    #[experimental("interaction/start.permissions")]
     #[ts(optional = nullable)]
     pub permissions: Option<String>,
-    /// Override the model for this turn and subsequent turns.
+    /// Override the model for this turn and subsequent interactions.
     #[ts(optional = nullable)]
     pub model: Option<String>,
-    /// Override the service tier for this turn and subsequent turns.
+    /// Override the service tier for this turn and subsequent interactions.
     #[serde(
         default,
         deserialize_with = "crate::protocol::serde_helpers::deserialize_double_option",
@@ -128,13 +128,13 @@ pub struct TurnStartParams {
     )]
     #[ts(optional = nullable)]
     pub service_tier: Option<Option<String>>,
-    /// Override the reasoning effort for this turn and subsequent turns.
+    /// Override the reasoning effort for this turn and subsequent interactions.
     #[ts(optional = nullable)]
     pub effort: Option<ReasoningEffort>,
-    /// Override the reasoning summary for this turn and subsequent turns.
+    /// Override the reasoning summary for this turn and subsequent interactions.
     #[ts(optional = nullable)]
     pub summary: Option<ReasoningSummary>,
-    /// Override the personality for this turn and subsequent turns.
+    /// Override the personality for this turn and subsequent interactions.
     #[ts(optional = nullable)]
     pub personality: Option<Personality>,
     /// Optional JSON Schema used to constrain the final assistant message for
@@ -147,12 +147,12 @@ pub struct TurnStartParams {
     ///
     /// For `collaboration_mode.settings.developer_instructions`, `null` means
     /// "use the built-in instructions for the selected mode".
-    #[experimental("turn/start.collaborationMode")]
+    #[experimental("interaction/start.collaborationMode")]
     #[ts(optional = nullable)]
     pub collaboration_mode: Option<CollaborationMode>,
 
     /// @deprecated Ignored. Use `effort: "ultra"` for proactive multi-agent behavior.
-    #[experimental("turn/start.multiAgentMode")]
+    #[experimental("interaction/start.multiAgentMode")]
     #[ts(optional = nullable)]
     pub multi_agent_mode: Option<MultiAgentMode>,
 }
@@ -160,8 +160,10 @@ pub struct TurnStartParams {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub struct TurnStartResponse {
-    pub turn: Turn,
+pub struct InteractionStartResponse {
+    #[serde(rename = "interaction")]
+    #[ts(rename = "interaction")]
+    pub turn: Interaction,
 }
 
 #[derive(
@@ -169,8 +171,8 @@ pub struct TurnStartResponse {
 )]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub struct TurnSteerParams {
-    pub thread_id: String,
+pub struct InteractionSteerParams {
+    pub chat_id: String,
     #[ts(optional = nullable)]
     pub client_user_message_id: Option<String>,
     pub input: Vec<UserInput>,
@@ -180,38 +182,40 @@ pub struct TurnSteerParams {
     /// `client_metadata["x-codex-turn-metadata"]` on ResponsesAPI HTTP and websocket requests.
     ///
     /// They are not sent as top-level ResponsesAPI `client_metadata` keys, and reserved keys
-    /// such as `session_id`, `thread_id`, `turn_id`, and `window_id` cannot be overridden.
-    #[experimental("turn/steer.responsesapiClientMetadata")]
+    /// such as `session_id`, `chat_id`, `interaction_id`, and `window_id` cannot be overridden.
+    #[experimental("interaction/steer.responsesapiClientMetadata")]
     #[ts(optional = nullable)]
     pub responsesapi_client_metadata: Option<HashMap<String, String>>,
     /// Optional client-provided context fragments keyed by an opaque source identifier.
-    #[experimental("turn/steer.additionalContext")]
+    #[experimental("interaction/steer.additionalContext")]
     #[ts(optional = nullable)]
     pub additional_context: Option<HashMap<String, AdditionalContextEntry>>,
     /// Required active turn id precondition. The request fails when it does not
     /// match the currently active turn.
+    #[serde(rename = "expectedInteractionId")]
+    #[ts(rename = "expectedInteractionId")]
     pub expected_turn_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub struct TurnSteerResponse {
-    pub turn_id: String,
+pub struct InteractionSteerResponse {
+    pub interaction_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub struct TurnInterruptParams {
-    pub thread_id: String,
-    pub turn_id: String,
+pub struct InteractionInterruptParams {
+    pub chat_id: String,
+    pub interaction_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub struct TurnInterruptResponse {}
+pub struct InteractionInterruptResponse {}
 
 // User input types
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
@@ -372,9 +376,11 @@ impl UserInput {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub struct TurnStartedNotification {
-    pub thread_id: String,
-    pub turn: Turn,
+pub struct InteractionStartedNotification {
+    pub chat_id: String,
+    #[serde(rename = "interaction")]
+    #[ts(rename = "interaction")]
+    pub turn: Interaction,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
@@ -389,9 +395,11 @@ pub struct Usage {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub struct TurnCompletedNotification {
-    pub thread_id: String,
-    pub turn: Turn,
+pub struct InteractionCompletedNotification {
+    pub chat_id: String,
+    #[serde(rename = "interaction")]
+    #[ts(rename = "interaction")]
+    pub turn: Interaction,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
@@ -399,40 +407,40 @@ pub struct TurnCompletedNotification {
 #[ts(export_to = "v2/")]
 /// Notification that the turn-level unified diff has changed.
 /// Contains the latest aggregated diff across all file changes in the turn.
-pub struct TurnDiffUpdatedNotification {
-    pub thread_id: String,
-    pub turn_id: String,
+pub struct InteractionDiffUpdatedNotification {
+    pub chat_id: String,
+    pub interaction_id: String,
     pub diff: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub struct TurnPlanUpdatedNotification {
-    pub thread_id: String,
-    pub turn_id: String,
+pub struct InteractionPlanUpdatedNotification {
+    pub chat_id: String,
+    pub interaction_id: String,
     pub explanation: Option<String>,
-    pub plan: Vec<TurnPlanStep>,
+    pub plan: Vec<InteractionPlanStep>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub struct TurnPlanStep {
+pub struct InteractionPlanStep {
     pub step: String,
-    pub status: TurnPlanStepStatus,
+    pub status: InteractionPlanStepStatus,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub enum TurnPlanStepStatus {
+pub enum InteractionPlanStepStatus {
     Pending,
     InProgress,
     Completed,
 }
 
-impl From<CorePlanItemArg> for TurnPlanStep {
+impl From<CorePlanItemArg> for InteractionPlanStep {
     fn from(value: CorePlanItemArg) -> Self {
         Self {
             step: value.step,
@@ -441,7 +449,7 @@ impl From<CorePlanItemArg> for TurnPlanStep {
     }
 }
 
-impl From<CorePlanStepStatus> for TurnPlanStepStatus {
+impl From<CorePlanStepStatus> for InteractionPlanStepStatus {
     fn from(value: CorePlanStepStatus) -> Self {
         match value {
             CorePlanStepStatus::Pending => Self::Pending,

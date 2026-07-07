@@ -115,13 +115,13 @@ async fn list_models_returns_all_models_with_large_limit() -> Result<()> {
     .await??;
 
     let ModelListResponse {
-        data: items,
+        data: messages,
         next_cursor,
     } = to_response::<ModelListResponse>(response)?;
 
     let expected_models = expected_visible_models();
 
-    assert_eq!(items, expected_models);
+    assert_eq!(messages, expected_models);
     assert!(next_cursor.is_none());
     Ok(())
 }
@@ -149,11 +149,11 @@ async fn list_models_includes_hidden_models() -> Result<()> {
     .await??;
 
     let ModelListResponse {
-        data: items,
+        data: messages,
         next_cursor,
     } = to_response::<ModelListResponse>(response)?;
 
-    assert!(items.iter().any(|item| item.hidden));
+    assert!(messages.iter().any(|item| item.hidden));
     assert!(next_cursor.is_none());
     Ok(())
 }
@@ -235,7 +235,7 @@ openai_base_url = "{server_uri}/v1"
     .await??;
 
     let ModelListResponse {
-        data: items,
+        data: messages,
         next_cursor,
     } = to_response::<ModelListResponse>(response)?;
     let mut expected_presets: Vec<ModelPreset> = vec![remote_model.into()];
@@ -259,7 +259,7 @@ openai_base_url = "{server_uri}/v1"
         },
     ];
 
-    assert_eq!(items, expected_items);
+    assert_eq!(messages, expected_items);
     assert!(next_cursor.is_none());
     assert_eq!(
         models_mock.requests().len(),
@@ -279,7 +279,7 @@ async fn list_models_pagination_works() -> Result<()> {
 
     let expected_models = expected_visible_models();
     let mut cursor = None;
-    let mut items = Vec::new();
+    let mut messages = Vec::new();
 
     for _ in 0..expected_models.len() {
         let request_id = mcp
@@ -302,12 +302,12 @@ async fn list_models_pagination_works() -> Result<()> {
         } = to_response::<ModelListResponse>(response)?;
 
         assert_eq!(page_items.len(), 1);
-        items.extend(page_items);
+        messages.extend(page_items);
 
         if let Some(next_cursor) = next_cursor {
             cursor = Some(next_cursor);
         } else {
-            assert_eq!(items, expected_models);
+            assert_eq!(messages, expected_models);
             return Ok(());
         }
     }

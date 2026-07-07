@@ -152,7 +152,7 @@ async fn live_app_server_review_prompt_item_is_not_rendered() {
         review: "changes against 'main'".to_string(),
     };
     chat.handle_server_notification(
-        ServerNotification::ItemStarted(ItemStartedNotification {
+        ServerNotification::MessageStarted(MessageStartedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             started_at_ms: 0,
@@ -165,7 +165,7 @@ async fn live_app_server_review_prompt_item_is_not_rendered() {
     assert!(lines_to_single_string(&cells[0]).contains("Code review started"));
 
     chat.handle_server_notification(
-        ServerNotification::ItemCompleted(ItemCompletedNotification {
+        ServerNotification::MessageCompleted(MessageCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             completed_at_ms: 0,
@@ -176,7 +176,7 @@ async fn live_app_server_review_prompt_item_is_not_rendered() {
     assert!(drain_insert_history(&mut rx).is_empty());
 
     chat.handle_server_notification(
-        ServerNotification::ItemCompleted(ItemCompletedNotification {
+        ServerNotification::MessageCompleted(MessageCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             completed_at_ms: 0,
@@ -1213,14 +1213,14 @@ async fn interrupted_turn_after_goal_budget_limited_uses_budget_message_snapshot
     chat.set_feature_enabled(Feature::Goals, /*enabled*/ true);
 
     chat.handle_server_notification(
-        datax_app_server_protocol::ServerNotification::TurnStarted(
-            datax_app_server_protocol::TurnStartedNotification {
+        datax_app_server_protocol::ServerNotification::InteractionStarted(
+            datax_app_server_protocol::InteractionStartedNotification {
                 thread_id: "thread-1".to_string(),
-                turn: datax_app_server_protocol::Turn {
+                turn: datax_app_server_protocol::Interaction {
                     id: "turn-1".to_string(),
-                    items_view: datax_app_server_protocol::TurnItemsView::Full,
+                    items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                     items: Vec::new(),
-                    status: datax_app_server_protocol::TurnStatus::InProgress,
+                    status: datax_app_server_protocol::InteractionStatus::InProgress,
                     error: None,
                     started_at: None,
                     completed_at: None,
@@ -1231,14 +1231,14 @@ async fn interrupted_turn_after_goal_budget_limited_uses_budget_message_snapshot
         /*replay_kind*/ None,
     );
     chat.handle_server_notification(
-        datax_app_server_protocol::ServerNotification::ThreadGoalUpdated(
-            datax_app_server_protocol::ThreadGoalUpdatedNotification {
+        datax_app_server_protocol::ServerNotification::ChatGoalUpdated(
+            datax_app_server_protocol::ChatGoalUpdatedNotification {
                 thread_id: "thread-1".to_string(),
                 turn_id: Some("turn-1".to_string()),
-                goal: datax_app_server_protocol::ThreadGoal {
+                goal: datax_app_server_protocol::ChatGoal {
                     thread_id: "thread-1".to_string(),
                     objective: "Run until the token budget is limited".to_string(),
-                    status: datax_app_server_protocol::ThreadGoalStatus::BudgetLimited,
+                    status: datax_app_server_protocol::ChatGoalStatus::BudgetLimited,
                     token_budget: Some(10_000),
                     tokens_used: 10_500,
                     time_used_seconds: 0,
@@ -1250,14 +1250,14 @@ async fn interrupted_turn_after_goal_budget_limited_uses_budget_message_snapshot
         /*replay_kind*/ None,
     );
     chat.handle_server_notification(
-        datax_app_server_protocol::ServerNotification::TurnCompleted(
-            datax_app_server_protocol::TurnCompletedNotification {
+        datax_app_server_protocol::ServerNotification::InteractionCompleted(
+            datax_app_server_protocol::InteractionCompletedNotification {
                 thread_id: "thread-1".to_string(),
-                turn: datax_app_server_protocol::Turn {
+                turn: datax_app_server_protocol::Interaction {
                     id: "turn-1".to_string(),
-                    items_view: datax_app_server_protocol::TurnItemsView::Full,
+                    items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                     items: Vec::new(),
-                    status: datax_app_server_protocol::TurnStatus::Interrupted,
+                    status: datax_app_server_protocol::InteractionStatus::Interrupted,
                     error: None,
                     started_at: None,
                     completed_at: None,

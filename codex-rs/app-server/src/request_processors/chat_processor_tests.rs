@@ -1,6 +1,6 @@
 mod thread_list_cwd_filter_tests {
     use super::super::normalize_thread_list_cwd_filters;
-    use datax_app_server_protocol::ThreadListCwdFilter;
+    use datax_app_server_protocol::ChatListCwdFilter;
     use datax_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
@@ -14,7 +14,7 @@ mod thread_list_cwd_filter_tests {
         };
 
         assert_eq!(
-            normalize_thread_list_cwd_filters(Some(ThreadListCwdFilter::One(cwd.clone())))
+            normalize_thread_list_cwd_filters(Some(ChatListCwdFilter::One(cwd.clone())))
                 .expect("cwd filter should parse"),
             Some(vec![PathBuf::from(cwd)])
         );
@@ -26,7 +26,7 @@ mod thread_list_cwd_filter_tests {
         let expected = AbsolutePathBuf::relative_to_current_dir("repo-b")?.to_path_buf();
 
         assert_eq!(
-            normalize_thread_list_cwd_filters(Some(ThreadListCwdFilter::Many(vec![String::from(
+            normalize_thread_list_cwd_filters(Some(ChatListCwdFilter::Many(vec![String::from(
                 "repo-b"
             ),])))
             .expect("cwd filter should parse"),
@@ -38,15 +38,15 @@ mod thread_list_cwd_filter_tests {
 
 mod background_terminal_pagination_tests {
     use super::super::paginate_background_terminals;
-    use datax_app_server_protocol::ThreadBackgroundTerminal;
+    use datax_app_server_protocol::ChatBackgroundTerminal;
     use datax_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
 
-    fn terminal(process_id: &str) -> ThreadBackgroundTerminal {
+    fn terminal(process_id: &str) -> ChatBackgroundTerminal {
         let cwd = if cfg!(windows) { r"C:\tmp" } else { "/tmp" };
 
-        ThreadBackgroundTerminal {
-            item_id: format!("item-{process_id}"),
+        ChatBackgroundTerminal {
+            message_id: format!("item-{process_id}"),
             process_id: process_id.to_string(),
             command: format!("command-{process_id}"),
             cwd: AbsolutePathBuf::from_absolute_path(cwd).expect("absolute cwd"),
@@ -101,7 +101,7 @@ mod thread_processor_behavior_tests {
             .await
             .ok()
             .and_then(|meta_line| meta_line.meta.forked_from_id)
-            .map(|thread_id| thread_id.to_string())
+            .map(|chat_id| chat_id.to_string())
     }
 
     use super::super::*;
@@ -110,8 +110,8 @@ mod thread_processor_behavior_tests {
     use anyhow::Result;
     use chrono::DateTime;
     use chrono::Utc;
+    use datax_app_server_protocol::Message;
     use datax_app_server_protocol::ServerRequestPayload;
-    use datax_app_server_protocol::ThreadItem;
     use datax_app_server_protocol::ToolRequestUserInputParams;
     use datax_config::CloudConfigBundleLoader;
     use datax_config::LoaderOverrides;
@@ -296,9 +296,9 @@ mod thread_processor_behavior_tests {
                 ..Default::default()
             },
         ))];
-        let active_turn = Turn {
+        let active_turn = Interaction {
             id: "live-turn".to_string(),
-            items: vec![ThreadItem::UserMessage {
+            messages: vec![Message::UserMessage {
                 id: "live-user-message".to_string(),
                 client_id: None,
                 content: vec![V2UserInput::Text {
@@ -306,22 +306,22 @@ mod thread_processor_behavior_tests {
                     text_elements: Vec::new(),
                 }],
             }],
-            items_view: TurnItemsView::Full,
+            messages_view: InteractionMessagesView::Full,
             error: None,
-            status: TurnStatus::InProgress,
+            status: InteractionStatus::InProgress,
             started_at: None,
             completed_at: None,
             duration_ms: None,
         };
 
-        let turns = reconstruct_thread_turns_for_turns_list(
+        let interactions = reconstruct_thread_turns_for_turns_list(
             &persisted_items,
-            ThreadStatus::Idle,
+            ChatStatus::Idle,
             /*has_live_running_thread*/ false,
             Some(active_turn.clone()),
         );
 
-        assert_eq!(turns.last(), Some(&active_turn));
+        assert_eq!(interactions.last(), Some(&active_turn));
     }
 
     #[test]
@@ -463,14 +463,14 @@ mod thread_processor_behavior_tests {
             DateTime::parse_from_rfc3339("2025-01-02T03:04:05.678Z").expect("valid timestamp");
         let updated_at =
             DateTime::parse_from_rfc3339("2025-01-02T03:04:06.789Z").expect("valid timestamp");
-        let thread_id =
+        let chat_id =
             ThreadId::from_string("00000000-0000-0000-0000-000000000123").expect("valid thread");
         let stored_thread = StoredThread {
-            thread_id,
+            chat_id,
             extra_config: None,
             rollout_path: Some(PathBuf::from("/tmp/thread.jsonl")),
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             preview: "preview".to_string(),
             name: None,
             model_provider: "openai".to_string(),
@@ -483,7 +483,7 @@ mod thread_processor_behavior_tests {
             cwd: PathBuf::from("/tmp"),
             cli_version: "0.0.0".to_string(),
             source: SessionSource::Cli,
-            thread_source: Some(datax_protocol::protocol::ThreadSource::User),
+            chat_source: Some(datax_protocol::protocol::ThreadSource::User),
             agent_nickname: None,
             agent_role: None,
             agent_path: None,
@@ -733,8 +733,8 @@ mod thread_processor_behavior_tests {
     #[test]
     fn collect_resume_override_mismatches_includes_service_tier() {
         let cwd = test_path_buf("/tmp").abs();
-        let request = ThreadResumeParams {
-            thread_id: "thread-1".to_string(),
+        let request = ChatResumeParams {
+            chat_id: "thread-1".to_string(),
             history: None,
             path: None,
             model: None,
@@ -750,7 +750,7 @@ mod thread_processor_behavior_tests {
             base_instructions: None,
             developer_instructions: None,
             personality: None,
-            exclude_turns: false,
+            exclude_interactions: false,
             initial_turns_page: None,
         };
         let config_snapshot = ThreadConfigSnapshot {
@@ -777,9 +777,9 @@ mod thread_processor_behavior_tests {
                 },
             },
             session_source: SessionSource::Cli,
-            forked_from_thread_id: None,
-            parent_thread_id: None,
-            thread_source: None,
+            forked_from_chat_id: None,
+            parent_chat_id: None,
+            chat_source: None,
         };
 
         assert_eq!(
@@ -792,9 +792,9 @@ mod thread_processor_behavior_tests {
         model: Option<&str>,
         reasoning_effort: Option<ReasoningEffort>,
     ) -> Result<ThreadMetadata> {
-        let thread_id = ThreadId::from_string("3f941c35-29b3-493b-b0a4-e25800d9aeb0")?;
+        let chat_id = ThreadId::from_string("3f941c35-29b3-493b-b0a4-e25800d9aeb0")?;
         let mut builder = ThreadMetadataBuilder::new(
-            thread_id,
+            chat_id,
             PathBuf::from("/tmp/rollout.jsonl"),
             Utc::now(),
             datax_protocol::protocol::SessionSource::default(),
@@ -1056,21 +1056,21 @@ mod thread_processor_behavior_tests {
         let path = temp_dir.path().join("rollout.jsonl");
 
         let conversation_id = ThreadId::from_string("bfd12a78-5900-467b-9bc5-d3d35df08191")?;
-        let parent_thread_id = ThreadId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
+        let parent_chat_id = ThreadId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
         let timestamp = "2025-09-05T16:53:11.850Z".to_string();
 
         let session_meta = SessionMeta {
-            session_id: parent_thread_id.into(),
+            session_id: parent_chat_id.into(),
             id: conversation_id,
             timestamp: timestamp.clone(),
             source: SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-                parent_thread_id,
+                parent_chat_id,
                 depth: 1,
                 agent_path: None,
                 agent_nickname: None,
                 agent_role: None,
             }),
-            thread_source: Some(datax_protocol::protocol::ThreadSource::Subagent),
+            chat_source: Some(datax_protocol::protocol::ThreadSource::Subagent),
             agent_nickname: Some("atlas".to_string()),
             agent_role: Some("explorer".to_string()),
             model_provider: Some("test-provider".to_string()),
@@ -1092,7 +1092,7 @@ mod thread_processor_behavior_tests {
 
         assert_eq!(thread.agent_nickname, Some("atlas".to_string()));
         assert_eq!(thread.agent_role, Some("explorer".to_string()));
-        assert_eq!(thread.thread_source, None);
+        assert_eq!(thread.chat_source, None);
         Ok(())
     }
 
@@ -1137,7 +1137,7 @@ mod thread_processor_behavior_tests {
 
     #[tokio::test]
     async fn aborting_pending_request_clears_pending_state() -> Result<()> {
-        let thread_id = ThreadId::from_string("bfd12a78-5900-467b-9bc5-d3d35df08191")?;
+        let chat_id = ThreadId::from_string("bfd12a78-5900-467b-9bc5-d3d35df08191")?;
         let connection_id = ConnectionId(7);
 
         let (outgoing_tx, mut outgoing_rx) = tokio::sync::mpsc::channel(8);
@@ -1145,18 +1145,15 @@ mod thread_processor_behavior_tests {
             outgoing_tx,
             datax_analytics::AnalyticsEventsClient::disabled(),
         ));
-        let thread_outgoing = ThreadScopedOutgoingMessageSender::new(
-            outgoing.clone(),
-            vec![connection_id],
-            thread_id,
-        );
+        let thread_outgoing =
+            ThreadScopedOutgoingMessageSender::new(outgoing.clone(), vec![connection_id], chat_id);
 
         let (request_id, client_request_rx) = thread_outgoing
             .send_request(ServerRequestPayload::ToolRequestUserInput(
                 ToolRequestUserInputParams {
-                    thread_id: thread_id.to_string(),
-                    turn_id: "turn-1".to_string(),
-                    item_id: "call-1".to_string(),
+                    chat_id: chat_id.to_string(),
+                    interaction_id: "turn-1".to_string(),
+                    message_id: "call-1".to_string(),
                     questions: vec![],
                     auto_resolution_ms: None,
                 },
@@ -1191,7 +1188,7 @@ mod thread_processor_behavior_tests {
         assert_eq!(error.data, Some(json!({ "reason": "turnTransition" })));
         assert!(
             outgoing
-                .pending_requests_for_thread(thread_id)
+                .pending_requests_for_thread(chat_id)
                 .await
                 .is_empty()
         );
@@ -1204,7 +1201,7 @@ mod thread_processor_behavior_tests {
         let conversation_id = ThreadId::from_string("bfd12a78-5900-467b-9bc5-d3d35df08191")?;
         let source =
             serde_json::to_string(&SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-                parent_thread_id: ThreadId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?,
+                parent_chat_id: ThreadId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?,
                 depth: 1,
                 agent_path: None,
                 agent_nickname: None,
@@ -1241,7 +1238,7 @@ mod thread_processor_behavior_tests {
     #[tokio::test]
     async fn removing_thread_state_clears_listener_and_active_turn_history() -> Result<()> {
         let manager = ThreadStateManager::new();
-        let thread_id = ThreadId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
+        let chat_id = ThreadId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
         let connection = ConnectionId(1);
         let (cancel_tx, cancel_rx) = oneshot::channel();
 
@@ -1250,18 +1247,18 @@ mod thread_processor_behavior_tests {
             .await;
         manager
             .try_ensure_connection_subscribed(
-                thread_id, connection, /*experimental_raw_events*/ false,
+                chat_id, connection, /*experimental_raw_events*/ false,
             )
             .await
             .expect("connection should be live");
         {
-            let state = manager.thread_state(thread_id).await;
+            let state = manager.thread_state(chat_id).await;
             let mut state = state.lock().await;
             state.cancel_tx = Some(cancel_tx);
             state.track_current_turn_event(
                 "turn-1",
                 &EventMsg::TurnStarted(datax_protocol::protocol::TurnStartedEvent {
-                    turn_id: "turn-1".to_string(),
+                    interaction_id: "turn-1".to_string(),
                     trace_id: None,
                     started_at: None,
                     model_context_window: None,
@@ -1270,11 +1267,11 @@ mod thread_processor_behavior_tests {
             );
         }
 
-        manager.remove_thread_state(thread_id).await;
+        manager.remove_thread_state(chat_id).await;
         assert_eq!(cancel_rx.await, Ok(()));
 
-        let state = manager.thread_state(thread_id).await;
-        let subscribed_connection_ids = manager.subscribed_connection_ids(thread_id).await;
+        let state = manager.thread_state(chat_id).await;
+        let subscribed_connection_ids = manager.subscribed_connection_ids(chat_id).await;
         assert!(subscribed_connection_ids.is_empty());
         let state = state.lock().await;
         assert!(state.cancel_tx.is_none());
@@ -1286,7 +1283,7 @@ mod thread_processor_behavior_tests {
     async fn removing_auto_attached_connection_preserves_listener_for_other_connections()
     -> Result<()> {
         let manager = ThreadStateManager::new();
-        let thread_id = ThreadId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
+        let chat_id = ThreadId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
         let connection_a = ConnectionId(1);
         let connection_b = ConnectionId(2);
         let (cancel_tx, mut cancel_rx) = oneshot::channel();
@@ -1299,7 +1296,7 @@ mod thread_processor_behavior_tests {
             .await;
         manager
             .try_ensure_connection_subscribed(
-                thread_id,
+                chat_id,
                 connection_a,
                 /*experimental_raw_events*/ false,
             )
@@ -1307,14 +1304,14 @@ mod thread_processor_behavior_tests {
             .expect("connection_a should be live");
         manager
             .try_ensure_connection_subscribed(
-                thread_id,
+                chat_id,
                 connection_b,
                 /*experimental_raw_events*/ false,
             )
             .await
             .expect("connection_b should be live");
         {
-            let state = manager.thread_state(thread_id).await;
+            let state = manager.thread_state(chat_id).await;
             state.lock().await.cancel_tx = Some(cancel_tx);
         }
 
@@ -1327,7 +1324,7 @@ mod thread_processor_behavior_tests {
         );
 
         assert_eq!(
-            manager.subscribed_connection_ids(thread_id).await,
+            manager.subscribed_connection_ids(chat_id).await,
             vec![connection_b]
         );
         Ok(())
@@ -1336,7 +1333,7 @@ mod thread_processor_behavior_tests {
     #[tokio::test]
     async fn adding_connection_to_thread_updates_has_connections_watcher() -> Result<()> {
         let manager = ThreadStateManager::new();
-        let thread_id = ThreadId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
+        let chat_id = ThreadId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
         let connection_a = ConnectionId(1);
         let connection_b = ConnectionId(2);
 
@@ -1348,21 +1345,21 @@ mod thread_processor_behavior_tests {
             .await;
         manager
             .try_ensure_connection_subscribed(
-                thread_id,
+                chat_id,
                 connection_a,
                 /*experimental_raw_events*/ false,
             )
             .await
             .expect("connection_a should be live");
         let mut has_connections = manager
-            .subscribe_to_has_connections(thread_id)
+            .subscribe_to_has_connections(chat_id)
             .await
             .expect("thread should have a has-connections watcher");
         assert!(*has_connections.borrow());
 
         assert!(
             manager
-                .unsubscribe_connection_from_thread(thread_id, connection_a)
+                .unsubscribe_connection_from_thread(chat_id, connection_a)
                 .await
         );
         tokio::time::timeout(Duration::from_secs(1), has_connections.changed())
@@ -1373,7 +1370,7 @@ mod thread_processor_behavior_tests {
 
         assert!(
             manager
-                .try_add_connection_to_thread(thread_id, connection_b)
+                .try_add_connection_to_thread(chat_id, connection_b)
                 .await
         );
         tokio::time::timeout(Duration::from_secs(1), has_connections.changed())
@@ -1387,17 +1384,17 @@ mod thread_processor_behavior_tests {
     #[tokio::test]
     async fn wait_for_thread_subscriber_unblocks_after_connection_attaches() -> Result<()> {
         let manager = ThreadStateManager::new();
-        let thread_id = ThreadId::from_string("ba62fd70-2ec2-4b1b-9d94-355694332dd2")?;
+        let chat_id = ThreadId::from_string("ba62fd70-2ec2-4b1b-9d94-355694332dd2")?;
         let connection = ConnectionId(1);
         manager
             .connection_initialized(connection, ConnectionCapabilities::default())
             .await;
 
-        let wait_for_subscriber = manager.wait_for_thread_subscriber(thread_id);
+        let wait_for_subscriber = manager.wait_for_thread_subscriber(chat_id);
         let attach_connection = async {
             tokio::task::yield_now().await;
             manager
-                .try_add_connection_to_thread(thread_id, connection)
+                .try_add_connection_to_thread(chat_id, connection)
                 .await
         };
         let ((), attached) = tokio::time::timeout(Duration::from_secs(1), async {
@@ -1412,7 +1409,7 @@ mod thread_processor_behavior_tests {
     #[tokio::test]
     async fn closed_connection_cannot_be_reintroduced_by_auto_subscribe() -> Result<()> {
         let manager = ThreadStateManager::new();
-        let thread_id = ThreadId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
+        let chat_id = ThreadId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
         let connection = ConnectionId(1);
 
         manager
@@ -1424,12 +1421,12 @@ mod thread_processor_behavior_tests {
         assert!(
             manager
                 .try_ensure_connection_subscribed(
-                    thread_id, connection, /*experimental_raw_events*/ false
+                    chat_id, connection, /*experimental_raw_events*/ false
                 )
                 .await
                 .is_none()
         );
-        assert!(!manager.has_subscribers(thread_id).await);
+        assert!(!manager.has_subscribers(chat_id).await);
         Ok(())
     }
 
@@ -1437,7 +1434,7 @@ mod thread_processor_behavior_tests {
     async fn first_attestation_capable_connection_for_thread_only_uses_thread_subscribers()
     -> Result<()> {
         let manager = ThreadStateManager::new();
-        let thread_id = ThreadId::from_string("dfbd9a95-2f44-470a-8bd8-1cfc04efc243")?;
+        let chat_id = ThreadId::from_string("dfbd9a95-2f44-470a-8bd8-1cfc04efc243")?;
         let other_thread_id = ThreadId::from_string("6c9a74e4-5e59-479e-90bf-5c5798bb50aa")?;
         let unrelated_supported_connection = ConnectionId(1);
         let earlier_supported_connection = ConnectionId(2);
@@ -1479,23 +1476,23 @@ mod thread_processor_behavior_tests {
         );
         assert!(
             manager
-                .try_add_connection_to_thread(thread_id, later_supported_connection)
+                .try_add_connection_to_thread(chat_id, later_supported_connection)
                 .await
         );
         assert!(
             manager
-                .try_add_connection_to_thread(thread_id, earlier_supported_connection)
+                .try_add_connection_to_thread(chat_id, earlier_supported_connection)
                 .await
         );
         assert!(
             manager
-                .try_add_connection_to_thread(thread_id, unsupported_connection)
+                .try_add_connection_to_thread(chat_id, unsupported_connection)
                 .await
         );
 
         assert_eq!(
             manager
-                .first_attestation_capable_connection_for_thread(thread_id)
+                .first_attestation_capable_connection_for_thread(chat_id)
                 .await,
             Some(earlier_supported_connection)
         );

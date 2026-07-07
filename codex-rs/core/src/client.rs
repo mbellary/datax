@@ -15,7 +15,7 @@
 //! WebSocket prewarm is a v2-only `response.create` with `generate=false`; it waits for completion
 //! so the next request can reuse the same connection and `previous_response_id`.
 //!
-//! Turn execution performs prewarm as a best-effort step before the first stream request so the
+//! Interaction execution performs prewarm as a best-effort step before the first stream request so the
 //! subsequent request can reuse the same connection.
 //!
 //! ## Retry-Budget Tradeoff
@@ -219,7 +219,7 @@ impl RequestRouteTelemetry {
 /// WebSocket fallback is session-scoped: once a turn activates the HTTP fallback, subsequent turns
 /// will also use HTTP for the remainder of the session.
 ///
-/// Turn-scoped settings (model selection, reasoning controls, telemetry context, and turn
+/// Interaction-scoped settings (model selection, reasoning controls, telemetry context, and turn
 /// metadata) are passed explicitly to the relevant methods to keep turn lifetime visible at the
 /// call site.
 #[derive(Debug, Clone)]
@@ -244,7 +244,7 @@ pub struct ModelClient {
 pub struct ModelClientSession {
     client: ModelClient,
     websocket_session: WebsocketSession,
-    /// Turn state for sticky routing.
+    /// Interaction state for sticky routing.
     ///
     /// This is an `OnceLock` that stores the turn state value received from the server
     /// on turn start via the `x-codex-turn-state` response header. Once set, this value

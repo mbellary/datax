@@ -8,38 +8,38 @@ use app_test_support::to_response;
 use core_test_support::responses;
 use datax_app_server::in_process;
 use datax_app_server::in_process::InProcessStartArgs;
+use datax_app_server_protocol::ChatForkParams;
+use datax_app_server_protocol::ChatForkResponse;
+use datax_app_server_protocol::ChatInteractionsListParams;
+use datax_app_server_protocol::ChatInteractionsListResponse;
+use datax_app_server_protocol::ChatInteractionsMessagesListParams;
+use datax_app_server_protocol::ChatListParams;
+use datax_app_server_protocol::ChatListResponse;
+use datax_app_server_protocol::ChatNameUpdatedNotification;
+use datax_app_server_protocol::ChatReadParams;
+use datax_app_server_protocol::ChatReadResponse;
+use datax_app_server_protocol::ChatResumeInitialInteractionsPageParams;
+use datax_app_server_protocol::ChatResumeParams;
+use datax_app_server_protocol::ChatResumeResponse;
+use datax_app_server_protocol::ChatSetNameParams;
+use datax_app_server_protocol::ChatSetNameResponse;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::ChatStatus;
 use datax_app_server_protocol::ClientInfo;
 use datax_app_server_protocol::ClientRequest;
 use datax_app_server_protocol::InitializeCapabilities;
 use datax_app_server_protocol::InitializeParams;
+use datax_app_server_protocol::InteractionMessagesView;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
+use datax_app_server_protocol::InteractionStatus;
 use datax_app_server_protocol::JSONRPCError;
 use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::Message;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::SessionSource;
 use datax_app_server_protocol::SortDirection;
-use datax_app_server_protocol::ThreadForkParams;
-use datax_app_server_protocol::ThreadForkResponse;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadListParams;
-use datax_app_server_protocol::ThreadListResponse;
-use datax_app_server_protocol::ThreadNameUpdatedNotification;
-use datax_app_server_protocol::ThreadReadParams;
-use datax_app_server_protocol::ThreadReadResponse;
-use datax_app_server_protocol::ThreadResumeInitialTurnsPageParams;
-use datax_app_server_protocol::ThreadResumeParams;
-use datax_app_server_protocol::ThreadResumeResponse;
-use datax_app_server_protocol::ThreadSetNameParams;
-use datax_app_server_protocol::ThreadSetNameResponse;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::ThreadStatus;
-use datax_app_server_protocol::ThreadTurnsItemsListParams;
-use datax_app_server_protocol::ThreadTurnsListParams;
-use datax_app_server_protocol::ThreadTurnsListResponse;
-use datax_app_server_protocol::TurnItemsView;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
-use datax_app_server_protocol::TurnStatus;
 use datax_app_server_protocol::UserInput;
 use datax_arg0::Arg0DispatchPaths;
 use datax_config::CloudConfigBundleLoader;
@@ -107,9 +107,9 @@ async fn thread_read_returns_summary_without_turns() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let read_id = mcp
-        .send_thread_read_request(ThreadReadParams {
-            thread_id: conversation_id.clone(),
-            include_turns: false,
+        .send_chat_read_request(ChatReadParams {
+            chat_id: conversation_id.clone(),
+            include_interactions: false,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -117,7 +117,7 @@ async fn thread_read_returns_summary_without_turns() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ThreadReadResponse { thread, .. } = to_response::<ThreadReadResponse>(read_resp)?;
+    let ChatReadResponse { thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
 
     assert_eq!(thread.id, conversation_id);
     assert_eq!(thread.preview, preview);
@@ -128,8 +128,8 @@ async fn thread_read_returns_summary_without_turns() -> Result<()> {
     assert_eq!(thread.cli_version, "0.0.0");
     assert_eq!(thread.source, SessionSource::Cli);
     assert_eq!(thread.git_info, None);
-    assert_eq!(thread.turns.len(), 0);
-    assert_eq!(thread.status, ThreadStatus::NotLoaded);
+    assert_eq!(thread.interactions.len(), 0);
+    assert_eq!(thread.status, ChatStatus::NotLoaded);
 
     Ok(())
 }
@@ -162,9 +162,9 @@ async fn thread_read_can_include_turns() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let read_id = mcp
-        .send_thread_read_request(ThreadReadParams {
-            thread_id: conversation_id.clone(),
-            include_turns: true,
+        .send_chat_read_request(ChatReadParams {
+            chat_id: conversation_id.clone(),
+            include_interactions: true,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -172,15 +172,15 @@ async fn thread_read_can_include_turns() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ThreadReadResponse { thread, .. } = to_response::<ThreadReadResponse>(read_resp)?;
+    let ChatReadResponse { thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
 
-    assert_eq!(thread.turns.len(), 1);
-    let turn = &thread.turns[0];
-    assert_eq!(turn.status, TurnStatus::Completed);
-    assert_eq!(turn.items_view, TurnItemsView::Full);
-    assert_eq!(turn.items.len(), 1, "expected user message item");
-    match &turn.items[0] {
-        ThreadItem::UserMessage { content, .. } => {
+    assert_eq!(thread.interactions.len(), 1);
+    let turn = &thread.interactions[0];
+    assert_eq!(turn.status, InteractionStatus::Completed);
+    assert_eq!(turn.messages_view, InteractionMessagesView::Full);
+    assert_eq!(turn.messages.len(), 1, "expected user message item");
+    match &turn.messages[0] {
+        Message::UserMessage { content, .. } => {
             assert_eq!(
                 content,
                 &vec![UserInput::Text {
@@ -191,7 +191,7 @@ async fn thread_read_can_include_turns() -> Result<()> {
         }
         other => panic!("expected user message item, got {other:?}"),
     }
-    assert_eq!(thread.status, ThreadStatus::NotLoaded);
+    assert_eq!(thread.status, ChatStatus::NotLoaded);
 
     Ok(())
 }
@@ -220,12 +220,12 @@ async fn thread_turns_list_can_page_backward_and_forward() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let read_id = mcp
-        .send_thread_turns_list_request(ThreadTurnsListParams {
-            thread_id: conversation_id.clone(),
+        .send_chat_interactions_list_request(ChatInteractionsListParams {
+            chat_id: conversation_id.clone(),
             cursor: None,
             limit: Some(2),
             sort_direction: Some(SortDirection::Desc),
-            items_view: None,
+            messages_view: None,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -233,26 +233,26 @@ async fn thread_turns_list_can_page_backward_and_forward() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ThreadTurnsListResponse {
+    let ChatInteractionsListResponse {
         data,
         next_cursor,
         backwards_cursor,
-    } = to_response::<ThreadTurnsListResponse>(read_resp)?;
+    } = to_response::<ChatInteractionsListResponse>(read_resp)?;
     assert_eq!(turn_user_texts(&data), vec!["third", "second"]);
     assert!(
         data.iter()
-            .all(|turn| turn.items_view == TurnItemsView::Summary)
+            .all(|turn| turn.messages_view == InteractionMessagesView::Summary)
     );
-    let next_cursor = next_cursor.expect("expected nextCursor for older turns");
+    let next_cursor = next_cursor.expect("expected nextCursor for older interactions");
     let backwards_cursor = backwards_cursor.expect("expected backwardsCursor for newest turn");
 
     let read_id = mcp
-        .send_thread_turns_list_request(ThreadTurnsListParams {
-            thread_id: conversation_id.clone(),
+        .send_chat_interactions_list_request(ChatInteractionsListParams {
+            chat_id: conversation_id.clone(),
             cursor: Some(next_cursor),
             limit: Some(10),
             sort_direction: Some(SortDirection::Desc),
-            items_view: None,
+            messages_view: None,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -260,18 +260,19 @@ async fn thread_turns_list_can_page_backward_and_forward() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ThreadTurnsListResponse { data, .. } = to_response::<ThreadTurnsListResponse>(read_resp)?;
+    let ChatInteractionsListResponse { data, .. } =
+        to_response::<ChatInteractionsListResponse>(read_resp)?;
     assert_eq!(turn_user_texts(&data), vec!["first"]);
 
     append_user_message(rollout_path.as_path(), "2025-01-05T12:03:00Z", "fourth")?;
 
     let read_id = mcp
-        .send_thread_turns_list_request(ThreadTurnsListParams {
-            thread_id: conversation_id,
+        .send_chat_interactions_list_request(ChatInteractionsListParams {
+            chat_id: conversation_id,
             cursor: Some(backwards_cursor),
             limit: Some(10),
             sort_direction: Some(SortDirection::Asc),
-            items_view: None,
+            messages_view: None,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -279,7 +280,8 @@ async fn thread_turns_list_can_page_backward_and_forward() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ThreadTurnsListResponse { data, .. } = to_response::<ThreadTurnsListResponse>(read_resp)?;
+    let ChatInteractionsListResponse { data, .. } =
+        to_response::<ChatInteractionsListResponse>(read_resp)?;
     assert_eq!(turn_user_texts(&data), vec!["third", "fourth"]);
 
     Ok(())
@@ -311,10 +313,10 @@ async fn thread_turns_list_supports_requested_items_view() -> Result<()> {
     let full = read_single_turn_items_view(
         &mut mcp,
         conversation_id.as_str(),
-        Some(TurnItemsView::Full),
+        Some(InteractionMessagesView::Full),
     )
     .await?;
-    assert_eq!(full.items_view, TurnItemsView::Full);
+    assert_eq!(full.messages_view, InteractionMessagesView::Full);
     assert_eq!(
         turn_agent_texts(std::slice::from_ref(&full)),
         vec!["draft", "final"]
@@ -323,10 +325,10 @@ async fn thread_turns_list_supports_requested_items_view() -> Result<()> {
     let summary = read_single_turn_items_view(
         &mut mcp,
         conversation_id.as_str(),
-        Some(TurnItemsView::Summary),
+        Some(InteractionMessagesView::Summary),
     )
     .await?;
-    assert_eq!(summary.items_view, TurnItemsView::Summary);
+    assert_eq!(summary.messages_view, InteractionMessagesView::Summary);
     assert_eq!(
         turn_user_texts(std::slice::from_ref(&summary)),
         vec!["first"]
@@ -339,11 +341,11 @@ async fn thread_turns_list_supports_requested_items_view() -> Result<()> {
     let not_loaded = read_single_turn_items_view(
         &mut mcp,
         conversation_id.as_str(),
-        Some(TurnItemsView::NotLoaded),
+        Some(InteractionMessagesView::NotLoaded),
     )
     .await?;
-    assert_eq!(not_loaded.items_view, TurnItemsView::NotLoaded);
-    assert!(not_loaded.items.is_empty());
+    assert_eq!(not_loaded.messages_view, InteractionMessagesView::NotLoaded);
+    assert!(not_loaded.messages.is_empty());
     assert_eq!(not_loaded.id, full.id);
     assert_eq!(not_loaded.status, full.status);
     assert_eq!(not_loaded.started_at, full.started_at);
@@ -356,12 +358,12 @@ async fn thread_turns_list_supports_requested_items_view() -> Result<()> {
 #[tokio::test]
 async fn thread_turns_list_reads_store_history_without_rollout_path() -> Result<()> {
     let codex_home = TempDir::new()?;
-    let thread_id = datax_protocol::ThreadId::from_string("00000000-0000-4000-8000-000000000123")?;
+    let chat_id = datax_protocol::ThreadId::from_string("00000000-0000-4000-8000-000000000123")?;
     let store_id = Uuid::new_v4().to_string();
     create_config_toml_with_thread_store(codex_home.path(), &store_id)?;
     let store = InMemoryThreadStore::for_id(store_id.clone());
     let _in_memory_store = InMemoryThreadStoreId { store_id };
-    seed_pathless_store_thread(&store, thread_id).await?;
+    seed_pathless_store_thread(&store, chat_id).await?;
 
     let loader_overrides = LoaderOverrides::without_managed_config_for_tests();
     let config = ConfigBuilder::default()
@@ -401,19 +403,19 @@ async fn thread_turns_list_reads_store_history_without_rollout_path() -> Result<
     .await?;
 
     let result = client
-        .request(ClientRequest::ThreadTurnsList {
+        .request(ChatInteractionsList {
             request_id: RequestId::Integer(1),
-            params: ThreadTurnsListParams {
-                thread_id: thread_id.to_string(),
+            params: ChatInteractionsListParams {
+                chat_id: chat_id.to_string(),
                 cursor: None,
                 limit: Some(10),
                 sort_direction: Some(SortDirection::Asc),
-                items_view: None,
+                messages_view: None,
             },
         })
         .await?
-        .expect("thread/turns/list should succeed");
-    let ThreadTurnsListResponse { data, .. } = serde_json::from_value(result)?;
+        .expect("chat/interactions/list should succeed");
+    let ChatInteractionsListResponse { data, .. } = serde_json::from_value(result)?;
 
     assert_eq!(turn_user_texts(&data), vec!["history from store"]);
 
@@ -467,39 +469,42 @@ async fn thread_read_loaded_include_turns_reads_store_history_without_rollout_pa
     .await?;
 
     let result = client
-        .request(ClientRequest::ThreadStart {
+        .request(ChatStart {
             request_id: RequestId::Integer(1),
-            params: ThreadStartParams {
+            params: ChatStartParams {
                 model: Some("mock-model".to_string()),
                 ..Default::default()
             },
         })
         .await?
-        .expect("thread/start should succeed");
-    let ThreadStartResponse { thread, .. } = serde_json::from_value(result)?;
+        .expect("chat/start should succeed");
+    let ChatStartResponse { thread, .. } = serde_json::from_value(result)?;
     assert_eq!(thread.path, None);
 
-    let thread_id = datax_protocol::ThreadId::from_string(&thread.id)?;
+    let chat_id = datax_protocol::ThreadId::from_string(&thread.id)?;
     store
         .append_items(AppendThreadItemsParams {
-            thread_id,
-            items: store_history_items(),
+            chat_id,
+            messages: store_history_items(),
         })
         .await?;
 
     let result = client
-        .request(ClientRequest::ThreadRead {
+        .request(ChatRead {
             request_id: RequestId::Integer(2),
-            params: ThreadReadParams {
-                thread_id: thread.id,
-                include_turns: true,
+            params: ChatReadParams {
+                chat_id: thread.id,
+                include_interactions: true,
             },
         })
         .await?
-        .expect("thread/read should succeed");
-    let ThreadReadResponse { thread, .. } = serde_json::from_value(result)?;
+        .expect("chat/read should succeed");
+    let ChatReadResponse { thread, .. } = serde_json::from_value(result)?;
 
-    assert_eq!(turn_user_texts(&thread.turns), vec!["history from store"]);
+    assert_eq!(
+        turn_user_texts(&thread.interactions),
+        vec!["history from store"]
+    );
 
     client.shutdown().await?;
     Ok(())
@@ -508,12 +513,12 @@ async fn thread_read_loaded_include_turns_reads_store_history_without_rollout_pa
 #[tokio::test]
 async fn thread_list_includes_store_thread_without_rollout_path() -> Result<()> {
     let codex_home = TempDir::new()?;
-    let thread_id = datax_protocol::ThreadId::from_string("00000000-0000-4000-8000-000000000124")?;
+    let chat_id = datax_protocol::ThreadId::from_string("00000000-0000-4000-8000-000000000124")?;
     let store_id = Uuid::new_v4().to_string();
     create_config_toml_with_thread_store(codex_home.path(), &store_id)?;
     let store = InMemoryThreadStore::for_id(store_id.clone());
     let _in_memory_store = InMemoryThreadStoreId { store_id };
-    seed_pathless_store_thread(&store, thread_id).await?;
+    seed_pathless_store_thread(&store, chat_id).await?;
 
     let loader_overrides = LoaderOverrides::without_managed_config_for_tests();
     let config = ConfigBuilder::default()
@@ -553,9 +558,9 @@ async fn thread_list_includes_store_thread_without_rollout_path() -> Result<()> 
     .await?;
 
     let result = client
-        .request(ClientRequest::ThreadList {
+        .request(ChatList {
             request_id: RequestId::Integer(1),
-            params: ThreadListParams {
+            params: ChatListParams {
                 cursor: None,
                 limit: Some(10),
                 sort_key: None,
@@ -566,16 +571,16 @@ async fn thread_list_includes_store_thread_without_rollout_path() -> Result<()> 
                 cwd: None,
                 use_state_db_only: false,
                 search_term: None,
-                parent_thread_id: None,
+                parent_chat_id: None,
             },
         })
         .await?
-        .expect("thread/list should succeed");
-    let ThreadListResponse { data, .. } = serde_json::from_value(result)?;
+        .expect("chat/list should succeed");
+    let ChatListResponse { data, .. } = serde_json::from_value(result)?;
 
     assert_eq!(data.len(), 1);
     let thread = &data[0];
-    assert_eq!(thread.id, thread_id.to_string());
+    assert_eq!(thread.id, chat_id.to_string());
     assert_eq!(thread.path, None);
     assert_eq!(thread.preview, "");
     assert_eq!(thread.name.as_deref(), Some("named pathless thread"));
@@ -612,9 +617,9 @@ async fn thread_read_can_return_archived_threads_by_id() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let read_id = mcp
-        .send_thread_read_request(ThreadReadParams {
-            thread_id: conversation_id.clone(),
-            include_turns: false,
+        .send_chat_read_request(ChatReadParams {
+            chat_id: conversation_id.clone(),
+            include_interactions: false,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -622,7 +627,7 @@ async fn thread_read_can_return_archived_threads_by_id() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ThreadReadResponse { thread } = to_response::<ThreadReadResponse>(read_resp)?;
+    let ChatReadResponse { thread } = to_response::<ChatReadResponse>(read_resp)?;
 
     assert_eq!(thread.id, conversation_id);
     assert_eq!(thread.preview, preview);
@@ -656,12 +661,12 @@ async fn thread_resume_initial_turns_page_matches_requested_turns_list_page() ->
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let turns_list_id = mcp
-        .send_thread_turns_list_request(ThreadTurnsListParams {
-            thread_id: conversation_id.clone(),
+        .send_chat_interactions_list_request(ChatInteractionsListParams {
+            chat_id: conversation_id.clone(),
             cursor: None,
             limit: Some(2),
             sort_direction: Some(SortDirection::Asc),
-            items_view: Some(TurnItemsView::NotLoaded),
+            messages_view: Some(InteractionMessagesView::NotLoaded),
         })
         .await?;
     let turns_list_resp: JSONRPCResponse = timeout(
@@ -669,16 +674,16 @@ async fn thread_resume_initial_turns_page_matches_requested_turns_list_page() ->
         mcp.read_stream_until_response_message(RequestId::Integer(turns_list_id)),
     )
     .await??;
-    let expected_page = to_response::<ThreadTurnsListResponse>(turns_list_resp)?;
+    let expected_page = to_response::<ChatInteractionsListResponse>(turns_list_resp)?;
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: conversation_id,
-            exclude_turns: true,
-            initial_turns_page: Some(ThreadResumeInitialTurnsPageParams {
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: conversation_id,
+            exclude_interactions: true,
+            initial_turns_page: Some(ChatResumeInitialInteractionsPageParams {
                 limit: Some(2),
                 sort_direction: Some(SortDirection::Asc),
-                items_view: Some(TurnItemsView::NotLoaded),
+                messages_view: Some(InteractionMessagesView::NotLoaded),
             }),
             ..Default::default()
         })
@@ -688,16 +693,18 @@ async fn thread_resume_initial_turns_page_matches_requested_turns_list_page() ->
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse {
+    let ChatResumeResponse {
         thread,
         initial_turns_page,
         ..
-    } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    } = to_response::<ChatResumeResponse>(resume_resp)?;
 
-    assert!(thread.turns.is_empty());
+    assert!(thread.interactions.is_empty());
     assert_eq!(
         initial_turns_page,
-        Some(datax_app_server_protocol::TurnsPage::from(expected_page))
+        Some(datax_app_server_protocol::InteractionsPage::from(
+            expected_page
+        ))
     );
 
     Ok(())
@@ -727,12 +734,12 @@ async fn thread_turns_list_rejects_cursor_when_anchor_turn_is_rolled_back() -> R
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let read_id = mcp
-        .send_thread_turns_list_request(ThreadTurnsListParams {
-            thread_id: conversation_id.clone(),
+        .send_chat_interactions_list_request(ChatInteractionsListParams {
+            chat_id: conversation_id.clone(),
             cursor: None,
             limit: Some(2),
             sort_direction: Some(SortDirection::Desc),
-            items_view: None,
+            messages_view: None,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -740,9 +747,9 @@ async fn thread_turns_list_rejects_cursor_when_anchor_turn_is_rolled_back() -> R
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ThreadTurnsListResponse {
+    let ChatInteractionsListResponse {
         backwards_cursor, ..
-    } = to_response::<ThreadTurnsListResponse>(read_resp)?;
+    } = to_response::<ChatInteractionsListResponse>(read_resp)?;
     let backwards_cursor = backwards_cursor.expect("expected backwardsCursor for newest turn");
 
     append_thread_rollback(
@@ -752,12 +759,12 @@ async fn thread_turns_list_rejects_cursor_when_anchor_turn_is_rolled_back() -> R
     )?;
 
     let read_id = mcp
-        .send_thread_turns_list_request(ThreadTurnsListParams {
-            thread_id: conversation_id,
+        .send_chat_interactions_list_request(ChatInteractionsListParams {
+            chat_id: conversation_id,
             cursor: Some(backwards_cursor),
             limit: Some(10),
             sort_direction: Some(SortDirection::Asc),
-            items_view: None,
+            messages_view: None,
         })
         .await?;
     let read_err: JSONRPCError = timeout(
@@ -794,8 +801,8 @@ async fn thread_read_returns_forked_from_id_for_forked_threads() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let fork_id = mcp
-        .send_thread_fork_request(ThreadForkParams {
-            thread_id: conversation_id.clone(),
+        .send_chat_fork_request(ChatForkParams {
+            chat_id: conversation_id.clone(),
             ..Default::default()
         })
         .await?;
@@ -804,12 +811,12 @@ async fn thread_read_returns_forked_from_id_for_forked_threads() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(fork_id)),
     )
     .await??;
-    let ThreadForkResponse { thread: forked, .. } = to_response::<ThreadForkResponse>(fork_resp)?;
+    let ChatForkResponse { thread: forked, .. } = to_response::<ChatForkResponse>(fork_resp)?;
 
     let read_id = mcp
-        .send_thread_read_request(ThreadReadParams {
-            thread_id: forked.id,
-            include_turns: false,
+        .send_chat_read_request(ChatReadParams {
+            chat_id: forked.id,
+            include_interactions: false,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -817,7 +824,7 @@ async fn thread_read_returns_forked_from_id_for_forked_threads() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ThreadReadResponse { thread, .. } = to_response::<ThreadReadResponse>(read_resp)?;
+    let ChatReadResponse { thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
 
     assert_eq!(thread.forked_from_id, Some(conversation_id));
 
@@ -834,7 +841,7 @@ async fn thread_read_loaded_thread_returns_precomputed_path_before_materializati
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -844,7 +851,7 @@ async fn thread_read_loaded_thread_returns_precomputed_path_before_materializati
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
     let thread_path = thread.path.clone().expect("thread path");
     assert!(
         !thread_path.exists(),
@@ -852,9 +859,9 @@ async fn thread_read_loaded_thread_returns_precomputed_path_before_materializati
     );
 
     let read_id = mcp
-        .send_thread_read_request(ThreadReadParams {
-            thread_id: thread.id.clone(),
-            include_turns: false,
+        .send_chat_read_request(ChatReadParams {
+            chat_id: thread.id.clone(),
+            include_interactions: false,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -862,13 +869,13 @@ async fn thread_read_loaded_thread_returns_precomputed_path_before_materializati
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ThreadReadResponse { thread: read, .. } = to_response::<ThreadReadResponse>(read_resp)?;
+    let ChatReadResponse { thread: read, .. } = to_response::<ChatReadResponse>(read_resp)?;
 
     assert_eq!(read.id, thread.id);
     assert_eq!(read.path, Some(thread_path));
     assert!(read.preview.is_empty());
-    assert_eq!(read.turns.len(), 0);
-    assert_eq!(read.status, ThreadStatus::Idle);
+    assert_eq!(read.interactions.len(), 0);
+    assert_eq!(read.status, ChatStatus::Idle);
 
     Ok(())
 }
@@ -896,8 +903,8 @@ async fn thread_name_set_is_reflected_in_read_list_and_resume() -> Result<()> {
     // Set a user-facing thread title.
     let new_name = "My renamed thread";
     let set_id = mcp
-        .send_thread_set_name_request(ThreadSetNameParams {
-            thread_id: conversation_id.clone(),
+        .send_chat_set_name_request(ChatSetNameParams {
+            chat_id: conversation_id.clone(),
             name: new_name.to_string(),
         })
         .await?;
@@ -906,22 +913,22 @@ async fn thread_name_set_is_reflected_in_read_list_and_resume() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(set_id)),
     )
     .await??;
-    let _: ThreadSetNameResponse = to_response::<ThreadSetNameResponse>(set_resp)?;
+    let _: ChatSetNameResponse = to_response::<ChatSetNameResponse>(set_resp)?;
     let notification = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("thread/name/updated"),
+        mcp.read_stream_until_notification_message("chat/name/updated"),
     )
     .await??;
-    let notification: ThreadNameUpdatedNotification =
-        serde_json::from_value(notification.params.expect("thread/name/updated params"))?;
-    assert_eq!(notification.thread_id, conversation_id);
+    let notification: ChatNameUpdatedNotification =
+        serde_json::from_value(notification.params.expect("chat/name/updated params"))?;
+    assert_eq!(notification.chat_id, conversation_id);
     assert_eq!(notification.thread_name.as_deref(), Some(new_name));
 
     // Read should now surface `thread.name`, and the wire payload must include `name`.
     let read_id = mcp
-        .send_thread_read_request(ThreadReadParams {
-            thread_id: conversation_id.clone(),
-            include_turns: false,
+        .send_chat_read_request(ChatReadParams {
+            chat_id: conversation_id.clone(),
+            include_interactions: false,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -930,27 +937,27 @@ async fn thread_name_set_is_reflected_in_read_list_and_resume() -> Result<()> {
     )
     .await??;
     let read_result = read_resp.result.clone();
-    let ThreadReadResponse { thread, .. } = to_response::<ThreadReadResponse>(read_resp)?;
+    let ChatReadResponse { thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
     assert_eq!(thread.id, conversation_id);
     assert_eq!(thread.name.as_deref(), Some(new_name));
     let thread_json = read_result
         .get("thread")
         .and_then(Value::as_object)
-        .expect("thread/read result.thread must be an object");
+        .expect("chat/read result.thread must be an object");
     assert_eq!(
         thread_json.get("name").and_then(Value::as_str),
         Some(new_name),
-        "thread/read must serialize `thread.name` on the wire"
+        "chat/read must serialize `thread.name` on the wire"
     );
     assert_eq!(
         thread_json.get("ephemeral").and_then(Value::as_bool),
         Some(false),
-        "thread/read must serialize `thread.ephemeral` on the wire"
+        "chat/read must serialize `thread.ephemeral` on the wire"
     );
 
     // List should also surface the name.
     let list_id = mcp
-        .send_thread_list_request(ThreadListParams {
+        .send_chat_list_request(ChatListParams {
             cursor: None,
             limit: Some(50),
             sort_key: None,
@@ -961,7 +968,7 @@ async fn thread_name_set_is_reflected_in_read_list_and_resume() -> Result<()> {
             cwd: None,
             use_state_db_only: false,
             search_term: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
         })
         .await?;
     let list_resp: JSONRPCResponse = timeout(
@@ -970,35 +977,35 @@ async fn thread_name_set_is_reflected_in_read_list_and_resume() -> Result<()> {
     )
     .await??;
     let list_result = list_resp.result.clone();
-    let ThreadListResponse { data, .. } = to_response::<ThreadListResponse>(list_resp)?;
+    let ChatListResponse { data, .. } = to_response::<ChatListResponse>(list_resp)?;
     let listed = data
         .iter()
         .find(|t| t.id == conversation_id)
-        .expect("thread/list should include the created thread");
+        .expect("chat/list should include the created thread");
     assert_eq!(listed.name.as_deref(), Some(new_name));
     let listed_json = list_result
         .get("data")
         .and_then(Value::as_array)
-        .expect("thread/list result.data must be an array")
+        .expect("chat/list result.data must be an array")
         .iter()
         .find(|t| t.get("id").and_then(Value::as_str) == Some(&conversation_id))
         .and_then(Value::as_object)
-        .expect("thread/list should include the created thread as an object");
+        .expect("chat/list should include the created thread as an object");
     assert_eq!(
         listed_json.get("name").and_then(Value::as_str),
         Some(new_name),
-        "thread/list must serialize `thread.name` on the wire"
+        "chat/list must serialize `thread.name` on the wire"
     );
     assert_eq!(
         listed_json.get("ephemeral").and_then(Value::as_bool),
         Some(false),
-        "thread/list must serialize `thread.ephemeral` on the wire"
+        "chat/list must serialize `thread.ephemeral` on the wire"
     );
 
     // Resume should also surface the name.
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: conversation_id.clone(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: conversation_id.clone(),
             ..Default::default()
         })
         .await?;
@@ -1008,24 +1015,24 @@ async fn thread_name_set_is_reflected_in_read_list_and_resume() -> Result<()> {
     )
     .await??;
     let resume_result = resume_resp.result.clone();
-    let ThreadResumeResponse {
+    let ChatResumeResponse {
         thread: resumed, ..
-    } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    } = to_response::<ChatResumeResponse>(resume_resp)?;
     assert_eq!(resumed.id, conversation_id);
     assert_eq!(resumed.name.as_deref(), Some(new_name));
     let resumed_json = resume_result
         .get("thread")
         .and_then(Value::as_object)
-        .expect("thread/resume result.thread must be an object");
+        .expect("chat/resume result.thread must be an object");
     assert_eq!(
         resumed_json.get("name").and_then(Value::as_str),
         Some(new_name),
-        "thread/resume must serialize `thread.name` on the wire"
+        "chat/resume must serialize `thread.name` on the wire"
     );
     assert_eq!(
         resumed_json.get("ephemeral").and_then(Value::as_bool),
         Some(false),
-        "thread/resume must serialize `thread.ephemeral` on the wire"
+        "chat/resume must serialize `thread.ephemeral` on the wire"
     );
 
     Ok(())
@@ -1041,7 +1048,7 @@ async fn thread_read_include_turns_rejects_unmaterialized_loaded_thread() -> Res
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -1051,7 +1058,7 @@ async fn thread_read_include_turns_rejects_unmaterialized_loaded_thread() -> Res
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
     let thread_path = thread.path.clone().expect("thread path");
     assert!(
         !thread_path.exists(),
@@ -1059,9 +1066,9 @@ async fn thread_read_include_turns_rejects_unmaterialized_loaded_thread() -> Res
     );
 
     let read_id = mcp
-        .send_thread_read_request(ThreadReadParams {
-            thread_id: thread.id.clone(),
-            include_turns: true,
+        .send_chat_read_request(ChatReadParams {
+            chat_id: thread.id.clone(),
+            include_interactions: true,
         })
         .await?;
     let read_err: JSONRPCError = timeout(
@@ -1074,7 +1081,7 @@ async fn thread_read_include_turns_rejects_unmaterialized_loaded_thread() -> Res
         read_err
             .error
             .message
-            .contains("includeTurns is unavailable before first user message"),
+            .contains("includeInteractions is unavailable before first user message"),
         "unexpected error: {}",
         read_err.error.message
     );
@@ -1092,7 +1099,7 @@ async fn thread_turns_list_rejects_unmaterialized_loaded_thread() -> Result<()> 
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -1102,7 +1109,7 @@ async fn thread_turns_list_rejects_unmaterialized_loaded_thread() -> Result<()> 
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
     let thread_path = thread.path.clone().expect("thread path");
     assert!(
         !thread_path.exists(),
@@ -1110,12 +1117,12 @@ async fn thread_turns_list_rejects_unmaterialized_loaded_thread() -> Result<()> 
     );
 
     let read_id = mcp
-        .send_thread_turns_list_request(ThreadTurnsListParams {
-            thread_id: thread.id,
+        .send_chat_interactions_list_request(ChatInteractionsListParams {
+            chat_id: thread.id,
             cursor: None,
             limit: None,
             sort_direction: None,
-            items_view: None,
+            messages_view: None,
         })
         .await?;
     let read_err: JSONRPCError = timeout(
@@ -1128,7 +1135,7 @@ async fn thread_turns_list_rejects_unmaterialized_loaded_thread() -> Result<()> 
         read_err
             .error
             .message
-            .contains("thread/turns/list is unavailable before first user message"),
+            .contains("chat/interactions/list is unavailable before first user message"),
         "unexpected error: {}",
         read_err.error.message
     );
@@ -1146,9 +1153,9 @@ async fn thread_turns_items_list_returns_unsupported() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let read_id = mcp
-        .send_thread_turns_items_list_request(ThreadTurnsItemsListParams {
-            thread_id: "thr_123".to_string(),
-            turn_id: "turn_456".to_string(),
+        .send_chat_interactions_messages_list_request(ChatInteractionsMessagesListParams {
+            chat_id: "thr_123".to_string(),
+            interaction_id: "turn_456".to_string(),
             cursor: None,
             limit: None,
             sort_direction: None,
@@ -1163,7 +1170,7 @@ async fn thread_turns_items_list_returns_unsupported() -> Result<()> {
     assert_eq!(read_err.error.code, -32601);
     assert_eq!(
         read_err.error.message,
-        "thread/turns/items/list is not supported yet"
+        "chat/interactions/messages/list is not supported yet"
     );
 
     Ok(())
@@ -1184,7 +1191,7 @@ async fn thread_read_reports_system_error_idle_flag_after_failed_turn() -> Resul
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -1194,11 +1201,11 @@ async fn thread_read_reports_system_error_idle_flag_after_failed_turn() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let turn_start_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "fail this turn".to_string(),
@@ -1212,7 +1219,7 @@ async fn thread_read_reports_system_error_idle_flag_after_failed_turn() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(turn_start_id)),
     )
     .await??;
-    let _: TurnStartResponse = to_response::<TurnStartResponse>(turn_start_response)?;
+    let _: InteractionStartResponse = to_response::<InteractionStartResponse>(turn_start_response)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.read_stream_until_notification_message("error"),
@@ -1220,9 +1227,9 @@ async fn thread_read_reports_system_error_idle_flag_after_failed_turn() -> Resul
     .await??;
 
     let read_id = mcp
-        .send_thread_read_request(ThreadReadParams {
-            thread_id: thread.id,
-            include_turns: false,
+        .send_chat_read_request(ChatReadParams {
+            chat_id: thread.id,
+            include_interactions: false,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -1230,9 +1237,9 @@ async fn thread_read_reports_system_error_idle_flag_after_failed_turn() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ThreadReadResponse { thread, .. } = to_response::<ThreadReadResponse>(read_resp)?;
+    let ChatReadResponse { thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
 
-    assert_eq!(thread.status, ThreadStatus::SystemError,);
+    assert_eq!(thread.status, ChatStatus::SystemError,);
 
     Ok(())
 }
@@ -1291,16 +1298,16 @@ fn append_thread_rollback(path: &Path, timestamp: &str, num_turns: u32) -> std::
 
 async fn read_single_turn_items_view(
     mcp: &mut TestAppServer,
-    thread_id: &str,
-    items_view: Option<TurnItemsView>,
-) -> anyhow::Result<datax_app_server_protocol::Turn> {
+    chat_id: &str,
+    messages_view: Option<InteractionMessagesView>,
+) -> anyhow::Result<datax_app_server_protocol::Interaction> {
     let read_id = mcp
-        .send_thread_turns_list_request(ThreadTurnsListParams {
-            thread_id: thread_id.to_string(),
+        .send_chat_interactions_list_request(ChatInteractionsListParams {
+            chat_id: chat_id.to_string(),
             cursor: None,
             limit: Some(10),
             sort_direction: Some(SortDirection::Asc),
-            items_view,
+            messages_view,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -1308,17 +1315,17 @@ async fn read_single_turn_items_view(
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ThreadTurnsListResponse { mut data, .. } =
-        to_response::<ThreadTurnsListResponse>(read_resp)?;
+    let ChatInteractionsListResponse { mut data, .. } =
+        to_response::<ChatInteractionsListResponse>(read_resp)?;
     assert_eq!(data.len(), 1);
     Ok(data.remove(0))
 }
 
-fn turn_user_texts(turns: &[datax_app_server_protocol::Turn]) -> Vec<&str> {
-    turns
+fn turn_user_texts(interactions: &[datax_app_server_protocol::Interaction]) -> Vec<&str> {
+    interactions
         .iter()
-        .filter_map(|turn| match turn.items.first()? {
-            ThreadItem::UserMessage { content, .. } => match content.first()? {
+        .filter_map(|turn| match turn.messages.first()? {
+            Message::UserMessage { content, .. } => match content.first()? {
                 UserInput::Text { text, .. } => Some(text.as_str()),
                 UserInput::Image { .. }
                 | UserInput::LocalImage { .. }
@@ -1330,12 +1337,12 @@ fn turn_user_texts(turns: &[datax_app_server_protocol::Turn]) -> Vec<&str> {
         .collect()
 }
 
-fn turn_agent_texts(turns: &[datax_app_server_protocol::Turn]) -> Vec<&str> {
-    turns
+fn turn_agent_texts(interactions: &[datax_app_server_protocol::Interaction]) -> Vec<&str> {
+    interactions
         .iter()
-        .flat_map(|turn| &turn.items)
+        .flat_map(|turn| &turn.messages)
         .filter_map(|item| match item {
-            ThreadItem::AgentMessage { text, .. } => Some(text.as_str()),
+            Message::AgentMessage { text, .. } => Some(text.as_str()),
             _ => None,
         })
         .collect()
@@ -1353,17 +1360,17 @@ impl Drop for InMemoryThreadStoreId {
 
 async fn seed_pathless_store_thread(
     store: &InMemoryThreadStore,
-    thread_id: datax_protocol::ThreadId,
+    chat_id: datax_protocol::ThreadId,
 ) -> Result<()> {
     store
         .create_thread(CreateThreadParams {
-            session_id: thread_id.into(),
-            thread_id,
+            session_id: chat_id.into(),
+            chat_id,
             extra_config: None,
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             source: ProtocolSessionSource::Cli,
-            thread_source: None,
+            chat_source: None,
             base_instructions: BaseInstructions::default(),
             dynamic_tools: Vec::new(),
             multi_agent_version: None,
@@ -1376,13 +1383,13 @@ async fn seed_pathless_store_thread(
         .await?;
     store
         .append_items(AppendThreadItemsParams {
-            thread_id,
-            items: store_history_items(),
+            chat_id,
+            messages: store_history_items(),
         })
         .await?;
     store
         .update_thread_metadata(UpdateThreadMetadataParams {
-            thread_id,
+            chat_id,
             patch: ThreadMetadataPatch {
                 name: Some(Some("named pathless thread".to_string())),
                 ..Default::default()

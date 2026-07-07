@@ -91,6 +91,10 @@ use datax_app_server_client::AppServerRequestHandle;
 use datax_app_server_client::TypedRequestError;
 use datax_app_server_protocol::AddCreditsNudgeCreditType;
 use datax_app_server_protocol::AskForApproval;
+use datax_app_server_protocol::ChatLoadedListParams;
+use datax_app_server_protocol::ChatMemoryMode;
+use datax_app_server_protocol::ChatRollbackResponse;
+use datax_app_server_protocol::ChatStartSource;
 use datax_app_server_protocol::ClientRequest;
 use datax_app_server_protocol::CodexErrorInfo as AppServerCodexErrorInfo;
 use datax_app_server_protocol::ConfigBatchWriteParams;
@@ -102,6 +106,9 @@ use datax_app_server_protocol::FeedbackUploadParams;
 use datax_app_server_protocol::FeedbackUploadResponse;
 use datax_app_server_protocol::GetAccountRateLimitsResponse;
 use datax_app_server_protocol::HooksListEntry;
+use datax_app_server_protocol::Interaction;
+use datax_app_server_protocol::InteractionError as AppServerTurnError;
+use datax_app_server_protocol::InteractionStatus;
 use datax_app_server_protocol::ListMcpServerStatusParams;
 use datax_app_server_protocol::ListMcpServerStatusResponse;
 #[cfg(test)]
@@ -109,6 +116,7 @@ use datax_app_server_protocol::McpAuthStatus;
 use datax_app_server_protocol::McpServerStatus;
 use datax_app_server_protocol::McpServerStatusDetail;
 use datax_app_server_protocol::MergeStrategy;
+use datax_app_server_protocol::Message;
 use datax_app_server_protocol::PluginInstallParams;
 use datax_app_server_protocol::PluginInstallResponse;
 use datax_app_server_protocol::PluginListMarketplaceKind;
@@ -126,14 +134,6 @@ use datax_app_server_protocol::ServerRequest;
 use datax_app_server_protocol::SkillErrorInfo;
 use datax_app_server_protocol::SkillsListParams;
 use datax_app_server_protocol::SkillsListResponse;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadLoadedListParams;
-use datax_app_server_protocol::ThreadMemoryMode;
-use datax_app_server_protocol::ThreadRollbackResponse;
-use datax_app_server_protocol::ThreadStartSource;
-use datax_app_server_protocol::Turn;
-use datax_app_server_protocol::TurnError as AppServerTurnError;
-use datax_app_server_protocol::TurnStatus;
 use datax_app_server_protocol::WriteStatus;
 use datax_config::CloudConfigBundleLoader;
 use datax_config::ConfigLayerStackOrdering;
@@ -250,15 +250,15 @@ enum ThreadInteractiveRequest {
 /// receiver thread ids. All other notification variants return `None`.
 fn collab_receiver_thread_ids(notification: &ServerNotification) -> Option<&[String]> {
     match notification {
-        ServerNotification::ItemStarted(notification) => match &notification.item {
-            ThreadItem::CollabAgentToolCall {
+        ServerNotification::MessageStarted(notification) => match &notification.item {
+            Message::CollabAgentToolCall {
                 receiver_thread_ids,
                 ..
             } => Some(receiver_thread_ids),
             _ => None,
         },
-        ServerNotification::ItemCompleted(notification) => match &notification.item {
-            ThreadItem::CollabAgentToolCall {
+        ServerNotification::MessageCompleted(notification) => match &notification.item {
+            Message::CollabAgentToolCall {
                 receiver_thread_ids,
                 ..
             } => Some(receiver_thread_ids),
@@ -268,14 +268,14 @@ fn collab_receiver_thread_ids(notification: &ServerNotification) -> Option<&[Str
     }
 }
 
-fn sub_agent_activity_item(notification: &ServerNotification) -> Option<&ThreadItem> {
+fn sub_agent_activity_item(notification: &ServerNotification) -> Option<&Message> {
     match notification {
-        ServerNotification::ItemStarted(notification) => match &notification.item {
-            ThreadItem::SubAgentActivity { .. } => Some(&notification.item),
+        ServerNotification::MessageStarted(notification) => match &notification.item {
+            Message::SubAgentActivity { .. } => Some(&notification.item),
             _ => None,
         },
-        ServerNotification::ItemCompleted(notification) => match &notification.item {
-            ThreadItem::SubAgentActivity { .. } => Some(&notification.item),
+        ServerNotification::MessageCompleted(notification) => match &notification.item {
+            Message::SubAgentActivity { .. } => Some(&notification.item),
             _ => None,
         },
         _ => None,
@@ -287,8 +287,8 @@ fn collab_receiver_is_not_found(
     receiver_thread_id: &str,
 ) -> bool {
     match notification {
-        ServerNotification::ItemCompleted(notification) => match &notification.item {
-            ThreadItem::CollabAgentToolCall { agents_states, .. } => {
+        ServerNotification::MessageCompleted(notification) => match &notification.item {
+            Message::CollabAgentToolCall { agents_states, .. } => {
                 agents_states.get(receiver_thread_id).is_some_and(|state| {
                     matches!(
                         &state.status,

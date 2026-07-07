@@ -179,21 +179,26 @@ pub(super) enum SideParentStatusChange {
 impl SideParentStatusChange {
     pub(super) fn for_notification(notification: &ServerNotification) -> Option<Self> {
         match notification {
-            ServerNotification::TurnStarted(_) => Some(SideParentStatusChange::Clear),
-            ServerNotification::TurnCompleted(notification) => match &notification.turn.status {
-                TurnStatus::Completed => {
-                    Some(SideParentStatusChange::Set(SideParentStatus::Finished))
+            ServerNotification::InteractionStarted(_) => Some(SideParentStatusChange::Clear),
+            ServerNotification::InteractionCompleted(notification) => {
+                match &notification.turn.status {
+                    InteractionStatus::Completed => {
+                        Some(SideParentStatusChange::Set(SideParentStatus::Finished))
+                    }
+                    InteractionStatus::Interrupted => {
+                        Some(SideParentStatusChange::Set(SideParentStatus::Interrupted))
+                    }
+                    InteractionStatus::Failed => {
+                        Some(SideParentStatusChange::Set(SideParentStatus::Failed))
+                    }
+                    InteractionStatus::InProgress => None,
                 }
-                TurnStatus::Interrupted => {
-                    Some(SideParentStatusChange::Set(SideParentStatus::Interrupted))
-                }
-                TurnStatus::Failed => Some(SideParentStatusChange::Set(SideParentStatus::Failed)),
-                TurnStatus::InProgress => None,
-            },
-            ServerNotification::ThreadClosed(_) => {
+            }
+            ServerNotification::ChatClosed(_) => {
                 Some(SideParentStatusChange::Set(SideParentStatus::Closed))
             }
-            ServerNotification::ItemStarted(_) | ServerNotification::ServerRequestResolved(_) => {
+            ServerNotification::MessageStarted(_)
+            | ServerNotification::ServerRequestResolved(_) => {
                 Some(SideParentStatusChange::ClearActionable)
             }
             _ => None,
@@ -203,7 +208,7 @@ impl SideParentStatusChange {
 
 #[derive(Clone, Debug)]
 pub(super) struct SideThreadState {
-    /// Thread to return to when the current side conversation is dismissed.
+    /// Chat to return to when the current side conversation is dismissed.
     pub(super) parent_thread_id: ThreadId,
     /// Parent-thread condition that changed while this side thread is visible.
     pub(super) parent_status: Option<SideParentStatus>,
@@ -516,7 +521,7 @@ impl App {
     pub(super) fn install_side_thread_snapshot(
         store: &mut ThreadEventStore,
         mut session: ThreadSessionState,
-        _forked_turns: Vec<Turn>,
+        _forked_turns: Vec<Interaction>,
     ) {
         // The forked history remains available to the model through core state, but side
         // conversations should visually start at the side boundary.

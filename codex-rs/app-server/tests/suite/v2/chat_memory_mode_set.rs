@@ -3,13 +3,13 @@ use app_test_support::TestAppServer;
 use app_test_support::create_fake_rollout;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
+use datax_app_server_protocol::ChatMemoryMode;
+use datax_app_server_protocol::ChatMemoryModeSetParams;
+use datax_app_server_protocol::ChatMemoryModeSetResponse;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadMemoryMode;
-use datax_app_server_protocol::ThreadMemoryModeSetParams;
-use datax_app_server_protocol::ThreadMemoryModeSetResponse;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
 use datax_protocol::ThreadId;
 use datax_state::StateRuntime;
 use pretty_assertions::assert_eq;
@@ -31,7 +31,7 @@ async fn thread_memory_mode_set_updates_loaded_thread_state() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -41,13 +41,13 @@ async fn thread_memory_mode_set_updates_loaded_thread_state() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
     let thread_uuid = ThreadId::from_string(&thread.id)?;
 
     let set_id = mcp
-        .send_thread_memory_mode_set_request(ThreadMemoryModeSetParams {
-            thread_id: thread.id,
-            mode: ThreadMemoryMode::Disabled,
+        .send_chat_memory_mode_set_request(ChatMemoryModeSetParams {
+            chat_id: thread.id,
+            mode: ChatMemoryMode::Disabled,
         })
         .await?;
     let set_resp: JSONRPCResponse = timeout(
@@ -55,7 +55,7 @@ async fn thread_memory_mode_set_updates_loaded_thread_state() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(set_id)),
     )
     .await??;
-    let _: ThreadMemoryModeSetResponse = to_response::<ThreadMemoryModeSetResponse>(set_resp)?;
+    let _: ChatMemoryModeSetResponse = to_response::<ChatMemoryModeSetResponse>(set_resp)?;
 
     let memory_mode = state_db.get_thread_memory_mode(thread_uuid).await?;
     assert_eq!(memory_mode.as_deref(), Some("disabled"));
@@ -69,7 +69,7 @@ async fn thread_memory_mode_set_updates_stored_thread_state() -> Result<()> {
     create_config_toml(codex_home.path(), &server.uri())?;
     let state_db = init_state_db(codex_home.path()).await?;
 
-    let thread_id = create_fake_rollout(
+    let chat_id = create_fake_rollout(
         codex_home.path(),
         "2025-01-06T08-30-00",
         "2025-01-06T08:30:00Z",
@@ -77,15 +77,15 @@ async fn thread_memory_mode_set_updates_stored_thread_state() -> Result<()> {
         Some("mock_provider"),
         /*git_info*/ None,
     )?;
-    let thread_uuid = ThreadId::from_string(&thread_id)?;
+    let thread_uuid = ThreadId::from_string(&chat_id)?;
 
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    for mode in [ThreadMemoryMode::Disabled, ThreadMemoryMode::Enabled] {
+    for mode in [ChatMemoryMode::Disabled, ChatMemoryMode::Enabled] {
         let set_id = mcp
-            .send_thread_memory_mode_set_request(ThreadMemoryModeSetParams {
-                thread_id: thread_id.clone(),
+            .send_chat_memory_mode_set_request(ChatMemoryModeSetParams {
+                chat_id: chat_id.clone(),
                 mode,
             })
             .await?;
@@ -94,7 +94,7 @@ async fn thread_memory_mode_set_updates_stored_thread_state() -> Result<()> {
             mcp.read_stream_until_response_message(RequestId::Integer(set_id)),
         )
         .await??;
-        let _: ThreadMemoryModeSetResponse = to_response::<ThreadMemoryModeSetResponse>(set_resp)?;
+        let _: ChatMemoryModeSetResponse = to_response::<ChatMemoryModeSetResponse>(set_resp)?;
     }
 
     let memory_mode = state_db.get_thread_memory_mode(thread_uuid).await?;

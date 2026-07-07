@@ -18,10 +18,10 @@ This milestone deliberately targets the app-server public API boundary. Internal
 - [x] (2026-07-06T16:42:31Z) Identified Phase 1.4 as app-server model and protocol rename: `thread` to `chat`, `turn` to `interaction`, and `item` to `message` at the public app-server API boundary.
 - [x] (2026-07-06T16:42:31Z) Performed initial dependency discovery across `codex-rs/app-server-protocol`, `codex-rs/app-server`, generated schemas, generated TypeScript bindings, and v2 integration tests.
 - [x] (2026-07-06T16:42:31Z) Created GitHub issue #7 and draft PR #8 for Phase 1.4.
-- [ ] Rename protocol source modules and exported v2 request, response, notification, and shared model types.
-- [ ] Update app-server request dispatch, processor modules, and route method strings from thread and turn resources to chat and interaction resources.
+- [x] (2026-07-07T00:00:00Z) Renamed protocol source modules and exported v2 request, response, notification, and shared model types from thread/turn/item to chat/interaction/message terminology.
+- [x] (2026-07-07T00:00:00Z) Updated app-server request dispatch, processor modules, downstream protocol consumers, README examples, and v2 integration tests to use the renamed public protocol symbols and method strings.
 - [ ] Regenerate app-server JSON schema fixtures and TypeScript bindings.
-- [ ] Update app-server README examples and v2 integration tests to use the renamed public protocol.
+- [x] (2026-07-07T00:00:00Z) Attempted `just write-app-server-schema`; the sandbox run failed on missing crate downloads, then the escalated run downloaded dependencies and compiled for several minutes before WSL became unstable. Schema generation is deferred to the user handoff command below.
 - [ ] Run `just fmt` from `codex-rs` after code changes.
 - [ ] Record all deferred validation commands and final outcome notes before the milestone exits.
 
@@ -32,6 +32,12 @@ This milestone deliberately targets the app-server public API boundary. Internal
 
 - Observation: Generated schema artifacts are part of the milestone surface.
   Evidence: `codex-rs/app-server-protocol/schema/json/v2` and `codex-rs/app-server-protocol/schema/typescript/v2` contain files such as `ThreadStartParams.json`, `ThreadStartParams.ts`, `TurnStartParams.json`, `TurnStartParams.ts`, `ThreadItem.json`, `ThreadStatusChangedNotification.json`, and related exports.
+
+- Observation: The app-server protocol types are consumed outside the app-server crates.
+  Evidence: Source updates touched downstream consumers in `codex-rs/analytics`, `codex-rs/exec`, `codex-rs/external-agent-sessions`, and `codex-rs/tui` because those crates import `datax_app_server_protocol` request, response, and notification types.
+
+- Observation: Schema generation is the first expensive command in this phase and should be user-run for this checkpoint.
+  Evidence: `just write-app-server-schema` first failed in the sandbox with `Could not resolve host: static.crates.io`; the escalated run downloaded crates and continued compiling for multiple minutes before the user's WSL setup became unstable.
 
 ## Decision Log
 
@@ -126,8 +132,11 @@ The table below tracks files and file sets that belong to Phase 1.4. Rows marked
 | `codex-rs/app-server/tests/suite/v2/mod.rs` | `Pending` | Test module list must track any renamed test files. |
 | `codex-rs/app-server/tests/suite/v2/*.rs` | `Pending` | Non-thread test files that call `thread/start`, `turn/start`, or inspect thread/turn/item notifications must be updated. Exact files are identified with `rg -n "thread/|turn/|item/|Thread|Turn|Item" codex-rs/app-server/tests/suite/v2`. |
 | `codex-rs/app-server-client/README.md` | `Pending` | Inspected because it documents app-server client usage; update only if it references renamed public methods. |
-| `codex-rs/tui/**` | `Not Required` | Initial search found many internal TUI references to thread and turn concepts, but Phase 1.4 is scoped to app-server public protocol. TUI rename is deferred unless compilation forces an app-server type import update. |
-| `codex-rs/core/**` | `Not Required` | Internal runtime thread and turn modules remain behind app-server adapters in this milestone unless compilation requires small compatibility edits. |
+| `codex-rs/tui/**` | `In-Progress` | Direct `datax_app_server_protocol` imports and usages were updated to the renamed app-server API types. Internal TUI thread/session vocabulary remains deferred. |
+| `codex-rs/core/**` | `In-Progress` | Small compatibility edits were required where core constructs or consumes app-server protocol types. Internal `ThreadId`, thread manager, and turn execution vocabulary remain deferred. |
+| `codex-rs/analytics/**` | `In-Progress` | Direct app-server protocol request/response/notification type usage was updated to the renamed public API types while analytics fact names remain internal. |
+| `codex-rs/exec/**` | `In-Progress` | Direct app-server protocol request/response/notification type usage was updated to the renamed public API types while exec event names remain internal. |
+| `codex-rs/external-agent-sessions/**` | `In-Progress` | Direct app-server protocol message type usage was updated to the renamed public API type. |
 | `CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR` and `CODEX_SANDBOX_ENV_VAR` references | `Not Required` | Protected sandbox identifiers are excluded from all migration rename operations. |
 
 ## Rename Exception Register
@@ -227,6 +236,8 @@ From `codex-rs`, run the formatter and expect it to complete:
 From `codex-rs`, regenerate app-server schema artifacts and expect checked-in JSON and TypeScript outputs to reflect chat, interaction, and message naming:
 
     just write-app-server-schema
+
+Current handoff status: Codex attempted this command on 2026-07-07. The sandbox run failed because Cargo could not resolve `static.crates.io`; an escalated retry downloaded dependencies but ran long enough to destabilize WSL. The user will run this command manually and provide results before Codex continues schema/artifact validation.
 
 From `codex-rs`, regenerate experimental app-server schema artifacts and expect experimental markers to use the renamed public methods:
 

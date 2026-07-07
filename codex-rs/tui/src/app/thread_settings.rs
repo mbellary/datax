@@ -1,12 +1,12 @@
-//! Thread settings sync between TUI-local state and app-server thread state.
+//! Chat settings sync between TUI-local state and app-server thread state.
 
 use super::App;
 use crate::app_command::AppCommand;
 use crate::app_server_session::AppServerSession;
 use crate::session_state::ThreadSessionState;
 use datax_app_server_protocol::ApprovalsReviewer as AppServerApprovalsReviewer;
-use datax_app_server_protocol::ThreadSettings;
-use datax_app_server_protocol::ThreadSettingsUpdateParams;
+use datax_app_server_protocol::ChatSettings;
+use datax_app_server_protocol::ChatSettingsUpdateParams;
 use datax_protocol::ThreadId;
 use datax_protocol::config_types::ModeKind;
 use datax_protocol::models::PermissionProfile;
@@ -26,13 +26,13 @@ impl App {
     pub(super) fn active_thread_model_setting_update_params(
         &self,
         model: String,
-    ) -> Option<ThreadSettingsUpdateParams> {
+    ) -> Option<ChatSettingsUpdateParams> {
         let thread_id = self.active_thread_id?;
-        Some(ThreadSettingsUpdateParams {
+        Some(ChatSettingsUpdateParams {
             thread_id: thread_id.to_string(),
             model: Some(model),
             collaboration_mode: Some(self.chat_widget.effective_collaboration_mode()),
-            ..ThreadSettingsUpdateParams::default()
+            ..ChatSettingsUpdateParams::default()
         })
     }
 
@@ -50,13 +50,13 @@ impl App {
     pub(super) fn active_thread_reasoning_setting_update_params(
         &self,
         effort: Option<datax_protocol::openai_models::ReasoningEffort>,
-    ) -> Option<ThreadSettingsUpdateParams> {
+    ) -> Option<ChatSettingsUpdateParams> {
         let thread_id = self.active_thread_id?;
-        Some(ThreadSettingsUpdateParams {
+        Some(ChatSettingsUpdateParams {
             thread_id: thread_id.to_string(),
             effort,
             collaboration_mode: Some(self.chat_widget.current_collaboration_mode().clone()),
-            ..ThreadSettingsUpdateParams::default()
+            ..ChatSettingsUpdateParams::default()
         })
     }
 
@@ -67,10 +67,10 @@ impl App {
         let Some(thread_id) = self.active_thread_id else {
             return;
         };
-        let params = ThreadSettingsUpdateParams {
+        let params = ChatSettingsUpdateParams {
             thread_id: thread_id.to_string(),
             collaboration_mode: Some(self.chat_widget.effective_collaboration_mode()),
-            ..ThreadSettingsUpdateParams::default()
+            ..ChatSettingsUpdateParams::default()
         };
         self.send_thread_settings_update(app_server, params).await;
     }
@@ -83,10 +83,10 @@ impl App {
         let Some(thread_id) = self.active_thread_id else {
             return;
         };
-        let params = ThreadSettingsUpdateParams {
+        let params = ChatSettingsUpdateParams {
             thread_id: thread_id.to_string(),
             personality: Some(personality),
-            ..ThreadSettingsUpdateParams::default()
+            ..ChatSettingsUpdateParams::default()
         };
         self.send_thread_settings_update(app_server, params).await;
     }
@@ -115,7 +115,7 @@ impl App {
             return;
         };
 
-        let params = ThreadSettingsUpdateParams {
+        let params = ChatSettingsUpdateParams {
             thread_id: thread_id.to_string(),
             cwd: cwd.clone(),
             approval_policy: *approval_policy,
@@ -129,7 +129,7 @@ impl App {
             service_tier: service_tier.clone(),
             collaboration_mode: collaboration_mode.clone(),
             personality: *personality,
-            ..ThreadSettingsUpdateParams::default()
+            ..ChatSettingsUpdateParams::default()
         };
         self.send_thread_settings_update(app_server, params).await;
     }
@@ -137,7 +137,7 @@ impl App {
     pub(super) async fn apply_thread_settings_to_cached_session(
         &mut self,
         thread_id: ThreadId,
-        settings: &ThreadSettings,
+        settings: &ChatSettings,
     ) {
         if self.primary_thread_id == Some(thread_id)
             && let Some(session) = self.primary_session_configured.as_mut()
@@ -156,7 +156,7 @@ impl App {
     async fn send_thread_settings_update(
         &mut self,
         app_server: &mut AppServerSession,
-        params: ThreadSettingsUpdateParams,
+        params: ChatSettingsUpdateParams,
     ) {
         if !thread_settings_update_has_changes(&params) {
             return;
@@ -169,7 +169,7 @@ impl App {
     }
 }
 
-fn apply_thread_settings_to_session(session: &mut ThreadSessionState, settings: &ThreadSettings) {
+fn apply_thread_settings_to_session(session: &mut ThreadSessionState, settings: &ChatSettings) {
     if settings.collaboration_mode.mode == ModeKind::Default {
         session.model = settings.model.clone();
         session.reasoning_effort = settings.effort.clone();
@@ -194,7 +194,7 @@ fn apply_thread_settings_to_session(session: &mut ThreadSessionState, settings: 
     session.collaboration_mode = Some(Box::new(collaboration_mode));
 }
 
-fn thread_settings_update_has_changes(params: &ThreadSettingsUpdateParams) -> bool {
+fn thread_settings_update_has_changes(params: &ChatSettingsUpdateParams) -> bool {
     params.cwd.is_some()
         || params.approval_policy.is_some()
         || params.approvals_reviewer.is_some()

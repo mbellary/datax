@@ -13,6 +13,20 @@ use crate::thread_status::ThreadWatchActiveGuard;
 use crate::thread_status::ThreadWatchManager;
 use datax_app_server_protocol::AccountRateLimitsUpdatedNotification;
 use datax_app_server_protocol::AdditionalPermissionProfile as V2AdditionalPermissionProfile;
+use datax_app_server_protocol::ChatGoalUpdatedNotification;
+use datax_app_server_protocol::ChatRealtimeClosedNotification;
+use datax_app_server_protocol::ChatRealtimeErrorNotification;
+use datax_app_server_protocol::ChatRealtimeMessageAddedNotification;
+use datax_app_server_protocol::ChatRealtimeOutputAudioDeltaNotification;
+use datax_app_server_protocol::ChatRealtimeSdpNotification;
+use datax_app_server_protocol::ChatRealtimeStartedNotification;
+use datax_app_server_protocol::ChatRealtimeTranscriptDeltaNotification;
+use datax_app_server_protocol::ChatRealtimeTranscriptDoneNotification;
+use datax_app_server_protocol::ChatRollbackResponse;
+use datax_app_server_protocol::ChatSettingsUpdatedNotification;
+use datax_app_server_protocol::ChatStatus;
+use datax_app_server_protocol::ChatTokenUsage;
+use datax_app_server_protocol::ChatTokenUsageUpdatedNotification;
 use datax_app_server_protocol::CodexErrorInfo as V2CodexErrorInfo;
 use datax_app_server_protocol::CommandAction as V2ParsedCommand;
 use datax_app_server_protocol::CommandExecutionApprovalDecision;
@@ -32,13 +46,25 @@ use datax_app_server_protocol::GrantedPermissionProfile as V2GrantedPermissionPr
 use datax_app_server_protocol::GuardianWarningNotification;
 use datax_app_server_protocol::HookCompletedNotification;
 use datax_app_server_protocol::HookStartedNotification;
-use datax_app_server_protocol::ItemCompletedNotification;
-use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::Interaction;
+use datax_app_server_protocol::InteractionCompletedNotification;
+use datax_app_server_protocol::InteractionDiffUpdatedNotification;
+use datax_app_server_protocol::InteractionError;
+use datax_app_server_protocol::InteractionInterruptResponse;
+use datax_app_server_protocol::InteractionMessagesView;
+use datax_app_server_protocol::InteractionModerationMetadataNotification;
+use datax_app_server_protocol::InteractionPlanStep;
+use datax_app_server_protocol::InteractionPlanUpdatedNotification;
+use datax_app_server_protocol::InteractionStartedNotification;
+use datax_app_server_protocol::InteractionStatus;
 use datax_app_server_protocol::McpServerElicitationAction;
 use datax_app_server_protocol::McpServerElicitationRequestParams;
 use datax_app_server_protocol::McpServerElicitationRequestResponse;
 use datax_app_server_protocol::McpServerStartupState;
 use datax_app_server_protocol::McpServerStatusUpdatedNotification;
+use datax_app_server_protocol::Message;
+use datax_app_server_protocol::MessageCompletedNotification;
+use datax_app_server_protocol::MessageStartedNotification;
 use datax_app_server_protocol::ModelReroutedNotification;
 use datax_app_server_protocol::ModelSafetyBufferingUpdatedNotification;
 use datax_app_server_protocol::ModelVerificationNotification;
@@ -51,36 +77,10 @@ use datax_app_server_protocol::RawResponseItemCompletedNotification;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::ServerNotification;
 use datax_app_server_protocol::ServerRequestPayload;
-use datax_app_server_protocol::ThreadGoalUpdatedNotification;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadRealtimeClosedNotification;
-use datax_app_server_protocol::ThreadRealtimeErrorNotification;
-use datax_app_server_protocol::ThreadRealtimeItemAddedNotification;
-use datax_app_server_protocol::ThreadRealtimeOutputAudioDeltaNotification;
-use datax_app_server_protocol::ThreadRealtimeSdpNotification;
-use datax_app_server_protocol::ThreadRealtimeStartedNotification;
-use datax_app_server_protocol::ThreadRealtimeTranscriptDeltaNotification;
-use datax_app_server_protocol::ThreadRealtimeTranscriptDoneNotification;
-use datax_app_server_protocol::ThreadRollbackResponse;
-use datax_app_server_protocol::ThreadSettingsUpdatedNotification;
-use datax_app_server_protocol::ThreadStatus;
-use datax_app_server_protocol::ThreadTokenUsage;
-use datax_app_server_protocol::ThreadTokenUsageUpdatedNotification;
 use datax_app_server_protocol::ToolRequestUserInputOption;
 use datax_app_server_protocol::ToolRequestUserInputParams;
 use datax_app_server_protocol::ToolRequestUserInputQuestion;
 use datax_app_server_protocol::ToolRequestUserInputResponse;
-use datax_app_server_protocol::Turn;
-use datax_app_server_protocol::TurnCompletedNotification;
-use datax_app_server_protocol::TurnDiffUpdatedNotification;
-use datax_app_server_protocol::TurnError;
-use datax_app_server_protocol::TurnInterruptResponse;
-use datax_app_server_protocol::TurnItemsView;
-use datax_app_server_protocol::TurnModerationMetadataNotification;
-use datax_app_server_protocol::TurnPlanStep;
-use datax_app_server_protocol::TurnPlanUpdatedNotification;
-use datax_app_server_protocol::TurnStartedNotification;
-use datax_app_server_protocol::TurnStatus;
 use datax_app_server_protocol::WarningNotification;
 use datax_app_server_protocol::build_item_from_guardian_event;
 use datax_app_server_protocol::guardian_auto_approval_review_notification;
@@ -90,7 +90,7 @@ use datax_core::ThreadManager;
 use datax_core::review_format::format_review_findings_block;
 use datax_core::review_prompts;
 use datax_protocol::ThreadId;
-use datax_protocol::items::parse_hook_prompt_message;
+use datax_protocol::messages::parse_hook_prompt_message;
 use datax_protocol::models::AdditionalPermissionProfile as CoreAdditionalPermissionProfile;
 use datax_protocol::plan_tool::UpdatePlanArgs;
 use datax_protocol::protocol::CodexErrorInfo as CoreCodexErrorInfo;
@@ -160,26 +160,26 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .await;
             let turn = {
                 let state = thread_state.lock().await;
-                let mut turn = state.active_turn_snapshot().unwrap_or_else(|| Turn {
-                    id: payload.turn_id.clone(),
-                    items: Vec::new(),
-                    items_view: TurnItemsView::NotLoaded,
+                let mut turn = state.active_turn_snapshot().unwrap_or_else(|| Interaction {
+                    id: payload.interaction_id.clone(),
+                    messages: Vec::new(),
+                    messages_view: InteractionMessagesView::NotLoaded,
                     error: None,
-                    status: TurnStatus::InProgress,
+                    status: InteractionStatus::InProgress,
                     started_at: payload.started_at,
                     completed_at: None,
                     duration_ms: None,
                 });
-                turn.items.clear();
-                turn.items_view = TurnItemsView::NotLoaded;
+                turn.messages.clear();
+                turn.messages_view = InteractionMessagesView::NotLoaded;
                 turn
             };
-            let notification = TurnStartedNotification {
-                thread_id: conversation_id.to_string(),
+            let notification = InteractionStartedNotification {
+                chat_id: conversation_id.to_string(),
                 turn,
             };
             outgoing
-                .send_server_notification(ServerNotification::TurnStarted(notification))
+                .send_server_notification(InteractionStarted(notification))
                 .await;
         }
         EventMsg::TurnComplete(turn_complete_event) => {
@@ -215,7 +215,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                 }
             };
             let notification = McpServerStatusUpdatedNotification {
-                thread_id: Some(conversation_id.to_string()),
+                chat_id: Some(conversation_id.to_string()),
                 name: update.server,
                 status,
                 error,
@@ -226,7 +226,7 @@ pub(crate) async fn apply_bespoke_event_handling(
         }
         EventMsg::Warning(warning_event) => {
             let notification = WarningNotification {
-                thread_id: Some(conversation_id.to_string()),
+                chat_id: Some(conversation_id.to_string()),
                 message: warning_event.message,
             };
             outgoing
@@ -235,7 +235,7 @@ pub(crate) async fn apply_bespoke_event_handling(
         }
         EventMsg::GuardianWarning(warning_event) => {
             let notification = GuardianWarningNotification {
-                thread_id: conversation_id.to_string(),
+                chat_id: conversation_id.to_string(),
                 message: warning_event.message,
             };
             outgoing
@@ -247,7 +247,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                 &assessment,
                 CommandExecutionStatus::InProgress,
             ) {
-                Some(ThreadItem::CommandExecution {
+                Some(Message::CommandExecution {
                     id,
                     command,
                     cwd,
@@ -263,18 +263,19 @@ pub(crate) async fn apply_bespoke_event_handling(
                 )),
                 Some(_) | None => None,
             };
-            let assessment_turn_id = if assessment.turn_id.is_empty() {
+            let assessment_turn_id = if assessment.interaction_id.is_empty() {
                 event_turn_id.clone()
             } else {
-                assessment.turn_id.clone()
+                assessment.interaction_id.clone()
             };
             if assessment.status == datax_protocol::protocol::GuardianAssessmentStatus::InProgress
-                && let Some((target_item_id, completion_item)) = pending_command_execution.as_ref()
+                && let Some((target_message_id, completion_item)) =
+                    pending_command_execution.as_ref()
             {
                 start_command_execution_item(
                     &conversation_id,
                     assessment_turn_id.clone(),
-                    target_item_id.clone(),
+                    target_message_id.clone(),
                     completion_item.command.clone(),
                     completion_item.cwd.clone(),
                     completion_item.command_actions.clone(),
@@ -302,12 +303,12 @@ pub(crate) async fn apply_bespoke_event_handling(
                 | datax_protocol::protocol::GuardianAssessmentStatus::Approved => None,
             };
             if let Some(completion_status) = completion_status
-                && let Some((target_item_id, completion_item)) = pending_command_execution
+                && let Some((target_message_id, completion_item)) = pending_command_execution
             {
                 complete_command_execution_item(
                     &conversation_id,
                     assessment_turn_id,
-                    target_item_id,
+                    target_message_id,
                     completion_item.command,
                     completion_item.cwd,
                     /*process_id*/ None,
@@ -322,8 +323,8 @@ pub(crate) async fn apply_bespoke_event_handling(
         }
         EventMsg::ModelReroute(event) => {
             let notification = ModelReroutedNotification {
-                thread_id: conversation_id.to_string(),
-                turn_id: event_turn_id.clone(),
+                chat_id: conversation_id.to_string(),
+                interaction_id: event_turn_id.clone(),
                 from_model: event.from_model,
                 to_model: event.to_model,
                 reason: event.reason.into(),
@@ -334,8 +335,8 @@ pub(crate) async fn apply_bespoke_event_handling(
         }
         EventMsg::ModelVerification(event) => {
             let notification = ModelVerificationNotification {
-                thread_id: conversation_id.to_string(),
-                turn_id: event_turn_id.clone(),
+                chat_id: conversation_id.to_string(),
+                interaction_id: event_turn_id.clone(),
                 verifications: event.verifications.into_iter().map(Into::into).collect(),
             };
             outgoing
@@ -343,19 +344,21 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .await;
         }
         EventMsg::TurnModerationMetadata(event) => {
-            let notification = TurnModerationMetadataNotification {
-                thread_id: conversation_id.to_string(),
-                turn_id: event_turn_id.clone(),
+            let notification = InteractionModerationMetadataNotification {
+                chat_id: conversation_id.to_string(),
+                interaction_id: event_turn_id.clone(),
                 metadata: event.metadata,
             };
             outgoing
-                .send_server_notification(ServerNotification::TurnModerationMetadata(notification))
+                .send_server_notification(ServerNotification::InteractionModerationMetadata(
+                    notification,
+                ))
                 .await;
         }
         EventMsg::SafetyBuffering(event) => {
             let notification = ModelSafetyBufferingUpdatedNotification {
-                thread_id: conversation_id.to_string(),
-                turn_id: event_turn_id.clone(),
+                chat_id: conversation_id.to_string(),
+                interaction_id: event_turn_id.clone(),
                 model: event.model,
                 use_cases: event.use_cases,
                 reasons: event.reasons,
@@ -369,173 +372,173 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .await;
         }
         EventMsg::RealtimeConversationStarted(event) => {
-            let notification = ThreadRealtimeStartedNotification {
-                thread_id: conversation_id.to_string(),
+            let notification = ChatRealtimeStartedNotification {
+                chat_id: conversation_id.to_string(),
                 realtime_session_id: event.realtime_session_id,
                 version: event.version,
             };
             outgoing
-                .send_server_notification(ServerNotification::ThreadRealtimeStarted(notification))
+                .send_server_notification(ServerNotification::ChatRealtimeStarted(notification))
                 .await;
         }
         EventMsg::RealtimeConversationSdp(event) => {
-            let notification = ThreadRealtimeSdpNotification {
-                thread_id: conversation_id.to_string(),
+            let notification = ChatRealtimeSdpNotification {
+                chat_id: conversation_id.to_string(),
                 sdp: event.sdp,
             };
             outgoing
-                .send_server_notification(ServerNotification::ThreadRealtimeSdp(notification))
+                .send_server_notification(ServerNotification::ChatRealtimeSdp(notification))
                 .await;
         }
         EventMsg::RealtimeConversationRealtime(event) => match event.payload {
             RealtimeEvent::SessionUpdated { .. } => {}
             RealtimeEvent::InputAudioSpeechStarted(event) => {
-                let notification = ThreadRealtimeItemAddedNotification {
-                    thread_id: conversation_id.to_string(),
+                let notification = ChatRealtimeMessageAddedNotification {
+                    chat_id: conversation_id.to_string(),
                     item: serde_json::json!({
                         "type": "input_audio_buffer.speech_started",
-                        "item_id": event.item_id,
+                        "message_id": event.message_id,
                     }),
                 };
                 outgoing
-                    .send_server_notification(ServerNotification::ThreadRealtimeItemAdded(
+                    .send_server_notification(ServerNotification::ChatRealtimeItemAdded(
                         notification,
                     ))
                     .await;
             }
             RealtimeEvent::InputTranscriptDelta(event) => {
-                let notification = ThreadRealtimeTranscriptDeltaNotification {
-                    thread_id: conversation_id.to_string(),
+                let notification = ChatRealtimeTranscriptDeltaNotification {
+                    chat_id: conversation_id.to_string(),
                     role: "user".to_string(),
                     delta: event.delta,
                 };
                 outgoing
-                    .send_server_notification(ServerNotification::ThreadRealtimeTranscriptDelta(
+                    .send_server_notification(ServerNotification::ChatRealtimeTranscriptDelta(
                         notification,
                     ))
                     .await;
             }
             RealtimeEvent::InputTranscriptDone(event) => {
-                let notification = ThreadRealtimeTranscriptDoneNotification {
-                    thread_id: conversation_id.to_string(),
+                let notification = ChatRealtimeTranscriptDoneNotification {
+                    chat_id: conversation_id.to_string(),
                     role: "user".to_string(),
                     text: event.text,
                 };
                 outgoing
-                    .send_server_notification(ServerNotification::ThreadRealtimeTranscriptDone(
+                    .send_server_notification(ServerNotification::ChatRealtimeTranscriptDone(
                         notification,
                     ))
                     .await;
             }
             RealtimeEvent::OutputTranscriptDelta(event) => {
-                let notification = ThreadRealtimeTranscriptDeltaNotification {
-                    thread_id: conversation_id.to_string(),
+                let notification = ChatRealtimeTranscriptDeltaNotification {
+                    chat_id: conversation_id.to_string(),
                     role: "assistant".to_string(),
                     delta: event.delta,
                 };
                 outgoing
-                    .send_server_notification(ServerNotification::ThreadRealtimeTranscriptDelta(
+                    .send_server_notification(ServerNotification::ChatRealtimeTranscriptDelta(
                         notification,
                     ))
                     .await;
             }
             RealtimeEvent::OutputTranscriptDone(event) => {
-                let notification = ThreadRealtimeTranscriptDoneNotification {
-                    thread_id: conversation_id.to_string(),
+                let notification = ChatRealtimeTranscriptDoneNotification {
+                    chat_id: conversation_id.to_string(),
                     role: "assistant".to_string(),
                     text: event.text,
                 };
                 outgoing
-                    .send_server_notification(ServerNotification::ThreadRealtimeTranscriptDone(
+                    .send_server_notification(ServerNotification::ChatRealtimeTranscriptDone(
                         notification,
                     ))
                     .await;
             }
             RealtimeEvent::AudioOut(audio) => {
-                let notification = ThreadRealtimeOutputAudioDeltaNotification {
-                    thread_id: conversation_id.to_string(),
+                let notification = ChatRealtimeOutputAudioDeltaNotification {
+                    chat_id: conversation_id.to_string(),
                     audio: audio.into(),
                 };
                 outgoing
-                    .send_server_notification(ServerNotification::ThreadRealtimeOutputAudioDelta(
+                    .send_server_notification(ServerNotification::ChatRealtimeOutputAudioDelta(
                         notification,
                     ))
                     .await;
             }
             RealtimeEvent::ResponseCreated(_) => {}
             RealtimeEvent::ResponseCancelled(event) => {
-                let notification = ThreadRealtimeItemAddedNotification {
-                    thread_id: conversation_id.to_string(),
+                let notification = ChatRealtimeMessageAddedNotification {
+                    chat_id: conversation_id.to_string(),
                     item: serde_json::json!({
                         "type": "response.cancelled",
                         "response_id": event.response_id,
                     }),
                 };
                 outgoing
-                    .send_server_notification(ServerNotification::ThreadRealtimeItemAdded(
+                    .send_server_notification(ServerNotification::ChatRealtimeItemAdded(
                         notification,
                     ))
                     .await;
             }
             RealtimeEvent::ResponseDone(_) => {}
             RealtimeEvent::ConversationItemAdded(item) => {
-                let notification = ThreadRealtimeItemAddedNotification {
-                    thread_id: conversation_id.to_string(),
+                let notification = ChatRealtimeMessageAddedNotification {
+                    chat_id: conversation_id.to_string(),
                     item,
                 };
                 outgoing
-                    .send_server_notification(ServerNotification::ThreadRealtimeItemAdded(
+                    .send_server_notification(ServerNotification::ChatRealtimeItemAdded(
                         notification,
                     ))
                     .await;
             }
             RealtimeEvent::ConversationItemDone { .. } | RealtimeEvent::NoopRequested(_) => {}
             RealtimeEvent::HandoffRequested(handoff) => {
-                let notification = ThreadRealtimeItemAddedNotification {
-                    thread_id: conversation_id.to_string(),
+                let notification = ChatRealtimeMessageAddedNotification {
+                    chat_id: conversation_id.to_string(),
                     item: serde_json::json!({
                         "type": "handoff_request",
                         "handoff_id": handoff.handoff_id,
-                        "item_id": handoff.item_id,
+                        "message_id": handoff.message_id,
                         "input_transcript": handoff.input_transcript,
                         "active_transcript": handoff.active_transcript,
                     }),
                 };
                 outgoing
-                    .send_server_notification(ServerNotification::ThreadRealtimeItemAdded(
+                    .send_server_notification(ServerNotification::ChatRealtimeItemAdded(
                         notification,
                     ))
                     .await;
             }
             RealtimeEvent::Error(message) => {
-                let notification = ThreadRealtimeErrorNotification {
-                    thread_id: conversation_id.to_string(),
+                let notification = ChatRealtimeErrorNotification {
+                    chat_id: conversation_id.to_string(),
                     message,
                 };
                 outgoing
-                    .send_server_notification(ServerNotification::ThreadRealtimeError(notification))
+                    .send_server_notification(ServerNotification::ChatRealtimeError(notification))
                     .await;
             }
         },
         EventMsg::RealtimeConversationClosed(event) => {
-            let notification = ThreadRealtimeClosedNotification {
-                thread_id: conversation_id.to_string(),
+            let notification = ChatRealtimeClosedNotification {
+                chat_id: conversation_id.to_string(),
                 reason: event.reason,
             };
             outgoing
-                .send_server_notification(ServerNotification::ThreadRealtimeClosed(notification))
+                .send_server_notification(ServerNotification::ChatRealtimeClosed(notification))
                 .await;
         }
         EventMsg::ApplyPatchApprovalRequest(event) => {
             let permission_guard = thread_watch_manager
                 .note_permission_requested(&conversation_id.to_string())
                 .await;
-            let item_id = event.call_id.clone();
+            let message_id = event.call_id.clone();
 
             let params = FileChangeRequestApprovalParams {
-                thread_id: conversation_id.to_string(),
-                turn_id: event.turn_id.clone(),
-                item_id: item_id.clone(),
+                chat_id: conversation_id.to_string(),
+                interaction_id: event.interaction_id.clone(),
+                message_id: message_id.clone(),
                 started_at_ms: event.started_at_ms,
                 reason: event.reason.clone(),
                 grant_root: event.grant_root.clone(),
@@ -545,7 +548,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .await;
             tokio::spawn(async move {
                 on_file_change_request_approval_response(
-                    item_id,
+                    message_id,
                     pending_request_id,
                     rx,
                     conversation,
@@ -567,7 +570,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             let ExecApprovalRequestEvent {
                 call_id,
                 approval_id,
-                turn_id,
+                interaction_id,
                 environment_id,
                 started_at_ms,
                 command,
@@ -640,9 +643,9 @@ pub(crate) async fn apply_bespoke_event_handling(
                 additional_permissions.map(V2AdditionalPermissionProfile::from);
 
             let params = CommandExecutionRequestApprovalParams {
-                thread_id: conversation_id.to_string(),
-                turn_id: turn_id.clone(),
-                item_id: call_id.clone(),
+                chat_id: conversation_id.to_string(),
+                interaction_id: interaction_id.clone(),
+                message_id: call_id.clone(),
                 started_at_ms,
                 approval_id: approval_id.clone(),
                 environment_id,
@@ -703,9 +706,9 @@ pub(crate) async fn apply_bespoke_event_handling(
                 })
                 .collect();
             let params = ToolRequestUserInputParams {
-                thread_id: conversation_id.to_string(),
-                turn_id: request.turn_id,
-                item_id: request.call_id,
+                chat_id: conversation_id.to_string(),
+                interaction_id: request.interaction_id,
+                message_id: request.call_id,
                 questions,
                 auto_resolution_ms: request.auto_resolution_ms,
             };
@@ -728,8 +731,8 @@ pub(crate) async fn apply_bespoke_event_handling(
             let permission_guard = thread_watch_manager
                 .note_permission_requested(&conversation_id.to_string())
                 .await;
-            let turn_id = match request.turn_id.clone() {
-                Some(turn_id) => Some(turn_id),
+            let interaction_id = match request.interaction_id.clone() {
+                Some(interaction_id) => Some(interaction_id),
                 None => {
                     let state = thread_state.lock().await;
                     state.active_turn_snapshot().map(|turn| turn.id)
@@ -761,8 +764,8 @@ pub(crate) async fn apply_bespoke_event_handling(
                 }
             };
             let params = McpServerElicitationRequestParams {
-                thread_id: conversation_id.to_string(),
-                turn_id,
+                chat_id: conversation_id.to_string(),
+                interaction_id,
                 server_name: request.server_name.clone(),
                 request: request_body,
             };
@@ -792,9 +795,9 @@ pub(crate) async fn apply_bespoke_event_handling(
                 None => conversation.config_snapshot().await.cwd().clone(),
             };
             let params = PermissionsRequestApprovalParams {
-                thread_id: conversation_id.to_string(),
-                turn_id: request.turn_id.clone(),
-                item_id: request.call_id.clone(),
+                chat_id: conversation_id.to_string(),
+                interaction_id: request.interaction_id.clone(),
+                message_id: request.call_id.clone(),
                 environment_id: request.environment_id.clone(),
                 started_at_ms: request.started_at_ms,
                 cwd: request_cwd.clone(),
@@ -807,7 +810,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             let pending_response = PendingRequestPermissionsResponse {
                 call_id: request.call_id,
                 conversation_id,
-                turn_id: request.turn_id,
+                interaction_id: request.interaction_id,
                 requested_permissions,
                 request_cwd,
                 pending_request_id,
@@ -821,11 +824,11 @@ pub(crate) async fn apply_bespoke_event_handling(
         }
         EventMsg::DynamicToolCallRequest(request) => {
             let call_id = request.call_id;
-            let turn_id = request.turn_id;
+            let interaction_id = request.interaction_id;
             let namespace = request.namespace;
             let tool = request.tool;
             let arguments = request.arguments;
-            let item = ThreadItem::DynamicToolCall {
+            let item = Message::DynamicToolCall {
                 id: call_id.clone(),
                 namespace: namespace.clone(),
                 tool: tool.clone(),
@@ -835,18 +838,18 @@ pub(crate) async fn apply_bespoke_event_handling(
                 success: None,
                 duration_ms: None,
             };
-            let notification = ItemStartedNotification {
-                thread_id: conversation_id.to_string(),
-                turn_id: turn_id.clone(),
+            let notification = MessageStartedNotification {
+                chat_id: conversation_id.to_string(),
+                interaction_id: interaction_id.clone(),
                 started_at_ms: request.started_at_ms,
                 item,
             };
             outgoing
-                .send_server_notification(ServerNotification::ItemStarted(notification))
+                .send_server_notification(MessageStarted(notification))
                 .await;
             let params = DynamicToolCallParams {
-                thread_id: conversation_id.to_string(),
-                turn_id: turn_id.clone(),
+                chat_id: conversation_id.to_string(),
+                interaction_id: interaction_id.clone(),
                 call_id: call_id.clone(),
                 namespace,
                 tool: tool.clone(),
@@ -944,7 +947,7 @@ pub(crate) async fn apply_bespoke_event_handling(
 
             let message = ev.message.clone();
             let codex_error_info = ev.codex_error_info.clone();
-            // If this error belongs to an in-flight `thread/rollback` request, fail that request
+            // If this error belongs to an in-flight `chat/rollback` request, fail that request
             // (and clear pending state) so subsequent rollbacks are unblocked.
             //
             // Don't send a notification for this error.
@@ -965,7 +968,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                 return;
             }
 
-            let turn_error = TurnError {
+            let turn_error = InteractionError {
                 message: ev.message,
                 codex_error_info: ev.codex_error_info.map(V2CodexErrorInfo::from),
                 additional_details: None,
@@ -982,7 +985,7 @@ pub(crate) async fn apply_bespoke_event_handling(
         EventMsg::StreamError(ev) => {
             // We don't need to update the turn summary store for stream errors as they are intermediate error states for retries,
             // but we notify the client.
-            let turn_error = TurnError {
+            let turn_error = InteractionError {
                 message: ev.message,
                 codex_error_info: ev.codex_error_info.map(V2CodexErrorInfo::from),
                 additional_details: ev.additional_details,
@@ -991,8 +994,8 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .send_server_notification(ServerNotification::Error(ErrorNotification {
                     error: turn_error,
                     will_retry: true,
-                    thread_id: conversation_id.to_string(),
-                    turn_id: event_turn_id.clone(),
+                    chat_id: conversation_id.to_string(),
+                    interaction_id: event_turn_id.clone(),
                 }))
                 .await;
         }
@@ -1001,27 +1004,27 @@ pub(crate) async fn apply_bespoke_event_handling(
             let review = review_request
                 .user_facing_hint
                 .unwrap_or_else(|| review_prompts::user_facing_hint(&review_request.target));
-            let item = ThreadItem::EnteredReviewMode {
+            let item = Message::EnteredReviewMode {
                 id: event_turn_id.clone(),
                 review,
             };
-            let started = ItemStartedNotification {
-                thread_id: conversation_id.to_string(),
-                turn_id: event_turn_id.clone(),
+            let started = MessageStartedNotification {
+                chat_id: conversation_id.to_string(),
+                interaction_id: event_turn_id.clone(),
                 started_at_ms: now_unix_timestamp_ms(),
                 item: item.clone(),
             };
             outgoing
-                .send_server_notification(ServerNotification::ItemStarted(started))
+                .send_server_notification(MessageStarted(started))
                 .await;
-            let completed = ItemCompletedNotification {
-                thread_id: conversation_id.to_string(),
-                turn_id: event_turn_id.clone(),
+            let completed = MessageCompletedNotification {
+                chat_id: conversation_id.to_string(),
+                interaction_id: event_turn_id.clone(),
                 completed_at_ms: now_unix_timestamp_ms(),
                 item,
             };
             outgoing
-                .send_server_notification(ServerNotification::ItemCompleted(completed))
+                .send_server_notification(MessageCompleted(completed))
                 .await;
         }
         msg @ (EventMsg::ItemStarted(_)
@@ -1037,8 +1040,8 @@ pub(crate) async fn apply_bespoke_event_handling(
         }
         EventMsg::HookStarted(event) => {
             let notification = HookStartedNotification {
-                thread_id: conversation_id.to_string(),
-                turn_id: event.turn_id,
+                chat_id: conversation_id.to_string(),
+                interaction_id: event.interaction_id,
                 run: event.run.into(),
             };
             outgoing
@@ -1047,8 +1050,8 @@ pub(crate) async fn apply_bespoke_event_handling(
         }
         EventMsg::HookCompleted(event) => {
             let notification = HookCompletedNotification {
-                thread_id: conversation_id.to_string(),
-                turn_id: event.turn_id,
+                chat_id: conversation_id.to_string(),
+                interaction_id: event.interaction_id,
                 run: event.run.into(),
             };
             outgoing
@@ -1060,27 +1063,27 @@ pub(crate) async fn apply_bespoke_event_handling(
                 Some(output) => render_review_output_text(&output),
                 None => REVIEW_FALLBACK_MESSAGE.to_string(),
             };
-            let item = ThreadItem::ExitedReviewMode {
+            let item = Message::ExitedReviewMode {
                 id: event_turn_id.clone(),
                 review,
             };
-            let started = ItemStartedNotification {
-                thread_id: conversation_id.to_string(),
-                turn_id: event_turn_id.clone(),
+            let started = MessageStartedNotification {
+                chat_id: conversation_id.to_string(),
+                interaction_id: event_turn_id.clone(),
                 started_at_ms: now_unix_timestamp_ms(),
                 item: item.clone(),
             };
             outgoing
-                .send_server_notification(ServerNotification::ItemStarted(started))
+                .send_server_notification(MessageStarted(started))
                 .await;
-            let completed = ItemCompletedNotification {
-                thread_id: conversation_id.to_string(),
-                turn_id: event_turn_id.clone(),
+            let completed = MessageCompletedNotification {
+                chat_id: conversation_id.to_string(),
+                interaction_id: event_turn_id.clone(),
                 completed_at_ms: now_unix_timestamp_ms(),
                 item,
             };
             outgoing
-                .send_server_notification(ServerNotification::ItemCompleted(completed))
+                .send_server_notification(MessageCompleted(completed))
                 .await;
         }
         EventMsg::RawResponseItem(raw_response_item_event) => {
@@ -1113,13 +1116,13 @@ pub(crate) async fn apply_bespoke_event_handling(
                 // item so clients do not render the same wait twice.
                 return;
             }
-            let item_id = exec_command_begin_event.call_id.clone();
+            let message_id = exec_command_begin_event.call_id.clone();
             let first_start = {
                 let mut state = thread_state.lock().await;
                 state
                     .turn_summary
                     .command_execution_started
-                    .insert(item_id.clone())
+                    .insert(message_id.clone())
             };
             if first_start {
                 let notification = item_event_to_server_notification(
@@ -1245,15 +1248,13 @@ pub(crate) async fn apply_bespoke_event_handling(
             }
         }
         EventMsg::ThreadGoalUpdated(thread_goal_event) => {
-            let notification = ThreadGoalUpdatedNotification {
-                thread_id: thread_goal_event.thread_id.to_string(),
-                turn_id: thread_goal_event.turn_id,
+            let notification = ChatGoalUpdatedNotification {
+                chat_id: thread_goal_event.chat_id.to_string(),
+                interaction_id: thread_goal_event.interaction_id,
                 goal: thread_goal_event.goal.clone().into(),
             };
             outgoing
-                .send_global_server_notification(ServerNotification::ThreadGoalUpdated(
-                    notification,
-                ))
+                .send_global_server_notification(ChatGoalUpdated(notification))
                 .await;
         }
         EventMsg::ThreadSettingsApplied(thread_settings_event) => {
@@ -1265,9 +1266,9 @@ pub(crate) async fn apply_bespoke_event_handling(
             };
             if changed {
                 outgoing
-                    .send_server_notification(ServerNotification::ThreadSettingsUpdated(
-                        ThreadSettingsUpdatedNotification {
-                            thread_id: conversation_id.to_string(),
+                    .send_server_notification(ChatSettingsUpdated(
+                        ChatSettingsUpdatedNotification {
+                            chat_id: conversation_id.to_string(),
                             thread_settings,
                         },
                     ))
@@ -1302,13 +1303,13 @@ async fn handle_turn_diff(
     turn_diff_event: TurnDiffEvent,
     outgoing: &ThreadScopedOutgoingMessageSender,
 ) {
-    let notification = TurnDiffUpdatedNotification {
-        thread_id: conversation_id.to_string(),
-        turn_id: event_turn_id.to_string(),
+    let notification = InteractionDiffUpdatedNotification {
+        chat_id: conversation_id.to_string(),
+        interaction_id: event_turn_id.to_string(),
         diff: turn_diff_event.unified_diff,
     };
     outgoing
-        .send_server_notification(ServerNotification::TurnDiffUpdated(notification))
+        .send_server_notification(InteractionDiffUpdated(notification))
         .await;
 }
 
@@ -1319,24 +1320,24 @@ async fn handle_turn_plan_update(
     outgoing: &ThreadScopedOutgoingMessageSender,
 ) {
     // `update_plan` is a todo/checklist tool; it is not related to plan-mode updates
-    let notification = TurnPlanUpdatedNotification {
-        thread_id: conversation_id.to_string(),
-        turn_id: event_turn_id.to_string(),
+    let notification = InteractionPlanUpdatedNotification {
+        chat_id: conversation_id.to_string(),
+        interaction_id: event_turn_id.to_string(),
         explanation: plan_update_event.explanation,
         plan: plan_update_event
             .plan
             .into_iter()
-            .map(TurnPlanStep::from)
+            .map(InteractionPlanStep::from)
             .collect(),
     };
     outgoing
-        .send_server_notification(ServerNotification::TurnPlanUpdated(notification))
+        .send_server_notification(InteractionPlanUpdated(notification))
         .await;
 }
 
 struct TurnCompletionMetadata {
-    status: TurnStatus,
-    error: Option<TurnError>,
+    status: InteractionStatus,
+    error: Option<InteractionError>,
     started_at: Option<i64>,
     completed_at: Option<i64>,
     duration_ms: Option<i64>,
@@ -1348,12 +1349,12 @@ async fn emit_turn_completed_with_status(
     turn_completion_metadata: TurnCompletionMetadata,
     outgoing: &ThreadScopedOutgoingMessageSender,
 ) {
-    let notification = TurnCompletedNotification {
-        thread_id: conversation_id.to_string(),
-        turn: Turn {
+    let notification = InteractionCompletedNotification {
+        chat_id: conversation_id.to_string(),
+        turn: Interaction {
             id: event_turn_id,
-            items: vec![],
-            items_view: TurnItemsView::NotLoaded,
+            messages: vec![],
+            messages_view: InteractionMessagesView::NotLoaded,
             error: turn_completion_metadata.error,
             status: turn_completion_metadata.status,
             started_at: turn_completion_metadata.started_at,
@@ -1362,15 +1363,15 @@ async fn emit_turn_completed_with_status(
         },
     };
     outgoing
-        .send_server_notification(ServerNotification::TurnCompleted(notification))
+        .send_server_notification(InteractionCompleted(notification))
         .await;
 }
 
 #[allow(clippy::too_many_arguments)]
 async fn start_command_execution_item(
     conversation_id: &ThreadId,
-    turn_id: String,
-    item_id: String,
+    interaction_id: String,
+    message_id: String,
     command: String,
     cwd: LegacyAppPathString,
     command_actions: Vec<V2ParsedCommand>,
@@ -1383,15 +1384,15 @@ async fn start_command_execution_item(
         state
             .turn_summary
             .command_execution_started
-            .insert(item_id.clone())
+            .insert(message_id.clone())
     };
     if first_start {
-        let notification = ItemStartedNotification {
-            thread_id: conversation_id.to_string(),
-            turn_id,
+        let notification = MessageStartedNotification {
+            chat_id: conversation_id.to_string(),
+            interaction_id,
             started_at_ms: now_unix_timestamp_ms(),
-            item: ThreadItem::CommandExecution {
-                id: item_id,
+            item: Message::CommandExecution {
+                id: message_id,
                 command,
                 cwd,
                 process_id: None,
@@ -1404,7 +1405,7 @@ async fn start_command_execution_item(
             },
         };
         outgoing
-            .send_server_notification(ServerNotification::ItemStarted(notification))
+            .send_server_notification(MessageStarted(notification))
             .await;
     }
     first_start
@@ -1413,8 +1414,8 @@ async fn start_command_execution_item(
 #[allow(clippy::too_many_arguments)]
 async fn complete_command_execution_item(
     conversation_id: &ThreadId,
-    turn_id: String,
-    item_id: String,
+    interaction_id: String,
+    message_id: String,
     command: String,
     cwd: LegacyAppPathString,
     process_id: Option<String>,
@@ -1429,13 +1430,13 @@ async fn complete_command_execution_item(
         .await
         .turn_summary
         .command_execution_started
-        .remove(&item_id);
+        .remove(&message_id);
     if !should_emit {
         return;
     }
 
-    let item = ThreadItem::CommandExecution {
-        id: item_id,
+    let item = Message::CommandExecution {
+        id: message_id,
         command,
         cwd,
         process_id,
@@ -1446,26 +1447,26 @@ async fn complete_command_execution_item(
         exit_code: None,
         duration_ms: None,
     };
-    let notification = ItemCompletedNotification {
-        thread_id: conversation_id.to_string(),
-        turn_id,
+    let notification = MessageCompletedNotification {
+        chat_id: conversation_id.to_string(),
+        interaction_id,
         completed_at_ms: now_unix_timestamp_ms(),
         item,
     };
     outgoing
-        .send_server_notification(ServerNotification::ItemCompleted(notification))
+        .send_server_notification(MessageCompleted(notification))
         .await;
 }
 
 async fn maybe_emit_raw_response_item_completed(
     conversation_id: ThreadId,
-    turn_id: &str,
+    interaction_id: &str,
     item: datax_protocol::models::ResponseItem,
     outgoing: &ThreadScopedOutgoingMessageSender,
 ) {
     let notification = RawResponseItemCompletedNotification {
-        thread_id: conversation_id.to_string(),
-        turn_id: turn_id.to_string(),
+        chat_id: conversation_id.to_string(),
+        interaction_id: interaction_id.to_string(),
         item,
     };
     outgoing
@@ -1475,7 +1476,7 @@ async fn maybe_emit_raw_response_item_completed(
 
 pub(crate) async fn maybe_emit_hook_prompt_item_completed(
     conversation_id: ThreadId,
-    turn_id: &str,
+    interaction_id: &str,
     item: &datax_protocol::models::ResponseItem,
     outgoing: &ThreadScopedOutgoingMessageSender,
 ) {
@@ -1494,11 +1495,11 @@ pub(crate) async fn maybe_emit_hook_prompt_item_completed(
         return;
     };
 
-    let notification = ItemCompletedNotification {
-        thread_id: conversation_id.to_string(),
-        turn_id: turn_id.to_string(),
+    let notification = MessageCompletedNotification {
+        chat_id: conversation_id.to_string(),
+        interaction_id: interaction_id.to_string(),
         completed_at_ms: now_unix_timestamp_ms(),
-        item: ThreadItem::HookPrompt {
+        item: Message::HookPrompt {
             id: hook_prompt.id,
             fragments: hook_prompt
                 .fragments
@@ -1508,7 +1509,7 @@ pub(crate) async fn maybe_emit_hook_prompt_item_completed(
         },
     };
     outgoing
-        .send_server_notification(ServerNotification::ItemCompleted(notification))
+        .send_server_notification(MessageCompleted(notification))
         .await;
 }
 
@@ -1530,8 +1531,8 @@ async fn handle_turn_complete(
     let turn_summary = find_and_remove_turn_summary(conversation_id, thread_state).await;
 
     let (status, error) = match turn_summary.last_error {
-        Some(error) => (TurnStatus::Failed, Some(error)),
-        None => (TurnStatus::Completed, None),
+        Some(error) => (InteractionStatus::Failed, Some(error)),
+        None => (InteractionStatus::Completed, None),
     };
 
     emit_turn_completed_with_status(
@@ -1562,7 +1563,7 @@ async fn handle_turn_interrupted(
         conversation_id,
         event_turn_id,
         TurnCompletionMetadata {
-            status: TurnStatus::Interrupted,
+            status: InteractionStatus::Interrupted,
             error: None,
             started_at: turn_summary.started_at,
             completed_at: turn_aborted_event.completed_at,
@@ -1593,20 +1594,20 @@ fn thread_rollback_response_from_stored_thread(
     session_id: String,
     fallback_model_provider: &str,
     fallback_cwd: &AbsolutePathBuf,
-    loaded_status: ThreadStatus,
-) -> std::result::Result<ThreadRollbackResponse, String> {
-    let thread_id = stored_thread.thread_id;
+    loaded_status: ChatStatus,
+) -> std::result::Result<ChatRollbackResponse, String> {
+    let chat_id = stored_thread.chat_id;
     let (mut thread, history) =
         thread_from_stored_thread(stored_thread, fallback_model_provider, fallback_cwd);
     thread.session_id = session_id;
     let Some(history) = history else {
         return Err(format!(
-            "thread {thread_id} did not include persisted history after rollback"
+            "thread {chat_id} did not include persisted history after rollback"
         ));
     };
-    populate_thread_turns_from_history(&mut thread, &history.items, /*active_turn*/ None);
+    populate_thread_turns_from_history(&mut thread, &history.messages, /*active_turn*/ None);
     thread.status = loaded_status;
-    Ok(ThreadRollbackResponse { thread })
+    Ok(ChatRollbackResponse { thread })
 }
 
 async fn respond_to_pending_interrupts(
@@ -1620,26 +1621,26 @@ async fn respond_to_pending_interrupts(
 
     for request_id in pending {
         outgoing
-            .send_response(request_id, TurnInterruptResponse {})
+            .send_response(request_id, InteractionInterruptResponse {})
             .await;
     }
 }
 
 async fn handle_token_count_event(
     conversation_id: ThreadId,
-    turn_id: String,
+    interaction_id: String,
     token_count_event: TokenCountEvent,
     outgoing: &ThreadScopedOutgoingMessageSender,
 ) {
     let TokenCountEvent { info, rate_limits } = token_count_event;
-    if let Some(token_usage) = info.map(ThreadTokenUsage::from) {
-        let notification = ThreadTokenUsageUpdatedNotification {
-            thread_id: conversation_id.to_string(),
-            turn_id,
+    if let Some(token_usage) = info.map(ChatTokenUsage::from) {
+        let notification = ChatTokenUsageUpdatedNotification {
+            chat_id: conversation_id.to_string(),
+            interaction_id,
             token_usage,
         };
         outgoing
-            .send_server_notification(ServerNotification::ThreadTokenUsageUpdated(notification))
+            .send_server_notification(ChatTokenUsageUpdated(notification))
             .await;
     }
     if let Some(rate_limits) = rate_limits {
@@ -1655,7 +1656,7 @@ async fn handle_token_count_event(
 
 async fn handle_error(
     _conversation_id: ThreadId,
-    error: TurnError,
+    error: InteractionError,
     thread_state: &Arc<Mutex<ThreadState>>,
 ) {
     let mut state = thread_state.lock().await;
@@ -1665,7 +1666,7 @@ async fn handle_error(
 async fn handle_error_notification(
     conversation_id: ThreadId,
     event_turn_id: &str,
-    error: TurnError,
+    error: InteractionError,
     outgoing: &ThreadScopedOutgoingMessageSender,
     thread_state: &Arc<Mutex<ThreadState>>,
 ) {
@@ -1674,8 +1675,8 @@ async fn handle_error_notification(
         .send_server_notification(ServerNotification::Error(ErrorNotification {
             error,
             will_retry: false,
-            thread_id: conversation_id.to_string(),
-            turn_id: event_turn_id.to_string(),
+            chat_id: conversation_id.to_string(),
+            interaction_id: event_turn_id.to_string(),
         }))
         .await;
 }
@@ -1836,7 +1837,7 @@ async fn on_request_permissions_response(
     let PendingRequestPermissionsResponse {
         call_id,
         conversation_id,
-        turn_id,
+        interaction_id,
         requested_permissions,
         request_cwd,
         pending_request_id,
@@ -1860,8 +1861,8 @@ async fn on_request_permissions_response(
             let message = format!("failed to localize granted filesystem paths: {err}");
             handle_error_notification(
                 conversation_id,
-                &turn_id,
-                TurnError {
+                &interaction_id,
+                InteractionError {
                     message,
                     codex_error_info: None,
                     additional_details: None,
@@ -1892,7 +1893,7 @@ async fn on_request_permissions_response(
 struct PendingRequestPermissionsResponse {
     call_id: String,
     conversation_id: ThreadId,
-    turn_id: String,
+    interaction_id: String,
     requested_permissions: CoreRequestPermissionProfile,
     request_cwd: AbsolutePathBuf,
     pending_request_id: RequestId,
@@ -1913,7 +1914,7 @@ fn request_permissions_response_from_client_result(
             error!("request failed with client error: {err:?}");
             return Ok(Some(CoreRequestPermissionsResponse {
                 permissions: Default::default(),
-                scope: CorePermissionGrantScope::Turn,
+                scope: CorePermissionGrantScope::Interaction,
                 strict_auto_review: false,
             }));
         }
@@ -1921,7 +1922,7 @@ fn request_permissions_response_from_client_result(
             error!("request failed: {err:?}");
             return Ok(Some(CoreRequestPermissionsResponse {
                 permissions: Default::default(),
-                scope: CorePermissionGrantScope::Turn,
+                scope: CorePermissionGrantScope::Interaction,
                 strict_auto_review: false,
             }));
         }
@@ -1932,7 +1933,7 @@ fn request_permissions_response_from_client_result(
             error!("failed to deserialize PermissionsRequestApprovalResponse: {err}");
             PermissionsRequestApprovalResponse {
                 permissions: V2GrantedPermissionProfile::default(),
-                scope: datax_app_server_protocol::PermissionGrantScope::Turn,
+                scope: datax_app_server_protocol::PermissionGrantScope::Interaction,
                 strict_auto_review: None,
             }
         });
@@ -1946,7 +1947,7 @@ fn request_permissions_response_from_client_result(
         error!("strict auto review is only supported for turn-scoped permission grants");
         return Ok(Some(CoreRequestPermissionsResponse {
             permissions: Default::default(),
-            scope: CorePermissionGrantScope::Turn,
+            scope: CorePermissionGrantScope::Interaction,
             strict_auto_review: false,
         }));
     }
@@ -1996,7 +1997,7 @@ fn map_file_change_approval_decision(decision: FileChangeApprovalDecision) -> Re
 
 #[allow(clippy::too_many_arguments)]
 async fn on_file_change_request_approval_response(
-    item_id: String,
+    message_id: String,
     pending_request_id: RequestId,
     receiver: oneshot::Receiver<ClientRequestResult>,
     codex: Arc<CodexThread>,
@@ -2031,7 +2032,7 @@ async fn on_file_change_request_approval_response(
 
     if let Err(err) = codex
         .submit(Op::PatchApproval {
-            id: item_id,
+            id: message_id,
             decision,
         })
         .await
@@ -2045,7 +2046,7 @@ async fn on_command_execution_request_approval_response(
     event_turn_id: String,
     conversation_id: ThreadId,
     approval_id: Option<String>,
-    item_id: String,
+    message_id: String,
     completion_item: Option<CommandExecutionCompletionItem>,
     pending_request_id: RequestId,
     receiver: oneshot::Receiver<ClientRequestResult>,
@@ -2121,13 +2122,13 @@ async fn on_command_execution_request_approval_response(
     let suppress_subcommand_completion_item = {
         // For regular shell/unified_exec approvals, approval_id is null.
         // For zsh-fork subcommand approvals, approval_id is present and
-        // item_id points to the parent command item.
+        // message_id points to the parent command item.
         if approval_id.is_some() {
             let state = thread_state.lock().await;
             state
                 .turn_summary
                 .command_execution_started
-                .contains(&item_id)
+                .contains(&message_id)
         } else {
             false
         }
@@ -2140,7 +2141,7 @@ async fn on_command_execution_request_approval_response(
         complete_command_execution_item(
             &conversation_id,
             event_turn_id.clone(),
-            item_id.clone(),
+            message_id.clone(),
             completion_item.command,
             completion_item.cwd,
             /*process_id*/ None,
@@ -2155,8 +2156,8 @@ async fn on_command_execution_request_approval_response(
 
     if let Err(err) = conversation
         .submit(Op::ExecApproval {
-            id: approval_id.unwrap_or_else(|| item_id.clone()),
-            turn_id: Some(event_turn_id),
+            id: approval_id.unwrap_or_else(|| message_id.clone()),
+            interaction_id: Some(event_turn_id),
             decision,
         })
         .await
@@ -2187,12 +2188,12 @@ mod tests {
     use core_test_support::load_default_config_for_test;
     use datax_app_server_protocol::AutoReviewDecisionSource;
     use datax_app_server_protocol::GuardianApprovalReviewStatus;
+    use datax_app_server_protocol::InteractionPlanStepStatus;
     use datax_app_server_protocol::JSONRPCErrorError;
-    use datax_app_server_protocol::TurnPlanStepStatus;
     use datax_login::CodexAuth;
     use datax_protocol::AgentPath;
-    use datax_protocol::items::HookPromptFragment;
-    use datax_protocol::items::build_hook_prompt_message;
+    use datax_protocol::messages::HookPromptFragment;
+    use datax_protocol::messages::build_hook_prompt_message;
     use datax_protocol::models::FileSystemPermissions as CoreFileSystemPermissions;
     use datax_protocol::models::NetworkPermissions as CoreNetworkPermissions;
     use datax_protocol::models::PermissionProfile;
@@ -2249,7 +2250,7 @@ mod tests {
 
     #[test]
     fn rollback_response_rebuilds_pathless_thread_from_stored_history() -> Result<()> {
-        let thread_id = ThreadId::from_string("00000000-0000-0000-0000-000000000789")?;
+        let chat_id = ThreadId::from_string("00000000-0000-0000-0000-000000000789")?;
         let created_at = Utc::now();
         let history_items = vec![
             RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
@@ -2267,11 +2268,11 @@ mod tests {
             })),
         ];
         let stored_thread = StoredThread {
-            thread_id,
+            chat_id,
             extra_config: None,
             rollout_path: None,
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             preview: "fallback preview".to_string(),
             name: Some("Rollback thread".to_string()),
             model_provider: "openai".to_string(),
@@ -2284,7 +2285,7 @@ mod tests {
             cwd: test_path_buf("/tmp").abs().into(),
             cli_version: "0.0.0".to_string(),
             source: SessionSource::Cli,
-            thread_source: None,
+            chat_source: None,
             agent_nickname: None,
             agent_role: None,
             agent_path: None,
@@ -2294,34 +2295,34 @@ mod tests {
             token_usage: None,
             first_user_message: Some("before rollback".to_string()),
             history: Some(StoredThreadHistory {
-                thread_id,
-                items: history_items,
+                chat_id,
+                messages: history_items,
             }),
         };
         let fallback_cwd = test_path_buf("/tmp").abs();
 
         let response = thread_rollback_response_from_stored_thread(
             stored_thread,
-            thread_id.to_string(),
+            chat_id.to_string(),
             "fallback-provider",
             &fallback_cwd,
-            ThreadStatus::NotLoaded,
+            ChatStatus::NotLoaded,
         )
         .expect("rollback response should rebuild from stored history");
 
-        assert_eq!(response.thread.id, thread_id.to_string());
+        assert_eq!(response.thread.id, chat_id.to_string());
         assert_eq!(response.thread.path, None);
         assert_eq!(response.thread.preview, "fallback preview");
         assert_eq!(response.thread.name.as_deref(), Some("Rollback thread"));
-        assert_eq!(response.thread.status, ThreadStatus::NotLoaded);
-        assert_eq!(response.thread.turns.len(), 1);
-        assert_eq!(response.thread.turns[0].items.len(), 2);
+        assert_eq!(response.thread.status, ChatStatus::NotLoaded);
+        assert_eq!(response.thread.interactions.len(), 1);
+        assert_eq!(response.thread.interactions[0].messages.len(), 2);
         Ok(())
     }
 
-    fn turn_complete_event(turn_id: &str) -> TurnCompleteEvent {
+    fn turn_complete_event(interaction_id: &str) -> TurnCompleteEvent {
         TurnCompleteEvent {
-            turn_id: turn_id.to_string(),
+            interaction_id: interaction_id.to_string(),
             last_agent_message: None,
             completed_at: Some(TEST_TURN_COMPLETED_AT),
             duration_ms: Some(TEST_TURN_DURATION_MS),
@@ -2329,9 +2330,9 @@ mod tests {
         }
     }
 
-    fn turn_aborted_event(turn_id: &str) -> TurnAbortedEvent {
+    fn turn_aborted_event(interaction_id: &str) -> TurnAbortedEvent {
         TurnAbortedEvent {
-            turn_id: Some(turn_id.to_string()),
+            interaction_id: Some(interaction_id.to_string()),
             reason: datax_protocol::protocol::TurnAbortReason::Interrupted,
             completed_at: Some(TEST_TURN_COMPLETED_AT),
             duration_ms: Some(TEST_TURN_DURATION_MS),
@@ -2350,7 +2351,7 @@ mod tests {
 
     fn guardian_command_assessment(
         id: &str,
-        turn_id: &str,
+        interaction_id: &str,
         status: GuardianAssessmentStatus,
     ) -> GuardianAssessmentEvent {
         let (risk_level, user_authorization, rationale) = match status {
@@ -2372,8 +2373,8 @@ mod tests {
         };
         GuardianAssessmentEvent {
             id: format!("review-{id}"),
-            target_item_id: Some(id.to_string()),
-            turn_id: turn_id.to_string(),
+            target_message_id: Some(id.to_string()),
+            interaction_id: interaction_id.to_string(),
             started_at_ms: 1_000,
             completed_at_ms: (!matches!(status, GuardianAssessmentStatus::InProgress))
                 .then_some(1_042),
@@ -2407,7 +2408,7 @@ mod tests {
 
     impl GuardianAssessmentTestContext {
         async fn apply_guardian_assessment_event(&self, assessment: GuardianAssessmentEvent) {
-            let event_turn_id = assessment.turn_id.clone();
+            let event_turn_id = assessment.interaction_id.clone();
             apply_bespoke_event_handling(
                 Event {
                     id: event_turn_id,
@@ -2439,8 +2440,8 @@ mod tests {
             "turn-from-event",
             &GuardianAssessmentEvent {
                 id: "review-1".to_string(),
-                target_item_id: Some("item-1".to_string()),
-                turn_id: String::new(),
+                target_message_id: Some("item-1".to_string()),
+                interaction_id: String::new(),
                 started_at_ms: 1_000,
                 completed_at_ms: None,
                 status: datax_protocol::protocol::GuardianAssessmentStatus::InProgress,
@@ -2453,12 +2454,12 @@ mod tests {
         );
 
         match notification {
-            ServerNotification::ItemGuardianApprovalReviewStarted(payload) => {
-                assert_eq!(payload.thread_id, conversation_id.to_string());
-                assert_eq!(payload.turn_id, "turn-from-event");
+            MessageGuardianApprovalReviewStarted(payload) => {
+                assert_eq!(payload.chat_id, conversation_id.to_string());
+                assert_eq!(payload.interaction_id, "turn-from-event");
                 assert_eq!(payload.started_at_ms, 1_000);
                 assert_eq!(payload.review_id, "review-1");
-                assert_eq!(payload.target_item_id.as_deref(), Some("item-1"));
+                assert_eq!(payload.target_message_id.as_deref(), Some("item-1"));
                 assert_eq!(
                     payload.review.status,
                     GuardianApprovalReviewStatus::InProgress
@@ -2485,8 +2486,8 @@ mod tests {
             "turn-from-event",
             &GuardianAssessmentEvent {
                 id: "review-2".to_string(),
-                target_item_id: Some("item-2".to_string()),
-                turn_id: "turn-from-assessment".to_string(),
+                target_message_id: Some("item-2".to_string()),
+                interaction_id: "turn-from-assessment".to_string(),
                 started_at_ms: 1_000,
                 completed_at_ms: Some(1_042),
                 status: datax_protocol::protocol::GuardianAssessmentStatus::Denied,
@@ -2501,13 +2502,13 @@ mod tests {
         );
 
         match notification {
-            ServerNotification::ItemGuardianApprovalReviewCompleted(payload) => {
-                assert_eq!(payload.thread_id, conversation_id.to_string());
-                assert_eq!(payload.turn_id, "turn-from-assessment");
+            MessageGuardianApprovalReviewCompleted(payload) => {
+                assert_eq!(payload.chat_id, conversation_id.to_string());
+                assert_eq!(payload.interaction_id, "turn-from-assessment");
                 assert_eq!(payload.started_at_ms, 1_000);
                 assert_eq!(payload.completed_at_ms, 1_042);
                 assert_eq!(payload.review_id, "review-2");
-                assert_eq!(payload.target_item_id.as_deref(), Some("item-2"));
+                assert_eq!(payload.target_message_id.as_deref(), Some("item-2"));
                 assert_eq!(payload.decision_source, AutoReviewDecisionSource::Agent);
                 assert_eq!(payload.review.status, GuardianApprovalReviewStatus::Denied);
                 assert_eq!(
@@ -2539,8 +2540,8 @@ mod tests {
             "turn-from-event",
             &GuardianAssessmentEvent {
                 id: "review-3".to_string(),
-                target_item_id: None,
-                turn_id: "turn-from-assessment".to_string(),
+                target_message_id: None,
+                interaction_id: "turn-from-assessment".to_string(),
                 started_at_ms: 1_000,
                 completed_at_ms: Some(1_042),
                 status: datax_protocol::protocol::GuardianAssessmentStatus::Aborted,
@@ -2555,11 +2556,11 @@ mod tests {
         );
 
         match notification {
-            ServerNotification::ItemGuardianApprovalReviewCompleted(payload) => {
-                assert_eq!(payload.thread_id, conversation_id.to_string());
-                assert_eq!(payload.turn_id, "turn-from-assessment");
+            MessageGuardianApprovalReviewCompleted(payload) => {
+                assert_eq!(payload.chat_id, conversation_id.to_string());
+                assert_eq!(payload.interaction_id, "turn-from-assessment");
                 assert_eq!(payload.review_id, "review-3");
-                assert_eq!(payload.target_item_id, None);
+                assert_eq!(payload.target_message_id, None);
                 assert_eq!(payload.decision_source, AutoReviewDecisionSource::Agent);
                 assert_eq!(payload.review.status, GuardianApprovalReviewStatus::Aborted);
                 assert_eq!(payload.review.risk_level, None);
@@ -2603,12 +2604,12 @@ mod tests {
 
         let msg = recv_broadcast_message(&mut rx).await?;
         match msg {
-            OutgoingMessage::AppServerNotification(ServerNotification::ItemStarted(payload)) => {
-                assert_eq!(payload.thread_id, conversation_id.to_string());
-                assert_eq!(payload.turn_id, "turn-1");
+            OutgoingMessage::AppServerNotification(MessageStarted(payload)) => {
+                assert_eq!(payload.chat_id, conversation_id.to_string());
+                assert_eq!(payload.interaction_id, "turn-1");
                 assert_eq!(
                     payload.item,
-                    ThreadItem::CommandExecution {
+                    Message::CommandExecution {
                         id: "cmd-1".to_string(),
                         command: completion_item.command.clone(),
                         cwd: completion_item.cwd.clone(),
@@ -2690,8 +2691,8 @@ mod tests {
 
         let completed = recv_broadcast_message(&mut rx).await?;
         match completed {
-            OutgoingMessage::AppServerNotification(ServerNotification::ItemCompleted(payload)) => {
-                let ThreadItem::CommandExecution { id, status, .. } = payload.item else {
+            OutgoingMessage::AppServerNotification(MessageCompleted(payload)) => {
+                let Message::CommandExecution { id, status, .. } = payload.item else {
                     bail!("expected command execution completion");
                 };
                 assert_eq!(id, "cmd-1");
@@ -2734,7 +2735,7 @@ mod tests {
             ),
         );
         let datax_core::NewThread {
-            thread_id: conversation_id,
+            chat_id: conversation_id,
             thread: conversation,
             ..
         } = thread_manager.start_thread(config.clone()).await?;
@@ -2768,9 +2769,9 @@ mod tests {
             .await;
         let first = recv_broadcast_message(&mut rx).await?;
         match first {
-            OutgoingMessage::AppServerNotification(ServerNotification::ItemStarted(payload)) => {
-                assert_eq!(payload.turn_id, "turn-guardian-approved");
-                let ThreadItem::CommandExecution { id, status, .. } = payload.item else {
+            OutgoingMessage::AppServerNotification(MessageStarted(payload)) => {
+                assert_eq!(payload.interaction_id, "turn-guardian-approved");
+                let Message::CommandExecution { id, status, .. } = payload.item else {
                     bail!("expected command execution item");
                 };
                 assert_eq!(id, "cmd-guardian-approved");
@@ -2780,12 +2781,12 @@ mod tests {
         }
         let second = recv_broadcast_message(&mut rx).await?;
         match second {
-            OutgoingMessage::AppServerNotification(
-                ServerNotification::ItemGuardianApprovalReviewStarted(payload),
-            ) => {
+            OutgoingMessage::AppServerNotification(MessageGuardianApprovalReviewStarted(
+                payload,
+            )) => {
                 assert_eq!(payload.review_id, "review-cmd-guardian-approved");
                 assert_eq!(
-                    payload.target_item_id.as_deref(),
+                    payload.target_message_id.as_deref(),
                     Some("cmd-guardian-approved")
                 );
                 assert_eq!(
@@ -2805,12 +2806,12 @@ mod tests {
             .await;
         let third = recv_broadcast_message(&mut rx).await?;
         match third {
-            OutgoingMessage::AppServerNotification(
-                ServerNotification::ItemGuardianApprovalReviewCompleted(payload),
-            ) => {
+            OutgoingMessage::AppServerNotification(MessageGuardianApprovalReviewCompleted(
+                payload,
+            )) => {
                 assert_eq!(payload.review_id, "review-cmd-guardian-approved");
                 assert_eq!(
-                    payload.target_item_id.as_deref(),
+                    payload.target_message_id.as_deref(),
                     Some("cmd-guardian-approved")
                 );
                 assert_eq!(payload.decision_source, AutoReviewDecisionSource::Agent);
@@ -2835,9 +2836,9 @@ mod tests {
             .await;
         let fourth = recv_broadcast_message(&mut rx).await?;
         match fourth {
-            OutgoingMessage::AppServerNotification(ServerNotification::ItemStarted(payload)) => {
-                assert_eq!(payload.turn_id, "turn-guardian-denied");
-                let ThreadItem::CommandExecution { id, status, .. } = payload.item else {
+            OutgoingMessage::AppServerNotification(MessageStarted(payload)) => {
+                assert_eq!(payload.interaction_id, "turn-guardian-denied");
+                let Message::CommandExecution { id, status, .. } = payload.item else {
                     bail!("expected command execution item");
                 };
                 assert_eq!(id, "cmd-guardian-denied");
@@ -2847,12 +2848,12 @@ mod tests {
         }
         let fifth = recv_broadcast_message(&mut rx).await?;
         match fifth {
-            OutgoingMessage::AppServerNotification(
-                ServerNotification::ItemGuardianApprovalReviewStarted(payload),
-            ) => {
+            OutgoingMessage::AppServerNotification(MessageGuardianApprovalReviewStarted(
+                payload,
+            )) => {
                 assert_eq!(payload.review_id, "review-cmd-guardian-denied");
                 assert_eq!(
-                    payload.target_item_id.as_deref(),
+                    payload.target_message_id.as_deref(),
                     Some("cmd-guardian-denied")
                 );
                 assert_eq!(
@@ -2872,12 +2873,12 @@ mod tests {
             .await;
         let sixth = recv_broadcast_message(&mut rx).await?;
         match sixth {
-            OutgoingMessage::AppServerNotification(
-                ServerNotification::ItemGuardianApprovalReviewCompleted(payload),
-            ) => {
+            OutgoingMessage::AppServerNotification(MessageGuardianApprovalReviewCompleted(
+                payload,
+            )) => {
                 assert_eq!(payload.review_id, "review-cmd-guardian-denied");
                 assert_eq!(
-                    payload.target_item_id.as_deref(),
+                    payload.target_message_id.as_deref(),
                     Some("cmd-guardian-denied")
                 );
                 assert_eq!(payload.decision_source, AutoReviewDecisionSource::Agent);
@@ -2887,8 +2888,8 @@ mod tests {
         }
         let seventh = recv_broadcast_message(&mut rx).await?;
         match seventh {
-            OutgoingMessage::AppServerNotification(ServerNotification::ItemCompleted(payload)) => {
-                let ThreadItem::CommandExecution { id, status, .. } = payload.item else {
+            OutgoingMessage::AppServerNotification(MessageCompleted(payload)) => {
+                let Message::CommandExecution { id, status, .. } = payload.item else {
                     bail!("expected command execution completion");
                 };
                 assert_eq!(id, "cmd-guardian-denied");
@@ -2902,17 +2903,17 @@ mod tests {
             "turn-guardian-missing-target",
             GuardianAssessmentStatus::InProgress,
         );
-        missing_target.target_item_id = None;
+        missing_target.target_message_id = None;
         guardian_context
             .apply_guardian_assessment_event(missing_target)
             .await;
         let eighth = recv_broadcast_message(&mut rx).await?;
         match eighth {
-            OutgoingMessage::AppServerNotification(
-                ServerNotification::ItemGuardianApprovalReviewStarted(payload),
-            ) => {
+            OutgoingMessage::AppServerNotification(MessageGuardianApprovalReviewStarted(
+                payload,
+            )) => {
                 assert_eq!(payload.review_id, "review-cmd-guardian-missing-target");
-                assert_eq!(payload.target_item_id, None);
+                assert_eq!(payload.target_message_id, None);
                 assert_eq!(
                     payload.review.status,
                     GuardianApprovalReviewStatus::InProgress
@@ -3068,7 +3069,7 @@ mod tests {
                 response,
                 CoreRequestPermissionsResponse {
                     permissions: expected_permissions,
-                    scope: CorePermissionGrantScope::Turn,
+                    scope: CorePermissionGrantScope::Interaction,
                     strict_auto_review: false,
                 }
             );
@@ -3120,7 +3121,7 @@ mod tests {
             response,
             CoreRequestPermissionsResponse {
                 permissions: CoreRequestPermissionProfile::default(),
-                scope: CorePermissionGrantScope::Turn,
+                scope: CorePermissionGrantScope::Interaction,
                 strict_auto_review: false,
             }
         );
@@ -3148,7 +3149,7 @@ mod tests {
         .expect("paths should localize")
         .expect("response should be accepted");
 
-        assert_eq!(response.scope, CorePermissionGrantScope::Turn);
+        assert_eq!(response.scope, CorePermissionGrantScope::Interaction);
         assert!(response.strict_auto_review);
     }
 
@@ -3286,7 +3287,7 @@ mod tests {
 
         handle_error(
             conversation_id,
-            TurnError {
+            InteractionError {
                 message: "boom".to_string(),
                 codex_error_info: Some(V2CodexErrorInfo::InternalServerError),
                 additional_details: None,
@@ -3298,7 +3299,7 @@ mod tests {
         let turn_summary = find_and_remove_turn_summary(conversation_id, &thread_state).await;
         assert_eq!(
             turn_summary.last_error,
-            Some(TurnError {
+            Some(InteractionError {
                 message: "boom".to_string(),
                 codex_error_info: Some(V2CodexErrorInfo::InternalServerError),
                 additional_details: None,
@@ -3320,7 +3321,7 @@ mod tests {
             ),
         );
         let datax_core::NewThread {
-            thread_id: conversation_id,
+            chat_id: conversation_id,
             thread: conversation,
             ..
         } = thread_manager.start_thread(config.clone()).await?;
@@ -3330,7 +3331,7 @@ mod tests {
             state.track_current_turn_event(
                 "turn-1",
                 &EventMsg::TurnStarted(datax_protocol::protocol::TurnStartedEvent {
-                    turn_id: "turn-1".to_string(),
+                    interaction_id: "turn-1".to_string(),
                     trace_id: None,
                     started_at: Some(42),
                     model_context_window: None,
@@ -3365,7 +3366,7 @@ mod tests {
             Event {
                 id: "turn-1".to_string(),
                 msg: EventMsg::TurnStarted(datax_protocol::protocol::TurnStartedEvent {
-                    turn_id: "turn-1".to_string(),
+                    interaction_id: "turn-1".to_string(),
                     trace_id: None,
                     started_at: Some(42),
                     model_context_window: None,
@@ -3385,10 +3386,10 @@ mod tests {
 
         let msg = recv_broadcast_message(&mut rx).await?;
         match msg {
-            OutgoingMessage::AppServerNotification(ServerNotification::TurnStarted(n)) => {
+            OutgoingMessage::AppServerNotification(InteractionStarted(n)) => {
                 assert_eq!(n.turn.id, "turn-1");
-                assert_eq!(n.turn.items_view, TurnItemsView::NotLoaded);
-                assert!(n.turn.items.is_empty());
+                assert_eq!(n.turn.messages_view, InteractionMessagesView::NotLoaded);
+                assert!(n.turn.messages.is_empty());
             }
             other => bail!("unexpected message: {other:?}"),
         }
@@ -3408,7 +3409,7 @@ mod tests {
             ),
         );
         let datax_core::NewThread {
-            thread_id: conversation_id,
+            chat_id: conversation_id,
             thread: conversation,
             ..
         } = thread_manager.start_thread(config).await?;
@@ -3457,26 +3458,24 @@ mod tests {
             thread_watch_manager
                 .loaded_status_for_thread(&child_thread_id_string)
                 .await,
-            ThreadStatus::NotLoaded
+            ChatStatus::NotLoaded
         );
         assert_eq!(thread_watch_manager.running_turn_count().await, 0);
         let message = recv_broadcast_message(&mut rx).await?;
-        let OutgoingMessage::AppServerNotification(ServerNotification::ItemCompleted(payload)) =
-            message
-        else {
+        let OutgoingMessage::AppServerNotification(MessageCompleted(payload)) = message else {
             bail!("unexpected message: {message:?}");
         };
         assert_eq!(
             payload,
-            ItemCompletedNotification {
-                item: ThreadItem::SubAgentActivity {
+            MessageCompletedNotification {
+                item: Message::SubAgentActivity {
                     id: "activity-1".to_string(),
                     kind: datax_app_server_protocol::SubAgentActivityKind::Interrupted,
                     agent_thread_id: child_thread_id_string,
                     agent_path: "/root/worker".to_string(),
                 },
-                thread_id: conversation_id.to_string(),
-                turn_id: "turn-1".to_string(),
+                chat_id: conversation_id.to_string(),
+                interaction_id: "turn-1".to_string(),
                 completed_at_ms: 42,
             }
         );
@@ -3503,7 +3502,7 @@ mod tests {
             state.track_current_turn_event(
                 &event_turn_id,
                 &EventMsg::TurnStarted(datax_protocol::protocol::TurnStartedEvent {
-                    turn_id: event_turn_id.clone(),
+                    interaction_id: event_turn_id.clone(),
                     trace_id: None,
                     started_at: Some(42),
                     model_context_window: None,
@@ -3527,11 +3526,11 @@ mod tests {
 
         let msg = recv_broadcast_message(&mut rx).await?;
         match msg {
-            OutgoingMessage::AppServerNotification(ServerNotification::TurnCompleted(n)) => {
+            OutgoingMessage::AppServerNotification(InteractionCompleted(n)) => {
                 assert_eq!(n.turn.id, event_turn_id);
-                assert_eq!(n.turn.status, TurnStatus::Completed);
-                assert_eq!(n.turn.items_view, TurnItemsView::NotLoaded);
-                assert!(n.turn.items.is_empty());
+                assert_eq!(n.turn.status, InteractionStatus::Completed);
+                assert_eq!(n.turn.messages_view, InteractionMessagesView::NotLoaded);
+                assert!(n.turn.messages.is_empty());
                 assert_eq!(n.turn.error, None);
                 assert_eq!(n.turn.started_at, Some(42));
                 assert_eq!(n.turn.completed_at, Some(TEST_TURN_COMPLETED_AT));
@@ -3550,7 +3549,7 @@ mod tests {
         let thread_state = new_thread_state();
         handle_error(
             conversation_id,
-            TurnError {
+            InteractionError {
                 message: "oops".to_string(),
                 codex_error_info: None,
                 additional_details: None,
@@ -3580,9 +3579,9 @@ mod tests {
 
         let msg = recv_broadcast_message(&mut rx).await?;
         match msg {
-            OutgoingMessage::AppServerNotification(ServerNotification::TurnCompleted(n)) => {
+            OutgoingMessage::AppServerNotification(InteractionCompleted(n)) => {
                 assert_eq!(n.turn.id, event_turn_id);
-                assert_eq!(n.turn.status, TurnStatus::Interrupted);
+                assert_eq!(n.turn.status, InteractionStatus::Interrupted);
                 assert_eq!(n.turn.error, None);
                 assert_eq!(n.turn.completed_at, Some(TEST_TURN_COMPLETED_AT));
                 assert_eq!(n.turn.duration_ms, Some(TEST_TURN_DURATION_MS));
@@ -3600,7 +3599,7 @@ mod tests {
         let thread_state = new_thread_state();
         handle_error(
             conversation_id,
-            TurnError {
+            InteractionError {
                 message: "bad".to_string(),
                 codex_error_info: Some(V2CodexErrorInfo::Other),
                 additional_details: None,
@@ -3630,12 +3629,12 @@ mod tests {
 
         let msg = recv_broadcast_message(&mut rx).await?;
         match msg {
-            OutgoingMessage::AppServerNotification(ServerNotification::TurnCompleted(n)) => {
+            OutgoingMessage::AppServerNotification(InteractionCompleted(n)) => {
                 assert_eq!(n.turn.id, event_turn_id);
-                assert_eq!(n.turn.status, TurnStatus::Failed);
+                assert_eq!(n.turn.status, InteractionStatus::Failed);
                 assert_eq!(
                     n.turn.error,
-                    Some(TurnError {
+                    Some(InteractionError {
                         message: "bad".to_string(),
                         codex_error_info: Some(V2CodexErrorInfo::Other),
                         additional_details: None,
@@ -3682,15 +3681,15 @@ mod tests {
 
         let msg = recv_broadcast_message(&mut rx).await?;
         match msg {
-            OutgoingMessage::AppServerNotification(ServerNotification::TurnPlanUpdated(n)) => {
-                assert_eq!(n.thread_id, conversation_id.to_string());
-                assert_eq!(n.turn_id, "turn-123");
+            OutgoingMessage::AppServerNotification(InteractionPlanUpdated(n)) => {
+                assert_eq!(n.chat_id, conversation_id.to_string());
+                assert_eq!(n.interaction_id, "turn-123");
                 assert_eq!(n.explanation.as_deref(), Some("need plan"));
                 assert_eq!(n.plan.len(), 2);
                 assert_eq!(n.plan[0].step, "first");
-                assert_eq!(n.plan[0].status, TurnPlanStepStatus::Pending);
+                assert_eq!(n.plan[0].status, InteractionPlanStepStatus::Pending);
                 assert_eq!(n.plan[1].step, "second");
-                assert_eq!(n.plan[1].status, TurnPlanStepStatus::Completed);
+                assert_eq!(n.plan[1].status, InteractionPlanStepStatus::Completed);
             }
             other => bail!("unexpected message: {other:?}"),
         }
@@ -3701,7 +3700,7 @@ mod tests {
     #[tokio::test]
     async fn test_handle_token_count_event_emits_usage_and_rate_limits() -> Result<()> {
         let conversation_id = ThreadId::new();
-        let turn_id = "turn-123".to_string();
+        let interaction_id = "turn-123".to_string();
         let (tx, mut rx) = mpsc::channel(CHANNEL_CAPACITY);
         let outgoing = Arc::new(OutgoingMessageSender::new(
             tx,
@@ -3751,7 +3750,7 @@ mod tests {
 
         handle_token_count_event(
             conversation_id,
-            turn_id.clone(),
+            interaction_id.clone(),
             TokenCountEvent {
                 info: Some(info),
                 rate_limits: Some(rate_limits),
@@ -3762,11 +3761,9 @@ mod tests {
 
         let first = recv_broadcast_message(&mut rx).await?;
         match first {
-            OutgoingMessage::AppServerNotification(
-                ServerNotification::ThreadTokenUsageUpdated(payload),
-            ) => {
-                assert_eq!(payload.thread_id, conversation_id.to_string());
-                assert_eq!(payload.turn_id, turn_id);
+            OutgoingMessage::AppServerNotification(ChatTokenUsageUpdated(payload)) => {
+                assert_eq!(payload.chat_id, conversation_id.to_string());
+                assert_eq!(payload.interaction_id, interaction_id);
                 let usage = payload.token_usage;
                 assert_eq!(usage.total.total_tokens, 200);
                 assert_eq!(usage.total.cached_input_tokens, 25);
@@ -3794,7 +3791,7 @@ mod tests {
     #[tokio::test]
     async fn test_handle_token_count_event_without_usage_info() -> Result<()> {
         let conversation_id = ThreadId::new();
-        let turn_id = "turn-456".to_string();
+        let interaction_id = "turn-456".to_string();
         let (tx, mut rx) = mpsc::channel(CHANNEL_CAPACITY);
         let outgoing = Arc::new(OutgoingMessageSender::new(
             tx,
@@ -3808,7 +3805,7 @@ mod tests {
 
         handle_token_count_event(
             conversation_id,
-            turn_id.clone(),
+            interaction_id.clone(),
             TokenCountEvent {
                 info: None,
                 rate_limits: None,
@@ -3826,7 +3823,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_handle_turn_complete_emits_error_multiple_turns() -> Result<()> {
-        // Conversation A will have two turns; Conversation B will have one turn.
+        // Conversation A will have two interactions; Conversation B will have one turn.
         let conversation_a = ThreadId::new();
         let conversation_b = ThreadId::new();
         let thread_state = new_thread_state();
@@ -3842,11 +3839,11 @@ mod tests {
             ThreadId::new(),
         );
 
-        // Turn 1 on conversation A
+        // Interaction 1 on conversation A
         let a_turn1 = "a_turn1".to_string();
         handle_error(
             conversation_a,
-            TurnError {
+            InteractionError {
                 message: "a1".to_string(),
                 codex_error_info: Some(V2CodexErrorInfo::BadRequest),
                 additional_details: None,
@@ -3863,11 +3860,11 @@ mod tests {
         )
         .await;
 
-        // Turn 1 on conversation B
+        // Interaction 1 on conversation B
         let b_turn1 = "b_turn1".to_string();
         handle_error(
             conversation_b,
-            TurnError {
+            InteractionError {
                 message: "b1".to_string(),
                 codex_error_info: None,
                 additional_details: None,
@@ -3884,7 +3881,7 @@ mod tests {
         )
         .await;
 
-        // Turn 2 on conversation A
+        // Interaction 2 on conversation A
         let a_turn2 = "a_turn2".to_string();
         handle_turn_complete(
             conversation_a,
@@ -3898,12 +3895,12 @@ mod tests {
         // Verify: A turn 1
         let msg = recv_broadcast_message(&mut rx).await?;
         match msg {
-            OutgoingMessage::AppServerNotification(ServerNotification::TurnCompleted(n)) => {
+            OutgoingMessage::AppServerNotification(InteractionCompleted(n)) => {
                 assert_eq!(n.turn.id, a_turn1);
-                assert_eq!(n.turn.status, TurnStatus::Failed);
+                assert_eq!(n.turn.status, InteractionStatus::Failed);
                 assert_eq!(
                     n.turn.error,
-                    Some(TurnError {
+                    Some(InteractionError {
                         message: "a1".to_string(),
                         codex_error_info: Some(V2CodexErrorInfo::BadRequest),
                         additional_details: None,
@@ -3916,12 +3913,12 @@ mod tests {
         // Verify: B turn 1
         let msg = recv_broadcast_message(&mut rx).await?;
         match msg {
-            OutgoingMessage::AppServerNotification(ServerNotification::TurnCompleted(n)) => {
+            OutgoingMessage::AppServerNotification(InteractionCompleted(n)) => {
                 assert_eq!(n.turn.id, b_turn1);
-                assert_eq!(n.turn.status, TurnStatus::Failed);
+                assert_eq!(n.turn.status, InteractionStatus::Failed);
                 assert_eq!(
                     n.turn.error,
-                    Some(TurnError {
+                    Some(InteractionError {
                         message: "b1".to_string(),
                         codex_error_info: None,
                         additional_details: None,
@@ -3934,9 +3931,9 @@ mod tests {
         // Verify: A turn 2
         let msg = recv_broadcast_message(&mut rx).await?;
         match msg {
-            OutgoingMessage::AppServerNotification(ServerNotification::TurnCompleted(n)) => {
+            OutgoingMessage::AppServerNotification(InteractionCompleted(n)) => {
                 assert_eq!(n.turn.id, a_turn2);
-                assert_eq!(n.turn.status, TurnStatus::Completed);
+                assert_eq!(n.turn.status, InteractionStatus::Completed);
                 assert_eq!(n.turn.error, None);
             }
             other => bail!("unexpected message: {other:?}"),
@@ -3973,11 +3970,9 @@ mod tests {
 
         let msg = recv_broadcast_message(&mut rx).await?;
         match msg {
-            OutgoingMessage::AppServerNotification(ServerNotification::TurnDiffUpdated(
-                notification,
-            )) => {
-                assert_eq!(notification.thread_id, conversation_id.to_string());
-                assert_eq!(notification.turn_id, "turn-1");
+            OutgoingMessage::AppServerNotification(InteractionDiffUpdated(notification)) => {
+                assert_eq!(notification.chat_id, conversation_id.to_string());
+                assert_eq!(notification.interaction_id, "turn-1");
                 assert_eq!(notification.diff, unified_diff);
             }
             other => bail!("unexpected message: {other:?}"),
@@ -4009,14 +4004,12 @@ mod tests {
 
         let msg = recv_broadcast_message(&mut rx).await?;
         match msg {
-            OutgoingMessage::AppServerNotification(ServerNotification::ItemCompleted(
-                notification,
-            )) => {
-                assert_eq!(notification.thread_id, conversation_id.to_string());
-                assert_eq!(notification.turn_id, "turn-1");
+            OutgoingMessage::AppServerNotification(MessageCompleted(notification)) => {
+                assert_eq!(notification.chat_id, conversation_id.to_string());
+                assert_eq!(notification.interaction_id, "turn-1");
                 assert_eq!(
                     notification.item,
-                    ThreadItem::HookPrompt {
+                    Message::HookPrompt {
                         id: notification.item.id().to_string(),
                         fragments: vec![
                             datax_app_server_protocol::HookPromptFragment {

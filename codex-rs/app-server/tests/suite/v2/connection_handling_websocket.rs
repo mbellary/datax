@@ -6,6 +6,10 @@ use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::to_response;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use datax_app_server_protocol::ChatLoadedListParams;
+use datax_app_server_protocol::ChatLoadedListResponse;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::ClientInfo;
 use datax_app_server_protocol::InitializeParams;
 use datax_app_server_protocol::JSONRPCError;
@@ -14,10 +18,6 @@ use datax_app_server_protocol::JSONRPCNotification;
 use datax_app_server_protocol::JSONRPCRequest;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadLoadedListParams;
-use datax_app_server_protocol::ThreadLoadedListResponse;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
 use futures::SinkExt;
 use futures::StreamExt;
 use hmac::Hmac;
@@ -356,8 +356,8 @@ async fn websocket_disconnect_keeps_last_subscribed_thread_loaded_until_idle_tim
     send_initialize_request(&mut ws1, /*id*/ 1, "ws_thread_owner").await?;
     read_response_for_id(&mut ws1, /*id*/ 1).await?;
 
-    let thread_id = start_thread(&mut ws1, /*id*/ 2).await?;
-    assert_loaded_threads(&mut ws1, /*id*/ 3, &[thread_id.as_str()]).await?;
+    let chat_id = start_thread(&mut ws1, /*id*/ 2).await?;
+    assert_loaded_threads(&mut ws1, /*id*/ 3, &[chat_id.as_str()]).await?;
 
     ws1.close(None).await.context("failed to close websocket")?;
     drop(ws1);
@@ -366,7 +366,7 @@ async fn websocket_disconnect_keeps_last_subscribed_thread_loaded_until_idle_tim
     send_initialize_request(&mut ws2, /*id*/ 4, "ws_reconnect_client").await?;
     read_response_for_id(&mut ws2, /*id*/ 4).await?;
 
-    wait_for_loaded_threads(&mut ws2, /*first_id*/ 5, &[thread_id.as_str()]).await?;
+    wait_for_loaded_threads(&mut ws2, /*first_id*/ 5, &[chat_id.as_str()]).await?;
 
     process
         .kill()
@@ -612,16 +612,16 @@ pub(super) async fn send_initialize_request(
 async fn start_thread(stream: &mut WsClient, id: i64) -> Result<String> {
     send_request(
         stream,
-        "thread/start",
+        "chat/start",
         id,
-        Some(serde_json::to_value(ThreadStartParams {
+        Some(serde_json::to_value(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })?),
     )
     .await?;
     let response = read_response_for_id(stream, id).await?;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(response)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(response)?;
     Ok(thread.id)
 }
 
@@ -631,7 +631,7 @@ async fn assert_loaded_threads(stream: &mut WsClient, id: i64, expected: &[&str]
     actual.sort();
     let mut expected = expected
         .iter()
-        .map(|thread_id| (*thread_id).to_string())
+        .map(|chat_id| (*chat_id).to_string())
         .collect::<Vec<_>>();
     expected.sort();
     assert_eq!(actual, expected);
@@ -647,7 +647,7 @@ async fn wait_for_loaded_threads(
     let mut next_id = first_id;
     let expected = expected
         .iter()
-        .map(|thread_id| (*thread_id).to_string())
+        .map(|chat_id| (*chat_id).to_string())
         .collect::<Vec<_>>();
     timeout(DEFAULT_READ_TIMEOUT, async {
         loop {
@@ -666,19 +666,16 @@ async fn wait_for_loaded_threads(
     Ok(())
 }
 
-async fn request_loaded_threads(
-    stream: &mut WsClient,
-    id: i64,
-) -> Result<ThreadLoadedListResponse> {
+async fn request_loaded_threads(stream: &mut WsClient, id: i64) -> Result<ChatLoadedListResponse> {
     send_request(
         stream,
-        "thread/loaded/list",
+        "chat/loaded/list",
         id,
-        Some(serde_json::to_value(ThreadLoadedListParams::default())?),
+        Some(serde_json::to_value(ChatLoadedListParams::default())?),
     )
     .await?;
     let response = read_response_for_id(stream, id).await?;
-    to_response::<ThreadLoadedListResponse>(response)
+    to_response::<ChatLoadedListResponse>(response)
 }
 
 async fn send_config_read_request(stream: &mut WsClient, id: i64) -> Result<()> {

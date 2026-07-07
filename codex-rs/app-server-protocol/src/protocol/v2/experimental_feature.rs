@@ -18,7 +18,7 @@ pub struct ExperimentalFeatureListParams {
     /// existing thread so enablement is computed from that thread's refreshed
     /// config, including project-local config for the thread's cwd.
     #[ts(optional = nullable)]
-    pub thread_id: Option<String>,
+    pub chat_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
@@ -66,7 +66,7 @@ pub struct ExperimentalFeature {
 pub struct ExperimentalFeatureListResponse {
     pub data: Vec<ExperimentalFeature>,
     /// Opaque cursor to pass to the next call to continue after the last item.
-    /// If None, there are no more items to return.
+    /// If None, there are no more messages to return.
     pub next_cursor: Option<String>,
 }
 

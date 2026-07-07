@@ -42,7 +42,7 @@ async fn list_collaboration_modes_returns_presets() -> Result<()> {
     )
     .await??;
 
-    let CollaborationModeListResponse { data: items } =
+    let CollaborationModeListResponse { data: messages } =
         to_response::<CollaborationModeListResponse>(response)?;
 
     let expected: Vec<CollaborationModeMask> = builtin_collaboration_mode_presets()
@@ -54,6 +54,6 @@ async fn list_collaboration_modes_returns_presets() -> Result<()> {
             reasoning_effort: preset.reasoning_effort,
         })
         .collect();
-    assert_eq!(expected, items);
+    assert_eq!(expected, messages);
     Ok(())
 }

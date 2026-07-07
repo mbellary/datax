@@ -12,42 +12,42 @@ use core_test_support::responses::WebSocketTestServer;
 use core_test_support::responses::start_websocket_server;
 use core_test_support::responses::start_websocket_server_with_headers;
 use core_test_support::skip_if_no_network;
+use datax_app_server_protocol::ChatRealtimeAppendAudioParams;
+use datax_app_server_protocol::ChatRealtimeAppendAudioResponse;
+use datax_app_server_protocol::ChatRealtimeAppendSpeechParams;
+use datax_app_server_protocol::ChatRealtimeAppendSpeechResponse;
+use datax_app_server_protocol::ChatRealtimeAppendTextParams;
+use datax_app_server_protocol::ChatRealtimeAppendTextResponse;
+use datax_app_server_protocol::ChatRealtimeAudioChunk;
+use datax_app_server_protocol::ChatRealtimeClosedNotification;
+use datax_app_server_protocol::ChatRealtimeErrorNotification;
+use datax_app_server_protocol::ChatRealtimeListVoicesParams;
+use datax_app_server_protocol::ChatRealtimeListVoicesResponse;
+use datax_app_server_protocol::ChatRealtimeMessageAddedNotification;
+use datax_app_server_protocol::ChatRealtimeOutputAudioDeltaNotification;
+use datax_app_server_protocol::ChatRealtimeSdpNotification;
+use datax_app_server_protocol::ChatRealtimeStartParams;
+use datax_app_server_protocol::ChatRealtimeStartResponse;
+use datax_app_server_protocol::ChatRealtimeStartTransport;
+use datax_app_server_protocol::ChatRealtimeStartedNotification;
+use datax_app_server_protocol::ChatRealtimeStopParams;
+use datax_app_server_protocol::ChatRealtimeStopResponse;
+use datax_app_server_protocol::ChatRealtimeTranscriptDeltaNotification;
+use datax_app_server_protocol::ChatRealtimeTranscriptDoneNotification;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::CommandExecutionStatus;
-use datax_app_server_protocol::ItemCompletedNotification;
-use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::InteractionCompletedNotification;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
+use datax_app_server_protocol::InteractionStartedNotification;
 use datax_app_server_protocol::JSONRPCError;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::LoginAccountResponse;
+use datax_app_server_protocol::Message;
+use datax_app_server_protocol::MessageCompletedNotification;
+use datax_app_server_protocol::MessageStartedNotification;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadRealtimeAppendAudioParams;
-use datax_app_server_protocol::ThreadRealtimeAppendAudioResponse;
-use datax_app_server_protocol::ThreadRealtimeAppendSpeechParams;
-use datax_app_server_protocol::ThreadRealtimeAppendSpeechResponse;
-use datax_app_server_protocol::ThreadRealtimeAppendTextParams;
-use datax_app_server_protocol::ThreadRealtimeAppendTextResponse;
-use datax_app_server_protocol::ThreadRealtimeAudioChunk;
-use datax_app_server_protocol::ThreadRealtimeClosedNotification;
-use datax_app_server_protocol::ThreadRealtimeErrorNotification;
-use datax_app_server_protocol::ThreadRealtimeItemAddedNotification;
-use datax_app_server_protocol::ThreadRealtimeListVoicesParams;
-use datax_app_server_protocol::ThreadRealtimeListVoicesResponse;
-use datax_app_server_protocol::ThreadRealtimeOutputAudioDeltaNotification;
-use datax_app_server_protocol::ThreadRealtimeSdpNotification;
-use datax_app_server_protocol::ThreadRealtimeStartParams;
-use datax_app_server_protocol::ThreadRealtimeStartResponse;
-use datax_app_server_protocol::ThreadRealtimeStartTransport;
-use datax_app_server_protocol::ThreadRealtimeStartedNotification;
-use datax_app_server_protocol::ThreadRealtimeStopParams;
-use datax_app_server_protocol::ThreadRealtimeStopResponse;
-use datax_app_server_protocol::ThreadRealtimeTranscriptDeltaNotification;
-use datax_app_server_protocol::ThreadRealtimeTranscriptDoneNotification;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnCompletedNotification;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
-use datax_app_server_protocol::TurnStartedNotification;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_features::FEATURES;
 use datax_features::Feature;
@@ -184,8 +184,8 @@ impl RealtimeTestSandbox {
 
 #[derive(Debug, PartialEq)]
 struct StartedWebrtcRealtime {
-    started: ThreadRealtimeStartedNotification,
-    sdp: ThreadRealtimeSdpNotification,
+    started: ChatRealtimeStartedNotification,
+    sdp: ChatRealtimeSdpNotification,
 }
 
 // Scripted SSE responses for the normal background agent loop. Realtime can ask for a delegated
@@ -207,7 +207,7 @@ struct RealtimeE2eHarness {
     main_loop_responses_server: MockServer,
     realtime_server: WebSocketTestServer,
     call_capture: RealtimeCallRequestCapture,
-    thread_id: String,
+    chat_id: String,
 }
 
 impl RealtimeE2eHarness {
@@ -296,14 +296,14 @@ impl RealtimeE2eHarness {
         login_with_api_key(&mut mcp, "sk-test-key").await?;
 
         let thread_start_request_id = mcp
-            .send_thread_start_request(ThreadStartParams::default())
+            .send_chat_start_request(ChatStartParams::default())
             .await?;
         let thread_start_response: JSONRPCResponse = timeout(
             DEFAULT_TIMEOUT,
             mcp.read_stream_until_response_message(RequestId::Integer(thread_start_request_id)),
         )
         .await??;
-        let thread_start: ThreadStartResponse = to_response(thread_start_response)?;
+        let thread_start: ChatStartResponse = to_response(thread_start_response)?;
 
         Ok(Self {
             mcp,
@@ -311,26 +311,26 @@ impl RealtimeE2eHarness {
             main_loop_responses_server,
             realtime_server,
             call_capture,
-            thread_id: thread_start.thread.id,
+            chat_id: thread_start.thread.id,
         })
     }
 
     async fn start_webrtc_realtime(&mut self, offer_sdp: &str) -> Result<StartedWebrtcRealtime> {
         self.start_webrtc_realtime_with_codex_response_routing(
             offer_sdp, /*client_managed_handoffs*/ None,
-            /*codex_responses_as_items*/ None, /*codex_response_handoff_prefix*/ None,
+            /*codex_responses_as_messages*/ None, /*codex_response_handoff_prefix*/ None,
         )
         .await
     }
 
-    async fn start_webrtc_realtime_with_codex_response_items(
+    async fn start_webrtc_realtime_with_codex_response_messages(
         &mut self,
         offer_sdp: &str,
     ) -> Result<StartedWebrtcRealtime> {
         self.start_webrtc_realtime_with_codex_response_routing(
             offer_sdp,
             /*client_managed_handoffs*/ None,
-            /*codex_responses_as_items*/ Some(true),
+            /*codex_responses_as_messages*/ Some(true),
             /*codex_response_handoff_prefix*/ None,
         )
         .await
@@ -340,27 +340,27 @@ impl RealtimeE2eHarness {
         &mut self,
         offer_sdp: &str,
         client_managed_handoffs: Option<bool>,
-        codex_responses_as_items: Option<bool>,
+        codex_responses_as_messages: Option<bool>,
         codex_response_handoff_prefix: Option<&str>,
     ) -> Result<StartedWebrtcRealtime> {
         // Starts realtime through the public JSON-RPC method, then waits for the same client-visible
         // notifications a desktop app needs: started first, SDP answer second.
         let start_request_id = self
             .mcp
-            .send_thread_realtime_start_request(ThreadRealtimeStartParams {
+            .send_chat_realtime_start_request(ChatRealtimeStartParams {
                 client_managed_handoffs,
-                thread_id: self.thread_id.clone(),
-                codex_response_item_prefix: codex_responses_as_items
+                chat_id: self.chat_id.clone(),
+                codex_response_message_prefix: codex_responses_as_messages
                     .unwrap_or(false)
                     .then(|| RESPONSE_ITEM_PREFIX.to_string()),
                 codex_response_handoff_prefix: codex_response_handoff_prefix.map(str::to_string),
-                codex_responses_as_items,
+                codex_responses_as_messages,
                 model: None,
                 output_modality: RealtimeOutputModality::Audio,
                 include_startup_context: None,
                 prompt: Some(Some("backend prompt".to_string())),
                 realtime_session_id: None,
-                transport: Some(ThreadRealtimeStartTransport::Webrtc {
+                transport: Some(ChatRealtimeStartTransport::Webrtc {
                     sdp: offer_sdp.to_string(),
                 }),
                 version: None,
@@ -373,48 +373,48 @@ impl RealtimeE2eHarness {
                 .read_stream_until_response_message(RequestId::Integer(start_request_id)),
         )
         .await??;
-        let _: ThreadRealtimeStartResponse = to_response(start_response)?;
+        let _: ChatRealtimeStartResponse = to_response(start_response)?;
 
         let started = self
-            .read_notification::<ThreadRealtimeStartedNotification>("thread/realtime/started")
+            .read_notification::<ChatRealtimeStartedNotification>("chat/realtime/started")
             .await?;
         let sdp = self
-            .read_notification::<ThreadRealtimeSdpNotification>("thread/realtime/sdp")
+            .read_notification::<ChatRealtimeSdpNotification>("chat/realtime/sdp")
             .await?;
 
         Ok(StartedWebrtcRealtime { started, sdp })
     }
 
-    async fn start_websocket_realtime(&mut self) -> Result<ThreadRealtimeStartedNotification> {
-        self.start_websocket_realtime_with_codex_responses_as_items(
-            /*codex_responses_as_items*/ None,
+    async fn start_websocket_realtime(&mut self) -> Result<ChatRealtimeStartedNotification> {
+        self.start_websocket_realtime_with_codex_responses_as_messages(
+            /*codex_responses_as_messages*/ None,
         )
         .await
     }
 
-    async fn start_websocket_realtime_with_codex_response_items(
+    async fn start_websocket_realtime_with_codex_response_messages(
         &mut self,
-    ) -> Result<ThreadRealtimeStartedNotification> {
-        self.start_websocket_realtime_with_codex_responses_as_items(
-            /*codex_responses_as_items*/ Some(true),
+    ) -> Result<ChatRealtimeStartedNotification> {
+        self.start_websocket_realtime_with_codex_responses_as_messages(
+            /*codex_responses_as_messages*/ Some(true),
         )
         .await
     }
 
-    async fn start_websocket_realtime_with_codex_responses_as_items(
+    async fn start_websocket_realtime_with_codex_responses_as_messages(
         &mut self,
-        codex_responses_as_items: Option<bool>,
-    ) -> Result<ThreadRealtimeStartedNotification> {
+        codex_responses_as_messages: Option<bool>,
+    ) -> Result<ChatRealtimeStartedNotification> {
         let start_request_id = self
             .mcp
-            .send_thread_realtime_start_request(ThreadRealtimeStartParams {
-                thread_id: self.thread_id.clone(),
+            .send_chat_realtime_start_request(ChatRealtimeStartParams {
+                chat_id: self.chat_id.clone(),
                 client_managed_handoffs: None,
-                codex_response_item_prefix: codex_responses_as_items
+                codex_response_message_prefix: codex_responses_as_messages
                     .unwrap_or(false)
                     .then(|| RESPONSE_ITEM_PREFIX.to_string()),
                 codex_response_handoff_prefix: None,
-                codex_responses_as_items,
+                codex_responses_as_messages,
                 model: None,
                 output_modality: RealtimeOutputModality::Audio,
                 include_startup_context: None,
@@ -431,9 +431,9 @@ impl RealtimeE2eHarness {
                 .read_stream_until_response_message(RequestId::Integer(start_request_id)),
         )
         .await??;
-        let _: ThreadRealtimeStartResponse = to_response(start_response)?;
+        let _: ChatRealtimeStartResponse = to_response(start_response)?;
 
-        self.read_notification::<ThreadRealtimeStartedNotification>("thread/realtime/started")
+        self.read_notification::<ChatRealtimeStartedNotification>("chat/realtime/started")
             .await
     }
 
@@ -454,17 +454,17 @@ impl RealtimeE2eHarness {
         .body_json()
     }
 
-    async fn append_audio(&mut self, thread_id: String) -> Result<()> {
+    async fn append_audio(&mut self, chat_id: String) -> Result<()> {
         let request_id = self
             .mcp
-            .send_thread_realtime_append_audio_request(ThreadRealtimeAppendAudioParams {
-                thread_id,
-                audio: ThreadRealtimeAudioChunk {
+            .send_chat_realtime_append_audio_request(ChatRealtimeAppendAudioParams {
+                chat_id,
+                audio: ChatRealtimeAudioChunk {
                     data: "BQYH".to_string(),
                     sample_rate: 24_000,
                     num_channels: 1,
                     samples_per_channel: Some(480),
-                    item_id: None,
+                    message_id: None,
                 },
             })
             .await?;
@@ -474,15 +474,15 @@ impl RealtimeE2eHarness {
                 .read_stream_until_response_message(RequestId::Integer(request_id)),
         )
         .await??;
-        let _: ThreadRealtimeAppendAudioResponse = to_response(response)?;
+        let _: ChatRealtimeAppendAudioResponse = to_response(response)?;
         Ok(())
     }
 
-    async fn append_text(&mut self, thread_id: String, text: &str) -> Result<()> {
+    async fn append_text(&mut self, chat_id: String, text: &str) -> Result<()> {
         let request_id = self
             .mcp
-            .send_thread_realtime_append_text_request(ThreadRealtimeAppendTextParams {
-                thread_id,
+            .send_chat_realtime_append_text_request(ChatRealtimeAppendTextParams {
+                chat_id,
                 text: text.to_string(),
                 role: ConversationTextRole::User,
             })
@@ -493,15 +493,15 @@ impl RealtimeE2eHarness {
                 .read_stream_until_response_message(RequestId::Integer(request_id)),
         )
         .await??;
-        let _: ThreadRealtimeAppendTextResponse = to_response(response)?;
+        let _: ChatRealtimeAppendTextResponse = to_response(response)?;
         Ok(())
     }
 
-    async fn append_speech(&mut self, thread_id: String, text: &str) -> Result<()> {
+    async fn append_speech(&mut self, chat_id: String, text: &str) -> Result<()> {
         let request_id = self
             .mcp
-            .send_thread_realtime_append_speech_request(ThreadRealtimeAppendSpeechParams {
-                thread_id,
+            .send_chat_realtime_append_speech_request(ChatRealtimeAppendSpeechParams {
+                chat_id,
                 text: text.to_string(),
             })
             .await?;
@@ -511,7 +511,7 @@ impl RealtimeE2eHarness {
                 .read_stream_until_response_message(RequestId::Integer(request_id)),
         )
         .await??;
-        let _: ThreadRealtimeAppendSpeechResponse = to_response(response)?;
+        let _: ChatRealtimeAppendSpeechResponse = to_response(response)?;
         Ok(())
     }
 
@@ -660,22 +660,22 @@ async fn realtime_conversation_streams_v2_notifications() -> Result<()> {
     login_with_api_key(&mut mcp, "sk-test-key").await?;
 
     let thread_start_request_id = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
     let thread_start_response: JSONRPCResponse = timeout(
         DEFAULT_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_request_id)),
     )
     .await??;
-    let thread_start: ThreadStartResponse = to_response(thread_start_response)?;
+    let thread_start: ChatStartResponse = to_response(thread_start_response)?;
 
     let start_request_id = mcp
-        .send_thread_realtime_start_request(ThreadRealtimeStartParams {
+        .send_chat_realtime_start_request(ChatRealtimeStartParams {
             client_managed_handoffs: None,
-            codex_responses_as_items: None,
-            codex_response_item_prefix: None,
+            codex_responses_as_messages: None,
+            codex_response_message_prefix: None,
             codex_response_handoff_prefix: None,
-            thread_id: thread_start.thread.id.clone(),
+            chat_id: thread_start.thread.id.clone(),
             model: Some("realtime-treatment-model".to_string()),
             output_modality: RealtimeOutputModality::Audio,
             include_startup_context: None,
@@ -691,12 +691,12 @@ async fn realtime_conversation_streams_v2_notifications() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_request_id)),
     )
     .await??;
-    let _: ThreadRealtimeStartResponse = to_response(start_response)?;
+    let _: ChatRealtimeStartResponse = to_response(start_response)?;
 
     let started =
-        read_notification::<ThreadRealtimeStartedNotification>(&mut mcp, "thread/realtime/started")
+        read_notification::<ChatRealtimeStartedNotification>(&mut mcp, "chat/realtime/started")
             .await?;
-    assert_eq!(started.thread_id, thread_start.thread.id);
+    assert_eq!(started.chat_id, thread_start.thread.id);
     assert!(started.realtime_session_id.is_some());
     assert_eq!(started.version, RealtimeConversationVersion::V2);
 
@@ -728,14 +728,14 @@ async fn realtime_conversation_streams_v2_notifications() -> Result<()> {
     assert!(startup_context_instructions.contains(STARTUP_CONTEXT_HEADER));
 
     let audio_append_request_id = mcp
-        .send_thread_realtime_append_audio_request(ThreadRealtimeAppendAudioParams {
-            thread_id: started.thread_id.clone(),
-            audio: ThreadRealtimeAudioChunk {
+        .send_chat_realtime_append_audio_request(ChatRealtimeAppendAudioParams {
+            chat_id: started.chat_id.clone(),
+            audio: ChatRealtimeAudioChunk {
                 data: "BQYH".to_string(),
                 sample_rate: 24_000,
                 num_channels: 1,
                 samples_per_channel: Some(480),
-                item_id: None,
+                message_id: None,
             },
         })
         .await?;
@@ -744,11 +744,11 @@ async fn realtime_conversation_streams_v2_notifications() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(audio_append_request_id)),
     )
     .await??;
-    let _: ThreadRealtimeAppendAudioResponse = to_response(audio_append_response)?;
+    let _: ChatRealtimeAppendAudioResponse = to_response(audio_append_response)?;
 
     let text_append_request_id = mcp
-        .send_thread_realtime_append_text_request(ThreadRealtimeAppendTextParams {
-            thread_id: started.thread_id.clone(),
+        .send_chat_realtime_append_text_request(ChatRealtimeAppendTextParams {
+            chat_id: started.chat_id.clone(),
             text: "hello".to_string(),
             role: ConversationTextRole::Developer,
         })
@@ -758,11 +758,11 @@ async fn realtime_conversation_streams_v2_notifications() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(text_append_request_id)),
     )
     .await??;
-    let _: ThreadRealtimeAppendTextResponse = to_response(text_append_response)?;
+    let _: ChatRealtimeAppendTextResponse = to_response(text_append_response)?;
 
     let assistant_append_request_id = mcp
-        .send_thread_realtime_append_text_request(ThreadRealtimeAppendTextParams {
-            thread_id: started.thread_id.clone(),
+        .send_chat_realtime_append_text_request(ChatRealtimeAppendTextParams {
+            chat_id: started.chat_id.clone(),
             text: "welcome back".to_string(),
             role: ConversationTextRole::Assistant,
         })
@@ -772,11 +772,11 @@ async fn realtime_conversation_streams_v2_notifications() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(assistant_append_request_id)),
     )
     .await??;
-    let _: ThreadRealtimeAppendTextResponse = to_response(assistant_append_response)?;
+    let _: ChatRealtimeAppendTextResponse = to_response(assistant_append_response)?;
 
-    let output_audio = read_notification::<ThreadRealtimeOutputAudioDeltaNotification>(
+    let output_audio = read_notification::<ChatRealtimeOutputAudioDeltaNotification>(
         &mut mcp,
-        "thread/realtime/outputAudio/delta",
+        "chat/realtime/outputAudio/delta",
     )
     .await?;
     assert_eq!(output_audio.audio.data, "AQID");
@@ -784,50 +784,50 @@ async fn realtime_conversation_streams_v2_notifications() -> Result<()> {
     assert_eq!(output_audio.audio.num_channels, 1);
     assert_eq!(output_audio.audio.samples_per_channel, Some(512));
 
-    let item_added = read_notification::<ThreadRealtimeItemAddedNotification>(
+    let item_added = read_notification::<ChatRealtimeMessageAddedNotification>(
         &mut mcp,
-        "thread/realtime/itemAdded",
+        "chat/realtime/messageAdded",
     )
     .await?;
-    assert_eq!(item_added.thread_id, output_audio.thread_id);
+    assert_eq!(item_added.chat_id, output_audio.chat_id);
     assert_eq!(item_added.item["type"], json!("message"));
 
-    let first_transcript_delta = read_notification::<ThreadRealtimeTranscriptDeltaNotification>(
+    let first_transcript_delta = read_notification::<ChatRealtimeTranscriptDeltaNotification>(
         &mut mcp,
-        "thread/realtime/transcript/delta",
+        "chat/realtime/transcript/delta",
     )
     .await?;
-    assert_eq!(first_transcript_delta.thread_id, output_audio.thread_id);
+    assert_eq!(first_transcript_delta.chat_id, output_audio.chat_id);
     assert_eq!(first_transcript_delta.role, "user");
     assert_eq!(first_transcript_delta.delta, "delegate now");
 
-    let second_transcript_delta = read_notification::<ThreadRealtimeTranscriptDeltaNotification>(
+    let second_transcript_delta = read_notification::<ChatRealtimeTranscriptDeltaNotification>(
         &mut mcp,
-        "thread/realtime/transcript/delta",
+        "chat/realtime/transcript/delta",
     )
     .await?;
-    assert_eq!(second_transcript_delta.thread_id, output_audio.thread_id);
+    assert_eq!(second_transcript_delta.chat_id, output_audio.chat_id);
     assert_eq!(second_transcript_delta.role, "assistant");
     assert_eq!(second_transcript_delta.delta, "working");
 
-    let final_transcript_done = read_notification::<ThreadRealtimeTranscriptDoneNotification>(
+    let final_transcript_done = read_notification::<ChatRealtimeTranscriptDoneNotification>(
         &mut mcp,
-        "thread/realtime/transcript/done",
+        "chat/realtime/transcript/done",
     )
     .await?;
-    assert_eq!(final_transcript_done.thread_id, output_audio.thread_id);
+    assert_eq!(final_transcript_done.chat_id, output_audio.chat_id);
     assert_eq!(final_transcript_done.role, "assistant");
     assert_eq!(final_transcript_done.text, "working on it");
 
-    let handoff_item_added = read_notification::<ThreadRealtimeItemAddedNotification>(
+    let handoff_item_added = read_notification::<ChatRealtimeMessageAddedNotification>(
         &mut mcp,
-        "thread/realtime/itemAdded",
+        "chat/realtime/messageAdded",
     )
     .await?;
-    assert_eq!(handoff_item_added.thread_id, output_audio.thread_id);
+    assert_eq!(handoff_item_added.chat_id, output_audio.chat_id);
     assert_eq!(handoff_item_added.item["type"], json!("handoff_request"));
     assert_eq!(handoff_item_added.item["handoff_id"], json!("handoff_1"));
-    assert_eq!(handoff_item_added.item["item_id"], json!("item_2"));
+    assert_eq!(handoff_item_added.item["message_id"], json!("item_2"));
     assert_eq!(
         handoff_item_added.item["input_transcript"],
         json!("delegate now")
@@ -841,15 +841,14 @@ async fn realtime_conversation_streams_v2_notifications() -> Result<()> {
     );
 
     let realtime_error =
-        read_notification::<ThreadRealtimeErrorNotification>(&mut mcp, "thread/realtime/error")
-            .await?;
-    assert_eq!(realtime_error.thread_id, output_audio.thread_id);
+        read_notification::<ChatRealtimeErrorNotification>(&mut mcp, "chat/realtime/error").await?;
+    assert_eq!(realtime_error.chat_id, output_audio.chat_id);
     assert_eq!(realtime_error.message, "upstream boom");
 
     let closed =
-        read_notification::<ThreadRealtimeClosedNotification>(&mut mcp, "thread/realtime/closed")
+        read_notification::<ChatRealtimeClosedNotification>(&mut mcp, "chat/realtime/closed")
             .await?;
-    assert_eq!(closed.thread_id, output_audio.thread_id);
+    assert_eq!(closed.chat_id, output_audio.chat_id);
     assert_eq!(closed.reason.as_deref(), Some("error"));
 
     let connections = realtime_server.connections();
@@ -951,22 +950,22 @@ async fn realtime_start_can_skip_startup_context() -> Result<()> {
     login_with_api_key(&mut mcp, "sk-test-key").await?;
 
     let thread_start_request_id = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
     let thread_start_response: JSONRPCResponse = timeout(
         DEFAULT_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_request_id)),
     )
     .await??;
-    let thread_start: ThreadStartResponse = to_response(thread_start_response)?;
+    let thread_start: ChatStartResponse = to_response(thread_start_response)?;
 
     let start_request_id = mcp
-        .send_thread_realtime_start_request(ThreadRealtimeStartParams {
+        .send_chat_realtime_start_request(ChatRealtimeStartParams {
             client_managed_handoffs: None,
-            codex_responses_as_items: None,
-            codex_response_item_prefix: None,
+            codex_responses_as_messages: None,
+            codex_response_message_prefix: None,
             codex_response_handoff_prefix: None,
-            thread_id: thread_start.thread.id.clone(),
+            chat_id: thread_start.thread.id.clone(),
             model: None,
             output_modality: RealtimeOutputModality::Audio,
             include_startup_context: Some(false),
@@ -982,10 +981,9 @@ async fn realtime_start_can_skip_startup_context() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_request_id)),
     )
     .await??;
-    let _: ThreadRealtimeStartResponse = to_response(start_response)?;
+    let _: ChatRealtimeStartResponse = to_response(start_response)?;
 
-    read_notification::<ThreadRealtimeStartedNotification>(&mut mcp, "thread/realtime/started")
-        .await?;
+    read_notification::<ChatRealtimeStartedNotification>(&mut mcp, "chat/realtime/started").await?;
 
     let startup_context_request = realtime_server
         .wait_for_request(/*connection_index*/ 0, /*request_index*/ 0)
@@ -1049,22 +1047,22 @@ async fn realtime_text_output_modality_requests_text_output_and_final_transcript
     login_with_api_key(&mut mcp, "sk-test-key").await?;
 
     let thread_start_request_id = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
     let thread_start_response: JSONRPCResponse = timeout(
         DEFAULT_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_request_id)),
     )
     .await??;
-    let thread_start: ThreadStartResponse = to_response(thread_start_response)?;
+    let thread_start: ChatStartResponse = to_response(thread_start_response)?;
 
     let start_request_id = mcp
-        .send_thread_realtime_start_request(ThreadRealtimeStartParams {
+        .send_chat_realtime_start_request(ChatRealtimeStartParams {
             client_managed_handoffs: None,
-            codex_responses_as_items: None,
-            codex_response_item_prefix: None,
+            codex_responses_as_messages: None,
+            codex_response_message_prefix: None,
             codex_response_handoff_prefix: None,
-            thread_id: thread_start.thread.id.clone(),
+            chat_id: thread_start.thread.id.clone(),
             model: None,
             output_modality: RealtimeOutputModality::Text,
             include_startup_context: None,
@@ -1080,7 +1078,7 @@ async fn realtime_text_output_modality_requests_text_output_and_final_transcript
         mcp.read_stream_until_response_message(RequestId::Integer(start_request_id)),
     )
     .await??;
-    let _: ThreadRealtimeStartResponse = to_response(start_response)?;
+    let _: ChatRealtimeStartResponse = to_response(start_response)?;
 
     let session_update = realtime_server
         .wait_for_request(/*connection_index*/ 0, /*request_index*/ 0)
@@ -1090,31 +1088,31 @@ async fn realtime_text_output_modality_requests_text_output_and_final_transcript
         json!(["text"])
     );
 
-    let first_delta = read_notification::<ThreadRealtimeTranscriptDeltaNotification>(
+    let first_delta = read_notification::<ChatRealtimeTranscriptDeltaNotification>(
         &mut mcp,
-        "thread/realtime/transcript/delta",
+        "chat/realtime/transcript/delta",
     )
     .await?;
-    let second_delta = read_notification::<ThreadRealtimeTranscriptDeltaNotification>(
+    let second_delta = read_notification::<ChatRealtimeTranscriptDeltaNotification>(
         &mut mcp,
-        "thread/realtime/transcript/delta",
+        "chat/realtime/transcript/delta",
     )
     .await?;
-    let done = read_notification::<ThreadRealtimeTranscriptDoneNotification>(
+    let done = read_notification::<ChatRealtimeTranscriptDoneNotification>(
         &mut mcp,
-        "thread/realtime/transcript/done",
+        "chat/realtime/transcript/done",
     )
     .await?;
     assert_eq!(
         vec![first_delta, second_delta],
         vec![
-            ThreadRealtimeTranscriptDeltaNotification {
-                thread_id: thread_start.thread.id.clone(),
+            ChatRealtimeTranscriptDeltaNotification {
+                chat_id: thread_start.thread.id.clone(),
                 role: "assistant".to_string(),
                 delta: "hello ".to_string(),
             },
-            ThreadRealtimeTranscriptDeltaNotification {
-                thread_id: thread_start.thread.id.clone(),
+            ChatRealtimeTranscriptDeltaNotification {
+                chat_id: thread_start.thread.id.clone(),
                 role: "assistant".to_string(),
                 delta: "world".to_string(),
             },
@@ -1122,8 +1120,8 @@ async fn realtime_text_output_modality_requests_text_output_and_final_transcript
     );
     assert_eq!(
         done,
-        ThreadRealtimeTranscriptDoneNotification {
-            thread_id: thread_start.thread.id,
+        ChatRealtimeTranscriptDoneNotification {
+            chat_id: thread_start.thread.id,
             role: "assistant".to_string(),
             text: "hello world".to_string(),
         }
@@ -1131,7 +1129,7 @@ async fn realtime_text_output_modality_requests_text_output_and_final_transcript
     assert!(
         timeout(
             Duration::from_millis(200),
-            mcp.read_stream_until_notification_message("thread/realtime/transcript/done"),
+            mcp.read_stream_until_notification_message("chat/realtime/transcript/done"),
         )
         .await
         .is_err(),
@@ -1157,18 +1155,18 @@ async fn realtime_list_voices_returns_supported_names() -> Result<()> {
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
-        .send_thread_realtime_list_voices_request(ThreadRealtimeListVoicesParams {})
+        .send_chat_realtime_list_voices_request(ChatRealtimeListVoicesParams {})
         .await?;
     let response: JSONRPCResponse = timeout(
         DEFAULT_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let response: ThreadRealtimeListVoicesResponse = to_response(response)?;
+    let response: ChatRealtimeListVoicesResponse = to_response(response)?;
 
     assert_eq!(
         response,
-        ThreadRealtimeListVoicesResponse {
+        ChatRealtimeListVoicesResponse {
             voices: RealtimeVoicesList {
                 v1: vec![
                     RealtimeVoice::Juniper,
@@ -1230,22 +1228,22 @@ async fn realtime_conversation_stop_emits_closed_notification() -> Result<()> {
     login_with_api_key(&mut mcp, "sk-test-key").await?;
 
     let thread_start_request_id = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
     let thread_start_response: JSONRPCResponse = timeout(
         DEFAULT_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_request_id)),
     )
     .await??;
-    let thread_start: ThreadStartResponse = to_response(thread_start_response)?;
+    let thread_start: ChatStartResponse = to_response(thread_start_response)?;
 
     let start_request_id = mcp
-        .send_thread_realtime_start_request(ThreadRealtimeStartParams {
+        .send_chat_realtime_start_request(ChatRealtimeStartParams {
             client_managed_handoffs: None,
-            codex_responses_as_items: None,
-            codex_response_item_prefix: None,
+            codex_responses_as_messages: None,
+            codex_response_message_prefix: None,
             codex_response_handoff_prefix: None,
-            thread_id: thread_start.thread.id.clone(),
+            chat_id: thread_start.thread.id.clone(),
             model: None,
             output_modality: RealtimeOutputModality::Audio,
             include_startup_context: None,
@@ -1261,15 +1259,15 @@ async fn realtime_conversation_stop_emits_closed_notification() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_request_id)),
     )
     .await??;
-    let _: ThreadRealtimeStartResponse = to_response(start_response)?;
+    let _: ChatRealtimeStartResponse = to_response(start_response)?;
 
     let started =
-        read_notification::<ThreadRealtimeStartedNotification>(&mut mcp, "thread/realtime/started")
+        read_notification::<ChatRealtimeStartedNotification>(&mut mcp, "chat/realtime/started")
             .await?;
 
     let stop_request_id = mcp
-        .send_thread_realtime_stop_request(ThreadRealtimeStopParams {
-            thread_id: started.thread_id.clone(),
+        .send_chat_realtime_stop_request(ChatRealtimeStopParams {
+            chat_id: started.chat_id.clone(),
         })
         .await?;
     let stop_response: JSONRPCResponse = timeout(
@@ -1277,12 +1275,12 @@ async fn realtime_conversation_stop_emits_closed_notification() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(stop_request_id)),
     )
     .await??;
-    let _: ThreadRealtimeStopResponse = to_response(stop_response)?;
+    let _: ChatRealtimeStopResponse = to_response(stop_response)?;
 
     let closed =
-        read_notification::<ThreadRealtimeClosedNotification>(&mut mcp, "thread/realtime/closed")
+        read_notification::<ChatRealtimeClosedNotification>(&mut mcp, "chat/realtime/closed")
             .await?;
-    assert_eq!(closed.thread_id, started.thread_id);
+    assert_eq!(closed.chat_id, started.chat_id);
     assert!(matches!(
         closed.reason.as_deref(),
         Some("requested" | "transport_closed")
@@ -1333,29 +1331,29 @@ async fn realtime_webrtc_start_emits_sdp_notification() -> Result<()> {
     login_with_api_key(&mut mcp, "sk-test-key").await?;
 
     let thread_start_request_id = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
     let thread_start_response: JSONRPCResponse = timeout(
         DEFAULT_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_request_id)),
     )
     .await??;
-    let thread_start: ThreadStartResponse = to_response(thread_start_response)?;
+    let thread_start: ChatStartResponse = to_response(thread_start_response)?;
 
-    let thread_id = thread_start.thread.id;
+    let chat_id = thread_start.thread.id;
     let start_request_id = mcp
-        .send_thread_realtime_start_request(ThreadRealtimeStartParams {
+        .send_chat_realtime_start_request(ChatRealtimeStartParams {
             client_managed_handoffs: None,
-            codex_responses_as_items: None,
-            codex_response_item_prefix: None,
+            codex_responses_as_messages: None,
+            codex_response_message_prefix: None,
             codex_response_handoff_prefix: None,
-            thread_id: thread_id.clone(),
+            chat_id: chat_id.clone(),
             model: None,
             output_modality: RealtimeOutputModality::Audio,
             include_startup_context: None,
             prompt: Some(Some("backend prompt".to_string())),
             realtime_session_id: None,
-            transport: Some(ThreadRealtimeStartTransport::Webrtc {
+            transport: Some(ChatRealtimeStartTransport::Webrtc {
                 sdp: "v=offer\r\n".to_string(),
             }),
             version: None,
@@ -1367,20 +1365,20 @@ async fn realtime_webrtc_start_emits_sdp_notification() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_request_id)),
     )
     .await??;
-    let _: ThreadRealtimeStartResponse = to_response(start_response)?;
+    let _: ChatRealtimeStartResponse = to_response(start_response)?;
 
     let started =
-        read_notification::<ThreadRealtimeStartedNotification>(&mut mcp, "thread/realtime/started")
+        read_notification::<ChatRealtimeStartedNotification>(&mut mcp, "chat/realtime/started")
             .await?;
-    assert_eq!(started.thread_id, thread_id);
+    assert_eq!(started.chat_id, chat_id);
     assert_eq!(started.version, RealtimeConversationVersion::V1);
 
     let sdp_notification =
-        read_notification::<ThreadRealtimeSdpNotification>(&mut mcp, "thread/realtime/sdp").await?;
+        read_notification::<ChatRealtimeSdpNotification>(&mut mcp, "chat/realtime/sdp").await?;
     assert_eq!(
         sdp_notification,
-        ThreadRealtimeSdpNotification {
-            thread_id: thread_id.clone(),
+        ChatRealtimeSdpNotification {
+            chat_id: chat_id.clone(),
             sdp: "v=answer\r\n".to_string()
         }
     );
@@ -1404,8 +1402,8 @@ async fn realtime_webrtc_start_emits_sdp_notification() -> Result<()> {
     );
 
     let stop_request_id = mcp
-        .send_thread_realtime_stop_request(ThreadRealtimeStopParams {
-            thread_id: thread_id.clone(),
+        .send_chat_realtime_stop_request(ChatRealtimeStopParams {
+            chat_id: chat_id.clone(),
         })
         .await?;
     let stop_response: JSONRPCResponse = timeout(
@@ -1413,12 +1411,12 @@ async fn realtime_webrtc_start_emits_sdp_notification() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(stop_request_id)),
     )
     .await??;
-    let _: ThreadRealtimeStopResponse = to_response(stop_response)?;
+    let _: ChatRealtimeStopResponse = to_response(stop_response)?;
 
     let closed_notification =
-        read_notification::<ThreadRealtimeClosedNotification>(&mut mcp, "thread/realtime/closed")
+        read_notification::<ChatRealtimeClosedNotification>(&mut mcp, "chat/realtime/closed")
             .await?;
-    assert_eq!(closed_notification.thread_id, thread_id);
+    assert_eq!(closed_notification.chat_id, chat_id);
     assert!(
         matches!(
             closed_notification.reason.as_deref(),
@@ -1485,13 +1483,13 @@ async fn webrtc_v1_start_posts_offer_returns_sdp_and_joins_sideband() -> Result<
     assert_eq!(
         started,
         StartedWebrtcRealtime {
-            started: ThreadRealtimeStartedNotification {
-                thread_id: harness.thread_id.clone(),
-                realtime_session_id: Some(harness.thread_id.clone()),
+            started: ChatRealtimeStartedNotification {
+                chat_id: harness.chat_id.clone(),
+                realtime_session_id: Some(harness.chat_id.clone()),
                 version: RealtimeConversationVersion::V1,
             },
-            sdp: ThreadRealtimeSdpNotification {
-                thread_id: harness.thread_id.clone(),
+            sdp: ChatRealtimeSdpNotification {
+                chat_id: harness.chat_id.clone(),
                 sdp: "v=answer\r\n".to_string(),
             },
         }
@@ -1516,7 +1514,7 @@ async fn webrtc_v1_start_posts_offer_returns_sdp_and_joins_sideband() -> Result<
         Duration::from_millis(100),
         harness
             .mcp
-            .read_stream_until_notification_message("thread/realtime/closed"),
+            .read_stream_until_notification_message("chat/realtime/closed"),
     )
     .await;
     assert!(closed.is_err(), "WebRTC start should not close immediately");
@@ -1548,8 +1546,8 @@ async fn webrtc_v1_default_automatic_output_uses_handoff_append() -> Result<()> 
 
     let turn_request_id = harness
         .mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: harness.thread_id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: harness.chat_id.clone(),
             input: vec![V2UserInput::Text {
                 text: "say the default output".to_string(),
                 text_elements: Vec::new(),
@@ -1564,9 +1562,9 @@ async fn webrtc_v1_default_automatic_output_uses_handoff_append() -> Result<()> 
             .read_stream_until_response_message(RequestId::Integer(turn_request_id)),
     )
     .await??;
-    let _: TurnStartResponse = to_response(turn_response)?;
+    let _: InteractionStartResponse = to_response(turn_response)?;
     let _ = harness
-        .read_notification::<TurnCompletedNotification>("turn/completed")
+        .read_notification::<InteractionCompletedNotification>("interaction/completed")
         .await?;
 
     assert_eq!(
@@ -1602,7 +1600,7 @@ async fn webrtc_v1_client_managed_handoffs_disable_automatic_output() -> Result<
         .start_webrtc_realtime_with_codex_response_routing(
             "v=offer\r\n",
             /*client_managed_handoffs*/ Some(true),
-            /*codex_responses_as_items*/ None,
+            /*codex_responses_as_messages*/ None,
             /*codex_response_handoff_prefix*/ None,
         )
         .await?;
@@ -1611,8 +1609,8 @@ async fn webrtc_v1_client_managed_handoffs_disable_automatic_output() -> Result<
 
     let turn_request_id = harness
         .mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: harness.thread_id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: harness.chat_id.clone(),
             input: vec![V2UserInput::Text {
                 text: "leave realtime delivery to the client".to_string(),
                 text_elements: Vec::new(),
@@ -1627,9 +1625,9 @@ async fn webrtc_v1_client_managed_handoffs_disable_automatic_output() -> Result<
             .read_stream_until_response_message(RequestId::Integer(turn_request_id)),
     )
     .await??;
-    let _: TurnStartResponse = to_response(turn_response)?;
+    let _: InteractionStartResponse = to_response(turn_response)?;
     let _ = harness
-        .read_notification::<TurnCompletedNotification>("turn/completed")
+        .read_notification::<InteractionCompletedNotification>("interaction/completed")
         .await?;
 
     let automatic_handoff = timeout(
@@ -1645,7 +1643,7 @@ async fn webrtc_v1_client_managed_handoffs_disable_automatic_output() -> Result<
     );
 
     harness
-        .append_speech(harness.thread_id.clone(), "client-selected speech")
+        .append_speech(harness.chat_id.clone(), "client-selected speech")
         .await?;
     assert_eq!(
         harness.sideband_outbound_request(/*request_index*/ 1).await,
@@ -1675,7 +1673,7 @@ async fn webrtc_v1_final_automatic_handoff_omits_silent_prefix() -> Result<()> {
                 json!({
                     "type": "conversation.handoff.requested",
                     "handoff_id": "handoff_prefixed",
-                    "item_id": "item_prefixed",
+                    "message_id": "item_prefixed",
                     "input_transcript": "run the background task"
                 }),
             ],
@@ -1689,13 +1687,13 @@ async fn webrtc_v1_final_automatic_handoff_omits_silent_prefix() -> Result<()> {
         .start_webrtc_realtime_with_codex_response_routing(
             "v=offer\r\n",
             /*client_managed_handoffs*/ None,
-            /*codex_responses_as_items*/ None,
+            /*codex_responses_as_messages*/ None,
             Some(RESPONSE_HANDOFF_PREFIX),
         )
         .await?;
     assert_eq!(started.started.version, RealtimeConversationVersion::V1);
     let _ = harness
-        .read_notification::<TurnCompletedNotification>("turn/completed")
+        .read_notification::<InteractionCompletedNotification>("interaction/completed")
         .await?;
 
     assert_eq!(
@@ -1739,7 +1737,7 @@ async fn webrtc_v1_handoff_request_delegates_context_and_manual_append_speaks() 
                 json!({
                     "type": "conversation.handoff.requested",
                     "handoff_id": "handoff_v1",
-                    "item_id": "item_v1",
+                    "message_id": "item_v1",
                     "input_transcript": "delegate from v1"
                 }),
             ],
@@ -1750,7 +1748,7 @@ async fn webrtc_v1_handoff_request_delegates_context_and_manual_append_speaks() 
     .await?;
 
     let started = harness
-        .start_webrtc_realtime_with_codex_response_items("v=offer\r\n")
+        .start_webrtc_realtime_with_codex_response_messages("v=offer\r\n")
         .await?;
     assert_eq!(started.started.version, RealtimeConversationVersion::V1);
     assert_call_create_multipart(
@@ -1762,13 +1760,13 @@ async fn webrtc_v1_handoff_request_delegates_context_and_manual_append_speaks() 
 
     // Phase 2: wait for the delegated background agent turn that is launched by the handoff request.
     let turn_started = harness
-        .read_notification::<TurnStartedNotification>("turn/started")
+        .read_notification::<InteractionStartedNotification>("interaction/started")
         .await?;
-    assert_eq!(turn_started.thread_id, harness.thread_id);
+    assert_eq!(turn_started.chat_id, harness.chat_id);
     let turn_completed = harness
-        .read_notification::<TurnCompletedNotification>("turn/completed")
+        .read_notification::<InteractionCompletedNotification>("interaction/completed")
         .await?;
-    assert_eq!(turn_completed.thread_id, harness.thread_id);
+    assert_eq!(turn_completed.chat_id, harness.chat_id);
 
     // Phase 3: assert the delegated prompt went to Responses, then the automatic v1 output went
     // back over the existing sideband connection as a conversation item.
@@ -1799,7 +1797,7 @@ async fn webrtc_v1_handoff_request_delegates_context_and_manual_append_speaks() 
     );
 
     harness
-        .append_speech(harness.thread_id.clone(), "manual spoken v1 update")
+        .append_speech(harness.chat_id.clone(), "manual spoken v1 update")
         .await?;
     let spoken_append = harness.sideband_outbound_request(/*request_index*/ 2).await;
     assert_eq!(
@@ -1834,7 +1832,7 @@ async fn realtime_automatic_standalone_output_is_item_and_append_speaks() -> Res
     .await?;
 
     let started = harness
-        .start_websocket_realtime_with_codex_response_items()
+        .start_websocket_realtime_with_codex_response_messages()
         .await?;
     assert_eq!(started.version, RealtimeConversationVersion::V2);
     assert_eq!(
@@ -1844,8 +1842,8 @@ async fn realtime_automatic_standalone_output_is_item_and_append_speaks() -> Res
 
     let turn_request_id = harness
         .mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: harness.thread_id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: harness.chat_id.clone(),
             input: vec![V2UserInput::Text {
                 text: "do something quietly".to_string(),
                 text_elements: Vec::new(),
@@ -1860,9 +1858,9 @@ async fn realtime_automatic_standalone_output_is_item_and_append_speaks() -> Res
             .read_stream_until_response_message(RequestId::Integer(turn_request_id)),
     )
     .await??;
-    let _: TurnStartResponse = to_response(turn_response)?;
+    let _: InteractionStartResponse = to_response(turn_response)?;
     let _ = harness
-        .read_notification::<TurnCompletedNotification>("turn/completed")
+        .read_notification::<InteractionCompletedNotification>("interaction/completed")
         .await?;
 
     assert_v2_backend_item_update(
@@ -1882,7 +1880,7 @@ async fn realtime_automatic_standalone_output_is_item_and_append_speaks() -> Res
     );
 
     harness
-        .append_speech(harness.thread_id.clone(), "manual voice update")
+        .append_speech(harness.chat_id.clone(), "manual voice update")
         .await?;
     assert_v2_progress_update(
         &harness.sideband_outbound_request(/*request_index*/ 2).await,
@@ -1917,7 +1915,7 @@ async fn realtime_automatic_handoff_output_is_item_and_append_speaks() -> Result
     .await?;
 
     let started = harness
-        .start_websocket_realtime_with_codex_response_items()
+        .start_websocket_realtime_with_codex_response_messages()
         .await?;
     assert_eq!(started.version, RealtimeConversationVersion::V2);
     assert_eq!(
@@ -1926,13 +1924,13 @@ async fn realtime_automatic_handoff_output_is_item_and_append_speaks() -> Result
     );
 
     let turn_started = harness
-        .read_notification::<TurnStartedNotification>("turn/started")
+        .read_notification::<InteractionStartedNotification>("interaction/started")
         .await?;
-    assert_eq!(turn_started.thread_id, harness.thread_id);
+    assert_eq!(turn_started.chat_id, harness.chat_id);
     let turn_completed = harness
-        .read_notification::<TurnCompletedNotification>("turn/completed")
+        .read_notification::<InteractionCompletedNotification>("interaction/completed")
         .await?;
-    assert_eq!(turn_completed.thread_id, harness.thread_id);
+    assert_eq!(turn_completed.chat_id, harness.chat_id);
 
     assert_v2_backend_item_update(
         &harness.sideband_outbound_request(/*request_index*/ 1).await,
@@ -1956,7 +1954,7 @@ async fn realtime_automatic_handoff_output_is_item_and_append_speaks() -> Result
     );
 
     harness
-        .append_speech(harness.thread_id.clone(), "manual spoken update")
+        .append_speech(harness.chat_id.clone(), "manual spoken update")
         .await?;
     assert_v2_progress_update(
         &harness.sideband_outbound_request(/*request_index*/ 3).await,
@@ -2000,14 +1998,14 @@ async fn websocket_v2_assistant_output_without_handoff_reaches_realtime_context(
     .await?;
 
     let started = harness
-        .start_websocket_realtime_with_codex_response_items()
+        .start_websocket_realtime_with_codex_response_messages()
         .await?;
     assert_eq!(started.version, RealtimeConversationVersion::V2);
 
     let request_id = harness
         .mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: harness.thread_id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: harness.chat_id.clone(),
             input: vec![V2UserInput::Text {
                 text: "direct text turn".to_string(),
                 text_elements: Vec::new(),
@@ -2022,9 +2020,9 @@ async fn websocket_v2_assistant_output_without_handoff_reaches_realtime_context(
             .read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let _: TurnStartResponse = to_response(response)?;
+    let _: InteractionStartResponse = to_response(response)?;
     let _ = harness
-        .read_notification::<TurnCompletedNotification>("turn/completed")
+        .read_notification::<InteractionCompletedNotification>("interaction/completed")
         .await?;
 
     assert_v2_backend_item_update(
@@ -2083,19 +2081,19 @@ async fn websocket_v2_forwards_audio_and_text_between_client_and_sideband() -> R
 
     // Phase 2: drive app-server as the client would: append audio, append text, then receive
     // transcript/audio notifications that came from the sideband socket.
-    let thread_id = started.thread_id.clone();
-    harness.append_audio(thread_id.clone()).await?;
-    harness.append_text(thread_id, "hello").await?;
+    let chat_id = started.chat_id.clone();
+    harness.append_audio(chat_id.clone()).await?;
+    harness.append_text(chat_id, "hello").await?;
 
     let transcript = harness
-        .read_notification::<ThreadRealtimeTranscriptDeltaNotification>(
-            "thread/realtime/transcript/delta",
+        .read_notification::<ChatRealtimeTranscriptDeltaNotification>(
+            "chat/realtime/transcript/delta",
         )
         .await?;
     assert_eq!(transcript.delta, "transcribed audio");
     let output_audio = harness
-        .read_notification::<ThreadRealtimeOutputAudioDeltaNotification>(
-            "thread/realtime/outputAudio/delta",
+        .read_notification::<ChatRealtimeOutputAudioDeltaNotification>(
+            "chat/realtime/outputAudio/delta",
         )
         .await?;
     assert_eq!(output_audio.audio.data, "AQID");
@@ -2171,29 +2169,29 @@ async fn websocket_v2_text_input_is_append_only_while_response_is_active() -> Re
 
     // Phase 2: send the first text turn. Text input is append-only, so this
     // sends only the user text item.
-    let thread_id = started.thread_id.clone();
-    harness.append_text(thread_id.clone(), "first").await?;
+    let chat_id = started.chat_id.clone();
+    harness.append_text(chat_id.clone(), "first").await?;
     assert_v2_user_text_item(
         &harness.sideband_outbound_request(/*request_index*/ 1).await,
         "first",
     );
     let transcript = harness
-        .read_notification::<ThreadRealtimeTranscriptDeltaNotification>(
-            "thread/realtime/transcript/delta",
+        .read_notification::<ChatRealtimeTranscriptDeltaNotification>(
+            "chat/realtime/transcript/delta",
         )
         .await?;
     assert_eq!(transcript.delta, "active response started");
 
     // Phase 3: send a second text turn while `resp_active` is still open. The
     // user message must reach realtime without requesting another response.
-    harness.append_text(thread_id.clone(), "second").await?;
+    harness.append_text(chat_id.clone(), "second").await?;
     assert_v2_user_text_item(
         &harness.sideband_outbound_request(/*request_index*/ 2).await,
         "second",
     );
 
     // Phase 4: audio still forwards normally after text input.
-    harness.append_audio(thread_id).await?;
+    harness.append_audio(chat_id).await?;
 
     let audio = harness.sideband_outbound_request(/*request_index*/ 3).await;
     assert_eq!(audio["type"], "input_audio_buffer.append");
@@ -2235,8 +2233,8 @@ async fn websocket_v2_text_input_is_append_only_when_response_is_cancelled() -> 
 
     // Phase 2: send the first text turn. Text input is append-only, so this
     // sends only the user text item.
-    let thread_id = started.thread_id.clone();
-    harness.append_text(thread_id.clone(), "first").await?;
+    let chat_id = started.chat_id.clone();
+    harness.append_text(chat_id.clone(), "first").await?;
     assert_v2_user_text_item(
         &harness.sideband_outbound_request(/*request_index*/ 1).await,
         "first",
@@ -2244,14 +2242,14 @@ async fn websocket_v2_text_input_is_append_only_when_response_is_cancelled() -> 
 
     // Phase 3: send a second text turn while `resp_cancelled` is still open.
     // The user message must reach realtime without requesting another response.
-    harness.append_text(thread_id.clone(), "second").await?;
+    harness.append_text(chat_id.clone(), "second").await?;
     assert_v2_user_text_item(
         &harness.sideband_outbound_request(/*request_index*/ 2).await,
         "second",
     );
 
     // Phase 4: audio still forwards normally after text input.
-    harness.append_audio(thread_id).await?;
+    harness.append_audio(chat_id).await?;
 
     let audio = harness.sideband_outbound_request(/*request_index*/ 3).await;
     assert_eq!(audio["type"], "input_audio_buffer.append");
@@ -2321,13 +2319,13 @@ async fn websocket_v2_background_agent_returns_function_output() -> Result<()> {
 
     // Phase 2: wait for the delegated turn lifecycle kicked off by the v2 function-call item.
     let turn_started = harness
-        .read_notification::<TurnStartedNotification>("turn/started")
+        .read_notification::<InteractionStartedNotification>("interaction/started")
         .await?;
-    assert_eq!(turn_started.thread_id, harness.thread_id);
+    assert_eq!(turn_started.chat_id, harness.chat_id);
     let turn_completed = harness
-        .read_notification::<TurnCompletedNotification>("turn/completed")
+        .read_notification::<InteractionCompletedNotification>("interaction/completed")
         .await?;
-    assert_eq!(turn_completed.thread_id, harness.thread_id);
+    assert_eq!(turn_completed.chat_id, harness.chat_id);
 
     // Phase 3: assert the delegated prompt went to Responses and the result
     // returned as exactly one v2 function-call output event on the sideband.
@@ -2408,9 +2406,9 @@ async fn websocket_v2_background_agent_steering_ack_requests_response_create() -
     assert_eq!(started.version, RealtimeConversationVersion::V2);
     assert_v2_session_update(&harness.sideband_outbound_request(/*request_index*/ 0).await)?;
     let turn_started = harness
-        .read_notification::<TurnStartedNotification>("turn/started")
+        .read_notification::<InteractionStartedNotification>("interaction/started")
         .await?;
-    assert_eq!(turn_started.thread_id, harness.thread_id);
+    assert_eq!(turn_started.chat_id, harness.chat_id);
 
     // Phase 2: the second tool call happens while `call_active` is still
     // running, so app-server sends a steering acknowledgement as a function-call
@@ -2430,9 +2428,9 @@ async fn websocket_v2_background_agent_steering_ack_requests_response_create() -
     // request, proving realtime did not merely acknowledge and drop it.
     let _ = gate_completed_tx.send(());
     let turn_completed = harness
-        .read_notification::<TurnCompletedNotification>("turn/completed")
+        .read_notification::<InteractionCompletedNotification>("interaction/completed")
         .await?;
-    assert_eq!(turn_completed.thread_id, harness.thread_id);
+    assert_eq!(turn_completed.chat_id, harness.chat_id);
 
     let requests = harness.main_loop_responses_requests().await?;
     assert_eq!(requests.len(), 2);
@@ -2470,9 +2468,9 @@ async fn websocket_v2_background_agent_progress_is_sent_before_function_output()
     assert_eq!(started.version, RealtimeConversationVersion::V2);
 
     let turn_completed = harness
-        .read_notification::<TurnCompletedNotification>("turn/completed")
+        .read_notification::<InteractionCompletedNotification>("interaction/completed")
         .await?;
-    assert_eq!(turn_completed.thread_id, harness.thread_id);
+    assert_eq!(turn_completed.chat_id, harness.chat_id);
 
     let progress = harness.sideband_outbound_request(/*request_index*/ 1).await;
     assert_v2_progress_update(&progress, "progress before final");
@@ -2527,8 +2525,8 @@ async fn websocket_v2_tool_call_delegated_turn_can_execute_shell_tool() -> Resul
 
     // Phase 2: observe the delegated background agent turn executing the requested shell command.
     let started_command = wait_for_started_command_execution(&mut harness.mcp).await?;
-    let ThreadItem::CommandExecution { id, status, .. } = started_command.item else {
-        unreachable!("helper returns command execution items");
+    let Message::CommandExecution { id, status, .. } = started_command.item else {
+        unreachable!("helper returns command execution messages");
     };
     assert_eq!(
         (id.as_str(), status),
@@ -2536,14 +2534,14 @@ async fn websocket_v2_tool_call_delegated_turn_can_execute_shell_tool() -> Resul
     );
 
     let completed_command = wait_for_completed_command_execution(&mut harness.mcp).await?;
-    let ThreadItem::CommandExecution {
+    let Message::CommandExecution {
         id,
         status,
         aggregated_output,
         ..
     } = completed_command.item
     else {
-        unreachable!("helper returns command execution items");
+        unreachable!("helper returns command execution messages");
     };
     assert_eq!(id.as_str(), "shell_call");
     assert_eq!(status, CommandExecutionStatus::Completed);
@@ -2551,13 +2549,13 @@ async fn websocket_v2_tool_call_delegated_turn_can_execute_shell_tool() -> Resul
 
     // Phase 3: verify the shell output reached Responses and the final delegated answer returned
     // to realtime as a single function-call-output item.
-    let turn_completed = read_notification_with_timeout::<TurnCompletedNotification>(
+    let turn_completed = read_notification_with_timeout::<InteractionCompletedNotification>(
         &mut harness.mcp,
-        "turn/completed",
+        "interaction/completed",
         DELEGATED_SHELL_TURN_TIMEOUT,
     )
     .await?;
-    assert_eq!(turn_completed.thread_id, harness.thread_id);
+    assert_eq!(turn_completed.chat_id, harness.chat_id);
 
     let requests = harness.main_loop_responses_requests().await?;
     assert_eq!(requests.len(), 2);
@@ -2627,14 +2625,14 @@ async fn websocket_v2_tool_call_does_not_block_sideband_audio() -> Result<()> {
 
     let _ = harness.start_websocket_realtime().await?;
     let _ = harness
-        .read_notification::<TurnStartedNotification>("turn/started")
+        .read_notification::<InteractionStartedNotification>("interaction/started")
         .await?;
 
     // Phase 2: require app-server to fan out sideband audio before the delegated tool call is
     // allowed to finish.
     let audio = harness
-        .read_notification::<ThreadRealtimeOutputAudioDeltaNotification>(
-            "thread/realtime/outputAudio/delta",
+        .read_notification::<ChatRealtimeOutputAudioDeltaNotification>(
+            "chat/realtime/outputAudio/delta",
         )
         .await?;
     assert_eq!(audio.audio.data, "CQoL");
@@ -2643,9 +2641,9 @@ async fn websocket_v2_tool_call_does_not_block_sideband_audio() -> Result<()> {
     // after the nonblocking audio.
     let _ = gate_completed_tx.send(());
     let turn_completed = harness
-        .read_notification::<TurnCompletedNotification>("turn/completed")
+        .read_notification::<InteractionCompletedNotification>("interaction/completed")
         .await?;
-    assert_eq!(turn_completed.thread_id, harness.thread_id);
+    assert_eq!(turn_completed.chat_id, harness.chat_id);
 
     let progress = harness.sideband_outbound_request(/*request_index*/ 1).await;
     assert_v2_progress_update(&progress, "late delegated result");
@@ -2689,28 +2687,28 @@ async fn realtime_webrtc_start_surfaces_backend_error() -> Result<()> {
 
     // Phase 2: start a normal app-server thread and request realtime over WebRTC.
     let thread_start_request_id = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
     let thread_start_response: JSONRPCResponse = timeout(
         DEFAULT_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_request_id)),
     )
     .await??;
-    let thread_start: ThreadStartResponse = to_response(thread_start_response)?;
+    let thread_start: ChatStartResponse = to_response(thread_start_response)?;
 
     let start_request_id = mcp
-        .send_thread_realtime_start_request(ThreadRealtimeStartParams {
+        .send_chat_realtime_start_request(ChatRealtimeStartParams {
             client_managed_handoffs: None,
-            codex_responses_as_items: None,
-            codex_response_item_prefix: None,
+            codex_responses_as_messages: None,
+            codex_response_message_prefix: None,
             codex_response_handoff_prefix: None,
-            thread_id: thread_start.thread.id,
+            chat_id: thread_start.thread.id,
             model: None,
             output_modality: RealtimeOutputModality::Audio,
             include_startup_context: None,
             prompt: Some(Some("backend prompt".to_string())),
             realtime_session_id: None,
-            transport: Some(ThreadRealtimeStartTransport::Webrtc {
+            transport: Some(ChatRealtimeStartTransport::Webrtc {
                 sdp: "v=offer\r\n".to_string(),
             }),
             version: None,
@@ -2722,13 +2720,12 @@ async fn realtime_webrtc_start_surfaces_backend_error() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_request_id)),
     )
     .await??;
-    let _: ThreadRealtimeStartResponse = to_response(start_response)?;
+    let _: ChatRealtimeStartResponse = to_response(start_response)?;
 
     // Phase 3: the JSON-RPC start request returns, and the realtime failure is delivered as the
     // typed realtime error notification.
     let error =
-        read_notification::<ThreadRealtimeErrorNotification>(&mut mcp, "thread/realtime/error")
-            .await?;
+        read_notification::<ChatRealtimeErrorNotification>(&mut mcp, "chat/realtime/error").await?;
     assert!(error.message.contains("currently experiencing high demand"));
 
     realtime_server.shutdown().await;
@@ -2755,22 +2752,22 @@ async fn realtime_conversation_requires_feature_flag() -> Result<()> {
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let thread_start_request_id = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
     let thread_start_response: JSONRPCResponse = timeout(
         DEFAULT_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_request_id)),
     )
     .await??;
-    let thread_start: ThreadStartResponse = to_response(thread_start_response)?;
+    let thread_start: ChatStartResponse = to_response(thread_start_response)?;
 
     let start_request_id = mcp
-        .send_thread_realtime_start_request(ThreadRealtimeStartParams {
+        .send_chat_realtime_start_request(ChatRealtimeStartParams {
             client_managed_handoffs: None,
-            codex_responses_as_items: None,
-            codex_response_item_prefix: None,
+            codex_responses_as_messages: None,
+            codex_response_message_prefix: None,
             codex_response_handoff_prefix: None,
-            thread_id: thread_start.thread.id.clone(),
+            chat_id: thread_start.thread.id.clone(),
             model: None,
             output_modality: RealtimeOutputModality::Audio,
             include_startup_context: None,
@@ -2836,10 +2833,11 @@ async fn login_with_api_key(mcp: &mut TestAppServer, api_key: &str) -> Result<()
 
 async fn wait_for_started_command_execution(
     mcp: &mut TestAppServer,
-) -> Result<ItemStartedNotification> {
+) -> Result<MessageStartedNotification> {
     loop {
-        let started = read_notification::<ItemStartedNotification>(mcp, "item/started").await?;
-        if let ThreadItem::CommandExecution { .. } = &started.item {
+        let started =
+            read_notification::<MessageStartedNotification>(mcp, "message/started").await?;
+        if let Message::CommandExecution { .. } = &started.item {
             return Ok(started);
         }
     }
@@ -2847,11 +2845,11 @@ async fn wait_for_started_command_execution(
 
 async fn wait_for_completed_command_execution(
     mcp: &mut TestAppServer,
-) -> Result<ItemCompletedNotification> {
+) -> Result<MessageCompletedNotification> {
     loop {
         let completed =
-            read_notification::<ItemCompletedNotification>(mcp, "item/completed").await?;
-        if let ThreadItem::CommandExecution { .. } = &completed.item {
+            read_notification::<MessageCompletedNotification>(mcp, "message/completed").await?;
+        if let Message::CommandExecution { .. } = &completed.item {
             return Ok(completed);
         }
     }

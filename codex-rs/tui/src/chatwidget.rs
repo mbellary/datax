@@ -86,6 +86,11 @@ use datax_app_server_protocol::AddCreditsNudgeCreditType;
 use datax_app_server_protocol::AddCreditsNudgeEmailStatus;
 use datax_app_server_protocol::AppInfo;
 use datax_app_server_protocol::AppSummary;
+use datax_app_server_protocol::ChatGoal as AppThreadGoal;
+use datax_app_server_protocol::ChatGoalStatus as AppThreadGoalStatus;
+use datax_app_server_protocol::ChatSettings;
+use datax_app_server_protocol::ChatSettingsUpdatedNotification;
+use datax_app_server_protocol::ChatTokenUsage;
 use datax_app_server_protocol::CodexErrorInfo as AppServerCodexErrorInfo;
 use datax_app_server_protocol::CollabAgentTool;
 use datax_app_server_protocol::CollabAgentToolCallStatus;
@@ -96,11 +101,16 @@ use datax_app_server_protocol::CreditsSnapshot;
 use datax_app_server_protocol::ErrorNotification;
 use datax_app_server_protocol::FileChangeRequestApprovalParams;
 use datax_app_server_protocol::GuardianApprovalReviewAction;
-use datax_app_server_protocol::ItemCompletedNotification;
-use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::Interaction;
+use datax_app_server_protocol::InteractionCompletedNotification;
+use datax_app_server_protocol::InteractionPlanStepStatus;
+use datax_app_server_protocol::InteractionStatus;
 use datax_app_server_protocol::McpServerElicitationRequest;
 use datax_app_server_protocol::McpServerElicitationRequestParams;
 use datax_app_server_protocol::McpServerStatusDetail;
+use datax_app_server_protocol::Message;
+use datax_app_server_protocol::MessageCompletedNotification;
+use datax_app_server_protocol::MessageStartedNotification;
 use datax_app_server_protocol::ModelVerification as AppServerModelVerification;
 use datax_app_server_protocol::RateLimitReachedType;
 use datax_app_server_protocol::RateLimitSnapshot;
@@ -110,17 +120,7 @@ use datax_app_server_protocol::ServerNotification;
 use datax_app_server_protocol::ServerRequest;
 use datax_app_server_protocol::SkillMetadata as ProtocolSkillMetadata;
 use datax_app_server_protocol::SkillsListResponse;
-use datax_app_server_protocol::ThreadGoal as AppThreadGoal;
-use datax_app_server_protocol::ThreadGoalStatus as AppThreadGoalStatus;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadSettings;
-use datax_app_server_protocol::ThreadSettingsUpdatedNotification;
-use datax_app_server_protocol::ThreadTokenUsage;
 use datax_app_server_protocol::ToolRequestUserInputParams;
-use datax_app_server_protocol::Turn;
-use datax_app_server_protocol::TurnCompletedNotification;
-use datax_app_server_protocol::TurnPlanStepStatus;
-use datax_app_server_protocol::TurnStatus;
 use datax_app_server_protocol::UserInput;
 use datax_config::ConfigLayerStackOrdering;
 use datax_config::Constrained;
@@ -810,7 +810,7 @@ enum PlanModeNudgeScope {
     /// Drafts entered before the server has assigned a thread id.
     NewThread,
     /// Drafts associated with one configured thread.
-    Thread(ThreadId),
+    Chat(ThreadId),
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -904,7 +904,7 @@ fn request_permissions_from_params(
     })
 }
 
-fn token_usage_info_from_app_server(token_usage: ThreadTokenUsage) -> TokenUsageInfo {
+fn token_usage_info_from_app_server(token_usage: ChatTokenUsage) -> TokenUsageInfo {
     TokenUsageInfo {
         total_token_usage: TokenUsage {
             total_tokens: token_usage.total.total_tokens,

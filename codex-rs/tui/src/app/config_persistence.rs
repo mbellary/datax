@@ -687,9 +687,9 @@ impl App {
         };
 
         let mode = if generate_memories {
-            ThreadMemoryMode::Enabled
+            ChatMemoryMode::Enabled
         } else {
-            ThreadMemoryMode::Disabled
+            ChatMemoryMode::Disabled
         };
 
         if let Err(err) = app_server.thread_memory_mode_set(thread_id, mode).await {

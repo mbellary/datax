@@ -25,8 +25,8 @@ fn validate_user_input_image_urls(input: &[V2UserInput]) -> Result<(), JSONRPCEr
     Ok(())
 }
 
-fn validate_response_item_image_urls(items: &[ResponseItem]) -> Result<(), JSONRPCErrorError> {
-    if items.iter().any(|item| match item {
+fn validate_response_item_image_urls(messages: &[ResponseItem]) -> Result<(), JSONRPCErrorError> {
+    if messages.iter().any(|item| match item {
         ResponseItem::Message { content, .. } => content.iter().any(|item| {
             matches!(
                 item,
@@ -65,7 +65,7 @@ fn validate_response_item_image_urls(items: &[ResponseItem]) -> Result<(), JSONR
 }
 
 #[derive(Clone)]
-pub(crate) struct TurnRequestProcessor {
+pub(crate) struct InteractionRequestProcessor {
     auth_manager: Arc<AuthManager>,
     thread_manager: Arc<ThreadManager>,
     outgoing: Arc<OutgoingMessageSender>,
@@ -119,7 +119,7 @@ struct ThreadSettingsBuildParams {
     personality: Option<Personality>,
 }
 
-impl TurnRequestProcessor {
+impl InteractionRequestProcessor {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         auth_manager: Arc<AuthManager>,
@@ -154,7 +154,7 @@ impl TurnRequestProcessor {
     pub(crate) async fn turn_start(
         &self,
         request_id: ConnectionRequestId,
-        params: TurnStartParams,
+        params: InteractionStartParams,
         app_server_client_name: Option<String>,
         app_server_client_version: Option<String>,
         supports_openai_form_elicitation: bool,
@@ -173,7 +173,7 @@ impl TurnRequestProcessor {
 
     pub(crate) async fn thread_inject_items(
         &self,
-        params: ThreadInjectItemsParams,
+        params: ChatInjectMessagesParams,
     ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
         self.thread_inject_items_response_inner(params)
             .await
@@ -183,7 +183,7 @@ impl TurnRequestProcessor {
     pub(crate) async fn thread_settings_update(
         &self,
         request_id: &ConnectionRequestId,
-        params: ThreadSettingsUpdateParams,
+        params: ChatSettingsUpdateParams,
     ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
         self.thread_settings_update_inner(request_id, params)
             .await
@@ -193,7 +193,7 @@ impl TurnRequestProcessor {
     pub(crate) async fn turn_steer(
         &self,
         request_id: &ConnectionRequestId,
-        params: TurnSteerParams,
+        params: InteractionSteerParams,
     ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
         validate_user_input_image_urls(&params.input)?;
         self.turn_steer_inner(request_id, params)
@@ -204,7 +204,7 @@ impl TurnRequestProcessor {
     pub(crate) async fn turn_interrupt(
         &self,
         request_id: &ConnectionRequestId,
-        params: TurnInterruptParams,
+        params: InteractionInterruptParams,
     ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
         self.turn_interrupt_inner(request_id, params)
             .await
@@ -214,7 +214,7 @@ impl TurnRequestProcessor {
     pub(crate) async fn thread_realtime_start(
         &self,
         request_id: &ConnectionRequestId,
-        params: ThreadRealtimeStartParams,
+        params: ChatRealtimeStartParams,
     ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
         self.thread_realtime_start_inner(request_id, params)
             .await
@@ -224,7 +224,7 @@ impl TurnRequestProcessor {
     pub(crate) async fn thread_realtime_append_audio(
         &self,
         request_id: &ConnectionRequestId,
-        params: ThreadRealtimeAppendAudioParams,
+        params: ChatRealtimeAppendAudioParams,
     ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
         self.thread_realtime_append_audio_inner(request_id, params)
             .await
@@ -234,7 +234,7 @@ impl TurnRequestProcessor {
     pub(crate) async fn thread_realtime_append_text(
         &self,
         request_id: &ConnectionRequestId,
-        params: ThreadRealtimeAppendTextParams,
+        params: ChatRealtimeAppendTextParams,
     ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
         self.thread_realtime_append_text_inner(request_id, params)
             .await
@@ -244,7 +244,7 @@ impl TurnRequestProcessor {
     pub(crate) async fn thread_realtime_append_speech(
         &self,
         request_id: &ConnectionRequestId,
-        params: ThreadRealtimeAppendSpeechParams,
+        params: ChatRealtimeAppendSpeechParams,
     ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
         self.thread_realtime_append_speech_inner(request_id, params)
             .await
@@ -254,7 +254,7 @@ impl TurnRequestProcessor {
     pub(crate) async fn thread_realtime_stop(
         &self,
         request_id: &ConnectionRequestId,
-        params: ThreadRealtimeStopParams,
+        params: ChatRealtimeStopParams,
     ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
         self.thread_realtime_stop_inner(request_id, params)
             .await
@@ -265,7 +265,7 @@ impl TurnRequestProcessor {
         &self,
     ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
         Ok(Some(
-            ThreadRealtimeListVoicesResponse {
+            ChatRealtimeListVoicesResponse {
                 voices: RealtimeVoicesList::builtin(),
             }
             .into(),
@@ -298,19 +298,19 @@ impl TurnRequestProcessor {
 
     async fn load_thread(
         &self,
-        thread_id: &str,
+        chat_id: &str,
     ) -> Result<(ThreadId, Arc<CodexThread>), JSONRPCErrorError> {
         // Resolve the core conversation handle from a v2 thread id string.
-        let thread_id = ThreadId::from_string(thread_id)
+        let chat_id = ThreadId::from_string(chat_id)
             .map_err(|err| invalid_request(format!("invalid thread id: {err}")))?;
 
         let thread = self
             .thread_manager
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
-            .map_err(|_| invalid_request(format!("thread not found: {thread_id}")))?;
+            .map_err(|_| invalid_request(format!("thread not found: {chat_id}")))?;
 
-        Ok((thread_id, thread))
+        Ok((chat_id, thread))
     }
 
     async fn ensure_direct_input_allowed(
@@ -430,8 +430,8 @@ impl TurnRequestProcessor {
         error
     }
 
-    fn validate_v2_input_limit(items: &[V2UserInput]) -> Result<(), JSONRPCErrorError> {
-        let actual_chars: usize = items.iter().map(V2UserInput::text_char_count).sum();
+    fn validate_v2_input_limit(messages: &[V2UserInput]) -> Result<(), JSONRPCErrorError> {
+        let actual_chars: usize = messages.iter().map(V2UserInput::text_char_count).sum();
         if actual_chars > MAX_USER_INPUT_TEXT_CHARS {
             return Err(Self::input_too_large_error(actual_chars));
         }
@@ -441,17 +441,17 @@ impl TurnRequestProcessor {
     async fn turn_start_inner(
         &self,
         request_id: ConnectionRequestId,
-        params: TurnStartParams,
+        params: InteractionStartParams,
         app_server_client_name: Option<String>,
         app_server_client_version: Option<String>,
         supports_openai_form_elicitation: bool,
-    ) -> Result<TurnStartResponse, JSONRPCErrorError> {
-        let (thread_id, thread) =
-            self.load_thread(&params.thread_id)
-                .await
-                .inspect_err(|error| {
-                    self.track_error_response(&request_id, error, /*error_type*/ None);
-                })?;
+    ) -> Result<InteractionStartResponse, JSONRPCErrorError> {
+        let (chat_id, thread) = self
+            .load_thread(&params.chat_id)
+            .await
+            .inspect_err(|error| {
+                self.track_error_response(&request_id, error, /*error_type*/ None);
+            })?;
         self.ensure_direct_input_allowed(&request_id, thread.as_ref())
             .await?;
         if let Err(error) = Self::validate_v2_input_limit(&params.input) {
@@ -483,7 +483,7 @@ impl TurnRequestProcessor {
         let environment_selections =
             resolve_turn_environment_selections(self.thread_manager.as_ref(), params.environments)?;
 
-        // Map v2 input items to core input items.
+        // Map v2 input messages to core input messages.
         let mapped_items: Vec<CoreInputItem> = params
             .input
             .into_iter()
@@ -500,7 +500,7 @@ impl TurnRequestProcessor {
             .build_thread_settings_overrides(
                 thread.as_ref(),
                 ThreadSettingsBuildParams {
-                    method: "turn/start",
+                    method: "interaction/start",
                     environments,
                     runtime_workspace_roots: params.runtime_workspace_roots,
                     approval_policy: params.approval_policy,
@@ -517,15 +517,15 @@ impl TurnRequestProcessor {
             )
             .await?;
 
-        // Start the turn by submitting the user input. Return its submission id as turn_id.
+        // Start the turn by submitting the user input. Return its submission id as interaction_id.
         let turn_op = Op::UserInput {
-            items: mapped_items,
+            messages: mapped_items,
             final_output_json_schema: params.output_schema,
             responsesapi_client_metadata: params.responsesapi_client_metadata,
             additional_context,
             thread_settings,
         };
-        let turn_id = thread
+        let interaction_id = thread
             .submit_user_input_with_client_user_message_id(
                 turn_op,
                 self.request_trace_context(&request_id).await,
@@ -543,7 +543,7 @@ impl TurnRequestProcessor {
             datax_memories_write::start_memories_startup_task(
                 Arc::clone(&self.thread_manager),
                 Arc::clone(&self.auth_manager),
-                thread_id,
+                chat_id,
                 Arc::clone(&thread),
                 thread.config().await,
                 &config_snapshot.session_source,
@@ -551,20 +551,20 @@ impl TurnRequestProcessor {
         }
 
         self.outgoing
-            .record_request_turn_id(&request_id, &turn_id)
+            .record_request_turn_id(&request_id, &interaction_id)
             .await;
-        let turn = Turn {
-            id: turn_id,
-            items: vec![],
-            items_view: TurnItemsView::NotLoaded,
+        let turn = Interaction {
+            id: interaction_id,
+            messages: vec![],
+            messages_view: InteractionMessagesView::NotLoaded,
             error: None,
-            status: TurnStatus::InProgress,
+            status: InteractionStatus::InProgress,
             started_at: None,
             completed_at: None,
             duration_ms: None,
         };
 
-        Ok(TurnStartResponse { turn })
+        Ok(InteractionStartResponse { turn })
     }
 
     async fn build_environment_override(
@@ -631,9 +631,9 @@ impl TurnRequestProcessor {
             collaboration_mode.map(|mode| self.normalize_collaboration_mode(mode));
         let runtime_workspace_roots_request = runtime_workspace_roots;
         let has_environment_override = environments.is_some();
-        // `thread/settings/update` only acknowledges that the update was queued.
+        // `chat/settings/update` only acknowledges that the update was queued.
         // Clients that send dependent partial updates should wait for
-        // `thread/settings/updated` or combine the fields in one request.
+        // `chat/settings/updated` or combine the fields in one request.
         let snapshot = if permissions.is_some() {
             Some(thread.config_snapshot().await)
         } else {
@@ -757,9 +757,9 @@ impl TurnRequestProcessor {
     async fn thread_settings_update_inner(
         &self,
         request_id: &ConnectionRequestId,
-        params: ThreadSettingsUpdateParams,
-    ) -> Result<ThreadSettingsUpdateResponse, JSONRPCErrorError> {
-        let (_, thread) = self.load_thread(&params.thread_id).await?;
+        params: ChatSettingsUpdateParams,
+    ) -> Result<ChatSettingsUpdateResponse, JSONRPCErrorError> {
+        let (_, thread) = self.load_thread(&params.chat_id).await?;
         let cwd = resolve_request_cwd(params.cwd)?;
         let environments = self
             .build_environment_override(thread.as_ref(), cwd, /*environment_selections*/ None)
@@ -768,7 +768,7 @@ impl TurnRequestProcessor {
             .build_thread_settings_overrides(
                 thread.as_ref(),
                 ThreadSettingsBuildParams {
-                    method: "thread/settings/update",
+                    method: "chat/settings/update",
                     environments,
                     runtime_workspace_roots: None,
                     approval_policy: params.approval_policy,
@@ -789,41 +789,41 @@ impl TurnRequestProcessor {
             self.submit_core_op(
                 request_id,
                 thread.as_ref(),
-                Op::ThreadSettings { thread_settings },
+                Op::ChatSettings { thread_settings },
             )
             .await
             .map_err(|err| internal_error(format!("failed to update thread settings: {err}")))?;
         }
 
-        Ok(ThreadSettingsUpdateResponse {})
+        Ok(ChatSettingsUpdateResponse {})
     }
 
     async fn thread_inject_items_response_inner(
         &self,
-        params: ThreadInjectItemsParams,
-    ) -> Result<ThreadInjectItemsResponse, JSONRPCErrorError> {
-        let (_, thread) = self.load_thread(&params.thread_id).await?;
+        params: ChatInjectMessagesParams,
+    ) -> Result<ChatInjectMessagesResponse, JSONRPCErrorError> {
+        let (_, thread) = self.load_thread(&params.chat_id).await?;
 
-        let items = params
-            .items
+        let messages = params
+            .messages
             .into_iter()
             .enumerate()
             .map(|(index, value)| {
                 serde_json::from_value::<ResponseItem>(value)
-                    .map_err(|err| format!("items[{index}] is not a valid response item: {err}"))
+                    .map_err(|err| format!("messages[{index}] is not a valid response item: {err}"))
             })
             .collect::<std::result::Result<Vec<_>, _>>()
             .map_err(invalid_request)?;
-        validate_response_item_image_urls(&items)?;
+        validate_response_item_image_urls(&messages)?;
 
         thread
-            .inject_response_items(items)
+            .inject_response_items(messages)
             .await
             .map_err(|err| match err {
                 CodexErr::InvalidRequest(message) => invalid_request(message),
-                err => internal_error(format!("failed to inject response items: {err}")),
+                err => internal_error(format!("failed to inject response messages: {err}")),
             })?;
-        Ok(ThreadInjectItemsResponse {})
+        Ok(ChatInjectMessagesResponse {})
     }
 
     async fn set_app_server_client_info(
@@ -848,10 +848,10 @@ impl TurnRequestProcessor {
     async fn turn_steer_inner(
         &self,
         request_id: &ConnectionRequestId,
-        params: TurnSteerParams,
-    ) -> Result<TurnSteerResponse, JSONRPCErrorError> {
+        params: InteractionSteerParams,
+    ) -> Result<InteractionSteerResponse, JSONRPCErrorError> {
         let (_, thread) = self
-            .load_thread(&params.thread_id)
+            .load_thread(&params.chat_id)
             .await
             .inspect_err(|error| {
                 self.track_error_response(request_id, error, /*error_type*/ None);
@@ -881,7 +881,7 @@ impl TurnRequestProcessor {
             .collect();
         let additional_context = map_additional_context(params.additional_context);
 
-        let turn_id = thread
+        let interaction_id = thread
             .steer_input(
                 mapped_items,
                 additional_context,
@@ -917,7 +917,7 @@ impl TurnRequestProcessor {
                                 TurnSteerRequestError::NonSteerableCompact,
                             ),
                         };
-                        let error = TurnError {
+                        let error = InteractionError {
                             message: message.clone(),
                             codex_error_info: Some(CodexErrorInfo::ActiveTurnNotSteerable {
                                 turn_kind: turn_kind.into(),
@@ -951,19 +951,19 @@ impl TurnRequestProcessor {
                 self.track_error_response(request_id, &error, error_type);
                 error
             })?;
-        Ok(TurnSteerResponse { turn_id })
+        Ok(InteractionSteerResponse { interaction_id })
     }
 
     async fn prepare_realtime_conversation_thread(
         &self,
         request_id: &ConnectionRequestId,
-        thread_id: &str,
+        chat_id: &str,
     ) -> Result<Option<(ThreadId, Arc<CodexThread>)>, JSONRPCErrorError> {
-        let (thread_id, thread) = self.load_thread(thread_id).await?;
+        let (chat_id, thread) = self.load_thread(chat_id).await?;
 
         match self
             .ensure_conversation_listener(
-                thread_id,
+                chat_id,
                 request_id.connection_id,
                 /*raw_events_enabled*/ false,
             )
@@ -978,20 +978,20 @@ impl TurnRequestProcessor {
 
         if !thread.enabled(Feature::RealtimeConversation) {
             return Err(invalid_request(format!(
-                "thread {thread_id} does not support realtime conversation"
+                "thread {chat_id} does not support realtime conversation"
             )));
         }
 
-        Ok(Some((thread_id, thread)))
+        Ok(Some((chat_id, thread)))
     }
 
     async fn thread_realtime_start_inner(
         &self,
         request_id: &ConnectionRequestId,
-        params: ThreadRealtimeStartParams,
-    ) -> Result<Option<ThreadRealtimeStartResponse>, JSONRPCErrorError> {
+        params: ChatRealtimeStartParams,
+    ) -> Result<Option<ChatRealtimeStartResponse>, JSONRPCErrorError> {
         let Some((_, thread)) = self
-            .prepare_realtime_conversation_thread(request_id, &params.thread_id)
+            .prepare_realtime_conversation_thread(request_id, &params.chat_id)
             .await?
         else {
             return Ok(None);
@@ -1001,8 +1001,8 @@ impl TurnRequestProcessor {
             thread.as_ref(),
             Op::RealtimeConversationStart(ConversationStartParams {
                 client_managed_handoffs: params.client_managed_handoffs.unwrap_or(false),
-                codex_responses_as_items: params.codex_responses_as_items.unwrap_or(false),
-                codex_response_item_prefix: params.codex_response_item_prefix,
+                codex_responses_as_items: params.codex_responses_as_messages.unwrap_or(false),
+                codex_response_item_prefix: params.codex_response_message_prefix,
                 codex_response_handoff_prefix: params.codex_response_handoff_prefix,
                 model: params.model,
                 output_modality: params.output_modality,
@@ -1010,10 +1010,8 @@ impl TurnRequestProcessor {
                 prompt: params.prompt,
                 realtime_session_id: params.realtime_session_id,
                 transport: params.transport.map(|transport| match transport {
-                    ThreadRealtimeStartTransport::Websocket => {
-                        ConversationStartTransport::Websocket
-                    }
-                    ThreadRealtimeStartTransport::Webrtc { sdp } => {
+                    ChatRealtimeStartTransport::Websocket => ConversationStartTransport::Websocket,
+                    ChatRealtimeStartTransport::Webrtc { sdp } => {
                         ConversationStartTransport::Webrtc { sdp }
                     }
                 }),
@@ -1023,16 +1021,16 @@ impl TurnRequestProcessor {
         )
         .await
         .map_err(|err| internal_error(format!("failed to start realtime conversation: {err}")))?;
-        Ok(Some(ThreadRealtimeStartResponse::default()))
+        Ok(Some(ChatRealtimeStartResponse::default()))
     }
 
     async fn thread_realtime_append_audio_inner(
         &self,
         request_id: &ConnectionRequestId,
-        params: ThreadRealtimeAppendAudioParams,
-    ) -> Result<Option<ThreadRealtimeAppendAudioResponse>, JSONRPCErrorError> {
+        params: ChatRealtimeAppendAudioParams,
+    ) -> Result<Option<ChatRealtimeAppendAudioResponse>, JSONRPCErrorError> {
         let Some((_, thread)) = self
-            .prepare_realtime_conversation_thread(request_id, &params.thread_id)
+            .prepare_realtime_conversation_thread(request_id, &params.chat_id)
             .await?
         else {
             return Ok(None);
@@ -1050,16 +1048,16 @@ impl TurnRequestProcessor {
                 "failed to append realtime conversation audio: {err}"
             ))
         })?;
-        Ok(Some(ThreadRealtimeAppendAudioResponse::default()))
+        Ok(Some(ChatRealtimeAppendAudioResponse::default()))
     }
 
     async fn thread_realtime_append_text_inner(
         &self,
         request_id: &ConnectionRequestId,
-        params: ThreadRealtimeAppendTextParams,
-    ) -> Result<Option<ThreadRealtimeAppendTextResponse>, JSONRPCErrorError> {
+        params: ChatRealtimeAppendTextParams,
+    ) -> Result<Option<ChatRealtimeAppendTextResponse>, JSONRPCErrorError> {
         let Some((_, thread)) = self
-            .prepare_realtime_conversation_thread(request_id, &params.thread_id)
+            .prepare_realtime_conversation_thread(request_id, &params.chat_id)
             .await?
         else {
             return Ok(None);
@@ -1078,16 +1076,16 @@ impl TurnRequestProcessor {
                 "failed to append realtime conversation text: {err}"
             ))
         })?;
-        Ok(Some(ThreadRealtimeAppendTextResponse::default()))
+        Ok(Some(ChatRealtimeAppendTextResponse::default()))
     }
 
     async fn thread_realtime_append_speech_inner(
         &self,
         request_id: &ConnectionRequestId,
-        params: ThreadRealtimeAppendSpeechParams,
-    ) -> Result<Option<ThreadRealtimeAppendSpeechResponse>, JSONRPCErrorError> {
+        params: ChatRealtimeAppendSpeechParams,
+    ) -> Result<Option<ChatRealtimeAppendSpeechResponse>, JSONRPCErrorError> {
         let Some((_, thread)) = self
-            .prepare_realtime_conversation_thread(request_id, &params.thread_id)
+            .prepare_realtime_conversation_thread(request_id, &params.chat_id)
             .await?
         else {
             return Ok(None);
@@ -1103,16 +1101,16 @@ impl TurnRequestProcessor {
                 "failed to append realtime conversation speech: {err}"
             ))
         })?;
-        Ok(Some(ThreadRealtimeAppendSpeechResponse::default()))
+        Ok(Some(ChatRealtimeAppendSpeechResponse::default()))
     }
 
     async fn thread_realtime_stop_inner(
         &self,
         request_id: &ConnectionRequestId,
-        params: ThreadRealtimeStopParams,
-    ) -> Result<Option<ThreadRealtimeStopResponse>, JSONRPCErrorError> {
+        params: ChatRealtimeStopParams,
+    ) -> Result<Option<ChatRealtimeStopResponse>, JSONRPCErrorError> {
         let Some((_, thread)) = self
-            .prepare_realtime_conversation_thread(request_id, &params.thread_id)
+            .prepare_realtime_conversation_thread(request_id, &params.chat_id)
             .await?
         else {
             return Ok(None);
@@ -1122,15 +1120,15 @@ impl TurnRequestProcessor {
             .map_err(|err| {
                 internal_error(format!("failed to stop realtime conversation: {err}"))
             })?;
-        Ok(Some(ThreadRealtimeStopResponse::default()))
+        Ok(Some(ChatRealtimeStopResponse::default()))
     }
 
-    fn build_review_turn(turn_id: String, display_text: &str) -> Turn {
-        let items = if display_text.is_empty() {
+    fn build_review_turn(interaction_id: String, display_text: &str) -> Interaction {
+        let messages = if display_text.is_empty() {
             Vec::new()
         } else {
-            vec![ThreadItem::UserMessage {
-                id: turn_id.clone(),
+            vec![Message::UserMessage {
+                id: interaction_id.clone(),
                 client_id: None,
                 content: vec![V2UserInput::Text {
                     text: display_text.to_string(),
@@ -1140,12 +1138,12 @@ impl TurnRequestProcessor {
             }]
         };
 
-        Turn {
-            id: turn_id,
-            items,
-            items_view: TurnItemsView::NotLoaded,
+        Interaction {
+            id: interaction_id,
+            messages,
+            messages_view: InteractionMessagesView::NotLoaded,
             error: None,
-            status: TurnStatus::InProgress,
+            status: InteractionStatus::InProgress,
             started_at: None,
             completed_at: None,
             duration_ms: None,
@@ -1155,7 +1153,7 @@ impl TurnRequestProcessor {
     async fn emit_review_started(
         &self,
         request_id: &ConnectionRequestId,
-        turn: Turn,
+        turn: Interaction,
         review_thread_id: String,
     ) {
         let response = ReviewStartResponse {
@@ -1173,9 +1171,9 @@ impl TurnRequestProcessor {
         parent_thread: Arc<CodexThread>,
         review_request: ReviewRequest,
         display_text: &str,
-        parent_thread_id: String,
+        parent_chat_id: String,
     ) -> std::result::Result<(), JSONRPCErrorError> {
-        let turn_id = self
+        let interaction_id = self
             .submit_core_op(
                 request_id,
                 parent_thread.as_ref(),
@@ -1183,8 +1181,8 @@ impl TurnRequestProcessor {
             )
             .await
             .map_err(|err| internal_error(format!("failed to start review: {err}")))?;
-        let turn = Self::build_review_turn(turn_id, display_text);
-        self.emit_review_started(request_id, turn, parent_thread_id)
+        let turn = Self::build_review_turn(interaction_id, display_text);
+        self.emit_review_started(request_id, turn, parent_chat_id)
             .await;
         Ok(())
     }
@@ -1192,7 +1190,7 @@ impl TurnRequestProcessor {
     async fn start_detached_review(
         &self,
         request_id: &ConnectionRequestId,
-        parent_thread_id: ThreadId,
+        parent_chat_id: ThreadId,
         parent_thread: Arc<CodexThread>,
         review_request: ReviewRequest,
         display_text: &str,
@@ -1200,7 +1198,7 @@ impl TurnRequestProcessor {
         parent_thread.ensure_rollout_materialized().await;
         parent_thread.flush_rollout().await.map_err(|err| {
             internal_error(format!(
-                "failed to flush parent thread {parent_thread_id}: {err}"
+                "failed to flush parent thread {parent_chat_id}: {err}"
             ))
         })?;
         let parent_history = parent_thread
@@ -1208,7 +1206,7 @@ impl TurnRequestProcessor {
             .await
             .map_err(|err| {
                 internal_error(format!(
-                    "failed to load parent thread {parent_thread_id}: {err}"
+                    "failed to load parent thread {parent_chat_id}: {err}"
                 ))
             })?;
 
@@ -1218,7 +1216,7 @@ impl TurnRequestProcessor {
         }
 
         let NewThread {
-            thread_id,
+            chat_id,
             thread: review_thread,
             ..
         } = self
@@ -1227,11 +1225,11 @@ impl TurnRequestProcessor {
                 ForkSnapshot::Interrupted,
                 config.clone(),
                 InitialHistory::Resumed(ResumedHistory {
-                    conversation_id: parent_thread_id,
-                    history: parent_history.items,
+                    conversation_id: parent_chat_id,
+                    history: parent_history.messages,
                     rollout_path: parent_thread.rollout_path(),
                 }),
-                /*thread_source*/ None,
+                /*chat_source*/ None,
                 self.request_trace_context(request_id).await,
                 /*supports_openai_form_elicitation*/ false,
             )
@@ -1242,12 +1240,12 @@ impl TurnRequestProcessor {
 
         log_listener_attach_result(
             self.ensure_conversation_listener(
-                thread_id,
+                chat_id,
                 request_id.connection_id,
                 /*raw_events_enabled*/ false,
             )
             .await,
-            thread_id,
+            chat_id,
             request_id.connection_id,
             "review thread",
         );
@@ -1261,7 +1259,7 @@ impl TurnRequestProcessor {
         {
             Ok(stored_thread) => {
                 let (mut thread, _) =
-                    thread_from_stored_thread(stored_thread, fallback_provider, &self.config.cwd);
+                    chat_from_stored_thread(stored_thread, fallback_provider, &self.config.cwd);
                 thread.session_id = review_thread.session_configured().session_id.to_string();
                 self.thread_watch_manager
                     .upsert_thread_silently(thread.clone())
@@ -1274,15 +1272,15 @@ impl TurnRequestProcessor {
                 );
                 let notif = thread_started_notification(thread);
                 self.outgoing
-                    .send_server_notification(ServerNotification::ThreadStarted(notif))
+                    .send_server_notification(ChatStarted(notif))
                     .await;
             }
             Err(err) => {
-                tracing::warn!("failed to load summary for review thread {thread_id}: {err}");
+                tracing::warn!("failed to load summary for review thread {chat_id}: {err}");
             }
         }
 
-        let turn_id = self
+        let interaction_id = self
             .submit_core_op(
                 request_id,
                 review_thread.as_ref(),
@@ -1293,8 +1291,8 @@ impl TurnRequestProcessor {
                 internal_error(format!("failed to start detached review turn: {err}"))
             })?;
 
-        let turn = Self::build_review_turn(turn_id, display_text);
-        let review_thread_id = thread_id.to_string();
+        let turn = Self::build_review_turn(interaction_id, display_text);
+        let review_thread_id = chat_id.to_string();
         self.emit_review_started(request_id, turn, review_thread_id)
             .await;
 
@@ -1307,12 +1305,12 @@ impl TurnRequestProcessor {
         params: ReviewStartParams,
     ) -> Result<(), JSONRPCErrorError> {
         let ReviewStartParams {
-            thread_id,
+            chat_id,
             target,
             delivery,
         } = params;
 
-        let (parent_thread_id, parent_thread) = self.load_thread(&thread_id).await?;
+        let (parent_chat_id, parent_thread) = self.load_thread(&chat_id).await?;
         let (review_request, display_text) = Self::review_request_from_target(target)?;
         match delivery.unwrap_or(ApiReviewDelivery::Inline).to_core() {
             CoreReviewDelivery::Inline => {
@@ -1321,14 +1319,14 @@ impl TurnRequestProcessor {
                     parent_thread,
                     review_request,
                     &display_text,
-                    thread_id,
+                    chat_id,
                 )
                 .await?;
             }
             CoreReviewDelivery::Detached => {
                 self.start_detached_review(
                     request_id,
-                    parent_thread_id,
+                    parent_chat_id,
                     parent_thread,
                     review_request,
                     &display_text,
@@ -1342,12 +1340,15 @@ impl TurnRequestProcessor {
     async fn turn_interrupt_inner(
         &self,
         request_id: &ConnectionRequestId,
-        params: TurnInterruptParams,
-    ) -> Result<Option<TurnInterruptResponse>, JSONRPCErrorError> {
-        let TurnInterruptParams { thread_id, turn_id } = params;
-        let is_startup_interrupt = turn_id.is_empty();
+        params: InteractionInterruptParams,
+    ) -> Result<Option<InteractionInterruptResponse>, JSONRPCErrorError> {
+        let InteractionInterruptParams {
+            chat_id,
+            interaction_id,
+        } = params;
+        let is_startup_interrupt = interaction_id.is_empty();
 
-        let (thread_uuid, thread) = self.load_thread(&thread_id).await?;
+        let (thread_uuid, thread) = self.load_thread(&chat_id).await?;
 
         // Record turn interrupts so we can reply when TurnAborted arrives. Startup
         // interrupts do not have a turn and are acknowledged after submission.
@@ -1357,13 +1358,14 @@ impl TurnRequestProcessor {
             {
                 let mut thread_state = thread_state.lock().await;
                 if let Some(active_turn) = thread_state.active_turn_snapshot() {
-                    if active_turn.id != turn_id {
+                    if active_turn.id != interaction_id {
                         return Err(invalid_request(format!(
-                            "expected active turn id {turn_id} but found {}",
+                            "expected active turn id {interaction_id} but found {}",
                             active_turn.id
                         )));
                     }
-                } else if thread_state.last_terminal_turn_id.as_deref() == Some(turn_id.as_str())
+                } else if thread_state.last_terminal_turn_id.as_deref()
+                    == Some(interaction_id.as_str())
                     || !is_running
                 {
                     return Err(invalid_request("no active turn to interrupt"));
@@ -1372,17 +1374,17 @@ impl TurnRequestProcessor {
             }
 
             self.outgoing
-                .record_request_turn_id(request_id, &turn_id)
+                .record_request_turn_id(request_id, &interaction_id)
                 .await;
         }
 
-        // Submit the interrupt. Turn interrupts respond upon TurnAborted; startup
+        // Submit the interrupt. Interaction interrupts respond upon TurnAborted; startup
         // interrupts respond here because startup cancellation has no turn event.
         match self
             .submit_core_op(request_id, thread.as_ref(), Op::Interrupt)
             .await
         {
-            Ok(_) if is_startup_interrupt => Ok(Some(TurnInterruptResponse {})),
+            Ok(_) if is_startup_interrupt => Ok(Some(InteractionInterruptResponse {})),
             Ok(_) => Ok(None),
             Err(err) => {
                 if !is_startup_interrupt {

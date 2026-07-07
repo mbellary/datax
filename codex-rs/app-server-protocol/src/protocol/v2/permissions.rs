@@ -388,7 +388,7 @@ pub struct PermissionProfileSummary {
 pub struct PermissionProfileListResponse {
     pub data: Vec<PermissionProfileSummary>,
     /// Opaque cursor to pass to the next call to continue after the last item.
-    /// If None, there are no more items to return.
+    /// If None, there are no more messages to return.
     pub next_cursor: Option<String>,
 }
 
@@ -741,9 +741,9 @@ impl From<CoreNetworkPolicyAmendment> for NetworkPolicyAmendment {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct PermissionsRequestApprovalParams {
-    pub thread_id: String,
-    pub turn_id: String,
-    pub item_id: String,
+    pub chat_id: String,
+    pub interaction_id: String,
+    pub message_id: String,
     #[serde(default)]
     pub environment_id: Option<String>,
     /// Unix timestamp (in milliseconds) when this approval request started.
@@ -758,7 +758,7 @@ v2_enum_from_core!(
     #[derive(Default)]
     pub enum PermissionGrantScope from CorePermissionGrantScope {
         #[default]
-        Turn,
+        Interaction,
         Session
     }
 );

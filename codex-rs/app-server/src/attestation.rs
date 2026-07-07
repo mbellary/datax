@@ -51,7 +51,7 @@ impl AttestationProvider for AppServerAttestationProvider {
             request_attestation_header_value_with_timeout(
                 outgoing,
                 thread_state_manager,
-                context.thread_id,
+                context.chat_id,
                 ATTESTATION_GENERATE_TIMEOUT,
             )
             .await
@@ -63,11 +63,11 @@ impl AttestationProvider for AppServerAttestationProvider {
 async fn request_attestation_header_value_with_timeout(
     outgoing: Arc<OutgoingMessageSender>,
     thread_state_manager: ThreadStateManager,
-    thread_id: datax_protocol::ThreadId,
+    chat_id: datax_protocol::ThreadId,
     timeout_duration: Duration,
 ) -> Option<String> {
     let connection_id = thread_state_manager
-        .first_attestation_capable_connection_for_thread(thread_id)
+        .first_attestation_capable_connection_for_thread(chat_id)
         .await?;
 
     let connection_ids = [connection_id];
@@ -75,7 +75,7 @@ async fn request_attestation_header_value_with_timeout(
         .send_request_to_connections(
             Some(&connection_ids),
             ServerRequestPayload::AttestationGenerate(AttestationGenerateParams {}),
-            /*thread_id*/ None,
+            /*chat_id*/ None,
         )
         .await;
 

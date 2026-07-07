@@ -13,11 +13,11 @@ use datax_experimental_api_macros::ExperimentalApi;
 use datax_protocol::approvals::GuardianAssessmentAction as CoreGuardianAssessmentAction;
 use datax_protocol::approvals::GuardianAssessmentDecisionSource as CoreGuardianAssessmentDecisionSource;
 use datax_protocol::approvals::GuardianCommandSource as CoreGuardianCommandSource;
-use datax_protocol::items::AgentMessageContent as CoreAgentMessageContent;
-use datax_protocol::items::McpToolCallStatus as CoreMcpToolCallStatus;
-use datax_protocol::items::TurnItem as CoreTurnItem;
 use datax_protocol::memory_citation::MemoryCitation as CoreMemoryCitation;
 use datax_protocol::memory_citation::MemoryCitationEntry as CoreMemoryCitationEntry;
+use datax_protocol::messages::AgentMessageContent as CoreAgentMessageContent;
+use datax_protocol::messages::McpToolCallStatus as CoreMcpToolCallStatus;
+use datax_protocol::messages::TurnItem as CoreTurnItem;
 use datax_protocol::models::MessagePhase;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::openai_models::ReasoningEffort;
@@ -131,14 +131,14 @@ pub enum CommandAction {
 #[ts(export_to = "v2/")]
 pub struct MemoryCitation {
     pub entries: Vec<MemoryCitationEntry>,
-    pub thread_ids: Vec<String>,
+    pub chat_ids: Vec<String>,
 }
 
 impl From<CoreMemoryCitation> for MemoryCitation {
     fn from(value: CoreMemoryCitation) -> Self {
         Self {
             entries: value.entries.into_iter().map(Into::into).collect(),
-            thread_ids: value.rollout_ids,
+            chat_ids: value.rollout_ids,
         }
     }
 }
@@ -212,7 +212,7 @@ impl CommandAction {
 #[serde(tag = "type", rename_all = "camelCase")]
 #[ts(tag = "type")]
 #[ts(export_to = "v2/")]
-pub enum ThreadItem {
+pub enum Message {
     #[serde(rename_all = "camelCase")]
     #[ts(rename_all = "camelCase")]
     UserMessage {
@@ -325,9 +325,9 @@ pub enum ThreadItem {
         tool: CollabAgentTool,
         /// Current status of the collab tool call.
         status: CollabAgentToolCallStatus,
-        /// Thread ID of the agent issuing the collab request.
+        /// Chat ID of the agent issuing the collab request.
         sender_thread_id: String,
-        /// Thread ID of the receiving agent, when applicable. In case of spawn operation,
+        /// Chat ID of the receiving agent, when applicable. In case of spawn operation,
         /// this corresponds to the newly spawned agent.
         receiver_thread_ids: Vec<String>,
         /// Prompt text sent as part of the collab tool call, when available.
@@ -403,27 +403,27 @@ pub struct HookPromptFragment {
     pub hook_run_id: String,
 }
 
-impl ThreadItem {
+impl Message {
     pub fn id(&self) -> &str {
         match self {
-            ThreadItem::UserMessage { id, .. }
-            | ThreadItem::HookPrompt { id, .. }
-            | ThreadItem::AgentMessage { id, .. }
-            | ThreadItem::Plan { id, .. }
-            | ThreadItem::Reasoning { id, .. }
-            | ThreadItem::CommandExecution { id, .. }
-            | ThreadItem::FileChange { id, .. }
-            | ThreadItem::McpToolCall { id, .. }
-            | ThreadItem::DynamicToolCall { id, .. }
-            | ThreadItem::CollabAgentToolCall { id, .. }
-            | ThreadItem::SubAgentActivity { id, .. }
-            | ThreadItem::WebSearch { id, .. }
-            | ThreadItem::ImageView { id, .. }
-            | ThreadItem::Sleep { id, .. }
-            | ThreadItem::ImageGeneration { id, .. }
-            | ThreadItem::EnteredReviewMode { id, .. }
-            | ThreadItem::ExitedReviewMode { id, .. }
-            | ThreadItem::ContextCompaction { id, .. } => id,
+            Message::UserMessage { id, .. }
+            | Message::HookPrompt { id, .. }
+            | Message::AgentMessage { id, .. }
+            | Message::Plan { id, .. }
+            | Message::Reasoning { id, .. }
+            | Message::CommandExecution { id, .. }
+            | Message::FileChange { id, .. }
+            | Message::McpToolCall { id, .. }
+            | Message::DynamicToolCall { id, .. }
+            | Message::CollabAgentToolCall { id, .. }
+            | Message::SubAgentActivity { id, .. }
+            | Message::WebSearch { id, .. }
+            | Message::ImageView { id, .. }
+            | Message::Sleep { id, .. }
+            | Message::ImageGeneration { id, .. }
+            | Message::EnteredReviewMode { id, .. }
+            | Message::ExitedReviewMode { id, .. }
+            | Message::ContextCompaction { id, .. } => id,
         }
     }
 }
@@ -501,7 +501,7 @@ impl From<CoreGuardianUserAuthorization> for GuardianUserAuthorization {
 }
 
 /// [UNSTABLE] Temporary approval auto-review payload used by
-/// `item/autoApprovalReview/*` notifications. This shape is expected to change
+/// `message/autoApprovalReview/*` notifications. This shape is expected to change
 /// soon.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
@@ -808,15 +808,15 @@ impl From<datax_protocol::models::WebSearchAction> for WebSearchAction {
     }
 }
 
-impl From<CoreTurnItem> for ThreadItem {
+impl From<CoreTurnItem> for Message {
     fn from(value: CoreTurnItem) -> Self {
         match value {
-            CoreTurnItem::UserMessage(user) => ThreadItem::UserMessage {
+            CoreTurnItem::UserMessage(user) => Message::UserMessage {
                 id: user.id,
                 client_id: user.client_id,
                 content: user.content.into_iter().map(UserInput::from).collect(),
             },
-            CoreTurnItem::HookPrompt(hook_prompt) => ThreadItem::HookPrompt {
+            CoreTurnItem::HookPrompt(hook_prompt) => Message::HookPrompt {
                 id: hook_prompt.id,
                 fragments: hook_prompt
                     .fragments
@@ -832,43 +832,43 @@ impl From<CoreTurnItem> for ThreadItem {
                         CoreAgentMessageContent::Text { text } => text,
                     })
                     .collect::<String>();
-                ThreadItem::AgentMessage {
+                Message::AgentMessage {
                     id: agent.id,
                     text,
                     phase: agent.phase,
                     memory_citation: agent.memory_citation.map(Into::into),
                 }
             }
-            CoreTurnItem::Plan(plan) => ThreadItem::Plan {
+            CoreTurnItem::Plan(plan) => Message::Plan {
                 id: plan.id,
                 text: plan.text,
             },
-            CoreTurnItem::Reasoning(reasoning) => ThreadItem::Reasoning {
+            CoreTurnItem::Reasoning(reasoning) => Message::Reasoning {
                 id: reasoning.id,
                 summary: reasoning.summary_text,
                 content: reasoning.raw_content,
             },
-            CoreTurnItem::WebSearch(search) => ThreadItem::WebSearch {
+            CoreTurnItem::WebSearch(search) => Message::WebSearch {
                 id: search.id,
                 query: search.query,
                 action: Some(WebSearchAction::from(search.action)),
             },
-            CoreTurnItem::ImageView(image) => ThreadItem::ImageView {
+            CoreTurnItem::ImageView(image) => Message::ImageView {
                 id: image.id,
                 path: image.path,
             },
-            CoreTurnItem::Sleep(sleep) => ThreadItem::Sleep {
+            CoreTurnItem::Sleep(sleep) => Message::Sleep {
                 id: sleep.id,
                 duration_ms: sleep.duration_ms,
             },
-            CoreTurnItem::ImageGeneration(image) => ThreadItem::ImageGeneration {
+            CoreTurnItem::ImageGeneration(image) => Message::ImageGeneration {
                 id: image.id,
                 status: image.status,
                 revised_prompt: image.revised_prompt,
                 result: image.result,
                 saved_path: image.saved_path,
             },
-            CoreTurnItem::FileChange(file_change) => ThreadItem::FileChange {
+            CoreTurnItem::FileChange(file_change) => Message::FileChange {
                 id: file_change.id,
                 changes: convert_patch_changes(&file_change.changes),
                 status: file_change
@@ -882,7 +882,7 @@ impl From<CoreTurnItem> for ThreadItem {
                     .duration
                     .and_then(|duration| i64::try_from(duration.as_millis()).ok());
 
-                ThreadItem::McpToolCall {
+                Message::McpToolCall {
                     id: mcp.id,
                     server: mcp.server,
                     tool: mcp.tool,
@@ -901,14 +901,14 @@ impl From<CoreTurnItem> for ThreadItem {
                 }
             }
             CoreTurnItem::ContextCompaction(compaction) => {
-                ThreadItem::ContextCompaction { id: compaction.id }
+                Message::ContextCompaction { id: compaction.id }
             }
         }
     }
 }
 
-impl From<datax_protocol::items::HookPromptFragment> for HookPromptFragment {
-    fn from(value: datax_protocol::items::HookPromptFragment) -> Self {
+impl From<datax_protocol::messages::HookPromptFragment> for HookPromptFragment {
+    fn from(value: datax_protocol::messages::HookPromptFragment) -> Self {
         Self {
             text: value.text,
             hook_run_id: value.hook_run_id,
@@ -1124,10 +1124,12 @@ impl From<CoreAgentStatus> for CollabAgentState {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub struct ItemStartedNotification {
-    pub item: ThreadItem,
-    pub thread_id: String,
-    pub turn_id: String,
+pub struct MessageStartedNotification {
+    #[serde(rename = "message")]
+    #[ts(rename = "message")]
+    pub item: Message,
+    pub chat_id: String,
+    pub interaction_id: String,
     /// Unix timestamp (in milliseconds) when this item lifecycle started.
     #[ts(type = "number")]
     pub started_at_ms: i64,
@@ -1138,9 +1140,9 @@ pub struct ItemStartedNotification {
 #[ts(export_to = "v2/")]
 /// [UNSTABLE] Temporary notification payload for approval auto-review. This
 /// shape is expected to change soon.
-pub struct ItemGuardianApprovalReviewStartedNotification {
-    pub thread_id: String,
-    pub turn_id: String,
+pub struct MessageGuardianApprovalReviewStartedNotification {
+    pub chat_id: String,
+    pub interaction_id: String,
     /// Unix timestamp (in milliseconds) when this review started.
     #[ts(type = "number")]
     pub started_at_ms: i64,
@@ -1154,10 +1156,10 @@ pub struct ItemGuardianApprovalReviewStartedNotification {
     /// - network policy reviews, where there is no target item
     ///
     /// A network call is triggered by a CommandExecution item, so having a
-    /// target_item_id set to the CommandExecution item would be misleading
+    /// target_message_id set to the CommandExecution item would be misleading
     /// because the review is about the network call, not the command execution.
-    /// Therefore, target_item_id is set to None for network policy reviews.
-    pub target_item_id: Option<String>,
+    /// Therefore, target_message_id is set to None for network policy reviews.
+    pub target_message_id: Option<String>,
     pub review: GuardianApprovalReview,
     pub action: GuardianApprovalReviewAction,
 }
@@ -1167,9 +1169,9 @@ pub struct ItemGuardianApprovalReviewStartedNotification {
 #[ts(export_to = "v2/")]
 /// [UNSTABLE] Temporary notification payload for approval auto-review. This
 /// shape is expected to change soon.
-pub struct ItemGuardianApprovalReviewCompletedNotification {
-    pub thread_id: String,
-    pub turn_id: String,
+pub struct MessageGuardianApprovalReviewCompletedNotification {
+    pub chat_id: String,
+    pub interaction_id: String,
     /// Unix timestamp (in milliseconds) when this review started.
     #[ts(type = "number")]
     pub started_at_ms: i64,
@@ -1186,10 +1188,10 @@ pub struct ItemGuardianApprovalReviewCompletedNotification {
     /// - network policy reviews, where there is no target item
     ///
     /// A network call is triggered by a CommandExecution item, so having a
-    /// target_item_id set to the CommandExecution item would be misleading
+    /// target_message_id set to the CommandExecution item would be misleading
     /// because the review is about the network call, not the command execution.
-    /// Therefore, target_item_id is set to None for network policy reviews.
-    pub target_item_id: Option<String>,
+    /// Therefore, target_message_id is set to None for network policy reviews.
+    pub target_message_id: Option<String>,
     pub decision_source: AutoReviewDecisionSource,
     pub review: GuardianApprovalReview,
     pub action: GuardianApprovalReviewAction,
@@ -1198,10 +1200,12 @@ pub struct ItemGuardianApprovalReviewCompletedNotification {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub struct ItemCompletedNotification {
-    pub item: ThreadItem,
-    pub thread_id: String,
-    pub turn_id: String,
+pub struct MessageCompletedNotification {
+    #[serde(rename = "message")]
+    #[ts(rename = "message")]
+    pub item: Message,
+    pub chat_id: String,
+    pub interaction_id: String,
     /// Unix timestamp (in milliseconds) when this item lifecycle completed.
     #[ts(type = "number")]
     pub completed_at_ms: i64,
@@ -1211,8 +1215,8 @@ pub struct ItemCompletedNotification {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct RawResponseItemCompletedNotification {
-    pub thread_id: String,
-    pub turn_id: String,
+    pub chat_id: String,
+    pub interaction_id: String,
     pub item: ResponseItem,
 }
 
@@ -1221,21 +1225,21 @@ pub struct RawResponseItemCompletedNotification {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct AgentMessageDeltaNotification {
-    pub thread_id: String,
-    pub turn_id: String,
-    pub item_id: String,
+    pub chat_id: String,
+    pub interaction_id: String,
+    pub message_id: String,
     pub delta: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-/// EXPERIMENTAL - proposed plan streaming deltas for plan items. Clients should
+/// EXPERIMENTAL - proposed plan streaming deltas for plan messages. Clients should
 /// not assume concatenated deltas match the completed plan item content.
 pub struct PlanDeltaNotification {
-    pub thread_id: String,
-    pub turn_id: String,
-    pub item_id: String,
+    pub chat_id: String,
+    pub interaction_id: String,
+    pub message_id: String,
     pub delta: String,
 }
 
@@ -1243,9 +1247,9 @@ pub struct PlanDeltaNotification {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct ReasoningSummaryTextDeltaNotification {
-    pub thread_id: String,
-    pub turn_id: String,
-    pub item_id: String,
+    pub chat_id: String,
+    pub interaction_id: String,
+    pub message_id: String,
     pub delta: String,
     #[ts(type = "number")]
     pub summary_index: i64,
@@ -1255,9 +1259,9 @@ pub struct ReasoningSummaryTextDeltaNotification {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct ReasoningSummaryPartAddedNotification {
-    pub thread_id: String,
-    pub turn_id: String,
-    pub item_id: String,
+    pub chat_id: String,
+    pub interaction_id: String,
+    pub message_id: String,
     #[ts(type = "number")]
     pub summary_index: i64,
 }
@@ -1266,9 +1270,9 @@ pub struct ReasoningSummaryPartAddedNotification {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct ReasoningTextDeltaNotification {
-    pub thread_id: String,
-    pub turn_id: String,
-    pub item_id: String,
+    pub chat_id: String,
+    pub interaction_id: String,
+    pub message_id: String,
     pub delta: String,
     #[ts(type = "number")]
     pub content_index: i64,
@@ -1278,9 +1282,9 @@ pub struct ReasoningTextDeltaNotification {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct TerminalInteractionNotification {
-    pub thread_id: String,
-    pub turn_id: String,
-    pub item_id: String,
+    pub chat_id: String,
+    pub interaction_id: String,
+    pub message_id: String,
     pub process_id: String,
     pub stdin: String,
 }
@@ -1290,9 +1294,9 @@ pub struct TerminalInteractionNotification {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct CommandExecutionOutputDeltaNotification {
-    pub thread_id: String,
-    pub turn_id: String,
-    pub item_id: String,
+    pub chat_id: String,
+    pub interaction_id: String,
+    pub message_id: String,
     pub delta: String,
 }
 /// Deprecated legacy notification for `apply_patch` textual output.
@@ -1302,9 +1306,9 @@ pub struct CommandExecutionOutputDeltaNotification {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct FileChangeOutputDeltaNotification {
-    pub thread_id: String,
-    pub turn_id: String,
-    pub item_id: String,
+    pub chat_id: String,
+    pub interaction_id: String,
+    pub message_id: String,
     pub delta: String,
 }
 
@@ -1312,9 +1316,9 @@ pub struct FileChangeOutputDeltaNotification {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct FileChangePatchUpdatedNotification {
-    pub thread_id: String,
-    pub turn_id: String,
-    pub item_id: String,
+    pub chat_id: String,
+    pub interaction_id: String,
+    pub message_id: String,
     pub changes: Vec<FileUpdateChange>,
 }
 
@@ -1322,9 +1326,9 @@ pub struct FileChangePatchUpdatedNotification {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct CommandExecutionRequestApprovalParams {
-    pub thread_id: String,
-    pub turn_id: String,
-    pub item_id: String,
+    pub chat_id: String,
+    pub interaction_id: String,
+    pub message_id: String,
     /// Unix timestamp (in milliseconds) when this approval request started.
     #[ts(type = "number")]
     pub started_at_ms: i64,
@@ -1333,7 +1337,7 @@ pub struct CommandExecutionRequestApprovalParams {
     /// For regular shell/unified_exec approvals, this is null.
     ///
     /// For zsh-exec-bridge subcommand approvals, multiple callbacks can belong to
-    /// one parent `itemId`, so `approvalId` is a distinct opaque callback id
+    /// one parent `messageId`, so `approvalId` is a distinct opaque callback id
     /// (a UUID) used to disambiguate routing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional = nullable)]
@@ -1362,7 +1366,7 @@ pub struct CommandExecutionRequestApprovalParams {
     #[ts(optional = nullable)]
     pub command_actions: Option<Vec<CommandAction>>,
     /// Optional additional permissions requested for this command.
-    #[experimental("item/commandExecution/requestApproval.additionalPermissions")]
+    #[experimental("message/commandExecution/requestApproval.additionalPermissions")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional = nullable)]
     pub additional_permissions: Option<AdditionalPermissionProfile>,
@@ -1375,7 +1379,7 @@ pub struct CommandExecutionRequestApprovalParams {
     #[ts(optional = nullable)]
     pub proposed_network_policy_amendments: Option<Vec<NetworkPolicyAmendment>>,
     /// Ordered list of decisions the client may present for this prompt.
-    #[experimental("item/commandExecution/requestApproval.availableDecisions")]
+    #[experimental("message/commandExecution/requestApproval.availableDecisions")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional = nullable)]
     pub available_decisions: Option<Vec<CommandExecutionApprovalDecision>>,
@@ -1401,9 +1405,9 @@ pub struct CommandExecutionRequestApprovalResponse {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct FileChangeRequestApprovalParams {
-    pub thread_id: String,
-    pub turn_id: String,
-    pub item_id: String,
+    pub chat_id: String,
+    pub interaction_id: String,
+    pub message_id: String,
     /// Unix timestamp (in milliseconds) when this approval request started.
     #[ts(type = "number")]
     pub started_at_ms: i64,
@@ -1426,8 +1430,8 @@ pub struct FileChangeRequestApprovalResponse {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct DynamicToolCallParams {
-    pub thread_id: String,
-    pub turn_id: String,
+    pub chat_id: String,
+    pub interaction_id: String,
     pub call_id: String,
     pub namespace: Option<String>,
     pub tool: String,
@@ -1495,9 +1499,9 @@ pub struct ToolRequestUserInputQuestion {
 #[ts(export_to = "v2/")]
 /// EXPERIMENTAL. Params sent with a request_user_input event.
 pub struct ToolRequestUserInputParams {
-    pub thread_id: String,
-    pub turn_id: String,
-    pub item_id: String,
+    pub chat_id: String,
+    pub interaction_id: String,
+    pub message_id: String,
     pub questions: Vec<ToolRequestUserInputQuestion>,
     #[serde(default)]
     #[ts(type = "number | null")]

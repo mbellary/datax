@@ -10,14 +10,14 @@ use crate::protocol::v2::CommandExecutionOutputDeltaNotification;
 use crate::protocol::v2::DynamicToolCallOutputContentItem;
 use crate::protocol::v2::DynamicToolCallStatus;
 use crate::protocol::v2::FileChangePatchUpdatedNotification;
-use crate::protocol::v2::ItemCompletedNotification;
-use crate::protocol::v2::ItemStartedNotification;
+use crate::protocol::v2::Message;
+use crate::protocol::v2::MessageCompletedNotification;
+use crate::protocol::v2::MessageStartedNotification;
 use crate::protocol::v2::PlanDeltaNotification;
 use crate::protocol::v2::ReasoningSummaryPartAddedNotification;
 use crate::protocol::v2::ReasoningSummaryTextDeltaNotification;
 use crate::protocol::v2::ReasoningTextDeltaNotification;
 use crate::protocol::v2::TerminalInteractionNotification;
-use crate::protocol::v2::ThreadItem;
 use datax_protocol::dynamic_tools::DynamicToolCallOutputContentItem as CoreDynamicToolCallOutputContentItem;
 use datax_protocol::protocol::EventMsg;
 use std::collections::HashMap;
@@ -29,11 +29,11 @@ use std::collections::HashMap;
 /// invoking this helper.
 pub fn item_event_to_server_notification(
     msg: EventMsg,
-    thread_id: &str,
-    turn_id: &str,
+    chat_id: &str,
+    interaction_id: &str,
 ) -> ServerNotification {
-    let thread_id = thread_id.to_string();
-    let turn_id = turn_id.to_string();
+    let chat_id = chat_id.to_string();
+    let interaction_id = interaction_id.to_string();
     match msg {
         EventMsg::DynamicToolCallResponse(response) => {
             let status = if response.success {
@@ -42,7 +42,7 @@ pub fn item_event_to_server_notification(
                 DynamicToolCallStatus::Failed
             };
             let duration_ms = i64::try_from(response.duration.as_millis()).ok();
-            let item = ThreadItem::DynamicToolCall {
+            let item = Message::DynamicToolCall {
                 id: response.call_id,
                 namespace: response.namespace,
                 tool: response.tool,
@@ -65,15 +65,15 @@ pub fn item_event_to_server_notification(
                 success: Some(response.success),
                 duration_ms,
             };
-            ServerNotification::ItemCompleted(ItemCompletedNotification {
-                thread_id,
-                turn_id: response.turn_id,
+            ServerNotification::MessageCompleted(MessageCompletedNotification {
+                chat_id,
+                interaction_id: response.interaction_id,
                 item,
                 completed_at_ms: response.completed_at_ms,
             })
         }
         EventMsg::CollabAgentSpawnBegin(begin_event) => {
-            let item = ThreadItem::CollabAgentToolCall {
+            let item = Message::CollabAgentToolCall {
                 id: begin_event.call_id,
                 tool: CollabAgentTool::SpawnAgent,
                 status: CollabAgentToolCallStatus::InProgress,
@@ -84,9 +84,9 @@ pub fn item_event_to_server_notification(
                 reasoning_effort: Some(begin_event.reasoning_effort),
                 agents_states: HashMap::new(),
             };
-            ServerNotification::ItemStarted(ItemStartedNotification {
-                thread_id,
-                turn_id,
+            ServerNotification::MessageStarted(MessageStartedNotification {
+                chat_id,
+                interaction_id,
                 item,
                 started_at_ms: begin_event.started_at_ms,
             })
@@ -112,7 +112,7 @@ pub fn item_event_to_server_notification(
                 }
                 None => (Vec::new(), HashMap::new()),
             };
-            let item = ThreadItem::CollabAgentToolCall {
+            let item = Message::CollabAgentToolCall {
                 id: end_event.call_id,
                 tool: CollabAgentTool::SpawnAgent,
                 status,
@@ -123,16 +123,16 @@ pub fn item_event_to_server_notification(
                 reasoning_effort: Some(end_event.reasoning_effort),
                 agents_states,
             };
-            ServerNotification::ItemCompleted(ItemCompletedNotification {
-                thread_id,
-                turn_id,
+            ServerNotification::MessageCompleted(MessageCompletedNotification {
+                chat_id,
+                interaction_id,
                 item,
                 completed_at_ms: end_event.completed_at_ms,
             })
         }
         EventMsg::CollabAgentInteractionBegin(begin_event) => {
             let receiver_thread_ids = vec![begin_event.receiver_thread_id.to_string()];
-            let item = ThreadItem::CollabAgentToolCall {
+            let item = Message::CollabAgentToolCall {
                 id: begin_event.call_id,
                 tool: CollabAgentTool::SendInput,
                 status: CollabAgentToolCallStatus::InProgress,
@@ -143,9 +143,9 @@ pub fn item_event_to_server_notification(
                 reasoning_effort: None,
                 agents_states: HashMap::new(),
             };
-            ServerNotification::ItemStarted(ItemStartedNotification {
-                thread_id,
-                turn_id,
+            ServerNotification::MessageStarted(MessageStartedNotification {
+                chat_id,
+                interaction_id,
                 item,
                 started_at_ms: begin_event.started_at_ms,
             })
@@ -160,7 +160,7 @@ pub fn item_event_to_server_notification(
             };
             let receiver_id = end_event.receiver_thread_id.to_string();
             let received_status = CollabAgentState::from(end_event.status);
-            let item = ThreadItem::CollabAgentToolCall {
+            let item = Message::CollabAgentToolCall {
                 id: end_event.call_id,
                 tool: CollabAgentTool::SendInput,
                 status,
@@ -171,23 +171,23 @@ pub fn item_event_to_server_notification(
                 reasoning_effort: None,
                 agents_states: [(receiver_id, received_status)].into_iter().collect(),
             };
-            ServerNotification::ItemCompleted(ItemCompletedNotification {
-                thread_id,
-                turn_id,
+            ServerNotification::MessageCompleted(MessageCompletedNotification {
+                chat_id,
+                interaction_id,
                 item,
                 completed_at_ms: end_event.completed_at_ms,
             })
         }
         EventMsg::SubAgentActivity(activity) => {
-            let item = ThreadItem::SubAgentActivity {
+            let item = Message::SubAgentActivity {
                 id: activity.event_id,
                 kind: activity.kind.into(),
                 agent_thread_id: activity.agent_thread_id.to_string(),
                 agent_path: String::from(activity.agent_path),
             };
-            ServerNotification::ItemCompleted(ItemCompletedNotification {
-                thread_id,
-                turn_id,
+            ServerNotification::MessageCompleted(MessageCompletedNotification {
+                chat_id,
+                interaction_id,
                 item,
                 completed_at_ms: activity.occurred_at_ms,
             })
@@ -198,7 +198,7 @@ pub fn item_event_to_server_notification(
                 .iter()
                 .map(ToString::to_string)
                 .collect();
-            let item = ThreadItem::CollabAgentToolCall {
+            let item = Message::CollabAgentToolCall {
                 id: begin_event.call_id,
                 tool: CollabAgentTool::Wait,
                 status: CollabAgentToolCallStatus::InProgress,
@@ -209,9 +209,9 @@ pub fn item_event_to_server_notification(
                 reasoning_effort: None,
                 agents_states: HashMap::new(),
             };
-            ServerNotification::ItemStarted(ItemStartedNotification {
-                thread_id,
-                turn_id,
+            ServerNotification::MessageStarted(MessageStartedNotification {
+                chat_id,
+                interaction_id,
                 item,
                 started_at_ms: begin_event.started_at_ms,
             })
@@ -234,7 +234,7 @@ pub fn item_event_to_server_notification(
                 .iter()
                 .map(|(id, status)| (id.to_string(), CollabAgentState::from(status.clone())))
                 .collect();
-            let item = ThreadItem::CollabAgentToolCall {
+            let item = Message::CollabAgentToolCall {
                 id: end_event.call_id,
                 tool: CollabAgentTool::Wait,
                 status,
@@ -245,15 +245,15 @@ pub fn item_event_to_server_notification(
                 reasoning_effort: None,
                 agents_states,
             };
-            ServerNotification::ItemCompleted(ItemCompletedNotification {
-                thread_id,
-                turn_id,
+            ServerNotification::MessageCompleted(MessageCompletedNotification {
+                chat_id,
+                interaction_id,
                 item,
                 completed_at_ms: end_event.completed_at_ms,
             })
         }
         EventMsg::CollabCloseBegin(begin_event) => {
-            let item = ThreadItem::CollabAgentToolCall {
+            let item = Message::CollabAgentToolCall {
                 id: begin_event.call_id,
                 tool: CollabAgentTool::CloseAgent,
                 status: CollabAgentToolCallStatus::InProgress,
@@ -264,9 +264,9 @@ pub fn item_event_to_server_notification(
                 reasoning_effort: None,
                 agents_states: HashMap::new(),
             };
-            ServerNotification::ItemStarted(ItemStartedNotification {
-                thread_id,
-                turn_id,
+            ServerNotification::MessageStarted(MessageStartedNotification {
+                chat_id,
+                interaction_id,
                 item,
                 started_at_ms: begin_event.started_at_ms,
             })
@@ -286,7 +286,7 @@ pub fn item_event_to_server_notification(
             )]
             .into_iter()
             .collect();
-            let item = ThreadItem::CollabAgentToolCall {
+            let item = Message::CollabAgentToolCall {
                 id: end_event.call_id,
                 tool: CollabAgentTool::CloseAgent,
                 status,
@@ -297,15 +297,15 @@ pub fn item_event_to_server_notification(
                 reasoning_effort: None,
                 agents_states,
             };
-            ServerNotification::ItemCompleted(ItemCompletedNotification {
-                thread_id,
-                turn_id,
+            ServerNotification::MessageCompleted(MessageCompletedNotification {
+                chat_id,
+                interaction_id,
                 item,
                 completed_at_ms: end_event.completed_at_ms,
             })
         }
         EventMsg::CollabResumeBegin(begin_event) => {
-            let item = ThreadItem::CollabAgentToolCall {
+            let item = Message::CollabAgentToolCall {
                 id: begin_event.call_id,
                 tool: CollabAgentTool::ResumeAgent,
                 status: CollabAgentToolCallStatus::InProgress,
@@ -316,9 +316,9 @@ pub fn item_event_to_server_notification(
                 reasoning_effort: None,
                 agents_states: HashMap::new(),
             };
-            ServerNotification::ItemStarted(ItemStartedNotification {
-                thread_id,
-                turn_id,
+            ServerNotification::MessageStarted(MessageStartedNotification {
+                chat_id,
+                interaction_id,
                 item,
                 started_at_ms: begin_event.started_at_ms,
             })
@@ -338,7 +338,7 @@ pub fn item_event_to_server_notification(
             )]
             .into_iter()
             .collect();
-            let item = ThreadItem::CollabAgentToolCall {
+            let item = Message::CollabAgentToolCall {
                 id: end_event.call_id,
                 tool: CollabAgentTool::ResumeAgent,
                 status,
@@ -349,112 +349,113 @@ pub fn item_event_to_server_notification(
                 reasoning_effort: None,
                 agents_states,
             };
-            ServerNotification::ItemCompleted(ItemCompletedNotification {
-                thread_id,
-                turn_id,
+            ServerNotification::MessageCompleted(MessageCompletedNotification {
+                chat_id,
+                interaction_id,
                 item,
                 completed_at_ms: end_event.completed_at_ms,
             })
         }
         EventMsg::AgentMessageContentDelta(event) => {
-            let datax_protocol::protocol::AgentMessageContentDeltaEvent { item_id, delta, .. } =
-                event;
+            let datax_protocol::protocol::AgentMessageContentDeltaEvent {
+                message_id, delta, ..
+            } = event;
             ServerNotification::AgentMessageDelta(AgentMessageDeltaNotification {
-                thread_id,
-                turn_id,
-                item_id,
+                chat_id,
+                interaction_id,
+                message_id,
                 delta,
             })
         }
         EventMsg::PlanDelta(event) => ServerNotification::PlanDelta(PlanDeltaNotification {
-            thread_id,
-            turn_id,
-            item_id: event.item_id,
+            chat_id,
+            interaction_id,
+            message_id: event.message_id,
             delta: event.delta,
         }),
         EventMsg::ReasoningContentDelta(event) => {
             ServerNotification::ReasoningSummaryTextDelta(ReasoningSummaryTextDeltaNotification {
-                thread_id,
-                turn_id,
-                item_id: event.item_id,
+                chat_id,
+                interaction_id,
+                message_id: event.message_id,
                 delta: event.delta,
                 summary_index: event.summary_index,
             })
         }
         EventMsg::ReasoningRawContentDelta(event) => {
             ServerNotification::ReasoningTextDelta(ReasoningTextDeltaNotification {
-                thread_id,
-                turn_id,
-                item_id: event.item_id,
+                chat_id,
+                interaction_id,
+                message_id: event.message_id,
                 delta: event.delta,
                 content_index: event.content_index,
             })
         }
         EventMsg::AgentReasoningSectionBreak(event) => {
             ServerNotification::ReasoningSummaryPartAdded(ReasoningSummaryPartAddedNotification {
-                thread_id,
-                turn_id,
-                item_id: event.item_id,
+                chat_id,
+                interaction_id,
+                message_id: event.message_id,
                 summary_index: event.summary_index,
             })
         }
         EventMsg::ItemStarted(item_started_event) => {
-            ServerNotification::ItemStarted(ItemStartedNotification {
-                thread_id,
-                turn_id,
+            ServerNotification::MessageStarted(MessageStartedNotification {
+                chat_id,
+                interaction_id,
                 item: item_started_event.item.into(),
                 started_at_ms: item_started_event.started_at_ms,
             })
         }
         EventMsg::ItemCompleted(item_completed_event) => {
-            ServerNotification::ItemCompleted(ItemCompletedNotification {
-                thread_id,
-                turn_id,
+            ServerNotification::MessageCompleted(MessageCompletedNotification {
+                chat_id,
+                interaction_id,
                 item: item_completed_event.item.into(),
                 completed_at_ms: item_completed_event.completed_at_ms,
             })
         }
         EventMsg::PatchApplyUpdated(event) => {
             ServerNotification::FileChangePatchUpdated(FileChangePatchUpdatedNotification {
-                thread_id,
-                turn_id,
-                item_id: event.call_id,
+                chat_id,
+                interaction_id,
+                message_id: event.call_id,
                 changes: convert_patch_changes(&event.changes),
             })
         }
         EventMsg::ExecCommandBegin(exec_command_begin_event) => {
-            ServerNotification::ItemStarted(ItemStartedNotification {
-                thread_id,
-                turn_id,
+            ServerNotification::MessageStarted(MessageStartedNotification {
+                chat_id,
+                interaction_id,
                 item: build_command_execution_begin_item(&exec_command_begin_event),
                 started_at_ms: exec_command_begin_event.started_at_ms,
             })
         }
         EventMsg::ExecCommandOutputDelta(exec_command_output_delta_event) => {
-            let item_id = exec_command_output_delta_event.call_id;
+            let message_id = exec_command_output_delta_event.call_id;
             let delta = String::from_utf8_lossy(&exec_command_output_delta_event.chunk).to_string();
             ServerNotification::CommandExecutionOutputDelta(
                 CommandExecutionOutputDeltaNotification {
-                    thread_id,
-                    turn_id,
-                    item_id,
+                    chat_id,
+                    interaction_id,
+                    message_id,
                     delta,
                 },
             )
         }
         EventMsg::TerminalInteraction(terminal_event) => {
             ServerNotification::TerminalInteraction(TerminalInteractionNotification {
-                thread_id,
-                turn_id,
-                item_id: terminal_event.call_id,
+                chat_id,
+                interaction_id,
+                message_id: terminal_event.call_id,
                 process_id: terminal_event.process_id,
                 stdin: terminal_event.stdin,
             })
         }
         EventMsg::ExecCommandEnd(exec_command_end_event) => {
-            ServerNotification::ItemCompleted(ItemCompletedNotification {
-                thread_id,
-                turn_id,
+            ServerNotification::MessageCompleted(MessageCompletedNotification {
+                chat_id,
+                interaction_id,
                 item: build_command_execution_end_item(&exec_command_end_event),
                 completed_at_ms: exec_command_end_event.completed_at_ms,
             })
@@ -475,20 +476,20 @@ mod tests {
 
     fn assert_item_started_server_notification(
         notification: ServerNotification,
-        expected: ItemStartedNotification,
+        expected: MessageStartedNotification,
     ) {
         match notification {
-            ServerNotification::ItemStarted(payload) => assert_eq!(payload, expected),
+            ServerNotification::MessageStarted(payload) => assert_eq!(payload, expected),
             other => panic!("expected item started notification, got {other:?}"),
         }
     }
 
     fn assert_item_completed_server_notification(
         notification: ServerNotification,
-        expected: ItemCompletedNotification,
+        expected: MessageCompletedNotification,
     ) {
         match notification {
-            ServerNotification::ItemCompleted(payload) => assert_eq!(payload, expected),
+            ServerNotification::MessageCompleted(payload) => assert_eq!(payload, expected),
             other => panic!("expected item completed notification, got {other:?}"),
         }
     }
@@ -523,11 +524,11 @@ mod tests {
         );
         assert_item_started_server_notification(
             notification,
-            ItemStartedNotification {
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
+            MessageStartedNotification {
+                chat_id: "thread-1".to_string(),
+                interaction_id: "turn-1".to_string(),
                 started_at_ms: event.started_at_ms,
-                item: ThreadItem::CollabAgentToolCall {
+                item: Message::CollabAgentToolCall {
                     id: event.call_id,
                     tool: CollabAgentTool::ResumeAgent,
                     status: CollabAgentToolCallStatus::InProgress,
@@ -562,11 +563,11 @@ mod tests {
         );
         assert_item_completed_server_notification(
             notification,
-            ItemCompletedNotification {
-                thread_id: "thread-2".to_string(),
-                turn_id: "turn-2".to_string(),
+            MessageCompletedNotification {
+                chat_id: "thread-2".to_string(),
+                interaction_id: "turn-2".to_string(),
                 completed_at_ms: event.completed_at_ms,
-                item: ThreadItem::CollabAgentToolCall {
+                item: Message::CollabAgentToolCall {
                     id: event.call_id,
                     tool: CollabAgentTool::ResumeAgent,
                     status: CollabAgentToolCallStatus::Failed,
@@ -601,9 +602,9 @@ mod tests {
         assert_command_execution_output_delta_server_notification(
             notification,
             CommandExecutionOutputDeltaNotification {
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
-                item_id: "call-1".to_string(),
+                chat_id: "thread-1".to_string(),
+                interaction_id: "turn-1".to_string(),
+                message_id: "call-1".to_string(),
                 delta: "hello".to_string(),
             },
         );

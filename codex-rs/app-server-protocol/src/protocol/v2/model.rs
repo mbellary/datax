@@ -130,7 +130,7 @@ pub struct ReasoningEffortOption {
 pub struct ModelListResponse {
     pub data: Vec<Model>,
     /// Opaque cursor to pass to the next call to continue after the last item.
-    /// If None, there are no more items to return.
+    /// If None, there are no more messages to return.
     pub next_cursor: Option<String>,
 }
 
@@ -138,8 +138,8 @@ pub struct ModelListResponse {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct ModelReroutedNotification {
-    pub thread_id: String,
-    pub turn_id: String,
+    pub chat_id: String,
+    pub interaction_id: String,
     pub from_model: String,
     pub to_model: String,
     pub reason: ModelRerouteReason,
@@ -149,17 +149,17 @@ pub struct ModelReroutedNotification {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct ModelVerificationNotification {
-    pub thread_id: String,
-    pub turn_id: String,
+    pub chat_id: String,
+    pub interaction_id: String,
     pub verifications: Vec<ModelVerification>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub struct TurnModerationMetadataNotification {
-    pub thread_id: String,
-    pub turn_id: String,
+pub struct InteractionModerationMetadataNotification {
+    pub chat_id: String,
+    pub interaction_id: String,
     pub metadata: JsonValue,
 }
 
@@ -167,8 +167,8 @@ pub struct TurnModerationMetadataNotification {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct ModelSafetyBufferingUpdatedNotification {
-    pub thread_id: String,
-    pub turn_id: String,
+    pub chat_id: String,
+    pub interaction_id: String,
     pub model: String,
     pub use_cases: Vec<String>,
     pub reasons: Vec<String>,

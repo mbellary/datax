@@ -644,7 +644,7 @@ pub struct ExternalAgentConfigMigrationItem {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct ExternalAgentConfigDetectResponse {
-    pub items: Vec<ExternalAgentConfigMigrationItem>,
+    pub messages: Vec<ExternalAgentConfigMigrationItem>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
@@ -664,7 +664,7 @@ pub struct ExternalAgentConfigDetectParams {
 #[ts(export_to = "v2/")]
 pub struct ExternalAgentConfigImportParams {
     pub migration_items: Vec<ExternalAgentConfigMigrationItem>,
-    /// Source product that produced the migration items. Missing means unspecified.
+    /// Source product that produced the migration messages. Missing means unspecified.
     #[ts(optional = nullable)]
     pub source: Option<String>,
 }

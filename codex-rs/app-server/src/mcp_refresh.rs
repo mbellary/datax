@@ -16,16 +16,16 @@ pub(crate) async fn queue_strict_refresh(
         .load_latest_config(/*fallback_cwd*/ None)
         .await?;
     let mut refreshes = Vec::new();
-    for thread_id in thread_manager.list_thread_ids().await {
+    for chat_id in thread_manager.list_thread_ids().await {
         let thread = thread_manager
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
-            .map_err(|err| io::Error::other(format!("failed to load thread {thread_id}: {err}")))?;
+            .map_err(|err| io::Error::other(format!("failed to load thread {chat_id}: {err}")))?;
         let config = build_refresh_config(thread.as_ref(), config_manager).await?;
-        refreshes.push((thread_id, thread, config));
+        refreshes.push((chat_id, thread, config));
     }
-    for (thread_id, thread, config) in refreshes {
-        queue_refresh(thread_id, thread, config).await?;
+    for (chat_id, thread, config) in refreshes {
+        queue_refresh(chat_id, thread, config).await?;
     }
     Ok(())
 }
@@ -34,22 +34,22 @@ pub(crate) async fn queue_best_effort_refresh(
     thread_manager: &Arc<ThreadManager>,
     config_manager: &ConfigManager,
 ) {
-    for thread_id in thread_manager.list_thread_ids().await {
-        let thread = match thread_manager.get_thread(thread_id).await {
+    for chat_id in thread_manager.list_thread_ids().await {
+        let thread = match thread_manager.get_thread(chat_id).await {
             Ok(thread) => thread,
             Err(err) => {
-                warn!("failed to load thread {thread_id} for MCP refresh: {err}");
+                warn!("failed to load thread {chat_id} for MCP refresh: {err}");
                 continue;
             }
         };
         let config = match build_refresh_config(thread.as_ref(), config_manager).await {
             Ok(config) => config,
             Err(err) => {
-                warn!("failed to build MCP refresh config for thread {thread_id}: {err}");
+                warn!("failed to build MCP refresh config for thread {chat_id}: {err}");
                 continue;
             }
         };
-        if let Err(err) = queue_refresh(thread_id, thread, config).await {
+        if let Err(err) = queue_refresh(chat_id, thread, config).await {
             warn!("{err}");
         }
     }
@@ -77,7 +77,7 @@ async fn build_refresh_config(
 }
 
 async fn queue_refresh(
-    thread_id: ThreadId,
+    chat_id: ThreadId,
     thread: Arc<CodexThread>,
     config: McpServerRefreshConfig,
 ) -> io::Result<()> {
@@ -87,7 +87,7 @@ async fn queue_refresh(
         .map(|_| ())
         .map_err(|err| {
             io::Error::other(format!(
-                "failed to queue MCP refresh for thread {thread_id}: {err}"
+                "failed to queue MCP refresh for thread {chat_id}: {err}"
             ))
         })
 }
@@ -154,8 +154,8 @@ mod tests {
         )?;
 
         let mut good_thread = None;
-        for thread_id in thread_manager.list_thread_ids().await {
-            let thread = thread_manager.get_thread(thread_id).await?;
+        for chat_id in thread_manager.list_thread_ids().await {
+            let thread = thread_manager.get_thread(chat_id).await?;
             let thread_config = thread.config().await;
             if thread_config.cwd.ends_with("good") {
                 good_thread = Some(thread);

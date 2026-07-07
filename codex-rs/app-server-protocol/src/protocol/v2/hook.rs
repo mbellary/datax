@@ -35,7 +35,7 @@ v2_enum_from_core!(
 
 v2_enum_from_core!(
     pub enum HookScope from CoreHookScope {
-        Thread, Turn
+        Chat, Interaction
     }
 );
 
@@ -140,8 +140,8 @@ impl From<CoreHookRunSummary> for HookRunSummary {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct HookStartedNotification {
-    pub thread_id: String,
-    pub turn_id: Option<String>,
+    pub chat_id: String,
+    pub interaction_id: Option<String>,
     pub run: HookRunSummary,
 }
 
@@ -149,7 +149,7 @@ pub struct HookStartedNotification {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct HookCompletedNotification {
-    pub thread_id: String,
-    pub turn_id: Option<String>,
+    pub chat_id: String,
+    pub interaction_id: Option<String>,
     pub run: HookRunSummary,
 }

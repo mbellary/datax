@@ -198,9 +198,9 @@ impl ExternalAgentConfigService {
         &self,
         params: ExternalAgentConfigDetectOptions,
     ) -> io::Result<Vec<ExternalAgentConfigMigrationItem>> {
-        let mut items = Vec::new();
+        let mut messages = Vec::new();
         if params.include_home {
-            self.detect_migrations(/*repo_root*/ None, &mut items)
+            self.detect_migrations(/*repo_root*/ None, &mut messages)
                 .await?;
         }
 
@@ -208,10 +208,11 @@ impl ExternalAgentConfigService {
             let Some(repo_root) = find_repo_root(Some(cwd))? else {
                 continue;
             };
-            self.detect_migrations(Some(&repo_root), &mut items).await?;
+            self.detect_migrations(Some(&repo_root), &mut messages)
+                .await?;
         }
 
-        Ok(items)
+        Ok(messages)
     }
 
     pub(crate) fn external_agent_session_source_path(
@@ -440,7 +441,7 @@ impl ExternalAgentConfigService {
     async fn detect_migrations(
         &self,
         repo_root: Option<&Path>,
-        items: &mut Vec<ExternalAgentConfigMigrationItem>,
+        messages: &mut Vec<ExternalAgentConfigMigrationItem>,
     ) -> io::Result<()> {
         let cwd = repo_root.map(Path::to_path_buf);
         let source_settings = repo_root.map_or_else(
@@ -469,7 +470,7 @@ impl ExternalAgentConfigService {
                 }
 
                 if should_include {
-                    items.push(ExternalAgentConfigMigrationItem {
+                    messages.push(ExternalAgentConfigMigrationItem {
                         item_type: ExternalAgentConfigMigrationItemType::Config,
                         description: format!(
                             "Migrate {} into {}",
@@ -510,7 +511,7 @@ impl ExternalAgentConfigService {
             }
 
             if !mcp_server_names.is_empty() {
-                items.push(ExternalAgentConfigMigrationItem {
+                messages.push(ExternalAgentConfigMigrationItem {
                     item_type: ExternalAgentConfigMigrationItemType::McpServerConfig,
                     description: format!(
                         "Migrate MCP servers from {} into {}",
@@ -542,7 +543,7 @@ impl ExternalAgentConfigService {
         let hook_event_names =
             hook_migration_event_names(source_external_agent_dir.as_path(), &target_hooks)?;
         if !hook_event_names.is_empty() && is_missing_or_empty_text_file(&target_hooks)? {
-            items.push(ExternalAgentConfigMigrationItem {
+            messages.push(ExternalAgentConfigMigrationItem {
                 item_type: ExternalAgentConfigMigrationItemType::Hooks,
                 description: format!(
                     "Migrate hooks from {} to {}",
@@ -572,7 +573,7 @@ impl ExternalAgentConfigService {
         );
         let skills_count = count_missing_subdirectories(&source_skills, &target_skills)?;
         if skills_count > 0 {
-            items.push(ExternalAgentConfigMigrationItem {
+            messages.push(ExternalAgentConfigMigrationItem {
                 item_type: ExternalAgentConfigMigrationItemType::Skills,
                 description: format!(
                     "Migrate skills from {} to {}",
@@ -597,7 +598,7 @@ impl ExternalAgentConfigService {
         let commands_count = count_missing_commands(&source_commands, &target_command_skills)?;
         if commands_count > 0 {
             let command_names = missing_command_names(&source_commands, &target_command_skills)?;
-            items.push(ExternalAgentConfigMigrationItem {
+            messages.push(ExternalAgentConfigMigrationItem {
                 item_type: ExternalAgentConfigMigrationItemType::Commands,
                 description: format!(
                     "Migrate commands from {} to {}",
@@ -625,7 +626,7 @@ impl ExternalAgentConfigService {
         let subagents_count = count_missing_subagents(&source_subagents, &target_subagents)?;
         if subagents_count > 0 {
             let subagent_names = missing_subagent_names(&source_subagents, &target_subagents)?;
-            items.push(ExternalAgentConfigMigrationItem {
+            messages.push(ExternalAgentConfigMigrationItem {
                 item_type: ExternalAgentConfigMigrationItemType::Subagents,
                 description: format!(
                     "Migrate subagents from {} to {}",
@@ -658,7 +659,7 @@ impl ExternalAgentConfigService {
         if let Some(source_agents_md) = source_agents_md
             && is_missing_or_empty_text_file(&target_agents_md)?
         {
-            items.push(ExternalAgentConfigMigrationItem {
+            messages.push(ExternalAgentConfigMigrationItem {
                 item_type: ExternalAgentConfigMigrationItemType::AgentsMd,
                 description: format!(
                     "Migrate {} to {}",
@@ -710,7 +711,7 @@ impl ExternalAgentConfigService {
                         &configured_plugin_ids,
                         &configured_marketplace_plugins,
                     ) {
-                        items.push(item);
+                        messages.push(item);
                     }
                 }
                 Err(err) => {
@@ -726,7 +727,7 @@ impl ExternalAgentConfigService {
         if repo_root.is_none() {
             let sessions = detect_recent_sessions(&self.external_agent_home, &self.codex_home)?;
             if !sessions.is_empty() {
-                items.push(ExternalAgentConfigMigrationItem {
+                messages.push(ExternalAgentConfigMigrationItem {
                     item_type: ExternalAgentConfigMigrationItemType::Sessions,
                     description: format!(
                         "Migrate recent sessions from {}",

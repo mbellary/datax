@@ -17,8 +17,8 @@ impl ChatWidget {
         self.restore_reasoning_status_header();
     }
 
-    pub(super) fn on_command_execution_started(&mut self, item: ThreadItem) {
-        let ThreadItem::CommandExecution {
+    pub(super) fn on_command_execution_started(&mut self, item: Message) {
+        let Message::CommandExecution {
             id,
             command,
             process_id,
@@ -131,8 +131,8 @@ impl ChatWidget {
         }
     }
 
-    pub(super) fn on_command_execution_completed(&mut self, item: ThreadItem) {
-        let ThreadItem::CommandExecution {
+    pub(super) fn on_command_execution_completed(&mut self, item: Message) {
+        let Message::CommandExecution {
             id,
             process_id,
             source,
@@ -239,9 +239,9 @@ impl ChatWidget {
         }
     }
 
-    pub(crate) fn handle_command_execution_started_now(&mut self, item: ThreadItem) {
+    pub(crate) fn handle_command_execution_started_now(&mut self, item: Message) {
         self.record_visible_turn_activity();
-        let ThreadItem::CommandExecution {
+        let Message::CommandExecution {
             id,
             command,
             source,
@@ -320,7 +320,7 @@ impl ChatWidget {
     /// standalone history entry instead of replacing or flushing the unrelated active exploring
     /// cell. If this method treated every unknown end as "complete the active cell", the UI could
     /// merge unrelated commands and hide still-running exploring work.
-    pub(crate) fn handle_command_execution_completed_now(&mut self, item: ThreadItem) {
+    pub(crate) fn handle_command_execution_completed_now(&mut self, item: Message) {
         enum ExecEndTarget {
             // Normal case: the active exec cell already tracks this call id.
             ActiveTracked,
@@ -331,7 +331,7 @@ impl ChatWidget {
             NewCell,
         }
 
-        let ThreadItem::CommandExecution {
+        let Message::CommandExecution {
             id,
             command,
             process_id: _,

@@ -3,13 +3,13 @@ use anyhow::Result;
 use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use core_test_support::responses;
+use datax_app_server_protocol::ChatInjectMessagesParams;
+use datax_app_server_protocol::ChatInjectMessagesResponse;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::InteractionStartParams;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadInjectItemsParams;
-use datax_app_server_protocol::ThreadInjectItemsResponse;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_core::RolloutRecorder;
 use datax_protocol::models::ContentItem;
@@ -40,7 +40,7 @@ async fn thread_inject_items_adds_raw_response_items_to_thread_history() -> Resu
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -50,7 +50,7 @@ async fn thread_inject_items_adds_raw_response_items_to_thread_history() -> Resu
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let injected_text = "Injected assistant context";
     let injected_item = ResponseItem::Message {
@@ -64,9 +64,9 @@ async fn thread_inject_items_adds_raw_response_items_to_thread_history() -> Resu
     };
 
     let inject_req = mcp
-        .send_thread_inject_items_request(ThreadInjectItemsParams {
-            thread_id: thread.id.clone(),
-            items: vec![serde_json::to_value(&injected_item)?],
+        .send_chat_inject_messages_request(ChatInjectMessagesParams {
+            chat_id: thread.id.clone(),
+            messages: vec![serde_json::to_value(&injected_item)?],
         })
         .await?;
     let inject_resp: JSONRPCResponse = timeout(
@@ -74,8 +74,8 @@ async fn thread_inject_items_adds_raw_response_items_to_thread_history() -> Resu
         mcp.read_stream_until_response_message(RequestId::Integer(inject_req)),
     )
     .await??;
-    let _response: ThreadInjectItemsResponse =
-        to_response::<ThreadInjectItemsResponse>(inject_resp)?;
+    let _response: ChatInjectMessagesResponse =
+        to_response::<ChatInjectMessagesResponse>(inject_resp)?;
 
     let rollout_path = thread.path.as_ref().context("thread path missing")?;
     let history = RolloutRecorder::get_rollout_history(rollout_path).await?;
@@ -91,8 +91,8 @@ async fn thread_inject_items_adds_raw_response_items_to_thread_history() -> Resu
     );
 
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "Hello".to_string(),
@@ -108,7 +108,7 @@ async fn thread_inject_items_adds_raw_response_items_to_thread_history() -> Resu
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -125,11 +125,11 @@ async fn thread_inject_items_adds_raw_response_items_to_thread_history() -> Resu
         .expect("user prompt should be sent in the next model request");
     assert!(
         environment_context_index < injected_index,
-        "standard initial context should be sent before injected items"
+        "standard initial context should be sent before injected messages"
     );
     assert!(
         injected_index < user_prompt_index,
-        "injected items should be sent before the user prompt"
+        "injected messages should be sent before the user prompt"
     );
 
     Ok(())
@@ -157,7 +157,7 @@ async fn thread_inject_items_adds_raw_response_items_after_a_turn() -> Result<()
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -167,11 +167,11 @@ async fn thread_inject_items_adds_raw_response_items_after_a_turn() -> Result<()
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let first_turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "First turn".to_string(),
@@ -187,7 +187,7 @@ async fn thread_inject_items_adds_raw_response_items_after_a_turn() -> Result<()
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -203,9 +203,9 @@ async fn thread_inject_items_adds_raw_response_items_after_a_turn() -> Result<()
     let injected_value = serde_json::to_value(&injected_item)?;
 
     let inject_req = mcp
-        .send_thread_inject_items_request(ThreadInjectItemsParams {
-            thread_id: thread.id.clone(),
-            items: vec![injected_value.clone()],
+        .send_chat_inject_messages_request(ChatInjectMessagesParams {
+            chat_id: thread.id.clone(),
+            messages: vec![injected_value.clone()],
         })
         .await?;
     let inject_resp: JSONRPCResponse = timeout(
@@ -213,12 +213,12 @@ async fn thread_inject_items_adds_raw_response_items_after_a_turn() -> Result<()
         mcp.read_stream_until_response_message(RequestId::Integer(inject_req)),
     )
     .await??;
-    let _response: ThreadInjectItemsResponse =
-        to_response::<ThreadInjectItemsResponse>(inject_resp)?;
+    let _response: ChatInjectMessagesResponse =
+        to_response::<ChatInjectMessagesResponse>(inject_resp)?;
 
     let second_turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "Second turn".to_string(),
@@ -234,7 +234,7 @@ async fn thread_inject_items_adds_raw_response_items_after_a_turn() -> Result<()
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -275,8 +275,8 @@ stream_max_retries = 0
     )
 }
 
-fn response_item_text_position(items: &[Value], needle: &str) -> Option<usize> {
-    items.iter().position(|item| {
+fn response_item_text_position(messages: &[Value], needle: &str) -> Option<usize> {
+    messages.iter().position(|item| {
         item.get("content")
             .and_then(Value::as_array)
             .into_iter()

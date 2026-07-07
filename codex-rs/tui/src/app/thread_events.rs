@@ -1,4 +1,4 @@
-//! Thread event buffering and replay state for the TUI app.
+//! Chat event buffering and replay state for the TUI app.
 //!
 //! This module owns the per-thread event store used when the TUI switches between the main
 //! conversation, subagents, and side conversations. It keeps buffered app-server notifications,
@@ -10,7 +10,7 @@ use super::*;
 #[derive(Debug, Clone)]
 pub(super) struct ThreadEventSnapshot {
     pub(super) session: Option<ThreadSessionState>,
-    pub(super) turns: Vec<Turn>,
+    pub(super) turns: Vec<Interaction>,
     pub(super) events: Vec<ThreadBufferedEvent>,
     pub(super) input_state: Option<ThreadInputState>,
 }
@@ -40,7 +40,7 @@ pub(super) enum ThreadEventAttachment {
 #[derive(Debug)]
 pub(super) struct ThreadEventStore {
     pub(super) session: Option<ThreadSessionState>,
-    pub(super) turns: Vec<Turn>,
+    pub(super) turns: Vec<Interaction>,
     pub(super) buffer: VecDeque<ThreadBufferedEvent>,
     pub(super) pending_interactive_replay: PendingInteractiveReplayState,
     pub(super) active_turn_id: Option<String>,
@@ -78,7 +78,7 @@ impl ThreadEventStore {
     pub(super) fn new_with_session(
         capacity: usize,
         session: ThreadSessionState,
-        turns: Vec<Turn>,
+        turns: Vec<Interaction>,
     ) -> Self {
         let mut store = Self::new(capacity);
         store.session = Some(session);
@@ -86,7 +86,7 @@ impl ThreadEventStore {
         store
     }
 
-    pub(super) fn set_session(&mut self, session: ThreadSessionState, turns: Vec<Turn>) {
+    pub(super) fn set_session(&mut self, session: ThreadSessionState, turns: Vec<Interaction>) {
         self.session = Some(session);
         self.set_turns(turns);
     }
@@ -95,11 +95,11 @@ impl ThreadEventStore {
         self.buffer.retain(Self::event_survives_session_refresh);
     }
 
-    pub(super) fn set_turns(&mut self, turns: Vec<Turn>) {
+    pub(super) fn set_turns(&mut self, turns: Vec<Interaction>) {
         self.active_turn_id = turns
             .iter()
             .rev()
-            .find(|turn| matches!(turn.status, TurnStatus::InProgress))
+            .find(|turn| matches!(turn.status, InteractionStatus::InProgress))
             .map(|turn| turn.id.clone());
         self.turns = turns;
     }
@@ -108,15 +108,15 @@ impl ThreadEventStore {
         self.pending_interactive_replay
             .note_server_notification(&notification);
         match &notification {
-            ServerNotification::TurnStarted(turn) => {
+            ServerNotification::InteractionStarted(turn) => {
                 self.active_turn_id = Some(turn.turn.id.clone());
             }
-            ServerNotification::TurnCompleted(turn)
+            ServerNotification::InteractionCompleted(turn)
                 if self.active_turn_id.as_deref() == Some(turn.turn.id.as_str()) =>
             {
                 self.active_turn_id = None;
             }
-            ServerNotification::ThreadClosed(_) => {
+            ServerNotification::ChatClosed(_) => {
                 self.active_turn_id = None;
             }
             _ => {}
@@ -173,12 +173,12 @@ impl ThreadEventStore {
             .iter()
             .rev()
             .find_map(|event| match event {
-                ThreadBufferedEvent::Notification(ServerNotification::ItemStarted(
+                ThreadBufferedEvent::Notification(ServerNotification::MessageStarted(
                     notification,
                 )) if turn_id_matches(turn_id, &notification.turn_id) => {
                     file_change_item_changes(&notification.item, item_id)
                 }
-                ThreadBufferedEvent::Notification(ServerNotification::ItemCompleted(
+                ThreadBufferedEvent::Notification(ServerNotification::MessageCompleted(
                     notification,
                 )) if turn_id_matches(turn_id, &notification.turn_id) => {
                     file_change_item_changes(&notification.item, item_id)
@@ -198,7 +198,7 @@ impl ThreadEventStore {
             })
     }
 
-    pub(super) fn apply_thread_rollback(&mut self, response: &ThreadRollbackResponse) {
+    pub(super) fn apply_thread_rollback(&mut self, response: &ChatRollbackResponse) {
         self.turns = response.thread.turns.clone();
         self.buffer.clear();
         self.pending_interactive_replay = PendingInteractiveReplayState::default();
@@ -209,7 +209,7 @@ impl ThreadEventStore {
         ThreadEventSnapshot {
             session: self.session.clone(),
             turns: self.turns.clone(),
-            // Thread switches replay buffered events into a rebuilt ChatWidget. Only replay
+            // Chat switches replay buffered events into a rebuilt ChatWidget. Only replay
             // interactive prompts that are still pending, or answered approvals/input will reappear.
             events: self
                 .buffer
@@ -277,11 +277,11 @@ fn turn_id_matches(request_turn_id: &str, candidate_turn_id: &str) -> bool {
 }
 
 fn file_change_item_changes(
-    item: &ThreadItem,
+    item: &Message,
     item_id: &str,
 ) -> Option<Vec<datax_app_server_protocol::FileUpdateChange>> {
     match item {
-        ThreadItem::FileChange { id, changes, .. } if id == item_id => Some(changes.clone()),
+        Message::FileChange { id, changes, .. } if id == item_id => Some(changes.clone()),
         _ => None,
     }
 }
@@ -317,7 +317,7 @@ impl ThreadEventChannel {
     pub(super) fn new_with_session(
         capacity: usize,
         session: ThreadSessionState,
-        turns: Vec<Turn>,
+        turns: Vec<Interaction>,
     ) -> Self {
         let (sender, receiver) = mpsc::channel(capacity);
         Self {
@@ -348,9 +348,9 @@ mod tests {
     use datax_app_server_protocol::HookRunSummary as AppServerHookRunSummary;
     use datax_app_server_protocol::HookScope as AppServerHookScope;
     use datax_app_server_protocol::HookStartedNotification;
+    use datax_app_server_protocol::InteractionCompletedNotification;
+    use datax_app_server_protocol::InteractionStartedNotification;
     use datax_app_server_protocol::RequestId as AppServerRequestId;
-    use datax_app_server_protocol::TurnCompletedNotification;
-    use datax_app_server_protocol::TurnStartedNotification;
     use datax_config::types::ApprovalsReviewer;
     use datax_protocol::models::PermissionProfile;
     use pretty_assertions::assert_eq;
@@ -381,10 +381,10 @@ mod tests {
         }
     }
 
-    fn test_turn(turn_id: &str, status: TurnStatus, items: Vec<ThreadItem>) -> Turn {
-        Turn {
+    fn test_turn(turn_id: &str, status: InteractionStatus, items: Vec<Message>) -> Interaction {
+        Interaction {
             id: turn_id.to_string(),
-            items_view: datax_app_server_protocol::TurnItemsView::Full,
+            items_view: datax_app_server_protocol::InteractionMessagesView::Full,
             items,
             status,
             error: None,
@@ -395,11 +395,11 @@ mod tests {
     }
 
     fn turn_started_notification(thread_id: ThreadId, turn_id: &str) -> ServerNotification {
-        ServerNotification::TurnStarted(TurnStartedNotification {
+        ServerNotification::InteractionStarted(InteractionStartedNotification {
             thread_id: thread_id.to_string(),
-            turn: Turn {
+            turn: Interaction {
                 started_at: Some(0),
-                ..test_turn(turn_id, TurnStatus::InProgress, Vec::new())
+                ..test_turn(turn_id, InteractionStatus::InProgress, Vec::new())
             },
         })
     }
@@ -407,11 +407,11 @@ mod tests {
     fn turn_completed_notification(
         thread_id: ThreadId,
         turn_id: &str,
-        status: TurnStatus,
+        status: InteractionStatus,
     ) -> ServerNotification {
-        ServerNotification::TurnCompleted(TurnCompletedNotification {
+        ServerNotification::InteractionCompleted(InteractionCompletedNotification {
             thread_id: thread_id.to_string(),
-            turn: Turn {
+            turn: Interaction {
                 completed_at: Some(0),
                 duration_ms: Some(1),
                 ..test_turn(turn_id, status, Vec::new())
@@ -428,7 +428,7 @@ mod tests {
                 event_name: AppServerHookEventName::UserPromptSubmit,
                 handler_type: AppServerHookHandlerType::Command,
                 execution_mode: AppServerHookExecutionMode::Sync,
-                scope: AppServerHookScope::Turn,
+                scope: AppServerHookScope::Interaction,
                 source_path: test_path_buf("/tmp/hooks.json").abs(),
                 source: datax_app_server_protocol::HookSource::User,
                 display_order: 0,
@@ -451,7 +451,7 @@ mod tests {
                 event_name: AppServerHookEventName::UserPromptSubmit,
                 handler_type: AppServerHookHandlerType::Command,
                 execution_mode: AppServerHookExecutionMode::Sync,
-                scope: AppServerHookScope::Turn,
+                scope: AppServerHookScope::Interaction,
                 source_path: test_path_buf("/tmp/hooks.json").abs(),
                 source: datax_app_server_protocol::HookSource::User,
                 display_order: 0,
@@ -514,14 +514,14 @@ mod tests {
         store.push_notification(turn_completed_notification(
             thread_id,
             "turn-2",
-            TurnStatus::Completed,
+            InteractionStatus::Completed,
         ));
         assert_eq!(store.active_turn_id(), Some("turn-1"));
 
         store.push_notification(turn_completed_notification(
             thread_id,
             "turn-1",
-            TurnStatus::Interrupted,
+            InteractionStatus::Interrupted,
         ));
         assert_eq!(store.active_turn_id(), None);
     }
@@ -531,8 +531,8 @@ mod tests {
         let thread_id = ThreadId::new();
         let session = test_thread_session(thread_id, test_path_buf("/tmp/project"));
         let turns = vec![
-            test_turn("turn-1", TurnStatus::Completed, Vec::new()),
-            test_turn("turn-2", TurnStatus::InProgress, Vec::new()),
+            test_turn("turn-1", InteractionStatus::Completed, Vec::new()),
+            test_turn("turn-2", InteractionStatus::InProgress, Vec::new()),
         ];
 
         let store =

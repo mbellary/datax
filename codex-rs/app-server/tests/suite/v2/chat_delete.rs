@@ -2,16 +2,16 @@ use anyhow::Result;
 use app_test_support::TestAppServer;
 use app_test_support::create_fake_rollout;
 use app_test_support::to_response;
+use datax_app_server_protocol::ChatDeleteParams;
+use datax_app_server_protocol::ChatDeleteResponse;
+use datax_app_server_protocol::ChatDeletedNotification;
+use datax_app_server_protocol::ChatLoadedListParams;
+use datax_app_server_protocol::ChatLoadedListResponse;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::JSONRPCError;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadDeleteParams;
-use datax_app_server_protocol::ThreadDeleteResponse;
-use datax_app_server_protocol::ThreadDeletedNotification;
-use datax_app_server_protocol::ThreadLoadedListParams;
-use datax_app_server_protocol::ThreadLoadedListResponse;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
 use datax_core::find_thread_path_by_id_str;
 use datax_protocol::ThreadId;
 use datax_state::DirectionalThreadSpawnEdgeStatus;
@@ -34,13 +34,13 @@ async fn thread_delete_deletes_spawned_descendants() -> Result<()> {
 
     let state_db =
         StateRuntime::init(codex_home.path().to_path_buf(), "mock_provider".into()).await?;
-    let parent_thread_id = ThreadId::from_string(&parent_id)?;
+    let parent_chat_id = ThreadId::from_string(&parent_id)?;
     let child_thread_id = ThreadId::from_string(&child_id)?;
     let grandchild_thread_id = ThreadId::from_string(&grandchild_id)?;
 
     for (parent, child, status) in [
         (
-            parent_thread_id,
+            parent_chat_id,
             child_thread_id,
             DirectionalThreadSpawnEdgeStatus::Closed,
         ),
@@ -59,8 +59,8 @@ async fn thread_delete_deletes_spawned_descendants() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let delete_id = mcp
-        .send_thread_delete_request(ThreadDeleteParams {
-            thread_id: parent_id.clone(),
+        .send_chat_delete_request(ChatDeleteParams {
+            chat_id: parent_id.clone(),
         })
         .await?;
     let delete_resp: JSONRPCResponse = timeout(
@@ -68,39 +68,39 @@ async fn thread_delete_deletes_spawned_descendants() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(delete_id)),
     )
     .await??;
-    let _: ThreadDeleteResponse = to_response::<ThreadDeleteResponse>(delete_resp)?;
+    let _: ChatDeleteResponse = to_response::<ChatDeleteResponse>(delete_resp)?;
 
     let mut deleted_ids = Vec::new();
     for _ in 0..3 {
         let notification = timeout(
             DEFAULT_READ_TIMEOUT,
-            mcp.read_stream_until_notification_message("thread/deleted"),
+            mcp.read_stream_until_notification_message("chat/deleted"),
         )
         .await??;
-        let deleted_notification: ThreadDeletedNotification = serde_json::from_value(
+        let deleted_notification: ChatDeletedNotification = serde_json::from_value(
             notification
                 .params
-                .expect("thread/deleted notification params"),
+                .expect("chat/deleted notification params"),
         )?;
-        deleted_ids.push(deleted_notification.thread_id);
+        deleted_ids.push(deleted_notification.chat_id);
     }
     assert_eq!(deleted_ids, vec![grandchild_id, child_id, parent_id]);
 
-    for thread_id in [parent_thread_id, child_thread_id, grandchild_thread_id] {
+    for chat_id in [parent_chat_id, child_thread_id, grandchild_thread_id] {
         let rollout_path = find_thread_path_by_id_str(
             codex_home.path(),
-            &thread_id.to_string(),
+            &chat_id.to_string(),
             /*state_db_ctx*/ None,
         )
         .await?;
         assert!(
             rollout_path.is_none(),
-            "expected active rollout for {thread_id} to be deleted"
+            "expected active rollout for {chat_id} to be deleted"
         );
     }
     assert_eq!(
         state_db
-            .list_thread_spawn_descendants(parent_thread_id)
+            .list_thread_spawn_descendants(parent_chat_id)
             .await?,
         Vec::<ThreadId>::new()
     );
@@ -126,14 +126,14 @@ async fn thread_delete_handles_live_threads_before_rollout_exists() -> Result<()
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
     let start_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let persisted_thread = to_response::<ThreadStartResponse>(start_resp)?.thread;
+    let persisted_thread = to_response::<ChatStartResponse>(start_resp)?.thread;
     let rollout_path = find_thread_path_by_id_str(
         codex_home.path(),
         &persisted_thread.id,
@@ -143,8 +143,8 @@ async fn thread_delete_handles_live_threads_before_rollout_exists() -> Result<()
     assert_eq!(rollout_path, None);
 
     let delete_id = mcp
-        .send_thread_delete_request(ThreadDeleteParams {
-            thread_id: persisted_thread.id,
+        .send_chat_delete_request(ChatDeleteParams {
+            chat_id: persisted_thread.id,
         })
         .await?;
     let delete_resp: JSONRPCResponse = timeout(
@@ -152,10 +152,10 @@ async fn thread_delete_handles_live_threads_before_rollout_exists() -> Result<()
         mcp.read_stream_until_response_message(RequestId::Integer(delete_id)),
     )
     .await??;
-    let _: ThreadDeleteResponse = to_response::<ThreadDeleteResponse>(delete_resp)?;
+    let _: ChatDeleteResponse = to_response::<ChatDeleteResponse>(delete_resp)?;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             ephemeral: Some(true),
             ..Default::default()
         })
@@ -165,11 +165,11 @@ async fn thread_delete_handles_live_threads_before_rollout_exists() -> Result<()
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let delete_id = mcp
-        .send_thread_delete_request(ThreadDeleteParams {
-            thread_id: thread.id.clone(),
+        .send_chat_delete_request(ChatDeleteParams {
+            chat_id: thread.id.clone(),
         })
         .await?;
     let delete_err: JSONRPCError = timeout(
@@ -184,15 +184,14 @@ async fn thread_delete_handles_live_threads_before_rollout_exists() -> Result<()
     assert_eq!(delete_err.error.message, expected_message);
 
     let list_id = mcp
-        .send_thread_loaded_list_request(ThreadLoadedListParams::default())
+        .send_chat_loaded_list_request(ChatLoadedListParams::default())
         .await?;
     let list_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(list_id)),
     )
     .await??;
-    let ThreadLoadedListResponse { mut data, .. } =
-        to_response::<ThreadLoadedListResponse>(list_resp)?;
+    let ChatLoadedListResponse { mut data, .. } = to_response::<ChatLoadedListResponse>(list_resp)?;
     data.sort();
     assert_eq!(data, vec![thread.id]);
 

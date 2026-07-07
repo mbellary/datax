@@ -14,13 +14,13 @@ use anyhow::Result;
 use app_test_support::create_fake_rollout_with_text_elements;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
+use datax_app_server_protocol::ChatNameUpdatedNotification;
+use datax_app_server_protocol::ChatResumeParams;
+use datax_app_server_protocol::ChatResumeResponse;
+use datax_app_server_protocol::ChatSetNameParams;
+use datax_app_server_protocol::ChatSetNameResponse;
 use datax_app_server_protocol::JSONRPCNotification;
 use datax_app_server_protocol::JSONRPCResponse;
-use datax_app_server_protocol::ThreadNameUpdatedNotification;
-use datax_app_server_protocol::ThreadResumeParams;
-use datax_app_server_protocol::ThreadResumeResponse;
-use datax_app_server_protocol::ThreadSetNameParams;
-use datax_app_server_protocol::ThreadSetNameResponse;
 use datax_core::find_thread_name_by_id;
 use datax_protocol::ThreadId;
 use pretty_assertions::assert_eq;
@@ -45,25 +45,25 @@ async fn thread_name_updated_broadcasts_for_loaded_threads() -> Result<()> {
 
         send_request(
             &mut ws1,
-            "thread/resume",
+            "chat/resume",
             /*id*/ 10,
-            Some(serde_json::to_value(ThreadResumeParams {
-                thread_id: conversation_id.clone(),
+            Some(serde_json::to_value(ChatResumeParams {
+                chat_id: conversation_id.clone(),
                 ..Default::default()
             })?),
         )
         .await?;
         let resume_resp: JSONRPCResponse = read_response_for_id(&mut ws1, /*id*/ 10).await?;
-        let resume: ThreadResumeResponse = to_response::<ThreadResumeResponse>(resume_resp)?;
+        let resume: ChatResumeResponse = to_response::<ChatResumeResponse>(resume_resp)?;
         assert_eq!(resume.thread.id, conversation_id);
 
         let renamed = "Loaded rename";
         send_request(
             &mut ws1,
-            "thread/name/set",
+            "chat/name/set",
             /*id*/ 11,
-            Some(serde_json::to_value(ThreadSetNameParams {
-                thread_id: conversation_id.clone(),
+            Some(serde_json::to_value(ChatSetNameParams {
+                chat_id: conversation_id.clone(),
                 name: renamed.to_string(),
             })?),
         )
@@ -71,14 +71,13 @@ async fn thread_name_updated_broadcasts_for_loaded_threads() -> Result<()> {
         let (rename_resp, ws1_notification) = read_response_and_notification_for_method(
             &mut ws1,
             /*id*/ 11,
-            "thread/name/updated",
+            "chat/name/updated",
         )
         .await?;
-        let _: ThreadSetNameResponse = to_response::<ThreadSetNameResponse>(rename_resp)?;
+        let _: ChatSetNameResponse = to_response::<ChatSetNameResponse>(rename_resp)?;
         assert_thread_name_updated(ws1_notification, &conversation_id, renamed)?;
 
-        let ws2_notification =
-            read_notification_for_method(&mut ws2, "thread/name/updated").await?;
+        let ws2_notification = read_notification_for_method(&mut ws2, "chat/name/updated").await?;
         assert_thread_name_updated(ws2_notification, &conversation_id, renamed)?;
         assert_legacy_thread_name(codex_home.path(), &conversation_id, renamed).await?;
 
@@ -112,10 +111,10 @@ async fn thread_name_updated_broadcasts_for_not_loaded_threads() -> Result<()> {
         let renamed = "Stored rename";
         send_request(
             &mut ws1,
-            "thread/name/set",
+            "chat/name/set",
             /*id*/ 20,
-            Some(serde_json::to_value(ThreadSetNameParams {
-                thread_id: conversation_id.clone(),
+            Some(serde_json::to_value(ChatSetNameParams {
+                chat_id: conversation_id.clone(),
                 name: renamed.to_string(),
             })?),
         )
@@ -123,14 +122,13 @@ async fn thread_name_updated_broadcasts_for_not_loaded_threads() -> Result<()> {
         let (rename_resp, ws1_notification) = read_response_and_notification_for_method(
             &mut ws1,
             /*id*/ 20,
-            "thread/name/updated",
+            "chat/name/updated",
         )
         .await?;
-        let _: ThreadSetNameResponse = to_response::<ThreadSetNameResponse>(rename_resp)?;
+        let _: ChatSetNameResponse = to_response::<ChatSetNameResponse>(rename_resp)?;
         assert_thread_name_updated(ws1_notification, &conversation_id, renamed)?;
 
-        let ws2_notification =
-            read_notification_for_method(&mut ws2, "thread/name/updated").await?;
+        let ws2_notification = read_notification_for_method(&mut ws2, "chat/name/updated").await?;
         assert_thread_name_updated(ws2_notification, &conversation_id, renamed)?;
         assert_legacy_thread_name(codex_home.path(), &conversation_id, renamed).await?;
 
@@ -170,12 +168,12 @@ fn create_rollout(codex_home: &std::path::Path, filename_ts: &str) -> Result<Str
 
 fn assert_thread_name_updated(
     notification: JSONRPCNotification,
-    thread_id: &str,
+    chat_id: &str,
     thread_name: &str,
 ) -> Result<()> {
-    let notification: ThreadNameUpdatedNotification =
-        serde_json::from_value(notification.params.context("thread/name/updated params")?)?;
-    assert_eq!(notification.thread_id, thread_id);
+    let notification: ChatNameUpdatedNotification =
+        serde_json::from_value(notification.params.context("chat/name/updated params")?)?;
+    assert_eq!(notification.chat_id, chat_id);
     assert_eq!(notification.thread_name.as_deref(), Some(thread_name));
     Ok(())
 }
@@ -185,9 +183,9 @@ async fn assert_legacy_thread_name(
     conversation_id: &str,
     expected_name: &str,
 ) -> Result<()> {
-    let thread_id = ThreadId::from_string(conversation_id)?;
+    let chat_id = ThreadId::from_string(conversation_id)?;
     assert_eq!(
-        find_thread_name_by_id(codex_home, &thread_id)
+        find_thread_name_by_id(codex_home, &chat_id)
             .await?
             .as_deref(),
         Some(expected_name)

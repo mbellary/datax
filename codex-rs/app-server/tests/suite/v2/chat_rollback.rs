@@ -3,17 +3,17 @@ use app_test_support::TestAppServer;
 use app_test_support::create_final_assistant_message_sse_response;
 use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::to_response;
+use datax_app_server_protocol::ChatResumeParams;
+use datax_app_server_protocol::ChatResumeResponse;
+use datax_app_server_protocol::ChatRollbackParams;
+use datax_app_server_protocol::ChatRollbackResponse;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::ChatStatus;
+use datax_app_server_protocol::InteractionStartParams;
 use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::Message;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadResumeParams;
-use datax_app_server_protocol::ThreadResumeResponse;
-use datax_app_server_protocol::ThreadRollbackParams;
-use datax_app_server_protocol::ThreadRollbackResponse;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::ThreadStatus;
-use datax_app_server_protocol::TurnStartParams;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
@@ -24,7 +24,7 @@ const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 
 #[tokio::test]
 async fn thread_rollback_drops_last_turns_and_persists_to_rollout() -> Result<()> {
-    // Three Codex turns hit the mock model (session start + two turn/start calls).
+    // Three Codex interactions hit the mock model (session start + two interaction/start calls).
     let responses = vec![
         create_final_assistant_message_sse_response("Done")?,
         create_final_assistant_message_sse_response("Done")?,
@@ -40,7 +40,7 @@ async fn thread_rollback_drops_last_turns_and_persists_to_rollout() -> Result<()
 
     // Start a thread.
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -50,13 +50,13 @@ async fn thread_rollback_drops_last_turns_and_persists_to_rollout() -> Result<()
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    // Two turns.
+    // Two interactions.
     let first_text = "First";
     let turn1_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: first_text.to_string(),
@@ -72,13 +72,13 @@ async fn thread_rollback_drops_last_turns_and_persists_to_rollout() -> Result<()
     .await??;
     let _completed1 = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
     let turn2_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "Second".to_string(),
@@ -94,14 +94,14 @@ async fn thread_rollback_drops_last_turns_and_persists_to_rollout() -> Result<()
     .await??;
     let _completed2 = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
     // Roll back the last turn.
     let rollback_id = mcp
-        .send_thread_rollback_request(ThreadRollbackParams {
-            thread_id: thread.id.clone(),
+        .send_chat_rollback_request(ChatRollbackParams {
+            chat_id: thread.id.clone(),
             num_turns: 1,
         })
         .await?;
@@ -111,32 +111,32 @@ async fn thread_rollback_drops_last_turns_and_persists_to_rollout() -> Result<()
     )
     .await??;
     let rollback_result = rollback_resp.result.clone();
-    let ThreadRollbackResponse {
+    let ChatRollbackResponse {
         thread: rolled_back_thread,
-    } = to_response::<ThreadRollbackResponse>(rollback_resp)?;
+    } = to_response::<ChatRollbackResponse>(rollback_resp)?;
 
     // Wire contract: thread title field is `name`, serialized as null when unset.
     let thread_json = rollback_result
         .get("thread")
         .and_then(Value::as_object)
-        .expect("thread/rollback result.thread must be an object");
+        .expect("chat/rollback result.thread must be an object");
     assert_eq!(rolled_back_thread.name, None);
     assert_eq!(rolled_back_thread.session_id, thread.session_id);
     assert_eq!(
         thread_json.get("name"),
         Some(&Value::Null),
-        "thread/rollback must serialize `name: null` when unset"
+        "chat/rollback must serialize `name: null` when unset"
     );
     assert_eq!(
         thread_json.get("sessionId").and_then(Value::as_str),
         Some(thread.session_id.as_str())
     );
 
-    assert_eq!(rolled_back_thread.turns.len(), 1);
-    assert_eq!(rolled_back_thread.status, ThreadStatus::Idle);
-    assert_eq!(rolled_back_thread.turns[0].items.len(), 2);
-    match &rolled_back_thread.turns[0].items[0] {
-        ThreadItem::UserMessage { content, .. } => {
+    assert_eq!(rolled_back_thread.interactions.len(), 1);
+    assert_eq!(rolled_back_thread.status, ChatStatus::Idle);
+    assert_eq!(rolled_back_thread.interactions[0].messages.len(), 2);
+    match &rolled_back_thread.interactions[0].messages[0] {
+        Message::UserMessage { content, .. } => {
             assert_eq!(
                 content,
                 &vec![V2UserInput::Text {
@@ -150,8 +150,8 @@ async fn thread_rollback_drops_last_turns_and_persists_to_rollout() -> Result<()
 
     // Resume and confirm the history is pruned.
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: thread.id,
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: thread.id,
             ..Default::default()
         })
         .await?;
@@ -160,13 +160,13 @@ async fn thread_rollback_drops_last_turns_and_persists_to_rollout() -> Result<()
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse { thread, .. } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
-    assert_eq!(thread.turns.len(), 1);
-    assert_eq!(thread.status, ThreadStatus::Idle);
-    assert_eq!(thread.turns[0].items.len(), 2);
-    match &thread.turns[0].items[0] {
-        ThreadItem::UserMessage { content, .. } => {
+    assert_eq!(thread.interactions.len(), 1);
+    assert_eq!(thread.status, ChatStatus::Idle);
+    assert_eq!(thread.interactions[0].messages.len(), 2);
+    match &thread.interactions[0].messages[0] {
+        Message::UserMessage { content, .. } => {
             assert_eq!(
                 content,
                 &vec![V2UserInput::Text {

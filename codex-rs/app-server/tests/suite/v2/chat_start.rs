@@ -7,6 +7,14 @@ use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use datax_app_server_protocol::AskForApproval;
+use datax_app_server_protocol::ChatSource;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::ChatStartedNotification;
+use datax_app_server_protocol::ChatStatus;
+use datax_app_server_protocol::ChatStatusChangedNotification;
+use datax_app_server_protocol::InteractionEnvironmentParams;
+use datax_app_server_protocol::InteractionStartParams;
 use datax_app_server_protocol::JSONRPCError;
 use datax_app_server_protocol::JSONRPCMessage;
 use datax_app_server_protocol::JSONRPCResponse;
@@ -15,14 +23,6 @@ use datax_app_server_protocol::McpServerStatusUpdatedNotification;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::SandboxMode;
 use datax_app_server_protocol::ServerNotification;
-use datax_app_server_protocol::ThreadSource;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::ThreadStartedNotification;
-use datax_app_server_protocol::ThreadStatus;
-use datax_app_server_protocol::ThreadStatusChangedNotification;
-use datax_app_server_protocol::TurnEnvironmentParams;
-use datax_app_server_protocol::TurnStartParams;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_config::loader::project_trust_key;
 use datax_config::types::AuthCredentialsStoreMode;
@@ -68,9 +68,9 @@ async fn thread_start_creates_thread_and_emits_started() -> Result<()> {
 
     // Start a v2 thread with an explicit model override.
     let req_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.2".to_string()),
-            thread_source: Some(ThreadSource::User),
+            chat_source: Some(ChatSource::User),
             ..Default::default()
         })
         .await?;
@@ -82,11 +82,11 @@ async fn thread_start_creates_thread_and_emits_started() -> Result<()> {
     )
     .await??;
     let resp_result = resp.result.clone();
-    let ThreadStartResponse {
+    let ChatStartResponse {
         thread,
         model_provider,
         ..
-    } = to_response::<ThreadStartResponse>(resp)?;
+    } = to_response::<ChatStartResponse>(resp)?;
     assert!(
         !thread.session_id.is_empty(),
         "session id should not be empty"
@@ -105,8 +105,8 @@ async fn thread_start_creates_thread_and_emits_started() -> Result<()> {
         !thread.ephemeral,
         "new persistent threads should not be ephemeral"
     );
-    assert_eq!(thread.status, ThreadStatus::Idle);
-    assert_eq!(thread.thread_source, Some(ThreadSource::User));
+    assert_eq!(thread.status, ChatStatus::Idle);
+    assert_eq!(thread.chat_source, Some(ChatSource::User));
     let thread_path = thread.path.clone().expect("thread path should be present");
     assert!(thread_path.is_absolute(), "thread path should be absolute");
     assert!(
@@ -118,7 +118,7 @@ async fn thread_start_creates_thread_and_emits_started() -> Result<()> {
     let thread_json = resp_result
         .get("thread")
         .and_then(Value::as_object)
-        .expect("thread/start result.thread must be an object");
+        .expect("chat/start result.thread must be an object");
     assert_eq!(
         thread_json.get("sessionId").and_then(Value::as_str),
         Some(thread.session_id.as_str()),
@@ -132,7 +132,7 @@ async fn thread_start_creates_thread_and_emits_started() -> Result<()> {
     assert_eq!(
         resp_result.get("sessionId"),
         None,
-        "thread/start should not serialize a top-level `sessionId`"
+        "chat/start should not serialize a top-level `sessionId`"
     );
     assert_eq!(
         thread_json.get("ephemeral").and_then(Value::as_bool),
@@ -146,7 +146,7 @@ async fn thread_start_creates_thread_and_emits_started() -> Result<()> {
     );
     assert_eq!(thread.name, None);
 
-    // A corresponding thread/started notification should arrive.
+    // A corresponding chat/started notification should arrive.
     let deadline = tokio::time::Instant::now() + DEFAULT_READ_TIMEOUT;
     let notif = loop {
         let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
@@ -154,17 +154,17 @@ async fn thread_start_creates_thread_and_emits_started() -> Result<()> {
         let JSONRPCMessage::Notification(notif) = message else {
             continue;
         };
-        if notif.method == "thread/status/changed" {
-            let status_changed: ThreadStatusChangedNotification =
+        if notif.method == "chat/status/changed" {
+            let status_changed: ChatStatusChangedNotification =
                 serde_json::from_value(notif.params.expect("params must be present"))?;
-            if status_changed.thread_id == thread.id {
+            if status_changed.chat_id == thread.id {
                 anyhow::bail!(
-                    "thread/start should introduce the thread without a preceding thread/status/changed"
+                    "chat/start should introduce the thread without a preceding chat/status/changed"
                 );
             }
             continue;
         }
-        if notif.method == "thread/started" {
+        if notif.method == "chat/started" {
             break notif;
         }
     };
@@ -172,27 +172,27 @@ async fn thread_start_creates_thread_and_emits_started() -> Result<()> {
     let started_thread_json = started_params
         .get("thread")
         .and_then(Value::as_object)
-        .expect("thread/started params.thread must be an object");
+        .expect("chat/started params.thread must be an object");
     assert_eq!(
         started_thread_json.get("name"),
         Some(&Value::Null),
-        "thread/started should serialize `name: null` for new threads"
+        "chat/started should serialize `name: null` for new threads"
     );
     assert_eq!(
         started_thread_json
             .get("ephemeral")
             .and_then(Value::as_bool),
         Some(false),
-        "thread/started should serialize `ephemeral: false` for new persistent threads"
+        "chat/started should serialize `ephemeral: false` for new persistent threads"
     );
     assert_eq!(
         started_thread_json
             .get("threadSource")
             .and_then(Value::as_str),
         Some("user"),
-        "thread/started should preserve the caller-supplied thread origin"
+        "chat/started should preserve the caller-supplied thread origin"
     );
-    let started: ThreadStartedNotification =
+    let started: ChatStartedNotification =
         serde_json::from_value(notif.params.expect("params must be present"))?;
     assert_eq!(started.thread, thread);
 
@@ -214,7 +214,7 @@ async fn thread_start_accepts_absolute_runtime_workspace_roots() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let req_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             cwd: Some(cwd.to_string_lossy().to_string()),
             runtime_workspace_roots: Some(vec![extra_root.abs()]),
             ..Default::default()
@@ -226,11 +226,11 @@ async fn thread_start_accepts_absolute_runtime_workspace_roots() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(req_id)),
     )
     .await??;
-    let ThreadStartResponse {
+    let ChatStartResponse {
         cwd: response_cwd,
         runtime_workspace_roots,
         ..
-    } = to_response::<ThreadStartResponse>(resp)?;
+    } = to_response::<ChatStartResponse>(resp)?;
 
     assert_eq!(response_cwd, cwd.abs());
     assert_eq!(runtime_workspace_roots, vec![extra_root.abs()]);
@@ -255,7 +255,7 @@ async fn thread_start_excludes_profile_workspace_roots_from_runtime_workspace_ro
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let req_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             cwd: Some(cwd.path().to_string_lossy().to_string()),
             ..Default::default()
         })
@@ -266,10 +266,10 @@ async fn thread_start_excludes_profile_workspace_roots_from_runtime_workspace_ro
         mcp.read_stream_until_response_message(RequestId::Integer(req_id)),
     )
     .await??;
-    let ThreadStartResponse {
+    let ChatStartResponse {
         runtime_workspace_roots,
         ..
-    } = to_response::<ThreadStartResponse>(resp)?;
+    } = to_response::<ChatStartResponse>(resp)?;
 
     assert_eq!(
         runtime_workspace_roots,
@@ -290,8 +290,8 @@ async fn thread_start_rejects_unknown_environment_as_invalid_request() -> Result
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
-        .send_thread_start_request(ThreadStartParams {
-            environments: Some(vec![TurnEnvironmentParams {
+        .send_chat_start_request(ChatStartParams {
+            environments: Some(vec![InteractionEnvironmentParams {
                 environment_id: "missing".to_string(),
                 cwd: datax_utils_absolute_path::AbsolutePathBuf::try_from(
                     codex_home.path().to_path_buf(),
@@ -325,8 +325,8 @@ async fn thread_start_rejects_relative_environment_cwd_as_invalid_request() -> R
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
-        .send_thread_start_request(ThreadStartParams {
-            environments: Some(vec![TurnEnvironmentParams {
+        .send_chat_start_request(ChatStartParams {
+            environments: Some(vec![InteractionEnvironmentParams {
                 environment_id: "local".to_string(),
                 cwd: serde_json::from_value(json!("relative"))?,
             }]),
@@ -364,7 +364,7 @@ async fn thread_start_response_includes_loaded_instruction_sources() -> Result<(
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             cwd: Some(workspace.path().display().to_string()),
             ..Default::default()
         })
@@ -374,10 +374,10 @@ async fn thread_start_response_includes_loaded_instruction_sources() -> Result<(
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let ThreadStartResponse {
+    let ChatStartResponse {
         instruction_sources,
         ..
-    } = to_response::<ThreadStartResponse>(response)?;
+    } = to_response::<ChatStartResponse>(response)?;
 
     let instruction_sources = instruction_sources
         .into_iter()
@@ -411,7 +411,7 @@ async fn thread_start_response_excludes_empty_project_instruction_source() -> Re
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             cwd: Some(workspace.path().display().to_string()),
             ..Default::default()
         })
@@ -421,10 +421,10 @@ async fn thread_start_response_excludes_empty_project_instruction_source() -> Re
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let ThreadStartResponse {
+    let ChatStartResponse {
         instruction_sources,
         ..
-    } = to_response::<ThreadStartResponse>(response)?;
+    } = to_response::<ChatStartResponse>(response)?;
 
     let instruction_sources = instruction_sources
         .into_iter()
@@ -454,7 +454,7 @@ async fn thread_start_without_selected_environment_includes_only_global_instruct
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             cwd: Some(workspace.path().display().to_string()),
             environments: Some(Vec::new()),
             ..Default::default()
@@ -465,11 +465,11 @@ async fn thread_start_without_selected_environment_includes_only_global_instruct
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let ThreadStartResponse {
+    let ChatStartResponse {
         thread,
         instruction_sources,
         ..
-    } = to_response::<ThreadStartResponse>(response)?;
+    } = to_response::<ChatStartResponse>(response)?;
 
     assert_eq!(
         instruction_sources
@@ -482,8 +482,8 @@ async fn thread_start_without_selected_environment_includes_only_global_instruct
     );
 
     let turn_request_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id,
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id,
             input: vec![V2UserInput::Text {
                 text: "inspect instructions".to_string(),
                 text_elements: Vec::new(),
@@ -498,7 +498,7 @@ async fn thread_start_without_selected_environment_includes_only_global_instruct
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -544,8 +544,8 @@ async fn thread_start_tracks_thread_initialized_analytics() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let req_id = mcp
-        .send_thread_start_request(ThreadStartParams {
-            thread_source: Some(ThreadSource::User),
+        .send_chat_start_request(ChatStartParams {
+            chat_source: Some(ChatSource::User),
             ..Default::default()
         })
         .await?;
@@ -554,7 +554,7 @@ async fn thread_start_tracks_thread_initialized_analytics() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(req_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(resp)?;
 
     let payload = wait_for_analytics_payload(&server, DEFAULT_READ_TIMEOUT).await?;
     assert_eq!(payload["events"].as_array().expect("events array").len(), 1);
@@ -592,7 +592,7 @@ model_reasoning_effort = "high"
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let req_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             cwd: Some(workspace.path().to_string_lossy().into_owned()),
             ..Default::default()
         })
@@ -603,9 +603,9 @@ model_reasoning_effort = "high"
         mcp.read_stream_until_response_message(RequestId::Integer(req_id)),
     )
     .await??;
-    let ThreadStartResponse {
+    let ChatStartResponse {
         reasoning_effort, ..
-    } = to_response::<ThreadStartResponse>(resp)?;
+    } = to_response::<ChatStartResponse>(resp)?;
 
     assert_eq!(reasoning_effort, Some(ReasoningEffort::High));
     Ok(())
@@ -623,7 +623,7 @@ async fn thread_start_drops_unsupported_service_tier_id() -> Result<()> {
 
     let service_tier_id = "experimental-tier-id".to_string();
     let req_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             service_tier: Some(Some(service_tier_id.clone())),
             ..Default::default()
         })
@@ -634,7 +634,7 @@ async fn thread_start_drops_unsupported_service_tier_id() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(req_id)),
     )
     .await??;
-    let ThreadStartResponse { service_tier, .. } = to_response::<ThreadStartResponse>(resp)?;
+    let ChatStartResponse { service_tier, .. } = to_response::<ChatStartResponse>(resp)?;
 
     // Unsupported catalog ids are dropped at session config time instead of echoed back.
     assert_eq!(service_tier, None);
@@ -652,7 +652,7 @@ async fn thread_start_accepts_default_service_tier() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let req_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             service_tier: Some(Some(SERVICE_TIER_DEFAULT_REQUEST_VALUE.to_string())),
             ..Default::default()
         })
@@ -663,7 +663,7 @@ async fn thread_start_accepts_default_service_tier() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(req_id)),
     )
     .await??;
-    let ThreadStartResponse { service_tier, .. } = to_response::<ThreadStartResponse>(resp)?;
+    let ChatStartResponse { service_tier, .. } = to_response::<ChatStartResponse>(resp)?;
 
     assert_eq!(
         service_tier,
@@ -683,7 +683,7 @@ async fn thread_start_accepts_metrics_service_name() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let req_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             service_name: Some("my_app_server_client".to_string()),
             ..Default::default()
         })
@@ -694,7 +694,7 @@ async fn thread_start_accepts_metrics_service_name() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(req_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(resp)?;
     assert!(!thread.id.is_empty(), "thread id should not be empty");
 
     Ok(())
@@ -710,7 +710,7 @@ async fn thread_start_ephemeral_remains_pathless() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let req_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.2".to_string()),
             ephemeral: Some(true),
             ..Default::default()
@@ -723,7 +723,7 @@ async fn thread_start_ephemeral_remains_pathless() -> Result<()> {
     )
     .await??;
     let resp_result = resp.result.clone();
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(resp)?;
     assert!(
         thread.ephemeral,
         "ephemeral threads should be marked explicitly"
@@ -735,7 +735,7 @@ async fn thread_start_ephemeral_remains_pathless() -> Result<()> {
     let thread_json = resp_result
         .get("thread")
         .and_then(Value::as_object)
-        .expect("thread/start result.thread must be an object");
+        .expect("chat/start result.thread must be an object");
     assert_eq!(
         thread_json.get("ephemeral").and_then(Value::as_bool),
         Some(true),
@@ -756,7 +756,7 @@ async fn thread_start_fails_when_required_mcp_server_fails_to_initialize() -> Re
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let req_id = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
 
     let err: JSONRPCError = timeout(
@@ -792,10 +792,10 @@ async fn thread_start_emits_mcp_server_status_updated_notifications() -> Result<
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let req_id = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
 
-    let start_response: ThreadStartResponse = to_response(
+    let start_response: ChatStartResponse = to_response(
         timeout(
             DEFAULT_READ_TIMEOUT,
             mcp.read_stream_until_response_message(RequestId::Integer(req_id)),
@@ -832,7 +832,7 @@ async fn thread_start_emits_mcp_server_status_updated_notifications() -> Result<
     assert_eq!(
         starting,
         McpServerStatusUpdatedNotification {
-            thread_id: Some(start_response.thread.id.clone()),
+            chat_id: Some(start_response.thread.id.clone()),
             name: "optional_broken".to_string(),
             status: McpServerStartupState::Starting,
             error: None,
@@ -865,7 +865,7 @@ async fn thread_start_emits_mcp_server_status_updated_notifications() -> Result<
     let ServerNotification::McpServerStatusUpdated(failed) = failed else {
         anyhow::bail!("unexpected notification variant");
     };
-    assert_eq!(failed.thread_id, Some(start_response.thread.id));
+    assert_eq!(failed.chat_id, Some(start_response.thread.id));
     assert_eq!(failed.name, "optional_broken");
     assert_eq!(failed.status, McpServerStartupState::Failed);
     assert!(
@@ -934,7 +934,7 @@ async fn thread_start_surfaces_cloud_config_bundle_load_errors() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let req_id = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
 
     let err: JSONRPCError = timeout(
@@ -984,7 +984,7 @@ model_reasoning_effort = "high"
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let first_request = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             cwd: Some(workspace.path().display().to_string()),
             sandbox: Some(SandboxMode::WorkspaceWrite),
             ..Default::default()
@@ -997,7 +997,7 @@ model_reasoning_effort = "high"
     .await??;
 
     let second_request = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             cwd: Some(workspace.path().display().to_string()),
             ..Default::default()
         })
@@ -1007,11 +1007,11 @@ model_reasoning_effort = "high"
         mcp.read_stream_until_response_message(RequestId::Integer(second_request)),
     )
     .await??;
-    let ThreadStartResponse {
+    let ChatStartResponse {
         approval_policy,
         reasoning_effort,
         ..
-    } = to_response::<ThreadStartResponse>(second_response)?;
+    } = to_response::<ChatStartResponse>(second_response)?;
 
     assert_eq!(approval_policy, AskForApproval::OnRequest);
     assert_eq!(reasoning_effort, Some(ReasoningEffort::High));
@@ -1044,7 +1044,7 @@ async fn thread_start_with_nested_git_cwd_trusts_repo_root() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             cwd: Some(nested.display().to_string()),
             sandbox: Some(SandboxMode::WorkspaceWrite),
             ..Default::default()
@@ -1082,7 +1082,7 @@ async fn thread_start_with_read_only_sandbox_does_not_persist_project_trust() ->
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             cwd: Some(workspace.path().display().to_string()),
             ..Default::default()
         })
@@ -1120,7 +1120,7 @@ async fn thread_start_preserves_untrusted_project_trust() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             cwd: Some(workspace.path().display().to_string()),
             sandbox: Some(SandboxMode::WorkspaceWrite),
             ..Default::default()
@@ -1161,7 +1161,7 @@ model_reasoning_effort = "high"
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             cwd: Some(workspace.path().display().to_string()),
             sandbox: Some(SandboxMode::WorkspaceWrite),
             ..Default::default()
@@ -1172,11 +1172,11 @@ model_reasoning_effort = "high"
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let ThreadStartResponse {
+    let ChatStartResponse {
         approval_policy,
         reasoning_effort,
         ..
-    } = to_response::<ThreadStartResponse>(response)?;
+    } = to_response::<ChatStartResponse>(response)?;
 
     assert_eq!(approval_policy, AskForApproval::OnRequest);
     assert_eq!(reasoning_effort, Some(ReasoningEffort::High));

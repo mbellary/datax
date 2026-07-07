@@ -1,13 +1,13 @@
 use std::io::IsTerminal;
 use std::path::PathBuf;
 
+use datax_app_server_protocol::ChatTokenUsage;
 use datax_app_server_protocol::CommandExecutionStatus;
+use datax_app_server_protocol::InteractionStatus;
 use datax_app_server_protocol::McpToolCallStatus;
+use datax_app_server_protocol::Message;
 use datax_app_server_protocol::PatchApplyStatus;
 use datax_app_server_protocol::ServerNotification;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadTokenUsage;
-use datax_app_server_protocol::TurnStatus;
 use datax_core::config::Config;
 use datax_model_provider_info::WireApi;
 use datax_protocol::num_format::format_with_separators;
@@ -35,7 +35,7 @@ pub(crate) struct EventProcessorWithHumanOutput {
     final_message: Option<String>,
     final_message_rendered: bool,
     emit_final_message_on_shutdown: bool,
-    last_total_token_usage: Option<ThreadTokenUsage>,
+    last_total_token_usage: Option<ChatTokenUsage>,
 }
 
 impl EventProcessorWithHumanOutput {
@@ -64,16 +64,16 @@ impl EventProcessorWithHumanOutput {
         }
     }
 
-    fn render_item_started(&self, item: &ThreadItem) {
+    fn render_item_started(&self, item: &Message) {
         match item {
-            ThreadItem::CommandExecution { command, cwd, .. } => {
+            Message::CommandExecution { command, cwd, .. } => {
                 eprintln!(
                     "{}\n{} in {cwd}",
                     "exec".style(self.italic).style(self.magenta),
                     command.style(self.bold),
                 );
             }
-            ThreadItem::McpToolCall { server, tool, .. } => {
+            Message::McpToolCall { server, tool, .. } => {
                 eprintln!(
                     "{} {} {}",
                     "mcp:".style(self.bold),
@@ -81,22 +81,22 @@ impl EventProcessorWithHumanOutput {
                     "started".style(self.dimmed)
                 );
             }
-            ThreadItem::WebSearch { query, .. } => {
+            Message::WebSearch { query, .. } => {
                 eprintln!("{} {}", "web search:".style(self.bold), query);
             }
-            ThreadItem::FileChange { .. } => {
+            Message::FileChange { .. } => {
                 eprintln!("{}", "apply patch".style(self.bold));
             }
-            ThreadItem::CollabAgentToolCall { tool, .. } => {
+            Message::CollabAgentToolCall { tool, .. } => {
                 eprintln!("{} {:?}", "collab:".style(self.bold), tool);
             }
             _ => {}
         }
     }
 
-    fn render_item_completed(&mut self, item: ThreadItem) {
+    fn render_item_completed(&mut self, item: Message) {
         match item {
-            ThreadItem::AgentMessage { text, .. } => {
+            Message::AgentMessage { text, .. } => {
                 eprintln!(
                     "{}\n{}",
                     "codex".style(self.italic).style(self.magenta),
@@ -105,7 +105,7 @@ impl EventProcessorWithHumanOutput {
                 self.final_message = Some(text);
                 self.final_message_rendered = true;
             }
-            ThreadItem::Reasoning {
+            Message::Reasoning {
                 summary, content, ..
             } => {
                 if self.show_agent_reasoning
@@ -116,7 +116,7 @@ impl EventProcessorWithHumanOutput {
                     eprintln!("{}", text.style(self.dimmed));
                 }
             }
-            ThreadItem::CommandExecution {
+            Message::CommandExecution {
                 command: _,
                 aggregated_output,
                 exit_code,
@@ -160,7 +160,7 @@ impl EventProcessorWithHumanOutput {
                     eprintln!("{output}");
                 }
             }
-            ThreadItem::FileChange {
+            Message::FileChange {
                 changes, status, ..
             } => {
                 let status_text = match status {
@@ -174,7 +174,7 @@ impl EventProcessorWithHumanOutput {
                     eprintln!("{}", change.path.style(self.dimmed));
                 }
             }
-            ThreadItem::McpToolCall {
+            Message::McpToolCall {
                 server,
                 tool,
                 status,
@@ -196,10 +196,10 @@ impl EventProcessorWithHumanOutput {
                     eprintln!("{}", error.message.style(self.red));
                 }
             }
-            ThreadItem::WebSearch { query, .. } => {
+            Message::WebSearch { query, .. } => {
                 eprintln!("{} {}", "web search:".style(self.bold), query);
             }
-            ThreadItem::ContextCompaction { .. } => {
+            Message::ContextCompaction { .. } => {
                 eprintln!("{}", "context compacted".style(self.dimmed));
             }
             _ => {}
@@ -275,11 +275,11 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 );
                 CodexStatus::Running
             }
-            ServerNotification::ItemStarted(notification) => {
+            ServerNotification::MessageStarted(notification) => {
                 self.render_item_started(&notification.item);
                 CodexStatus::Running
             }
-            ServerNotification::ItemCompleted(notification) => {
+            ServerNotification::MessageCompleted(notification) => {
                 self.render_item_completed(notification.item);
                 CodexStatus::Running
             }
@@ -293,63 +293,65 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 CodexStatus::Running
             }
             ServerNotification::ModelVerification(_) => CodexStatus::Running,
-            ServerNotification::ThreadTokenUsageUpdated(notification) => {
+            ServerNotification::ChatTokenUsageUpdated(notification) => {
                 self.last_total_token_usage = Some(notification.token_usage);
                 CodexStatus::Running
             }
-            ServerNotification::TurnCompleted(notification) => match notification.turn.status {
-                TurnStatus::Completed => {
-                    let rendered_message = self
-                        .final_message_rendered
-                        .then(|| self.final_message.clone())
-                        .flatten();
-                    if let Some(final_message) =
-                        final_message_from_turn_items(notification.turn.items.as_slice())
-                    {
-                        self.final_message_rendered =
-                            rendered_message.as_deref() == Some(final_message.as_str());
-                        self.final_message = Some(final_message);
+            ServerNotification::InteractionCompleted(notification) => {
+                match notification.turn.status {
+                    InteractionStatus::Completed => {
+                        let rendered_message = self
+                            .final_message_rendered
+                            .then(|| self.final_message.clone())
+                            .flatten();
+                        if let Some(final_message) =
+                            final_message_from_turn_items(notification.turn.items.as_slice())
+                        {
+                            self.final_message_rendered =
+                                rendered_message.as_deref() == Some(final_message.as_str());
+                            self.final_message = Some(final_message);
+                        }
+                        self.emit_final_message_on_shutdown = true;
+                        CodexStatus::InitiateShutdown
                     }
-                    self.emit_final_message_on_shutdown = true;
-                    CodexStatus::InitiateShutdown
-                }
-                TurnStatus::Failed => {
-                    self.final_message = None;
-                    self.final_message_rendered = false;
-                    self.emit_final_message_on_shutdown = false;
-                    if let Some(error) = notification.turn.error {
-                        eprintln!("{} {}", "ERROR:".style(self.red).style(self.bold), error);
+                    InteractionStatus::Failed => {
+                        self.final_message = None;
+                        self.final_message_rendered = false;
+                        self.emit_final_message_on_shutdown = false;
+                        if let Some(error) = notification.turn.error {
+                            eprintln!("{} {}", "ERROR:".style(self.red).style(self.bold), error);
+                        }
+                        CodexStatus::InitiateShutdown
                     }
-                    CodexStatus::InitiateShutdown
+                    InteractionStatus::Interrupted => {
+                        self.final_message = None;
+                        self.final_message_rendered = false;
+                        self.emit_final_message_on_shutdown = false;
+                        eprintln!("{}", "turn interrupted".style(self.dimmed));
+                        CodexStatus::InitiateShutdown
+                    }
+                    InteractionStatus::InProgress => CodexStatus::Running,
                 }
-                TurnStatus::Interrupted => {
-                    self.final_message = None;
-                    self.final_message_rendered = false;
-                    self.emit_final_message_on_shutdown = false;
-                    eprintln!("{}", "turn interrupted".style(self.dimmed));
-                    CodexStatus::InitiateShutdown
-                }
-                TurnStatus::InProgress => CodexStatus::Running,
-            },
-            ServerNotification::TurnDiffUpdated(notification) => {
+            }
+            ServerNotification::InteractionDiffUpdated(notification) => {
                 if !notification.diff.trim().is_empty() {
                     eprintln!("{}", notification.diff);
                 }
                 CodexStatus::Running
             }
-            ServerNotification::TurnPlanUpdated(notification) => {
+            ServerNotification::InteractionPlanUpdated(notification) => {
                 if let Some(explanation) = notification.explanation {
                     eprintln!("{}", explanation.style(self.italic));
                 }
                 for step in notification.plan {
                     match step.status {
-                        datax_app_server_protocol::TurnPlanStepStatus::Completed => {
+                        datax_app_server_protocol::InteractionPlanStepStatus::Completed => {
                             eprintln!("  {} {}", "✓".style(self.green), step.step);
                         }
-                        datax_app_server_protocol::TurnPlanStepStatus::InProgress => {
+                        datax_app_server_protocol::InteractionPlanStepStatus::InProgress => {
                             eprintln!("  {} {}", "→".style(self.cyan), step.step);
                         }
-                        datax_app_server_protocol::TurnPlanStepStatus::Pending => {
+                        datax_app_server_protocol::InteractionPlanStepStatus::Pending => {
                             eprintln!(
                                 "  {} {}",
                                 "•".style(self.dimmed),
@@ -360,7 +362,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 }
                 CodexStatus::Running
             }
-            ServerNotification::TurnStarted(_) => CodexStatus::Running,
+            ServerNotification::InteractionStarted(_) => CodexStatus::Running,
             _ => CodexStatus::Running,
         }
     }
@@ -482,23 +484,23 @@ fn reasoning_text(
     }
 }
 
-fn final_message_from_turn_items(items: &[ThreadItem]) -> Option<String> {
+fn final_message_from_turn_items(items: &[Message]) -> Option<String> {
     items
         .iter()
         .rev()
         .find_map(|item| match item {
-            ThreadItem::AgentMessage { text, .. } => Some(text.clone()),
+            Message::AgentMessage { text, .. } => Some(text.clone()),
             _ => None,
         })
         .or_else(|| {
             items.iter().rev().find_map(|item| match item {
-                ThreadItem::Plan { text, .. } => Some(text.clone()),
+                Message::Plan { text, .. } => Some(text.clone()),
                 _ => None,
             })
         })
 }
 
-fn blended_total(usage: &ThreadTokenUsage) -> i64 {
+fn blended_total(usage: &ChatTokenUsage) -> i64 {
     let cached_input = usage.total.cached_input_tokens.max(0);
     let non_cached_input = (usage.total.input_tokens - cached_input).max(0);
     (non_cached_input + usage.total.output_tokens.max(0)).max(0)

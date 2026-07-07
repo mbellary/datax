@@ -1,4 +1,4 @@
-//! Thread replay rendering for `ChatWidget`.
+//! Chat replay rendering for `ChatWidget`.
 //!
 //! This module rehydrates turns and items into transcript state while avoiding
 //! live-only side effects.
@@ -11,9 +11,9 @@ impl ChatWidget {
     /// is intentionally conservative: only safe-to-replay items are rendered to
     /// avoid triggering side effects. Event ids are passed as `None` to
     /// distinguish replayed events from live ones.
-    pub(crate) fn replay_thread_turns(&mut self, turns: Vec<Turn>, replay_kind: ReplayKind) {
+    pub(crate) fn replay_thread_turns(&mut self, turns: Vec<Interaction>, replay_kind: ReplayKind) {
         for turn in turns {
-            let Turn {
+            let Interaction {
                 id: turn_id,
                 items_view: _,
                 items,
@@ -23,7 +23,7 @@ impl ChatWidget {
                 completed_at,
                 duration_ms,
             } = turn;
-            if matches!(status, TurnStatus::InProgress) {
+            if matches!(status, InteractionStatus::InProgress) {
                 self.last_non_retry_error = None;
                 self.on_task_started();
             }
@@ -32,14 +32,17 @@ impl ChatWidget {
             }
             if matches!(
                 status,
-                TurnStatus::Completed | TurnStatus::Interrupted | TurnStatus::Failed
+                InteractionStatus::Completed
+                    | InteractionStatus::Interrupted
+                    | InteractionStatus::Failed
             ) {
                 self.handle_turn_completed_notification(
-                    TurnCompletedNotification {
+                    InteractionCompletedNotification {
                         thread_id: self.thread_id.map(|id| id.to_string()).unwrap_or_default(),
-                        turn: Turn {
+                        turn: Interaction {
                             id: turn_id,
-                            items_view: datax_app_server_protocol::TurnItemsView::NotLoaded,
+                            items_view:
+                                datax_app_server_protocol::InteractionMessagesView::NotLoaded,
                             items: Vec::new(),
                             status,
                             error,
@@ -56,7 +59,7 @@ impl ChatWidget {
 
     pub(crate) fn replay_thread_item(
         &mut self,
-        item: ThreadItem,
+        item: Message,
         turn_id: String,
         replay_kind: ReplayKind,
     ) {
@@ -65,17 +68,17 @@ impl ChatWidget {
 
     pub(super) fn handle_thread_item(
         &mut self,
-        item: ThreadItem,
+        item: Message,
         turn_id: String,
         render_source: ThreadItemRenderSource,
     ) {
         let from_replay = render_source.is_replay();
         let replay_kind = render_source.replay_kind();
         match item {
-            ThreadItem::UserMessage { content, .. } => {
+            Message::UserMessage { content, .. } => {
                 self.on_committed_user_message(&content, from_replay);
             }
-            ThreadItem::AgentMessage {
+            Message::AgentMessage {
                 id,
                 text,
                 phase,
@@ -107,8 +110,8 @@ impl ChatWidget {
                     from_replay,
                 );
             }
-            ThreadItem::Plan { text, .. } => self.on_plan_item_completed(text),
-            ThreadItem::Reasoning {
+            Message::Plan { text, .. } => self.on_plan_item_completed(text),
+            Message::Reasoning {
                 summary, content, ..
             } => {
                 if from_replay {
@@ -123,22 +126,22 @@ impl ChatWidget {
                 }
                 self.on_agent_reasoning_final();
             }
-            item @ ThreadItem::CommandExecution {
+            item @ Message::CommandExecution {
                 status: datax_app_server_protocol::CommandExecutionStatus::InProgress,
                 ..
             } => self.on_command_execution_started(item),
-            item @ ThreadItem::CommandExecution { .. } => self.on_command_execution_completed(item),
-            ThreadItem::FileChange {
+            item @ Message::CommandExecution { .. } => self.on_command_execution_completed(item),
+            Message::FileChange {
                 status: datax_app_server_protocol::PatchApplyStatus::InProgress,
                 ..
             } => {}
-            item @ ThreadItem::FileChange { .. } => self.on_file_change_completed(item),
-            item @ ThreadItem::McpToolCall {
+            item @ Message::FileChange { .. } => self.on_file_change_completed(item),
+            item @ Message::McpToolCall {
                 status: datax_app_server_protocol::McpToolCallStatus::InProgress,
                 ..
             } => self.on_mcp_tool_call_started(item),
-            item @ ThreadItem::McpToolCall { .. } => self.on_mcp_tool_call_completed(item),
-            ThreadItem::WebSearch { id, query, action } => {
+            item @ Message::McpToolCall { .. } => self.on_mcp_tool_call_completed(item),
+            Message::WebSearch { id, query, action } => {
                 self.on_web_search_begin(id.clone());
                 self.on_web_search_end(
                     id,
@@ -146,10 +149,10 @@ impl ChatWidget {
                     action.unwrap_or(datax_app_server_protocol::WebSearchAction::Other),
                 );
             }
-            ThreadItem::ImageView { id: _, path } => {
+            Message::ImageView { id: _, path } => {
                 self.on_view_image_tool_call(path);
             }
-            ThreadItem::ImageGeneration {
+            Message::ImageGeneration {
                 id,
                 status,
                 revised_prompt,
@@ -158,19 +161,19 @@ impl ChatWidget {
             } => {
                 self.on_image_generation_end(id, status, revised_prompt, saved_path);
             }
-            ThreadItem::EnteredReviewMode { review, .. } => {
+            Message::EnteredReviewMode { review, .. } => {
                 if from_replay {
                     self.enter_review_mode_with_hint(review, /*from_replay*/ true);
                 }
             }
-            ThreadItem::ExitedReviewMode { .. } => {
+            Message::ExitedReviewMode { .. } => {
                 self.exit_review_mode_after_item();
             }
-            ThreadItem::ContextCompaction { .. } => {
+            Message::ContextCompaction { .. } => {
                 self.add_info_message("Context compacted".to_string(), /*hint*/ None);
             }
-            ThreadItem::HookPrompt { .. } => {}
-            ThreadItem::CollabAgentToolCall {
+            Message::HookPrompt { .. } => {}
+            Message::CollabAgentToolCall {
                 id,
                 tool,
                 status,
@@ -180,7 +183,7 @@ impl ChatWidget {
                 model,
                 reasoning_effort,
                 agents_states,
-            } => self.on_collab_agent_tool_call(ThreadItem::CollabAgentToolCall {
+            } => self.on_collab_agent_tool_call(Message::CollabAgentToolCall {
                 id,
                 tool,
                 status,
@@ -191,9 +194,9 @@ impl ChatWidget {
                 reasoning_effort,
                 agents_states,
             }),
-            item @ ThreadItem::SubAgentActivity { .. } => self.on_sub_agent_activity(item),
-            ThreadItem::DynamicToolCall { .. } => {}
-            ThreadItem::Sleep { .. } => {}
+            item @ Message::SubAgentActivity { .. } => self.on_sub_agent_activity(item),
+            Message::DynamicToolCall { .. } => {}
+            Message::Sleep { .. } => {}
         }
 
         if matches!(replay_kind, Some(ReplayKind::ThreadSnapshot)) && turn_id.is_empty() {

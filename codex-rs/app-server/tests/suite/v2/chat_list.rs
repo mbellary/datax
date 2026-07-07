@@ -11,22 +11,22 @@ use app_test_support::to_response;
 use chrono::DateTime;
 use chrono::Utc;
 use core_test_support::responses;
+use datax_app_server_protocol::ChatListCwdFilter;
+use datax_app_server_protocol::ChatListResponse;
+use datax_app_server_protocol::ChatSearchResponse;
+use datax_app_server_protocol::ChatSortKey;
+use datax_app_server_protocol::ChatSourceKind;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::ChatStatus;
 use datax_app_server_protocol::GitInfo as ApiGitInfo;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
 use datax_app_server_protocol::JSONRPCError;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::SessionSource;
 use datax_app_server_protocol::SortDirection;
-use datax_app_server_protocol::ThreadListCwdFilter;
-use datax_app_server_protocol::ThreadListResponse;
-use datax_app_server_protocol::ThreadSearchResponse;
-use datax_app_server_protocol::ThreadSortKey;
-use datax_app_server_protocol::ThreadSourceKind;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::ThreadStatus;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
 use datax_app_server_protocol::UserInput;
 use datax_core::ARCHIVED_SESSIONS_SUBDIR;
 use datax_git_utils::GitSha;
@@ -60,9 +60,9 @@ async fn list_threads(
     cursor: Option<String>,
     limit: Option<u32>,
     providers: Option<Vec<String>>,
-    source_kinds: Option<Vec<ThreadSourceKind>>,
+    source_kinds: Option<Vec<ChatSourceKind>>,
     archived: Option<bool>,
-) -> Result<ThreadListResponse> {
+) -> Result<ChatListResponse> {
     list_threads_with_sort(
         mcp,
         cursor,
@@ -80,12 +80,12 @@ async fn list_threads_with_sort(
     cursor: Option<String>,
     limit: Option<u32>,
     providers: Option<Vec<String>>,
-    source_kinds: Option<Vec<ThreadSourceKind>>,
-    sort_key: Option<ThreadSortKey>,
+    source_kinds: Option<Vec<ChatSourceKind>>,
+    sort_key: Option<ChatSortKey>,
     archived: Option<bool>,
-) -> Result<ThreadListResponse> {
+) -> Result<ChatListResponse> {
     let request_id = mcp
-        .send_thread_list_request(datax_app_server_protocol::ThreadListParams {
+        .send_chat_list_request(datax_app_server_protocol::ChatListParams {
             cursor,
             limit,
             sort_key,
@@ -96,7 +96,7 @@ async fn list_threads_with_sort(
             cwd: None,
             use_state_db_only: false,
             search_term: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
         })
         .await?;
     let resp: JSONRPCResponse = timeout(
@@ -104,19 +104,19 @@ async fn list_threads_with_sort(
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    to_response::<ThreadListResponse>(resp)
+    to_response::<ChatListResponse>(resp)
 }
 
 async fn list_threads_for_parent(
     mcp: &mut TestAppServer,
-    parent_thread_id: ThreadId,
+    parent_chat_id: ThreadId,
     cursor: Option<String>,
     limit: u32,
     model_providers: Option<Vec<String>>,
-    source_kinds: Option<Vec<ThreadSourceKind>>,
-) -> Result<ThreadListResponse> {
+    source_kinds: Option<Vec<ChatSourceKind>>,
+) -> Result<ChatListResponse> {
     let request_id = mcp
-        .send_thread_list_request(datax_app_server_protocol::ThreadListParams {
+        .send_chat_list_request(datax_app_server_protocol::ChatListParams {
             cursor,
             limit: Some(limit),
             sort_key: None,
@@ -127,7 +127,7 @@ async fn list_threads_for_parent(
             cwd: None,
             use_state_db_only: false,
             search_term: None,
-            parent_thread_id: Some(parent_thread_id.to_string()),
+            parent_chat_id: Some(parent_chat_id.to_string()),
         })
         .await?;
     let response = timeout(
@@ -135,7 +135,7 @@ async fn list_threads_for_parent(
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    to_response::<ThreadListResponse>(response)
+    to_response::<ChatListResponse>(response)
 }
 
 fn create_fake_rollouts<F, G>(
@@ -216,7 +216,7 @@ async fn thread_list_basic_empty() -> Result<()> {
 
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let ThreadListResponse {
+    let ChatListResponse {
         data, next_cursor, ..
     } = list_threads(
         &mut mcp,
@@ -246,7 +246,7 @@ async fn thread_list_reports_system_error_idle_flag_after_failed_turn() -> Resul
     let mut mcp = init_mcp(codex_home.path()).await?;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -256,11 +256,11 @@ async fn thread_list_reports_system_error_idle_flag_after_failed_turn() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let seed_turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "seed history".to_string(),
@@ -274,16 +274,16 @@ async fn thread_list_reports_system_error_idle_flag_after_failed_turn() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(seed_turn_id)),
     )
     .await??;
-    let _: TurnStartResponse = to_response::<TurnStartResponse>(seed_turn_resp)?;
+    let _: InteractionStartResponse = to_response::<InteractionStartResponse>(seed_turn_resp)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
     let failed_turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "fail turn".to_string(),
@@ -297,22 +297,22 @@ async fn thread_list_reports_system_error_idle_flag_after_failed_turn() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(failed_turn_id)),
     )
     .await??;
-    let _: TurnStartResponse = to_response::<TurnStartResponse>(failed_turn_resp)?;
+    let _: InteractionStartResponse = to_response::<InteractionStartResponse>(failed_turn_resp)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.read_stream_until_notification_message("error"),
     )
     .await??;
 
-    let ThreadListResponse { data, .. } = list_threads(
+    let ChatListResponse { data, .. } = list_threads(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
         Some(vec!["mock_provider".to_string()]),
         Some(vec![
-            ThreadSourceKind::AppServer,
-            ThreadSourceKind::Cli,
-            ThreadSourceKind::VsCode,
+            ChatSourceKind::AppServer,
+            ChatSourceKind::Cli,
+            ChatSourceKind::VsCode,
         ]),
         /*archived*/ None,
     )
@@ -321,7 +321,7 @@ async fn thread_list_reports_system_error_idle_flag_after_failed_turn() -> Resul
         .iter()
         .find(|candidate| candidate.id == thread.id)
         .expect("expected started thread to be listed");
-    assert_eq!(listed.status, ThreadStatus::SystemError,);
+    assert_eq!(listed.status, ChatStatus::SystemError,);
 
     Ok(())
 }
@@ -395,7 +395,7 @@ async fn thread_list_pagination_next_cursor_none_on_last_page() -> Result<()> {
     let mut mcp = init_mcp(codex_home.path()).await?;
 
     // Page 1: limit 2 → expect next_cursor Some.
-    let ThreadListResponse {
+    let ChatListResponse {
         data: data1,
         next_cursor: cursor1,
         ..
@@ -418,12 +418,12 @@ async fn thread_list_pagination_next_cursor_none_on_last_page() -> Result<()> {
         assert_eq!(thread.cli_version, "0.0.0");
         assert_eq!(thread.source, SessionSource::Cli);
         assert_eq!(thread.git_info, None);
-        assert_eq!(thread.status, ThreadStatus::NotLoaded);
+        assert_eq!(thread.status, ChatStatus::NotLoaded);
     }
     let cursor1 = cursor1.expect("expected nextCursor on first page");
 
     // Page 2: with cursor → expect next_cursor None when no more results.
-    let ThreadListResponse {
+    let ChatListResponse {
         data: data2,
         next_cursor: cursor2,
         ..
@@ -446,7 +446,7 @@ async fn thread_list_pagination_next_cursor_none_on_last_page() -> Result<()> {
         assert_eq!(thread.cli_version, "0.0.0");
         assert_eq!(thread.source, SessionSource::Cli);
         assert_eq!(thread.git_info, None);
-        assert_eq!(thread.status, ThreadStatus::NotLoaded);
+        assert_eq!(thread.status, ChatStatus::NotLoaded);
     }
     assert_eq!(cursor2, None, "expected nextCursor to be null on last page");
 
@@ -479,7 +479,7 @@ async fn thread_list_respects_provider_filter() -> Result<()> {
     let mut mcp = init_mcp(codex_home.path()).await?;
 
     // Filter to only other_provider; expect 1 item, nextCursor None.
-    let ThreadListResponse {
+    let ChatListResponse {
         data, next_cursor, ..
     } = list_threads(
         &mut mcp,
@@ -556,7 +556,7 @@ async fn thread_list_respects_cwd_filters() -> Result<()> {
 
     let mut mcp = init_mcp(codex_home.path()).await?;
     let request_id = mcp
-        .send_thread_list_request(datax_app_server_protocol::ThreadListParams {
+        .send_chat_list_request(datax_app_server_protocol::ChatListParams {
             cursor: None,
             limit: Some(10),
             sort_key: None,
@@ -564,13 +564,13 @@ async fn thread_list_respects_cwd_filters() -> Result<()> {
             model_providers: Some(vec!["mock_provider".to_string()]),
             source_kinds: None,
             archived: None,
-            cwd: Some(ThreadListCwdFilter::Many(vec![
+            cwd: Some(ChatListCwdFilter::Many(vec![
                 first_target_cwd.to_string_lossy().into_owned(),
                 second_target_cwd.to_string_lossy().into_owned(),
             ])),
             use_state_db_only: false,
             search_term: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
         })
         .await?;
     let resp: JSONRPCResponse = timeout(
@@ -578,9 +578,9 @@ async fn thread_list_respects_cwd_filters() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let ThreadListResponse {
+    let ChatListResponse {
         data, next_cursor, ..
-    } = to_response::<ThreadListResponse>(resp)?;
+    } = to_response::<ChatListResponse>(resp)?;
 
     assert_eq!(next_cursor, None);
     let filtered_ids: Vec<_> = data.iter().map(|thread| thread.id.as_str()).collect();
@@ -635,7 +635,7 @@ sqlite = true
         /*git_info*/ None,
     )?;
 
-    // `thread/list` applies `search_term` on the sqlite fast path. This test creates
+    // `chat/list` applies `search_term` on the sqlite fast path. This test creates
     // rollouts manually, so mark the DB backfill complete and then run an unsearched
     // list large enough to repair every rollout the searched list should find.
     let state_db =
@@ -656,7 +656,7 @@ sqlite = true
         &rollout_config,
         /*page_size*/ 10,
         /*cursor*/ None,
-        datax_core::ThreadSortKey::CreatedAt,
+        datax_core::ChatSortKey::CreatedAt,
         datax_core::SortDirection::Desc,
         &[],
         /*model_providers*/ None,
@@ -665,11 +665,11 @@ sqlite = true
         /*search_term*/ None,
     )
     .await?;
-    assert_eq!(repaired_page.items.len(), 3);
+    assert_eq!(repaired_page.messages.len(), 3);
 
     let mut mcp = init_mcp(codex_home.path()).await?;
     let request_id = mcp
-        .send_thread_list_request(datax_app_server_protocol::ThreadListParams {
+        .send_chat_list_request(datax_app_server_protocol::ChatListParams {
             cursor: None,
             limit: Some(10),
             sort_key: None,
@@ -680,7 +680,7 @@ sqlite = true
             cwd: None,
             use_state_db_only: false,
             search_term: Some("needle".to_string()),
-            parent_thread_id: None,
+            parent_chat_id: None,
         })
         .await?;
     let resp: JSONRPCResponse = timeout(
@@ -688,9 +688,9 @@ sqlite = true
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let ThreadListResponse {
+    let ChatListResponse {
         data, next_cursor, ..
-    } = to_response::<ThreadListResponse>(resp)?;
+    } = to_response::<ChatListResponse>(resp)?;
 
     assert_eq!(next_cursor, None);
     let ids: Vec<_> = data.iter().map(|thread| thread.id.as_str()).collect();
@@ -731,7 +731,7 @@ async fn thread_search_returns_content_matches() -> Result<()> {
 
     let mut mcp = init_mcp(codex_home.path()).await?;
     let request_id = mcp
-        .send_thread_search_request(datax_app_server_protocol::ThreadSearchParams {
+        .send_chat_search_request(datax_app_server_protocol::ChatSearchParams {
             cursor: None,
             limit: Some(10),
             sort_key: None,
@@ -746,9 +746,9 @@ async fn thread_search_returns_content_matches() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let ThreadSearchResponse {
+    let ChatSearchResponse {
         data, next_cursor, ..
-    } = to_response::<ThreadSearchResponse>(resp)?;
+    } = to_response::<ChatSearchResponse>(resp)?;
 
     assert_eq!(next_cursor, None);
     let ids: Vec<_> = data
@@ -767,7 +767,7 @@ async fn thread_search_matches_json_escaped_content() -> Result<()> {
     create_minimal_config(codex_home.path())?;
 
     let search_term = r#"quoted "needle" \ path"#;
-    let thread_id = create_fake_rollout(
+    let chat_id = create_fake_rollout(
         codex_home.path(),
         "2025-01-02T10-00-00",
         "2025-01-02T10:00:00Z",
@@ -778,7 +778,7 @@ async fn thread_search_matches_json_escaped_content() -> Result<()> {
 
     let mut mcp = init_mcp(codex_home.path()).await?;
     let request_id = mcp
-        .send_thread_search_request(datax_app_server_protocol::ThreadSearchParams {
+        .send_chat_search_request(datax_app_server_protocol::ChatSearchParams {
             cursor: None,
             limit: Some(10),
             sort_key: None,
@@ -793,10 +793,10 @@ async fn thread_search_matches_json_escaped_content() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let ThreadSearchResponse { data, .. } = to_response::<ThreadSearchResponse>(resp)?;
+    let ChatSearchResponse { data, .. } = to_response::<ChatSearchResponse>(resp)?;
 
     assert_eq!(data.len(), 1);
-    assert_eq!(data[0].thread.id, thread_id);
+    assert_eq!(data[0].thread.id, chat_id);
     assert_eq!(data[0].snippet, search_term);
 
     Ok(())
@@ -827,12 +827,12 @@ async fn thread_search_filters_by_source_kind() -> Result<()> {
 
     let mut mcp = init_mcp(codex_home.path()).await?;
     let request_id = mcp
-        .send_thread_search_request(datax_app_server_protocol::ThreadSearchParams {
+        .send_chat_search_request(datax_app_server_protocol::ChatSearchParams {
             cursor: None,
             limit: Some(10),
             sort_key: None,
             sort_direction: None,
-            source_kinds: Some(vec![ThreadSourceKind::Exec]),
+            source_kinds: Some(vec![ChatSourceKind::Exec]),
             archived: None,
             search_term: "needle".to_string(),
         })
@@ -842,7 +842,7 @@ async fn thread_search_filters_by_source_kind() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let ThreadSearchResponse { data, .. } = to_response::<ThreadSearchResponse>(resp)?;
+    let ChatSearchResponse { data, .. } = to_response::<ChatSearchResponse>(resp)?;
 
     let ids: Vec<_> = data
         .iter()
@@ -869,7 +869,7 @@ sqlite = true
 "#,
     )?;
 
-    let thread_id = create_fake_rollout(
+    let chat_id = create_fake_rollout(
         codex_home.path(),
         "2025-01-02T10-00-00",
         "2025-01-02T10:00:00Z",
@@ -886,7 +886,7 @@ sqlite = true
     let mut mcp = init_mcp(codex_home.path()).await?;
 
     let request_id = mcp
-        .send_thread_list_request(datax_app_server_protocol::ThreadListParams {
+        .send_chat_list_request(datax_app_server_protocol::ChatListParams {
             cursor: None,
             limit: Some(10),
             sort_key: None,
@@ -897,7 +897,7 @@ sqlite = true
             cwd: None,
             use_state_db_only: false,
             search_term: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
         })
         .await?;
     let resp: JSONRPCResponse = timeout(
@@ -905,15 +905,15 @@ sqlite = true
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let repaired_response = to_response::<ThreadListResponse>(resp)?;
+    let repaired_response = to_response::<ChatListResponse>(resp)?;
     let ids: Vec<_> = repaired_response
         .data
         .iter()
         .map(|thread| thread.id.as_str())
         .collect();
-    assert_eq!(ids, vec![thread_id.as_str()]);
+    assert_eq!(ids, vec![chat_id.as_str()]);
 
-    let thread_uuid = ThreadId::from_string(&thread_id)?;
+    let thread_uuid = ThreadId::from_string(&chat_id)?;
     let stale_cwd = codex_home.path().join("stale-cwd");
     let mut metadata = state_db
         .get_thread(thread_uuid)
@@ -923,7 +923,7 @@ sqlite = true
     state_db.upsert_thread(&metadata).await?;
 
     let request_id = mcp
-        .send_thread_list_request(datax_app_server_protocol::ThreadListParams {
+        .send_chat_list_request(datax_app_server_protocol::ChatListParams {
             cursor: None,
             limit: Some(10),
             sort_key: None,
@@ -931,12 +931,12 @@ sqlite = true
             model_providers: Some(vec!["mock_provider".to_string()]),
             source_kinds: None,
             archived: None,
-            cwd: Some(ThreadListCwdFilter::One(
+            cwd: Some(ChatListCwdFilter::One(
                 stale_cwd.to_string_lossy().into_owned(),
             )),
             use_state_db_only: true,
             search_term: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
         })
         .await?;
     let resp: JSONRPCResponse = timeout(
@@ -944,16 +944,16 @@ sqlite = true
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let state_db_only_response = to_response::<ThreadListResponse>(resp)?;
+    let state_db_only_response = to_response::<ChatListResponse>(resp)?;
     let ids: Vec<_> = state_db_only_response
         .data
         .iter()
         .map(|thread| thread.id.as_str())
         .collect();
-    assert_eq!(ids, vec![thread_id.as_str()]);
+    assert_eq!(ids, vec![chat_id.as_str()]);
 
     let request_id = mcp
-        .send_thread_list_request(datax_app_server_protocol::ThreadListParams {
+        .send_chat_list_request(datax_app_server_protocol::ChatListParams {
             cursor: None,
             limit: Some(10),
             sort_key: None,
@@ -961,12 +961,12 @@ sqlite = true
             model_providers: Some(vec!["mock_provider".to_string()]),
             source_kinds: None,
             archived: None,
-            cwd: Some(ThreadListCwdFilter::One(
+            cwd: Some(ChatListCwdFilter::One(
                 stale_cwd.to_string_lossy().into_owned(),
             )),
             use_state_db_only: false,
             search_term: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
         })
         .await?;
     let resp: JSONRPCResponse = timeout(
@@ -974,7 +974,7 @@ sqlite = true
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let scanned_response = to_response::<ThreadListResponse>(resp)?;
+    let scanned_response = to_response::<ChatListResponse>(resp)?;
     assert_eq!(scanned_response.data.len(), 0);
 
     Ok(())
@@ -993,7 +993,7 @@ async fn thread_list_parent_filter_reads_direct_children_from_state_db() -> Resu
         "mock_provider".to_string(),
     )
     .await?;
-    for (thread_id, created_at, source, model_provider) in [
+    for (chat_id, created_at, source, model_provider) in [
         (
             older_child_id,
             "2025-02-01T10:00:00Z",
@@ -1015,8 +1015,8 @@ async fn thread_list_parent_filter_reads_direct_children_from_state_db() -> Resu
     ] {
         let created_at = DateTime::parse_from_rfc3339(created_at)?.with_timezone(&Utc);
         let mut builder = datax_state::ThreadMetadataBuilder::new(
-            thread_id,
-            codex_home.path().join(format!("{thread_id}.jsonl")),
+            chat_id,
+            codex_home.path().join(format!("{chat_id}.jsonl")),
             created_at,
             source,
         );
@@ -1028,14 +1028,14 @@ async fn thread_list_parent_filter_reads_direct_children_from_state_db() -> Resu
         metadata.first_user_message = metadata.preview.clone();
         state_db.upsert_thread(&metadata).await?;
     }
-    for (parent_thread_id, child_thread_id) in [
+    for (parent_chat_id, child_thread_id) in [
         (parent_id, older_child_id),
         (parent_id, newer_child_id),
         (newer_child_id, grandchild_id),
     ] {
         state_db
             .upsert_thread_spawn_edge(
-                parent_thread_id,
+                parent_chat_id,
                 child_thread_id,
                 DirectionalThreadSpawnEdgeStatus::Open,
             )
@@ -1084,7 +1084,7 @@ async fn thread_list_parent_filter_reads_direct_children_from_state_db() -> Resu
             .data
             .iter()
             .chain(&second_page.data)
-            .all(|thread| thread.parent_thread_id.as_deref() == Some(expected_parent_id.as_str()))
+            .all(|thread| thread.parent_chat_id.as_deref() == Some(expected_parent_id.as_str()))
     );
     let interactive_only = list_threads_for_parent(
         &mut mcp,
@@ -1112,7 +1112,7 @@ async fn thread_list_parent_filter_rejects_malformed_thread_id() -> Result<()> {
     create_minimal_config(codex_home.path())?;
     let mut mcp = init_mcp(codex_home.path()).await?;
     let request_id = mcp
-        .send_thread_list_request(datax_app_server_protocol::ThreadListParams {
+        .send_chat_list_request(datax_app_server_protocol::ChatListParams {
             cursor: None,
             limit: Some(10),
             sort_key: None,
@@ -1123,7 +1123,7 @@ async fn thread_list_parent_filter_rejects_malformed_thread_id() -> Result<()> {
             cwd: None,
             use_state_db_only: false,
             search_term: None,
-            parent_thread_id: Some("not-a-thread-id".to_string()),
+            parent_chat_id: Some("not-a-thread-id".to_string()),
         })
         .await?;
     let error = timeout(
@@ -1161,7 +1161,7 @@ async fn thread_list_empty_source_kinds_defaults_to_interactive_only() -> Result
 
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let ThreadListResponse {
+    let ChatListResponse {
         data, next_cursor, ..
     } = list_threads(
         &mut mcp,
@@ -1196,7 +1196,7 @@ async fn thread_list_filters_by_source_kind_subagent_thread_spawn() -> Result<()
         /*git_info*/ None,
     )?;
 
-    let parent_thread_id = ThreadId::from_string(&Uuid::new_v4().to_string())?;
+    let parent_chat_id = ThreadId::from_string(&Uuid::new_v4().to_string())?;
     let subagent_id = create_fake_rollout_with_source(
         codex_home.path(),
         "2025-02-01T11-00-00",
@@ -1205,7 +1205,7 @@ async fn thread_list_filters_by_source_kind_subagent_thread_spawn() -> Result<()
         Some("mock_provider"),
         /*git_info*/ None,
         CoreSessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-            parent_thread_id,
+            parent_chat_id,
             depth: 1,
             agent_path: None,
             agent_nickname: None,
@@ -1215,14 +1215,14 @@ async fn thread_list_filters_by_source_kind_subagent_thread_spawn() -> Result<()
 
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let ThreadListResponse {
+    let ChatListResponse {
         data, next_cursor, ..
     } = list_threads(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
         Some(vec!["mock_provider".to_string()]),
-        Some(vec![ThreadSourceKind::SubAgentThreadSpawn]),
+        Some(vec![ChatSourceKind::SubAgentThreadSpawn]),
         /*archived*/ None,
     )
     .await?;
@@ -1242,7 +1242,7 @@ async fn thread_list_filters_by_subagent_variant() -> Result<()> {
     let codex_home = TempDir::new()?;
     create_minimal_config(codex_home.path())?;
 
-    let parent_thread_id = ThreadId::from_string(&Uuid::new_v4().to_string())?;
+    let parent_chat_id = ThreadId::from_string(&Uuid::new_v4().to_string())?;
 
     let review_id = create_fake_parented_rollout_with_source(
         codex_home.path(),
@@ -1252,8 +1252,8 @@ async fn thread_list_filters_by_subagent_variant() -> Result<()> {
         Some("mock_provider"),
         /*git_info*/ None,
         CoreSessionSource::SubAgent(SubAgentSource::Review),
-        parent_thread_id.into(),
-        parent_thread_id,
+        parent_chat_id.into(),
+        parent_chat_id,
     )?;
     let compact_id = create_fake_rollout_with_source(
         codex_home.path(),
@@ -1272,7 +1272,7 @@ async fn thread_list_filters_by_subagent_variant() -> Result<()> {
         Some("mock_provider"),
         /*git_info*/ None,
         CoreSessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-            parent_thread_id,
+            parent_chat_id,
             depth: 1,
             agent_path: None,
             agent_nickname: None,
@@ -1296,7 +1296,7 @@ async fn thread_list_filters_by_subagent_variant() -> Result<()> {
         /*cursor*/ None,
         Some(10),
         Some(vec!["mock_provider".to_string()]),
-        Some(vec![ThreadSourceKind::SubAgentReview]),
+        Some(vec![ChatSourceKind::SubAgentReview]),
         /*archived*/ None,
     )
     .await?;
@@ -1307,8 +1307,8 @@ async fn thread_list_filters_by_subagent_variant() -> Result<()> {
         .collect();
     assert_eq!(review_ids, vec![review_id.as_str()]);
     assert_eq!(
-        review.data[0].parent_thread_id,
-        Some(parent_thread_id.to_string())
+        review.data[0].parent_chat_id,
+        Some(parent_chat_id.to_string())
     );
 
     let compact = list_threads(
@@ -1316,7 +1316,7 @@ async fn thread_list_filters_by_subagent_variant() -> Result<()> {
         /*cursor*/ None,
         Some(10),
         Some(vec!["mock_provider".to_string()]),
-        Some(vec![ThreadSourceKind::SubAgentCompact]),
+        Some(vec![ChatSourceKind::SubAgentCompact]),
         /*archived*/ None,
     )
     .await?;
@@ -1332,7 +1332,7 @@ async fn thread_list_filters_by_subagent_variant() -> Result<()> {
         /*cursor*/ None,
         Some(10),
         Some(vec!["mock_provider".to_string()]),
-        Some(vec![ThreadSourceKind::SubAgentThreadSpawn]),
+        Some(vec![ChatSourceKind::SubAgentThreadSpawn]),
         /*archived*/ None,
     )
     .await?;
@@ -1344,7 +1344,7 @@ async fn thread_list_filters_by_subagent_variant() -> Result<()> {
         /*cursor*/ None,
         Some(10),
         Some(vec!["mock_provider".to_string()]),
-        Some(vec![ThreadSourceKind::SubAgentOther]),
+        Some(vec![ChatSourceKind::SubAgentOther]),
         /*archived*/ None,
     )
     .await?;
@@ -1389,7 +1389,7 @@ async fn thread_list_fetches_until_limit_or_exhausted() -> Result<()> {
 
     // Request 8 threads for the target provider; the matches only start on the
     // third page so we rely on pagination to reach the limit.
-    let ThreadListResponse {
+    let ChatListResponse {
         data, next_cursor, ..
     } = list_threads(
         &mut mcp,
@@ -1444,7 +1444,7 @@ async fn thread_list_enforces_max_limit() -> Result<()> {
 
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let ThreadListResponse {
+    let ChatListResponse {
         data, next_cursor, ..
     } = list_threads(
         &mut mcp,
@@ -1502,7 +1502,7 @@ async fn thread_list_stops_when_not_enough_filtered_results_exist() -> Result<()
 
     // Request more threads than exist after filtering; expect all matches to be
     // returned with nextCursor None.
-    let ThreadListResponse {
+    let ChatListResponse {
         data, next_cursor, ..
     } = list_threads(
         &mut mcp,
@@ -1552,7 +1552,7 @@ async fn thread_list_includes_git_info() -> Result<()> {
 
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let ThreadListResponse { data, .. } = list_threads(
+    let ChatListResponse { data, .. } = list_threads(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -1611,7 +1611,7 @@ async fn thread_list_default_sorts_by_created_at() -> Result<()> {
 
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let ThreadListResponse { data, .. } = list_threads_with_sort(
+    let ChatListResponse { data, .. } = list_threads_with_sort(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -1673,13 +1673,13 @@ async fn thread_list_sort_updated_at_orders_by_mtime() -> Result<()> {
 
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let ThreadListResponse { data, .. } = list_threads_with_sort(
+    let ChatListResponse { data, .. } = list_threads_with_sort(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
         Some(vec!["mock_provider".to_string()]),
         /*source_kinds*/ None,
-        Some(ThreadSortKey::UpdatedAt),
+        Some(ChatSortKey::UpdatedAt),
         /*archived*/ None,
     )
     .await?;
@@ -1734,7 +1734,7 @@ async fn thread_list_sort_recency_at_uses_state_db_order_with_provider_filter() 
         &rollout_config,
         /*page_size*/ 10,
         /*cursor*/ None,
-        datax_core::ThreadSortKey::CreatedAt,
+        datax_core::ChatSortKey::CreatedAt,
         datax_core::SortDirection::Desc,
         datax_core::INTERACTIVE_SESSION_SOURCES.as_slice(),
         /*model_providers*/ None,
@@ -1751,13 +1751,13 @@ async fn thread_list_sort_recency_at_uses_state_db_order_with_provider_filter() 
         .await?;
 
     let mut mcp = init_mcp(codex_home.path()).await?;
-    let ThreadListResponse { data, .. } = list_threads_with_sort(
+    let ChatListResponse { data, .. } = list_threads_with_sort(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
         Some(vec!["mock_provider".to_string()]),
         /*source_kinds*/ None,
-        Some(ThreadSortKey::RecencyAt),
+        Some(ChatSortKey::RecencyAt),
         /*archived*/ None,
     )
     .await?;
@@ -1818,7 +1818,7 @@ async fn thread_list_updated_at_paginates_with_cursor() -> Result<()> {
 
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let ThreadListResponse {
+    let ChatListResponse {
         data: page1,
         next_cursor: cursor1,
         ..
@@ -1828,7 +1828,7 @@ async fn thread_list_updated_at_paginates_with_cursor() -> Result<()> {
         Some(2),
         Some(vec!["mock_provider".to_string()]),
         /*source_kinds*/ None,
-        Some(ThreadSortKey::UpdatedAt),
+        Some(ChatSortKey::UpdatedAt),
         /*archived*/ None,
     )
     .await?;
@@ -1836,7 +1836,7 @@ async fn thread_list_updated_at_paginates_with_cursor() -> Result<()> {
     assert_eq!(ids_page1, vec![id_a.as_str(), id_b.as_str()]);
     let cursor1 = cursor1.expect("expected nextCursor on first page");
 
-    let ThreadListResponse {
+    let ChatListResponse {
         data: page2,
         next_cursor: cursor2,
         ..
@@ -1846,7 +1846,7 @@ async fn thread_list_updated_at_paginates_with_cursor() -> Result<()> {
         Some(2),
         Some(vec!["mock_provider".to_string()]),
         /*source_kinds*/ None,
-        Some(ThreadSortKey::UpdatedAt),
+        Some(ChatSortKey::UpdatedAt),
         /*archived*/ None,
     )
     .await?;
@@ -1890,16 +1890,16 @@ async fn thread_list_backwards_cursor_can_seed_forward_delta_sync() -> Result<()
 
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let ThreadListResponse {
+    let ChatListResponse {
         data: page1,
         backwards_cursor,
         ..
     } = {
         let request_id = mcp
-            .send_thread_list_request(datax_app_server_protocol::ThreadListParams {
+            .send_chat_list_request(datax_app_server_protocol::ChatListParams {
                 cursor: None,
                 limit: Some(1),
-                sort_key: Some(ThreadSortKey::UpdatedAt),
+                sort_key: Some(ChatSortKey::UpdatedAt),
                 sort_direction: Some(SortDirection::Desc),
                 model_providers: Some(vec!["mock_provider".to_string()]),
                 source_kinds: None,
@@ -1907,7 +1907,7 @@ async fn thread_list_backwards_cursor_can_seed_forward_delta_sync() -> Result<()
                 cwd: None,
                 use_state_db_only: false,
                 search_term: None,
-                parent_thread_id: None,
+                parent_chat_id: None,
             })
             .await?;
         let resp: JSONRPCResponse = timeout(
@@ -1915,7 +1915,7 @@ async fn thread_list_backwards_cursor_can_seed_forward_delta_sync() -> Result<()
             mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
         )
         .await??;
-        to_response::<ThreadListResponse>(resp)?
+        to_response::<ChatListResponse>(resp)?
     };
     let ids_page1: Vec<_> = page1.iter().map(|thread| thread.id.as_str()).collect();
     assert_eq!(ids_page1, vec![id_watermark.as_str()]);
@@ -1935,14 +1935,14 @@ async fn thread_list_backwards_cursor_can_seed_forward_delta_sync() -> Result<()
         "2025-02-04T00:00:00Z",
     )?;
 
-    let ThreadListResponse {
+    let ChatListResponse {
         data: delta_page, ..
     } = {
         let request_id = mcp
-            .send_thread_list_request(datax_app_server_protocol::ThreadListParams {
+            .send_chat_list_request(datax_app_server_protocol::ChatListParams {
                 cursor: Some(backwards_cursor),
                 limit: Some(10),
-                sort_key: Some(ThreadSortKey::UpdatedAt),
+                sort_key: Some(ChatSortKey::UpdatedAt),
                 sort_direction: Some(SortDirection::Asc),
                 model_providers: Some(vec!["mock_provider".to_string()]),
                 source_kinds: None,
@@ -1950,7 +1950,7 @@ async fn thread_list_backwards_cursor_can_seed_forward_delta_sync() -> Result<()
                 cwd: None,
                 use_state_db_only: false,
                 search_term: None,
-                parent_thread_id: None,
+                parent_chat_id: None,
             })
             .await?;
         let resp: JSONRPCResponse = timeout(
@@ -1958,7 +1958,7 @@ async fn thread_list_backwards_cursor_can_seed_forward_delta_sync() -> Result<()
             mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
         )
         .await??;
-        to_response::<ThreadListResponse>(resp)?
+        to_response::<ChatListResponse>(resp)?
     };
     let ids_delta: Vec<_> = delta_page.iter().map(|thread| thread.id.as_str()).collect();
     assert_eq!(ids_delta, vec![id_watermark.as_str(), id_new.as_str()]);
@@ -1990,7 +1990,7 @@ async fn thread_list_created_at_tie_breaks_by_uuid() -> Result<()> {
 
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let ThreadListResponse { data, .. } = list_threads(
+    let ChatListResponse { data, .. } = list_threads(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -2043,13 +2043,13 @@ async fn thread_list_updated_at_tie_breaks_by_uuid() -> Result<()> {
 
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let ThreadListResponse { data, .. } = list_threads_with_sort(
+    let ChatListResponse { data, .. } = list_threads_with_sort(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
         Some(vec!["mock_provider".to_string()]),
         /*source_kinds*/ None,
-        Some(ThreadSortKey::UpdatedAt),
+        Some(ChatSortKey::UpdatedAt),
         /*archived*/ None,
     )
     .await?;
@@ -2068,7 +2068,7 @@ async fn thread_list_updated_at_uses_mtime() -> Result<()> {
     let codex_home = TempDir::new()?;
     create_minimal_config(codex_home.path())?;
 
-    let thread_id = create_fake_rollout(
+    let chat_id = create_fake_rollout(
         codex_home.path(),
         "2025-02-01T10-00-00",
         "2025-02-01T10:00:00Z",
@@ -2078,26 +2078,26 @@ async fn thread_list_updated_at_uses_mtime() -> Result<()> {
     )?;
 
     set_rollout_mtime(
-        rollout_path(codex_home.path(), "2025-02-01T10-00-00", &thread_id).as_path(),
+        rollout_path(codex_home.path(), "2025-02-01T10-00-00", &chat_id).as_path(),
         "2025-02-05T00:00:00Z",
     )?;
 
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let ThreadListResponse { data, .. } = list_threads_with_sort(
+    let ChatListResponse { data, .. } = list_threads_with_sort(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
         Some(vec!["mock_provider".to_string()]),
         /*source_kinds*/ None,
-        Some(ThreadSortKey::UpdatedAt),
+        Some(ChatSortKey::UpdatedAt),
         /*archived*/ None,
     )
     .await?;
 
     let thread = data
         .iter()
-        .find(|item| item.id == thread_id)
+        .find(|item| item.id == chat_id)
         .expect("expected thread for created rollout");
     let expected_created =
         chrono::DateTime::parse_from_rfc3339("2025-02-01T10:00:00Z")?.timestamp();
@@ -2143,7 +2143,7 @@ async fn thread_list_archived_filter() -> Result<()> {
 
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let ThreadListResponse { data, .. } = list_threads(
+    let ChatListResponse { data, .. } = list_threads(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -2155,7 +2155,7 @@ async fn thread_list_archived_filter() -> Result<()> {
     assert_eq!(data.len(), 1);
     assert_eq!(data[0].id, active_id);
 
-    let ThreadListResponse { data, .. } = list_threads(
+    let ChatListResponse { data, .. } = list_threads(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -2178,7 +2178,7 @@ async fn thread_list_invalid_cursor_returns_error() -> Result<()> {
     let mut mcp = init_mcp(codex_home.path()).await?;
 
     let request_id = mcp
-        .send_thread_list_request(datax_app_server_protocol::ThreadListParams {
+        .send_chat_list_request(datax_app_server_protocol::ChatListParams {
             cursor: Some("not-a-cursor".to_string()),
             limit: Some(2),
             sort_key: None,
@@ -2189,7 +2189,7 @@ async fn thread_list_invalid_cursor_returns_error() -> Result<()> {
             cwd: None,
             use_state_db_only: false,
             search_term: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
         })
         .await?;
     let error: JSONRPCError = timeout(

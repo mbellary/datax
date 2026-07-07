@@ -2,12 +2,12 @@ use anyhow::Result;
 use app_test_support::TestAppServer;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
+use datax_app_server_protocol::ChatLoadedListParams;
+use datax_app_server_protocol::ChatLoadedListResponse;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadLoadedListParams;
-use datax_app_server_protocol::ThreadLoadedListResponse;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use tempfile::TempDir;
@@ -24,22 +24,22 @@ async fn thread_loaded_list_returns_loaded_thread_ids() -> Result<()> {
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let thread_id = start_thread(&mut mcp).await?;
+    let chat_id = start_thread(&mut mcp).await?;
 
     let list_id = mcp
-        .send_thread_loaded_list_request(ThreadLoadedListParams::default())
+        .send_chat_loaded_list_request(ChatLoadedListParams::default())
         .await?;
     let resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(list_id)),
     )
     .await??;
-    let ThreadLoadedListResponse {
+    let ChatLoadedListResponse {
         mut data,
         next_cursor,
-    } = to_response::<ThreadLoadedListResponse>(resp)?;
+    } = to_response::<ChatLoadedListResponse>(resp)?;
     data.sort();
-    assert_eq!(data, vec![thread_id]);
+    assert_eq!(data, vec![chat_id]);
     assert_eq!(next_cursor, None);
 
     Ok(())
@@ -61,7 +61,7 @@ async fn thread_loaded_list_paginates() -> Result<()> {
     expected.sort();
 
     let list_id = mcp
-        .send_thread_loaded_list_request(ThreadLoadedListParams {
+        .send_chat_loaded_list_request(ChatLoadedListParams {
             cursor: None,
             limit: Some(1),
         })
@@ -71,15 +71,15 @@ async fn thread_loaded_list_paginates() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(list_id)),
     )
     .await??;
-    let ThreadLoadedListResponse {
+    let ChatLoadedListResponse {
         data: first_page,
         next_cursor,
-    } = to_response::<ThreadLoadedListResponse>(resp)?;
+    } = to_response::<ChatLoadedListResponse>(resp)?;
     assert_eq!(first_page, vec![expected[0].clone()]);
     assert_eq!(next_cursor, Some(expected[0].clone()));
 
     let list_id = mcp
-        .send_thread_loaded_list_request(ThreadLoadedListParams {
+        .send_chat_loaded_list_request(ChatLoadedListParams {
             cursor: next_cursor,
             limit: Some(1),
         })
@@ -89,10 +89,10 @@ async fn thread_loaded_list_paginates() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(list_id)),
     )
     .await??;
-    let ThreadLoadedListResponse {
+    let ChatLoadedListResponse {
         data: second_page,
         next_cursor,
-    } = to_response::<ThreadLoadedListResponse>(resp)?;
+    } = to_response::<ChatLoadedListResponse>(resp)?;
     assert_eq!(second_page, vec![expected[1].clone()]);
     assert_eq!(next_cursor, None);
 
@@ -124,7 +124,7 @@ stream_max_retries = 0
 
 async fn start_thread(mcp: &mut TestAppServer) -> Result<String> {
     let req_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.2".to_string()),
             ..Default::default()
         })
@@ -134,6 +134,6 @@ async fn start_thread(mcp: &mut TestAppServer) -> Result<String> {
         mcp.read_stream_until_response_message(RequestId::Integer(req_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(resp)?;
     Ok(thread.id)
 }

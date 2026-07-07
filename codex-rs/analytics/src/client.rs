@@ -260,7 +260,7 @@ impl AnalyticsEventsClient {
     ) {
         if !matches!(
             request,
-            ClientRequest::TurnStart { .. } | ClientRequest::TurnSteer { .. }
+            ClientRequest::InteractionStart { .. } | ClientRequest::InteractionSteer { .. }
         ) {
             return;
         }
@@ -414,11 +414,11 @@ impl AnalyticsEventsClient {
     ) {
         if !matches!(
             response,
-            ClientResponsePayload::ThreadStart(_)
-                | ClientResponsePayload::ThreadResume(_)
-                | ClientResponsePayload::ThreadFork(_)
-                | ClientResponsePayload::TurnStart(_)
-                | ClientResponsePayload::TurnSteer(_)
+            ClientResponsePayload::ChatStart(_)
+                | ClientResponsePayload::ChatResume(_)
+                | ClientResponsePayload::ChatFork(_)
+                | ClientResponsePayload::InteractionStart(_)
+                | ClientResponsePayload::InteractionSteer(_)
         ) {
             return;
         }
@@ -481,13 +481,13 @@ impl AnalyticsEventsClient {
     pub fn track_notification(&self, notification: ServerNotification) {
         if !matches!(
             notification,
-            ServerNotification::TurnStarted(_)
-                | ServerNotification::TurnCompleted(_)
-                | ServerNotification::TurnDiffUpdated(_)
-                | ServerNotification::ItemStarted(_)
-                | ServerNotification::ItemCompleted(_)
-                | ServerNotification::ItemGuardianApprovalReviewStarted(_)
-                | ServerNotification::ItemGuardianApprovalReviewCompleted(_)
+            ServerNotification::InteractionStarted(_)
+                | ServerNotification::InteractionCompleted(_)
+                | ServerNotification::InteractionDiffUpdated(_)
+                | ServerNotification::MessageStarted(_)
+                | ServerNotification::MessageCompleted(_)
+                | ServerNotification::MessageGuardianApprovalReviewStarted(_)
+                | ServerNotification::MessageGuardianApprovalReviewCompleted(_)
         ) {
             return;
         }

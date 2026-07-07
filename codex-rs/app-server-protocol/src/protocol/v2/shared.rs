@@ -101,7 +101,7 @@ pub enum CodexErrorInfo {
         #[ts(rename = "httpStatusCode")]
         http_status_code: Option<u16>,
     },
-    /// Returned when `turn/start` or `turn/steer` is submitted while the current active turn
+    /// Returned when `interaction/start` or `interaction/steer` is submitted while the current active turn
     /// cannot accept same-turn steering, for example `/review` or manual `/compact`.
     ActiveTurnNotSteerable {
         #[serde(rename = "turnKind")]

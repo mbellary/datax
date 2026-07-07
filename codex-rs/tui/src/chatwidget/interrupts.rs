@@ -6,8 +6,8 @@ use crate::app::app_server_requests::ResolvedAppServerRequest;
 use crate::approval_events::ApplyPatchApprovalRequestEvent;
 use crate::approval_events::ExecApprovalRequestEvent;
 use datax_app_server_protocol::McpServerElicitationRequestParams;
+use datax_app_server_protocol::Message;
 use datax_app_server_protocol::RequestId as AppServerRequestId;
-use datax_app_server_protocol::ThreadItem;
 use datax_app_server_protocol::ToolRequestUserInputParams;
 use datax_protocol::request_permissions::RequestPermissionsEvent;
 
@@ -23,8 +23,8 @@ pub(crate) enum QueuedInterrupt {
     },
     RequestPermissions(RequestPermissionsEvent),
     RequestUserInput(ToolRequestUserInputParams),
-    ItemStarted(ThreadItem),
-    ItemCompleted(ThreadItem),
+    ItemStarted(Message),
+    ItemCompleted(Message),
 }
 
 #[derive(Default)]
@@ -71,11 +71,11 @@ impl InterruptManager {
         self.queue.push_back(QueuedInterrupt::RequestUserInput(ev));
     }
 
-    pub(crate) fn push_item_started(&mut self, item: ThreadItem) {
+    pub(crate) fn push_item_started(&mut self, item: Message) {
         self.queue.push_back(QueuedInterrupt::ItemStarted(item));
     }
 
-    pub(crate) fn push_item_completed(&mut self, item: ThreadItem) {
+    pub(crate) fn push_item_completed(&mut self, item: Message) {
         self.queue.push_back(QueuedInterrupt::ItemCompleted(item));
     }
 
@@ -140,7 +140,7 @@ mod tests {
     use crate::approval_events::ExecApprovalRequestEvent;
     use datax_app_server_protocol::CommandExecutionSource;
     use datax_app_server_protocol::CommandExecutionStatus;
-    use datax_app_server_protocol::ThreadItem;
+    use datax_app_server_protocol::Message;
     use datax_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
 
@@ -173,8 +173,8 @@ mod tests {
         }
     }
 
-    fn command_execution(call_id: &str) -> ThreadItem {
-        ThreadItem::CommandExecution {
+    fn command_execution(call_id: &str) -> Message {
+        Message::CommandExecution {
             id: call_id.to_string(),
             command: "true".to_string(),
             cwd: AbsolutePathBuf::current_dir().expect("current dir").into(),

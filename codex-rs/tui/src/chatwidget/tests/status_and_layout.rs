@@ -1157,7 +1157,7 @@ async fn header_rate_limit_snapshot_preserves_member_limit_type_for_error_prompt
         Some(RateLimitReachedType::WorkspaceMemberUsageLimitReached);
     chat.on_rate_limit_snapshot(Some(usage_limits));
 
-    // Turn-failure snapshots are derived from response headers and do not carry
+    // Interaction-failure snapshots are derived from response headers and do not carry
     // the backend-classified reached type. They arrive before the Error event.
     let mut header_limits = snapshot(/*percent*/ 100.0);
     header_limits.rate_limit_reached_type = None;
@@ -1528,8 +1528,8 @@ fn update_thread_goal(chat: &mut ChatWidget, thread_id: ThreadId, status: AppThr
     let thread_id = thread_id.to_string();
     goal.thread_id = thread_id.clone();
     chat.handle_server_notification(
-        ServerNotification::ThreadGoalUpdated(
-            datax_app_server_protocol::ThreadGoalUpdatedNotification {
+        ServerNotification::ChatGoalUpdated(
+            datax_app_server_protocol::ChatGoalUpdatedNotification {
                 thread_id,
                 turn_id: None,
                 goal,
@@ -2699,8 +2699,8 @@ async fn renamed_thread_footer_title_snapshot() {
     let thread_id = ThreadId::new();
     chat.thread_id = Some(thread_id);
     chat.handle_server_notification(
-        ServerNotification::ThreadNameUpdated(
-            datax_app_server_protocol::ThreadNameUpdatedNotification {
+        ServerNotification::ChatNameUpdated(
+            datax_app_server_protocol::ChatNameUpdatedNotification {
                 thread_id: thread_id.to_string(),
                 thread_name: Some("Roadmap cleanup".to_string()),
             },
@@ -2799,12 +2799,12 @@ async fn status_line_goal_active_token_budget_footer_snapshot() {
     chat.config.tui_status_line = Some(vec!["model-name".to_string()]);
     chat.refresh_status_line();
     chat.handle_server_notification(
-        ServerNotification::ThreadGoalUpdated(
-            datax_app_server_protocol::ThreadGoalUpdatedNotification {
+        ServerNotification::ChatGoalUpdated(
+            datax_app_server_protocol::ChatGoalUpdatedNotification {
                 thread_id: "thread-1".to_string(),
                 turn_id: None,
                 goal: test_thread_goal(
-                    datax_app_server_protocol::ThreadGoalStatus::Active,
+                    datax_app_server_protocol::ChatGoalStatus::Active,
                     /*token_budget*/ Some(50_000),
                     /*tokens_used*/ 40_000,
                 ),
@@ -2836,14 +2836,14 @@ async fn status_line_goal_complete_elapsed_footer_snapshot() {
     chat.config.tui_status_line = Some(vec!["model-name".to_string()]);
     chat.refresh_status_line();
     let mut goal = test_thread_goal(
-        datax_app_server_protocol::ThreadGoalStatus::Complete,
+        datax_app_server_protocol::ChatGoalStatus::Complete,
         /*token_budget*/ None,
         /*tokens_used*/ 40_000,
     );
     goal.time_used_seconds = 2 * 24 * 60 * 60 + 23 * 60 * 60 + 42 * 60;
     chat.handle_server_notification(
-        ServerNotification::ThreadGoalUpdated(
-            datax_app_server_protocol::ThreadGoalUpdatedNotification {
+        ServerNotification::ChatGoalUpdated(
+            datax_app_server_protocol::ChatGoalUpdatedNotification {
                 thread_id: "thread-1".to_string(),
                 turn_id: None,
                 goal,
@@ -2869,12 +2869,12 @@ async fn session_configured_clears_goal_status_footer() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
     chat.set_feature_enabled(Feature::Goals, /*enabled*/ true);
     chat.handle_server_notification(
-        ServerNotification::ThreadGoalUpdated(
-            datax_app_server_protocol::ThreadGoalUpdatedNotification {
+        ServerNotification::ChatGoalUpdated(
+            datax_app_server_protocol::ChatGoalUpdatedNotification {
                 thread_id: "thread-1".to_string(),
                 turn_id: None,
                 goal: test_thread_goal(
-                    datax_app_server_protocol::ThreadGoalStatus::Active,
+                    datax_app_server_protocol::ChatGoalStatus::Active,
                     /*token_budget*/ Some(50_000),
                     /*tokens_used*/ 40_000,
                 ),
@@ -2927,15 +2927,15 @@ async fn thread_goal_update_for_other_thread_is_ignored() {
     chat.thread_id = Some(ThreadId::new());
     let other_thread_id = ThreadId::new().to_string();
     let mut goal = test_thread_goal(
-        datax_app_server_protocol::ThreadGoalStatus::BudgetLimited,
+        datax_app_server_protocol::ChatGoalStatus::BudgetLimited,
         /*token_budget*/ Some(50_000),
         /*tokens_used*/ 50_000,
     );
     goal.thread_id = other_thread_id.clone();
 
     chat.handle_server_notification(
-        ServerNotification::ThreadGoalUpdated(
-            datax_app_server_protocol::ThreadGoalUpdatedNotification {
+        ServerNotification::ChatGoalUpdated(
+            datax_app_server_protocol::ChatGoalUpdatedNotification {
                 thread_id: other_thread_id,
                 turn_id: Some("turn-other".to_string()),
                 goal,
@@ -2953,7 +2953,7 @@ async fn thread_goal_update_for_other_thread_is_ignored() {
 fn goal_status_indicator_formats_statuses_and_budgets() {
     assert_eq!(
         goal_status_indicator_from_app_goal(&test_thread_goal(
-            datax_app_server_protocol::ThreadGoalStatus::Active,
+            datax_app_server_protocol::ChatGoalStatus::Active,
             /*token_budget*/ Some(50_000),
             /*tokens_used*/ 40_000,
         )),
@@ -2963,7 +2963,7 @@ fn goal_status_indicator_formats_statuses_and_budgets() {
     );
     assert_eq!(
         goal_status_indicator_from_app_goal(&test_thread_goal(
-            datax_app_server_protocol::ThreadGoalStatus::Active,
+            datax_app_server_protocol::ChatGoalStatus::Active,
             /*token_budget*/ None,
             /*tokens_used*/ 0,
         )),
@@ -2973,7 +2973,7 @@ fn goal_status_indicator_formats_statuses_and_budgets() {
     );
     assert_eq!(
         goal_status_indicator_from_app_goal(&test_thread_goal(
-            datax_app_server_protocol::ThreadGoalStatus::Blocked,
+            datax_app_server_protocol::ChatGoalStatus::Blocked,
             /*token_budget*/ None,
             /*tokens_used*/ 0,
         )),
@@ -2981,7 +2981,7 @@ fn goal_status_indicator_formats_statuses_and_budgets() {
     );
     assert_eq!(
         goal_status_indicator_from_app_goal(&test_thread_goal(
-            datax_app_server_protocol::ThreadGoalStatus::UsageLimited,
+            datax_app_server_protocol::ChatGoalStatus::UsageLimited,
             /*token_budget*/ None,
             /*tokens_used*/ 0,
         )),
@@ -2989,7 +2989,7 @@ fn goal_status_indicator_formats_statuses_and_budgets() {
     );
     assert_eq!(
         goal_status_indicator_from_app_goal(&test_thread_goal(
-            datax_app_server_protocol::ThreadGoalStatus::BudgetLimited,
+            datax_app_server_protocol::ChatGoalStatus::BudgetLimited,
             /*token_budget*/ Some(50_000),
             /*tokens_used*/ 51_000,
         )),
@@ -2999,7 +2999,7 @@ fn goal_status_indicator_formats_statuses_and_budgets() {
     );
     assert_eq!(
         goal_status_indicator_from_app_goal(&test_thread_goal(
-            datax_app_server_protocol::ThreadGoalStatus::BudgetLimited,
+            datax_app_server_protocol::ChatGoalStatus::BudgetLimited,
             /*token_budget*/ None,
             /*tokens_used*/ 0,
         )),
@@ -3007,7 +3007,7 @@ fn goal_status_indicator_formats_statuses_and_budgets() {
     );
     assert_eq!(
         goal_status_indicator_from_app_goal(&test_thread_goal(
-            datax_app_server_protocol::ThreadGoalStatus::Complete,
+            datax_app_server_protocol::ChatGoalStatus::Complete,
             /*token_budget*/ Some(50_000),
             /*tokens_used*/ 40_000,
         )),
@@ -3067,11 +3067,11 @@ fn goal_status_indicator_line_formats_goal_text() {
 }
 
 fn test_thread_goal(
-    status: datax_app_server_protocol::ThreadGoalStatus,
+    status: datax_app_server_protocol::ChatGoalStatus,
     token_budget: Option<i64>,
     tokens_used: i64,
-) -> datax_app_server_protocol::ThreadGoal {
-    datax_app_server_protocol::ThreadGoal {
+) -> datax_app_server_protocol::ChatGoal {
+    datax_app_server_protocol::ChatGoal {
         thread_id: "thread-1".to_string(),
         objective: "Keep improving the benchmark".to_string(),
         status,
@@ -3240,7 +3240,7 @@ async fn user_prompt_submit_app_server_hook_notifications_render_snapshot() {
                 event_name: AppServerHookEventName::UserPromptSubmit,
                 handler_type: AppServerHookHandlerType::Command,
                 execution_mode: AppServerHookExecutionMode::Sync,
-                scope: AppServerHookScope::Turn,
+                scope: AppServerHookScope::Interaction,
                 source_path: PathBuf::from(test_path_display("/tmp/hooks.json")).abs(),
                 source: datax_app_server_protocol::HookSource::User,
                 display_order: 0,
@@ -3263,7 +3263,7 @@ async fn user_prompt_submit_app_server_hook_notifications_render_snapshot() {
                 event_name: AppServerHookEventName::UserPromptSubmit,
                 handler_type: AppServerHookHandlerType::Command,
                 execution_mode: AppServerHookExecutionMode::Sync,
-                scope: AppServerHookScope::Turn,
+                scope: AppServerHookScope::Interaction,
                 source_path: PathBuf::from(test_path_display("/tmp/hooks.json")).abs(),
                 source: datax_app_server_protocol::HookSource::User,
                 display_order: 0,
@@ -3860,7 +3860,7 @@ fn hook_run_summary(
         event_name,
         handler_type: datax_app_server_protocol::HookHandlerType::Command,
         execution_mode: datax_app_server_protocol::HookExecutionMode::Sync,
-        scope: datax_app_server_protocol::HookScope::Turn,
+        scope: datax_app_server_protocol::HookScope::Interaction,
         source_path: PathBuf::from(test_path_display("/tmp/hooks.json")).abs(),
         source: datax_app_server_protocol::HookSource::User,
         display_order: 0,

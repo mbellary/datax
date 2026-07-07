@@ -16,7 +16,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-pub fn rollout_path(codex_home: &Path, filename_ts: &str, thread_id: &str) -> PathBuf {
+pub fn rollout_path(codex_home: &Path, filename_ts: &str, chat_id: &str) -> PathBuf {
     let year = &filename_ts[0..4];
     let month = &filename_ts[5..7];
     let day = &filename_ts[8..10];
@@ -25,7 +25,7 @@ pub fn rollout_path(codex_home: &Path, filename_ts: &str, thread_id: &str) -> Pa
         .join(year)
         .join(month)
         .join(day)
-        .join(format!("rollout-{filename_ts}-{thread_id}.jsonl"))
+        .join(format!("rollout-{filename_ts}-{chat_id}.jsonl"))
 }
 
 /// Create a minimal rollout file under `CODEX_HOME/sessions/YYYY/MM/DD/`.
@@ -68,7 +68,7 @@ pub fn create_fake_rollout_with_token_usage(
     preview: &str,
     model_provider: Option<&str>,
 ) -> Result<String> {
-    let thread_id = create_fake_rollout(
+    let chat_id = create_fake_rollout(
         codex_home,
         filename_ts,
         meta_rfc3339,
@@ -96,7 +96,7 @@ pub fn create_fake_rollout_with_token_usage(
         }),
         rate_limits: None,
     }))?;
-    let file_path = rollout_path(codex_home, filename_ts, &thread_id);
+    let file_path = rollout_path(codex_home, filename_ts, &chat_id);
     let line = json!({
         "timestamp": meta_rfc3339,
         "type": "event_msg",
@@ -107,7 +107,7 @@ pub fn create_fake_rollout_with_token_usage(
         &file_path,
         format!("{}{}\n", fs::read_to_string(&file_path)?, line),
     )?;
-    Ok(thread_id)
+    Ok(chat_id)
 }
 
 /// Create a minimal rollout file with an explicit session source.
@@ -129,7 +129,7 @@ pub fn create_fake_rollout_with_source(
         git_info,
         source,
         /*session_id*/ None,
-        /*parent_thread_id*/ None,
+        /*parent_chat_id*/ None,
     )
 }
 
@@ -144,7 +144,7 @@ pub fn create_fake_parented_rollout_with_source(
     git_info: Option<GitInfo>,
     source: SessionSource,
     session_id: SessionId,
-    parent_thread_id: ThreadId,
+    parent_chat_id: ThreadId,
 ) -> Result<String> {
     create_fake_rollout_with_source_and_parent_thread_id(
         codex_home,
@@ -155,7 +155,7 @@ pub fn create_fake_parented_rollout_with_source(
         git_info,
         source,
         Some(session_id),
-        Some(parent_thread_id),
+        Some(parent_chat_id),
     )
 }
 
@@ -169,7 +169,7 @@ fn create_fake_rollout_with_source_and_parent_thread_id(
     git_info: Option<GitInfo>,
     source: SessionSource,
     session_id: Option<SessionId>,
-    parent_thread_id: Option<ThreadId>,
+    parent_chat_id: Option<ThreadId>,
 ) -> Result<String> {
     let uuid = Uuid::new_v4();
     let uuid_str = uuid.to_string();
@@ -187,13 +187,13 @@ fn create_fake_rollout_with_source_and_parent_thread_id(
         session_id,
         id: conversation_id,
         forked_from_id: None,
-        parent_thread_id,
+        parent_chat_id,
         timestamp: meta_rfc3339.to_string(),
         cwd: PathBuf::from("/"),
         originator: "codex".to_string(),
         cli_version: "0.0.0".to_string(),
         source,
-        thread_source: None,
+        chat_source: None,
         agent_path: None,
         agent_nickname: None,
         agent_role: None,
@@ -274,13 +274,13 @@ pub fn create_fake_rollout_with_text_elements(
         session_id: conversation_id.into(),
         id: conversation_id,
         forked_from_id: None,
-        parent_thread_id: None,
+        parent_chat_id: None,
         timestamp: meta_rfc3339.to_string(),
         cwd: PathBuf::from("/"),
         originator: "codex".to_string(),
         cli_version: "0.0.0".to_string(),
         source: SessionSource::Cli,
-        thread_source: None,
+        chat_source: None,
         agent_path: None,
         agent_nickname: None,
         agent_role: None,

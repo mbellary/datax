@@ -29,12 +29,12 @@ impl ChatWidget {
             self.restore_retry_status_header_if_present();
         }
         match notification {
-            ServerNotification::ThreadTokenUsageUpdated(notification) => {
+            ServerNotification::ChatTokenUsageUpdated(notification) => {
                 self.set_token_info(Some(token_usage_info_from_app_server(
                     notification.token_usage,
                 )));
             }
-            ServerNotification::ThreadNameUpdated(notification) => {
+            ServerNotification::ChatNameUpdated(notification) => {
                 match ThreadId::from_string(&notification.thread_id) {
                     Ok(thread_id) => {
                         self.on_thread_name_updated(thread_id, notification.thread_name)
@@ -48,29 +48,29 @@ impl ChatWidget {
                     }
                 }
             }
-            ServerNotification::ThreadGoalUpdated(notification) => {
+            ServerNotification::ChatGoalUpdated(notification) => {
                 self.on_thread_goal_updated(notification.goal, notification.turn_id);
             }
-            ServerNotification::ThreadGoalCleared(notification) => {
+            ServerNotification::ChatGoalCleared(notification) => {
                 self.on_thread_goal_cleared(notification.thread_id.as_str());
             }
-            ServerNotification::ThreadSettingsUpdated(notification) => {
+            ServerNotification::ChatSettingsUpdated(notification) => {
                 self.on_thread_settings_updated(notification);
             }
-            ServerNotification::TurnStarted(notification) => {
+            ServerNotification::InteractionStarted(notification) => {
                 self.turn_lifecycle.last_turn_id = Some(notification.turn.id);
                 self.last_non_retry_error = None;
                 if !matches!(replay_kind, Some(ReplayKind::ResumeInitialMessages)) {
                     self.on_task_started();
                 }
             }
-            ServerNotification::TurnCompleted(notification) => {
+            ServerNotification::InteractionCompleted(notification) => {
                 self.handle_turn_completed_notification(notification, replay_kind);
             }
-            ServerNotification::ItemStarted(notification) => {
+            ServerNotification::MessageStarted(notification) => {
                 self.handle_item_started_notification(notification, replay_kind.is_some());
             }
-            ServerNotification::ItemCompleted(notification) => {
+            ServerNotification::MessageCompleted(notification) => {
                 self.handle_item_completed_notification(notification, replay_kind);
             }
             ServerNotification::AgentMessageDelta(notification) => {
@@ -95,10 +95,10 @@ impl ChatWidget {
             ServerNotification::FileChangeOutputDelta(notification) => {
                 self.on_patch_apply_output_delta(notification.item_id, notification.delta);
             }
-            ServerNotification::TurnDiffUpdated(notification) => {
+            ServerNotification::InteractionDiffUpdated(notification) => {
                 self.on_turn_diff(notification.diff)
             }
-            ServerNotification::TurnPlanUpdated(notification) => {
+            ServerNotification::InteractionPlanUpdated(notification) => {
                 self.on_plan_update(UpdatePlanArgs {
                     explanation: notification.explanation,
                     plan: notification
@@ -107,9 +107,13 @@ impl ChatWidget {
                         .map(|step| UpdatePlanItemArg {
                             step: step.step,
                             status: match step.status {
-                                TurnPlanStepStatus::Pending => UpdatePlanItemStatus::Pending,
-                                TurnPlanStepStatus::InProgress => UpdatePlanItemStatus::InProgress,
-                                TurnPlanStepStatus::Completed => UpdatePlanItemStatus::Completed,
+                                InteractionPlanStepStatus::Pending => UpdatePlanItemStatus::Pending,
+                                InteractionPlanStepStatus::InProgress => {
+                                    UpdatePlanItemStatus::InProgress
+                                }
+                                InteractionPlanStepStatus::Completed => {
+                                    UpdatePlanItemStatus::Completed
+                                }
                             },
                         })
                         .collect(),
@@ -163,7 +167,7 @@ impl ChatWidget {
             ServerNotification::McpServerStatusUpdated(notification) => {
                 self.on_mcp_server_status_updated(notification)
             }
-            ServerNotification::ItemGuardianApprovalReviewStarted(notification) => {
+            ServerNotification::MessageGuardianApprovalReviewStarted(notification) => {
                 self.on_guardian_review_notification(
                     notification.review_id,
                     notification.turn_id,
@@ -173,7 +177,7 @@ impl ChatWidget {
                     notification.action,
                 );
             }
-            ServerNotification::ItemGuardianApprovalReviewCompleted(notification) => {
+            ServerNotification::MessageGuardianApprovalReviewCompleted(notification) => {
                 self.on_guardian_review_notification(
                     notification.review_id,
                     notification.turn_id,
@@ -183,7 +187,7 @@ impl ChatWidget {
                     notification.action,
                 );
             }
-            ServerNotification::ThreadClosed(_) => {
+            ServerNotification::ChatClosed(_) => {
                 if !from_replay {
                     self.on_shutdown_complete();
                 }
@@ -191,11 +195,11 @@ impl ChatWidget {
             ServerNotification::ServerRequestResolved(_)
             | ServerNotification::AccountUpdated(_)
             | ServerNotification::AccountRateLimitsUpdated(_)
-            | ServerNotification::ThreadStarted(_)
-            | ServerNotification::ThreadStatusChanged(_)
-            | ServerNotification::ThreadArchived(_)
-            | ServerNotification::ThreadDeleted(_)
-            | ServerNotification::ThreadUnarchived(_)
+            | ServerNotification::ChatStarted(_)
+            | ServerNotification::ChatStatusChanged(_)
+            | ServerNotification::ChatArchived(_)
+            | ServerNotification::ChatDeleted(_)
+            | ServerNotification::ChatUnarchived(_)
             | ServerNotification::RawResponseItemCompleted(_)
             | ServerNotification::CommandExecOutputDelta(_)
             | ServerNotification::ProcessOutputDelta(_)
@@ -209,17 +213,17 @@ impl ChatWidget {
             | ServerNotification::ExternalAgentConfigImportCompleted(_)
             | ServerNotification::FsChanged(_)
             | ServerNotification::ModelSafetyBufferingUpdated(_)
-            | ServerNotification::TurnModerationMetadata(_)
+            | ServerNotification::InteractionModerationMetadata(_)
             | ServerNotification::FuzzyFileSearchSessionUpdated(_)
             | ServerNotification::FuzzyFileSearchSessionCompleted(_)
-            | ServerNotification::ThreadRealtimeStarted(_)
-            | ServerNotification::ThreadRealtimeItemAdded(_)
-            | ServerNotification::ThreadRealtimeOutputAudioDelta(_)
-            | ServerNotification::ThreadRealtimeError(_)
-            | ServerNotification::ThreadRealtimeClosed(_)
-            | ServerNotification::ThreadRealtimeSdp(_)
-            | ServerNotification::ThreadRealtimeTranscriptDelta(_)
-            | ServerNotification::ThreadRealtimeTranscriptDone(_)
+            | ServerNotification::ChatRealtimeStarted(_)
+            | ServerNotification::ChatRealtimeItemAdded(_)
+            | ServerNotification::ChatRealtimeOutputAudioDelta(_)
+            | ServerNotification::ChatRealtimeError(_)
+            | ServerNotification::ChatRealtimeClosed(_)
+            | ServerNotification::ChatRealtimeSdp(_)
+            | ServerNotification::ChatRealtimeTranscriptDelta(_)
+            | ServerNotification::ChatRealtimeTranscriptDone(_)
             | ServerNotification::WindowsWorldWritableWarning(_)
             | ServerNotification::WindowsSandboxSetupCompleted(_)
             | ServerNotification::AccountLoginCompleted(_) => {}
@@ -229,7 +233,7 @@ impl ChatWidget {
 
     pub(super) fn handle_turn_completed_notification(
         &mut self,
-        notification: TurnCompletedNotification,
+        notification: InteractionCompletedNotification,
         replay_kind: Option<ReplayKind>,
     ) {
         // User-message dedupe only suppresses the app-server echo of a prompt
@@ -237,7 +241,7 @@ impl ChatWidget {
         // client can submit the same text and it still needs its own user cell.
         self.last_rendered_user_message_display = None;
         match notification.turn.status {
-            TurnStatus::Completed => {
+            InteractionStatus::Completed => {
                 self.last_non_retry_error = None;
                 self.on_task_complete(
                     /*last_agent_message*/ None,
@@ -245,7 +249,7 @@ impl ChatWidget {
                     replay_kind.is_some(),
                 )
             }
-            TurnStatus::Interrupted => {
+            InteractionStatus::Interrupted => {
                 self.last_non_retry_error = None;
                 let reason = if self
                     .turn_lifecycle
@@ -257,7 +261,7 @@ impl ChatWidget {
                 };
                 self.on_interrupted_turn(reason);
             }
-            TurnStatus::Failed => {
+            InteractionStatus::Failed => {
                 if let Some(error) = notification.turn.error {
                     if self.last_non_retry_error.as_ref()
                         == Some(&(notification.turn.id.clone(), error.message.clone()))
@@ -273,28 +277,28 @@ impl ChatWidget {
                     self.maybe_send_next_queued_input();
                 }
             }
-            TurnStatus::InProgress => {}
+            InteractionStatus::InProgress => {}
         }
     }
 
     fn handle_item_started_notification(
         &mut self,
-        notification: ItemStartedNotification,
+        notification: MessageStartedNotification,
         from_replay: bool,
     ) {
         match notification.item {
-            item @ ThreadItem::CommandExecution { .. } => self.on_command_execution_started(item),
-            ThreadItem::FileChange { id: _, changes, .. } => {
+            item @ Message::CommandExecution { .. } => self.on_command_execution_started(item),
+            Message::FileChange { id: _, changes, .. } => {
                 self.on_patch_apply_begin(file_update_changes_to_display(changes));
             }
-            item @ ThreadItem::McpToolCall { .. } => self.on_mcp_tool_call_started(item),
-            ThreadItem::WebSearch { id, .. } => {
+            item @ Message::McpToolCall { .. } => self.on_mcp_tool_call_started(item),
+            Message::WebSearch { id, .. } => {
                 self.on_web_search_begin(id);
             }
-            ThreadItem::ImageGeneration { .. } => {
+            Message::ImageGeneration { .. } => {
                 self.on_image_generation_begin();
             }
-            ThreadItem::CollabAgentToolCall {
+            Message::CollabAgentToolCall {
                 id,
                 tool,
                 status,
@@ -304,7 +308,7 @@ impl ChatWidget {
                 model,
                 reasoning_effort,
                 agents_states,
-            } => self.on_collab_agent_tool_call(ThreadItem::CollabAgentToolCall {
+            } => self.on_collab_agent_tool_call(Message::CollabAgentToolCall {
                 id,
                 tool,
                 status,
@@ -315,8 +319,8 @@ impl ChatWidget {
                 reasoning_effort,
                 agents_states,
             }),
-            item @ ThreadItem::SubAgentActivity { .. } => self.on_sub_agent_activity(item),
-            ThreadItem::EnteredReviewMode { review, .. } if !from_replay => {
+            item @ Message::SubAgentActivity { .. } => self.on_sub_agent_activity(item),
+            Message::EnteredReviewMode { review, .. } if !from_replay => {
                 self.enter_review_mode_with_hint(review, /*from_replay*/ false);
             }
             _ => {}
@@ -325,7 +329,7 @@ impl ChatWidget {
 
     fn handle_item_completed_notification(
         &mut self,
-        notification: ItemCompletedNotification,
+        notification: MessageCompletedNotification,
         replay_kind: Option<ReplayKind>,
     ) {
         self.handle_thread_item(

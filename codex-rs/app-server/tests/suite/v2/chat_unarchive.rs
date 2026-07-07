@@ -4,22 +4,22 @@ use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
 use datax_app_server::in_process;
 use datax_app_server::in_process::InProcessStartArgs;
+use datax_app_server_protocol::ChatArchiveParams;
+use datax_app_server_protocol::ChatArchiveResponse;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::ChatStatus;
+use datax_app_server_protocol::ChatUnarchiveParams;
+use datax_app_server_protocol::ChatUnarchiveResponse;
+use datax_app_server_protocol::ChatUnarchivedNotification;
 use datax_app_server_protocol::ClientInfo;
 use datax_app_server_protocol::ClientRequest;
 use datax_app_server_protocol::InitializeCapabilities;
 use datax_app_server_protocol::InitializeParams;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadArchiveParams;
-use datax_app_server_protocol::ThreadArchiveResponse;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::ThreadStatus;
-use datax_app_server_protocol::ThreadUnarchiveParams;
-use datax_app_server_protocol::ThreadUnarchiveResponse;
-use datax_app_server_protocol::ThreadUnarchivedNotification;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
 use datax_app_server_protocol::UserInput;
 use datax_arg0::Arg0DispatchPaths;
 use datax_config::CloudConfigBundleLoader;
@@ -63,7 +63,7 @@ async fn thread_unarchive_moves_rollout_back_into_sessions_directory() -> Result
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -73,13 +73,13 @@ async fn thread_unarchive_moves_rollout_back_into_sessions_directory() -> Result
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let rollout_path = thread.path.clone().expect("thread path");
 
     let turn_start_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "materialize".to_string(),
@@ -93,10 +93,10 @@ async fn thread_unarchive_moves_rollout_back_into_sessions_directory() -> Result
         mcp.read_stream_until_response_message(RequestId::Integer(turn_start_id)),
     )
     .await??;
-    let _: TurnStartResponse = to_response::<TurnStartResponse>(turn_start_response)?;
+    let _: InteractionStartResponse = to_response::<InteractionStartResponse>(turn_start_response)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -107,8 +107,8 @@ async fn thread_unarchive_moves_rollout_back_into_sessions_directory() -> Result
     assert_paths_match_on_disk(&found_rollout_path, &rollout_path)?;
 
     let archive_id = mcp
-        .send_thread_archive_request(ThreadArchiveParams {
-            thread_id: thread.id.clone(),
+        .send_chat_archive_request(ChatArchiveParams {
+            chat_id: thread.id.clone(),
         })
         .await?;
     let archive_resp: JSONRPCResponse = timeout(
@@ -116,7 +116,7 @@ async fn thread_unarchive_moves_rollout_back_into_sessions_directory() -> Result
         mcp.read_stream_until_response_message(RequestId::Integer(archive_id)),
     )
     .await??;
-    let _: ThreadArchiveResponse = to_response::<ThreadArchiveResponse>(archive_resp)?;
+    let _: ChatArchiveResponse = to_response::<ChatArchiveResponse>(archive_resp)?;
 
     let archived_path = find_archived_thread_path_by_id_str(
         codex_home.path(),
@@ -142,8 +142,8 @@ async fn thread_unarchive_moves_rollout_back_into_sessions_directory() -> Result
         .set_times(times)?;
 
     let unarchive_id = mcp
-        .send_thread_unarchive_request(ThreadUnarchiveParams {
-            thread_id: thread.id.clone(),
+        .send_chat_unarchive_request(ChatUnarchiveParams {
+            chat_id: thread.id.clone(),
         })
         .await?;
     let unarchive_resp: JSONRPCResponse = timeout(
@@ -152,36 +152,36 @@ async fn thread_unarchive_moves_rollout_back_into_sessions_directory() -> Result
     )
     .await??;
     let unarchive_result = unarchive_resp.result.clone();
-    let ThreadUnarchiveResponse {
+    let ChatUnarchiveResponse {
         thread: unarchived_thread,
-    } = to_response::<ThreadUnarchiveResponse>(unarchive_resp)?;
+    } = to_response::<ChatUnarchiveResponse>(unarchive_resp)?;
     let unarchive_notification = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("thread/unarchived"),
+        mcp.read_stream_until_notification_message("chat/unarchived"),
     )
     .await??;
-    let unarchived_notification: ThreadUnarchivedNotification = serde_json::from_value(
+    let unarchived_notification: ChatUnarchivedNotification = serde_json::from_value(
         unarchive_notification
             .params
-            .expect("thread/unarchived notification params"),
+            .expect("chat/unarchived notification params"),
     )?;
-    assert_eq!(unarchived_notification.thread_id, thread.id);
+    assert_eq!(unarchived_notification.chat_id, thread.id);
     assert!(
         unarchived_thread.updated_at > old_timestamp,
         "expected updated_at to be bumped on unarchive"
     );
-    assert_eq!(unarchived_thread.status, ThreadStatus::NotLoaded);
+    assert_eq!(unarchived_thread.status, ChatStatus::NotLoaded);
 
     // Wire contract: thread title field is `name`, serialized as null when unset.
     let thread_json = unarchive_result
         .get("thread")
         .and_then(Value::as_object)
-        .expect("thread/unarchive result.thread must be an object");
+        .expect("chat/unarchive result.thread must be an object");
     assert_eq!(unarchived_thread.name, None);
     assert_eq!(
         thread_json.get("name"),
         Some(&Value::Null),
-        "thread/unarchive must serialize `name: null` when unset"
+        "chat/unarchive must serialize `name: null` when unset"
     );
 
     let rollout_path_display = rollout_path.display();
@@ -204,17 +204,17 @@ async fn thread_unarchive_preserves_pathless_store_metadata() -> Result<()> {
     create_config_toml_with_in_memory_thread_store(codex_home.path(), &store_id)?;
     let store = InMemoryThreadStore::for_id(store_id.clone());
     let _in_memory_store = InMemoryThreadStoreId { store_id };
-    let thread_id = ThreadId::from_string("00000000-0000-4000-8000-000000000126")?;
-    let parent_thread_id = ThreadId::from_string("00000000-0000-4000-8000-000000000127")?;
+    let chat_id = ThreadId::from_string("00000000-0000-4000-8000-000000000126")?;
+    let parent_chat_id = ThreadId::from_string("00000000-0000-4000-8000-000000000127")?;
     store
         .create_thread(CreateThreadParams {
-            session_id: thread_id.into(),
-            thread_id,
+            session_id: chat_id.into(),
+            chat_id,
             extra_config: None,
-            forked_from_id: Some(parent_thread_id),
-            parent_thread_id: None,
+            forked_from_id: Some(parent_chat_id),
+            parent_chat_id: None,
             source: SessionSource::Cli,
-            thread_source: None,
+            chat_source: None,
             base_instructions: BaseInstructions::default(),
             dynamic_tools: Vec::new(),
             multi_agent_version: None,
@@ -227,7 +227,7 @@ async fn thread_unarchive_preserves_pathless_store_metadata() -> Result<()> {
         .await?;
     store
         .update_thread_metadata(UpdateThreadMetadataParams {
-            thread_id,
+            chat_id,
             patch: ThreadMetadataPatch {
                 name: Some(Some("named pathless thread".to_string())),
                 ..Default::default()
@@ -274,19 +274,19 @@ async fn thread_unarchive_preserves_pathless_store_metadata() -> Result<()> {
     .await?;
 
     let result = client
-        .request(ClientRequest::ThreadUnarchive {
+        .request(ChatUnarchive {
             request_id: RequestId::Integer(1),
-            params: ThreadUnarchiveParams {
-                thread_id: thread_id.to_string(),
+            params: ChatUnarchiveParams {
+                chat_id: chat_id.to_string(),
             },
         })
         .await?
-        .expect("thread/unarchive should succeed");
-    let ThreadUnarchiveResponse { thread } = serde_json::from_value(result)?;
+        .expect("chat/unarchive should succeed");
+    let ChatUnarchiveResponse { thread } = serde_json::from_value(result)?;
 
-    assert_eq!(thread.id, thread_id.to_string());
+    assert_eq!(thread.id, chat_id.to_string());
     assert_eq!(thread.path, None);
-    assert_eq!(thread.forked_from_id, Some(parent_thread_id.to_string()));
+    assert_eq!(thread.forked_from_id, Some(parent_chat_id.to_string()));
     assert_eq!(thread.name, Some("named pathless thread".to_string()));
 
     client.shutdown().await?;

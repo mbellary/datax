@@ -644,7 +644,7 @@ async fn plugin_detail_popup_snapshot_labels_personal_marketplace_as_local() {
     chat.add_plugins_output();
     let mut plugin = plugins_test_detail(
         summary,
-        Some("Turn Figma files into implementation context."),
+        Some("Interaction Figma files into implementation context."),
         &["design-review", "extract-copy"],
         &[
             (datax_app_server_protocol::HookEventName::PreToolUse, 1),
@@ -689,7 +689,7 @@ async fn plugin_detail_popup_hides_disclosure_for_installed_plugins() {
         Ok(PluginReadResponse {
             plugin: plugins_test_detail(
                 summary,
-                Some("Turn Figma files into implementation context."),
+                Some("Interaction Figma files into implementation context."),
                 &["design-review", "extract-copy"],
                 &[
                     (datax_app_server_protocol::HookEventName::PreToolUse, 1),

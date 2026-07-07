@@ -201,11 +201,11 @@ impl App {
             Ok(thread) => {
                 let is_running = matches!(
                     thread.status,
-                    datax_app_server_protocol::ThreadStatus::Active { .. }
+                    datax_app_server_protocol::ChatStatus::Active { .. }
                 );
                 let is_closed = matches!(
                     thread.status,
-                    datax_app_server_protocol::ThreadStatus::NotLoaded
+                    datax_app_server_protocol::ChatStatus::NotLoaded
                 );
                 self.upsert_agent_picker_thread(
                     thread_id,
@@ -321,7 +321,7 @@ impl App {
     /// Replaces the chat widget and re-seeds the new widget's collab metadata from the navigation
     /// cache.
     ///
-    /// Thread switches reconstruct the `ChatWidget`, which loses the `collab_agent_metadata` map.
+    /// Chat switches reconstruct the `ChatWidget`, which loses the `collab_agent_metadata` map.
     /// This helper copies every known nickname/role from `AgentNavigationState` into the
     /// replacement widget so that replayed collab items render agent names immediately.
     pub(super) fn replace_chat_widget(&mut self, mut chat_widget: ChatWidget) {
@@ -530,7 +530,7 @@ impl App {
         &mut self,
         tui: &mut tui::Tui,
         app_server: &mut AppServerSession,
-        session_start_source: Option<ThreadStartSource>,
+        session_start_source: Option<ChatStartSource>,
         initial_user_message: Option<crate::chatwidget::UserMessage>,
     ) {
         // Start a fresh in-memory session while preserving resumability via persisted rollout
@@ -601,7 +601,7 @@ impl App {
         started: AppServerStartedThread,
         initial_user_message: Option<crate::chatwidget::UserMessage>,
     ) -> Result<()> {
-        // Initial messages are for freshly attached primary threads only. Thread switches and
+        // Initial messages are for freshly attached primary threads only. Chat switches and
         // resume/fork flows pass `None` so they cannot replay old history and then auto-submit a new
         // user turn by accident.
         self.reset_thread_event_state();
@@ -637,7 +637,7 @@ impl App {
         };
 
         let loaded_thread_ids = match app_server
-            .thread_loaded_list(ThreadLoadedListParams {
+            .thread_loaded_list(ChatLoadedListParams {
                 cursor: None,
                 limit: None,
             })

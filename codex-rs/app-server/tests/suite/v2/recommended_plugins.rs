@@ -6,12 +6,12 @@ use app_test_support::to_response;
 use app_test_support::write_mock_responses_config_toml_with_chatgpt_base_url;
 use core_test_support::apps_test_server::AppsTestServer;
 use core_test_support::responses;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::InteractionStartParams;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::LoginAccountResponse;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
 use datax_app_server_protocol::UserInput;
 use serde_json::Value;
 use serde_json::json;
@@ -104,22 +104,22 @@ async fn first_turn_after_external_login_waits_for_recommended_plugins() -> Resu
         LoginAccountResponse::ChatgptAuthTokens {}
     );
 
-    let thread_id = app_server
-        .send_thread_start_request(ThreadStartParams {
+    let chat_id = app_server
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
         .await?;
     let thread_response: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
-        app_server.read_stream_until_response_message(RequestId::Integer(thread_id)),
+        app_server.read_stream_until_response_message(RequestId::Integer(chat_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(thread_response)?;
+    let ChatStartResponse { thread, .. } = to_response(thread_response)?;
 
-    let turn_id = app_server
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id,
+    let interaction_id = app_server
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id,
             input: vec![UserInput::Text {
                 text: "suggest a plugin".to_string(),
                 text_elements: Vec::new(),
@@ -129,12 +129,12 @@ async fn first_turn_after_external_login_waits_for_recommended_plugins() -> Resu
         .await?;
     let _: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
-        app_server.read_stream_until_response_message(RequestId::Integer(turn_id)),
+        app_server.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        app_server.read_stream_until_notification_message("turn/completed"),
+        app_server.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 

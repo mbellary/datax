@@ -12,18 +12,18 @@ use datax_app_server::INPUT_TOO_LARGE_ERROR_CODE;
 use datax_app_server::INVALID_PARAMS_ERROR_CODE;
 use datax_app_server_protocol::AdditionalContextEntry;
 use datax_app_server_protocol::AdditionalContextKind;
-use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
+use datax_app_server_protocol::InteractionSteerParams;
+use datax_app_server_protocol::InteractionSteerResponse;
 use datax_app_server_protocol::JSONRPCError;
 use datax_app_server_protocol::JSONRPCNotification;
 use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::Message;
+use datax_app_server_protocol::MessageStartedNotification;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
-use datax_app_server_protocol::TurnSteerParams;
-use datax_app_server_protocol::TurnSteerResponse;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS;
 use serde_json::Value;
@@ -54,7 +54,7 @@ async fn turn_steer_requires_active_turn() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -64,11 +64,11 @@ async fn turn_steer_requires_active_turn() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let steer_req = mcp
-        .send_turn_steer_request(TurnSteerParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_steer_request(InteractionSteerParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: Some("client-steer-message-1".to_string()),
             input: vec![V2UserInput::Text {
                 text: "steer".to_string(),
@@ -88,7 +88,7 @@ async fn turn_steer_requires_active_turn() -> Result<()> {
 
     let event =
         wait_for_analytics_event(&server, DEFAULT_READ_TIMEOUT, "codex_turn_steer_event").await?;
-    assert_eq!(event["event_params"]["thread_id"], thread.id);
+    assert_eq!(event["event_params"]["chat_id"], thread.id);
     assert_eq!(event["event_params"]["result"], "rejected");
     assert_eq!(event["event_params"]["num_input_images"], 0);
     assert_eq!(
@@ -140,7 +140,7 @@ async fn turn_steer_rejects_oversized_text_input() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -150,11 +150,11 @@ async fn turn_steer_rejects_oversized_text_input() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "run sleep".to_string(),
@@ -169,18 +169,18 @@ async fn turn_steer_rejects_oversized_text_input() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let TurnStartResponse { turn } = to_response::<TurnStartResponse>(turn_resp)?;
+    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
 
     let _task_started: JSONRPCNotification = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/started"),
+        mcp.read_stream_until_notification_message("interaction/started"),
     )
     .await??;
 
     let oversized_input = "x".repeat(MAX_USER_INPUT_TEXT_CHARS + 1);
     let steer_req = mcp
-        .send_turn_steer_request(TurnSteerParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_steer_request(InteractionSteerParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: oversized_input.clone(),
@@ -254,7 +254,7 @@ async fn turn_steer_returns_active_turn_id() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -264,11 +264,11 @@ async fn turn_steer_returns_active_turn_id() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "run sleep".to_string(),
@@ -283,17 +283,17 @@ async fn turn_steer_returns_active_turn_id() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let TurnStartResponse { turn } = to_response::<TurnStartResponse>(turn_resp)?;
+    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
 
     let _task_started: JSONRPCNotification = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/started"),
+        mcp.read_stream_until_notification_message("interaction/started"),
     )
     .await??;
 
     let steer_req = mcp
-        .send_turn_steer_request(TurnSteerParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_steer_request(InteractionSteerParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: Some("client-steer-message-1".to_string()),
             input: vec![V2UserInput::Text {
                 text: "steer".to_string(),
@@ -309,18 +309,18 @@ async fn turn_steer_returns_active_turn_id() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(steer_req)),
     )
     .await??;
-    let steer: TurnSteerResponse = to_response::<TurnSteerResponse>(steer_resp)?;
-    assert_eq!(steer.turn_id, turn.id);
+    let steer: InteractionSteerResponse = to_response::<InteractionSteerResponse>(steer_resp)?;
+    assert_eq!(steer.interaction_id, turn.id);
 
     timeout(DEFAULT_READ_TIMEOUT, async {
         loop {
             let notification = mcp
-                .read_stream_until_notification_message("item/started")
+                .read_stream_until_notification_message("message/started")
                 .await?;
-            let params = notification.params.expect("item/started params");
-            let item_started: ItemStartedNotification =
-                serde_json::from_value(params).expect("deserialize item/started notification");
-            let ThreadItem::UserMessage {
+            let params = notification.params.expect("message/started params");
+            let item_started: MessageStartedNotification =
+                serde_json::from_value(params).expect("deserialize message/started notification");
+            let Message::UserMessage {
                 client_id, content, ..
             } = item_started.item
             else {
@@ -342,7 +342,7 @@ async fn turn_steer_returns_active_turn_id() -> Result<()> {
 
     let event =
         wait_for_analytics_event(&server, DEFAULT_READ_TIMEOUT, "codex_turn_steer_event").await?;
-    assert_eq!(event["event_params"]["thread_id"], thread.id);
+    assert_eq!(event["event_params"]["chat_id"], thread.id);
     assert_eq!(event["event_params"]["session_id"], thread.session_id);
     assert_eq!(event["event_params"]["result"], "accepted");
     assert_eq!(event["event_params"]["num_input_images"], 0);
@@ -355,7 +355,7 @@ async fn turn_steer_returns_active_turn_id() -> Result<()> {
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -391,7 +391,7 @@ async fn turn_steer_rejects_context_only_input_without_merging_context() -> Resu
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -401,11 +401,11 @@ async fn turn_steer_rejects_context_only_input_without_merging_context() -> Resu
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "run sleep".to_string(),
@@ -420,10 +420,10 @@ async fn turn_steer_rejects_context_only_input_without_merging_context() -> Resu
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let TurnStartResponse { turn } = to_response::<TurnStartResponse>(turn_resp)?;
+    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/started"),
+        mcp.read_stream_until_notification_message("interaction/started"),
     )
     .await??;
 
@@ -435,8 +435,8 @@ async fn turn_steer_rejects_context_only_input_without_merging_context() -> Resu
         },
     )]));
     let steer_req = mcp
-        .send_turn_steer_request(TurnSteerParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_steer_request(InteractionSteerParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: Vec::new(),
             responsesapi_client_metadata: None,
@@ -454,7 +454,7 @@ async fn turn_steer_rejects_context_only_input_without_merging_context() -> Resu
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 

@@ -2762,7 +2762,7 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
     let request = first_forked_request.single_request();
     let snapshot = context_snapshot::format_labeled_requests_snapshot(
         "First request after fork when startup preserves the parent baseline, the fork changes approval policy, and the first forked turn enters plan mode.",
-        &[("First Forked Turn Request", &request)],
+        &[("First Forked Interaction Request", &request)],
         &ContextSnapshotOptions::default()
             .render_mode(ContextSnapshotRenderMode::KindWithTextPrefix { max_chars: 96 })
             .strip_capability_instructions()
@@ -3824,9 +3824,9 @@ async fn attach_thread_persistence(session: &mut Session) -> PathBuf {
                 cwd: Some(config.cwd.to_path_buf()),
                 model_provider: config.model_provider_id.clone(),
                 memory_mode: if config.memories.generate_memories {
-                    ThreadMemoryMode::Enabled
+                    datax_protocol::protocol::ThreadMemoryMode::Enabled
                 } else {
-                    ThreadMemoryMode::Disabled
+                    datax_protocol::protocol::ThreadMemoryMode::Disabled
                 },
             },
         },
@@ -5566,7 +5566,7 @@ async fn notify_request_permissions_response_ignores_unmatched_call_id() {
                     }),
                     ..RequestPermissionProfile::default()
                 },
-                scope: PermissionGrantScope::Turn,
+                scope: PermissionGrantScope::Interaction,
                 strict_auto_review: false,
             },
         )
@@ -5601,7 +5601,7 @@ async fn record_granted_request_permissions_for_turn_uses_originating_turn() {
         .record_granted_request_permissions_for_turn(
             &datax_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: requested_permissions.clone(),
-                scope: PermissionGrantScope::Turn,
+                scope: PermissionGrantScope::Interaction,
                 strict_auto_review: false,
             },
             datax_exec_server::LOCAL_ENVIRONMENT_ID,
@@ -5648,7 +5648,7 @@ async fn request_permission_grants_are_environment_keyed() {
         .record_granted_request_permissions_for_turn(
             &datax_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: requested_permissions.clone(),
-                scope: PermissionGrantScope::Turn,
+                scope: PermissionGrantScope::Interaction,
                 strict_auto_review: false,
             },
             "remote",
@@ -5701,7 +5701,7 @@ async fn enable_strict_auto_review_for_turn_uses_originating_turn() {
         .record_granted_request_permissions_for_turn(
             &datax_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: requested_permissions.clone(),
-                scope: PermissionGrantScope::Turn,
+                scope: PermissionGrantScope::Interaction,
                 strict_auto_review: true,
             },
             datax_exec_server::LOCAL_ENVIRONMENT_ID,
@@ -5740,7 +5740,7 @@ fn strict_auto_review_session_scope_grants_no_permissions() {
         response,
         datax_protocol::request_permissions::RequestPermissionsResponse {
             permissions: RequestPermissionProfile::default(),
-            scope: PermissionGrantScope::Turn,
+            scope: PermissionGrantScope::Interaction,
             strict_auto_review: false,
         }
     );
@@ -5772,7 +5772,7 @@ async fn request_permissions_emits_event_when_granular_policy_allows_requests() 
             }),
             ..RequestPermissionProfile::default()
         },
-        scope: PermissionGrantScope::Turn,
+        scope: PermissionGrantScope::Interaction,
         strict_auto_review: false,
     };
 
@@ -5932,7 +5932,7 @@ async fn request_permissions_tool_resolves_relative_paths_against_selected_envir
             &request.call_id,
             datax_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: request.permissions,
-                scope: PermissionGrantScope::Turn,
+                scope: PermissionGrantScope::Interaction,
                 strict_auto_review: false,
             },
         )
@@ -6134,7 +6134,7 @@ async fn request_permissions_is_auto_denied_when_granular_policy_blocks_tool_req
         Some(
             datax_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: RequestPermissionProfile::default(),
-                scope: PermissionGrantScope::Turn,
+                scope: PermissionGrantScope::Interaction,
                 strict_auto_review: false,
             }
         )
@@ -6303,7 +6303,7 @@ fn op_kind_for_input_and_context_ops() {
         "user_input"
     );
     assert_eq!(
-        Op::ThreadSettings {
+        Op::ChatSettings {
             thread_settings: ThreadSettingsOverrides::default(),
         }
         .kind(),
@@ -6668,9 +6668,9 @@ async fn shutdown_complete_does_not_append_to_thread_store_after_shutdown() {
                 cwd: Some(config.cwd.to_path_buf()),
                 model_provider: config.model_provider_id.clone(),
                 memory_mode: if config.memories.generate_memories {
-                    ThreadMemoryMode::Enabled
+                    datax_protocol::protocol::ThreadMemoryMode::Enabled
                 } else {
-                    ThreadMemoryMode::Disabled
+                    datax_protocol::protocol::ThreadMemoryMode::Disabled
                 },
             },
         },

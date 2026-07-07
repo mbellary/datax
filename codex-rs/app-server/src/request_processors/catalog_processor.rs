@@ -280,14 +280,14 @@ impl CatalogRequestProcessor {
         }
 
         let end = start.saturating_add(effective_limit).min(total);
-        let items = models[start..end].to_vec();
+        let messages = models[start..end].to_vec();
         let next_cursor = if end < total {
             Some(end.to_string())
         } else {
             None
         };
         Ok(ModelListResponse {
-            data: items,
+            data: messages,
             next_cursor,
         })
     }
@@ -297,12 +297,12 @@ impl CatalogRequestProcessor {
         params: CollaborationModeListParams,
     ) -> Result<CollaborationModeListResponse, JSONRPCErrorError> {
         let CollaborationModeListParams {} = params;
-        let items = thread_manager
+        let messages = thread_manager
             .list_collaboration_modes()
             .into_iter()
             .map(Into::into)
             .collect();
-        let response = CollaborationModeListResponse { data: items };
+        let response = CollaborationModeListResponse { data: messages };
         Ok(response)
     }
 
@@ -313,17 +313,17 @@ impl CatalogRequestProcessor {
         let ExperimentalFeatureListParams {
             cursor,
             limit,
-            thread_id,
+            chat_id,
         } = params;
-        let config = match thread_id.as_deref() {
-            Some(thread_id) => {
-                let thread_id = ThreadId::from_string(thread_id)
+        let config = match chat_id.as_deref() {
+            Some(chat_id) => {
+                let chat_id = ThreadId::from_string(chat_id)
                     .map_err(|err| invalid_request(format!("invalid thread id: {err}")))?;
                 let thread = self
                     .thread_manager
-                    .get_thread(thread_id)
+                    .get_thread(chat_id)
                     .await
-                    .map_err(|_| invalid_request(format!("thread not found: {thread_id}")))?;
+                    .map_err(|_| invalid_request(format!("thread not found: {chat_id}")))?;
                 let thread_config = thread.config().await;
                 self.config_manager
                     .load_latest_config_for_thread(thread_config.as_ref())

@@ -240,7 +240,7 @@ impl From<&CodexErr> for CodexErrKind {
 
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum TurnStatus {
+pub enum InteractionStatus {
     Completed,
     Failed,
     Interrupted,
@@ -435,7 +435,7 @@ pub struct CodexGoalEvent {
     pub turn_id: Option<String>,
     pub goal_id: String,
     pub event_kind: GoalEventKind,
-    pub goal_status: datax_state::ThreadGoalStatus,
+    pub goal_status: datax_state::ChatGoalStatus,
     pub has_token_budget: bool,
     pub cumulative_tokens_accounted: Option<i64>,
     pub cumulative_time_accounted_seconds: Option<i64>,

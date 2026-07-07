@@ -233,7 +233,7 @@ impl ShutdownState {
         self.requested = true;
         self.last_logged_running_turn_count = None;
         info!(
-            "received shutdown signal; entering graceful restart drain (connections={}, runningAssistantTurns={}, requests still accepted until no assistant turns are running)",
+            "received shutdown signal; entering graceful restart drain (connections={}, runningAssistantTurns={}, requests still accepted until no assistant interactions are running)",
             connection_count, running_turn_count,
         );
     }
@@ -250,7 +250,7 @@ impl ShutdownState {
                 );
             } else {
                 info!(
-                    "shutdown signal restart: no assistant turns running; stopping acceptor and disconnecting {connection_count} connection(s)"
+                    "shutdown signal restart: no assistant interactions running; stopping acceptor and disconnecting {connection_count} connection(s)"
                 );
             }
             return ShutdownAction::Finish;
@@ -1117,7 +1117,7 @@ pub async fn run_main_with_transport_options(
                     }
                     created = thread_created_rx.recv(), if listen_for_threads => {
                         match created {
-                            Ok(thread_id) => {
+                            Ok(chat_id) => {
                                 let mut initialized_connection_ids = Vec::new();
                                 for (connection_id, connection_state) in &connections {
                                     if connection_state.session.initialized() {
@@ -1126,7 +1126,7 @@ pub async fn run_main_with_transport_options(
                                 }
                                 processor
                                     .try_attach_thread_listener(
-                                        thread_id,
+                                        chat_id,
                                         initialized_connection_ids,
                                     )
                                     .await;

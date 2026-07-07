@@ -38,11 +38,11 @@ use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
 use crossterm::event::KeyModifiers;
-use datax_app_server_protocol::Thread;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadListCwdFilter;
-use datax_app_server_protocol::ThreadListParams;
-use datax_app_server_protocol::ThreadSortKey;
+use datax_app_server_protocol::Chat;
+use datax_app_server_protocol::ChatListCwdFilter;
+use datax_app_server_protocol::ChatListParams;
+use datax_app_server_protocol::ChatSortKey;
+use datax_app_server_protocol::Message;
 use datax_config::types::SessionPickerViewMode;
 use datax_protocol::ThreadId;
 use datax_utils_path as path_utils;
@@ -144,7 +144,7 @@ struct PageLoadRequest {
     search_token: Option<usize>,
     cwd_filter: Option<PathBuf>,
     provider_filter: ProviderFilter,
-    sort_key: ThreadSortKey,
+    sort_key: ChatSortKey,
 }
 
 enum PickerLoadRequest {
@@ -605,10 +605,10 @@ fn spawn_app_server_page_loader(
 }
 
 /// Returns the human-readable column header for the given sort key.
-fn sort_key_label(sort_key: ThreadSortKey) -> &'static str {
+fn sort_key_label(sort_key: ChatSortKey) -> &'static str {
     match sort_key {
-        ThreadSortKey::CreatedAt => "Created",
-        ThreadSortKey::UpdatedAt | ThreadSortKey::RecencyAt => "Updated",
+        ChatSortKey::CreatedAt => "Created",
+        ChatSortKey::UpdatedAt | ChatSortKey::RecencyAt => "Updated",
     }
 }
 
@@ -657,7 +657,7 @@ struct PickerState {
     launch_context: SessionPickerLaunchContext,
     view_persistence: Option<SessionPickerViewPersistence>,
     action: SessionPickerAction,
-    sort_key: ThreadSortKey,
+    sort_key: ChatSortKey,
     inline_error: Option<String>,
     expanded_thread_id: Option<ThreadId>,
     transcript_previews: HashMap<ThreadId, TranscriptPreviewState>,
@@ -735,7 +735,7 @@ async fn load_app_server_page(
     cursor: Option<String>,
     cwd_filter: Option<&Path>,
     provider_filter: ProviderFilter,
-    sort_key: ThreadSortKey,
+    sort_key: ChatSortKey,
     include_non_interactive: bool,
 ) -> std::io::Result<PickerPage> {
     let response = app_server
@@ -778,7 +778,7 @@ async fn load_transcript_preview(
         .iter()
         .flat_map(|turn| turn.items.iter())
         .filter_map(|item| match item {
-            ThreadItem::UserMessage { content, .. } => Some(TranscriptPreviewLine {
+            Message::UserMessage { content, .. } => Some(TranscriptPreviewLine {
                 speaker: TranscriptPreviewSpeaker::User,
                 text: content
                     .iter()
@@ -791,7 +791,7 @@ async fn load_transcript_preview(
                     .collect::<Vec<_>>()
                     .join(" "),
             }),
-            ThreadItem::AgentMessage { text, .. } => Some(TranscriptPreviewLine {
+            Message::AgentMessage { text, .. } => Some(TranscriptPreviewLine {
                 speaker: TranscriptPreviewSpeaker::Assistant,
                 text: parse_assistant_markdown(text, cwd).visible_markdown,
             }),
@@ -842,7 +842,7 @@ struct Row {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum SeenRowKey {
     Path(PathBuf),
-    Thread(ThreadId),
+    Chat(ThreadId),
 }
 
 impl Row {
@@ -850,7 +850,7 @@ impl Row {
         if let Some(path) = self.path.clone() {
             return Some(SeenRowKey::Path(path));
         }
-        self.thread_id.map(SeenRowKey::Thread)
+        self.thread_id.map(SeenRowKey::Chat)
     }
 
     fn display_preview(&self) -> &str {
@@ -931,7 +931,7 @@ impl PickerState {
             launch_context: SessionPickerLaunchContext::Startup,
             view_persistence: None,
             action,
-            sort_key: ThreadSortKey::UpdatedAt,
+            sort_key: ChatSortKey::UpdatedAt,
             inline_error: None,
             expanded_thread_id: None,
             transcript_previews: HashMap::new(),
@@ -1613,8 +1613,8 @@ impl PickerState {
     /// beginning with the new sort key.
     fn toggle_sort_key(&mut self) {
         self.sort_key = match self.sort_key {
-            ThreadSortKey::CreatedAt => ThreadSortKey::UpdatedAt,
-            ThreadSortKey::UpdatedAt | ThreadSortKey::RecencyAt => ThreadSortKey::CreatedAt,
+            ChatSortKey::CreatedAt => ChatSortKey::UpdatedAt,
+            ChatSortKey::UpdatedAt | ChatSortKey::RecencyAt => ChatSortKey::CreatedAt,
         };
         self.start_initial_load();
     }
@@ -1776,7 +1776,7 @@ impl PickerState {
     }
 }
 
-fn row_from_app_server_thread(thread: Thread) -> Option<Row> {
+fn row_from_app_server_thread(thread: Chat) -> Option<Row> {
     let thread_id = match ThreadId::from_string(&thread.id) {
         Ok(thread_id) => thread_id,
         Err(err) => {
@@ -1807,10 +1807,10 @@ fn thread_list_params(
     cursor: Option<String>,
     cwd_filter: Option<&Path>,
     provider_filter: ProviderFilter,
-    sort_key: ThreadSortKey,
+    sort_key: ChatSortKey,
     include_non_interactive: bool,
-) -> ThreadListParams {
-    ThreadListParams {
+) -> ChatListParams {
+    ChatListParams {
         cursor,
         limit: Some(PAGE_SIZE as u32),
         sort_key: Some(sort_key),
@@ -1822,7 +1822,7 @@ fn thread_list_params(
         source_kinds: Some(crate::resume_source_kinds(include_non_interactive)),
         archived: Some(false),
         parent_thread_id: None,
-        cwd: cwd_filter.map(|cwd| ThreadListCwdFilter::One(cwd.to_string_lossy().into_owned())),
+        cwd: cwd_filter.map(|cwd| ChatListCwdFilter::One(cwd.to_string_lossy().into_owned())),
         use_state_db_only: false,
         search_term: None,
     }
@@ -1955,13 +1955,13 @@ fn sort_control_spans(state: &PickerState, compact: bool) -> Vec<Span<'static>> 
     vec![
         "Sort: ".dim(),
         toolbar_value(
-            sort_key_label(ThreadSortKey::UpdatedAt),
-            state.sort_key == ThreadSortKey::UpdatedAt,
+            sort_key_label(ChatSortKey::UpdatedAt),
+            state.sort_key == ChatSortKey::UpdatedAt,
             sort_focused,
         ),
         toolbar_value(
-            sort_key_label(ThreadSortKey::CreatedAt),
-            state.sort_key == ThreadSortKey::CreatedAt,
+            sort_key_label(ChatSortKey::CreatedAt),
+            state.sort_key == ChatSortKey::CreatedAt,
             sort_focused,
         ),
     ]
@@ -2612,8 +2612,8 @@ fn render_dense_session_lines(
     let created = format_relative_time(reference, row.created_at);
     let updated = format_relative_time(reference, row.updated_at.or(row.created_at));
     let date = match state.sort_key {
-        ThreadSortKey::CreatedAt => created,
-        ThreadSortKey::UpdatedAt | ThreadSortKey::RecencyAt => updated,
+        ChatSortKey::CreatedAt => created,
+        ChatSortKey::UpdatedAt | ChatSortKey::RecencyAt => updated,
     };
     let mut lines = vec![dense_summary_line(DenseSummaryInput {
         marker,
@@ -2732,7 +2732,7 @@ fn selected_session_title_span(title: String) -> Span<'static> {
 }
 
 fn render_footer_lines(
-    sort_key: ThreadSortKey,
+    sort_key: ChatSortKey,
     created: &str,
     updated: &str,
     branch: Option<&str>,
@@ -2741,8 +2741,8 @@ fn render_footer_lines(
     width: u16,
 ) -> Vec<Line<'static>> {
     let date = match sort_key {
-        ThreadSortKey::CreatedAt => created,
-        ThreadSortKey::UpdatedAt | ThreadSortKey::RecencyAt => updated,
+        ChatSortKey::CreatedAt => created,
+        ChatSortKey::UpdatedAt | ChatSortKey::RecencyAt => updated,
     };
     let mut parts = vec![FooterPart::Date(date.to_string())];
     if show_cwd {
@@ -3197,7 +3197,7 @@ fn render_empty_state_line(state: &PickerState) -> Line<'static> {
 mod tests {
     use super::*;
     use chrono::Duration;
-    use datax_app_server_protocol::ThreadSourceKind;
+    use datax_app_server_protocol::ChatSourceKind;
     use datax_config::CONFIG_TOML_FILE;
     use datax_protocol::ThreadId;
     use datax_utils_absolute_path::test_support::PathBufExt;
@@ -3310,13 +3310,13 @@ mod tests {
             Some(String::from("cursor-1")),
             cwd_filter.as_deref(),
             ProviderFilter::MatchDefault(String::from("openai")),
-            ThreadSortKey::UpdatedAt,
+            ChatSortKey::UpdatedAt,
             /*include_non_interactive*/ false,
         );
 
         assert_eq!(
             params.cwd,
-            Some(ThreadListCwdFilter::One(String::from("/tmp/project")))
+            Some(ChatListCwdFilter::One(String::from("/tmp/project")))
         );
     }
 
@@ -3416,7 +3416,7 @@ mod tests {
     #[test]
     fn footer_prioritizes_active_sort_timestamp() {
         let updated = render_footer_lines(
-            ThreadSortKey::UpdatedAt,
+            ChatSortKey::UpdatedAt,
             "5h ago",
             "3h ago",
             Some("main"),
@@ -3425,7 +3425,7 @@ mod tests {
             /*width*/ 80,
         );
         let created = render_footer_lines(
-            ThreadSortKey::CreatedAt,
+            ChatSortKey::CreatedAt,
             "5h ago",
             "3h ago",
             Some("main"),
@@ -3447,7 +3447,7 @@ mod tests {
     #[test]
     fn footer_marks_missing_branch() {
         let footer = render_footer_lines(
-            ThreadSortKey::UpdatedAt,
+            ChatSortKey::UpdatedAt,
             "5h ago",
             "3h ago",
             /*branch*/ None,
@@ -3467,7 +3467,7 @@ mod tests {
     fn footer_branch_expands_when_line_has_room() {
         let branch = "etraut/animations-false-improvements";
         let footer = render_footer_lines(
-            ThreadSortKey::UpdatedAt,
+            ChatSortKey::UpdatedAt,
             "5h ago",
             "4h ago",
             Some(branch),
@@ -3485,7 +3485,7 @@ mod tests {
         let cwd = "~/code/codex.owner-extremely-long-worktree-name-that-needs-truncating/codex-rs";
         let branch = "owner/branch";
         let footer = render_footer_lines(
-            ThreadSortKey::UpdatedAt,
+            ChatSortKey::UpdatedAt,
             "5h ago",
             "4h ago",
             Some(branch),
@@ -3505,7 +3505,7 @@ mod tests {
     #[test]
     fn footer_omits_cwd_when_hidden() {
         let footer = render_footer_lines(
-            ThreadSortKey::UpdatedAt,
+            ChatSortKey::UpdatedAt,
             "5h ago",
             "4h ago",
             Some("owner/branch"),
@@ -3535,7 +3535,7 @@ mod tests {
             Some(String::from("cursor-1")),
             Some(Path::new("repo/on/server")),
             ProviderFilter::Any,
-            ThreadSortKey::UpdatedAt,
+            ChatSortKey::UpdatedAt,
             /*include_non_interactive*/ false,
         );
 
@@ -3543,11 +3543,11 @@ mod tests {
         assert_eq!(params.model_providers, None);
         assert_eq!(
             params.source_kinds,
-            Some(vec![ThreadSourceKind::Cli, ThreadSourceKind::VsCode])
+            Some(vec![ChatSourceKind::Cli, ChatSourceKind::VsCode])
         );
         assert_eq!(
             params.cwd,
-            Some(ThreadListCwdFilter::One(String::from("repo/on/server")))
+            Some(ChatListCwdFilter::One(String::from("repo/on/server")))
         );
     }
 
@@ -3557,7 +3557,7 @@ mod tests {
             Some(String::from("cursor-1")),
             /*cwd_filter*/ None,
             ProviderFilter::Any,
-            ThreadSortKey::UpdatedAt,
+            ChatSortKey::UpdatedAt,
             /*include_non_interactive*/ true,
         );
 
@@ -5326,7 +5326,7 @@ session_picker_view = "dense"
         {
             let guard = recorded_requests.lock().unwrap();
             assert_eq!(guard.len(), 1);
-            assert_eq!(guard[0].sort_key, ThreadSortKey::UpdatedAt);
+            assert_eq!(guard[0].sort_key, ChatSortKey::UpdatedAt);
         }
 
         state
@@ -5340,7 +5340,7 @@ session_picker_view = "dense"
 
         let guard = recorded_requests.lock().unwrap();
         assert_eq!(guard.len(), 2);
-        assert_eq!(guard[1].sort_key, ThreadSortKey::CreatedAt);
+        assert_eq!(guard[1].sort_key, ChatSortKey::CreatedAt);
     }
 
     #[tokio::test]
@@ -5718,7 +5718,7 @@ session_picker_view = "dense"
     #[test]
     fn app_server_row_keeps_pathless_threads() {
         let thread_id = ThreadId::new();
-        let thread = Thread {
+        let thread = Chat {
             id: thread_id.to_string(),
             session_id: thread_id.to_string(),
             forked_from_id: None,
@@ -5729,7 +5729,7 @@ session_picker_view = "dense"
             created_at: 1,
             updated_at: 2,
             recency_at: Some(2),
-            status: datax_app_server_protocol::ThreadStatus::Idle,
+            status: datax_app_server_protocol::ChatStatus::Idle,
             path: None,
             cwd: test_path_buf("/tmp").abs(),
             cli_version: String::from("0.0.0"),
@@ -5754,7 +5754,7 @@ session_picker_view = "dense"
         use crate::thread_transcript::thread_to_transcript_cells;
 
         let thread_id = ThreadId::new();
-        let thread = Thread {
+        let thread = Chat {
             id: thread_id.to_string(),
             session_id: thread_id.to_string(),
             forked_from_id: None,
@@ -5765,7 +5765,7 @@ session_picker_view = "dense"
             created_at: 1,
             updated_at: 2,
             recency_at: Some(2),
-            status: datax_app_server_protocol::ThreadStatus::Idle,
+            status: datax_app_server_protocol::ChatStatus::Idle,
             path: None,
             cwd: test_path_buf("/tmp").abs(),
             cli_version: String::from("0.0.0"),
@@ -5775,11 +5775,11 @@ session_picker_view = "dense"
             agent_role: None,
             git_info: None,
             name: None,
-            turns: vec![datax_app_server_protocol::Turn {
+            turns: vec![datax_app_server_protocol::Interaction {
                 id: String::from("turn-1"),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: vec![
-                    ThreadItem::UserMessage {
+                    Message::UserMessage {
                         id: String::from("user-1"),
                         client_id: None,
                         content: vec![datax_app_server_protocol::UserInput::Text {
@@ -5787,18 +5787,18 @@ session_picker_view = "dense"
                             text_elements: Vec::new(),
                         }],
                     },
-                    ThreadItem::AgentMessage {
+                    Message::AgentMessage {
                         id: String::from("agent-1"),
                         text: String::from("hello from assistant"),
                         phase: None,
                         memory_citation: None,
                     },
-                    ThreadItem::Plan {
+                    Message::Plan {
                         id: String::from("plan-1"),
                         text: String::from("1. Do the thing"),
                     },
                 ],
-                status: datax_app_server_protocol::TurnStatus::Completed,
+                status: datax_app_server_protocol::InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
@@ -5824,7 +5824,7 @@ session_picker_view = "dense"
         use crate::thread_transcript::thread_to_transcript_cells;
 
         let thread_id = ThreadId::new();
-        let thread = Thread {
+        let thread = Chat {
             id: thread_id.to_string(),
             session_id: thread_id.to_string(),
             forked_from_id: None,
@@ -5835,7 +5835,7 @@ session_picker_view = "dense"
             created_at: 1,
             updated_at: 2,
             recency_at: Some(2),
-            status: datax_app_server_protocol::ThreadStatus::Idle,
+            status: datax_app_server_protocol::ChatStatus::Idle,
             path: None,
             cwd: test_path_buf("/tmp").abs(),
             cli_version: String::from("0.0.0"),
@@ -5845,15 +5845,15 @@ session_picker_view = "dense"
             agent_role: None,
             git_info: None,
             name: None,
-            turns: vec![datax_app_server_protocol::Turn {
+            turns: vec![datax_app_server_protocol::Interaction {
                 id: String::from("turn-1"),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
-                items: vec![ThreadItem::Reasoning {
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                items: vec![Message::Reasoning {
                     id: String::from("reasoning-1"),
                     summary: Vec::new(),
                     content: vec![String::from("private raw chain of thought")],
                 }],
-                status: datax_app_server_protocol::TurnStatus::Completed,
+                status: datax_app_server_protocol::InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
@@ -5883,7 +5883,7 @@ session_picker_view = "dense"
         use crate::thread_transcript::thread_to_transcript_cells;
 
         let thread_id = ThreadId::new();
-        let thread = Thread {
+        let thread = Chat {
             id: thread_id.to_string(),
             session_id: thread_id.to_string(),
             forked_from_id: None,
@@ -5894,7 +5894,7 @@ session_picker_view = "dense"
             created_at: 1,
             updated_at: 2,
             recency_at: Some(2),
-            status: datax_app_server_protocol::ThreadStatus::Idle,
+            status: datax_app_server_protocol::ChatStatus::Idle,
             path: None,
             cwd: test_path_buf("/tmp").abs(),
             cli_version: String::from("0.0.0"),
@@ -5904,15 +5904,15 @@ session_picker_view = "dense"
             agent_role: None,
             git_info: None,
             name: None,
-            turns: vec![datax_app_server_protocol::Turn {
+            turns: vec![datax_app_server_protocol::Interaction {
                 id: String::from("turn-1"),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
-                items: vec![ThreadItem::Reasoning {
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                items: vec![Message::Reasoning {
                     id: String::from("reasoning-1"),
                     summary: vec![String::from("public summary")],
                     content: vec![String::from("raw reasoning content")],
                 }],
-                status: datax_app_server_protocol::TurnStatus::Completed,
+                status: datax_app_server_protocol::InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,

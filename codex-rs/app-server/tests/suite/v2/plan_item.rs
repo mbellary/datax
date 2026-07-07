@@ -6,19 +6,19 @@ use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::to_response;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
-use datax_app_server_protocol::ItemCompletedNotification;
-use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::InteractionCompletedNotification;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
+use datax_app_server_protocol::InteractionStatus;
 use datax_app_server_protocol::JSONRPCMessage;
 use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::Message;
+use datax_app_server_protocol::MessageCompletedNotification;
+use datax_app_server_protocol::MessageStartedNotification;
 use datax_app_server_protocol::PlanDeltaNotification;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnCompletedNotification;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
-use datax_app_server_protocol::TurnStatus;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_features::FEATURES;
 use datax_features::Feature;
@@ -62,9 +62,9 @@ async fn plan_mode_uses_proposed_plan_block_for_plan_item() -> Result<()> {
     wait_for_responses_request_count(&server, /*expected_count*/ 1).await?;
 
     assert_eq!(turn_completed.turn.id, turn.id);
-    assert_eq!(turn_completed.turn.status, TurnStatus::Completed);
+    assert_eq!(turn_completed.turn.status, InteractionStatus::Completed);
 
-    let expected_plan = ThreadItem::Plan {
+    let expected_plan = Message::Plan {
         id: format!("{}-plan", turn.id),
         text: "# Final plan\n- first\n- second\n".to_string(),
     };
@@ -77,12 +77,12 @@ async fn plan_mode_uses_proposed_plan_block_for_plan_item() -> Result<()> {
     assert!(
         plan_deltas
             .iter()
-            .all(|delta| delta.item_id == expected_plan_id)
+            .all(|delta| delta.message_id == expected_plan_id)
     );
     let plan_items = completed_items
         .iter()
         .filter_map(|item| match item {
-            ThreadItem::Plan { .. } => Some(item.clone()),
+            Message::Plan { .. } => Some(item.clone()),
             _ => None,
         })
         .collect::<Vec<_>>();
@@ -90,8 +90,8 @@ async fn plan_mode_uses_proposed_plan_block_for_plan_item() -> Result<()> {
     assert!(
         completed_items
             .iter()
-            .any(|item| matches!(item, ThreadItem::AgentMessage { .. })),
-        "agent message items should still be emitted alongside the plan item"
+            .any(|item| matches!(item, Message::AgentMessage { .. })),
+        "agent message messages should still be emitted alongside the plan item"
     );
 
     Ok(())
@@ -120,16 +120,18 @@ async fn plan_mode_without_proposed_plan_does_not_emit_plan_item() -> Result<()>
 
     let has_plan_item = completed_items
         .iter()
-        .any(|item| matches!(item, ThreadItem::Plan { .. }));
+        .any(|item| matches!(item, Message::Plan { .. }));
     assert!(!has_plan_item);
     assert!(plan_deltas.is_empty());
 
     Ok(())
 }
 
-async fn start_plan_mode_turn(mcp: &mut TestAppServer) -> Result<datax_app_server_protocol::Turn> {
+async fn start_plan_mode_turn(
+    mcp: &mut TestAppServer,
+) -> Result<datax_app_server_protocol::Interaction> {
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -139,7 +141,7 @@ async fn start_plan_mode_turn(mcp: &mut TestAppServer) -> Result<datax_app_serve
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let thread = to_response::<ThreadStartResponse>(thread_resp)?.thread;
+    let thread = to_response::<ChatStartResponse>(thread_resp)?.thread;
 
     let collaboration_mode = CollaborationMode {
         mode: ModeKind::Plan,
@@ -150,8 +152,8 @@ async fn start_plan_mode_turn(mcp: &mut TestAppServer) -> Result<datax_app_serve
         },
     };
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id,
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id,
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "Plan this".to_string(),
@@ -166,16 +168,16 @@ async fn start_plan_mode_turn(mcp: &mut TestAppServer) -> Result<datax_app_serve
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    Ok(to_response::<TurnStartResponse>(turn_resp)?.turn)
+    Ok(to_response::<InteractionStartResponse>(turn_resp)?.turn)
 }
 
 async fn collect_turn_notifications(
     mcp: &mut TestAppServer,
 ) -> Result<(
-    Vec<ThreadItem>,
-    Vec<ThreadItem>,
+    Vec<Message>,
+    Vec<Message>,
     Vec<PlanDeltaNotification>,
-    TurnCompletedNotification,
+    InteractionCompletedNotification,
 )> {
     let mut started_items = Vec::new();
     let mut completed_items = Vec::new();
@@ -187,32 +189,32 @@ async fn collect_turn_notifications(
             continue;
         };
         match notification.method.as_str() {
-            "item/started" => {
+            "message/started" => {
                 let params = notification
                     .params
-                    .ok_or_else(|| anyhow!("item/started notifications must include params"))?;
-                let payload: ItemStartedNotification = serde_json::from_value(params)?;
+                    .ok_or_else(|| anyhow!("message/started notifications must include params"))?;
+                let payload: MessageStartedNotification = serde_json::from_value(params)?;
                 started_items.push(payload.item);
             }
-            "item/completed" => {
-                let params = notification
-                    .params
-                    .ok_or_else(|| anyhow!("item/completed notifications must include params"))?;
-                let payload: ItemCompletedNotification = serde_json::from_value(params)?;
+            "message/completed" => {
+                let params = notification.params.ok_or_else(|| {
+                    anyhow!("message/completed notifications must include params")
+                })?;
+                let payload: MessageCompletedNotification = serde_json::from_value(params)?;
                 completed_items.push(payload.item);
             }
-            "item/plan/delta" => {
-                let params = notification
-                    .params
-                    .ok_or_else(|| anyhow!("item/plan/delta notifications must include params"))?;
+            "message/plan/delta" => {
+                let params = notification.params.ok_or_else(|| {
+                    anyhow!("message/plan/delta notifications must include params")
+                })?;
                 let payload: PlanDeltaNotification = serde_json::from_value(params)?;
                 plan_deltas.push(payload);
             }
-            "turn/completed" => {
-                let params = notification
-                    .params
-                    .ok_or_else(|| anyhow!("turn/completed notifications must include params"))?;
-                let payload: TurnCompletedNotification = serde_json::from_value(params)?;
+            "interaction/completed" => {
+                let params = notification.params.ok_or_else(|| {
+                    anyhow!("interaction/completed notifications must include params")
+                })?;
+                let payload: InteractionCompletedNotification = serde_json::from_value(params)?;
                 return Ok((started_items, completed_items, plan_deltas, payload));
             }
             _ => {}

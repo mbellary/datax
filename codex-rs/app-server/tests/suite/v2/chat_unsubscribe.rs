@@ -5,30 +5,30 @@ use app_test_support::to_response;
 use core_test_support::responses;
 use core_test_support::streaming_sse::StreamingSseChunk;
 use core_test_support::streaming_sse::start_streaming_sse_server;
+use datax_app_server_protocol::ChatLoadedListParams;
+use datax_app_server_protocol::ChatLoadedListResponse;
+use datax_app_server_protocol::ChatReadParams;
+use datax_app_server_protocol::ChatReadResponse;
+use datax_app_server_protocol::ChatResumeParams;
+use datax_app_server_protocol::ChatResumeResponse;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::ChatStatus;
+use datax_app_server_protocol::ChatUnsubscribeParams;
+use datax_app_server_protocol::ChatUnsubscribeResponse;
+use datax_app_server_protocol::ChatUnsubscribeStatus;
 use datax_app_server_protocol::DynamicToolCallOutputContentItem;
 use datax_app_server_protocol::DynamicToolCallParams;
 use datax_app_server_protocol::DynamicToolCallResponse;
 use datax_app_server_protocol::DynamicToolFunctionSpec;
 use datax_app_server_protocol::DynamicToolSpec;
-use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
 use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::Message;
+use datax_app_server_protocol::MessageStartedNotification;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::ServerRequest;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadLoadedListParams;
-use datax_app_server_protocol::ThreadLoadedListResponse;
-use datax_app_server_protocol::ThreadReadParams;
-use datax_app_server_protocol::ThreadReadResponse;
-use datax_app_server_protocol::ThreadResumeParams;
-use datax_app_server_protocol::ThreadResumeResponse;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::ThreadStatus;
-use datax_app_server_protocol::ThreadUnsubscribeParams;
-use datax_app_server_protocol::ThreadUnsubscribeResponse;
-use datax_app_server_protocol::ThreadUnsubscribeStatus;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::json;
@@ -45,11 +45,11 @@ async fn thread_unsubscribe_keeps_thread_loaded_until_idle_timeout() -> Result<(
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let thread_id = start_thread(&mut mcp).await?;
+    let chat_id = start_thread(&mut mcp).await?;
 
     let unsubscribe_id = mcp
-        .send_thread_unsubscribe_request(ThreadUnsubscribeParams {
-            thread_id: thread_id.clone(),
+        .send_chat_unsubscribe_request(ChatUnsubscribeParams {
+            chat_id: chat_id.clone(),
         })
         .await?;
     let unsubscribe_resp: JSONRPCResponse = timeout(
@@ -57,29 +57,29 @@ async fn thread_unsubscribe_keeps_thread_loaded_until_idle_timeout() -> Result<(
         mcp.read_stream_until_response_message(RequestId::Integer(unsubscribe_id)),
     )
     .await??;
-    let unsubscribe = to_response::<ThreadUnsubscribeResponse>(unsubscribe_resp)?;
-    assert_eq!(unsubscribe.status, ThreadUnsubscribeStatus::Unsubscribed);
+    let unsubscribe = to_response::<ChatUnsubscribeResponse>(unsubscribe_resp)?;
+    assert_eq!(unsubscribe.status, ChatUnsubscribeStatus::Unsubscribed);
 
     assert!(
         timeout(
             std::time::Duration::from_millis(250),
-            mcp.read_stream_until_notification_message("thread/closed"),
+            mcp.read_stream_until_notification_message("chat/closed"),
         )
         .await
         .is_err()
     );
 
     let list_id = mcp
-        .send_thread_loaded_list_request(ThreadLoadedListParams::default())
+        .send_chat_loaded_list_request(ChatLoadedListParams::default())
         .await?;
     let list_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(list_id)),
     )
     .await??;
-    let ThreadLoadedListResponse { data, next_cursor } =
-        to_response::<ThreadLoadedListResponse>(list_resp)?;
-    assert_eq!(data, vec![thread_id]);
+    let ChatLoadedListResponse { data, next_cursor } =
+        to_response::<ChatLoadedListResponse>(list_resp)?;
+    assert_eq!(data, vec![chat_id]);
     assert_eq!(next_cursor, None);
 
     Ok(())
@@ -125,7 +125,7 @@ async fn thread_unsubscribe_during_turn_keeps_turn_running() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             dynamic_tools: Some(vec![DynamicToolSpec::Function(DynamicToolFunctionSpec {
                 name: tool_name.to_string(),
@@ -145,12 +145,12 @@ async fn thread_unsubscribe_during_turn_keeps_turn_running() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
-    let thread_id = thread.id;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let chat_id = thread.id;
 
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread_id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: chat_id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "run deterministic tool".to_string(),
@@ -165,7 +165,7 @@ async fn thread_unsubscribe_during_turn_keeps_turn_running() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let _: TurnStartResponse = to_response::<TurnStartResponse>(turn_resp)?;
+    let _: InteractionStartResponse = to_response::<InteractionStartResponse>(turn_resp)?;
 
     timeout(
         DEFAULT_READ_TIMEOUT,
@@ -179,7 +179,7 @@ async fn thread_unsubscribe_during_turn_keeps_turn_running() -> Result<()> {
         wait_for_dynamic_tool_started(&mut mcp, call_id),
     )
     .await??;
-    assert_eq!(started.thread_id, thread_id);
+    assert_eq!(started.chat_id, chat_id);
 
     let request = timeout(
         DEFAULT_READ_TIMEOUT,
@@ -193,8 +193,8 @@ async fn thread_unsubscribe_during_turn_keeps_turn_running() -> Result<()> {
     assert_eq!(
         params,
         DynamicToolCallParams {
-            thread_id: thread_id.clone(),
-            turn_id: started.turn_id,
+            chat_id: chat_id.clone(),
+            interaction_id: started.interaction_id,
             call_id: call_id.to_string(),
             namespace: None,
             tool: tool_name.to_string(),
@@ -203,8 +203,8 @@ async fn thread_unsubscribe_during_turn_keeps_turn_running() -> Result<()> {
     );
 
     let unsubscribe_id = mcp
-        .send_thread_unsubscribe_request(ThreadUnsubscribeParams {
-            thread_id: thread_id.clone(),
+        .send_chat_unsubscribe_request(ChatUnsubscribeParams {
+            chat_id: chat_id.clone(),
         })
         .await?;
     let unsubscribe_resp: JSONRPCResponse = timeout(
@@ -212,12 +212,12 @@ async fn thread_unsubscribe_during_turn_keeps_turn_running() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(unsubscribe_id)),
     )
     .await??;
-    let unsubscribe = to_response::<ThreadUnsubscribeResponse>(unsubscribe_resp)?;
-    assert_eq!(unsubscribe.status, ThreadUnsubscribeStatus::Unsubscribed);
+    let unsubscribe = to_response::<ChatUnsubscribeResponse>(unsubscribe_resp)?;
+    assert_eq!(unsubscribe.status, ChatUnsubscribeStatus::Unsubscribed);
 
     let closed_while_tool_call_blocked = timeout(
         std::time::Duration::from_millis(250),
-        mcp.read_stream_until_notification_message("thread/closed"),
+        mcp.read_stream_until_notification_message("chat/closed"),
     );
     let closed_while_tool_call_blocked = closed_while_tool_call_blocked.await;
     assert!(closed_while_tool_call_blocked.is_err());
@@ -256,11 +256,11 @@ async fn thread_unsubscribe_preserves_cached_status_before_idle_unload() -> Resu
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let thread_id = start_thread(&mut mcp).await?;
+    let chat_id = start_thread(&mut mcp).await?;
 
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread_id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: chat_id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "fail this turn".to_string(),
@@ -274,7 +274,7 @@ async fn thread_unsubscribe_preserves_cached_status_before_idle_unload() -> Resu
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let _: TurnStartResponse = to_response::<TurnStartResponse>(turn_resp)?;
+    let _: InteractionStartResponse = to_response::<InteractionStartResponse>(turn_resp)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.read_stream_until_notification_message("error"),
@@ -282,9 +282,9 @@ async fn thread_unsubscribe_preserves_cached_status_before_idle_unload() -> Resu
     .await??;
 
     let read_id = mcp
-        .send_thread_read_request(ThreadReadParams {
-            thread_id: thread_id.clone(),
-            include_turns: false,
+        .send_chat_read_request(ChatReadParams {
+            chat_id: chat_id.clone(),
+            include_interactions: false,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -292,12 +292,12 @@ async fn thread_unsubscribe_preserves_cached_status_before_idle_unload() -> Resu
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ThreadReadResponse { thread, .. } = to_response::<ThreadReadResponse>(read_resp)?;
-    assert_eq!(thread.status, ThreadStatus::SystemError);
+    let ChatReadResponse { thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
+    assert_eq!(thread.status, ChatStatus::SystemError);
 
     let unsubscribe_id = mcp
-        .send_thread_unsubscribe_request(ThreadUnsubscribeParams {
-            thread_id: thread_id.clone(),
+        .send_chat_unsubscribe_request(ChatUnsubscribeParams {
+            chat_id: chat_id.clone(),
         })
         .await?;
     let unsubscribe_resp: JSONRPCResponse = timeout(
@@ -305,20 +305,20 @@ async fn thread_unsubscribe_preserves_cached_status_before_idle_unload() -> Resu
         mcp.read_stream_until_response_message(RequestId::Integer(unsubscribe_id)),
     )
     .await??;
-    let unsubscribe = to_response::<ThreadUnsubscribeResponse>(unsubscribe_resp)?;
-    assert_eq!(unsubscribe.status, ThreadUnsubscribeStatus::Unsubscribed);
+    let unsubscribe = to_response::<ChatUnsubscribeResponse>(unsubscribe_resp)?;
+    assert_eq!(unsubscribe.status, ChatUnsubscribeStatus::Unsubscribed);
     assert!(
         timeout(
             std::time::Duration::from_millis(250),
-            mcp.read_stream_until_notification_message("thread/closed"),
+            mcp.read_stream_until_notification_message("chat/closed"),
         )
         .await
         .is_err()
     );
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id,
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id,
             cwd: Some(codex_home.path().to_string_lossy().to_string()),
             ..Default::default()
         })
@@ -328,8 +328,8 @@ async fn thread_unsubscribe_preserves_cached_status_before_idle_unload() -> Resu
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let resume: ThreadResumeResponse = to_response::<ThreadResumeResponse>(resume_resp)?;
-    assert_eq!(resume.thread.status, ThreadStatus::SystemError);
+    let resume: ChatResumeResponse = to_response::<ChatResumeResponse>(resume_resp)?;
+    assert_eq!(resume.thread.status, ChatStatus::SystemError);
 
     Ok(())
 }
@@ -343,11 +343,11 @@ async fn thread_unsubscribe_reports_not_subscribed_before_idle_unload() -> Resul
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let thread_id = start_thread(&mut mcp).await?;
+    let chat_id = start_thread(&mut mcp).await?;
 
     let first_unsubscribe_id = mcp
-        .send_thread_unsubscribe_request(ThreadUnsubscribeParams {
-            thread_id: thread_id.clone(),
+        .send_chat_unsubscribe_request(ChatUnsubscribeParams {
+            chat_id: chat_id.clone(),
         })
         .await?;
     let first_unsubscribe_resp: JSONRPCResponse = timeout(
@@ -355,24 +355,24 @@ async fn thread_unsubscribe_reports_not_subscribed_before_idle_unload() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(first_unsubscribe_id)),
     )
     .await??;
-    let first_unsubscribe = to_response::<ThreadUnsubscribeResponse>(first_unsubscribe_resp)?;
+    let first_unsubscribe = to_response::<ChatUnsubscribeResponse>(first_unsubscribe_resp)?;
     assert_eq!(
         first_unsubscribe.status,
-        ThreadUnsubscribeStatus::Unsubscribed
+        ChatUnsubscribeStatus::Unsubscribed
     );
 
     let second_unsubscribe_id = mcp
-        .send_thread_unsubscribe_request(ThreadUnsubscribeParams { thread_id })
+        .send_chat_unsubscribe_request(ChatUnsubscribeParams { chat_id })
         .await?;
     let second_unsubscribe_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(second_unsubscribe_id)),
     )
     .await??;
-    let second_unsubscribe = to_response::<ThreadUnsubscribeResponse>(second_unsubscribe_resp)?;
+    let second_unsubscribe = to_response::<ChatUnsubscribeResponse>(second_unsubscribe_resp)?;
     assert_eq!(
         second_unsubscribe.status,
-        ThreadUnsubscribeStatus::NotSubscribed
+        ChatUnsubscribeStatus::NotSubscribed
     );
 
     Ok(())
@@ -381,16 +381,16 @@ async fn thread_unsubscribe_reports_not_subscribed_before_idle_unload() -> Resul
 async fn wait_for_dynamic_tool_started(
     mcp: &mut TestAppServer,
     call_id: &str,
-) -> Result<ItemStartedNotification> {
+) -> Result<MessageStartedNotification> {
     loop {
         let notification = mcp
-            .read_stream_until_notification_message("item/started")
+            .read_stream_until_notification_message("message/started")
             .await?;
         let Some(params) = notification.params else {
             continue;
         };
-        let started: ItemStartedNotification = serde_json::from_value(params)?;
-        if matches!(&started.item, ThreadItem::DynamicToolCall { id, .. } if id == call_id) {
+        let started: MessageStartedNotification = serde_json::from_value(params)?;
+        if matches!(&started.item, Message::DynamicToolCall { id, .. } if id == call_id) {
             return Ok(started);
         }
     }
@@ -421,7 +421,7 @@ stream_max_retries = 0
 
 async fn start_thread(mcp: &mut TestAppServer) -> Result<String> {
     let req_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -431,6 +431,6 @@ async fn start_thread(mcp: &mut TestAppServer) -> Result<String> {
         mcp.read_stream_until_response_message(RequestId::Integer(req_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(resp)?;
     Ok(thread.id)
 }

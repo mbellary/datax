@@ -3,21 +3,21 @@ use app_test_support::TestAppServer;
 use app_test_support::create_fake_rollout;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
+use datax_app_server_protocol::ChatArchiveParams;
+use datax_app_server_protocol::ChatArchiveResponse;
+use datax_app_server_protocol::ChatArchivedNotification;
+use datax_app_server_protocol::ChatResumeParams;
+use datax_app_server_protocol::ChatResumeResponse;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::ChatStatus;
+use datax_app_server_protocol::ChatUnarchiveParams;
+use datax_app_server_protocol::ChatUnarchiveResponse;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
 use datax_app_server_protocol::JSONRPCError;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadArchiveParams;
-use datax_app_server_protocol::ThreadArchiveResponse;
-use datax_app_server_protocol::ThreadArchivedNotification;
-use datax_app_server_protocol::ThreadResumeParams;
-use datax_app_server_protocol::ThreadResumeResponse;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::ThreadStatus;
-use datax_app_server_protocol::ThreadUnarchiveParams;
-use datax_app_server_protocol::ThreadUnarchiveResponse;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
 use datax_app_server_protocol::UserInput;
 use datax_core::ARCHIVED_SESSIONS_SUBDIR;
 use datax_core::find_archived_thread_path_by_id_str;
@@ -43,7 +43,7 @@ async fn thread_archive_requires_materialized_rollout() -> Result<()> {
 
     // Start a thread.
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -53,7 +53,7 @@ async fn thread_archive_requires_materialized_rollout() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
     assert!(!thread.id.is_empty());
 
     let rollout_path = thread.path.clone().expect("thread path");
@@ -71,8 +71,8 @@ async fn thread_archive_requires_materialized_rollout() -> Result<()> {
 
     // Archive should fail before the rollout is materialized.
     let archive_id = mcp
-        .send_thread_archive_request(ThreadArchiveParams {
-            thread_id: thread.id.clone(),
+        .send_chat_archive_request(ChatArchiveParams {
+            chat_id: thread.id.clone(),
         })
         .await?;
     let archive_err: JSONRPCError = timeout(
@@ -91,8 +91,8 @@ async fn thread_archive_requires_materialized_rollout() -> Result<()> {
 
     // Materialize rollout via a real user turn and confirm archive succeeds.
     let turn_start_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "materialize".to_string(),
@@ -106,10 +106,10 @@ async fn thread_archive_requires_materialized_rollout() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_start_id)),
     )
     .await??;
-    let _: TurnStartResponse = to_response::<TurnStartResponse>(turn_start_response)?;
+    let _: InteractionStartResponse = to_response::<InteractionStartResponse>(turn_start_response)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -126,8 +126,8 @@ async fn thread_archive_requires_materialized_rollout() -> Result<()> {
     assert_paths_match_on_disk(&discovered_path, &rollout_path)?;
 
     let archive_id = mcp
-        .send_thread_archive_request(ThreadArchiveParams {
-            thread_id: thread.id.clone(),
+        .send_chat_archive_request(ChatArchiveParams {
+            chat_id: thread.id.clone(),
         })
         .await?;
     let archive_resp: JSONRPCResponse = timeout(
@@ -135,18 +135,18 @@ async fn thread_archive_requires_materialized_rollout() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(archive_id)),
     )
     .await??;
-    let _: ThreadArchiveResponse = to_response::<ThreadArchiveResponse>(archive_resp)?;
+    let _: ChatArchiveResponse = to_response::<ChatArchiveResponse>(archive_resp)?;
     let archive_notification = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("thread/archived"),
+        mcp.read_stream_until_notification_message("chat/archived"),
     )
     .await??;
-    let archived_notification: ThreadArchivedNotification = serde_json::from_value(
+    let archived_notification: ChatArchivedNotification = serde_json::from_value(
         archive_notification
             .params
-            .expect("thread/archived notification params"),
+            .expect("chat/archived notification params"),
     )?;
-    assert_eq!(archived_notification.thread_id, thread.id);
+    assert_eq!(archived_notification.chat_id, thread.id);
 
     // Verify file moved.
     let archived_directory = codex_home.path().join(ARCHIVED_SESSIONS_SUBDIR);
@@ -198,7 +198,7 @@ async fn thread_archive_archives_spawned_descendants() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let parent_thread_id = ThreadId::from_string(&parent_id)?;
+    let parent_chat_id = ThreadId::from_string(&parent_id)?;
     let child_thread_id = ThreadId::from_string(&child_id)?;
     let grandchild_thread_id = ThreadId::from_string(&grandchild_id)?;
     let state_db =
@@ -208,7 +208,7 @@ async fn thread_archive_archives_spawned_descendants() -> Result<()> {
         .await?;
     state_db
         .upsert_thread_spawn_edge(
-            parent_thread_id,
+            parent_chat_id,
             child_thread_id,
             DirectionalThreadSpawnEdgeStatus::Closed,
         )
@@ -225,8 +225,8 @@ async fn thread_archive_archives_spawned_descendants() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let archive_id = mcp
-        .send_thread_archive_request(ThreadArchiveParams {
-            thread_id: parent_id.clone(),
+        .send_chat_archive_request(ChatArchiveParams {
+            chat_id: parent_id.clone(),
         })
         .await?;
     let archive_resp: JSONRPCResponse = timeout(
@@ -234,44 +234,44 @@ async fn thread_archive_archives_spawned_descendants() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(archive_id)),
     )
     .await??;
-    let _: ThreadArchiveResponse = to_response::<ThreadArchiveResponse>(archive_resp)?;
+    let _: ChatArchiveResponse = to_response::<ChatArchiveResponse>(archive_resp)?;
 
     let mut archived_ids = Vec::new();
     for _ in 0..3 {
         let notification = timeout(
             DEFAULT_READ_TIMEOUT,
-            mcp.read_stream_until_notification_message("thread/archived"),
+            mcp.read_stream_until_notification_message("chat/archived"),
         )
         .await??;
-        let archived_notification: ThreadArchivedNotification = serde_json::from_value(
+        let archived_notification: ChatArchivedNotification = serde_json::from_value(
             notification
                 .params
-                .expect("thread/archived notification params"),
+                .expect("chat/archived notification params"),
         )?;
-        archived_ids.push(archived_notification.thread_id);
+        archived_ids.push(archived_notification.chat_id);
     }
     assert_eq!(archived_ids, vec![parent_id, grandchild_id, child_id]);
 
-    for thread_id in [parent_thread_id, child_thread_id, grandchild_thread_id] {
+    for chat_id in [parent_chat_id, child_thread_id, grandchild_thread_id] {
         assert!(
             find_thread_path_by_id_str(
                 codex_home.path(),
-                &thread_id.to_string(),
+                &chat_id.to_string(),
                 /*state_db_ctx*/ None,
             )
             .await?
             .is_none(),
-            "expected active rollout for {thread_id} to be archived"
+            "expected active rollout for {chat_id} to be archived"
         );
         assert!(
             find_archived_thread_path_by_id_str(
                 codex_home.path(),
-                &thread_id.to_string(),
+                &chat_id.to_string(),
                 /*state_db_ctx*/ None,
             )
             .await?
             .is_some(),
-            "expected archived rollout for {thread_id} to exist"
+            "expected archived rollout for {chat_id} to exist"
         );
     }
 
@@ -309,7 +309,7 @@ async fn thread_archive_succeeds_when_descendant_archive_fails() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let parent_thread_id = ThreadId::from_string(&parent_id)?;
+    let parent_chat_id = ThreadId::from_string(&parent_id)?;
     let child_thread_id = ThreadId::from_string(&child_id)?;
     let grandchild_thread_id = ThreadId::from_string(&grandchild_id)?;
     let state_db =
@@ -319,7 +319,7 @@ async fn thread_archive_succeeds_when_descendant_archive_fails() -> Result<()> {
         .await?;
     state_db
         .upsert_thread_spawn_edge(
-            parent_thread_id,
+            parent_chat_id,
             child_thread_id,
             DirectionalThreadSpawnEdgeStatus::Closed,
         )
@@ -346,8 +346,8 @@ async fn thread_archive_succeeds_when_descendant_archive_fails() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let archive_id = mcp
-        .send_thread_archive_request(ThreadArchiveParams {
-            thread_id: parent_id.clone(),
+        .send_chat_archive_request(ChatArchiveParams {
+            chat_id: parent_id.clone(),
         })
         .await?;
     let archive_resp: JSONRPCResponse = timeout(
@@ -355,28 +355,28 @@ async fn thread_archive_succeeds_when_descendant_archive_fails() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(archive_id)),
     )
     .await??;
-    let _: ThreadArchiveResponse = to_response::<ThreadArchiveResponse>(archive_resp)?;
+    let _: ChatArchiveResponse = to_response::<ChatArchiveResponse>(archive_resp)?;
 
     let mut archived_ids = Vec::new();
     for _ in 0..2 {
         let notification = timeout(
             DEFAULT_READ_TIMEOUT,
-            mcp.read_stream_until_notification_message("thread/archived"),
+            mcp.read_stream_until_notification_message("chat/archived"),
         )
         .await??;
-        let archived_notification: ThreadArchivedNotification = serde_json::from_value(
+        let archived_notification: ChatArchivedNotification = serde_json::from_value(
             notification
                 .params
-                .expect("thread/archived notification params"),
+                .expect("chat/archived notification params"),
         )?;
-        archived_ids.push(archived_notification.thread_id);
+        archived_ids.push(archived_notification.chat_id);
     }
     assert_eq!(archived_ids, vec![parent_id, grandchild_id]);
 
     assert!(
         timeout(
             std::time::Duration::from_millis(250),
-            mcp.read_stream_until_notification_message("thread/archived"),
+            mcp.read_stream_until_notification_message("chat/archived"),
         )
         .await
         .is_err()
@@ -390,26 +390,26 @@ async fn thread_archive_succeeds_when_descendant_archive_fails() -> Result<()> {
         archived_child_path.is_dir(),
         "test conflict should remain in archived sessions"
     );
-    for thread_id in [parent_thread_id, grandchild_thread_id] {
+    for chat_id in [parent_chat_id, grandchild_thread_id] {
         assert!(
             find_thread_path_by_id_str(
                 codex_home.path(),
-                &thread_id.to_string(),
+                &chat_id.to_string(),
                 /*state_db_ctx*/ None,
             )
             .await?
             .is_none(),
-            "expected active rollout for {thread_id} to be archived"
+            "expected active rollout for {chat_id} to be archived"
         );
         assert!(
             find_archived_thread_path_by_id_str(
                 codex_home.path(),
-                &thread_id.to_string(),
+                &chat_id.to_string(),
                 /*state_db_ctx*/ None,
             )
             .await?
             .is_some(),
-            "expected archived rollout for {thread_id} to exist"
+            "expected archived rollout for {chat_id} to exist"
         );
     }
 
@@ -430,7 +430,7 @@ async fn thread_archive_succeeds_when_spawned_descendant_is_missing() -> Result<
         Some("mock_provider"),
         /*git_info*/ None,
     )?;
-    let parent_thread_id = ThreadId::from_string(&parent_id)?;
+    let parent_chat_id = ThreadId::from_string(&parent_id)?;
     let missing_child_thread_id = ThreadId::from_string("00000000-0000-0000-0000-000000000901")?;
 
     let state_db =
@@ -440,7 +440,7 @@ async fn thread_archive_succeeds_when_spawned_descendant_is_missing() -> Result<
         .await?;
     state_db
         .upsert_thread_spawn_edge(
-            parent_thread_id,
+            parent_chat_id,
             missing_child_thread_id,
             DirectionalThreadSpawnEdgeStatus::Closed,
         )
@@ -450,8 +450,8 @@ async fn thread_archive_succeeds_when_spawned_descendant_is_missing() -> Result<
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let archive_id = mcp
-        .send_thread_archive_request(ThreadArchiveParams {
-            thread_id: parent_id.clone(),
+        .send_chat_archive_request(ChatArchiveParams {
+            chat_id: parent_id.clone(),
         })
         .await?;
     let archive_resp: JSONRPCResponse = timeout(
@@ -459,19 +459,19 @@ async fn thread_archive_succeeds_when_spawned_descendant_is_missing() -> Result<
         mcp.read_stream_until_response_message(RequestId::Integer(archive_id)),
     )
     .await??;
-    let _: ThreadArchiveResponse = to_response::<ThreadArchiveResponse>(archive_resp)?;
+    let _: ChatArchiveResponse = to_response::<ChatArchiveResponse>(archive_resp)?;
 
     let notification = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("thread/archived"),
+        mcp.read_stream_until_notification_message("chat/archived"),
     )
     .await??;
-    let archived_notification: ThreadArchivedNotification = serde_json::from_value(
+    let archived_notification: ChatArchivedNotification = serde_json::from_value(
         notification
             .params
-            .expect("thread/archived notification params"),
+            .expect("chat/archived notification params"),
     )?;
-    assert_eq!(archived_notification.thread_id, parent_id);
+    assert_eq!(archived_notification.chat_id, parent_id);
 
     assert!(
         find_thread_path_by_id_str(codex_home.path(), &parent_id, /*state_db_ctx*/ None)
@@ -503,7 +503,7 @@ async fn thread_archive_clears_stale_subscriptions_before_resume() -> Result<()>
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -513,11 +513,11 @@ async fn thread_archive_clears_stale_subscriptions_before_resume() -> Result<()>
         primary.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let turn_start_id = primary
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "materialize".to_string(),
@@ -531,10 +531,10 @@ async fn thread_archive_clears_stale_subscriptions_before_resume() -> Result<()>
         primary.read_stream_until_response_message(RequestId::Integer(turn_start_id)),
     )
     .await??;
-    let _: TurnStartResponse = to_response::<TurnStartResponse>(turn_start_response)?;
+    let _: InteractionStartResponse = to_response::<InteractionStartResponse>(turn_start_response)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_notification_message("turn/completed"),
+        primary.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
     primary.clear_message_buffer();
@@ -543,8 +543,8 @@ async fn thread_archive_clears_stale_subscriptions_before_resume() -> Result<()>
     timeout(DEFAULT_READ_TIMEOUT, secondary.initialize()).await??;
 
     let archive_id = primary
-        .send_thread_archive_request(ThreadArchiveParams {
-            thread_id: thread.id.clone(),
+        .send_chat_archive_request(ChatArchiveParams {
+            chat_id: thread.id.clone(),
         })
         .await?;
     let archive_resp: JSONRPCResponse = timeout(
@@ -552,16 +552,16 @@ async fn thread_archive_clears_stale_subscriptions_before_resume() -> Result<()>
         primary.read_stream_until_response_message(RequestId::Integer(archive_id)),
     )
     .await??;
-    let _: ThreadArchiveResponse = to_response::<ThreadArchiveResponse>(archive_resp)?;
+    let _: ChatArchiveResponse = to_response::<ChatArchiveResponse>(archive_resp)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_notification_message("thread/archived"),
+        primary.read_stream_until_notification_message("chat/archived"),
     )
     .await??;
 
     let unarchive_id = primary
-        .send_thread_unarchive_request(ThreadUnarchiveParams {
-            thread_id: thread.id.clone(),
+        .send_chat_unarchive_request(ChatUnarchiveParams {
+            chat_id: thread.id.clone(),
         })
         .await?;
     let unarchive_resp: JSONRPCResponse = timeout(
@@ -569,17 +569,17 @@ async fn thread_archive_clears_stale_subscriptions_before_resume() -> Result<()>
         primary.read_stream_until_response_message(RequestId::Integer(unarchive_id)),
     )
     .await??;
-    let _: ThreadUnarchiveResponse = to_response::<ThreadUnarchiveResponse>(unarchive_resp)?;
+    let _: ChatUnarchiveResponse = to_response::<ChatUnarchiveResponse>(unarchive_resp)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_notification_message("thread/unarchived"),
+        primary.read_stream_until_notification_message("chat/unarchived"),
     )
     .await??;
     primary.clear_message_buffer();
 
     let resume_id = secondary
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: thread.id.clone(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: thread.id.clone(),
             ..Default::default()
         })
         .await?;
@@ -588,14 +588,14 @@ async fn thread_archive_clears_stale_subscriptions_before_resume() -> Result<()>
         secondary.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let resume: ThreadResumeResponse = to_response::<ThreadResumeResponse>(resume_resp)?;
-    assert_eq!(resume.thread.status, ThreadStatus::Idle);
+    let resume: ChatResumeResponse = to_response::<ChatResumeResponse>(resume_resp)?;
+    assert_eq!(resume.thread.status, ChatStatus::Idle);
     primary.clear_message_buffer();
     secondary.clear_message_buffer();
 
     let resumed_turn_id = secondary
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id,
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id,
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "secondary turn".to_string(),
@@ -609,12 +609,12 @@ async fn thread_archive_clears_stale_subscriptions_before_resume() -> Result<()>
         secondary.read_stream_until_response_message(RequestId::Integer(resumed_turn_id)),
     )
     .await??;
-    let _: TurnStartResponse = to_response::<TurnStartResponse>(resumed_turn_resp)?;
+    let _: InteractionStartResponse = to_response::<InteractionStartResponse>(resumed_turn_resp)?;
 
     assert!(
         timeout(
             std::time::Duration::from_millis(250),
-            primary.read_stream_until_notification_message("turn/started"),
+            primary.read_stream_until_notification_message("interaction/started"),
         )
         .await
         .is_err()
@@ -622,7 +622,7 @@ async fn thread_archive_clears_stale_subscriptions_before_resume() -> Result<()>
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        secondary.read_stream_until_notification_message("turn/completed"),
+        secondary.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 

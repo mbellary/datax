@@ -1,12 +1,12 @@
 use super::shared::v2_enum_from_core;
 use datax_protocol::approvals::ElicitationRequest as CoreElicitationRequest;
-use datax_protocol::items::McpToolCallError as CoreMcpToolCallError;
 use datax_protocol::mcp::CallToolResult as CoreMcpCallToolResult;
 use datax_protocol::mcp::McpServerInfo;
 use datax_protocol::mcp::Resource as McpResource;
 pub use datax_protocol::mcp::ResourceContent as McpResourceContent;
 use datax_protocol::mcp::ResourceTemplate as McpResourceTemplate;
 use datax_protocol::mcp::Tool as McpTool;
+use datax_protocol::messages::McpToolCallError as CoreMcpToolCallError;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
@@ -38,7 +38,7 @@ pub struct ListMcpServerStatusParams {
     #[ts(optional = nullable)]
     pub detail: Option<McpServerStatusDetail>,
     #[ts(optional = nullable)]
-    pub thread_id: Option<String>,
+    pub chat_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema, TS)]
@@ -67,7 +67,7 @@ pub struct McpServerStatus {
 pub struct ListMcpServerStatusResponse {
     pub data: Vec<McpServerStatus>,
     /// Opaque cursor to pass to the next call to continue after the last item.
-    /// If None, there are no more items to return.
+    /// If None, there are no more messages to return.
     pub next_cursor: Option<String>,
 }
 
@@ -76,7 +76,7 @@ pub struct ListMcpServerStatusResponse {
 #[ts(export_to = "v2/")]
 pub struct McpResourceReadParams {
     #[ts(optional = nullable)]
-    pub thread_id: Option<String>,
+    pub chat_id: Option<String>,
     pub server: String,
     pub uri: String,
 }
@@ -92,7 +92,7 @@ pub struct McpResourceReadResponse {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct McpServerToolCallParams {
-    pub thread_id: String,
+    pub chat_id: String,
     pub server: String,
     pub tool: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -204,9 +204,9 @@ pub struct McpServerOauthLoginResponse {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct McpToolCallProgressNotification {
-    pub thread_id: String,
-    pub turn_id: String,
-    pub item_id: String,
+    pub chat_id: String,
+    pub interaction_id: String,
+    pub message_id: String,
     pub message: String,
 }
 
@@ -235,7 +235,7 @@ pub enum McpServerStartupState {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct McpServerStatusUpdatedNotification {
-    pub thread_id: Option<String>,
+    pub chat_id: Option<String>,
     pub name: String,
     pub status: McpServerStartupState,
     pub error: Option<String>,
@@ -285,14 +285,14 @@ impl From<rmcp::model::ElicitationAction> for McpServerElicitationAction {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct McpServerElicitationRequestParams {
-    pub thread_id: String,
+    pub chat_id: String,
     /// Active Codex turn when this elicitation was observed, if app-server could correlate one.
     ///
     /// This is nullable because MCP models elicitation as a standalone server-to-client request
     /// identified by the MCP server request id. It may be triggered during a turn, but turn
     /// context is app-server correlation rather than part of the protocol identity of the
     /// elicitation itself.
-    pub turn_id: Option<String>,
+    pub interaction_id: Option<String>,
     pub server_name: String,
     #[serde(flatten)]
     pub request: McpServerElicitationRequest,
@@ -549,7 +549,7 @@ pub struct McpElicitationUntitledMultiSelectEnumSchema {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub max_items: Option<u64>,
-    pub items: McpElicitationUntitledEnumItems,
+    pub messages: McpElicitationUntitledEnumItems,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub default: Option<Vec<String>>,
@@ -574,7 +574,7 @@ pub struct McpElicitationTitledMultiSelectEnumSchema {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub max_items: Option<u64>,
-    pub items: McpElicitationTitledEnumItems,
+    pub messages: McpElicitationTitledEnumItems,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub default: Option<Vec<String>>,

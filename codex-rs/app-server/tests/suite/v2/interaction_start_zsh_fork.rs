@@ -15,22 +15,22 @@ use app_test_support::create_shell_command_sse_response;
 use app_test_support::to_response;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::CommandAction;
 use datax_app_server_protocol::CommandExecutionApprovalDecision;
 use datax_app_server_protocol::CommandExecutionRequestApprovalResponse;
 use datax_app_server_protocol::CommandExecutionStatus;
-use datax_app_server_protocol::ItemCompletedNotification;
-use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::InteractionCompletedNotification;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
+use datax_app_server_protocol::InteractionStatus;
 use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::Message;
+use datax_app_server_protocol::MessageCompletedNotification;
+use datax_app_server_protocol::MessageStartedNotification;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::ServerRequest;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnCompletedNotification;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
-use datax_app_server_protocol::TurnStatus;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_features::FEATURES;
 use datax_features::Feature;
@@ -65,7 +65,7 @@ async fn turn_start_shell_zsh_fork_executes_command_v2() -> Result<()> {
 
     // Keep the shell command in flight until we interrupt it. A fast command
     // like `echo hi` can finish before the interrupt arrives on faster runners,
-    // which turns this into a test for post-command follow-up behavior instead
+    // which interactions this into a test for post-command follow-up behavior instead
     // of interrupting an active zsh-fork command.
     let release_marker_escaped = release_marker.to_string_lossy().replace('\'', r#"'\''"#);
     let wait_for_interrupt =
@@ -101,7 +101,7 @@ async fn turn_start_shell_zsh_fork_executes_command_v2() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             cwd: Some(workspace.to_string_lossy().into_owned()),
             ..Default::default()
@@ -112,11 +112,11 @@ async fn turn_start_shell_zsh_fork_executes_command_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    let turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+    let interaction_id = mcp
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "run echo hi".to_string(),
@@ -133,25 +133,29 @@ async fn turn_start_shell_zsh_fork_executes_command_v2() -> Result<()> {
         .await?;
     let turn_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
-    let TurnStartResponse { turn } = to_response::<TurnStartResponse>(turn_resp)?;
+    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
 
     let started_command_execution = timeout(DEFAULT_READ_TIMEOUT, async {
         loop {
             let started_notif = mcp
-                .read_stream_until_notification_message("item/started")
+                .read_stream_until_notification_message("message/started")
                 .await?;
-            let started: ItemStartedNotification =
-                serde_json::from_value(started_notif.params.clone().expect("item/started params"))?;
-            if let ThreadItem::CommandExecution { .. } = started.item {
-                return Ok::<ThreadItem, anyhow::Error>(started.item);
+            let started: MessageStartedNotification = serde_json::from_value(
+                started_notif
+                    .params
+                    .clone()
+                    .expect("message/started params"),
+            )?;
+            if let Message::CommandExecution { .. } = started.item {
+                return Ok::<Message, anyhow::Error>(started.item);
             }
         }
     })
     .await??;
-    let ThreadItem::CommandExecution {
+    let Message::CommandExecution {
         id,
         status,
         command,
@@ -159,7 +163,7 @@ async fn turn_start_shell_zsh_fork_executes_command_v2() -> Result<()> {
         ..
     } = started_command_execution
     else {
-        unreachable!("loop ensures we break on command execution items");
+        unreachable!("loop ensures we break on command execution messages");
     };
     assert_eq!(id, "call-zsh-fork");
     assert_eq!(status, CommandExecutionStatus::InProgress);
@@ -220,7 +224,7 @@ async fn turn_start_shell_zsh_fork_exec_approval_decline_v2() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             cwd: Some(workspace.to_string_lossy().into_owned()),
             ..Default::default()
@@ -231,11 +235,11 @@ async fn turn_start_shell_zsh_fork_exec_approval_decline_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    let turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+    let interaction_id = mcp
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "run python".to_string(),
@@ -247,7 +251,7 @@ async fn turn_start_shell_zsh_fork_exec_approval_decline_v2() -> Result<()> {
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
 
@@ -259,8 +263,8 @@ async fn turn_start_shell_zsh_fork_exec_approval_decline_v2() -> Result<()> {
     let ServerRequest::CommandExecutionRequestApproval { request_id, params } = server_req else {
         panic!("expected CommandExecutionRequestApproval request");
     };
-    assert_eq!(params.item_id, "call-zsh-fork-decline");
-    assert_eq!(params.thread_id, thread.id);
+    assert_eq!(params.message_id, "call-zsh-fork-decline");
+    assert_eq!(params.chat_id, thread.id);
 
     mcp.send_response(
         request_id,
@@ -273,21 +277,21 @@ async fn turn_start_shell_zsh_fork_exec_approval_decline_v2() -> Result<()> {
     let completed_command_execution = timeout(DEFAULT_READ_TIMEOUT, async {
         loop {
             let completed_notif = mcp
-                .read_stream_until_notification_message("item/completed")
+                .read_stream_until_notification_message("message/completed")
                 .await?;
-            let completed: ItemCompletedNotification = serde_json::from_value(
+            let completed: MessageCompletedNotification = serde_json::from_value(
                 completed_notif
                     .params
                     .clone()
-                    .expect("item/completed params"),
+                    .expect("message/completed params"),
             )?;
-            if let ThreadItem::CommandExecution { .. } = completed.item {
-                return Ok::<ThreadItem, anyhow::Error>(completed.item);
+            if let Message::CommandExecution { .. } = completed.item {
+                return Ok::<Message, anyhow::Error>(completed.item);
             }
         }
     })
     .await??;
-    let ThreadItem::CommandExecution {
+    let Message::CommandExecution {
         id,
         status,
         exit_code,
@@ -295,7 +299,7 @@ async fn turn_start_shell_zsh_fork_exec_approval_decline_v2() -> Result<()> {
         ..
     } = completed_command_execution
     else {
-        unreachable!("loop ensures we break on command execution items");
+        unreachable!("loop ensures we break on command execution messages");
     };
     assert_eq!(id, "call-zsh-fork-decline");
     assert_eq!(status, CommandExecutionStatus::Declined);
@@ -304,7 +308,7 @@ async fn turn_start_shell_zsh_fork_exec_approval_decline_v2() -> Result<()> {
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -353,7 +357,7 @@ async fn turn_start_shell_zsh_fork_exec_approval_cancel_v2() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             cwd: Some(workspace.to_string_lossy().into_owned()),
             ..Default::default()
@@ -364,11 +368,11 @@ async fn turn_start_shell_zsh_fork_exec_approval_cancel_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    let turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+    let interaction_id = mcp
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "run python".to_string(),
@@ -380,7 +384,7 @@ async fn turn_start_shell_zsh_fork_exec_approval_cancel_v2() -> Result<()> {
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
 
@@ -392,8 +396,8 @@ async fn turn_start_shell_zsh_fork_exec_approval_cancel_v2() -> Result<()> {
     let ServerRequest::CommandExecutionRequestApproval { request_id, params } = server_req else {
         panic!("expected CommandExecutionRequestApproval request");
     };
-    assert_eq!(params.item_id, "call-zsh-fork-cancel");
-    assert_eq!(params.thread_id, thread.id.clone());
+    assert_eq!(params.message_id, "call-zsh-fork-cancel");
+    assert_eq!(params.chat_id, thread.id.clone());
 
     mcp.send_response(
         request_id,
@@ -406,38 +410,38 @@ async fn turn_start_shell_zsh_fork_exec_approval_cancel_v2() -> Result<()> {
     let completed_command_execution = timeout(DEFAULT_READ_TIMEOUT, async {
         loop {
             let completed_notif = mcp
-                .read_stream_until_notification_message("item/completed")
+                .read_stream_until_notification_message("message/completed")
                 .await?;
-            let completed: ItemCompletedNotification = serde_json::from_value(
+            let completed: MessageCompletedNotification = serde_json::from_value(
                 completed_notif
                     .params
                     .clone()
-                    .expect("item/completed params"),
+                    .expect("message/completed params"),
             )?;
-            if let ThreadItem::CommandExecution { .. } = completed.item {
-                return Ok::<ThreadItem, anyhow::Error>(completed.item);
+            if let Message::CommandExecution { .. } = completed.item {
+                return Ok::<Message, anyhow::Error>(completed.item);
             }
         }
     })
     .await??;
-    let ThreadItem::CommandExecution { id, status, .. } = completed_command_execution else {
-        unreachable!("loop ensures we break on command execution items");
+    let Message::CommandExecution { id, status, .. } = completed_command_execution else {
+        unreachable!("loop ensures we break on command execution messages");
     };
     assert_eq!(id, "call-zsh-fork-cancel");
     assert_eq!(status, CommandExecutionStatus::Declined);
 
     let completed_notif = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
-    let completed: TurnCompletedNotification = serde_json::from_value(
+    let completed: InteractionCompletedNotification = serde_json::from_value(
         completed_notif
             .params
-            .expect("turn/completed params must be present"),
+            .expect("interaction/completed params must be present"),
     )?;
-    assert_eq!(completed.thread_id, thread.id);
-    assert_eq!(completed.turn.status, TurnStatus::Interrupted);
+    assert_eq!(completed.chat_id, thread.id);
+    assert_eq!(completed.turn.status, InteractionStatus::Interrupted);
 
     Ok(())
 }
@@ -512,7 +516,7 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             cwd: Some(workspace.to_string_lossy().into_owned()),
             ..Default::default()
@@ -523,11 +527,11 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    let turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+    let interaction_id = mcp
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "remove both files".to_string(),
@@ -548,10 +552,10 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
         .await?;
     let turn_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
-    let TurnStartResponse { turn } = to_response::<TurnStartResponse>(turn_resp)?;
+    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
 
     let mut approved_subcommand_strings = Vec::new();
     let mut approved_subcommand_ids = Vec::new();
@@ -574,8 +578,8 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
         else {
             panic!("expected CommandExecutionRequestApproval request");
         };
-        assert_eq!(params.item_id, "call-zsh-fork-subcommand-decline");
-        assert_eq!(params.thread_id, thread.id);
+        assert_eq!(params.message_id, "call-zsh-fork-subcommand-decline");
+        assert_eq!(params.chat_id, thread.id);
         let approval_command = params
             .command
             .as_deref()
@@ -643,18 +647,18 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
     let parent_completed_command_execution = timeout(DEFAULT_READ_TIMEOUT, async {
         loop {
             let completed_notif = mcp
-                .read_stream_until_notification_message("item/completed")
+                .read_stream_until_notification_message("message/completed")
                 .await?;
-            let completed: ItemCompletedNotification = serde_json::from_value(
+            let completed: MessageCompletedNotification = serde_json::from_value(
                 completed_notif
                     .params
                     .clone()
-                    .expect("item/completed params"),
+                    .expect("message/completed params"),
             )?;
-            if let ThreadItem::CommandExecution { id, .. } = &completed.item
+            if let Message::CommandExecution { id, .. } = &completed.item
                 && id == "call-zsh-fork-subcommand-decline"
             {
-                return Ok::<ThreadItem, anyhow::Error>(completed.item);
+                return Ok::<Message, anyhow::Error>(completed.item);
             }
         }
     })
@@ -662,7 +666,7 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
 
     match parent_completed_command_execution {
         Ok(Ok(parent_completed_command_execution)) => {
-            let ThreadItem::CommandExecution {
+            let Message::CommandExecution {
                 id,
                 status,
                 aggregated_output,
@@ -683,21 +687,21 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
 
             match timeout(
                 DEFAULT_READ_TIMEOUT,
-                mcp.read_stream_until_notification_message("turn/completed"),
+                mcp.read_stream_until_notification_message("interaction/completed"),
             )
             .await
             {
                 Ok(Ok(completed_notif)) => {
-                    let completed: TurnCompletedNotification = serde_json::from_value(
+                    let completed: InteractionCompletedNotification = serde_json::from_value(
                         completed_notif
                             .params
-                            .expect("turn/completed params must be present"),
+                            .expect("interaction/completed params must be present"),
                     )?;
-                    assert_eq!(completed.thread_id, thread.id);
+                    assert_eq!(completed.chat_id, thread.id);
                     assert_eq!(completed.turn.id, turn.id);
                     assert!(matches!(
                         completed.turn.status,
-                        TurnStatus::Interrupted | TurnStatus::Completed
+                        InteractionStatus::Interrupted | InteractionStatus::Completed
                     ));
                 }
                 Ok(Err(error)) => return Err(error),
@@ -714,24 +718,24 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
         Ok(Err(error)) => return Err(error),
         Err(_) => {
             // Some zsh builds abort the turn immediately after the rejected
-            // subcommand without emitting a parent `item/completed`, and Linux
+            // subcommand without emitting a parent `message/completed`, and Linux
             // sandbox failures can also complete the turn before the parent
             // completion item is observed.
             let completed_notif = timeout(
                 DEFAULT_READ_TIMEOUT,
-                mcp.read_stream_until_notification_message("turn/completed"),
+                mcp.read_stream_until_notification_message("interaction/completed"),
             )
             .await??;
-            let completed: TurnCompletedNotification = serde_json::from_value(
+            let completed: InteractionCompletedNotification = serde_json::from_value(
                 completed_notif
                     .params
-                    .expect("turn/completed params must be present"),
+                    .expect("interaction/completed params must be present"),
             )?;
-            assert_eq!(completed.thread_id, thread.id);
+            assert_eq!(completed.chat_id, thread.id);
             assert_eq!(completed.turn.id, turn.id);
             assert!(matches!(
                 completed.turn.status,
-                TurnStatus::Interrupted | TurnStatus::Completed
+                InteractionStatus::Interrupted | InteractionStatus::Completed
             ));
         }
     }

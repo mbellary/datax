@@ -6,9 +6,9 @@ use crate::history_cell::HistoryCell;
 use crate::history_cell::plain_lines;
 use crate::text_formatting::truncate_text;
 use datax_app_server_protocol::CollabAgentTool;
+use datax_app_server_protocol::Message;
 use datax_app_server_protocol::ServerNotification;
 use datax_app_server_protocol::SubAgentActivityKind;
-use datax_app_server_protocol::ThreadItem;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use std::collections::HashSet;
@@ -85,10 +85,10 @@ impl AgentStatusThreadPreview {
         let mut activity = Vec::new();
         for event in events {
             let item = match event {
-                ThreadBufferedEvent::Notification(ServerNotification::ItemCompleted(event)) => {
+                ThreadBufferedEvent::Notification(ServerNotification::MessageCompleted(event)) => {
                     &event.item
                 }
-                ThreadBufferedEvent::Notification(ServerNotification::ItemStarted(event)) => {
+                ThreadBufferedEvent::Notification(ServerNotification::MessageStarted(event)) => {
                     &event.item
                 }
                 ThreadBufferedEvent::Notification(_)
@@ -132,24 +132,24 @@ impl AgentStatusThreadPreview {
     }
 }
 
-fn activity_summary(item: &ThreadItem) -> Option<String> {
+fn activity_summary(item: &Message) -> Option<String> {
     let summary = match item {
-        ThreadItem::AgentMessage { text, .. } | ThreadItem::Plan { text, .. } => text,
-        ThreadItem::Reasoning { summary, .. } => summary.last()?,
-        ThreadItem::CommandExecution { command, .. } => {
+        Message::AgentMessage { text, .. } | Message::Plan { text, .. } => text,
+        Message::Reasoning { summary, .. } => summary.last()?,
+        Message::CommandExecution { command, .. } => {
             let command = truncate_text(
                 command,
                 AGENT_STATUS_PREVIEW_GRAPHEMES.saturating_sub("$ ".len()),
             );
             return bounded_summary(&format!("$ {command}"));
         }
-        ThreadItem::FileChange { changes, .. } => {
+        Message::FileChange { changes, .. } => {
             return bounded_summary(&format!("Updated {} file(s)", changes.len()));
         }
-        ThreadItem::McpToolCall { server, tool, .. } => {
+        Message::McpToolCall { server, tool, .. } => {
             return bounded_summary(&format!("MCP {server}/{tool}"));
         }
-        ThreadItem::DynamicToolCall {
+        Message::DynamicToolCall {
             namespace, tool, ..
         } => {
             let tool = namespace
@@ -158,7 +158,7 @@ fn activity_summary(item: &ThreadItem) -> Option<String> {
                 .unwrap_or_else(|| tool.clone());
             return bounded_summary(&format!("Tool {tool}"));
         }
-        ThreadItem::CollabAgentToolCall { tool, .. } => {
+        Message::CollabAgentToolCall { tool, .. } => {
             let action = match tool {
                 CollabAgentTool::SpawnAgent => "Spawned an agent",
                 CollabAgentTool::SendInput => "Sent input to an agent",
@@ -168,7 +168,7 @@ fn activity_summary(item: &ThreadItem) -> Option<String> {
             };
             return Some(action.to_string());
         }
-        ThreadItem::SubAgentActivity {
+        Message::SubAgentActivity {
             kind, agent_path, ..
         } => {
             let action = match kind {
@@ -178,19 +178,19 @@ fn activity_summary(item: &ThreadItem) -> Option<String> {
             };
             return bounded_summary(&format!("{action} {agent_path}"));
         }
-        ThreadItem::WebSearch { query, .. } => {
+        Message::WebSearch { query, .. } => {
             return bounded_summary(&format!("Web search: {query}"));
         }
-        ThreadItem::ImageView { path, .. } => {
+        Message::ImageView { path, .. } => {
             return bounded_summary(&format!("Viewed {}", path.display()));
         }
-        ThreadItem::ImageGeneration { .. } => return Some("Generated an image".to_string()),
-        ThreadItem::EnteredReviewMode { .. } => return Some("Entered review mode".to_string()),
-        ThreadItem::ExitedReviewMode { .. } => return Some("Exited review mode".to_string()),
-        ThreadItem::ContextCompaction { .. } => return Some("Compacted context".to_string()),
-        ThreadItem::UserMessage { .. }
-        | ThreadItem::HookPrompt { .. }
-        | ThreadItem::Sleep { .. } => return None,
+        Message::ImageGeneration { .. } => return Some("Generated an image".to_string()),
+        Message::EnteredReviewMode { .. } => return Some("Entered review mode".to_string()),
+        Message::ExitedReviewMode { .. } => return Some("Exited review mode".to_string()),
+        Message::ContextCompaction { .. } => return Some("Compacted context".to_string()),
+        Message::UserMessage { .. } | Message::HookPrompt { .. } | Message::Sleep { .. } => {
+            return None;
+        }
     };
     bounded_summary(summary)
 }

@@ -8,17 +8,17 @@ use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use core_test_support::responses;
-use datax_app_server_protocol::ItemCompletedNotification;
-use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::ChatReadParams;
+use datax_app_server_protocol::ChatReadResponse;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
 use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::Message;
+use datax_app_server_protocol::MessageCompletedNotification;
+use datax_app_server_protocol::MessageStartedNotification;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadReadParams;
-use datax_app_server_protocol::ThreadReadResponse;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_app_server_protocol::WebSearchAction;
 use datax_config::types::AuthCredentialsStoreMode;
@@ -83,19 +83,19 @@ async fn standalone_web_search_round_trips_output() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
     let thread_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
-    let thread_id = thread.id.clone();
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let chat_id = thread.id.clone();
 
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread_id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: chat_id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "Search the web".to_string(),
@@ -109,7 +109,7 @@ async fn standalone_web_search_round_trips_output() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let _turn: TurnStartResponse = to_response::<TurnStartResponse>(turn_resp)?;
+    let _turn: InteractionStartResponse = to_response::<InteractionStartResponse>(turn_resp)?;
 
     let started = timeout(DEFAULT_READ_TIMEOUT, wait_for_web_search_started(&mut mcp)).await??;
     let completed = timeout(
@@ -120,7 +120,7 @@ async fn standalone_web_search_round_trips_output() -> Result<()> {
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -179,13 +179,13 @@ async fn standalone_web_search_round_trips_output() -> Result<()> {
     );
     assert_eq!(
         started.item,
-        ThreadItem::WebSearch {
+        Message::WebSearch {
             id: call_id.to_string(),
             query: String::new(),
             action: Some(WebSearchAction::Other),
         }
     );
-    let expected_completed_item = ThreadItem::WebSearch {
+    let expected_completed_item = Message::WebSearch {
         id: call_id.to_string(),
         query: "standalone web search".to_string(),
         action: Some(WebSearchAction::Search {
@@ -200,9 +200,9 @@ async fn standalone_web_search_round_trips_output() -> Result<()> {
         TestAppServer::new_with_env(codex_home.path(), &[("OPENAI_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, reloaded_mcp.initialize()).await??;
     let read_req = reloaded_mcp
-        .send_thread_read_request(ThreadReadParams {
-            thread_id,
-            include_turns: true,
+        .send_chat_read_request(ChatReadParams {
+            chat_id,
+            include_interactions: true,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -210,29 +210,31 @@ async fn standalone_web_search_round_trips_output() -> Result<()> {
         reloaded_mcp.read_stream_until_response_message(RequestId::Integer(read_req)),
     )
     .await??;
-    let ThreadReadResponse { thread, .. } = to_response::<ThreadReadResponse>(read_resp)?;
-    let persisted_web_searches: Vec<&ThreadItem> = thread
-        .turns
+    let ChatReadResponse { thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
+    let persisted_web_searches: Vec<&Message> = thread
+        .interactions
         .iter()
-        .flat_map(|turn| &turn.items)
-        .filter(|item| matches!(item, ThreadItem::WebSearch { .. }))
+        .flat_map(|turn| &turn.messages)
+        .filter(|item| matches!(item, Message::WebSearch { .. }))
         .collect();
     assert_eq!(persisted_web_searches, vec![&expected_completed_item]);
 
     Ok(())
 }
 
-async fn wait_for_web_search_started(mcp: &mut TestAppServer) -> Result<ItemStartedNotification> {
+async fn wait_for_web_search_started(
+    mcp: &mut TestAppServer,
+) -> Result<MessageStartedNotification> {
     loop {
         let notification = mcp
-            .read_stream_until_notification_message("item/started")
+            .read_stream_until_notification_message("message/started")
             .await?;
-        let started: ItemStartedNotification = serde_json::from_value(
+        let started: MessageStartedNotification = serde_json::from_value(
             notification
                 .params
-                .context("item/started notification should include params")?,
+                .context("message/started notification should include params")?,
         )?;
-        if matches!(&started.item, ThreadItem::WebSearch { .. }) {
+        if matches!(&started.item, Message::WebSearch { .. }) {
             return Ok(started);
         }
     }
@@ -240,17 +242,17 @@ async fn wait_for_web_search_started(mcp: &mut TestAppServer) -> Result<ItemStar
 
 async fn wait_for_web_search_completed(
     mcp: &mut TestAppServer,
-) -> Result<ItemCompletedNotification> {
+) -> Result<MessageCompletedNotification> {
     loop {
         let notification = mcp
-            .read_stream_until_notification_message("item/completed")
+            .read_stream_until_notification_message("message/completed")
             .await?;
-        let completed: ItemCompletedNotification = serde_json::from_value(
+        let completed: MessageCompletedNotification = serde_json::from_value(
             notification
                 .params
-                .context("item/completed notification should include params")?,
+                .context("message/completed notification should include params")?,
         )?;
-        if matches!(&completed.item, ThreadItem::WebSearch { .. }) {
+        if matches!(&completed.item, Message::WebSearch { .. }) {
             return Ok(completed);
         }
     }

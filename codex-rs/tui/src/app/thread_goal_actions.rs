@@ -11,8 +11,8 @@ use crate::goal_display::goal_status_label;
 use crate::goal_display::goal_usage_summary;
 use crate::goal_files;
 use crate::text_formatting::truncate_text;
-use datax_app_server_protocol::ThreadGoal;
-use datax_app_server_protocol::ThreadGoalStatus;
+use datax_app_server_protocol::ChatGoal;
+use datax_app_server_protocol::ChatGoalStatus;
 use datax_protocol::ThreadId;
 
 const EPHEMERAL_THREAD_GOAL_ERROR_MESSAGE: &str = concat!(
@@ -74,7 +74,7 @@ impl App {
         };
         if matches!(
             goal.status,
-            ThreadGoalStatus::Paused | ThreadGoalStatus::Blocked | ThreadGoalStatus::UsageLimited
+            ChatGoalStatus::Paused | ChatGoalStatus::Blocked | ChatGoalStatus::UsageLimited
         ) {
             self.chat_widget
                 .show_resume_paused_goal_prompt(thread_id, goal.objective);
@@ -191,7 +191,7 @@ impl App {
 
         let (status, token_budget) = match mode {
             ThreadGoalSetMode::ConfirmIfExists | ThreadGoalSetMode::ReplaceExisting => {
-                (ThreadGoalStatus::Active, None)
+                (ChatGoalStatus::Active, None)
             }
             ThreadGoalSetMode::UpdateExisting {
                 status,
@@ -230,7 +230,7 @@ impl App {
         &mut self,
         app_server: &mut AppServerSession,
         thread_id: ThreadId,
-        status: ThreadGoalStatus,
+        status: ChatGoalStatus,
     ) {
         let result = app_server
             .thread_goal_set(
@@ -361,16 +361,16 @@ fn is_ephemeral_thread_goal_error(err: &color_eyre::Report) -> bool {
     })
 }
 
-fn should_confirm_before_replacing_goal(goal: &ThreadGoal) -> bool {
+fn should_confirm_before_replacing_goal(goal: &ChatGoal) -> bool {
     // Completed goals are terminal, so `/goal <objective>` can start a fresh goal
     // without asking the user to confirm replacing already-finished work.
     match goal.status {
-        ThreadGoalStatus::Complete => false,
-        ThreadGoalStatus::Active
-        | ThreadGoalStatus::Paused
-        | ThreadGoalStatus::Blocked
-        | ThreadGoalStatus::UsageLimited
-        | ThreadGoalStatus::BudgetLimited => true,
+        ChatGoalStatus::Complete => false,
+        ChatGoalStatus::Active
+        | ChatGoalStatus::Paused
+        | ChatGoalStatus::Blocked
+        | ChatGoalStatus::UsageLimited
+        | ChatGoalStatus::BudgetLimited => true,
     }
 }
 
@@ -432,25 +432,25 @@ mod tests {
     #[test]
     fn completed_goal_does_not_require_replace_confirmation() {
         assert!(!should_confirm_before_replacing_goal(&test_goal(
-            ThreadGoalStatus::Complete
+            ChatGoalStatus::Complete
         )));
     }
 
     #[test]
     fn unfinished_goals_require_replace_confirmation() {
         for status in [
-            ThreadGoalStatus::Active,
-            ThreadGoalStatus::Paused,
-            ThreadGoalStatus::Blocked,
-            ThreadGoalStatus::UsageLimited,
-            ThreadGoalStatus::BudgetLimited,
+            ChatGoalStatus::Active,
+            ChatGoalStatus::Paused,
+            ChatGoalStatus::Blocked,
+            ChatGoalStatus::UsageLimited,
+            ChatGoalStatus::BudgetLimited,
         ] {
             assert!(should_confirm_before_replacing_goal(&test_goal(status)));
         }
     }
 
-    fn test_goal(status: ThreadGoalStatus) -> ThreadGoal {
-        ThreadGoal {
+    fn test_goal(status: ChatGoalStatus) -> ChatGoal {
+        ChatGoal {
             thread_id: ThreadId::new().to_string(),
             objective: "Finish the thing.".to_string(),
             status,

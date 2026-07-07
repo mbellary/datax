@@ -1,20 +1,20 @@
 use super::*;
 use datax_protocol::approvals::ElicitationRequest as CoreElicitationRequest;
 use datax_protocol::config_types::MultiAgentMode;
-use datax_protocol::items::AgentMessageContent;
-use datax_protocol::items::AgentMessageItem;
-use datax_protocol::items::FileChangeItem;
-use datax_protocol::items::ImageViewItem;
-use datax_protocol::items::McpToolCallItem;
-use datax_protocol::items::McpToolCallStatus as CoreMcpToolCallStatus;
-use datax_protocol::items::ReasoningItem;
-use datax_protocol::items::TurnItem;
-use datax_protocol::items::UserMessageItem;
-use datax_protocol::items::WebSearchItem;
 use datax_protocol::mcp::CallToolResult;
 use datax_protocol::mcp::McpServerInfo;
 use datax_protocol::memory_citation::MemoryCitation as CoreMemoryCitation;
 use datax_protocol::memory_citation::MemoryCitationEntry as CoreMemoryCitationEntry;
+use datax_protocol::messages::AgentMessageContent;
+use datax_protocol::messages::AgentMessageItem;
+use datax_protocol::messages::FileChangeItem;
+use datax_protocol::messages::ImageViewItem;
+use datax_protocol::messages::McpToolCallItem;
+use datax_protocol::messages::McpToolCallStatus as CoreMcpToolCallStatus;
+use datax_protocol::messages::ReasoningItem;
+use datax_protocol::messages::TurnItem;
+use datax_protocol::messages::UserMessageItem;
+use datax_protocol::messages::WebSearchItem;
 use datax_protocol::models::AdditionalPermissionProfile as CoreAdditionalPermissionProfile;
 use datax_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
 use datax_protocol::models::FileSystemPermissions as CoreFileSystemPermissions;
@@ -64,24 +64,21 @@ fn test_absolute_path() -> AbsolutePathBuf {
 #[test]
 fn thread_sources_round_trip_as_scalar_labels() {
     for (source, label) in [
-        (ThreadSource::User, "user"),
-        (ThreadSource::Subagent, "subagent"),
-        (
-            ThreadSource::Feature("automation".to_string()),
-            "automation",
-        ),
-        (ThreadSource::MemoryConsolidation, "memory_consolidation"),
+        (ChatSource::User, "user"),
+        (ChatSource::Subagent, "subagent"),
+        (ChatSource::Feature("automation".to_string()), "automation"),
+        (ChatSource::MemoryConsolidation, "memory_consolidation"),
     ] {
         let value = serde_json::to_value(&source).expect("serialize thread source");
 
         assert_eq!(value, json!(label));
         assert_eq!(
-            serde_json::from_value::<ThreadSource>(value).expect("deserialize thread source"),
+            serde_json::from_value::<ChatSource>(value).expect("deserialize thread source"),
             source
         );
 
         let core_source: datax_protocol::protocol::ThreadSource = source.clone().into();
-        assert_eq!(ThreadSource::from(core_source), source);
+        assert_eq!(ChatSource::from(core_source), source);
     }
 }
 
@@ -111,9 +108,9 @@ fn approvals_reviewer_serializes_auto_review_and_accepts_legacy_guardian_subagen
 
 #[test]
 fn turn_defaults_legacy_missing_items_view_to_full() {
-    let turn: Turn = serde_json::from_value(json!({
+    let turn: Interaction = serde_json::from_value(json!({
         "id": "turn_123",
-        "items": [],
+        "messages": [],
         "status": "completed",
         "error": null,
         "startedAt": null,
@@ -122,72 +119,75 @@ fn turn_defaults_legacy_missing_items_view_to_full() {
     }))
     .expect("legacy turn should deserialize");
 
-    assert_eq!(turn.items_view, TurnItemsView::Full);
+    assert_eq!(turn.messages_view, InteractionMessagesView::Full);
 }
 
 #[test]
 fn thread_turns_list_params_accepts_items_view() {
-    let params = serde_json::from_value::<ThreadTurnsListParams>(json!({
-        "threadId": "thr_123",
+    let params = serde_json::from_value::<ChatInteractionsListParams>(json!({
+        "chatId": "thr_123",
         "cursor": null,
         "limit": 25,
         "sortDirection": "desc",
-        "itemsView": "notLoaded",
+        "messagesView": "notLoaded",
     }))
-    .expect("thread turns list params should deserialize");
+    .expect("thread interactions list params should deserialize");
 
-    assert_eq!(params.thread_id, "thr_123");
-    assert_eq!(params.items_view, Some(TurnItemsView::NotLoaded));
+    assert_eq!(params.chat_id, "thr_123");
+    assert_eq!(
+        params.messages_view,
+        Some(InteractionMessagesView::NotLoaded)
+    );
 }
 
 #[test]
 fn thread_resume_params_accept_turns_page_bootstrap() {
-    let params = serde_json::from_value::<ThreadResumeParams>(json!({
-        "threadId": "thr_123",
-        "initialTurnsPage": {
+    let params = serde_json::from_value::<ChatResumeParams>(json!({
+        "chatId": "thr_123",
+        "initialInteractionsPage": {
             "limit": 25,
             "sortDirection": "asc",
-            "itemsView": "full",
+            "messagesView": "full",
         },
     }))
     .expect("thread resume params should deserialize");
 
-    assert_eq!(params.thread_id, "thr_123");
+    assert_eq!(params.chat_id, "thr_123");
     assert_eq!(
         params.initial_turns_page,
-        Some(ThreadResumeInitialTurnsPageParams {
+        Some(ChatResumeInitialInteractionsPageParams {
             limit: Some(25),
             sort_direction: Some(SortDirection::Asc),
-            items_view: Some(TurnItemsView::Full),
+            messages_view: Some(InteractionMessagesView::Full),
         })
     );
 }
 
 #[test]
 fn thread_resume_response_round_trips_initial_turns_page() {
-    let response = ThreadResumeResponse {
-        thread: Thread {
+    let response = ChatResumeResponse {
+        thread: Chat {
             id: "thr_123".to_string(),
             session_id: "thr_123".to_string(),
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             preview: String::new(),
             ephemeral: false,
             model_provider: "openai".to_string(),
             created_at: 1,
             updated_at: 1,
             recency_at: Some(1),
-            status: ThreadStatus::Idle,
+            status: ChatStatus::Idle,
             path: None,
             cwd: absolute_path("tmp"),
             cli_version: "0.0.0".to_string(),
             source: SessionSource::Exec,
-            thread_source: None,
+            chat_source: None,
             agent_nickname: None,
             agent_role: None,
             git_info: None,
             name: None,
-            turns: Vec::new(),
+            interactions: Vec::new(),
         },
         model: "gpt-5".to_string(),
         model_provider: "openai".to_string(),
@@ -201,7 +201,7 @@ fn thread_resume_response_round_trips_initial_turns_page() {
         active_permission_profile: None,
         reasoning_effort: None,
         multi_agent_mode: Default::default(),
-        initial_turns_page: Some(TurnsPage {
+        initial_turns_page: Some(InteractionsPage {
             data: Vec::new(),
             next_cursor: Some("cursor_next".to_string()),
             backwards_cursor: Some("cursor_back".to_string()),
@@ -210,23 +210,23 @@ fn thread_resume_response_round_trips_initial_turns_page() {
 
     let value = serde_json::to_value(&response).expect("serialize thread resume response");
     assert_eq!(
-        value.get("initialTurnsPage"),
+        value.get("initialInteractionsPage"),
         Some(&json!({
             "data": [],
             "nextCursor": "cursor_next",
             "backwardsCursor": "cursor_back",
         }))
     );
-    let decoded = serde_json::from_value::<ThreadResumeResponse>(value)
+    let decoded = serde_json::from_value::<ChatResumeResponse>(value)
         .expect("deserialize thread resume response");
     assert_eq!(decoded, response);
 }
 
 #[test]
 fn thread_turns_items_list_round_trips() {
-    let params = ThreadTurnsItemsListParams {
-        thread_id: "thr_123".to_string(),
-        turn_id: "turn_456".to_string(),
+    let params = ChatInteractionsMessagesListParams {
+        chat_id: "thr_123".to_string(),
+        interaction_id: "turn_456".to_string(),
         cursor: Some("cursor_1".to_string()),
         limit: Some(50),
         sort_direction: Some(SortDirection::Asc),
@@ -235,15 +235,15 @@ fn thread_turns_items_list_round_trips() {
     assert_eq!(
         serde_json::to_value(&params).expect("serialize params"),
         json!({
-            "threadId": "thr_123",
-            "turnId": "turn_456",
+            "chatId": "thr_123",
+            "interactionId": "turn_456",
             "cursor": "cursor_1",
             "limit": 50,
             "sortDirection": "asc",
         })
     );
-    let response = ThreadTurnsItemsListResponse {
-        data: vec![ThreadItem::ContextCompaction {
+    let response = ChatInteractionsMessagesListResponse {
+        data: vec![Message::ContextCompaction {
             id: "item_1".to_string(),
         }],
         next_cursor: None,
@@ -262,28 +262,28 @@ fn thread_turns_items_list_round_trips() {
 
 #[test]
 fn thread_list_params_accepts_single_cwd() {
-    let params = serde_json::from_value::<ThreadListParams>(json!({
+    let params = serde_json::from_value::<ChatListParams>(json!({
         "cwd": "/workspace",
     }))
     .expect("single cwd should deserialize");
 
     assert_eq!(
         params.cwd,
-        Some(ThreadListCwdFilter::One("/workspace".to_string()))
+        Some(ChatListCwdFilter::One("/workspace".to_string()))
     );
     assert!(!params.use_state_db_only);
 }
 
 #[test]
 fn thread_list_params_accepts_multiple_cwds() {
-    let params = serde_json::from_value::<ThreadListParams>(json!({
+    let params = serde_json::from_value::<ChatListParams>(json!({
         "cwd": ["/workspace", "/other-workspace"],
     }))
     .expect("cwd array should deserialize");
 
     assert_eq!(
         params.cwd,
-        Some(ThreadListCwdFilter::Many(vec![
+        Some(ChatListCwdFilter::Many(vec![
             "/workspace".to_string(),
             "/other-workspace".to_string(),
         ]))
@@ -292,7 +292,7 @@ fn thread_list_params_accepts_multiple_cwds() {
 
 #[test]
 fn thread_list_params_accepts_state_db_only_flag() {
-    let params = serde_json::from_value::<ThreadListParams>(json!({
+    let params = serde_json::from_value::<ChatListParams>(json!({
         "useStateDbOnly": true,
     }))
     .expect("state db only flag should deserialize");
@@ -387,9 +387,9 @@ fn external_agent_config_import_params_accept_legacy_plugin_details() {
 #[test]
 fn command_execution_request_approval_localization_rejects_relative_additional_permission_paths() {
     let params = serde_json::from_value::<CommandExecutionRequestApprovalParams>(json!({
-        "threadId": "thr_123",
-        "turnId": "turn_123",
-        "itemId": "call_123",
+        "chatId": "thr_123",
+        "interactionId": "turn_123",
+        "messageId": "call_123",
         "startedAtMs": 1,
         "command": "cat file",
         "cwd": absolute_path_string("tmp"),
@@ -430,9 +430,9 @@ fn permissions_request_approval_uses_request_permission_profile() {
         "/tmp/read-write"
     };
     let params = serde_json::from_value::<PermissionsRequestApprovalParams>(json!({
-        "threadId": "thr_123",
-        "turnId": "turn_123",
-        "itemId": "call_123",
+        "chatId": "thr_123",
+        "interactionId": "turn_123",
+        "messageId": "call_123",
         "environmentId": "remote",
         "startedAtMs": 1,
         "cwd": absolute_path_string("repo"),
@@ -496,9 +496,9 @@ fn permissions_request_approval_uses_request_permission_profile() {
 #[test]
 fn permissions_request_approval_rejects_macos_permissions() {
     let err = serde_json::from_value::<PermissionsRequestApprovalParams>(json!({
-        "threadId": "thr_123",
-        "turnId": "turn_123",
-        "itemId": "call_123",
+        "chatId": "thr_123",
+        "interactionId": "turn_123",
+        "messageId": "call_123",
         "startedAtMs": 1,
         "cwd": absolute_path_string("repo"),
         "reason": "Select a workspace root",
@@ -721,7 +721,7 @@ fn permissions_request_approval_response_defaults_scope_to_turn() {
     }))
     .expect("response should deserialize");
 
-    assert_eq!(response.scope, PermissionGrantScope::Turn);
+    assert_eq!(response.scope, PermissionGrantScope::Interaction);
     assert_eq!(response.strict_auto_review, None);
 }
 
@@ -738,21 +738,21 @@ fn permissions_request_approval_response_accepts_strict_auto_review() {
 
 #[test]
 fn permission_profile_selection_uses_id_string() {
-    let start: ThreadStartParams = serde_json::from_value(json!({
+    let start: ChatStartParams = serde_json::from_value(json!({
         "permissions": BUILT_IN_PERMISSION_PROFILE_WORKSPACE,
     }))
-    .expect("thread/start params deserialize");
+    .expect("chat/start params deserialize");
     assert_eq!(
         start.permissions,
         Some(BUILT_IN_PERMISSION_PROFILE_WORKSPACE.to_string())
     );
 
-    let turn: TurnStartParams = serde_json::from_value(json!({
-        "threadId": "thread-1",
+    let turn: InteractionStartParams = serde_json::from_value(json!({
+        "chatId": "thread-1",
         "input": [],
         "permissions": "dev",
     }))
-    .expect("turn/start params deserialize");
+    .expect("interaction/start params deserialize");
     assert_eq!(turn.permissions, Some("dev".to_string()));
 
     let command: CommandExecParams = serde_json::from_value(json!({
@@ -762,21 +762,21 @@ fn permission_profile_selection_uses_id_string() {
     .expect("command/exec params deserialize");
     assert_eq!(command.permission_profile, Some("dev".to_string()));
 
-    let resume: ThreadResumeParams = serde_json::from_value(json!({
-        "threadId": "thread-1",
+    let resume: ChatResumeParams = serde_json::from_value(json!({
+        "chatId": "thread-1",
         "permissions": BUILT_IN_PERMISSION_PROFILE_WORKSPACE,
     }))
-    .expect("thread/resume params deserialize");
+    .expect("chat/resume params deserialize");
     assert_eq!(
         resume.permissions,
         Some(BUILT_IN_PERMISSION_PROFILE_WORKSPACE.to_string())
     );
 
-    let fork: ThreadForkParams = serde_json::from_value(json!({
-        "threadId": "thread-1",
+    let fork: ChatForkParams = serde_json::from_value(json!({
+        "chatId": "thread-1",
         "permissions": BUILT_IN_PERMISSION_PROFILE_WORKSPACE,
     }))
-    .expect("thread/fork params deserialize");
+    .expect("chat/fork params deserialize");
     assert_eq!(
         fork.permissions,
         Some(BUILT_IN_PERMISSION_PROFILE_WORKSPACE.to_string())
@@ -785,25 +785,25 @@ fn permission_profile_selection_uses_id_string() {
 
 #[test]
 fn thread_path_params_deserialize_empty_path_as_none() {
-    let resume: ThreadResumeParams = serde_json::from_value(json!({
-        "threadId": "thread-1",
+    let resume: ChatResumeParams = serde_json::from_value(json!({
+        "chatId": "thread-1",
         "path": "",
     }))
-    .expect("thread/resume params deserialize");
+    .expect("chat/resume params deserialize");
     assert_eq!(resume.path, None);
 
-    let fork: ThreadForkParams = serde_json::from_value(json!({
-        "threadId": "thread-1",
+    let fork: ChatForkParams = serde_json::from_value(json!({
+        "chatId": "thread-1",
         "path": "",
     }))
-    .expect("thread/fork params deserialize");
+    .expect("chat/fork params deserialize");
     assert_eq!(fork.path, None);
 
-    let resume_with_path: ThreadResumeParams = serde_json::from_value(json!({
-        "threadId": "thread-1",
+    let resume_with_path: ChatResumeParams = serde_json::from_value(json!({
+        "chatId": "thread-1",
         "path": "/tmp/resume-thread.jsonl",
     }))
-    .expect("thread/resume params deserialize");
+    .expect("chat/resume params deserialize");
     assert_eq!(
         resume_with_path.path,
         Some(PathBuf::from("/tmp/resume-thread.jsonl"))
@@ -942,34 +942,34 @@ fn fs_copy_params_round_trip_with_recursive_directory_copy() {
 
 #[test]
 fn thread_shell_command_params_round_trip() {
-    let params = ThreadShellCommandParams {
-        thread_id: "thr_123".to_string(),
+    let params = ChatShellCommandParams {
+        chat_id: "thr_123".to_string(),
         command: "printf 'hello world\\n'".to_string(),
     };
 
-    let value = serde_json::to_value(&params).expect("serialize thread/shellCommand params");
+    let value = serde_json::to_value(&params).expect("serialize chat/shellCommand params");
     assert_eq!(
         value,
         json!({
-            "threadId": "thr_123",
+            "chatId": "thr_123",
             "command": "printf 'hello world\\n'",
         })
     );
 
-    let decoded = serde_json::from_value::<ThreadShellCommandParams>(value)
-        .expect("deserialize thread/shellCommand params");
+    let decoded = serde_json::from_value::<ChatShellCommandParams>(value)
+        .expect("deserialize chat/shellCommand params");
     assert_eq!(decoded, params);
 }
 
 #[test]
 fn thread_shell_command_response_round_trip() {
-    let response = ThreadShellCommandResponse {};
+    let response = ChatShellCommandResponse {};
 
-    let value = serde_json::to_value(&response).expect("serialize thread/shellCommand response");
+    let value = serde_json::to_value(&response).expect("serialize chat/shellCommand response");
     assert_eq!(value, json!({}));
 
-    let decoded = serde_json::from_value::<ThreadShellCommandResponse>(value)
-        .expect("deserialize thread/shellCommand response");
+    let decoded = serde_json::from_value::<ChatShellCommandResponse>(value)
+        .expect("deserialize chat/shellCommand response");
     assert_eq!(decoded, response);
 }
 
@@ -1501,20 +1501,20 @@ fn process_notifications_round_trip() {
 #[test]
 fn command_execution_output_delta_round_trips() {
     let notification = CommandExecutionOutputDeltaNotification {
-        thread_id: "thread-1".to_string(),
-        turn_id: "turn-1".to_string(),
-        item_id: "item-1".to_string(),
+        chat_id: "thread-1".to_string(),
+        interaction_id: "turn-1".to_string(),
+        message_id: "item-1".to_string(),
         delta: "\u{fffd}a\n".to_string(),
     };
 
     let value = serde_json::to_value(&notification)
-        .expect("serialize item/commandExecution/outputDelta notification");
+        .expect("serialize message/commandExecution/outputDelta notification");
     assert_eq!(
         value,
         json!({
-            "threadId": "thread-1",
-            "turnId": "turn-1",
-            "itemId": "item-1",
+            "chatId": "thread-1",
+            "interactionId": "turn-1",
+            "messageId": "item-1",
             "delta": "\u{fffd}a\n",
         })
     );
@@ -1732,9 +1732,9 @@ fn config_requirements_granular_allowed_approval_policy_is_marked_experimental()
 #[test]
 fn client_request_thread_start_granular_approval_policy_is_marked_experimental() {
     let reason = crate::experimental_api::ExperimentalApi::experimental_reason(
-        &crate::ClientRequest::ThreadStart {
+        &crate::ClientRequest::ChatStart {
             request_id: crate::RequestId::Integer(1),
-            params: ThreadStartParams {
+            params: ChatStartParams {
                 approval_policy: Some(AskForApproval::Granular {
                     sandbox_approval: true,
                     rules: false,
@@ -1753,10 +1753,10 @@ fn client_request_thread_start_granular_approval_policy_is_marked_experimental()
 #[test]
 fn client_request_thread_resume_granular_approval_policy_is_marked_experimental() {
     let reason = crate::experimental_api::ExperimentalApi::experimental_reason(
-        &crate::ClientRequest::ThreadResume {
+        &crate::ClientRequest::ChatResume {
             request_id: crate::RequestId::Integer(2),
-            params: ThreadResumeParams {
-                thread_id: "thr_123".to_string(),
+            params: ChatResumeParams {
+                chat_id: "thr_123".to_string(),
                 approval_policy: Some(AskForApproval::Granular {
                     sandbox_approval: false,
                     rules: true,
@@ -1775,10 +1775,10 @@ fn client_request_thread_resume_granular_approval_policy_is_marked_experimental(
 #[test]
 fn client_request_thread_fork_granular_approval_policy_is_marked_experimental() {
     let reason = crate::experimental_api::ExperimentalApi::experimental_reason(
-        &crate::ClientRequest::ThreadFork {
+        &crate::ClientRequest::ChatFork {
             request_id: crate::RequestId::Integer(3),
-            params: ThreadForkParams {
-                thread_id: "thr_456".to_string(),
+            params: ChatForkParams {
+                chat_id: "thr_456".to_string(),
                 approval_policy: Some(AskForApproval::Granular {
                     sandbox_approval: true,
                     rules: false,
@@ -1797,10 +1797,10 @@ fn client_request_thread_fork_granular_approval_policy_is_marked_experimental() 
 #[test]
 fn client_request_turn_start_granular_approval_policy_is_marked_experimental() {
     let reason = crate::experimental_api::ExperimentalApi::experimental_reason(
-        &crate::ClientRequest::TurnStart {
+        &crate::ClientRequest::InteractionStart {
             request_id: crate::RequestId::Integer(4),
-            params: TurnStartParams {
-                thread_id: "thr_123".to_string(),
+            params: InteractionStartParams {
+                chat_id: "thr_123".to_string(),
                 client_user_message_id: None,
                 input: Vec::new(),
                 approval_policy: Some(AskForApproval::Granular {
@@ -1912,7 +1912,7 @@ fn mcp_server_elicitation_request_from_core_openai_form_request() {
             "template": {
                 "type": "openai/imagePicker",
                 "title": "Template",
-                "items": [{
+                "messages": [{
                     "id": "monthly-review",
                     "title": "Monthly review",
                     "image": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4=",
@@ -1954,7 +1954,7 @@ fn mcp_elicitation_schema_matches_mcp_2025_11_25_primitives() {
             "count": {
                 "type": "integer",
                 "title": "Count",
-                "description": "How many items to create",
+                "description": "How many messages to create",
                 "minimum": 1,
                 "maximum": 5,
                 "default": 3,
@@ -1998,7 +1998,7 @@ fn mcp_elicitation_schema_matches_mcp_2025_11_25_primitives() {
                     McpElicitationPrimitiveSchema::Number(McpElicitationNumberSchema {
                         type_: McpElicitationNumberType::Integer,
                         title: Some("Count".to_string()),
-                        description: Some("How many items to create".to_string()),
+                        description: Some("How many messages to create".to_string()),
                         minimum: Some(1.0),
                         maximum: Some(5.0),
                         default: Some(3.0),
@@ -2121,10 +2121,10 @@ fn mcp_server_status_updated_accepts_missing_thread_id() {
         "status": "failed",
         "error": "handshake failed",
     }))
-    .expect("notification without threadId should deserialize");
+    .expect("notification without chatId should deserialize");
 
     let expected = McpServerStatusUpdatedNotification {
-        thread_id: None,
+        chat_id: None,
         name: "optional_broken".to_string(),
         status: McpServerStartupState::Failed,
         error: Some("handshake failed".to_string()),
@@ -2133,7 +2133,7 @@ fn mcp_server_status_updated_accepts_missing_thread_id() {
     assert_eq!(
         serde_json::to_value(notification).expect("notification should serialize"),
         json!({
-            "threadId": null,
+            "chatId": null,
             "name": "optional_broken",
             "status": "failed",
             "error": "handshake failed",
@@ -2447,8 +2447,8 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
     });
 
     assert_eq!(
-        ThreadItem::from(user_item),
-        ThreadItem::UserMessage {
+        Message::from(user_item),
+        Message::UserMessage {
             id: "user-1".to_string(),
             client_id: Some("client-message-1".to_string()),
             content: vec![
@@ -2491,8 +2491,8 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
     });
 
     assert_eq!(
-        ThreadItem::from(agent_item),
-        ThreadItem::AgentMessage {
+        Message::from(agent_item),
+        Message::AgentMessage {
             id: "agent-1".to_string(),
             text: "Hello world".to_string(),
             phase: None,
@@ -2518,8 +2518,8 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
     });
 
     assert_eq!(
-        ThreadItem::from(agent_item_with_phase),
-        ThreadItem::AgentMessage {
+        Message::from(agent_item_with_phase),
+        Message::AgentMessage {
             id: "agent-2".to_string(),
             text: "final".to_string(),
             phase: Some(MessagePhase::FinalAnswer),
@@ -2530,7 +2530,7 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
                     line_end: 2,
                     note: "summary".to_string(),
                 }],
-                thread_ids: vec!["rollout-1".to_string()],
+                chat_ids: vec!["rollout-1".to_string()],
             }),
         }
     );
@@ -2542,8 +2542,8 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
     });
 
     assert_eq!(
-        ThreadItem::from(reasoning_item),
-        ThreadItem::Reasoning {
+        Message::from(reasoning_item),
+        Message::Reasoning {
             id: "reasoning-1".to_string(),
             summary: vec!["line one".to_string(), "line two".to_string()],
             content: vec![],
@@ -2560,8 +2560,8 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
     });
 
     assert_eq!(
-        ThreadItem::from(search_item),
-        ThreadItem::WebSearch {
+        Message::from(search_item),
+        Message::WebSearch {
             id: "search-1".to_string(),
             query: "docs".to_string(),
             action: Some(WebSearchAction::Search {
@@ -2577,8 +2577,8 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
     });
 
     assert_eq!(
-        ThreadItem::from(image_view_item),
-        ThreadItem::ImageView {
+        Message::from(image_view_item),
+        Message::ImageView {
             id: "view-image-1".to_string(),
             path: test_path_buf("/tmp/view-image.png").abs(),
         }
@@ -2601,8 +2601,8 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
     });
 
     assert_eq!(
-        ThreadItem::from(file_change_item),
-        ThreadItem::FileChange {
+        Message::from(file_change_item),
+        Message::FileChange {
             id: "patch-1".to_string(),
             changes: vec![FileUpdateChange {
                 path: "README.md".to_string(),
@@ -2629,8 +2629,8 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
     });
 
     assert_eq!(
-        ThreadItem::from(mcp_tool_call_item),
-        ThreadItem::McpToolCall {
+        Message::from(mcp_tool_call_item),
+        Message::McpToolCall {
             id: "mcp-1".to_string(),
             server: "server".to_string(),
             tool: "tool".to_string(),
@@ -2670,8 +2670,8 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
     });
 
     assert_eq!(
-        ThreadItem::from(completed_mcp_tool_call_item),
-        ThreadItem::McpToolCall {
+        Message::from(completed_mcp_tool_call_item),
+        Message::McpToolCall {
             id: "mcp-2".to_string(),
             server: "server".to_string(),
             tool: "tool".to_string(),
@@ -2693,7 +2693,7 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
 
 #[test]
 fn mcp_tool_call_app_context_serializes_connector_id() {
-    let item = ThreadItem::McpToolCall {
+    let item = Message::McpToolCall {
         id: "mcp-1".to_string(),
         server: "codex_apps".to_string(),
         tool: "calendar.create_event".to_string(),
@@ -3647,7 +3647,7 @@ fn dynamic_tool_response_serializes_text_and_image_content_items() {
 
 #[test]
 fn thread_start_params_preserve_explicit_null_service_tier() {
-    let params: ThreadStartParams =
+    let params: ChatStartParams =
         serde_json::from_value(json!({ "serviceTier": null })).expect("params should deserialize");
     assert_eq!(params.service_tier, Some(None));
 
@@ -3658,7 +3658,7 @@ fn thread_start_params_preserve_explicit_null_service_tier() {
     );
 
     let serialized_without_override =
-        serde_json::to_value(ThreadStartParams::default()).expect("params should serialize");
+        serde_json::to_value(ChatStartParams::default()).expect("params should serialize");
     assert_eq!(serialized_without_override.get("serviceTier"), None);
 }
 
@@ -3683,7 +3683,7 @@ fn thread_lifecycle_responses_default_missing_optional_fields() {
             "agentRole": null,
             "gitInfo": null,
             "name": null,
-            "turns": []
+            "interactions": []
         },
         "model": "gpt-5",
         "modelProvider": "openai",
@@ -3695,15 +3695,15 @@ fn thread_lifecycle_responses_default_missing_optional_fields() {
         "reasoningEffort": null
     });
 
-    let start: ThreadStartResponse =
-        serde_json::from_value(response.clone()).expect("thread/start response");
-    let resume: ThreadResumeResponse =
-        serde_json::from_value(response.clone()).expect("thread/resume response");
-    let fork: ThreadForkResponse =
-        serde_json::from_value(response.clone()).expect("thread/fork response");
+    let start: ChatStartResponse =
+        serde_json::from_value(response.clone()).expect("chat/start response");
+    let resume: ChatResumeResponse =
+        serde_json::from_value(response.clone()).expect("chat/resume response");
+    let fork: ChatForkResponse =
+        serde_json::from_value(response.clone()).expect("chat/fork response");
 
     assert_eq!(start.instruction_sources, Vec::<LegacyAppPathString>::new());
-    assert_eq!(start.thread.parent_thread_id, None);
+    assert_eq!(start.thread.parent_chat_id, None);
     assert_eq!(start.thread.recency_at, None);
     assert_eq!(
         resume.instruction_sources,
@@ -3731,12 +3731,12 @@ fn thread_lifecycle_responses_default_missing_optional_fields() {
         serde_json::from_value(json!(r"C:\workspace\AGENTS.md")).expect("foreign source");
     let mut response_with_foreign_source = response;
     response_with_foreign_source["instructionSources"] = json!([foreign_source.as_str()]);
-    let start: ThreadStartResponse = serde_json::from_value(response_with_foreign_source.clone())
-        .expect("thread/start response with foreign source");
-    let resume: ThreadResumeResponse = serde_json::from_value(response_with_foreign_source.clone())
-        .expect("thread/resume response with foreign source");
-    let fork: ThreadForkResponse = serde_json::from_value(response_with_foreign_source)
-        .expect("thread/fork response with foreign source");
+    let start: ChatStartResponse = serde_json::from_value(response_with_foreign_source.clone())
+        .expect("chat/start response with foreign source");
+    let resume: ChatResumeResponse = serde_json::from_value(response_with_foreign_source.clone())
+        .expect("chat/resume response with foreign source");
+    let fork: ChatForkResponse = serde_json::from_value(response_with_foreign_source)
+        .expect("chat/fork response with foreign source");
     assert_eq!(start.instruction_sources, vec![foreign_source.clone()]);
     assert_eq!(resume.instruction_sources, vec![foreign_source.clone()]);
     assert_eq!(fork.instruction_sources, vec![foreign_source]);
@@ -3759,15 +3759,15 @@ fn thread_lifecycle_responses_default_missing_optional_fields() {
 #[test]
 fn thread_recency_sort_key_serializes_as_snake_case() {
     assert_eq!(
-        serde_json::to_value(ThreadSortKey::RecencyAt).expect("sort key should serialize"),
+        serde_json::to_value(ChatSortKey::RecencyAt).expect("sort key should serialize"),
         json!("recency_at")
     );
 }
 
 #[test]
 fn turn_start_params_preserve_explicit_null_service_tier() {
-    let params: TurnStartParams = serde_json::from_value(json!({
-        "threadId": "thread_123",
+    let params: InteractionStartParams = serde_json::from_value(json!({
+        "chatId": "thread_123",
         "input": [],
         "serviceTier": null
     }))
@@ -3780,8 +3780,8 @@ fn turn_start_params_preserve_explicit_null_service_tier() {
         Some(&serde_json::Value::Null)
     );
 
-    let without_override = TurnStartParams {
-        thread_id: "thread_123".to_string(),
+    let without_override = InteractionStartParams {
+        chat_id: "thread_123".to_string(),
         client_user_message_id: None,
         input: vec![],
         responsesapi_client_metadata: None,
@@ -3809,8 +3809,8 @@ fn turn_start_params_preserve_explicit_null_service_tier() {
 
 #[test]
 fn turn_start_params_round_trip_multi_agent_mode() {
-    let params: TurnStartParams = serde_json::from_value(json!({
-        "threadId": "thread_123",
+    let params: InteractionStartParams = serde_json::from_value(json!({
+        "chatId": "thread_123",
         "input": [],
         "multiAgentMode": "proactive"
     }))
@@ -3822,7 +3822,7 @@ fn turn_start_params_round_trip_multi_agent_mode() {
     );
     assert_eq!(
         crate::experimental_api::ExperimentalApi::experimental_reason(&params),
-        Some("turn/start.multiAgentMode")
+        Some("interaction/start.multiAgentMode")
     );
     assert_eq!(
         serde_json::to_value(params).expect("params should serialize")["multiAgentMode"],
@@ -3832,7 +3832,7 @@ fn turn_start_params_round_trip_multi_agent_mode() {
 
 #[test]
 fn thread_start_params_round_trip_multi_agent_mode() {
-    let params: ThreadStartParams = serde_json::from_value(json!({
+    let params: ChatStartParams = serde_json::from_value(json!({
         "multiAgentMode": "proactive"
     }))
     .expect("params should deserialize");
@@ -3843,7 +3843,7 @@ fn thread_start_params_round_trip_multi_agent_mode() {
     );
     assert_eq!(
         crate::experimental_api::ExperimentalApi::experimental_reason(&params),
-        Some("thread/start.multiAgentMode")
+        Some("chat/start.multiAgentMode")
     );
     assert_eq!(
         serde_json::to_value(params).expect("params should serialize")["multiAgentMode"],
@@ -3853,8 +3853,8 @@ fn thread_start_params_round_trip_multi_agent_mode() {
 
 #[test]
 fn thread_settings_update_params_preserve_explicit_null_service_tier() {
-    let params: ThreadSettingsUpdateParams = serde_json::from_value(json!({
-        "threadId": "thread_123",
+    let params: ChatSettingsUpdateParams = serde_json::from_value(json!({
+        "chatId": "thread_123",
         "serviceTier": null
     }))
     .expect("params should deserialize");
@@ -3866,8 +3866,8 @@ fn thread_settings_update_params_preserve_explicit_null_service_tier() {
         Some(&serde_json::Value::Null)
     );
 
-    let without_override = ThreadSettingsUpdateParams {
-        thread_id: "thread_123".to_string(),
+    let without_override = ChatSettingsUpdateParams {
+        chat_id: "thread_123".to_string(),
         service_tier: None,
         ..Default::default()
     };
@@ -3878,18 +3878,18 @@ fn thread_settings_update_params_preserve_explicit_null_service_tier() {
 
 #[test]
 fn thread_settings_update_params_preserve_field_level_experimental_gates() {
-    let permissions = ThreadSettingsUpdateParams {
-        thread_id: "thread_123".to_string(),
+    let permissions = ChatSettingsUpdateParams {
+        chat_id: "thread_123".to_string(),
         permissions: Some(":workspace".to_string()),
         ..Default::default()
     };
     assert_eq!(
         crate::experimental_api::ExperimentalApi::experimental_reason(&permissions),
-        Some("thread/settings/update.permissions")
+        Some("chat/settings/update.permissions")
     );
 
-    let granular_approval = ThreadSettingsUpdateParams {
-        thread_id: "thread_123".to_string(),
+    let granular_approval = ChatSettingsUpdateParams {
+        chat_id: "thread_123".to_string(),
         approval_policy: Some(AskForApproval::Granular {
             sandbox_approval: true,
             rules: true,
@@ -3904,8 +3904,8 @@ fn thread_settings_update_params_preserve_field_level_experimental_gates() {
         Some("askForApproval.granular")
     );
 
-    let collaboration_mode = ThreadSettingsUpdateParams {
-        thread_id: "thread_123".to_string(),
+    let collaboration_mode = ChatSettingsUpdateParams {
+        chat_id: "thread_123".to_string(),
         collaboration_mode: Some(datax_protocol::config_types::CollaborationMode {
             mode: datax_protocol::config_types::ModeKind::Plan,
             settings: datax_protocol::config_types::Settings {
@@ -3918,7 +3918,7 @@ fn thread_settings_update_params_preserve_field_level_experimental_gates() {
     };
     assert_eq!(
         crate::experimental_api::ExperimentalApi::experimental_reason(&collaboration_mode),
-        Some("thread/settings/update.collaborationMode")
+        Some("chat/settings/update.collaborationMode")
     );
 }
 
@@ -3932,8 +3932,8 @@ fn turn_start_params_round_trip_environments() {
     let raw_cwd = r"C:\workspace";
     let cwd: LegacyAppPathString =
         serde_json::from_value(json!(raw_cwd)).expect("API path should deserialize");
-    let params: TurnStartParams = serde_json::from_value(json!({
-        "threadId": "thread_123",
+    let params: InteractionStartParams = serde_json::from_value(json!({
+        "chatId": "thread_123",
         "input": [],
         "environments": [
             {
@@ -3946,14 +3946,14 @@ fn turn_start_params_round_trip_environments() {
 
     assert_eq!(
         params.environments,
-        Some(vec![TurnEnvironmentParams {
+        Some(vec![InteractionEnvironmentParams {
             environment_id: "local".to_string(),
             cwd: cwd.clone(),
         }])
     );
     assert_eq!(
         crate::experimental_api::ExperimentalApi::experimental_reason(&params),
-        Some("turn/start.environments")
+        Some("interaction/start.environments")
     );
 
     let serialized = serde_json::to_value(&params).expect("params should serialize");
@@ -3970,8 +3970,8 @@ fn turn_start_params_round_trip_environments() {
 
 #[test]
 fn turn_start_params_preserve_empty_environments() {
-    let params: TurnStartParams = serde_json::from_value(json!({
-        "threadId": "thread_123",
+    let params: InteractionStartParams = serde_json::from_value(json!({
+        "chatId": "thread_123",
         "input": [],
         "environments": [],
     }))
@@ -3980,7 +3980,7 @@ fn turn_start_params_preserve_empty_environments() {
     assert_eq!(params.environments, Some(Vec::new()));
     assert_eq!(
         crate::experimental_api::ExperimentalApi::experimental_reason(&params),
-        Some("turn/start.environments")
+        Some("interaction/start.environments")
     );
 
     let serialized = serde_json::to_value(&params).expect("params should serialize");
@@ -3989,14 +3989,14 @@ fn turn_start_params_preserve_empty_environments() {
 
 #[test]
 fn turn_start_params_treat_null_or_omitted_environments_as_default() {
-    let null_environments: TurnStartParams = serde_json::from_value(json!({
-        "threadId": "thread_123",
+    let null_environments: InteractionStartParams = serde_json::from_value(json!({
+        "chatId": "thread_123",
         "input": [],
         "environments": null,
     }))
     .expect("params should deserialize");
-    let omitted_environments: TurnStartParams = serde_json::from_value(json!({
-        "threadId": "thread_123",
+    let omitted_environments: InteractionStartParams = serde_json::from_value(json!({
+        "chatId": "thread_123",
         "input": [],
     }))
     .expect("params should deserialize");
@@ -4015,16 +4015,16 @@ fn turn_start_params_treat_null_or_omitted_environments_as_default() {
 
 #[test]
 fn realtime_append_text_defaults_role_to_user() {
-    let params = serde_json::from_value::<ThreadRealtimeAppendTextParams>(json!({
-        "threadId": "thread_123",
+    let params = serde_json::from_value::<ChatRealtimeAppendTextParams>(json!({
+        "chatId": "thread_123",
         "text": "hello",
     }))
     .expect("params should deserialize");
 
     assert_eq!(
         params,
-        ThreadRealtimeAppendTextParams {
-            thread_id: "thread_123".to_string(),
+        ChatRealtimeAppendTextParams {
+            chat_id: "thread_123".to_string(),
             text: "hello".to_string(),
             role: ConversationTextRole::User,
         }

@@ -10,12 +10,12 @@ use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::to_response;
 use app_test_support::write_mock_responses_config_toml;
 use axum::Router;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::ListMcpServerStatusParams;
 use datax_app_server_protocol::ListMcpServerStatusResponse;
 use datax_app_server_protocol::McpServerStatusDetail;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
 use datax_core::config::set_project_trust_level;
 use datax_protocol::config_types::TrustLevel;
 use pretty_assertions::assert_eq;
@@ -75,7 +75,7 @@ url = "{mcp_server_url}/mcp"
             cursor: None,
             limit: None,
             detail: None,
-            thread_id: None,
+            chat_id: None,
         })
         .await?;
     let response = timeout(
@@ -136,7 +136,7 @@ async fn mcp_server_status_list_uses_thread_project_local_config() -> Result<()>
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             cwd: Some(workspace.path().to_string_lossy().into_owned()),
             ..Default::default()
         })
@@ -146,7 +146,7 @@ async fn mcp_server_status_list_uses_thread_project_local_config() -> Result<()>
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(thread_start_response)?;
+    let ChatStartResponse { thread, .. } = to_response(thread_start_response)?;
 
     let project_config_dir = workspace.path().join(".codex");
     std::fs::create_dir_all(&project_config_dir)?;
@@ -165,7 +165,7 @@ url = "{mcp_server_url}/mcp"
             cursor: None,
             limit: None,
             detail: Some(McpServerStatusDetail::ToolsAndAuthOnly),
-            thread_id: None,
+            chat_id: None,
         })
         .await?;
     let threadless_response = timeout(
@@ -181,7 +181,7 @@ url = "{mcp_server_url}/mcp"
             cursor: None,
             limit: None,
             detail: Some(McpServerStatusDetail::ToolsAndAuthOnly),
-            thread_id: Some(thread.id),
+            chat_id: Some(thread.id),
         })
         .await?;
     let thread_response = timeout(
@@ -344,7 +344,7 @@ url = "{mcp_server_url}/mcp"
             cursor: None,
             limit: None,
             detail: Some(McpServerStatusDetail::ToolsAndAuthOnly),
-            thread_id: None,
+            chat_id: None,
         })
         .await?;
     let response = timeout(
@@ -409,7 +409,7 @@ url = "{underscore_server_url}/mcp"
             cursor: None,
             limit: None,
             detail: None,
-            thread_id: None,
+            chat_id: None,
         })
         .await?;
     let response = timeout(

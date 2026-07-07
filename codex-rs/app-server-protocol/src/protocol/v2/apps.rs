@@ -18,7 +18,7 @@ pub struct AppsListParams {
     pub limit: Option<u32>,
     /// Optional thread id used to evaluate app feature gating from that thread's config.
     #[ts(optional = nullable)]
-    pub thread_id: Option<String>,
+    pub chat_id: Option<String>,
     /// When true, bypass app caches and fetch the latest data from sources.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub force_refetch: bool,
@@ -161,7 +161,7 @@ impl From<AppInfo> for AppSummary {
 pub struct AppsListResponse {
     pub data: Vec<AppInfo>,
     /// Opaque cursor to pass to the next call to continue after the last item.
-    /// If None, there are no more items to return.
+    /// If None, there are no more messages to return.
     pub next_cursor: Option<String>,
 }
 

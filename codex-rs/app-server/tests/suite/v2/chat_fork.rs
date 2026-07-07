@@ -6,27 +6,27 @@ use app_test_support::create_fake_rollout_with_token_usage;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
+use datax_app_server_protocol::ChatForkParams;
+use datax_app_server_protocol::ChatForkResponse;
+use datax_app_server_protocol::ChatListParams;
+use datax_app_server_protocol::ChatListResponse;
+use datax_app_server_protocol::ChatResumeParams;
+use datax_app_server_protocol::ChatSource;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::ChatStartedNotification;
+use datax_app_server_protocol::ChatStatus;
+use datax_app_server_protocol::ChatStatusChangedNotification;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
+use datax_app_server_protocol::InteractionStatus;
 use datax_app_server_protocol::JSONRPCError;
 use datax_app_server_protocol::JSONRPCMessage;
 use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::Message;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::ServerNotification;
 use datax_app_server_protocol::SessionSource;
-use datax_app_server_protocol::ThreadForkParams;
-use datax_app_server_protocol::ThreadForkResponse;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadListParams;
-use datax_app_server_protocol::ThreadListResponse;
-use datax_app_server_protocol::ThreadResumeParams;
-use datax_app_server_protocol::ThreadSource;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::ThreadStartedNotification;
-use datax_app_server_protocol::ThreadStatus;
-use datax_app_server_protocol::ThreadStatusChangedNotification;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
-use datax_app_server_protocol::TurnStatus;
 use datax_app_server_protocol::UserInput;
 use datax_config::types::AuthCredentialsStoreMode;
 use datax_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
@@ -58,9 +58,9 @@ const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 #[cfg(not(windows))]
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
-async fn list_threads(mcp: &mut TestAppServer) -> Result<ThreadListResponse> {
+async fn list_threads(mcp: &mut TestAppServer) -> Result<ChatListResponse> {
     let list_id = mcp
-        .send_thread_list_request(ThreadListParams {
+        .send_chat_list_request(ChatListParams {
             cursor: None,
             limit: Some(50),
             sort_key: None,
@@ -71,7 +71,7 @@ async fn list_threads(mcp: &mut TestAppServer) -> Result<ThreadListResponse> {
             cwd: None,
             use_state_db_only: false,
             search_term: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
         })
         .await?;
     let list_resp: JSONRPCResponse = timeout(
@@ -79,7 +79,7 @@ async fn list_threads(mcp: &mut TestAppServer) -> Result<ThreadListResponse> {
         mcp.read_stream_until_response_message(RequestId::Integer(list_id)),
     )
     .await??;
-    to_response::<ThreadListResponse>(list_resp)
+    to_response::<ChatListResponse>(list_resp)
 }
 
 #[tokio::test]
@@ -121,9 +121,9 @@ async fn thread_fork_creates_new_thread_and_emits_started() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let fork_id = mcp
-        .send_thread_fork_request(ThreadForkParams {
-            thread_id: conversation_id.clone(),
-            thread_source: Some(ThreadSource::User),
+        .send_chat_fork_request(ChatForkParams {
+            chat_id: conversation_id.clone(),
+            chat_source: Some(ChatSource::User),
             ..Default::default()
         })
         .await?;
@@ -133,13 +133,13 @@ async fn thread_fork_creates_new_thread_and_emits_started() -> Result<()> {
     )
     .await??;
     let fork_result = fork_resp.result.clone();
-    let ThreadForkResponse { thread, .. } = to_response::<ThreadForkResponse>(fork_resp)?;
+    let ChatForkResponse { thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
 
     // Wire contract: thread title field is `name`, serialized as null when unset.
     let thread_json = fork_result
         .get("thread")
         .and_then(Value::as_object)
-        .expect("thread/fork result.thread must be an object");
+        .expect("chat/fork result.thread must be an object");
     assert_eq!(
         thread_json.get("sessionId").and_then(Value::as_str),
         Some(thread.session_id.as_str()),
@@ -153,7 +153,7 @@ async fn thread_fork_creates_new_thread_and_emits_started() -> Result<()> {
     assert_eq!(
         fork_result.get("sessionId"),
         None,
-        "thread/fork should not serialize a top-level `sessionId`"
+        "chat/fork should not serialize a top-level `sessionId`"
     );
 
     let after_contents = std::fs::read_to_string(&original_path)?;
@@ -167,25 +167,25 @@ async fn thread_fork_creates_new_thread_and_emits_started() -> Result<()> {
     assert_eq!(thread.forked_from_id, Some(conversation_id.clone()));
     assert_eq!(thread.preview, preview);
     assert_eq!(thread.model_provider, "mock_provider");
-    assert_eq!(thread.status, ThreadStatus::Idle);
+    assert_eq!(thread.status, ChatStatus::Idle);
     let thread_path = thread.path.clone().expect("thread path");
     assert!(thread_path.as_path().is_absolute());
     assert_ne!(thread_path.as_path(), original_path);
     assert!(thread.cwd.as_path().is_absolute());
     assert_eq!(thread.source, SessionSource::VsCode);
-    assert_eq!(thread.thread_source, Some(ThreadSource::User));
+    assert_eq!(thread.chat_source, Some(ChatSource::User));
     assert_eq!(thread.name, None);
 
     assert_eq!(
-        thread.turns.len(),
+        thread.interactions.len(),
         1,
         "expected forked thread to include one turn"
     );
-    let turn = &thread.turns[0];
-    assert_eq!(turn.status, TurnStatus::Interrupted);
-    assert_eq!(turn.items.len(), 1, "expected user message item");
-    match &turn.items[0] {
-        ThreadItem::UserMessage { content, .. } => {
+    let turn = &thread.interactions[0];
+    assert_eq!(turn.status, InteractionStatus::Interrupted);
+    assert_eq!(turn.messages.len(), 1, "expected user message item");
+    match &turn.messages[0] {
+        Message::UserMessage { content, .. } => {
             assert_eq!(
                 content,
                 &vec![UserInput::Text {
@@ -197,7 +197,7 @@ async fn thread_fork_creates_new_thread_and_emits_started() -> Result<()> {
         other => panic!("expected user message item, got {other:?}"),
     }
 
-    // A corresponding thread/started notification should arrive.
+    // A corresponding chat/started notification should arrive.
     let deadline = tokio::time::Instant::now() + DEFAULT_READ_TIMEOUT;
     let notif = loop {
         let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
@@ -205,17 +205,17 @@ async fn thread_fork_creates_new_thread_and_emits_started() -> Result<()> {
         let JSONRPCMessage::Notification(notif) = message else {
             continue;
         };
-        if notif.method == "thread/status/changed" {
-            let status_changed: ThreadStatusChangedNotification =
+        if notif.method == "chat/status/changed" {
+            let status_changed: ChatStatusChangedNotification =
                 serde_json::from_value(notif.params.expect("params must be present"))?;
-            if status_changed.thread_id == thread.id {
+            if status_changed.chat_id == thread.id {
                 anyhow::bail!(
-                    "thread/fork should introduce the thread without a preceding thread/status/changed"
+                    "chat/fork should introduce the thread without a preceding chat/status/changed"
                 );
             }
             continue;
         }
-        if notif.method == "thread/started" {
+        if notif.method == "chat/started" {
             break notif;
         }
     };
@@ -223,28 +223,28 @@ async fn thread_fork_creates_new_thread_and_emits_started() -> Result<()> {
     let started_thread_json = started_params
         .get("thread")
         .and_then(Value::as_object)
-        .expect("thread/started params.thread must be an object");
+        .expect("chat/started params.thread must be an object");
     assert_eq!(
         started_thread_json.get("name"),
         Some(&Value::Null),
-        "thread/started must serialize `name: null` when unset"
+        "chat/started must serialize `name: null` when unset"
     );
     assert_eq!(
-        started_thread_json.get("turns"),
+        started_thread_json.get("interactions"),
         Some(&json!([])),
-        "thread/started must not emit copied fork turns"
+        "chat/started must not emit copied fork interactions"
     );
     assert_eq!(
         started_thread_json
             .get("threadSource")
             .and_then(Value::as_str),
         Some("user"),
-        "thread/started should preserve the caller-supplied fork origin"
+        "chat/started should preserve the caller-supplied fork origin"
     );
-    let started: ThreadStartedNotification =
+    let started: ChatStartedNotification =
         serde_json::from_value(notif.params.expect("params must be present"))?;
     let mut expected_started_thread = thread;
-    expected_started_thread.turns.clear();
+    expected_started_thread.interactions.clear();
     assert_eq!(started.thread, expected_started_thread);
 
     Ok(())
@@ -272,8 +272,8 @@ async fn thread_fork_inherits_explicit_source_name_from_session_index() -> Resul
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let fork_id = mcp
-        .send_thread_fork_request(ThreadForkParams {
-            thread_id: conversation_id.clone(),
+        .send_chat_fork_request(ChatForkParams {
+            chat_id: conversation_id.clone(),
             ..Default::default()
         })
         .await?;
@@ -282,13 +282,13 @@ async fn thread_fork_inherits_explicit_source_name_from_session_index() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(fork_id)),
     )
     .await??;
-    let ThreadForkResponse { thread, .. } = to_response::<ThreadForkResponse>(fork_resp)?;
+    let ChatForkResponse { thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
 
-    let ThreadListResponse { data, .. } = list_threads(&mut mcp).await?;
+    let ChatListResponse { data, .. } = list_threads(&mut mcp).await?;
     let listed = data
         .iter()
         .find(|candidate| candidate.id == thread.id)
-        .expect("thread/list should include the forked thread");
+        .expect("chat/list should include the forked thread");
     assert_eq!(listed.name.as_deref(), Some(source_name));
 
     Ok(())
@@ -323,8 +323,8 @@ async fn thread_fork_can_load_source_by_path() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let fork_id = mcp
-        .send_thread_fork_request(ThreadForkParams {
-            thread_id: "not-a-valid-thread-id".to_string(),
+        .send_chat_fork_request(ChatForkParams {
+            chat_id: "not-a-valid-thread-id".to_string(),
             path: Some(original_path),
             ..Default::default()
         })
@@ -334,13 +334,13 @@ async fn thread_fork_can_load_source_by_path() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(fork_id)),
     )
     .await??;
-    let ThreadForkResponse { thread, .. } = to_response::<ThreadForkResponse>(fork_resp)?;
+    let ChatForkResponse { thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
 
     assert_ne!(thread.id, conversation_id);
     assert_eq!(thread.forked_from_id, Some(conversation_id));
     assert_eq!(thread.preview, preview);
     assert_eq!(thread.model_provider, "mock_provider");
-    assert_eq!(thread.turns.len(), 1, "expected copied fork history");
+    assert_eq!(thread.interactions.len(), 1, "expected copied fork history");
 
     Ok(())
 }
@@ -363,9 +363,9 @@ async fn thread_fork_emits_restored_token_usage_before_next_turn() -> Result<()>
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let fork_id = mcp
-        .send_thread_fork_request(ThreadForkParams {
-            thread_id: conversation_id,
-            thread_source: Some(ThreadSource::User),
+        .send_chat_fork_request(ChatForkParams {
+            chat_id: conversation_id,
+            chat_source: Some(ChatSource::User),
             ..Default::default()
         })
         .await?;
@@ -374,20 +374,20 @@ async fn thread_fork_emits_restored_token_usage_before_next_turn() -> Result<()>
         mcp.read_stream_until_response_message(RequestId::Integer(fork_id)),
     )
     .await??;
-    let ThreadForkResponse { thread, .. } = to_response::<ThreadForkResponse>(fork_resp)?;
+    let ChatForkResponse { thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
 
     let note = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("thread/tokenUsage/updated"),
+        mcp.read_stream_until_notification_message("chat/tokenUsage/updated"),
     )
     .await??;
     let parsed: ServerNotification = note.try_into()?;
-    let ServerNotification::ThreadTokenUsageUpdated(notification) = parsed else {
-        panic!("expected thread/tokenUsage/updated notification");
+    let ChatTokenUsageUpdated(notification) = parsed else {
+        panic!("expected chat/tokenUsage/updated notification");
     };
 
-    assert_eq!(notification.thread_id, thread.id);
-    assert_eq!(notification.turn_id, thread.turns[0].id);
+    assert_eq!(notification.chat_id, thread.id);
+    assert_eq!(notification.interaction_id, thread.interactions[0].id);
     assert_eq!(notification.token_usage.total.total_tokens, 150);
     assert_eq!(notification.token_usage.total.input_tokens, 120);
     assert_eq!(notification.token_usage.total.cached_input_tokens, 20);
@@ -417,9 +417,9 @@ async fn thread_fork_can_exclude_turns_and_skip_restored_token_usage() -> Result
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let fork_id = mcp
-        .send_thread_fork_request(ThreadForkParams {
-            thread_id: conversation_id.clone(),
-            exclude_turns: true,
+        .send_chat_fork_request(ChatForkParams {
+            chat_id: conversation_id.clone(),
+            exclude_interactions: true,
             ..Default::default()
         })
         .await?;
@@ -428,20 +428,20 @@ async fn thread_fork_can_exclude_turns_and_skip_restored_token_usage() -> Result
         mcp.read_stream_until_response_message(RequestId::Integer(fork_id)),
     )
     .await??;
-    let ThreadForkResponse { thread, .. } = to_response::<ThreadForkResponse>(fork_resp)?;
+    let ChatForkResponse { thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
 
     assert_eq!(thread.forked_from_id, Some(conversation_id));
     assert_eq!(thread.preview, "Saved user message");
-    assert!(thread.turns.is_empty());
+    assert!(thread.interactions.is_empty());
 
     let note = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("thread/tokenUsage/updated"),
+        mcp.read_stream_until_notification_message("chat/tokenUsage/updated"),
     )
     .await;
     assert!(
         note.is_err(),
-        "excludeTurns=true should not replay token usage"
+        "excludeInteractions=true should not replay token usage"
     );
 
     Ok(())
@@ -468,9 +468,9 @@ async fn thread_fork_tracks_thread_initialized_analytics() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let fork_id = mcp
-        .send_thread_fork_request(ThreadForkParams {
-            thread_id: conversation_id,
-            thread_source: Some(ThreadSource::User),
+        .send_chat_fork_request(ChatForkParams {
+            chat_id: conversation_id,
+            chat_source: Some(ChatSource::User),
             ..Default::default()
         })
         .await?;
@@ -479,7 +479,7 @@ async fn thread_fork_tracks_thread_initialized_analytics() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(fork_id)),
     )
     .await??;
-    let ThreadForkResponse { thread, .. } = to_response::<ThreadForkResponse>(fork_resp)?;
+    let ChatForkResponse { thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
 
     let payload = wait_for_analytics_payload(&server, DEFAULT_READ_TIMEOUT).await?;
     let event = thread_initialized_event(&payload)?;
@@ -492,7 +492,7 @@ async fn thread_fork_tracks_thread_initialized_analytics() -> Result<()> {
         "user",
     );
     assert_eq!(
-        event["event_params"]["forked_from_thread_id"],
+        event["event_params"]["forked_from_chat_id"],
         thread
             .forked_from_id
             .as_deref()
@@ -511,7 +511,7 @@ async fn thread_fork_rejects_unmaterialized_thread() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -521,11 +521,11 @@ async fn thread_fork_rejects_unmaterialized_thread() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let fork_id = mcp
-        .send_thread_fork_request(ThreadForkParams {
-            thread_id: thread.id,
+        .send_chat_fork_request(ChatForkParams {
+            chat_id: thread.id,
             ..Default::default()
         })
         .await?;
@@ -565,10 +565,10 @@ async fn thread_fork_with_empty_path_uses_thread_id() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let fork_id = mcp
-        .send_thread_fork_request(ThreadForkParams {
-            thread_id: conversation_id.clone(),
+        .send_chat_fork_request(ChatForkParams {
+            chat_id: conversation_id.clone(),
             path: Some(std::path::PathBuf::new()),
-            thread_source: Some(ThreadSource::User),
+            chat_source: Some(ChatSource::User),
             ..Default::default()
         })
         .await?;
@@ -577,7 +577,7 @@ async fn thread_fork_with_empty_path_uses_thread_id() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(fork_id)),
     )
     .await??;
-    let ThreadForkResponse { thread, .. } = to_response::<ThreadForkResponse>(fork_resp)?;
+    let ChatForkResponse { thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
 
     assert_eq!(
         thread.forked_from_id.as_deref(),
@@ -649,8 +649,8 @@ async fn thread_fork_surfaces_cloud_config_bundle_load_errors() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let fork_id = mcp
-        .send_thread_fork_request(ThreadForkParams {
-            thread_id: conversation_id,
+        .send_chat_fork_request(ChatForkParams {
+            chat_id: conversation_id,
             ..Default::default()
         })
         .await?;
@@ -702,8 +702,8 @@ async fn thread_fork_ephemeral_remains_pathless_and_omits_listing() -> Result<()
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let fork_id = mcp
-        .send_thread_fork_request(ThreadForkParams {
-            thread_id: conversation_id.clone(),
+        .send_chat_fork_request(ChatForkParams {
+            chat_id: conversation_id.clone(),
             ephemeral: true,
             ..Default::default()
         })
@@ -714,7 +714,7 @@ async fn thread_fork_ephemeral_remains_pathless_and_omits_listing() -> Result<()
     )
     .await??;
     let fork_result = fork_resp.result.clone();
-    let ThreadForkResponse { thread, .. } = to_response::<ThreadForkResponse>(fork_resp)?;
+    let ChatForkResponse { thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
     let fork_thread_id = thread.id.clone();
 
     assert!(
@@ -726,15 +726,15 @@ async fn thread_fork_ephemeral_remains_pathless_and_omits_listing() -> Result<()
         "ephemeral forks should not expose a path"
     );
     assert_eq!(thread.preview, preview);
-    assert_eq!(thread.status, ThreadStatus::Idle);
+    assert_eq!(thread.status, ChatStatus::Idle);
     assert_eq!(thread.name, None);
-    assert_eq!(thread.turns.len(), 1, "expected copied fork history");
+    assert_eq!(thread.interactions.len(), 1, "expected copied fork history");
 
-    let turn = &thread.turns[0];
-    assert_eq!(turn.status, TurnStatus::Completed);
-    assert_eq!(turn.items.len(), 1, "expected user message item");
-    match &turn.items[0] {
-        ThreadItem::UserMessage { content, .. } => {
+    let turn = &thread.interactions[0];
+    assert_eq!(turn.status, InteractionStatus::Completed);
+    assert_eq!(turn.messages.len(), 1, "expected user message item");
+    match &turn.messages[0] {
+        Message::UserMessage { content, .. } => {
             assert_eq!(
                 content,
                 &vec![UserInput::Text {
@@ -749,7 +749,7 @@ async fn thread_fork_ephemeral_remains_pathless_and_omits_listing() -> Result<()
     let thread_json = fork_result
         .get("thread")
         .and_then(Value::as_object)
-        .expect("thread/fork result.thread must be an object");
+        .expect("chat/fork result.thread must be an object");
     assert_eq!(
         thread_json.get("ephemeral").and_then(Value::as_bool),
         Some(true),
@@ -763,17 +763,17 @@ async fn thread_fork_ephemeral_remains_pathless_and_omits_listing() -> Result<()
         let JSONRPCMessage::Notification(notif) = message else {
             continue;
         };
-        if notif.method == "thread/status/changed" {
-            let status_changed: ThreadStatusChangedNotification =
+        if notif.method == "chat/status/changed" {
+            let status_changed: ChatStatusChangedNotification =
                 serde_json::from_value(notif.params.expect("params must be present"))?;
-            if status_changed.thread_id == fork_thread_id {
+            if status_changed.chat_id == fork_thread_id {
                 anyhow::bail!(
-                    "thread/fork should introduce the thread without a preceding thread/status/changed"
+                    "chat/fork should introduce the thread without a preceding chat/status/changed"
                 );
             }
             continue;
         }
-        if notif.method == "thread/started" {
+        if notif.method == "chat/started" {
             break notif;
         }
     };
@@ -781,38 +781,38 @@ async fn thread_fork_ephemeral_remains_pathless_and_omits_listing() -> Result<()
     let started_thread_json = started_params
         .get("thread")
         .and_then(Value::as_object)
-        .expect("thread/started params.thread must be an object");
+        .expect("chat/started params.thread must be an object");
     assert_eq!(
         started_thread_json
             .get("ephemeral")
             .and_then(Value::as_bool),
         Some(true),
-        "thread/started should serialize `ephemeral: true` for ephemeral forks"
+        "chat/started should serialize `ephemeral: true` for ephemeral forks"
     );
     assert_eq!(
-        started_thread_json.get("turns"),
+        started_thread_json.get("interactions"),
         Some(&json!([])),
-        "thread/started must not emit copied ephemeral fork turns"
+        "chat/started must not emit copied ephemeral fork interactions"
     );
-    let started: ThreadStartedNotification =
+    let started: ChatStartedNotification =
         serde_json::from_value(notif.params.expect("params must be present"))?;
     let mut expected_started_thread = thread;
-    expected_started_thread.turns.clear();
+    expected_started_thread.interactions.clear();
     assert_eq!(started.thread, expected_started_thread);
 
-    let ThreadListResponse { data, .. } = list_threads(&mut mcp).await?;
+    let ChatListResponse { data, .. } = list_threads(&mut mcp).await?;
     assert!(
         data.iter().all(|candidate| candidate.id != fork_thread_id),
-        "ephemeral forks should not appear in thread/list"
+        "ephemeral forks should not appear in chat/list"
     );
     assert!(
         data.iter().any(|candidate| candidate.id == conversation_id),
         "persistent source thread should remain listed"
     );
 
-    let turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: fork_thread_id,
+    let interaction_id = mcp
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: fork_thread_id,
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "continue".to_string(),
@@ -823,13 +823,13 @@ async fn thread_fork_ephemeral_remains_pathless_and_omits_listing() -> Result<()
         .await?;
     let turn_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
-    let _: TurnStartResponse = to_response::<TurnStartResponse>(turn_resp)?;
+    let _: InteractionStartResponse = to_response::<InteractionStartResponse>(turn_resp)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -842,7 +842,7 @@ async fn pathless_ephemeral_thread_rejects_codex_home_path_after_reload() -> Res
     let codex_home = TempDir::new()?;
     create_config_toml(codex_home.path(), &server.uri())?;
 
-    let parent_thread_id = create_fake_rollout(
+    let parent_chat_id = create_fake_rollout(
         codex_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
@@ -856,8 +856,8 @@ async fn pathless_ephemeral_thread_rejects_codex_home_path_after_reload() -> Res
         timeout(DEFAULT_READ_TIMEOUT, app_server.initialize()).await??;
 
         let fork_id = app_server
-            .send_thread_fork_request(ThreadForkParams {
-                thread_id: parent_thread_id,
+            .send_chat_fork_request(ChatForkParams {
+                chat_id: parent_chat_id,
                 ephemeral: true,
                 ..Default::default()
             })
@@ -867,13 +867,13 @@ async fn pathless_ephemeral_thread_rejects_codex_home_path_after_reload() -> Res
             app_server.read_stream_until_response_message(RequestId::Integer(fork_id)),
         )
         .await??;
-        let ThreadForkResponse { thread, .. } = to_response::<ThreadForkResponse>(fork_resp)?;
+        let ChatForkResponse { thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
         assert!(thread.ephemeral);
         assert_eq!(thread.path, None);
 
-        let turn_id = app_server
-            .send_turn_start_request(TurnStartParams {
-                thread_id: thread.id.clone(),
+        let interaction_id = app_server
+            .send_interaction_start_request(InteractionStartParams {
+                chat_id: thread.id.clone(),
                 client_user_message_id: None,
                 input: vec![UserInput::Text {
                     text: "continue".to_string(),
@@ -884,13 +884,13 @@ async fn pathless_ephemeral_thread_rejects_codex_home_path_after_reload() -> Res
             .await?;
         let turn_resp: JSONRPCResponse = timeout(
             DEFAULT_READ_TIMEOUT,
-            app_server.read_stream_until_response_message(RequestId::Integer(turn_id)),
+            app_server.read_stream_until_response_message(RequestId::Integer(interaction_id)),
         )
         .await??;
-        let _: TurnStartResponse = to_response::<TurnStartResponse>(turn_resp)?;
+        let _: InteractionStartResponse = to_response::<InteractionStartResponse>(turn_resp)?;
         timeout(
             DEFAULT_READ_TIMEOUT,
-            app_server.read_stream_until_notification_message("turn/completed"),
+            app_server.read_stream_until_notification_message("interaction/completed"),
         )
         .await??;
 
@@ -902,8 +902,8 @@ async fn pathless_ephemeral_thread_rejects_codex_home_path_after_reload() -> Res
     let codex_home_path = codex_home.path().to_path_buf();
 
     let resume_id = app_server
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: side_thread_id.clone(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: side_thread_id.clone(),
             path: Some(codex_home_path.clone()),
             ..Default::default()
         })
@@ -925,8 +925,8 @@ async fn pathless_ephemeral_thread_rejects_codex_home_path_after_reload() -> Res
     );
 
     let fork_id = app_server
-        .send_thread_fork_request(ThreadForkParams {
-            thread_id: side_thread_id,
+        .send_chat_fork_request(ChatForkParams {
+            chat_id: side_thread_id,
             path: Some(codex_home_path),
             ..Default::default()
         })

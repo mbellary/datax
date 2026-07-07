@@ -4,15 +4,15 @@ use app_test_support::create_final_assistant_message_sse_response;
 use app_test_support::create_mock_responses_server_sequence;
 use app_test_support::to_response;
 use core_test_support::responses;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
 use datax_app_server_protocol::JSONRPCMessage;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::ServerRequest;
 use datax_app_server_protocol::ServerRequestResolvedNotification;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_protocol::config_types::CollaborationMode;
 use datax_protocol::config_types::ModeKind;
@@ -66,7 +66,7 @@ async fn request_user_input_round_trip() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -76,11 +76,11 @@ async fn request_user_input_round_trip() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
 
     let turn_start_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "ask something".to_string(),
@@ -104,7 +104,7 @@ async fn request_user_input_round_trip() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_start_id)),
     )
     .await??;
-    let TurnStartResponse { turn, .. } = to_response(turn_start_resp)?;
+    let InteractionStartResponse { turn, .. } = to_response(turn_start_resp)?;
 
     let server_req = timeout(
         DEFAULT_READ_TIMEOUT,
@@ -115,9 +115,9 @@ async fn request_user_input_round_trip() -> Result<()> {
         panic!("expected ToolRequestUserInput request, got: {server_req:?}");
     };
 
-    assert_eq!(params.thread_id, thread.id);
-    assert_eq!(params.turn_id, turn.id);
-    assert_eq!(params.item_id, "call1");
+    assert_eq!(params.chat_id, thread.id);
+    assert_eq!(params.interaction_id, turn.id);
+    assert_eq!(params.message_id, "call1");
     assert_eq!(params.questions.len(), 1);
     assert_eq!(params.auto_resolution_ms, Some(60_000));
     let resolved_request_id = request_id.clone();
@@ -145,11 +145,11 @@ async fn request_user_input_round_trip() -> Result<()> {
                         .clone()
                         .expect("serverRequest/resolved params"),
                 )?;
-                assert_eq!(resolved.thread_id, thread.id);
+                assert_eq!(resolved.chat_id, thread.id);
                 assert_eq!(resolved.request_id, resolved_request_id);
                 saw_resolved = true;
             }
-            "turn/completed" => {
+            "interaction/completed" => {
                 assert!(saw_resolved, "serverRequest/resolved should arrive first");
                 break;
             }

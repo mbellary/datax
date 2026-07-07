@@ -10,17 +10,17 @@ use anyhow::Result;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::write_mock_responses_config_toml;
 use datax_analytics::AppServerRpcTransport;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::ClientInfo;
 use datax_app_server_protocol::ClientRequest;
 use datax_app_server_protocol::InitializeCapabilities;
 use datax_app_server_protocol::InitializeParams;
 use datax_app_server_protocol::InitializeResponse;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
 use datax_app_server_protocol::JSONRPCRequest;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
 use datax_app_server_protocol::UserInput;
 use datax_arg0::Arg0DispatchPaths;
 use datax_config::CloudConfigBundleLoader;
@@ -191,14 +191,14 @@ impl TracingHarness {
         &mut self,
         request_id: i64,
         trace: Option<W3cTraceContext>,
-    ) -> ThreadStartResponse {
+    ) -> ChatStartResponse {
         let response = self
             .request(
-                ClientRequest::ThreadStart {
+                ChatStart {
                     request_id: RequestId::Integer(request_id),
-                    params: ThreadStartParams {
+                    params: ChatStartParams {
                         ephemeral: Some(true),
-                        ..ThreadStartParams::default()
+                        ..ChatStartParams::default()
                     },
                 },
                 trace,
@@ -460,7 +460,7 @@ async fn read_thread_started_notification(
     loop {
         let envelope = tokio::time::timeout(std::time::Duration::from_secs(5), outgoing_rx.recv())
             .await
-            .expect("timed out waiting for thread/started notification")
+            .expect("timed out waiting for chat/started notification")
             .expect("outgoing channel closed");
         match envelope {
             crate::outgoing_message::OutgoingEnvelope::ToConnection {
@@ -476,10 +476,7 @@ async fn read_thread_started_notification(
                 else {
                     continue;
                 };
-                if matches!(
-                    notification,
-                    datax_app_server_protocol::ServerNotification::ThreadStarted(_)
-                ) {
+                if matches!(notification, datax_app_server_protocol::ChatStarted(_)) {
                     return;
                 }
             }
@@ -489,10 +486,7 @@ async fn read_thread_started_notification(
                 else {
                     continue;
                 };
-                if matches!(
-                    notification,
-                    datax_app_server_protocol::ServerNotification::ThreadStarted(_)
-                ) {
+                if matches!(notification, datax_app_server_protocol::ChatStarted(_)) {
                     return;
                 }
             }
@@ -555,31 +549,31 @@ fn thread_start_jsonrpc_span_exports_server_span_and_parents_children() -> Resul
                 ..
             } = RemoteTrace::new("00000000000000000000000000000011", "0000000000000022");
 
-            let _: ThreadStartResponse = harness
+            let _: ChatStartResponse = harness
                 .start_thread(/*request_id*/ 20_002, /*trace*/ None)
                 .await;
             let untraced_spans = wait_for_exported_spans(harness.tracing, |spans| {
                 spans.iter().any(|span| {
                     span.span_kind == SpanKind::Server
-                        && span_attr(span, "rpc.method") == Some("thread/start")
+                        && span_attr(span, "rpc.method") == Some("chat/start")
                 })
             })
             .await;
             let untraced_server_span = find_rpc_span_with_trace(
                 &untraced_spans,
                 SpanKind::Server,
-                "thread/start",
+                "chat/start",
                 untraced_spans
                     .iter()
                     .rev()
                     .find(|span| {
                         span.span_kind == SpanKind::Server
                             && span_attr(span, "rpc.system") == Some("jsonrpc")
-                            && span_attr(span, "rpc.method") == Some("thread/start")
+                            && span_attr(span, "rpc.method") == Some("chat/start")
                     })
                     .unwrap_or_else(|| {
                         panic!(
-                            "missing latest thread/start server span; exported spans:\n{}",
+                            "missing latest chat/start server span; exported spans:\n{}",
                             format_spans(&untraced_spans)
                         )
                     })
@@ -593,13 +587,13 @@ fn thread_start_jsonrpc_span_exports_server_span_and_parents_children() -> Resul
             );
 
             let baseline_len = untraced_spans.len();
-            let _: ThreadStartResponse = harness
+            let _: ChatStartResponse = harness
                 .start_thread(/*request_id*/ 20_003, Some(remote_trace))
                 .await;
             let spans = wait_for_new_exported_spans(harness.tracing, baseline_len, |spans| {
                 spans.iter().any(|span| {
                     span.span_kind == SpanKind::Server
-                        && span_attr(span, "rpc.method") == Some("thread/start")
+                        && span_attr(span, "rpc.method") == Some("chat/start")
                         && span.span_context.trace_id() == remote_trace_id
                 }) && spans.iter().any(|span| {
                     span.name.as_ref() == "app_server.thread_start.notify_started"
@@ -609,8 +603,8 @@ fn thread_start_jsonrpc_span_exports_server_span_and_parents_children() -> Resul
             .await;
 
             let server_request_span =
-                find_rpc_span_with_trace(&spans, SpanKind::Server, "thread/start", remote_trace_id);
-            assert_eq!(server_request_span.name.as_ref(), "thread/start");
+                find_rpc_span_with_trace(&spans, SpanKind::Server, "chat/start", remote_trace_id);
+            assert_eq!(server_request_span.name.as_ref(), "chat/start");
             assert_eq!(server_request_span.parent_span_id, remote_parent_span_id);
             assert!(server_request_span.parent_span_is_remote);
             assert_eq!(server_request_span.span_context.trace_id(), remote_trace_id);
@@ -637,7 +631,7 @@ fn thread_start_jsonrpc_span_exports_server_span_and_parents_children() -> Resul
 async fn turn_start_jsonrpc_span_parents_core_turn_spans() -> Result<()> {
     let mut harness = TracingHarness::new().await?;
     let thread_start_response = harness.start_thread(/*request_id*/ 2, /*trace*/ None).await;
-    let thread_id = thread_start_response.thread.id.clone();
+    let chat_id = thread_start_response.thread.id.clone();
 
     harness.reset_tracing();
 
@@ -646,13 +640,13 @@ async fn turn_start_jsonrpc_span_parents_core_turn_spans() -> Result<()> {
         parent_span_id: remote_parent_span_id,
         context: remote_trace,
     } = RemoteTrace::new("00000000000000000000000000000077", "0000000000000088");
-    let turn_start_response: TurnStartResponse = harness
+    let turn_start_response: InteractionStartResponse = harness
         .request(
-            ClientRequest::TurnStart {
+            InteractionStart {
                 request_id: RequestId::Integer(3),
-                params: TurnStartParams {
+                params: InteractionStartParams {
                     environments: None,
-                    thread_id,
+                    chat_id,
                     client_user_message_id: None,
                     input: vec![UserInput::Text {
                         text: "hello".to_string(),
@@ -682,7 +676,7 @@ async fn turn_start_jsonrpc_span_parents_core_turn_spans() -> Result<()> {
     let spans = wait_for_exported_spans(harness.tracing, |spans| {
         spans.iter().any(|span| {
             span.span_kind == SpanKind::Server
-                && span_attr(span, "rpc.method") == Some("turn/start")
+                && span_attr(span, "rpc.method") == Some("interaction/start")
                 && span.span_context.trace_id() == remote_trace_id
         }) && spans.iter().any(|span| {
             span_attr(span, "codex.op") == Some("user_input")
@@ -691,8 +685,12 @@ async fn turn_start_jsonrpc_span_parents_core_turn_spans() -> Result<()> {
     })
     .await;
 
-    let server_request_span =
-        find_rpc_span_with_trace(&spans, SpanKind::Server, "turn/start", remote_trace_id);
+    let server_request_span = find_rpc_span_with_trace(
+        &spans,
+        SpanKind::Server,
+        "interaction/start",
+        remote_trace_id,
+    );
     let core_turn_span =
         find_span_with_trace(&spans, remote_trace_id, "codex.op=user_input", |span| {
             span_attr(span, "codex.op") == Some("user_input")

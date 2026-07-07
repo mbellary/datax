@@ -343,7 +343,7 @@ fn turn_items_for_thread_returns_matching_turn_items() {
         created_at: 0,
         updated_at: 0,
         recency_at: Some(0),
-        status: datax_app_server_protocol::ThreadStatus::Idle,
+        status: datax_app_server_protocol::ChatStatus::Idle,
         path: None,
         cwd: test_path_buf("/tmp/project").abs(),
         cli_version: "0.0.0-test".to_string(),
@@ -354,29 +354,29 @@ fn turn_items_for_thread_returns_matching_turn_items() {
         git_info: None,
         name: None,
         turns: vec![
-            datax_app_server_protocol::Turn {
+            datax_app_server_protocol::Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: vec![AppServerThreadItem::AgentMessage {
                     id: "msg-1".to_string(),
                     text: "hello".to_string(),
                     phase: None,
                     memory_citation: None,
                 }],
-                status: datax_app_server_protocol::TurnStatus::Completed,
+                status: datax_app_server_protocol::InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
                 duration_ms: None,
             },
-            datax_app_server_protocol::Turn {
+            datax_app_server_protocol::Interaction {
                 id: "turn-2".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: vec![AppServerThreadItem::Plan {
                     id: "plan-1".to_string(),
                     text: "ship it".to_string(),
                 }],
-                status: datax_app_server_protocol::TurnStatus::Completed,
+                status: datax_app_server_protocol::InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
@@ -399,20 +399,21 @@ fn turn_items_for_thread_returns_matching_turn_items() {
 
 #[test]
 fn should_backfill_turn_completed_items_skips_ephemeral_threads() {
-    let notification =
-        ServerNotification::TurnCompleted(datax_app_server_protocol::TurnCompletedNotification {
+    let notification = ServerNotification::InteractionCompleted(
+        datax_app_server_protocol::InteractionCompletedNotification {
             thread_id: "thread-1".to_string(),
-            turn: datax_app_server_protocol::Turn {
+            turn: datax_app_server_protocol::Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: Vec::new(),
-                status: datax_app_server_protocol::TurnStatus::Completed,
+                status: datax_app_server_protocol::InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
                 duration_ms: None,
             },
-        });
+        },
+    );
 
     assert!(!should_backfill_turn_completed_items(
         /*thread_ephemeral*/ true,
@@ -590,7 +591,7 @@ async fn thread_start_params_include_user_thread_source() {
 
     assert_eq!(
         params.thread_source,
-        Some(datax_app_server_protocol::ThreadSource::User)
+        Some(datax_app_server_protocol::ChatSource::User)
     );
 }
 
@@ -749,9 +750,9 @@ async fn session_configured_from_thread_response_preserves_parent_thread_id() {
     assert_eq!(event.parent_thread_id, Some(parent_thread_id));
 }
 
-fn sample_thread_start_response() -> ThreadStartResponse {
-    ThreadStartResponse {
-        thread: datax_app_server_protocol::Thread {
+fn sample_thread_start_response() -> ChatStartResponse {
+    ChatStartResponse {
+        thread: datax_app_server_protocol::Chat {
             id: "67e55044-10b1-426f-9247-bb680e5fe0c8".to_string(),
             session_id: "67e55044-10b1-426f-9247-bb680e5fe0c7".to_string(),
             forked_from_id: None,
@@ -762,12 +763,12 @@ fn sample_thread_start_response() -> ThreadStartResponse {
             created_at: 0,
             updated_at: 0,
             recency_at: Some(0),
-            status: datax_app_server_protocol::ThreadStatus::Idle,
+            status: datax_app_server_protocol::ChatStatus::Idle,
             path: Some(PathBuf::from("/tmp/rollout.jsonl")),
             cwd: test_path_buf("/tmp").abs(),
             cli_version: "0.0.0".to_string(),
             source: datax_app_server_protocol::SessionSource::Cli,
-            thread_source: Some(datax_app_server_protocol::ThreadSource::User),
+            thread_source: Some(datax_app_server_protocol::ChatSource::User),
             agent_nickname: None,
             agent_role: None,
             git_info: None,

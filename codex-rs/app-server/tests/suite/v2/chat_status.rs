@@ -3,18 +3,18 @@ use app_test_support::TestAppServer;
 use app_test_support::create_final_assistant_message_sse_response;
 use app_test_support::create_mock_responses_server_sequence;
 use app_test_support::to_response;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::ChatStatus;
+use datax_app_server_protocol::ChatStatusChangedNotification;
 use datax_app_server_protocol::ClientInfo;
 use datax_app_server_protocol::InitializeCapabilities;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
 use datax_app_server_protocol::JSONRPCMessage;
 use datax_app_server_protocol::JSONRPCNotification;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::ThreadStatus;
-use datax_app_server_protocol::ThreadStatusChangedNotification;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use tempfile::TempDir;
 use tokio::time::timeout;
@@ -33,7 +33,7 @@ async fn thread_status_changed_emits_runtime_updates() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -43,11 +43,11 @@ async fn thread_status_changed_emits_runtime_updates() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
 
     let turn_start_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "collect status updates".to_string(),
@@ -62,7 +62,7 @@ async fn thread_status_changed_emits_runtime_updates() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_start_id)),
     )
     .await??;
-    let _: TurnStartResponse = to_response(turn_start_resp)?;
+    let _: InteractionStartResponse = to_response(turn_start_resp)?;
 
     let mut saw_active_running = false;
     let mut saw_idle_after_turn = false;
@@ -77,26 +77,26 @@ async fn thread_status_changed_emits_runtime_updates() -> Result<()> {
             JSONRPCMessage::Notification(JSONRPCNotification {
                 method,
                 params: Some(params),
-            }) if method == "thread/status/changed" => {
-                let notification: ThreadStatusChangedNotification = serde_json::from_value(params)?;
-                if notification.thread_id != thread.id {
+            }) if method == "chat/status/changed" => {
+                let notification: ChatStatusChangedNotification = serde_json::from_value(params)?;
+                if notification.chat_id != thread.id {
                     continue;
                 }
                 match notification.status {
-                    ThreadStatus::Active { .. } => {
+                    ChatStatus::Active { .. } => {
                         saw_active_running = true;
                     }
-                    ThreadStatus::Idle => {
+                    ChatStatus::Idle => {
                         if saw_active_running {
                             saw_idle_after_turn = true;
                         }
                     }
-                    ThreadStatus::SystemError => {
+                    ChatStatus::SystemError => {
                         if saw_active_running {
                             saw_idle_after_turn = true;
                         }
                     }
-                    ThreadStatus::NotLoaded => {
+                    ChatStatus::NotLoaded => {
                         if saw_active_running {
                             saw_idle_after_turn = true;
                         }
@@ -113,15 +113,15 @@ async fn thread_status_changed_emits_runtime_updates() -> Result<()> {
 
     assert!(
         saw_active_running,
-        "expected running active flag in thread/status/changed notifications"
+        "expected running active flag in chat/status/changed notifications"
     );
     assert!(
         saw_idle_after_turn,
-        "expected idle status after turn completion in thread/status/changed notifications"
+        "expected idle status after turn completion in chat/status/changed notifications"
     );
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -147,7 +147,7 @@ async fn thread_status_changed_can_be_opted_out() -> Result<()> {
             Some(InitializeCapabilities {
                 experimental_api: true,
                 request_attestation: false,
-                opt_out_notification_methods: Some(vec!["thread/status/changed".to_string()]),
+                opt_out_notification_methods: Some(vec!["chat/status/changed".to_string()]),
                 mcp_server_openai_form_elicitation: false,
             }),
         ),
@@ -158,7 +158,7 @@ async fn thread_status_changed_can_be_opted_out() -> Result<()> {
     };
 
     let thread_start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -168,11 +168,11 @@ async fn thread_status_changed_can_be_opted_out() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
 
     let turn_start_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id,
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id,
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "run once".to_string(),
@@ -187,30 +187,28 @@ async fn thread_status_changed_can_be_opted_out() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_start_id)),
     )
     .await??;
-    let _: TurnStartResponse = to_response(turn_start_resp)?;
+    let _: InteractionStartResponse = to_response(turn_start_resp)?;
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
     let status_update = timeout(
         std::time::Duration::from_millis(500),
-        mcp.read_stream_until_notification_message("thread/status/changed"),
+        mcp.read_stream_until_notification_message("chat/status/changed"),
     )
     .await;
     match status_update {
         Err(_) => {}
         Ok(Ok(notification)) => {
             anyhow::bail!(
-                "thread/status/changed should be filtered by optOutNotificationMethods; got: {notification:?}"
+                "chat/status/changed should be filtered by optOutNotificationMethods; got: {notification:?}"
             );
         }
         Ok(Err(err)) => {
-            anyhow::bail!(
-                "expected timeout waiting for filtered thread/status/changed, got: {err}"
-            );
+            anyhow::bail!("expected timeout waiting for filtered chat/status/changed, got: {err}");
         }
     }
 

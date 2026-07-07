@@ -17,42 +17,42 @@ use chrono::Utc;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
 use datax_app_server_protocol::AskForApproval;
+use datax_app_server_protocol::ChatGoalClearResponse;
+use datax_app_server_protocol::ChatGoalSetResponse;
+use datax_app_server_protocol::ChatGoalStatus;
+use datax_app_server_protocol::ChatListResponse;
+use datax_app_server_protocol::ChatMetadataGitInfoUpdateParams;
+use datax_app_server_protocol::ChatMetadataUpdateParams;
+use datax_app_server_protocol::ChatReadParams;
+use datax_app_server_protocol::ChatReadResponse;
+use datax_app_server_protocol::ChatResumeInitialInteractionsPageParams;
+use datax_app_server_protocol::ChatResumeParams;
+use datax_app_server_protocol::ChatResumeResponse;
+use datax_app_server_protocol::ChatSource;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::ChatStatus;
+use datax_app_server_protocol::ChatUnsubscribeParams;
 use datax_app_server_protocol::ClientInfo;
 use datax_app_server_protocol::CommandExecutionApprovalDecision;
 use datax_app_server_protocol::CommandExecutionRequestApprovalResponse;
 use datax_app_server_protocol::FileChangeApprovalDecision;
 use datax_app_server_protocol::FileChangeRequestApprovalResponse;
-use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::InteractionMessagesView;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
+use datax_app_server_protocol::InteractionStatus;
 use datax_app_server_protocol::JSONRPCError;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::McpToolCallAppContext;
+use datax_app_server_protocol::Message;
+use datax_app_server_protocol::MessageStartedNotification;
 use datax_app_server_protocol::PatchApplyStatus;
 use datax_app_server_protocol::PatchChangeKind;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::ServerNotification;
 use datax_app_server_protocol::ServerRequest;
 use datax_app_server_protocol::SessionSource;
-use datax_app_server_protocol::ThreadGoalClearResponse;
-use datax_app_server_protocol::ThreadGoalSetResponse;
-use datax_app_server_protocol::ThreadGoalStatus;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadListResponse;
-use datax_app_server_protocol::ThreadMetadataGitInfoUpdateParams;
-use datax_app_server_protocol::ThreadMetadataUpdateParams;
-use datax_app_server_protocol::ThreadReadParams;
-use datax_app_server_protocol::ThreadReadResponse;
-use datax_app_server_protocol::ThreadResumeInitialTurnsPageParams;
-use datax_app_server_protocol::ThreadResumeParams;
-use datax_app_server_protocol::ThreadResumeResponse;
-use datax_app_server_protocol::ThreadSource;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::ThreadStatus;
-use datax_app_server_protocol::ThreadUnsubscribeParams;
-use datax_app_server_protocol::TurnItemsView;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
-use datax_app_server_protocol::TurnStatus;
 use datax_app_server_protocol::UserInput;
 use datax_config::types::AuthCredentialsStoreMode;
 use datax_core::ARCHIVED_SESSIONS_SUBDIR;
@@ -159,7 +159,7 @@ async fn thread_resume_rejects_unmaterialized_thread() -> Result<()> {
 
     // Start a thread.
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.4".to_string()),
             ..Default::default()
         })
@@ -169,12 +169,12 @@ async fn thread_resume_rejects_unmaterialized_thread() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     // Resume should fail before the first user message materializes rollout storage.
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: thread.id.clone(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: thread.id.clone(),
             ..Default::default()
         })
         .await?;
@@ -205,7 +205,7 @@ async fn thread_resume_with_empty_path_uses_running_thread_id() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.4".to_string()),
             ..Default::default()
         })
@@ -215,11 +215,11 @@ async fn thread_resume_with_empty_path_uses_running_thread_id() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    let turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+    let interaction_id = mcp
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "materialize rollout".to_string(),
@@ -230,20 +230,20 @@ async fn thread_resume_with_empty_path_uses_running_thread_id() -> Result<()> {
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: thread.id.clone(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: thread.id.clone(),
             path: Some(PathBuf::new()),
-            exclude_turns: true,
+            exclude_interactions: true,
             ..Default::default()
         })
         .await?;
@@ -252,9 +252,9 @@ async fn thread_resume_with_empty_path_uses_running_thread_id() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse {
+    let ChatResumeResponse {
         thread: resumed, ..
-    } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(resumed.id, thread.id);
     Ok(())
@@ -273,7 +273,7 @@ async fn thread_resume_running_thread_uses_cached_instruction_sources() -> Resul
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             cwd: Some(workspace.path().display().to_string()),
             ..Default::default()
         })
@@ -283,18 +283,18 @@ async fn thread_resume_running_thread_uses_cached_instruction_sources() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse {
+    let ChatStartResponse {
         thread,
         instruction_sources,
         ..
-    } = to_response::<ThreadStartResponse>(start_resp)?;
+    } = to_response::<ChatStartResponse>(start_resp)?;
     let project_agents = AbsolutePathBuf::try_from(project_agents)?;
     let project_agents_source = LegacyAppPathString::from_abs_path(&project_agents);
     assert_eq!(instruction_sources, vec![project_agents_source.clone()]);
 
-    let turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+    let interaction_id = mcp
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "materialize rollout".to_string(),
@@ -305,20 +305,20 @@ async fn thread_resume_running_thread_uses_cached_instruction_sources() -> Resul
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
     std::fs::remove_file(project_agents.as_path())?;
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: thread.id,
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: thread.id,
             ..Default::default()
         })
         .await?;
@@ -327,10 +327,10 @@ async fn thread_resume_running_thread_uses_cached_instruction_sources() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse {
+    let ChatResumeResponse {
         instruction_sources,
         ..
-    } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(instruction_sources, vec![project_agents_source]);
 
@@ -351,7 +351,7 @@ async fn turn_start_updates_runtime_workspace_roots_for_loaded_thread() -> Resul
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.4".to_string()),
             ..Default::default()
         })
@@ -361,11 +361,11 @@ async fn turn_start_updates_runtime_workspace_roots_for_loaded_thread() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    let turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+    let interaction_id = mcp
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "Hello".to_string(),
@@ -380,19 +380,19 @@ async fn turn_start_updates_runtime_workspace_roots_for_loaded_thread() -> Resul
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: thread.id,
-            exclude_turns: true,
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: thread.id,
+            exclude_interactions: true,
             ..Default::default()
         })
         .await?;
@@ -401,10 +401,10 @@ async fn turn_start_updates_runtime_workspace_roots_for_loaded_thread() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse {
+    let ChatResumeResponse {
         runtime_workspace_roots,
         ..
-    } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(
         runtime_workspace_roots,
@@ -430,7 +430,7 @@ async fn thread_goal_get_rejects_unmaterialized_thread() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.2-codex".to_string()),
             ephemeral: Some(true),
             ..Default::default()
@@ -441,13 +441,13 @@ async fn thread_goal_get_rejects_unmaterialized_thread() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let goal_id = mcp
         .send_raw_request(
-            "thread/goal/get",
+            "chat/goal/get",
             Some(json!({
-                "threadId": thread.id,
+                "chatId": thread.id,
             })),
         )
         .await?;
@@ -493,7 +493,7 @@ async fn goal_first_live_thread_appears_in_state_db_thread_list() -> Result<()> 
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.2-codex".to_string()),
             ..Default::default()
         })
@@ -503,13 +503,13 @@ async fn goal_first_live_thread_appears_in_state_db_thread_list() -> Result<()> 
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, cwd, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, cwd, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let goal_id = mcp
         .send_raw_request(
-            "thread/goal/set",
+            "chat/goal/set",
             Some(json!({
-                "threadId": thread.id.clone(),
+                "chatId": thread.id.clone(),
                 "objective": "keep the goal-first thread visible",
                 "status": "paused",
             })),
@@ -520,16 +520,16 @@ async fn goal_first_live_thread_appears_in_state_db_thread_list() -> Result<()> 
         mcp.read_stream_until_response_message(RequestId::Integer(goal_id)),
     )
     .await??;
-    let _goal: ThreadGoalSetResponse = to_response(goal_resp)?;
+    let _goal: ChatGoalSetResponse = to_response(goal_resp)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("thread/goal/updated"),
+        mcp.read_stream_until_notification_message("chat/goal/updated"),
     )
     .await??;
 
     let list_id = mcp
         .send_raw_request(
-            "thread/list",
+            "chat/list",
             Some(json!({
                 "limit": 10,
                 "modelProviders": ["mock_provider"],
@@ -545,7 +545,7 @@ async fn goal_first_live_thread_appears_in_state_db_thread_list() -> Result<()> 
         mcp.read_stream_until_response_message(RequestId::Integer(list_id)),
     )
     .await??;
-    let list: ThreadListResponse = to_response(list_resp)?;
+    let list: ChatListResponse = to_response(list_resp)?;
     assert_eq!(
         list.data
             .iter()
@@ -584,8 +584,8 @@ async fn thread_resume_tracks_thread_initialized_analytics() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: conversation_id,
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: conversation_id,
             ..Default::default()
         })
         .await?;
@@ -594,12 +594,12 @@ async fn thread_resume_tracks_thread_initialized_analytics() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse { thread, .. } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
     assert!(
         !thread.session_id.is_empty(),
         "session id should not be empty"
     );
-    assert_eq!(thread.thread_source, Some(ThreadSource::User));
+    assert_eq!(thread.chat_source, Some(ChatSource::User));
 
     let payload = wait_for_analytics_payload(&server, DEFAULT_READ_TIMEOUT).await?;
     let event = thread_initialized_event(&payload)?;
@@ -611,24 +611,24 @@ async fn thread_resume_tracks_thread_initialized_analytics() -> Result<()> {
         "resumed",
         "user",
     );
-    assert_eq!(event["event_params"]["thread_source"], "user");
+    assert_eq!(event["event_params"]["chat_source"], "user");
     Ok(())
 }
 
 fn set_thread_source_on_fake_rollout(
     codex_home: &std::path::Path,
     filename_ts: &str,
-    thread_id: &str,
-    thread_source: &str,
+    chat_id: &str,
+    chat_source: &str,
 ) -> Result<()> {
-    let path = rollout_path(codex_home, filename_ts, thread_id);
+    let path = rollout_path(codex_home, filename_ts, chat_id);
     let contents = std::fs::read_to_string(&path)?;
     let mut lines = contents.lines();
     let session_meta = lines
         .next()
         .ok_or_else(|| anyhow::anyhow!("fake rollout missing session meta"))?;
     let mut session_meta: serde_json::Value = serde_json::from_str(session_meta)?;
-    session_meta["payload"]["thread_source"] = serde_json::json!(thread_source);
+    session_meta["payload"]["chat_source"] = serde_json::json!(chat_source);
     let remaining = lines.collect::<Vec<_>>().join("\n");
     std::fs::write(&path, format!("{session_meta}\n{remaining}\n"))?;
     Ok(())
@@ -662,8 +662,8 @@ async fn thread_resume_returns_rollout_history() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: conversation_id.clone(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: conversation_id.clone(),
             ..Default::default()
         })
         .await?;
@@ -672,7 +672,7 @@ async fn thread_resume_returns_rollout_history() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse { thread, .. } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(thread.id, conversation_id);
     assert_eq!(thread.preview, preview);
@@ -682,18 +682,18 @@ async fn thread_resume_returns_rollout_history() -> Result<()> {
     assert_eq!(thread.cli_version, "0.0.0");
     assert_eq!(thread.source, SessionSource::Cli);
     assert_eq!(thread.git_info, None);
-    assert_eq!(thread.status, ThreadStatus::Idle);
+    assert_eq!(thread.status, ChatStatus::Idle);
 
     assert_eq!(
-        thread.turns.len(),
+        thread.interactions.len(),
         1,
         "expected rollouts to include one turn"
     );
-    let turn = &thread.turns[0];
-    assert_eq!(turn.status, TurnStatus::Completed);
-    assert_eq!(turn.items.len(), 1, "expected user message item");
-    match &turn.items[0] {
-        ThreadItem::UserMessage { content, .. } => {
+    let turn = &thread.interactions[0];
+    assert_eq!(turn.status, InteractionStatus::Completed);
+    assert_eq!(turn.messages.len(), 1, "expected user message item");
+    match &turn.messages[0] {
+        Message::UserMessage { content, .. } => {
             assert_eq!(
                 content,
                 &vec![UserInput::Text {
@@ -714,23 +714,23 @@ async fn thread_resume_redacts_payloads_for_chatgpt_remote_clients() -> Result<(
         let remote_resume = resume_redaction_fixture(Some(client_name)).await?;
         let remote_turn = remote_resume
             .thread
-            .turns
+            .interactions
             .first()
             .expect("remote resume should include a turn");
         let remote_page_turn = remote_resume
             .initial_turns_page
             .as_ref()
-            .expect("remote resume should include the requested initial turns page")
+            .expect("remote resume should include the requested initial interactions page")
             .data
             .first()
-            .expect("remote initial turns page should include a turn");
+            .expect("remote initial interactions page should include a turn");
         for remote_turn in [remote_turn, remote_page_turn] {
             let remote_mcp_item = remote_turn
-                .items
+                .messages
                 .iter()
-                .find(|item| matches!(item, ThreadItem::McpToolCall { .. }))
+                .find(|item| matches!(item, Message::McpToolCall { .. }))
                 .expect("remote resume should include redacted MCP item");
-            let ThreadItem::McpToolCall {
+            let Message::McpToolCall {
                 arguments,
                 app_context,
                 result,
@@ -762,10 +762,10 @@ async fn thread_resume_redacts_payloads_for_chatgpt_remote_clients() -> Result<(
             assert_eq!(error, &None);
             assert!(
                 !remote_turn
-                    .items
+                    .messages
                     .iter()
-                    .any(|item| matches!(item, ThreadItem::ImageGeneration { .. })),
-                "remote resume should drop image generation items for {client_name}"
+                    .any(|item| matches!(item, Message::ImageGeneration { .. })),
+                "remote resume should drop image generation messages for {client_name}"
             );
         }
     }
@@ -773,15 +773,15 @@ async fn thread_resume_redacts_payloads_for_chatgpt_remote_clients() -> Result<(
     let normal_resume = resume_redaction_fixture(Some("some_other_client")).await?;
     let normal_turn = normal_resume
         .thread
-        .turns
+        .interactions
         .first()
         .expect("normal resume should include a turn");
     let normal_mcp_item = normal_turn
-        .items
+        .messages
         .iter()
-        .find(|item| matches!(item, ThreadItem::McpToolCall { .. }))
+        .find(|item| matches!(item, Message::McpToolCall { .. }))
         .expect("normal resume should include MCP item");
-    let ThreadItem::McpToolCall {
+    let Message::McpToolCall {
         arguments,
         app_context,
         result,
@@ -813,22 +813,22 @@ async fn thread_resume_redacts_payloads_for_chatgpt_remote_clients() -> Result<(
     );
     assert_eq!(result.meta, Some(json!({"secret":"meta"})));
     assert!(
-        normal_turn.items.iter().any(|item| matches!(
+        normal_turn.messages.iter().any(|item| matches!(
             item,
-            ThreadItem::ImageGeneration {
+            Message::ImageGeneration {
                 result,
                 revised_prompt,
                 ..
             } if result == "base64-image-result"
                 && revised_prompt.as_deref() == Some("secret revised prompt")
         )),
-        "normal resume should keep image generation items"
+        "normal resume should keep image generation messages"
     );
 
     Ok(())
 }
 
-async fn resume_redaction_fixture(client_name: Option<&str>) -> Result<ThreadResumeResponse> {
+async fn resume_redaction_fixture(client_name: Option<&str>) -> Result<ChatResumeResponse> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
     let codex_home = TempDir::new()?;
     create_config_toml(codex_home.path(), &server.uri())?;
@@ -866,12 +866,12 @@ async fn resume_redaction_fixture(client_name: Option<&str>) -> Result<ThreadRes
     }
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: conversation_id,
-            initial_turns_page: Some(ThreadResumeInitialTurnsPageParams {
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: conversation_id,
+            initial_turns_page: Some(ChatResumeInitialInteractionsPageParams {
                 limit: None,
                 sort_direction: None,
-                items_view: Some(TurnItemsView::Full),
+                messages_view: Some(InteractionMessagesView::Full),
             }),
             ..Default::default()
         })
@@ -881,7 +881,7 @@ async fn resume_redaction_fixture(client_name: Option<&str>) -> Result<ThreadRes
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    to_response::<ThreadResumeResponse>(resume_resp)
+    to_response::<ChatResumeResponse>(resume_resp)
 }
 
 fn append_resume_redaction_history(
@@ -961,9 +961,9 @@ async fn thread_resume_can_skip_turns_for_metadata_only_resume() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: conversation_id.clone(),
-            exclude_turns: true,
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: conversation_id.clone(),
+            exclude_interactions: true,
             ..Default::default()
         })
         .await?;
@@ -972,10 +972,10 @@ async fn thread_resume_can_skip_turns_for_metadata_only_resume() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse { thread, .. } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(thread.id, conversation_id);
-    assert!(thread.turns.is_empty());
+    assert!(thread.interactions.is_empty());
 
     Ok(())
 }
@@ -1008,8 +1008,8 @@ async fn thread_resume_rejects_archived_session_by_id() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: conversation_id.clone(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: conversation_id.clone(),
             ..Default::default()
         })
         .await?;
@@ -1047,7 +1047,7 @@ async fn thread_resume_keeps_paused_goal_paused() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.2-codex".to_string()),
             ..Default::default()
         })
@@ -1057,11 +1057,11 @@ async fn thread_resume_keeps_paused_goal_paused() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    let turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+    let interaction_id = mcp
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "materialize this thread".to_string(),
@@ -1072,20 +1072,20 @@ async fn thread_resume_keeps_paused_goal_paused() -> Result<()> {
         .await?;
     let _turn_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
     let goal_id = mcp
         .send_raw_request(
-            "thread/goal/set",
+            "chat/goal/set",
             Some(json!({
-                "threadId": thread.id,
+                "chatId": thread.id,
                 "objective": "keep polishing",
                 "status": "paused",
             })),
@@ -1096,17 +1096,17 @@ async fn thread_resume_keeps_paused_goal_paused() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(goal_id)),
     )
     .await??;
-    let _goal: ThreadGoalSetResponse = to_response(goal_resp)?;
+    let _goal: ChatGoalSetResponse = to_response(goal_resp)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("thread/goal/updated"),
+        mcp.read_stream_until_notification_message("chat/goal/updated"),
     )
     .await??;
     mcp.clear_message_buffer();
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: thread.id.clone(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: thread.id.clone(),
             ..Default::default()
         })
         .await?;
@@ -1115,21 +1115,21 @@ async fn thread_resume_keeps_paused_goal_paused() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let _resume: ThreadResumeResponse = to_response(resume_resp)?;
+    let _resume: ChatResumeResponse = to_response(resume_resp)?;
     let notification = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("thread/goal/updated"),
+        mcp.read_stream_until_notification_message("chat/goal/updated"),
     )
     .await??;
     let notification: ServerNotification = notification.try_into()?;
-    let ServerNotification::ThreadGoalUpdated(notification) = notification else {
+    let ChatGoalUpdated(notification) = notification else {
         anyhow::bail!("expected thread goal update notification");
     };
-    assert_eq!(notification.goal.status, ThreadGoalStatus::Paused);
+    assert_eq!(notification.goal.status, ChatGoalStatus::Paused);
     assert!(
         !mcp.pending_notification_methods()
             .iter()
-            .any(|method| method == "turn/started"),
+            .any(|method| method == "interaction/started"),
         "paused goal should not continue after thread resume"
     );
 
@@ -1152,7 +1152,7 @@ async fn thread_goal_set_preserves_budget_limited_same_objective() -> Result<()>
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.2-codex".to_string()),
             ..Default::default()
         })
@@ -1162,11 +1162,11 @@ async fn thread_goal_set_preserves_budget_limited_same_objective() -> Result<()>
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    let turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+    let interaction_id = mcp
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "materialize this thread".to_string(),
@@ -1177,20 +1177,20 @@ async fn thread_goal_set_preserves_budget_limited_same_objective() -> Result<()>
         .await?;
     let _turn_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
     let goal_id = mcp
         .send_raw_request(
-            "thread/goal/set",
+            "chat/goal/set",
             Some(json!({
-                "threadId": thread.id,
+                "chatId": thread.id,
                 "objective": "keep polishing",
                 "status": "budgetLimited",
                 "tokenBudget": 10,
@@ -1202,20 +1202,20 @@ async fn thread_goal_set_preserves_budget_limited_same_objective() -> Result<()>
         mcp.read_stream_until_response_message(RequestId::Integer(goal_id)),
     )
     .await??;
-    let goal: ThreadGoalSetResponse = to_response(goal_resp)?;
-    assert_eq!(goal.goal.status, ThreadGoalStatus::BudgetLimited);
+    let goal: ChatGoalSetResponse = to_response(goal_resp)?;
+    assert_eq!(goal.goal.status, ChatGoalStatus::BudgetLimited);
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("thread/goal/updated"),
+        mcp.read_stream_until_notification_message("chat/goal/updated"),
     )
     .await??;
 
     let replacement_id = mcp
         .send_raw_request(
-            "thread/goal/set",
+            "chat/goal/set",
             Some(json!({
-                "threadId": thread.id,
+                "chatId": thread.id,
                 "objective": "keep polishing",
             })),
         )
@@ -1225,9 +1225,9 @@ async fn thread_goal_set_preserves_budget_limited_same_objective() -> Result<()>
         mcp.read_stream_until_response_message(RequestId::Integer(replacement_id)),
     )
     .await??;
-    let replacement: ThreadGoalSetResponse = to_response(replacement_resp)?;
+    let replacement: ChatGoalSetResponse = to_response(replacement_resp)?;
 
-    assert_eq!(replacement.goal.status, ThreadGoalStatus::BudgetLimited);
+    assert_eq!(replacement.goal.status, ChatGoalStatus::BudgetLimited);
     assert_eq!(replacement.goal.token_budget, Some(10));
     assert_eq!(replacement.goal.tokens_used, 0);
     assert_eq!(replacement.goal.time_used_seconds, 0);
@@ -1251,7 +1251,7 @@ async fn thread_goal_set_persists_resumable_stopped_statuses() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.2-codex".to_string()),
             ..Default::default()
         })
@@ -1261,11 +1261,11 @@ async fn thread_goal_set_persists_resumable_stopped_statuses() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    let turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+    let interaction_id = mcp
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "materialize this thread".to_string(),
@@ -1276,24 +1276,24 @@ async fn thread_goal_set_persists_resumable_stopped_statuses() -> Result<()> {
         .await?;
     let _turn_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
     for (wire_status, expected_status) in [
-        ("blocked", ThreadGoalStatus::Blocked),
-        ("usageLimited", ThreadGoalStatus::UsageLimited),
+        ("blocked", ChatGoalStatus::Blocked),
+        ("usageLimited", ChatGoalStatus::UsageLimited),
     ] {
         let goal_id = mcp
             .send_raw_request(
-                "thread/goal/set",
+                "chat/goal/set",
                 Some(json!({
-                    "threadId": thread.id.clone(),
+                    "chatId": thread.id.clone(),
                     "objective": "keep polishing",
                     "status": wire_status,
                 })),
@@ -1304,16 +1304,16 @@ async fn thread_goal_set_persists_resumable_stopped_statuses() -> Result<()> {
             mcp.read_stream_until_response_message(RequestId::Integer(goal_id)),
         )
         .await??;
-        let goal: ThreadGoalSetResponse = to_response(goal_resp)?;
+        let goal: ChatGoalSetResponse = to_response(goal_resp)?;
         assert_eq!(goal.goal.status, expected_status);
 
         let notification = timeout(
             DEFAULT_READ_TIMEOUT,
-            mcp.read_stream_until_notification_message("thread/goal/updated"),
+            mcp.read_stream_until_notification_message("chat/goal/updated"),
         )
         .await??;
         let notification: ServerNotification = notification.try_into()?;
-        let ServerNotification::ThreadGoalUpdated(notification) = notification else {
+        let ChatGoalUpdated(notification) = notification else {
             anyhow::bail!("expected thread goal update notification");
         };
         assert_eq!(notification.goal.status, expected_status);
@@ -1333,7 +1333,7 @@ async fn thread_goal_set_edits_objective_without_resetting_usage() -> Result<()>
         &config_path,
         config.replace("personality = true\n", "personality = true\ngoals = true\n"),
     )?;
-    let thread_id = create_fake_rollout(
+    let chat_id = create_fake_rollout(
         codex_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
@@ -1347,9 +1347,9 @@ async fn thread_goal_set_edits_objective_without_resetting_usage() -> Result<()>
 
     let goal_id = mcp
         .send_raw_request(
-            "thread/goal/set",
+            "chat/goal/set",
             Some(json!({
-                "threadId": thread_id,
+                "chatId": chat_id,
                 "objective": "keep polishing",
                 "status": "active",
                 "tokenBudget": 40,
@@ -1361,30 +1361,30 @@ async fn thread_goal_set_edits_objective_without_resetting_usage() -> Result<()>
         mcp.read_stream_until_response_message(RequestId::Integer(goal_id)),
     )
     .await??;
-    let goal: ThreadGoalSetResponse = to_response(goal_resp)?;
+    let goal: ChatGoalSetResponse = to_response(goal_resp)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("thread/goal/updated"),
+        mcp.read_stream_until_notification_message("chat/goal/updated"),
     )
     .await??;
 
     let state_db =
         StateRuntime::init(codex_home.path().to_path_buf(), "mock_provider".into()).await?;
-    let thread_id = ThreadId::from_string(&thread_id)?;
+    let chat_id = ThreadId::from_string(&chat_id)?;
     let thread_metadata = state_db
-        .get_thread(thread_id)
+        .get_thread(chat_id)
         .await?
         .expect("thread metadata should exist");
     assert_eq!(thread_metadata.preview.as_deref(), Some("keep polishing"));
     let persisted_goal = state_db
         .thread_goals()
-        .get_thread_goal(thread_id)
+        .get_thread_goal(chat_id)
         .await?
         .expect("goal should exist");
     state_db
         .thread_goals()
         .account_thread_goal_usage(
-            thread_id,
+            chat_id,
             /*time_delta_seconds*/ 12,
             /*token_delta*/ 50,
             datax_state::GoalAccountingMode::ActiveOnly,
@@ -1394,9 +1394,9 @@ async fn thread_goal_set_edits_objective_without_resetting_usage() -> Result<()>
 
     let edit_id = mcp
         .send_raw_request(
-            "thread/goal/set",
+            "chat/goal/set",
             Some(json!({
-                "threadId": thread_id.to_string(),
+                "chatId": chat_id.to_string(),
                 "objective": "keep polishing with clearer wording",
                 "status": "active",
                 "tokenBudget": 40,
@@ -1408,21 +1408,21 @@ async fn thread_goal_set_edits_objective_without_resetting_usage() -> Result<()>
         mcp.read_stream_until_response_message(RequestId::Integer(edit_id)),
     )
     .await??;
-    let edit: ThreadGoalSetResponse = to_response(edit_resp)?;
+    let edit: ChatGoalSetResponse = to_response(edit_resp)?;
     let updated_goal = state_db
         .thread_goals()
-        .get_thread_goal(thread_id)
+        .get_thread_goal(chat_id)
         .await?
         .expect("goal should still exist");
     let thread_metadata = state_db
-        .get_thread(thread_id)
+        .get_thread(chat_id)
         .await?
         .expect("thread metadata should still exist");
 
     assert_eq!(persisted_goal.goal_id, updated_goal.goal_id);
     assert_eq!(thread_metadata.preview.as_deref(), Some("keep polishing"));
     assert_eq!(edit.goal.objective, "keep polishing with clearer wording");
-    assert_eq!(edit.goal.status, ThreadGoalStatus::BudgetLimited);
+    assert_eq!(edit.goal.status, ChatGoalStatus::BudgetLimited);
     assert_eq!(edit.goal.token_budget, Some(40));
     assert_eq!(edit.goal.tokens_used, 50);
     assert_eq!(edit.goal.time_used_seconds, 12);
@@ -1458,7 +1458,7 @@ async fn thread_goal_lifecycle_emits_analytics_and_clear_deletes_goal() -> Resul
     timeout(DEFAULT_READ_TIMEOUT.saturating_mul(2), mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.2-codex".to_string()),
             ..Default::default()
         })
@@ -1468,11 +1468,11 @@ async fn thread_goal_lifecycle_emits_analytics_and_clear_deletes_goal() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    let turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+    let interaction_id = mcp
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "materialize this thread".to_string(),
@@ -1483,20 +1483,20 @@ async fn thread_goal_lifecycle_emits_analytics_and_clear_deletes_goal() -> Resul
         .await?;
     let _turn_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
     let goal_id = mcp
         .send_raw_request(
-            "thread/goal/set",
+            "chat/goal/set",
             Some(json!({
-                "threadId": thread.id,
+                "chatId": thread.id,
                 "objective": "do not serialize this objective",
                 "tokenBudget": 100,
             })),
@@ -1507,10 +1507,10 @@ async fn thread_goal_lifecycle_emits_analytics_and_clear_deletes_goal() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(goal_id)),
     )
     .await??;
-    let _goal: ThreadGoalSetResponse = to_response(goal_resp)?;
+    let _goal: ChatGoalSetResponse = to_response(goal_resp)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("thread/goal/updated"),
+        mcp.read_stream_until_notification_message("chat/goal/updated"),
     )
     .await??;
 
@@ -1518,8 +1518,11 @@ async fn thread_goal_lifecycle_emits_analytics_and_clear_deletes_goal() -> Resul
     let persisted_goal_id = created["event_params"]["goal_id"]
         .as_str()
         .expect("created goal id");
-    assert_eq!(created["event_params"]["thread_id"], thread.id);
-    assert_eq!(created["event_params"]["turn_id"], serde_json::Value::Null);
+    assert_eq!(created["event_params"]["chat_id"], thread.id);
+    assert_eq!(
+        created["event_params"]["interaction_id"],
+        serde_json::Value::Null
+    );
     assert_eq!(created["event_params"]["has_token_budget"], true);
     assert!(created["event_params"]["session_id"].is_string());
     assert!(created["event_params"]["app_server_client"].is_object());
@@ -1534,7 +1537,7 @@ async fn thread_goal_lifecycle_emits_analytics_and_clear_deletes_goal() -> Resul
         "budget_limited",
     )
     .await?;
-    let causal_turn_id = usage["event_params"]["turn_id"]
+    let causal_turn_id = usage["event_params"]["interaction_id"]
         .as_str()
         .expect("accounted usage turn id");
     assert_eq!(usage["event_params"]["goal_id"], persisted_goal_id);
@@ -1553,7 +1556,7 @@ async fn thread_goal_lifecycle_emits_analytics_and_clear_deletes_goal() -> Resul
     )
     .await?;
     assert_eq!(status["event_params"]["goal_id"], persisted_goal_id);
-    assert_eq!(status["event_params"]["turn_id"], causal_turn_id);
+    assert_eq!(status["event_params"]["interaction_id"], causal_turn_id);
     assert_eq!(
         status["event_params"]["cumulative_tokens_accounted"],
         serde_json::Value::Null
@@ -1565,9 +1568,9 @@ async fn thread_goal_lifecycle_emits_analytics_and_clear_deletes_goal() -> Resul
 
     let clear_id = mcp
         .send_raw_request(
-            "thread/goal/clear",
+            "chat/goal/clear",
             Some(json!({
-                "threadId": thread.id,
+                "chatId": thread.id,
             })),
         )
         .await?;
@@ -1576,25 +1579,28 @@ async fn thread_goal_lifecycle_emits_analytics_and_clear_deletes_goal() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(clear_id)),
     )
     .await??;
-    let clear: ThreadGoalClearResponse = to_response(clear_resp)?;
+    let clear: ChatGoalClearResponse = to_response(clear_resp)?;
     assert!(clear.cleared);
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("thread/goal/cleared"),
+        mcp.read_stream_until_notification_message("chat/goal/cleared"),
     )
     .await??;
 
     let cleared =
         wait_for_goal_event(&server, DEFAULT_READ_TIMEOUT, "cleared", "budget_limited").await?;
     assert_eq!(cleared["event_params"]["goal_id"], persisted_goal_id);
-    assert_eq!(cleared["event_params"]["turn_id"], serde_json::Value::Null);
+    assert_eq!(
+        cleared["event_params"]["interaction_id"],
+        serde_json::Value::Null
+    );
 
     let get_id = mcp
         .send_raw_request(
-            "thread/goal/get",
+            "chat/goal/get",
             Some(json!({
-                "threadId": thread.id,
+                "chatId": thread.id,
             })),
         )
         .await?;
@@ -1603,14 +1609,14 @@ async fn thread_goal_lifecycle_emits_analytics_and_clear_deletes_goal() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(get_id)),
     )
     .await??;
-    let get: datax_app_server_protocol::ThreadGoalGetResponse = to_response(get_resp)?;
+    let get: datax_app_server_protocol::ChatGoalGetResponse = to_response(get_resp)?;
     assert_eq!(None, get.goal);
 
     let clear_again_id = mcp
         .send_raw_request(
-            "thread/goal/clear",
+            "chat/goal/clear",
             Some(json!({
-                "threadId": thread.id,
+                "chatId": thread.id,
             })),
         )
         .await?;
@@ -1619,7 +1625,7 @@ async fn thread_goal_lifecycle_emits_analytics_and_clear_deletes_goal() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(clear_again_id)),
     )
     .await??;
-    let clear_again: ThreadGoalClearResponse = to_response(clear_again_resp)?;
+    let clear_again: ChatGoalClearResponse = to_response(clear_again_resp)?;
     assert!(!clear_again.cleared);
 
     Ok(())
@@ -1643,8 +1649,8 @@ async fn thread_resume_emits_restored_token_usage_before_next_turn() -> Result<(
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: conversation_id,
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: conversation_id,
             ..Default::default()
         })
         .await?;
@@ -1653,20 +1659,20 @@ async fn thread_resume_emits_restored_token_usage_before_next_turn() -> Result<(
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse { thread, .. } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     let note = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("thread/tokenUsage/updated"),
+        mcp.read_stream_until_notification_message("chat/tokenUsage/updated"),
     )
     .await??;
     let parsed: ServerNotification = note.try_into()?;
-    let ServerNotification::ThreadTokenUsageUpdated(notification) = parsed else {
-        panic!("expected thread/tokenUsage/updated notification");
+    let ChatTokenUsageUpdated(notification) = parsed else {
+        panic!("expected chat/tokenUsage/updated notification");
     };
 
-    assert_eq!(notification.thread_id, thread.id);
-    assert_eq!(notification.turn_id, thread.turns[0].id);
+    assert_eq!(notification.chat_id, thread.id);
+    assert_eq!(notification.interaction_id, thread.interactions[0].id);
     assert_eq!(notification.token_usage.total.total_tokens, 150);
     assert_eq!(notification.token_usage.total.input_tokens, 120);
     assert_eq!(notification.token_usage.total.cached_input_tokens, 20);
@@ -1696,8 +1702,8 @@ async fn thread_resume_skips_restored_token_usage_when_turns_are_excluded() -> R
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let first_resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: conversation_id.clone(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: conversation_id.clone(),
             ..Default::default()
         })
         .await?;
@@ -1706,25 +1712,24 @@ async fn thread_resume_skips_restored_token_usage_when_turns_are_excluded() -> R
         mcp.read_stream_until_response_message(RequestId::Integer(first_resume_id)),
     )
     .await??;
-    let ThreadResumeResponse { thread, .. } =
-        to_response::<ThreadResumeResponse>(first_resume_resp)?;
-    let expected_turn_id = thread.turns[0].id.clone();
+    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(first_resume_resp)?;
+    let expected_turn_id = thread.interactions[0].id.clone();
 
     let first_note = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("thread/tokenUsage/updated"),
+        mcp.read_stream_until_notification_message("chat/tokenUsage/updated"),
     )
     .await??;
     let parsed: ServerNotification = first_note.try_into()?;
-    let ServerNotification::ThreadTokenUsageUpdated(notification) = parsed else {
-        panic!("expected thread/tokenUsage/updated notification");
+    let ChatTokenUsageUpdated(notification) = parsed else {
+        panic!("expected chat/tokenUsage/updated notification");
     };
-    assert_eq!(notification.turn_id, expected_turn_id);
+    assert_eq!(notification.interaction_id, expected_turn_id);
 
     let second_resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: conversation_id,
-            exclude_turns: true,
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: conversation_id,
+            exclude_interactions: true,
             ..Default::default()
         })
         .await?;
@@ -1733,20 +1738,20 @@ async fn thread_resume_skips_restored_token_usage_when_turns_are_excluded() -> R
         mcp.read_stream_until_response_message(RequestId::Integer(second_resume_id)),
     )
     .await??;
-    let ThreadResumeResponse {
+    let ChatResumeResponse {
         thread: resumed_again,
         ..
-    } = to_response::<ThreadResumeResponse>(second_resume_resp)?;
-    assert!(resumed_again.turns.is_empty());
+    } = to_response::<ChatResumeResponse>(second_resume_resp)?;
+    assert!(resumed_again.interactions.is_empty());
 
     let second_note = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("thread/tokenUsage/updated"),
+        mcp.read_stream_until_notification_message("chat/tokenUsage/updated"),
     )
     .await;
     assert!(
         second_note.is_err(),
-        "excludeTurns=true should not replay token usage"
+        "excludeInteractions=true should not replay token usage"
     );
 
     Ok(())
@@ -1775,7 +1780,7 @@ async fn thread_resume_token_usage_replay_ignores_stale_interrupted_tail_turn() 
             "timestamp": meta_rfc3339,
             "type": "event_msg",
             "payload": serde_json::to_value(EventMsg::TurnStarted(TurnStartedEvent {
-                turn_id: stale_turn_id.to_string(),
+                interaction_id: stale_turn_id.to_string(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: None,
@@ -1804,8 +1809,8 @@ async fn thread_resume_token_usage_replay_ignores_stale_interrupted_tail_turn() 
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: conversation_id,
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: conversation_id,
             ..Default::default()
         })
         .await?;
@@ -1814,26 +1819,29 @@ async fn thread_resume_token_usage_replay_ignores_stale_interrupted_tail_turn() 
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse { thread, .. } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
-    assert_eq!(thread.turns.len(), 2);
-    assert_eq!(thread.turns[0].status, TurnStatus::Completed);
-    assert_eq!(thread.turns[1].id, stale_turn_id);
-    assert_eq!(thread.turns[1].status, TurnStatus::Interrupted);
+    assert_eq!(thread.interactions.len(), 2);
+    assert_eq!(thread.interactions[0].status, InteractionStatus::Completed);
+    assert_eq!(thread.interactions[1].id, stale_turn_id);
+    assert_eq!(
+        thread.interactions[1].status,
+        InteractionStatus::Interrupted
+    );
 
     let note = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("thread/tokenUsage/updated"),
+        mcp.read_stream_until_notification_message("chat/tokenUsage/updated"),
     )
     .await??;
     let parsed: ServerNotification = note.try_into()?;
-    let ServerNotification::ThreadTokenUsageUpdated(notification) = parsed else {
-        panic!("expected thread/tokenUsage/updated notification");
+    let ChatTokenUsageUpdated(notification) = parsed else {
+        panic!("expected chat/tokenUsage/updated notification");
     };
 
-    assert_eq!(notification.thread_id, thread.id);
-    assert_eq!(notification.turn_id, thread.turns[0].id);
-    assert_ne!(notification.turn_id, stale_turn_id);
+    assert_eq!(notification.chat_id, thread.id);
+    assert_eq!(notification.interaction_id, thread.interactions[0].id);
+    assert_ne!(notification.interaction_id, stale_turn_id);
     assert_eq!(notification.token_usage.total.total_tokens, 150);
     assert_eq!(notification.token_usage.last.total_tokens, 90);
 
@@ -1863,7 +1871,7 @@ async fn thread_resume_token_usage_replay_can_belong_to_interrupted_turn() -> Re
             "timestamp": meta_rfc3339,
             "type": "event_msg",
             "payload": serde_json::to_value(EventMsg::TurnStarted(TurnStartedEvent {
-                turn_id: interrupted_turn_id.to_string(),
+                interaction_id: interrupted_turn_id.to_string(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: None,
@@ -1910,7 +1918,7 @@ async fn thread_resume_token_usage_replay_can_belong_to_interrupted_turn() -> Re
             "timestamp": meta_rfc3339,
             "type": "event_msg",
             "payload": serde_json::to_value(EventMsg::TurnAborted(TurnAbortedEvent {
-                turn_id: Some(interrupted_turn_id.to_string()),
+                interaction_id: Some(interrupted_turn_id.to_string()),
                 reason: TurnAbortReason::Interrupted,
                 completed_at: None,
                 duration_ms: None,
@@ -1928,8 +1936,8 @@ async fn thread_resume_token_usage_replay_can_belong_to_interrupted_turn() -> Re
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: conversation_id,
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: conversation_id,
             ..Default::default()
         })
         .await?;
@@ -1938,25 +1946,28 @@ async fn thread_resume_token_usage_replay_can_belong_to_interrupted_turn() -> Re
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse { thread, .. } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
-    assert_eq!(thread.turns.len(), 2);
-    assert_eq!(thread.turns[0].status, TurnStatus::Completed);
-    assert_eq!(thread.turns[1].id, interrupted_turn_id);
-    assert_eq!(thread.turns[1].status, TurnStatus::Interrupted);
+    assert_eq!(thread.interactions.len(), 2);
+    assert_eq!(thread.interactions[0].status, InteractionStatus::Completed);
+    assert_eq!(thread.interactions[1].id, interrupted_turn_id);
+    assert_eq!(
+        thread.interactions[1].status,
+        InteractionStatus::Interrupted
+    );
 
     let note = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("thread/tokenUsage/updated"),
+        mcp.read_stream_until_notification_message("chat/tokenUsage/updated"),
     )
     .await??;
     let parsed: ServerNotification = note.try_into()?;
-    let ServerNotification::ThreadTokenUsageUpdated(notification) = parsed else {
-        panic!("expected thread/tokenUsage/updated notification");
+    let ChatTokenUsageUpdated(notification) = parsed else {
+        panic!("expected chat/tokenUsage/updated notification");
     };
 
-    assert_eq!(notification.thread_id, thread.id);
-    assert_eq!(notification.turn_id, interrupted_turn_id);
+    assert_eq!(notification.chat_id, thread.id);
+    assert_eq!(notification.interaction_id, interrupted_turn_id);
     assert_eq!(notification.token_usage.total.total_tokens, 230);
     assert_eq!(notification.token_usage.last.total_tokens, 130);
 
@@ -2048,22 +2059,22 @@ stream_max_retries = 0
         "test repo should stay on master to verify resume ignores live HEAD"
     );
 
-    let thread_id = Uuid::new_v4().to_string();
-    let conversation_id = ThreadId::from_string(&thread_id)?;
-    let rollout_path = rollout_path(codex_home.path(), "2025-01-05T12-00-00", &thread_id);
+    let chat_id = Uuid::new_v4().to_string();
+    let conversation_id = ThreadId::from_string(&chat_id)?;
+    let rollout_path = rollout_path(codex_home.path(), "2025-01-05T12-00-00", &chat_id);
     let rollout_dir = rollout_path.parent().expect("rollout parent directory");
     std::fs::create_dir_all(rollout_dir)?;
     let session_meta = SessionMeta {
         session_id: conversation_id.into(),
         id: conversation_id,
         forked_from_id: None,
-        parent_thread_id: None,
+        parent_chat_id: None,
         timestamp: "2025-01-05T12:00:00Z".to_string(),
         cwd: repo_path.clone(),
         originator: "codex".to_string(),
         cli_version: "0.0.0".to_string(),
         source: RolloutSessionSource::Cli,
-        thread_source: None,
+        chat_source: None,
         agent_path: None,
         agent_nickname: None,
         agent_role: None,
@@ -2119,9 +2130,9 @@ stream_max_retries = 0
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let update_id = mcp
-        .send_thread_metadata_update_request(ThreadMetadataUpdateParams {
-            thread_id: thread_id.clone(),
-            git_info: Some(ThreadMetadataGitInfoUpdateParams {
+        .send_chat_metadata_update_request(ChatMetadataUpdateParams {
+            chat_id: chat_id.clone(),
+            git_info: Some(ChatMetadataGitInfoUpdateParams {
                 sha: None,
                 branch: Some(Some("feature/pr-branch".to_string())),
                 origin_url: None,
@@ -2135,8 +2146,8 @@ stream_max_retries = 0
     .await??;
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id,
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id,
             ..Default::default()
         })
         .await?;
@@ -2145,7 +2156,7 @@ stream_max_retries = 0
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse { thread, .. } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(
         thread
@@ -2178,13 +2189,13 @@ async fn thread_resume_and_read_interrupt_incomplete_rollout_turn_when_thread_is
     )?;
     let rollout_file_path = rollout_path(codex_home.path(), filename_ts, &conversation_id);
     let persisted_rollout = std::fs::read_to_string(&rollout_file_path)?;
-    let turn_id = "incomplete-turn";
+    let interaction_id = "incomplete-turn";
     let appended_rollout = [
         json!({
             "timestamp": meta_rfc3339,
             "type": "event_msg",
             "payload": serde_json::to_value(EventMsg::TurnStarted(TurnStartedEvent {
-                turn_id: turn_id.to_string(),
+                interaction_id: interaction_id.to_string(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: None,
@@ -2213,8 +2224,8 @@ async fn thread_resume_and_read_interrupt_incomplete_rollout_turn_when_thread_is
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: conversation_id,
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: conversation_id,
             ..Default::default()
         })
         .await?;
@@ -2223,17 +2234,20 @@ async fn thread_resume_and_read_interrupt_incomplete_rollout_turn_when_thread_is
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse { thread, .. } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
-    assert_eq!(thread.status, ThreadStatus::Idle);
-    assert_eq!(thread.turns.len(), 2);
-    assert_eq!(thread.turns[0].status, TurnStatus::Completed);
-    assert_eq!(thread.turns[1].id, turn_id);
-    assert_eq!(thread.turns[1].status, TurnStatus::Interrupted);
+    assert_eq!(thread.status, ChatStatus::Idle);
+    assert_eq!(thread.interactions.len(), 2);
+    assert_eq!(thread.interactions[0].status, InteractionStatus::Completed);
+    assert_eq!(thread.interactions[1].id, interaction_id);
+    assert_eq!(
+        thread.interactions[1].status,
+        InteractionStatus::Interrupted
+    );
 
     let second_resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: thread.id.clone(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: thread.id.clone(),
             ..Default::default()
         })
         .await?;
@@ -2242,20 +2256,23 @@ async fn thread_resume_and_read_interrupt_incomplete_rollout_turn_when_thread_is
         mcp.read_stream_until_response_message(RequestId::Integer(second_resume_id)),
     )
     .await??;
-    let ThreadResumeResponse {
+    let ChatResumeResponse {
         thread: resumed_again,
         ..
-    } = to_response::<ThreadResumeResponse>(second_resume_resp)?;
+    } = to_response::<ChatResumeResponse>(second_resume_resp)?;
 
-    assert_eq!(resumed_again.status, ThreadStatus::Idle);
-    assert_eq!(resumed_again.turns.len(), 2);
-    assert_eq!(resumed_again.turns[1].id, turn_id);
-    assert_eq!(resumed_again.turns[1].status, TurnStatus::Interrupted);
+    assert_eq!(resumed_again.status, ChatStatus::Idle);
+    assert_eq!(resumed_again.interactions.len(), 2);
+    assert_eq!(resumed_again.interactions[1].id, interaction_id);
+    assert_eq!(
+        resumed_again.interactions[1].status,
+        InteractionStatus::Interrupted
+    );
 
     let read_id = mcp
-        .send_thread_read_request(ThreadReadParams {
-            thread_id: resumed_again.id,
-            include_turns: true,
+        .send_chat_read_request(ChatReadParams {
+            chat_id: resumed_again.id,
+            include_interactions: true,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -2263,15 +2280,18 @@ async fn thread_resume_and_read_interrupt_incomplete_rollout_turn_when_thread_is
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ThreadReadResponse {
+    let ChatReadResponse {
         thread: read_thread,
         ..
-    } = to_response::<ThreadReadResponse>(read_resp)?;
+    } = to_response::<ChatReadResponse>(read_resp)?;
 
-    assert_eq!(read_thread.status, ThreadStatus::Idle);
-    assert_eq!(read_thread.turns.len(), 2);
-    assert_eq!(read_thread.turns[1].id, turn_id);
-    assert_eq!(read_thread.turns[1].status, TurnStatus::Interrupted);
+    assert_eq!(read_thread.status, ChatStatus::Idle);
+    assert_eq!(read_thread.interactions.len(), 2);
+    assert_eq!(read_thread.interactions[1].id, interaction_id);
+    assert_eq!(
+        read_thread.interactions[1].status,
+        InteractionStatus::Interrupted
+    );
 
     Ok(())
 }
@@ -2281,15 +2301,15 @@ async fn thread_resume_defers_updated_at_until_turn_start() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
     let codex_home = TempDir::new()?;
     let rollout = setup_rollout_fixture(codex_home.path(), &server.uri()).await?;
-    let thread_id = rollout.conversation_id.clone();
+    let chat_id = rollout.conversation_id.clone();
 
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let read_id = mcp
-        .send_thread_read_request(ThreadReadParams {
-            thread_id: thread_id.clone(),
-            include_turns: false,
+        .send_chat_read_request(ChatReadParams {
+            chat_id: chat_id.clone(),
+            include_interactions: false,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -2297,14 +2317,14 @@ async fn thread_resume_defers_updated_at_until_turn_start() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ThreadReadResponse {
+    let ChatReadResponse {
         thread: before_resume,
         ..
-    } = to_response::<ThreadReadResponse>(read_resp)?;
+    } = to_response::<ChatReadResponse>(read_resp)?;
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: thread_id.clone(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: chat_id.clone(),
             ..Default::default()
         })
         .await?;
@@ -2313,18 +2333,18 @@ async fn thread_resume_defers_updated_at_until_turn_start() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse { thread, .. } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(thread.updated_at, before_resume.updated_at);
     assert_eq!(thread.recency_at, before_resume.recency_at);
-    assert_eq!(thread.status, ThreadStatus::Idle);
+    assert_eq!(thread.status, ChatStatus::Idle);
 
     let after_modified = std::fs::metadata(&rollout.rollout_file_path)?.modified()?;
     assert_eq!(after_modified, rollout.before_modified);
 
     let unsubscribe_id = mcp
-        .send_thread_unsubscribe_request(ThreadUnsubscribeParams {
-            thread_id: thread_id.clone(),
+        .send_chat_unsubscribe_request(ChatUnsubscribeParams {
+            chat_id: chat_id.clone(),
         })
         .await?;
     timeout(
@@ -2334,8 +2354,8 @@ async fn thread_resume_defers_updated_at_until_turn_start() -> Result<()> {
     .await??;
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: "not-a-valid-thread-id".to_string(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: "not-a-valid-thread-id".to_string(),
             path: Some(normalized_existing_path(&rollout.rollout_file_path)?),
             cwd: Some(codex_home.path().to_string_lossy().to_string()),
             ..Default::default()
@@ -2346,12 +2366,12 @@ async fn thread_resume_defers_updated_at_until_turn_start() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse { cwd, .. } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { cwd, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
     assert_eq!(cwd, AbsolutePathBuf::from_absolute_path(codex_home.path())?);
 
-    let turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread_id.clone(),
+    let interaction_id = mcp
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: chat_id.clone(),
             input: vec![UserInput::Text {
                 text: "Hello".to_string(),
                 text_elements: Vec::new(),
@@ -2361,19 +2381,19 @@ async fn thread_resume_defers_updated_at_until_turn_start() -> Result<()> {
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/started"),
+        mcp.read_stream_until_notification_message("interaction/started"),
     )
     .await??;
 
     let read_id = mcp
-        .send_thread_read_request(ThreadReadParams {
-            thread_id: thread_id.clone(),
-            include_turns: false,
+        .send_chat_read_request(ChatReadParams {
+            chat_id: chat_id.clone(),
+            include_interactions: false,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -2381,15 +2401,15 @@ async fn thread_resume_defers_updated_at_until_turn_start() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ThreadReadResponse {
+    let ChatReadResponse {
         thread: after_turn_start,
         ..
-    } = to_response::<ThreadReadResponse>(read_resp)?;
+    } = to_response::<ChatReadResponse>(read_resp)?;
     assert!(after_turn_start.recency_at > before_resume.recency_at);
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -2409,7 +2429,7 @@ async fn thread_resume_keeps_in_flight_turn_streaming() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.4".to_string()),
             ..Default::default()
         })
@@ -2419,11 +2439,11 @@ async fn thread_resume_keeps_in_flight_turn_streaming() -> Result<()> {
         primary.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let seed_turn_id = primary
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "seed history".to_string(),
@@ -2439,7 +2459,7 @@ async fn thread_resume_keeps_in_flight_turn_streaming() -> Result<()> {
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_notification_message("turn/completed"),
+        primary.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
     primary.clear_message_buffer();
@@ -2447,9 +2467,9 @@ async fn thread_resume_keeps_in_flight_turn_streaming() -> Result<()> {
     let mut secondary = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, secondary.initialize()).await??;
 
-    let turn_id = primary
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+    let interaction_id = primary
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "respond with docs".to_string(),
@@ -2460,18 +2480,18 @@ async fn thread_resume_keeps_in_flight_turn_streaming() -> Result<()> {
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_response_message(RequestId::Integer(turn_id)),
+        primary.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_notification_message("turn/started"),
+        primary.read_stream_until_notification_message("interaction/started"),
     )
     .await??;
 
     let resume_id = secondary
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: thread.id,
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: thread.id,
             ..Default::default()
         })
         .await?;
@@ -2480,15 +2500,15 @@ async fn thread_resume_keeps_in_flight_turn_streaming() -> Result<()> {
         secondary.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse {
+    let ChatResumeResponse {
         thread: resumed_thread,
         ..
-    } = to_response::<ThreadResumeResponse>(resume_resp)?;
-    assert_ne!(resumed_thread.status, ThreadStatus::NotLoaded);
+    } = to_response::<ChatResumeResponse>(resume_resp)?;
+    assert_ne!(resumed_thread.status, ChatStatus::NotLoaded);
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_notification_message("turn/completed"),
+        primary.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -2518,7 +2538,7 @@ async fn thread_resume_rejects_history_when_thread_is_running() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.4".to_string()),
             ..Default::default()
         })
@@ -2528,11 +2548,11 @@ async fn thread_resume_rejects_history_when_thread_is_running() -> Result<()> {
         primary.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let seed_turn_id = primary
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "seed history".to_string(),
@@ -2548,15 +2568,15 @@ async fn thread_resume_rejects_history_when_thread_is_running() -> Result<()> {
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_notification_message("turn/completed"),
+        primary.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
     primary.clear_message_buffer();
 
-    let thread_id = thread.id.clone();
+    let chat_id = thread.id.clone();
     let running_turn_request_id = primary
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread_id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: chat_id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "keep running".to_string(),
@@ -2570,18 +2590,21 @@ async fn thread_resume_rejects_history_when_thread_is_running() -> Result<()> {
         primary.read_stream_until_response_message(RequestId::Integer(running_turn_request_id)),
     )
     .await??;
-    let TurnStartResponse { turn: running_turn } =
-        to_response::<TurnStartResponse>(running_turn_resp)?;
-    assert_eq!(running_turn.items_view, TurnItemsView::NotLoaded);
+    let InteractionStartResponse { turn: running_turn } =
+        to_response::<InteractionStartResponse>(running_turn_resp)?;
+    assert_eq!(
+        running_turn.messages_view,
+        InteractionMessagesView::NotLoaded
+    );
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_notification_message("turn/started"),
+        primary.read_stream_until_notification_message("interaction/started"),
     )
     .await??;
 
     let resume_id = primary
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: thread_id.clone(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: chat_id.clone(),
             history: Some(vec![ResponseItem::Message {
                 id: None,
                 role: "user".to_string(),
@@ -2608,7 +2631,7 @@ async fn thread_resume_rejects_history_when_thread_is_running() -> Result<()> {
     );
 
     primary
-        .interrupt_turn_and_wait_for_aborted(thread_id, running_turn.id, DEFAULT_READ_TIMEOUT)
+        .interrupt_turn_and_wait_for_aborted(chat_id, running_turn.id, DEFAULT_READ_TIMEOUT)
         .await?;
 
     Ok(())
@@ -2637,7 +2660,7 @@ async fn thread_resume_rejects_mismatched_path_for_running_thread_id() -> Result
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.4".to_string()),
             ..Default::default()
         })
@@ -2647,11 +2670,11 @@ async fn thread_resume_rejects_mismatched_path_for_running_thread_id() -> Result
         primary.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let seed_turn_id = primary
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "seed history".to_string(),
@@ -2667,15 +2690,15 @@ async fn thread_resume_rejects_mismatched_path_for_running_thread_id() -> Result
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_notification_message("turn/completed"),
+        primary.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
     primary.clear_message_buffer();
 
-    let thread_id = thread.id.clone();
+    let chat_id = thread.id.clone();
     let running_turn_request_id = primary
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread_id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: chat_id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "keep running".to_string(),
@@ -2689,11 +2712,11 @@ async fn thread_resume_rejects_mismatched_path_for_running_thread_id() -> Result
         primary.read_stream_until_response_message(RequestId::Integer(running_turn_request_id)),
     )
     .await??;
-    let TurnStartResponse { turn: running_turn } =
-        to_response::<TurnStartResponse>(running_turn_resp)?;
+    let InteractionStartResponse { turn: running_turn } =
+        to_response::<InteractionStartResponse>(running_turn_resp)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_notification_message("turn/started"),
+        primary.read_stream_until_notification_message("interaction/started"),
     )
     .await??;
 
@@ -2711,8 +2734,8 @@ async fn thread_resume_rejects_mismatched_path_for_running_thread_id() -> Result
             PathBuf::from(format!(r"\\?\{active_path_display}"))
         };
         let normalized_resume_id = primary
-            .send_thread_resume_request(ThreadResumeParams {
-                thread_id: thread_id.clone(),
+            .send_chat_resume_request(ChatResumeParams {
+                chat_id: chat_id.clone(),
                 path: Some(equivalent_path),
                 ..Default::default()
             })
@@ -2722,9 +2745,9 @@ async fn thread_resume_rejects_mismatched_path_for_running_thread_id() -> Result
             primary.read_stream_until_response_message(RequestId::Integer(normalized_resume_id)),
         )
         .await??;
-        let ThreadResumeResponse { thread, .. } =
-            to_response::<ThreadResumeResponse>(normalized_resume_resp)?;
-        assert_eq!(thread.id, thread_id);
+        let ChatResumeResponse { thread, .. } =
+            to_response::<ChatResumeResponse>(normalized_resume_resp)?;
+        assert_eq!(thread.id, chat_id);
     }
 
     let stale_thread_id = Uuid::new_v4().to_string();
@@ -2759,8 +2782,8 @@ async fn thread_resume_rejects_mismatched_path_for_running_thread_id() -> Result
     writeln!(stale_file, "{stale_user_event}")?;
 
     let stale_resume_id = primary
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: thread_id.clone(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: chat_id.clone(),
             path: Some(stale_path),
             ..Default::default()
         })
@@ -2777,7 +2800,7 @@ async fn thread_resume_rejects_mismatched_path_for_running_thread_id() -> Result
     );
 
     primary
-        .interrupt_turn_and_wait_for_aborted(thread_id, running_turn.id, DEFAULT_READ_TIMEOUT)
+        .interrupt_turn_and_wait_for_aborted(chat_id, running_turn.id, DEFAULT_READ_TIMEOUT)
         .await?;
 
     Ok(())
@@ -2806,7 +2829,7 @@ async fn thread_resume_rejoins_running_thread_even_with_override_mismatch() -> R
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.4".to_string()),
             ..Default::default()
         })
@@ -2816,11 +2839,11 @@ async fn thread_resume_rejoins_running_thread_even_with_override_mismatch() -> R
         primary.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let seed_turn_id = primary
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "seed history".to_string(),
@@ -2836,14 +2859,14 @@ async fn thread_resume_rejoins_running_thread_even_with_override_mismatch() -> R
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_notification_message("turn/completed"),
+        primary.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
     primary.clear_message_buffer();
 
     let running_turn_id = primary
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "keep running".to_string(),
@@ -2857,23 +2880,23 @@ async fn thread_resume_rejoins_running_thread_even_with_override_mismatch() -> R
         primary.read_stream_until_response_message(RequestId::Integer(running_turn_id)),
     )
     .await??;
-    let TurnStartResponse { turn: running_turn } =
-        to_response::<TurnStartResponse>(running_turn_resp)?;
+    let InteractionStartResponse { turn: running_turn } =
+        to_response::<InteractionStartResponse>(running_turn_resp)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_notification_message("turn/started"),
+        primary.read_stream_until_notification_message("interaction/started"),
     )
     .await??;
 
     let resume_id = primary
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: thread.id.clone(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: thread.id.clone(),
             model: Some("not-the-running-model".to_string()),
             cwd: Some("/tmp".to_string()),
-            initial_turns_page: Some(ThreadResumeInitialTurnsPageParams {
+            initial_turns_page: Some(ChatResumeInitialInteractionsPageParams {
                 limit: None,
                 sort_direction: None,
-                items_view: None,
+                messages_view: None,
             }),
             ..Default::default()
         })
@@ -2883,35 +2906,39 @@ async fn thread_resume_rejoins_running_thread_even_with_override_mismatch() -> R
         primary.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse {
+    let ChatResumeResponse {
         thread,
         model,
         initial_turns_page,
         ..
-    } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    } = to_response::<ChatResumeResponse>(resume_resp)?;
     assert_eq!(model, "gpt-5.4");
-    let initial_turns_page = initial_turns_page.expect("resume should include initial turns page");
+    let initial_turns_page =
+        initial_turns_page.expect("resume should include initial interactions page");
     let resumed_running_turn = initial_turns_page
         .data
         .first()
         .expect("resume page should include the running turn");
     assert_eq!(resumed_running_turn.id, running_turn.id);
-    assert_eq!(resumed_running_turn.items_view, TurnItemsView::Summary);
-    assert_eq!(resumed_running_turn.status, TurnStatus::InProgress);
+    assert_eq!(
+        resumed_running_turn.messages_view,
+        InteractionMessagesView::Summary
+    );
+    assert_eq!(resumed_running_turn.status, InteractionStatus::InProgress);
     assert!(initial_turns_page.backwards_cursor.is_some());
     assert_eq!(initial_turns_page.next_cursor, None);
     // The running-thread resume response is queued onto the thread listener task.
     // If the in-flight turn completes before that queued command runs, the response
     // can legitimately observe the thread as idle.
     match &thread.status {
-        ThreadStatus::Active { active_flags } => assert!(active_flags.is_empty()),
-        ThreadStatus::Idle => {}
+        ChatStatus::Active { active_flags } => assert!(active_flags.is_empty()),
+        ChatStatus::Idle => {}
         status => panic!("unexpected thread status after running resume: {status:?}"),
     }
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_notification_message("turn/completed"),
+        primary.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -2937,7 +2964,7 @@ async fn thread_resume_can_skip_turns_when_thread_is_running() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.4".to_string()),
             ..Default::default()
         })
@@ -2947,11 +2974,11 @@ async fn thread_resume_can_skip_turns_when_thread_is_running() -> Result<()> {
         primary.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    let turn_id = primary
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+    let interaction_id = primary
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "seed history".to_string(),
@@ -2962,12 +2989,12 @@ async fn thread_resume_can_skip_turns_when_thread_is_running() -> Result<()> {
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_response_message(RequestId::Integer(turn_id)),
+        primary.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_notification_message("turn/completed"),
+        primary.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -2975,9 +3002,9 @@ async fn thread_resume_can_skip_turns_when_thread_is_running() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, secondary.initialize()).await??;
 
     let resume_id = secondary
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: thread.id.clone(),
-            exclude_turns: true,
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: thread.id.clone(),
+            exclude_interactions: true,
             ..Default::default()
         })
         .await?;
@@ -2986,13 +3013,13 @@ async fn thread_resume_can_skip_turns_when_thread_is_running() -> Result<()> {
         secondary.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse {
+    let ChatResumeResponse {
         thread: resumed, ..
-    } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(resumed.id, thread.id);
-    assert_eq!(resumed.status, ThreadStatus::Idle);
-    assert!(resumed.turns.is_empty());
+    assert_eq!(resumed.status, ChatStatus::Idle);
+    assert!(resumed.interactions.is_empty());
 
     Ok(())
 }
@@ -3021,7 +3048,7 @@ async fn thread_resume_replays_pending_command_execution_request_approval() -> R
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.4".to_string()),
             ..Default::default()
         })
@@ -3031,11 +3058,11 @@ async fn thread_resume_replays_pending_command_execution_request_approval() -> R
         primary.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let seed_turn_id = primary
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "seed history".to_string(),
@@ -3051,14 +3078,14 @@ async fn thread_resume_replays_pending_command_execution_request_approval() -> R
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_notification_message("turn/completed"),
+        primary.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
     primary.clear_message_buffer();
 
     let running_turn_id = primary
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "run command".to_string(),
@@ -3084,8 +3111,8 @@ async fn thread_resume_replays_pending_command_execution_request_approval() -> R
     };
 
     let resume_id = primary
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: thread.id.clone(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: thread.id.clone(),
             ..Default::default()
         })
         .await?;
@@ -3094,16 +3121,16 @@ async fn thread_resume_replays_pending_command_execution_request_approval() -> R
         primary.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse {
+    let ChatResumeResponse {
         thread: resumed_thread,
         ..
-    } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    } = to_response::<ChatResumeResponse>(resume_resp)?;
     assert_eq!(resumed_thread.id, thread.id);
     assert!(
         resumed_thread
-            .turns
+            .interactions
             .iter()
-            .any(|turn| matches!(turn.status, TurnStatus::InProgress))
+            .any(|turn| matches!(turn.status, InteractionStatus::InProgress))
     );
 
     let replayed_request = timeout(
@@ -3127,7 +3154,7 @@ async fn thread_resume_replays_pending_command_execution_request_approval() -> R
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_notification_message("turn/completed"),
+        primary.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
     wait_for_responses_request_count(&server, /*expected_count*/ 3).await?;
@@ -3160,7 +3187,7 @@ async fn thread_resume_replays_pending_file_change_request_approval() -> Result<
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.4".to_string()),
             cwd: Some(workspace.to_string_lossy().into_owned()),
             ..Default::default()
@@ -3171,11 +3198,11 @@ async fn thread_resume_replays_pending_file_change_request_approval() -> Result<
         primary.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let seed_turn_id = primary
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "seed history".to_string(),
@@ -3192,14 +3219,14 @@ async fn thread_resume_replays_pending_file_change_request_approval() -> Result<
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_notification_message("turn/completed"),
+        primary.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
     primary.clear_message_buffer();
 
     let running_turn_id = primary
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "apply patch".to_string(),
@@ -3219,18 +3246,19 @@ async fn thread_resume_replays_pending_file_change_request_approval() -> Result<
     let original_started = timeout(DEFAULT_READ_TIMEOUT, async {
         loop {
             let notification = primary
-                .read_stream_until_notification_message("item/started")
+                .read_stream_until_notification_message("message/started")
                 .await?;
-            let started: ItemStartedNotification =
-                serde_json::from_value(notification.params.clone().expect("item/started params"))?;
-            if let ThreadItem::FileChange { .. } = started.item {
-                return Ok::<ThreadItem, anyhow::Error>(started.item);
+            let started: MessageStartedNotification = serde_json::from_value(
+                notification.params.clone().expect("message/started params"),
+            )?;
+            if let Message::FileChange { .. } = started.item {
+                return Ok::<Message, anyhow::Error>(started.item);
             }
         }
     })
     .await??;
     let expected_readme_path = workspace.join("README.md");
-    let expected_file_change = ThreadItem::FileChange {
+    let expected_file_change = Message::FileChange {
         id: "patch-call".to_string(),
         changes: vec![datax_app_server_protocol::FileUpdateChange {
             path: expected_readme_path.to_string_lossy().into_owned(),
@@ -3252,8 +3280,8 @@ async fn thread_resume_replays_pending_file_change_request_approval() -> Result<
     primary.clear_message_buffer();
 
     let resume_id = primary
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: thread.id.clone(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: thread.id.clone(),
             ..Default::default()
         })
         .await?;
@@ -3262,16 +3290,16 @@ async fn thread_resume_replays_pending_file_change_request_approval() -> Result<
         primary.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse {
+    let ChatResumeResponse {
         thread: resumed_thread,
         ..
-    } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    } = to_response::<ChatResumeResponse>(resume_resp)?;
     assert_eq!(resumed_thread.id, thread.id);
     assert!(
         resumed_thread
-            .turns
+            .interactions
             .iter()
-            .any(|turn| matches!(turn.status, TurnStatus::InProgress))
+            .any(|turn| matches!(turn.status, InteractionStatus::InProgress))
     );
 
     let replayed_request = timeout(
@@ -3295,7 +3323,7 @@ async fn thread_resume_replays_pending_file_change_request_approval() -> Result<
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_notification_message("turn/completed"),
+        primary.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
     wait_for_responses_request_count(&server, /*expected_count*/ 3).await?;
@@ -3311,7 +3339,7 @@ async fn thread_resume_with_overrides_defers_updated_at_until_turn_start() -> Re
 
     let RestartedThreadFixture {
         mut mcp,
-        thread_id,
+        chat_id,
         rollout_file_path,
         updated_at,
     } = start_materialized_thread_and_restart(codex_home.path(), "materialize").await?;
@@ -3320,8 +3348,8 @@ async fn thread_resume_with_overrides_defers_updated_at_until_turn_start() -> Re
     let before_modified = std::fs::metadata(&rollout_file_path)?.modified()?;
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id,
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id,
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -3331,20 +3359,20 @@ async fn thread_resume_with_overrides_defers_updated_at_until_turn_start() -> Re
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse {
+    let ChatResumeResponse {
         thread: resumed_thread,
         ..
-    } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(resumed_thread.updated_at, updated_at);
-    assert_eq!(resumed_thread.status, ThreadStatus::Idle);
+    assert_eq!(resumed_thread.status, ChatStatus::Idle);
 
     let after_resume_modified = std::fs::metadata(&rollout_file_path)?.modified()?;
     assert_eq!(after_resume_modified, before_modified);
 
-    let turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: resumed_thread.id,
+    let interaction_id = mcp
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: resumed_thread.id,
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "Hello".to_string(),
@@ -3355,12 +3383,12 @@ async fn thread_resume_with_overrides_defers_updated_at_until_turn_start() -> Re
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -3381,8 +3409,8 @@ async fn thread_resume_fails_when_required_mcp_server_fails_to_initialize() -> R
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: rollout.conversation_id,
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: rollout.conversation_id,
             ..Default::default()
         })
         .await?;
@@ -3470,8 +3498,8 @@ async fn thread_resume_surfaces_cloud_config_bundle_load_errors() -> Result<()> 
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: conversation_id,
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: conversation_id,
             ..Default::default()
         })
         .await?;
@@ -3508,14 +3536,14 @@ async fn thread_resume_uses_path_over_non_running_thread_id() -> Result<()> {
 
     let RestartedThreadFixture {
         mut mcp,
-        thread_id,
+        chat_id,
         rollout_file_path,
         ..
     } = start_materialized_thread_and_restart(codex_home.path(), "materialize").await?;
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: ThreadId::new().to_string(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: ThreadId::new().to_string(),
             path: Some(rollout_file_path),
             ..Default::default()
         })
@@ -3526,10 +3554,10 @@ async fn thread_resume_uses_path_over_non_running_thread_id() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse {
+    let ChatResumeResponse {
         thread: resumed, ..
-    } = to_response::<ThreadResumeResponse>(resume_resp)?;
-    assert_eq!(resumed.id, thread_id);
+    } = to_response::<ChatResumeResponse>(resume_resp)?;
+    assert_eq!(resumed.id, chat_id);
 
     Ok(())
 }
@@ -3540,7 +3568,7 @@ async fn thread_resume_can_load_source_by_external_path() -> Result<()> {
     let codex_home = TempDir::new()?;
     let external_home = TempDir::new()?;
     create_config_toml(codex_home.path(), &server.uri())?;
-    let thread_id = create_fake_rollout(
+    let chat_id = create_fake_rollout(
         external_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
@@ -3548,13 +3576,13 @@ async fn thread_resume_can_load_source_by_external_path() -> Result<()> {
         Some("mock_provider"),
         /*git_info*/ None,
     )?;
-    let thread_path = rollout_path(external_home.path(), "2025-01-05T12-00-00", &thread_id);
+    let thread_path = rollout_path(external_home.path(), "2025-01-05T12-00-00", &chat_id);
 
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: "not-a-valid-thread-id".to_string(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: "not-a-valid-thread-id".to_string(),
             path: Some(thread_path.clone()),
             ..Default::default()
         })
@@ -3565,17 +3593,17 @@ async fn thread_resume_can_load_source_by_external_path() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse {
+    let ChatResumeResponse {
         thread: resumed, ..
-    } = to_response::<ThreadResumeResponse>(resume_resp)?;
-    assert_eq!(resumed.id, thread_id);
+    } = to_response::<ChatResumeResponse>(resume_resp)?;
+    assert_eq!(resumed.id, chat_id);
     let resumed_path = resumed.path.as_ref().expect("resumed thread path");
     assert_eq!(
         normalized_existing_path(resumed_path)?,
         normalized_existing_path(&thread_path)?
     );
     assert_eq!(resumed.preview, "external path history");
-    assert_eq!(resumed.status, ThreadStatus::Idle);
+    assert_eq!(resumed.status, ChatStatus::Idle);
 
     Ok(())
 }
@@ -3587,7 +3615,7 @@ async fn thread_resume_supports_history_and_overrides() -> Result<()> {
     create_config_toml(codex_home.path(), &server.uri())?;
 
     let RestartedThreadFixture {
-        mut mcp, thread_id, ..
+        mut mcp, chat_id, ..
     } = start_materialized_thread_and_restart(codex_home.path(), "seed history").await?;
 
     let history_text = "Hello from history";
@@ -3603,8 +3631,8 @@ async fn thread_resume_supports_history_and_overrides() -> Result<()> {
 
     // Resume with explicit history and override the model.
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id,
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id,
             history: Some(history),
             model: Some("mock-model".to_string()),
             model_provider: Some("mock_provider".to_string()),
@@ -3616,22 +3644,22 @@ async fn thread_resume_supports_history_and_overrides() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ThreadResumeResponse {
+    let ChatResumeResponse {
         thread: resumed,
         model_provider,
         ..
-    } = to_response::<ThreadResumeResponse>(resume_resp)?;
+    } = to_response::<ChatResumeResponse>(resume_resp)?;
     assert!(!resumed.id.is_empty());
     assert_eq!(model_provider, "mock_provider");
     assert_eq!(resumed.preview, history_text);
-    assert_eq!(resumed.status, ThreadStatus::Idle);
+    assert_eq!(resumed.status, ChatStatus::Idle);
 
     Ok(())
 }
 
 struct RestartedThreadFixture {
     mcp: TestAppServer,
-    thread_id: String,
+    chat_id: String,
     rollout_file_path: PathBuf,
     updated_at: i64,
 }
@@ -3644,7 +3672,7 @@ async fn start_materialized_thread_and_restart(
     timeout(DEFAULT_READ_TIMEOUT, first_mcp.initialize()).await??;
 
     let start_id = first_mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.4".to_string()),
             ..Default::default()
         })
@@ -3654,11 +3682,11 @@ async fn start_materialized_thread_and_restart(
         first_mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let materialize_turn_id = first_mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: seed_text.to_string(),
@@ -3674,14 +3702,14 @@ async fn start_materialized_thread_and_restart(
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        first_mcp.read_stream_until_notification_message("turn/completed"),
+        first_mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
     let read_id = first_mcp
-        .send_thread_read_request(ThreadReadParams {
-            thread_id: thread.id.clone(),
-            include_turns: false,
+        .send_chat_read_request(ChatReadParams {
+            chat_id: thread.id.clone(),
+            include_interactions: false,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -3689,12 +3717,12 @@ async fn start_materialized_thread_and_restart(
         first_mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ThreadReadResponse { thread, .. } = to_response::<ThreadReadResponse>(read_resp)?;
+    let ChatReadResponse { thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
 
-    let thread_id = thread.id;
+    let chat_id = thread.id;
     let rollout_file_path = thread
         .path
-        .ok_or_else(|| anyhow::anyhow!("thread path missing from thread/start response"))?;
+        .ok_or_else(|| anyhow::anyhow!("thread path missing from chat/start response"))?;
     let updated_at = thread.updated_at;
 
     drop(first_mcp);
@@ -3704,7 +3732,7 @@ async fn start_materialized_thread_and_restart(
 
     Ok(RestartedThreadFixture {
         mcp: second_mcp,
-        thread_id,
+        chat_id,
         rollout_file_path: rollout_file_path.to_path_buf(),
         updated_at,
     })
@@ -3734,7 +3762,7 @@ async fn thread_resume_accepts_personality_override() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, primary.initialize()).await??;
 
     let start_id = primary
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.3-codex".to_string()),
             ..Default::default()
         })
@@ -3744,11 +3772,11 @@ async fn thread_resume_accepts_personality_override() -> Result<()> {
         primary.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let materialize_id = primary
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "seed history".to_string(),
@@ -3764,7 +3792,7 @@ async fn thread_resume_accepts_personality_override() -> Result<()> {
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_notification_message("turn/completed"),
+        primary.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -3772,8 +3800,8 @@ async fn thread_resume_accepts_personality_override() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, secondary.initialize()).await??;
 
     let resume_id = secondary
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: thread.id,
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: thread.id,
             model: Some("gpt-5.3-codex".to_string()),
             personality: Some(Personality::Friendly),
             ..Default::default()
@@ -3784,12 +3812,12 @@ async fn thread_resume_accepts_personality_override() -> Result<()> {
         secondary.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let resume: ThreadResumeResponse = to_response::<ThreadResumeResponse>(resume_resp)?;
-    assert_eq!(resume.thread.status, ThreadStatus::Idle);
+    let resume: ChatResumeResponse = to_response::<ChatResumeResponse>(resume_resp)?;
+    assert_eq!(resume.thread.status, ChatStatus::Idle);
 
-    let turn_id = secondary
-        .send_turn_start_request(TurnStartParams {
-            thread_id: resume.thread.id,
+    let interaction_id = secondary
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: resume.thread.id,
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "Hello".to_string(),
@@ -3800,13 +3828,13 @@ async fn thread_resume_accepts_personality_override() -> Result<()> {
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        secondary.read_stream_until_response_message(RequestId::Integer(turn_id)),
+        secondary.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        secondary.read_stream_until_notification_message("turn/completed"),
+        secondary.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 

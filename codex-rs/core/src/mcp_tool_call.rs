@@ -849,7 +849,7 @@ fn truncate_mcp_tool_result_for_event(
 ) -> Result<CallToolResult, String> {
     match result {
         Ok(call_tool_result) => {
-            // The app-server rebuilds `ThreadItem::McpToolCall` from this item,
+            // The app-server rebuilds `Message::McpToolCall` from this item,
             // so avoid persisting multi-megabyte results in rollout storage.
             let Ok(serialized) = serde_json::to_string(call_tool_result) else {
                 return Ok(call_tool_result.clone());

@@ -104,8 +104,8 @@ type PendingClientRequestResponse = std::result::Result<Result, JSONRPCErrorErro
 fn server_notification_requires_delivery(notification: &ServerNotification) -> bool {
     matches!(
         notification,
-        ServerNotification::TurnCompleted(_)
-            | ServerNotification::ThreadSettingsUpdated(_)
+        InteractionCompleted(_)
+            | ChatSettingsUpdated(_)
             | ServerNotification::ExternalAgentConfigImportCompleted(_)
     )
 }
@@ -140,7 +140,7 @@ pub struct InProcessStartArgs {
     pub environment_manager: Arc<EnvironmentManager>,
     /// Startup warnings emitted after initialize succeeds.
     pub config_warnings: Vec<ConfigWarningNotification>,
-    /// Session source stamped into thread/session metadata.
+    /// Session source stamped into chat/session metadata.
     pub session_source: SessionSource,
     /// Whether auth loading should honor the `CODEX_API_KEY` environment variable.
     pub enable_codex_api_key_env: bool,
@@ -490,14 +490,14 @@ async fn start_uninitialized(args: InProcessStartArgs) -> IoResult<InProcessClie
                     }
                     created = thread_created_rx.recv(), if listen_for_threads => {
                         match created {
-                            Ok(thread_id) => {
+                            Ok(chat_id) => {
                                 let connection_ids = if session.initialized() {
                                     vec![IN_PROCESS_CONNECTION_ID]
                                 } else {
                                     Vec::<ConnectionId>::new()
                                 };
                                 processor
-                                    .try_attach_thread_listener(thread_id, connection_ids)
+                                    .try_attach_thread_listener(chat_id, connection_ids)
                                     .await;
                             }
                             Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
@@ -729,16 +729,16 @@ async fn start_uninitialized(args: InProcessStartArgs) -> IoResult<InProcessClie
 #[cfg(test)]
 mod tests {
     use super::*;
+    use datax_app_server_protocol::ChatStartParams;
+    use datax_app_server_protocol::ChatStartResponse;
     use datax_app_server_protocol::ClientInfo;
     use datax_app_server_protocol::ConfigRequirementsReadResponse;
     use datax_app_server_protocol::ExternalAgentConfigImportCompletedNotification;
+    use datax_app_server_protocol::Interaction;
+    use datax_app_server_protocol::InteractionCompletedNotification;
+    use datax_app_server_protocol::InteractionMessagesView;
+    use datax_app_server_protocol::InteractionStatus;
     use datax_app_server_protocol::SessionSource as ApiSessionSource;
-    use datax_app_server_protocol::ThreadStartParams;
-    use datax_app_server_protocol::ThreadStartResponse;
-    use datax_app_server_protocol::Turn;
-    use datax_app_server_protocol::TurnCompletedNotification;
-    use datax_app_server_protocol::TurnItemsView;
-    use datax_app_server_protocol::TurnStatus;
     use datax_core::config::ConfigBuilder;
     use pretty_assertions::assert_eq;
     use std::path::Path;
@@ -832,18 +832,18 @@ mod tests {
         ] {
             let client = start_test_client(requested_source).await;
             let response = client
-                .request(ClientRequest::ThreadStart {
+                .request(ChatStart {
                     request_id: RequestId::Integer(2),
-                    params: ThreadStartParams {
+                    params: ChatStartParams {
                         ephemeral: Some(true),
-                        ..ThreadStartParams::default()
+                        ..ChatStartParams::default()
                     },
                 })
                 .await
                 .expect("request transport should work")
-                .expect("thread/start should succeed");
-            let parsed: ThreadStartResponse =
-                serde_json::from_value(response).expect("thread/start response should parse");
+                .expect("chat/start should succeed");
+            let parsed: ChatStartResponse =
+                serde_json::from_value(response).expect("chat/start response should parse");
             assert_eq!(parsed.thread.source, expected_source);
             client
                 .shutdown()
@@ -882,13 +882,13 @@ mod tests {
     #[test]
     fn guaranteed_delivery_helpers_cover_terminal_server_notifications() {
         assert!(server_notification_requires_delivery(
-            &ServerNotification::TurnCompleted(TurnCompletedNotification {
-                thread_id: "thread-1".to_string(),
-                turn: Turn {
+            &InteractionCompleted(InteractionCompletedNotification {
+                chat_id: "thread-1".to_string(),
+                turn: Interaction {
                     id: "turn-1".to_string(),
-                    items: Vec::new(),
-                    items_view: TurnItemsView::NotLoaded,
-                    status: TurnStatus::Completed,
+                    messages: Vec::new(),
+                    messages_view: InteractionMessagesView::NotLoaded,
+                    status: InteractionStatus::Completed,
                     error: None,
                     started_at: None,
                     completed_at: Some(0),

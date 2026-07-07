@@ -1,8 +1,8 @@
 use super::*;
+use datax_app_server_protocol::ChatRealtimeStartedNotification;
 use datax_app_server_protocol::ConfigWarningNotification;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::ServerNotification;
-use datax_app_server_protocol::ThreadRealtimeStartedNotification;
 use datax_protocol::protocol::RealtimeConversationVersion;
 use datax_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
@@ -15,8 +15,8 @@ fn absolute_path(path: &str) -> AbsolutePathBuf {
 }
 
 fn thread_realtime_started_notification() -> ServerNotification {
-    ServerNotification::ThreadRealtimeStarted(ThreadRealtimeStartedNotification {
-        thread_id: "thread-1".to_string(),
+    ServerNotification::ChatRealtimeStarted(ChatRealtimeStartedNotification {
+        chat_id: "thread-1".to_string(),
         realtime_session_id: None,
         version: RealtimeConversationVersion::V1,
     })
@@ -217,7 +217,7 @@ async fn experimental_notifications_are_preserved_with_capability() {
         .expect("experimental notification should reach opted-in client");
     assert!(matches!(
         message.message,
-        OutgoingMessage::AppServerNotification(ServerNotification::ThreadRealtimeStarted(_))
+        OutgoingMessage::AppServerNotification(ServerNotification::ChatRealtimeStarted(_))
     ));
 }
 
@@ -245,9 +245,9 @@ async fn command_execution_request_approval_strips_additional_permissions_withou
             message: OutgoingMessage::Request(ServerRequest::CommandExecutionRequestApproval {
                 request_id: RequestId::Integer(1),
                 params: datax_app_server_protocol::CommandExecutionRequestApprovalParams {
-                    thread_id: "thr_123".to_string(),
-                    turn_id: "turn_123".to_string(),
-                    item_id: "call_123".to_string(),
+                    chat_id: "thr_123".to_string(),
+                    interaction_id: "turn_123".to_string(),
+                    message_id: "call_123".to_string(),
                     started_at_ms: 0,
                     approval_id: None,
                     environment_id: None,
@@ -311,9 +311,9 @@ async fn command_execution_request_approval_keeps_additional_permissions_with_ca
             message: OutgoingMessage::Request(ServerRequest::CommandExecutionRequestApproval {
                 request_id: RequestId::Integer(1),
                 params: datax_app_server_protocol::CommandExecutionRequestApprovalParams {
-                    thread_id: "thr_123".to_string(),
-                    turn_id: "turn_123".to_string(),
-                    item_id: "call_123".to_string(),
+                    chat_id: "thr_123".to_string(),
+                    interaction_id: "turn_123".to_string(),
+                    message_id: "call_123".to_string(),
                     started_at_ms: 0,
                     approval_id: None,
                     environment_id: None,

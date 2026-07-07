@@ -4,6 +4,13 @@ use app_test_support::TestAppServer;
 use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::to_response;
 use datax_app_server_protocol::AskForApproval;
+use datax_app_server_protocol::ChatMemoryMode;
+use datax_app_server_protocol::ChatMemoryModeSetParams;
+use datax_app_server_protocol::ChatRealtimeStartParams;
+use datax_app_server_protocol::ChatRealtimeStartTransport;
+use datax_app_server_protocol::ChatSettingsUpdateParams;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::ClientInfo;
 use datax_app_server_protocol::InitializeCapabilities;
 use datax_app_server_protocol::JSONRPCError;
@@ -11,13 +18,6 @@ use datax_app_server_protocol::JSONRPCMessage;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::MockExperimentalMethodParams;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadMemoryMode;
-use datax_app_server_protocol::ThreadMemoryModeSetParams;
-use datax_app_server_protocol::ThreadRealtimeStartParams;
-use datax_app_server_protocol::ThreadRealtimeStartTransport;
-use datax_app_server_protocol::ThreadSettingsUpdateParams;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
 use datax_protocol::protocol::RealtimeOutputModality;
 use pretty_assertions::assert_eq;
 use std::path::Path;
@@ -80,12 +80,12 @@ async fn realtime_conversation_start_requires_experimental_api_capability() -> R
     };
 
     let request_id = mcp
-        .send_thread_realtime_start_request(ThreadRealtimeStartParams {
+        .send_chat_realtime_start_request(ChatRealtimeStartParams {
             client_managed_handoffs: None,
-            codex_responses_as_items: None,
-            codex_response_item_prefix: None,
+            codex_responses_as_messages: None,
+            codex_response_message_prefix: None,
             codex_response_handoff_prefix: None,
-            thread_id: "thr_123".to_string(),
+            chat_id: "thr_123".to_string(),
             model: None,
             output_modality: RealtimeOutputModality::Audio,
             include_startup_context: None,
@@ -101,7 +101,7 @@ async fn realtime_conversation_start_requires_experimental_api_capability() -> R
         mcp.read_stream_until_error_message(RequestId::Integer(request_id)),
     )
     .await??;
-    assert_experimental_capability_error(error, "thread/realtime/start");
+    assert_experimental_capability_error(error, "chat/realtime/start");
     Ok(())
 }
 
@@ -126,9 +126,9 @@ async fn thread_memory_mode_set_requires_experimental_api_capability() -> Result
     };
 
     let request_id = mcp
-        .send_thread_memory_mode_set_request(ThreadMemoryModeSetParams {
-            thread_id: "thr_123".to_string(),
-            mode: ThreadMemoryMode::Disabled,
+        .send_chat_memory_mode_set_request(ChatMemoryModeSetParams {
+            chat_id: "thr_123".to_string(),
+            mode: ChatMemoryMode::Disabled,
         })
         .await?;
     let error = timeout(
@@ -136,7 +136,7 @@ async fn thread_memory_mode_set_requires_experimental_api_capability() -> Result
         mcp.read_stream_until_error_message(RequestId::Integer(request_id)),
     )
     .await??;
-    assert_experimental_capability_error(error, "thread/memoryMode/set");
+    assert_experimental_capability_error(error, "chat/memoryMode/set");
     Ok(())
 }
 
@@ -161,8 +161,8 @@ async fn thread_settings_update_requires_experimental_api_capability() -> Result
     };
 
     let request_id = mcp
-        .send_thread_settings_update_request(ThreadSettingsUpdateParams {
-            thread_id: "thr_123".to_string(),
+        .send_chat_settings_update_request(ChatSettingsUpdateParams {
+            chat_id: "thr_123".to_string(),
             ..Default::default()
         })
         .await?;
@@ -171,7 +171,7 @@ async fn thread_settings_update_requires_experimental_api_capability() -> Result
         mcp.read_stream_until_error_message(RequestId::Integer(request_id)),
     )
     .await??;
-    assert_experimental_capability_error(error, "thread/settings/update");
+    assert_experimental_capability_error(error, "chat/settings/update");
     Ok(())
 }
 
@@ -196,18 +196,18 @@ async fn realtime_webrtc_start_requires_experimental_api_capability() -> Result<
     };
 
     let request_id = mcp
-        .send_thread_realtime_start_request(ThreadRealtimeStartParams {
+        .send_chat_realtime_start_request(ChatRealtimeStartParams {
             client_managed_handoffs: None,
-            codex_responses_as_items: None,
-            codex_response_item_prefix: None,
+            codex_responses_as_messages: None,
+            codex_response_message_prefix: None,
             codex_response_handoff_prefix: None,
-            thread_id: "thr_123".to_string(),
+            chat_id: "thr_123".to_string(),
             model: None,
             output_modality: RealtimeOutputModality::Audio,
             include_startup_context: None,
             prompt: Some(Some("hello".to_string())),
             realtime_session_id: None,
-            transport: Some(ThreadRealtimeStartTransport::Webrtc {
+            transport: Some(ChatRealtimeStartTransport::Webrtc {
                 sdp: "v=offer\r\n".to_string(),
             }),
             version: None,
@@ -219,7 +219,7 @@ async fn realtime_webrtc_start_requires_experimental_api_capability() -> Result<
         mcp.read_stream_until_error_message(RequestId::Integer(request_id)),
     )
     .await??;
-    assert_experimental_capability_error(error, "thread/realtime/start");
+    assert_experimental_capability_error(error, "chat/realtime/start");
     Ok(())
 }
 
@@ -246,7 +246,7 @@ async fn thread_start_mock_field_requires_experimental_api_capability() -> Resul
     };
 
     let request_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             mock_experimental_field: Some("mock".to_string()),
             ..Default::default()
         })
@@ -257,7 +257,7 @@ async fn thread_start_mock_field_requires_experimental_api_capability() -> Resul
         mcp.read_stream_until_error_message(RequestId::Integer(request_id)),
     )
     .await??;
-    assert_experimental_capability_error(error, "thread/start.mockExperimentalField");
+    assert_experimental_capability_error(error, "chat/start.mockExperimentalField");
     Ok(())
 }
 
@@ -285,7 +285,7 @@ async fn thread_start_without_dynamic_tools_allows_without_experimental_api_capa
     };
 
     let request_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -295,7 +295,7 @@ async fn thread_start_without_dynamic_tools_allows_without_experimental_api_capa
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let _: ThreadStartResponse = to_response(response)?;
+    let _: ChatStartResponse = to_response(response)?;
     Ok(())
 }
 
@@ -323,7 +323,7 @@ async fn thread_start_granular_approval_policy_requires_experimental_api_capabil
     };
 
     let request_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             approval_policy: Some(AskForApproval::Granular {
                 sandbox_approval: true,
                 rules: false,

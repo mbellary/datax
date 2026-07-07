@@ -787,7 +787,7 @@ impl ClientManagementRemoteControlBackend {
                 respond_with_json(
                     list_request.reader.into_inner(),
                     serde_json::json!({
-                        "items": [{
+                        "messages": [{
                             "client_id": "client-id",
                             "account_user_id": "user-id",
                             "enrollment_status": "enrolled_device_key",

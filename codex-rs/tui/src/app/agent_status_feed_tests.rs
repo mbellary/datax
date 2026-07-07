@@ -1,15 +1,15 @@
 use super::*;
 use datax_app_server_protocol::CommandExecutionSource;
 use datax_app_server_protocol::CommandExecutionStatus;
-use datax_app_server_protocol::ItemCompletedNotification;
+use datax_app_server_protocol::MessageCompletedNotification;
 use datax_utils_absolute_path::AbsolutePathBuf;
 
 #[test]
 fn agent_status_uses_bounded_buffered_activity() {
     let mut store = ThreadEventStore::new(/*capacity*/ 8);
-    store.push_notification(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::CommandExecution {
+    store.push_notification(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::CommandExecution {
                 id: "command-1".to_string(),
                 command: "cargo test -p codex-tui".to_string(),
                 cwd: AbsolutePathBuf::try_from("/workspace")
@@ -28,9 +28,9 @@ fn agent_status_uses_bounded_buffered_activity() {
             completed_at_ms: 1,
         },
     ));
-    store.push_notification(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::AgentMessage {
+    store.push_notification(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::AgentMessage {
                 id: "message-1".to_string(),
                 text: "Finished checking the focused TUI tests.".to_string(),
                 phase: None,
@@ -65,9 +65,9 @@ fn agent_status_uses_bounded_buffered_activity() {
 #[test]
 fn agent_status_uses_reasoning_summaries_only() {
     let mut store = ThreadEventStore::new(/*capacity*/ 8);
-    store.push_notification(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::Reasoning {
+    store.push_notification(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::Reasoning {
                 id: "reasoning-with-summary".to_string(),
                 summary: vec!["safe summary".to_string()],
                 content: vec!["hidden raw reasoning".to_string()],
@@ -77,9 +77,9 @@ fn agent_status_uses_reasoning_summaries_only() {
             completed_at_ms: 1,
         },
     ));
-    store.push_notification(ServerNotification::ItemCompleted(
-        ItemCompletedNotification {
-            item: ThreadItem::Reasoning {
+    store.push_notification(ServerNotification::MessageCompleted(
+        MessageCompletedNotification {
+            item: Message::Reasoning {
                 id: "reasoning-without-summary".to_string(),
                 summary: Vec::new(),
                 content: vec!["raw-only reasoning".to_string()],

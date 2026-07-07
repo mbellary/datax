@@ -4,20 +4,20 @@ use app_test_support::create_fake_rollout;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::rollout_path;
 use app_test_support::to_response;
+use datax_app_server_protocol::ChatMetadataGitInfoUpdateParams;
+use datax_app_server_protocol::ChatMetadataUpdateParams;
+use datax_app_server_protocol::ChatMetadataUpdateResponse;
+use datax_app_server_protocol::ChatReadParams;
+use datax_app_server_protocol::ChatReadResponse;
+use datax_app_server_protocol::ChatResumeParams;
+use datax_app_server_protocol::ChatResumeResponse;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::ChatStatus;
 use datax_app_server_protocol::GitInfo;
 use datax_app_server_protocol::JSONRPCError;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadMetadataGitInfoUpdateParams;
-use datax_app_server_protocol::ThreadMetadataUpdateParams;
-use datax_app_server_protocol::ThreadMetadataUpdateResponse;
-use datax_app_server_protocol::ThreadReadParams;
-use datax_app_server_protocol::ThreadReadResponse;
-use datax_app_server_protocol::ThreadResumeParams;
-use datax_app_server_protocol::ThreadResumeResponse;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::ThreadStatus;
 use datax_core::ARCHIVED_SESSIONS_SUBDIR;
 use datax_git_utils::GitSha;
 use datax_protocol::ThreadId;
@@ -45,7 +45,7 @@ async fn thread_metadata_update_patches_git_branch_and_returns_updated_thread() 
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -55,12 +55,12 @@ async fn thread_metadata_update_patches_git_branch_and_returns_updated_thread() 
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let update_id = mcp
-        .send_thread_metadata_update_request(ThreadMetadataUpdateParams {
-            thread_id: thread.id.clone(),
-            git_info: Some(ThreadMetadataGitInfoUpdateParams {
+        .send_chat_metadata_update_request(ChatMetadataUpdateParams {
+            chat_id: thread.id.clone(),
+            git_info: Some(ChatMetadataGitInfoUpdateParams {
                 sha: None,
                 branch: Some(Some("feature/sidebar-pr".to_string())),
                 origin_url: None,
@@ -73,8 +73,8 @@ async fn thread_metadata_update_patches_git_branch_and_returns_updated_thread() 
     )
     .await??;
     let update_result = update_resp.result.clone();
-    let ThreadMetadataUpdateResponse { thread: updated } =
-        to_response::<ThreadMetadataUpdateResponse>(update_resp)?;
+    let ChatMetadataUpdateResponse { thread: updated } =
+        to_response::<ChatMetadataUpdateResponse>(update_resp)?;
 
     assert_eq!(updated.id, thread.id);
     assert_eq!(updated.session_id, thread.session_id);
@@ -86,11 +86,11 @@ async fn thread_metadata_update_patches_git_branch_and_returns_updated_thread() 
             origin_url: None,
         })
     );
-    assert_eq!(updated.status, ThreadStatus::Idle);
+    assert_eq!(updated.status, ChatStatus::Idle);
     let updated_thread_json = update_result
         .get("thread")
         .and_then(Value::as_object)
-        .expect("thread/metadata/update result.thread must be an object");
+        .expect("chat/metadata/update result.thread must be an object");
     assert_eq!(
         updated_thread_json.get("sessionId").and_then(Value::as_str),
         Some(thread.session_id.as_str())
@@ -98,16 +98,16 @@ async fn thread_metadata_update_patches_git_branch_and_returns_updated_thread() 
     let updated_git_info_json = updated_thread_json
         .get("gitInfo")
         .and_then(Value::as_object)
-        .expect("thread/metadata/update must serialize `thread.gitInfo` on the wire");
+        .expect("chat/metadata/update must serialize `thread.gitInfo` on the wire");
     assert_eq!(
         updated_git_info_json.get("branch").and_then(Value::as_str),
         Some("feature/sidebar-pr")
     );
 
     let read_id = mcp
-        .send_thread_read_request(ThreadReadParams {
-            thread_id: thread.id,
-            include_turns: false,
+        .send_chat_read_request(ChatReadParams {
+            chat_id: thread.id,
+            include_interactions: false,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -115,7 +115,7 @@ async fn thread_metadata_update_patches_git_branch_and_returns_updated_thread() 
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ThreadReadResponse { thread: read, .. } = to_response::<ThreadReadResponse>(read_resp)?;
+    let ChatReadResponse { thread: read, .. } = to_response::<ChatReadResponse>(read_resp)?;
 
     assert_eq!(
         read.git_info,
@@ -125,7 +125,7 @@ async fn thread_metadata_update_patches_git_branch_and_returns_updated_thread() 
             origin_url: None,
         })
     );
-    assert_eq!(read.status, ThreadStatus::Idle);
+    assert_eq!(read.status, ChatStatus::Idle);
 
     Ok(())
 }
@@ -140,7 +140,7 @@ async fn thread_metadata_update_rejects_empty_git_info_patch() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -150,12 +150,12 @@ async fn thread_metadata_update_rejects_empty_git_info_patch() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let update_id = mcp
-        .send_thread_metadata_update_request(ThreadMetadataUpdateParams {
-            thread_id: thread.id,
-            git_info: Some(ThreadMetadataGitInfoUpdateParams {
+        .send_chat_metadata_update_request(ChatMetadataUpdateParams {
+            chat_id: thread.id,
+            git_info: Some(ChatMetadataGitInfoUpdateParams {
                 sha: None,
                 branch: None,
                 origin_url: None,
@@ -186,7 +186,7 @@ async fn thread_metadata_update_rejects_ephemeral_thread() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ephemeral: Some(true),
             ..Default::default()
@@ -197,12 +197,12 @@ async fn thread_metadata_update_rejects_ephemeral_thread() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let update_id = mcp
-        .send_thread_metadata_update_request(ThreadMetadataUpdateParams {
-            thread_id: thread.id.clone(),
-            git_info: Some(ThreadMetadataGitInfoUpdateParams {
+        .send_chat_metadata_update_request(ChatMetadataUpdateParams {
+            chat_id: thread.id.clone(),
+            git_info: Some(ChatMetadataGitInfoUpdateParams {
                 sha: None,
                 branch: Some(Some("feature/ephemeral".to_string())),
                 origin_url: None,
@@ -235,7 +235,7 @@ async fn thread_metadata_update_repairs_missing_sqlite_row_for_stored_thread() -
     let _state_db = init_state_db(codex_home.path()).await?;
 
     let preview = "Stored thread preview";
-    let thread_id = create_fake_rollout(
+    let chat_id = create_fake_rollout(
         codex_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
@@ -248,9 +248,9 @@ async fn thread_metadata_update_repairs_missing_sqlite_row_for_stored_thread() -
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let update_id = mcp
-        .send_thread_metadata_update_request(ThreadMetadataUpdateParams {
-            thread_id: thread_id.clone(),
-            git_info: Some(ThreadMetadataGitInfoUpdateParams {
+        .send_chat_metadata_update_request(ChatMetadataUpdateParams {
+            chat_id: chat_id.clone(),
+            git_info: Some(ChatMetadataGitInfoUpdateParams {
                 sha: None,
                 branch: Some(Some("feature/stored-thread".to_string())),
                 origin_url: None,
@@ -262,10 +262,10 @@ async fn thread_metadata_update_repairs_missing_sqlite_row_for_stored_thread() -
         mcp.read_stream_until_response_message(RequestId::Integer(update_id)),
     )
     .await??;
-    let ThreadMetadataUpdateResponse { thread: updated } =
-        to_response::<ThreadMetadataUpdateResponse>(update_resp)?;
+    let ChatMetadataUpdateResponse { thread: updated } =
+        to_response::<ChatMetadataUpdateResponse>(update_resp)?;
 
-    assert_eq!(updated.id, thread_id);
+    assert_eq!(updated.id, chat_id);
     assert_eq!(updated.preview, preview);
     assert_eq!(updated.created_at, 1736078400);
     assert_eq!(
@@ -288,7 +288,7 @@ async fn thread_metadata_update_repairs_loaded_thread_without_resetting_summary(
     let state_db = init_state_db(codex_home.path()).await?;
 
     let preview = "Loaded thread preview";
-    let thread_id = create_fake_rollout(
+    let chat_id = create_fake_rollout(
         codex_home.path(),
         "2025-01-06T08-30-00",
         "2025-01-06T08:30:00Z",
@@ -296,8 +296,8 @@ async fn thread_metadata_update_repairs_loaded_thread_without_resetting_summary(
         Some("mock_provider"),
         /*git_info*/ None,
     )?;
-    let thread_uuid = ThreadId::from_string(&thread_id)?;
-    let rollout_path = rollout_path(codex_home.path(), "2025-01-06T08-30-00", &thread_id);
+    let thread_uuid = ThreadId::from_string(&chat_id)?;
+    let rollout_path = rollout_path(codex_home.path(), "2025-01-06T08-30-00", &chat_id);
     reconcile_rollout(
         Some(&state_db),
         rollout_path.as_path(),
@@ -313,8 +313,8 @@ async fn thread_metadata_update_repairs_loaded_thread_without_resetting_summary(
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let resume_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: thread_id.clone(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: chat_id.clone(),
             ..Default::default()
         })
         .await?;
@@ -323,14 +323,14 @@ async fn thread_metadata_update_repairs_loaded_thread_without_resetting_summary(
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let _: ThreadResumeResponse = to_response::<ThreadResumeResponse>(resume_resp)?;
+    let _: ChatResumeResponse = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(state_db.delete_thread(thread_uuid).await?, 1);
 
     let update_id = mcp
-        .send_thread_metadata_update_request(ThreadMetadataUpdateParams {
-            thread_id: thread_id.clone(),
-            git_info: Some(ThreadMetadataGitInfoUpdateParams {
+        .send_chat_metadata_update_request(ChatMetadataUpdateParams {
+            chat_id: chat_id.clone(),
+            git_info: Some(ChatMetadataGitInfoUpdateParams {
                 sha: None,
                 branch: Some(Some("feature/loaded-thread".to_string())),
                 origin_url: None,
@@ -342,10 +342,10 @@ async fn thread_metadata_update_repairs_loaded_thread_without_resetting_summary(
         mcp.read_stream_until_response_message(RequestId::Integer(update_id)),
     )
     .await??;
-    let ThreadMetadataUpdateResponse { thread: updated } =
-        to_response::<ThreadMetadataUpdateResponse>(update_resp)?;
+    let ChatMetadataUpdateResponse { thread: updated } =
+        to_response::<ChatMetadataUpdateResponse>(update_resp)?;
 
-    assert_eq!(updated.id, thread_id);
+    assert_eq!(updated.id, chat_id);
     assert_eq!(updated.preview, preview);
     assert_eq!(updated.created_at, 1736152200);
     assert_eq!(
@@ -368,7 +368,7 @@ async fn thread_metadata_update_repairs_missing_sqlite_row_for_archived_thread()
     let _state_db = init_state_db(codex_home.path()).await?;
 
     let preview = "Archived thread preview";
-    let thread_id = create_fake_rollout(
+    let chat_id = create_fake_rollout(
         codex_home.path(),
         "2025-01-06T08-30-00",
         "2025-01-06T08:30:00Z",
@@ -379,7 +379,7 @@ async fn thread_metadata_update_repairs_missing_sqlite_row_for_archived_thread()
 
     let archived_dir = codex_home.path().join(ARCHIVED_SESSIONS_SUBDIR);
     fs::create_dir_all(&archived_dir)?;
-    let archived_source = rollout_path(codex_home.path(), "2025-01-06T08-30-00", &thread_id);
+    let archived_source = rollout_path(codex_home.path(), "2025-01-06T08-30-00", &chat_id);
     let archived_dest = archived_dir.join(
         archived_source
             .file_name()
@@ -391,9 +391,9 @@ async fn thread_metadata_update_repairs_missing_sqlite_row_for_archived_thread()
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let update_id = mcp
-        .send_thread_metadata_update_request(ThreadMetadataUpdateParams {
-            thread_id: thread_id.clone(),
-            git_info: Some(ThreadMetadataGitInfoUpdateParams {
+        .send_chat_metadata_update_request(ChatMetadataUpdateParams {
+            chat_id: chat_id.clone(),
+            git_info: Some(ChatMetadataGitInfoUpdateParams {
                 sha: None,
                 branch: Some(Some("feature/archived-thread".to_string())),
                 origin_url: None,
@@ -405,10 +405,10 @@ async fn thread_metadata_update_repairs_missing_sqlite_row_for_archived_thread()
         mcp.read_stream_until_response_message(RequestId::Integer(update_id)),
     )
     .await??;
-    let ThreadMetadataUpdateResponse { thread: updated } =
-        to_response::<ThreadMetadataUpdateResponse>(update_resp)?;
+    let ChatMetadataUpdateResponse { thread: updated } =
+        to_response::<ChatMetadataUpdateResponse>(update_resp)?;
 
-    assert_eq!(updated.id, thread_id);
+    assert_eq!(updated.id, chat_id);
     assert_eq!(updated.preview, preview);
     assert_eq!(updated.created_at, 1736152200);
     assert_eq!(
@@ -429,11 +429,11 @@ async fn thread_metadata_update_can_clear_stored_git_fields() -> Result<()> {
     let codex_home = TempDir::new()?;
     create_config_toml(codex_home.path(), &server.uri())?;
 
-    let thread_id = create_fake_rollout(
+    let chat_id = create_fake_rollout(
         codex_home.path(),
         "2025-01-07T09-15-00",
         "2025-01-07T09:15:00Z",
-        "Thread preview",
+        "Chat preview",
         Some("mock_provider"),
         Some(RolloutGitInfo {
             commit_hash: Some(GitSha::new("abc123")),
@@ -447,9 +447,9 @@ async fn thread_metadata_update_can_clear_stored_git_fields() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let update_id = mcp
-        .send_thread_metadata_update_request(ThreadMetadataUpdateParams {
-            thread_id: thread_id.clone(),
-            git_info: Some(ThreadMetadataGitInfoUpdateParams {
+        .send_chat_metadata_update_request(ChatMetadataUpdateParams {
+            chat_id: chat_id.clone(),
+            git_info: Some(ChatMetadataGitInfoUpdateParams {
                 sha: Some(None),
                 branch: Some(None),
                 origin_url: Some(None),
@@ -461,16 +461,16 @@ async fn thread_metadata_update_can_clear_stored_git_fields() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(update_id)),
     )
     .await??;
-    let ThreadMetadataUpdateResponse { thread: updated } =
-        to_response::<ThreadMetadataUpdateResponse>(update_resp)?;
+    let ChatMetadataUpdateResponse { thread: updated } =
+        to_response::<ChatMetadataUpdateResponse>(update_resp)?;
 
-    assert_eq!(updated.id, thread_id.clone());
+    assert_eq!(updated.id, chat_id.clone());
     assert_eq!(updated.git_info, None);
 
     let read_id = mcp
-        .send_thread_read_request(ThreadReadParams {
-            thread_id,
-            include_turns: false,
+        .send_chat_read_request(ChatReadParams {
+            chat_id,
+            include_interactions: false,
         })
         .await?;
     let read_resp: JSONRPCResponse = timeout(
@@ -478,7 +478,7 @@ async fn thread_metadata_update_can_clear_stored_git_fields() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ThreadReadResponse { thread: read, .. } = to_response::<ThreadReadResponse>(read_resp)?;
+    let ChatReadResponse { thread: read, .. } = to_response::<ChatReadResponse>(read_resp)?;
 
     assert_eq!(read.git_info, None);
 

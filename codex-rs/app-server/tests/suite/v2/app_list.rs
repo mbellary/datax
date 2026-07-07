@@ -28,12 +28,12 @@ use datax_app_server_protocol::AppScreenshot;
 use datax_app_server_protocol::AppsListParams;
 use datax_app_server_protocol::AppsListResponse;
 use datax_app_server_protocol::AuthMode;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::JSONRPCError;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::ServerNotification;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
 use datax_config::types::AuthCredentialsStoreMode;
 use datax_login::AuthDotJson;
 use datax_login::AuthKeyringBackendKind;
@@ -71,7 +71,7 @@ async fn list_apps_returns_empty_when_connectors_disabled() -> Result<()> {
         .send_apps_list_request(AppsListParams {
             limit: Some(50),
             cursor: None,
-            thread_id: None,
+            chat_id: None,
             force_refetch: false,
         })
         .await?;
@@ -134,7 +134,7 @@ async fn list_apps_returns_empty_with_api_key_auth() -> Result<()> {
         .send_apps_list_request(AppsListParams {
             limit: Some(50),
             cursor: None,
-            thread_id: None,
+            chat_id: None,
             force_refetch: false,
         })
         .await?;
@@ -196,7 +196,7 @@ async fn list_apps_returns_empty_when_workspace_codex_plugins_disabled() -> Resu
         .send_apps_list_request(AppsListParams {
             limit: Some(50),
             cursor: None,
-            thread_id: None,
+            chat_id: None,
             force_refetch: false,
         })
         .await?;
@@ -241,7 +241,7 @@ async fn list_apps_includes_plugin_apps_for_chatgpt_auth() -> Result<()> {
         .send_apps_list_request(AppsListParams {
             limit: None,
             cursor: None,
-            thread_id: None,
+            chat_id: None,
             force_refetch: false,
         })
         .await?;
@@ -296,14 +296,14 @@ async fn list_apps_uses_thread_feature_flag_when_thread_id_is_provided() -> Resu
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let start_request = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
     let start_response: JSONRPCResponse = timeout(
         DEFAULT_TIMEOUT,
         mcp.read_stream_until_response_message(RequestId::Integer(start_request)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(start_response)?;
+    let ChatStartResponse { thread, .. } = to_response(start_response)?;
 
     std::fs::write(
         codex_home.path().join("config.toml"),
@@ -322,7 +322,7 @@ connectors = false
         .send_apps_list_request(AppsListParams {
             limit: None,
             cursor: None,
-            thread_id: None,
+            chat_id: None,
             force_refetch: false,
         })
         .await?;
@@ -342,7 +342,7 @@ connectors = false
         .send_apps_list_request(AppsListParams {
             limit: None,
             cursor: None,
-            thread_id: Some(thread.id),
+            chat_id: Some(thread.id),
             force_refetch: false,
         })
         .await?;
@@ -410,7 +410,7 @@ async fn list_apps_keeps_apps_with_app_only_tools_accessible() -> Result<()> {
         .send_apps_list_request(AppsListParams {
             limit: None,
             cursor: None,
-            thread_id: None,
+            chat_id: None,
             force_refetch: true,
         })
         .await?;
@@ -483,7 +483,7 @@ enabled = false
         .send_apps_list_request(AppsListParams {
             limit: None,
             cursor: None,
-            thread_id: None,
+            chat_id: None,
             force_refetch: false,
         })
         .await?;
@@ -602,7 +602,7 @@ async fn list_apps_emits_updates_and_returns_after_both_lists_load() -> Result<(
         .send_apps_list_request(AppsListParams {
             limit: None,
             cursor: None,
-            thread_id: None,
+            chat_id: None,
             force_refetch: false,
         })
         .await?;
@@ -742,7 +742,7 @@ async fn list_apps_waits_for_accessible_data_before_emitting_directory_updates()
         .send_apps_list_request(AppsListParams {
             limit: None,
             cursor: None,
-            thread_id: None,
+            chat_id: None,
             force_refetch: false,
         })
         .await?;
@@ -848,7 +848,7 @@ async fn list_apps_does_not_emit_empty_interim_updates() -> Result<()> {
         .send_apps_list_request(AppsListParams {
             limit: None,
             cursor: None,
-            thread_id: None,
+            chat_id: None,
             force_refetch: false,
         })
         .await?;
@@ -957,7 +957,7 @@ async fn list_apps_paginates_results() -> Result<()> {
         .send_apps_list_request(AppsListParams {
             limit: Some(1),
             cursor: None,
-            thread_id: None,
+            chat_id: None,
             force_refetch: false,
         })
         .await?;
@@ -1001,7 +1001,7 @@ async fn list_apps_paginates_results() -> Result<()> {
         .send_apps_list_request(AppsListParams {
             limit: Some(1),
             cursor: Some(next_cursor),
-            thread_id: None,
+            chat_id: None,
             force_refetch: false,
         })
         .await?;
@@ -1077,7 +1077,7 @@ async fn list_apps_force_refetch_preserves_previous_cache_on_failure() -> Result
         .send_apps_list_request(AppsListParams {
             limit: None,
             cursor: None,
-            thread_id: None,
+            chat_id: None,
             force_refetch: false,
         })
         .await?;
@@ -1107,7 +1107,7 @@ async fn list_apps_force_refetch_preserves_previous_cache_on_failure() -> Result
         .send_apps_list_request(AppsListParams {
             limit: None,
             cursor: None,
-            thread_id: None,
+            chat_id: None,
             force_refetch: true,
         })
         .await?;
@@ -1122,7 +1122,7 @@ async fn list_apps_force_refetch_preserves_previous_cache_on_failure() -> Result
         .send_apps_list_request(AppsListParams {
             limit: None,
             cursor: None,
-            thread_id: None,
+            chat_id: None,
             force_refetch: false,
         })
         .await?;
@@ -1203,7 +1203,7 @@ async fn list_apps_force_refetch_patches_updates_from_cached_snapshots() -> Resu
         .send_apps_list_request(AppsListParams {
             limit: None,
             cursor: None,
-            thread_id: None,
+            chat_id: None,
             force_refetch: false,
         })
         .await?;
@@ -1297,7 +1297,7 @@ async fn list_apps_force_refetch_patches_updates_from_cached_snapshots() -> Resu
         .send_apps_list_request(AppsListParams {
             limit: None,
             cursor: None,
-            thread_id: None,
+            chat_id: None,
             force_refetch: true,
         })
         .await?;

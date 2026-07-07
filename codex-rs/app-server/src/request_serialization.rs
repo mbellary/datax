@@ -18,8 +18,8 @@ type BoxFutureUnit = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum RequestSerializationQueueKey {
     Global(&'static str),
-    Thread {
-        thread_id: String,
+    Chat {
+        chat_id: String,
     },
     ThreadPath {
         path: PathBuf,
@@ -62,8 +62,8 @@ impl RequestSerializationQueueKey {
             ClientRequestSerializationScope::GlobalSharedRead(name) => {
                 (Self::Global(name), RequestSerializationAccess::SharedRead)
             }
-            ClientRequestSerializationScope::Thread { thread_id } => (
-                Self::Thread { thread_id },
+            ClientRequestSerializationScope::Chat { chat_id } => (
+                Self::Chat { chat_id },
                 RequestSerializationAccess::Exclusive,
             ),
             ClientRequestSerializationScope::ThreadPath { path } => (

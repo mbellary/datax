@@ -110,7 +110,7 @@ impl ExternalAgentConfigRequestProcessor {
         &self,
         params: ExternalAgentConfigDetectParams,
     ) -> Result<ExternalAgentConfigDetectResponse, JSONRPCErrorError> {
-        let items = self
+        let messages = self
             .migration_service
             .detect(ExternalAgentConfigDetectOptions {
                 include_home: params.include_home,
@@ -120,7 +120,7 @@ impl ExternalAgentConfigRequestProcessor {
             .map_err(|err| internal_error(err.to_string()))?;
 
         Ok(ExternalAgentConfigDetectResponse {
-            items: items
+            messages: messages
                 .into_iter()
                 .map(|migration_item| ExternalAgentConfigMigrationItem {
                     item_type: match migration_item.item_type {
@@ -870,8 +870,8 @@ fn apply_plugin_outcome_to_item_result(
     }
 }
 
-fn migration_items_need_runtime_refresh(items: &[ExternalAgentConfigMigrationItem]) -> bool {
-    items.iter().any(|item| {
+fn migration_items_need_runtime_refresh(messages: &[ExternalAgentConfigMigrationItem]) -> bool {
+    messages.iter().any(|item| {
         matches!(
             item.item_type,
             ExternalAgentConfigMigrationItemType::Config

@@ -39,14 +39,14 @@ struct AppServerTimeProvider {
 }
 
 impl TimeProvider for AppServerTimeProvider {
-    fn current_time(&self, thread_id: ThreadId) -> TimeFuture<'_> {
+    fn current_time(&self, chat_id: ThreadId) -> TimeFuture<'_> {
         let outgoing = self.outgoing.clone();
         let thread_state_manager = self.thread_state_manager.clone();
         Box::pin(async move {
             let outgoing = outgoing
                 .upgrade()
                 .context("app-server current-time provider is unavailable")?;
-            request_current_time(outgoing, thread_state_manager, thread_id).await
+            request_current_time(outgoing, thread_state_manager, chat_id).await
         })
     }
 }
@@ -54,12 +54,12 @@ impl TimeProvider for AppServerTimeProvider {
 async fn request_current_time(
     outgoing: Arc<OutgoingMessageSender>,
     thread_state_manager: ThreadStateManager,
-    thread_id: ThreadId,
+    chat_id: ThreadId,
 ) -> Result<DateTime<Utc>> {
     let deadline = Instant::now() + CURRENT_TIME_REQUEST_TIMEOUT;
     timeout_at(
         deadline,
-        thread_state_manager.wait_for_thread_subscriber(thread_id),
+        thread_state_manager.wait_for_thread_subscriber(chat_id),
     )
     .await
     .map_err(|_| {
@@ -69,7 +69,7 @@ async fn request_current_time(
         )
     })?;
     let connection_ids = thread_state_manager
-        .subscribed_connection_ids(thread_id)
+        .subscribed_connection_ids(chat_id)
         .await;
     let connection_id = require_single_current_time_connection(&connection_ids)?;
     let connection_ids = [connection_id];
@@ -77,9 +77,9 @@ async fn request_current_time(
         .send_request_to_connections(
             Some(&connection_ids),
             ServerRequestPayload::CurrentTimeRead(CurrentTimeReadParams {
-                thread_id: thread_id.to_string(),
+                chat_id: chat_id.to_string(),
             }),
-            /*thread_id*/ None,
+            /*chat_id*/ None,
         )
         .await;
 

@@ -19,9 +19,9 @@ use crate::legacy_core::config::resolve_profile_v2_config_path;
 use color_eyre::eyre::Result;
 use color_eyre::eyre::WrapErr;
 use color_eyre::eyre::eyre;
-use datax_app_server_protocol::Thread as AppServerThread;
-use datax_app_server_protocol::ThreadListParams;
-use datax_app_server_protocol::ThreadSortKey;
+use datax_app_server_protocol::Chat as AppServerThread;
+use datax_app_server_protocol::ChatListParams;
+use datax_app_server_protocol::ChatSortKey;
 use datax_arg0::Arg0DispatchPaths;
 use datax_cloud_config::cloud_config_bundle_loader_for_storage;
 use datax_config::CloudConfigBundleLoader;
@@ -169,10 +169,10 @@ async fn lookup_session_by_exact_name(
         let mut cursor = None;
         loop {
             let response = app_server
-                .thread_list(ThreadListParams {
+                .thread_list(ChatListParams {
                     cursor: cursor.clone(),
                     limit: Some(100),
-                    sort_key: Some(ThreadSortKey::UpdatedAt),
+                    sort_key: Some(ChatSortKey::UpdatedAt),
                     sort_direction: None,
                     model_providers: None,
                     source_kinds: Some(super::resume_source_kinds(

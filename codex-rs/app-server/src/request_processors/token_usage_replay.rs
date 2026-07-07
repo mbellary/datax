@@ -11,13 +11,13 @@
 
 use std::sync::Arc;
 
+use datax_app_server_protocol::Chat;
+use datax_app_server_protocol::ChatHistoryBuilder;
+use datax_app_server_protocol::ChatTokenUsage;
+use datax_app_server_protocol::ChatTokenUsageUpdatedNotification;
+use datax_app_server_protocol::Interaction;
+use datax_app_server_protocol::InteractionStatus;
 use datax_app_server_protocol::ServerNotification;
-use datax_app_server_protocol::Thread;
-use datax_app_server_protocol::ThreadHistoryBuilder;
-use datax_app_server_protocol::ThreadTokenUsage;
-use datax_app_server_protocol::ThreadTokenUsageUpdatedNotification;
-use datax_app_server_protocol::Turn;
-use datax_app_server_protocol::TurnStatus;
 use datax_core::CodexThread;
 use datax_protocol::ThreadId;
 use datax_protocol::protocol::EventMsg;
@@ -36,23 +36,23 @@ use crate::outgoing_message::OutgoingMessageSender;
 pub(super) async fn send_thread_token_usage_update_to_connection(
     outgoing: &Arc<OutgoingMessageSender>,
     connection_id: ConnectionId,
-    thread_id: ThreadId,
-    thread: &Thread,
+    chat_id: ThreadId,
+    thread: &Chat,
     conversation: &CodexThread,
     token_usage_turn_id: Option<String>,
 ) {
     let Some(info) = conversation.token_usage_info().await else {
         return;
     };
-    let notification = ThreadTokenUsageUpdatedNotification {
-        thread_id: thread_id.to_string(),
-        turn_id: token_usage_turn_id.unwrap_or_else(|| latest_token_usage_turn_id(thread)),
-        token_usage: ThreadTokenUsage::from(info),
+    let notification = ChatTokenUsageUpdatedNotification {
+        chat_id: chat_id.to_string(),
+        interaction_id: token_usage_turn_id.unwrap_or_else(|| latest_token_usage_turn_id(thread)),
+        token_usage: ChatTokenUsage::from(info),
     };
     outgoing
         .send_server_notification_to_connections(
             &[connection_id],
-            ServerNotification::ThreadTokenUsageUpdated(notification),
+            ChatTokenUsageUpdated(notification),
         )
         .await;
 }
@@ -68,9 +68,9 @@ struct TokenUsageTurnOwner {
 
 pub(super) fn latest_token_usage_turn_id_from_rollout_items(
     rollout_items: &[RolloutItem],
-    turns: &[Turn],
+    interactions: &[Interaction],
 ) -> Option<String> {
-    let mut builder = ThreadHistoryBuilder::new();
+    let mut builder = ChatHistoryBuilder::new();
     let mut token_usage_turn_owner = None;
 
     for item in rollout_items {
@@ -87,12 +87,12 @@ pub(super) fn latest_token_usage_turn_id_from_rollout_items(
     }
 
     let owner = token_usage_turn_owner?;
-    if turns.iter().any(|turn| turn.id == owner.id) {
+    if interactions.iter().any(|turn| turn.id == owner.id) {
         Some(owner.id)
     } else {
         owner
             .position
-            .and_then(|position| turns.get(position))
+            .and_then(|position| interactions.get(position))
             .map(|turn| turn.id.clone())
     }
 }
@@ -102,13 +102,18 @@ pub(super) fn latest_token_usage_turn_id_from_rollout_items(
 /// Normal replay derives the owner from the rollout position of the latest
 /// `TokenCount` event. This fallback only preserves a stable wire shape for
 /// unusual histories where that rollout information cannot be read.
-fn latest_token_usage_turn_id(thread: &Thread) -> String {
+fn latest_token_usage_turn_id(thread: &Chat) -> String {
     thread
-        .turns
+        .interactions
         .iter()
         .rev()
-        .find(|turn| matches!(turn.status, TurnStatus::Completed | TurnStatus::Failed))
-        .or_else(|| thread.turns.last())
+        .find(|turn| {
+            matches!(
+                turn.status,
+                InteractionStatus::Completed | InteractionStatus::Failed
+            )
+        })
+        .or_else(|| thread.interactions.last())
         .map(|turn| turn.id.clone())
         .unwrap_or_default()
 }
@@ -125,22 +130,22 @@ mod tests {
     #[test]
     fn replay_attribution_uses_already_loaded_history() {
         let rollout_items = token_usage_history();
-        let turns = build_turns_from_rollout_items(&rollout_items);
+        let interactions = build_turns_from_rollout_items(&rollout_items);
 
         assert_eq!(
-            latest_token_usage_turn_id_from_rollout_items(&rollout_items, turns.as_slice()),
-            Some(turns[0].id.clone())
+            latest_token_usage_turn_id_from_rollout_items(&rollout_items, interactions.as_slice()),
+            Some(interactions[0].id.clone())
         );
     }
 
     #[test]
     fn replay_attribution_falls_back_to_rebuilt_turn_position() {
         let rollout_items = token_usage_history();
-        let mut turns = build_turns_from_rollout_items(&rollout_items);
-        turns[0].id = "rebuilt-turn-id".to_string();
+        let mut interactions = build_turns_from_rollout_items(&rollout_items);
+        interactions[0].id = "rebuilt-turn-id".to_string();
 
         assert_eq!(
-            latest_token_usage_turn_id_from_rollout_items(&rollout_items, turns.as_slice()),
+            latest_token_usage_turn_id_from_rollout_items(&rollout_items, interactions.as_slice()),
             Some("rebuilt-turn-id".to_string())
         );
     }

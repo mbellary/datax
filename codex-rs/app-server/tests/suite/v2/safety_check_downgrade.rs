@@ -3,23 +3,23 @@ use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::CodexErrorInfo;
 use datax_app_server_protocol::ErrorNotification;
-use datax_app_server_protocol::ItemCompletedNotification;
-use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::InteractionModerationMetadataNotification;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
 use datax_app_server_protocol::JSONRPCMessage;
 use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::Message;
+use datax_app_server_protocol::MessageCompletedNotification;
+use datax_app_server_protocol::MessageStartedNotification;
 use datax_app_server_protocol::ModelRerouteReason;
 use datax_app_server_protocol::ModelReroutedNotification;
 use datax_app_server_protocol::ModelVerification;
 use datax_app_server_protocol::ModelVerificationNotification;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnModerationMetadataNotification;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
 use datax_app_server_protocol::UserInput;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
@@ -53,7 +53,7 @@ async fn openai_model_header_mismatch_emits_model_rerouted_notification_v2() -> 
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some(REQUESTED_MODEL.to_string()),
             ..Default::default()
         })
@@ -63,11 +63,11 @@ async fn openai_model_header_mismatch_emits_model_rerouted_notification_v2() -> 
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "trigger safeguard".to_string(),
@@ -81,14 +81,14 @@ async fn openai_model_header_mismatch_emits_model_rerouted_notification_v2() -> 
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let turn_start: TurnStartResponse = to_response(turn_resp)?;
+    let turn_start: InteractionStartResponse = to_response(turn_resp)?;
 
     let rerouted = collect_turn_notifications_and_validate_no_warning_item(&mut mcp).await?;
     assert_eq!(
         rerouted,
         ModelReroutedNotification {
-            thread_id: thread.id,
-            turn_id: turn_start.turn.id,
+            chat_id: thread.id,
+            interaction_id: turn_start.turn.id,
             from_model: REQUESTED_MODEL.to_string(),
             to_model: SERVER_MODEL.to_string(),
             reason: ModelRerouteReason::HighRiskCyberActivity,
@@ -120,7 +120,7 @@ async fn cyber_policy_response_emits_typed_error_notification_v2() -> Result<()>
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some(REQUESTED_MODEL.to_string()),
             ..Default::default()
         })
@@ -130,11 +130,11 @@ async fn cyber_policy_response_emits_typed_error_notification_v2() -> Result<()>
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "trigger cyber policy error".to_string(),
@@ -148,20 +148,20 @@ async fn cyber_policy_response_emits_typed_error_notification_v2() -> Result<()>
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let turn_start: TurnStartResponse = to_response(turn_resp)?;
+    let turn_start: InteractionStartResponse = to_response(turn_resp)?;
 
     let error = collect_cyber_policy_error_and_validate_no_reroute(&mut mcp).await?;
     assert_eq!(
         error,
         ErrorNotification {
-            error: datax_app_server_protocol::TurnError {
+            error: datax_app_server_protocol::InteractionError {
                 message: CYBER_POLICY_MESSAGE.to_string(),
                 codex_error_info: Some(CodexErrorInfo::CyberPolicy),
                 additional_details: None,
             },
             will_retry: false,
-            thread_id: thread.id,
-            turn_id: turn_start.turn.id,
+            chat_id: thread.id,
+            interaction_id: turn_start.turn.id,
         }
     );
 
@@ -197,7 +197,7 @@ async fn response_model_field_mismatch_emits_model_rerouted_notification_v2_when
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some(REQUESTED_MODEL.to_string()),
             ..Default::default()
         })
@@ -207,11 +207,11 @@ async fn response_model_field_mismatch_emits_model_rerouted_notification_v2_when
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "trigger response model check".to_string(),
@@ -225,14 +225,14 @@ async fn response_model_field_mismatch_emits_model_rerouted_notification_v2_when
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let turn_start: TurnStartResponse = to_response(turn_resp)?;
+    let turn_start: InteractionStartResponse = to_response(turn_resp)?;
 
     let rerouted = collect_turn_notifications_and_validate_no_warning_item(&mut mcp).await?;
     assert_eq!(
         rerouted,
         ModelReroutedNotification {
-            thread_id: thread.id,
-            turn_id: turn_start.turn.id,
+            chat_id: thread.id,
+            interaction_id: turn_start.turn.id,
             from_model: REQUESTED_MODEL.to_string(),
             to_model: SERVER_MODEL.to_string(),
             reason: ModelRerouteReason::HighRiskCyberActivity,
@@ -266,7 +266,7 @@ async fn model_verification_emits_typed_notification_and_warning_v2() -> Result<
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some(REQUESTED_MODEL.to_string()),
             ..Default::default()
         })
@@ -276,11 +276,11 @@ async fn model_verification_emits_typed_notification_and_warning_v2() -> Result<
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "trigger model verification".to_string(),
@@ -294,15 +294,15 @@ async fn model_verification_emits_typed_notification_and_warning_v2() -> Result<
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let turn_start: TurnStartResponse = to_response(turn_resp)?;
+    let turn_start: InteractionStartResponse = to_response(turn_resp)?;
 
     let verification =
         collect_model_verification_notifications_and_validate_no_warning_item(&mut mcp).await?;
     assert_eq!(
         verification,
         ModelVerificationNotification {
-            thread_id: thread.id,
-            turn_id: turn_start.turn.id,
+            chat_id: thread.id,
+            interaction_id: turn_start.turn.id,
             verifications: vec![ModelVerification::TrustedAccessForCyber],
         }
     );
@@ -340,7 +340,7 @@ async fn turn_moderation_metadata_emits_typed_notification_v2() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some(REQUESTED_MODEL.to_string()),
             ..Default::default()
         })
@@ -350,11 +350,11 @@ async fn turn_moderation_metadata_emits_typed_notification_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "trigger moderation metadata".to_string(),
@@ -368,22 +368,22 @@ async fn turn_moderation_metadata_emits_typed_notification_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let turn_start: TurnStartResponse = to_response(turn_resp)?;
+    let turn_start: InteractionStartResponse = to_response(turn_resp)?;
 
     let notification = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/moderationMetadata"),
+        mcp.read_stream_until_notification_message("interaction/moderationMetadata"),
     )
     .await??;
-    let metadata: TurnModerationMetadataNotification =
+    let metadata: InteractionModerationMetadataNotification =
         serde_json::from_value(notification.params.ok_or_else(|| {
-            anyhow::anyhow!("turn/moderationMetadata notifications must include params")
+            anyhow::anyhow!("interaction/moderationMetadata notifications must include params")
         })?)?;
     assert_eq!(
         metadata,
-        TurnModerationMetadataNotification {
-            thread_id: thread.id,
-            turn_id: turn_start.turn.id,
+        InteractionModerationMetadataNotification {
+            chat_id: thread.id,
+            interaction_id: turn_start.turn.id,
             metadata: serde_json::json!({"presentation": "inline"}),
         }
     );
@@ -409,23 +409,25 @@ async fn collect_turn_notifications_and_validate_no_warning_item(
                 let payload: ModelReroutedNotification = serde_json::from_value(params)?;
                 rerouted = Some(payload);
             }
-            "item/started" => {
+            "message/started" => {
                 let params = notification.params.ok_or_else(|| {
-                    anyhow::anyhow!("item/started notifications must include params")
+                    anyhow::anyhow!("message/started notifications must include params")
                 })?;
-                let payload: ItemStartedNotification = serde_json::from_value(params)?;
+                let payload: MessageStartedNotification = serde_json::from_value(params)?;
                 assert!(!is_warning_user_message_item(&payload.item));
             }
-            "item/completed" => {
+            "message/completed" => {
                 let params = notification.params.ok_or_else(|| {
-                    anyhow::anyhow!("item/completed notifications must include params")
+                    anyhow::anyhow!("message/completed notifications must include params")
                 })?;
-                let payload: ItemCompletedNotification = serde_json::from_value(params)?;
+                let payload: MessageCompletedNotification = serde_json::from_value(params)?;
                 assert!(!is_warning_user_message_item(&payload.item));
             }
-            "turn/completed" => {
+            "interaction/completed" => {
                 return rerouted.ok_or_else(|| {
-                    anyhow::anyhow!("expected model/rerouted notification before turn/completed")
+                    anyhow::anyhow!(
+                        "expected model/rerouted notification before interaction/completed"
+                    )
                 });
             }
             _ => {}
@@ -457,24 +459,24 @@ async fn collect_model_verification_notifications_and_validate_no_warning_item(
             "model/rerouted" => {
                 anyhow::bail!("verification-only response must not emit model/rerouted");
             }
-            "item/started" => {
+            "message/started" => {
                 let params = notification.params.ok_or_else(|| {
-                    anyhow::anyhow!("item/started notifications must include params")
+                    anyhow::anyhow!("message/started notifications must include params")
                 })?;
-                let payload: ItemStartedNotification = serde_json::from_value(params)?;
+                let payload: MessageStartedNotification = serde_json::from_value(params)?;
                 assert!(!is_warning_user_message_item(&payload.item));
             }
-            "item/completed" => {
+            "message/completed" => {
                 let params = notification.params.ok_or_else(|| {
-                    anyhow::anyhow!("item/completed notifications must include params")
+                    anyhow::anyhow!("message/completed notifications must include params")
                 })?;
-                let payload: ItemCompletedNotification = serde_json::from_value(params)?;
+                let payload: MessageCompletedNotification = serde_json::from_value(params)?;
                 assert!(!is_warning_user_message_item(&payload.item));
             }
-            "turn/completed" => {
+            "interaction/completed" => {
                 let verification = verification.ok_or_else(|| {
                     anyhow::anyhow!(
-                        "expected model/verification notification before turn/completed"
+                        "expected model/verification notification before interaction/completed"
                     )
                 })?;
                 return Ok(verification);
@@ -507,9 +509,9 @@ async fn collect_cyber_policy_error_and_validate_no_reroute(
             "model/rerouted" => {
                 anyhow::bail!("cyber policy response must not emit model/rerouted");
             }
-            "turn/completed" => {
+            "interaction/completed" => {
                 return error.ok_or_else(|| {
-                    anyhow::anyhow!("expected cyber policy error before turn/completed")
+                    anyhow::anyhow!("expected cyber policy error before interaction/completed")
                 });
             }
             _ => {}
@@ -517,8 +519,8 @@ async fn collect_cyber_policy_error_and_validate_no_reroute(
     }
 }
 
-fn warning_text_from_item(item: &ThreadItem) -> Option<&str> {
-    let ThreadItem::UserMessage { content, .. } = item else {
+fn warning_text_from_item(item: &Message) -> Option<&str> {
+    let Message::UserMessage { content, .. } = item else {
         return None;
     };
 
@@ -528,7 +530,7 @@ fn warning_text_from_item(item: &ThreadItem) -> Option<&str> {
     })
 }
 
-fn is_warning_user_message_item(item: &ThreadItem) -> bool {
+fn is_warning_user_message_item(item: &Message) -> bool {
     warning_text_from_item(item).is_some()
 }
 

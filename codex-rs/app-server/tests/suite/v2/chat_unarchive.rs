@@ -14,6 +14,7 @@ use datax_app_server_protocol::ChatUnarchiveResponse;
 use datax_app_server_protocol::ChatUnarchivedNotification;
 use datax_app_server_protocol::ClientInfo;
 use datax_app_server_protocol::ClientRequest;
+use datax_app_server_protocol::ClientRequest::*;
 use datax_app_server_protocol::InitializeCapabilities;
 use datax_app_server_protocol::InitializeParams;
 use datax_app_server_protocol::InteractionStartParams;
@@ -209,12 +210,12 @@ async fn thread_unarchive_preserves_pathless_store_metadata() -> Result<()> {
     store
         .create_thread(CreateThreadParams {
             session_id: chat_id.into(),
-            chat_id,
+            thread_id: chat_id,
             extra_config: None,
             forked_from_id: Some(parent_chat_id),
-            parent_chat_id: None,
+            parent_thread_id: None,
             source: SessionSource::Cli,
-            chat_source: None,
+            thread_source: None,
             base_instructions: BaseInstructions::default(),
             dynamic_tools: Vec::new(),
             multi_agent_version: None,
@@ -227,7 +228,7 @@ async fn thread_unarchive_preserves_pathless_store_metadata() -> Result<()> {
         .await?;
     store
         .update_thread_metadata(UpdateThreadMetadataParams {
-            chat_id,
+            thread_id: chat_id,
             patch: ThreadMetadataPatch {
                 name: Some(Some("named pathless thread".to_string())),
                 ..Default::default()

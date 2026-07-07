@@ -30,6 +30,7 @@ This milestone deliberately targets the app-server public API boundary. Internal
 - [x] (2026-07-07T00:00:00Z) Fixed deferred `just test -p datax-app-server` compile fallout in core, app-server, analytics tests, and TUI where app-server protocol helper names and core permission scope variants still used the removed `ThreadHistoryBuilder`, `McpServerElicitationRequestParams.thread_id`, `McpServerElicitationRequestParams.turn_id`, and `PermissionGrantScope::Interaction` symbols.
 - [x] (2026-07-07T00:00:00Z) Fixed deferred `just test -p datax-app-server` compile fallout inside app-server implementation and test support where public chat/interaction/message protocol names had been mechanically applied to internal core, thread-store, state, and rollout adapters that still require `thread_id`, `turn_id`, `item_id`, `items`, and `thread_source`.
 - [x] (2026-07-07T00:00:00Z) Fixed the next deferred `just test -p datax-app-server` compile batch in app-server test modules, response routing tests, filters, token usage replay, and extension test fixtures where enum variants needed explicit namespaces or internal test fixtures still used public chat/interaction/message field names.
+- [x] (2026-07-07T00:00:00Z) Fixed deferred `just test -p datax-app-server` compile fallout in the app-server integration suite where v2 test requests and notifications needed generated enum variant imports, and thread-store/core fixtures still used public chat field names instead of internal thread field names.
 
 ## Surprises & Discoveries
 
@@ -62,6 +63,9 @@ This milestone deliberately targets the app-server public API boundary. Internal
 
 - Observation: App-server unit tests instantiate both public protocol payloads and internal core/store fixtures in the same files.
   Evidence: The follow-up user-run compile reported stale internal fields in `codex-rs/app-server/src/bespoke_event_handling.rs` and `codex-rs/app-server/src/request_processors/chat_processor_tests.rs`, while adjacent assertions still correctly reference public app-server fields such as `target_message_id`, `interaction_id`, and `chat_source`.
+
+- Observation: The app-server integration suite also mixes generated public app-server requests with internal persistence fixtures.
+  Evidence: The user-run compile reported `ClientRequest` variants such as `ChatStart` and `InteractionStart` used unqualified in v2 suite files, plus stale thread-store fixture fields in `chat_read.rs`, `chat_unarchive.rs`, `remote_thread_store.rs`, and `conversation_summary.rs`.
 
 ## Decision Log
 
@@ -167,6 +171,13 @@ The table below tracks files and file sets that belong to Phase 1.4. Rows marked
 | `codex-rs/app-server/tests/suite/v2/turn_*.rs` | `Completed` | Integration tests for public turn methods must be renamed or updated to interaction methods. |
 | `codex-rs/app-server/tests/suite/v2/mod.rs` | `Completed` | Test module list must track any renamed test files. |
 | `codex-rs/app-server/tests/suite/v2/*.rs` | `Completed` | Non-thread test files that call `thread/start`, `turn/start`, or inspect thread/turn/item notifications must be updated. Exact files are identified with `rg -n "thread/|turn/|item/|Thread|Turn|Item" codex-rs/app-server/tests/suite/v2`. |
+| `codex-rs/app-server/tests/suite/v2/chat_fork.rs` | `Completed` | Token usage notification matches now import generated `ServerNotification` variants explicitly. |
+| `codex-rs/app-server/tests/suite/v2/chat_list.rs` | `Completed` | Tests use public `ChatSortKey` at the API boundary and internal `ThreadSortKey` plus `ThreadsPage.items` for core repair helpers. |
+| `codex-rs/app-server/tests/suite/v2/chat_read.rs` | `Completed` | Tests import generated `ClientRequest` variants and use internal thread-store fixture field names. |
+| `codex-rs/app-server/tests/suite/v2/chat_resume.rs` | `Completed` | Tests import generated notification variants and keep core rollout events/session metadata on internal `turn_id`, `parent_thread_id`, and `thread_source` fields. |
+| `codex-rs/app-server/tests/suite/v2/chat_unarchive.rs` | `Completed` | Tests import generated `ClientRequest` variants and use internal thread-store fixture field names. |
+| `codex-rs/app-server/tests/suite/v2/remote_thread_store.rs` | `Completed` | In-process remote store tests import generated request/notification variants and use internal thread-store fixture field names. |
+| `codex-rs/app-server/tests/suite/conversation_summary.rs` | `Completed` | Conversation summary tests use internal thread-store fixture field names when seeding an in-memory store. |
 | `codex-rs/app-server-client/README.md` | `Completed` | Inspected because it documents app-server client usage; update only if it references renamed public methods. |
 | `codex-rs/tui/**` | `Completed` | Direct `datax_app_server_protocol` imports and usages were updated to the renamed app-server API types. Internal TUI thread/session vocabulary remains deferred. |
 | `codex-rs/core/**` | `Completed` | Small compatibility edits were required where core constructs or consumes app-server protocol types. Internal `ThreadId`, thread manager, and turn execution vocabulary remain deferred. |

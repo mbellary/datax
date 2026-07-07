@@ -656,7 +656,7 @@ sqlite = true
         &rollout_config,
         /*page_size*/ 10,
         /*cursor*/ None,
-        datax_core::ChatSortKey::CreatedAt,
+        datax_core::ThreadSortKey::CreatedAt,
         datax_core::SortDirection::Desc,
         &[],
         /*model_providers*/ None,
@@ -665,7 +665,7 @@ sqlite = true
         /*search_term*/ None,
     )
     .await?;
-    assert_eq!(repaired_page.messages.len(), 3);
+    assert_eq!(repaired_page.items.len(), 3);
 
     let mut mcp = init_mcp(codex_home.path()).await?;
     let request_id = mcp
@@ -1205,7 +1205,7 @@ async fn thread_list_filters_by_source_kind_subagent_thread_spawn() -> Result<()
         Some("mock_provider"),
         /*git_info*/ None,
         CoreSessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-            parent_chat_id,
+            parent_thread_id: parent_chat_id,
             depth: 1,
             agent_path: None,
             agent_nickname: None,
@@ -1272,7 +1272,7 @@ async fn thread_list_filters_by_subagent_variant() -> Result<()> {
         Some("mock_provider"),
         /*git_info*/ None,
         CoreSessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-            parent_chat_id,
+            parent_thread_id: parent_chat_id,
             depth: 1,
             agent_path: None,
             agent_nickname: None,
@@ -1734,7 +1734,7 @@ async fn thread_list_sort_recency_at_uses_state_db_order_with_provider_filter() 
         &rollout_config,
         /*page_size*/ 10,
         /*cursor*/ None,
-        datax_core::ChatSortKey::CreatedAt,
+        datax_core::ThreadSortKey::CreatedAt,
         datax_core::SortDirection::Desc,
         datax_core::INTERACTIVE_SESSION_SOURCES.as_slice(),
         /*model_providers*/ None,

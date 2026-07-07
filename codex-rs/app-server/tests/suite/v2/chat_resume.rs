@@ -51,6 +51,7 @@ use datax_app_server_protocol::PatchApplyStatus;
 use datax_app_server_protocol::PatchChangeKind;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::ServerNotification::*;
 use datax_app_server_protocol::ServerRequest;
 use datax_app_server_protocol::SessionSource;
 use datax_app_server_protocol::UserInput;
@@ -1780,7 +1781,7 @@ async fn thread_resume_token_usage_replay_ignores_stale_interrupted_tail_turn() 
             "timestamp": meta_rfc3339,
             "type": "event_msg",
             "payload": serde_json::to_value(EventMsg::TurnStarted(TurnStartedEvent {
-                interaction_id: stale_turn_id.to_string(),
+                turn_id: stale_turn_id.to_string(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: None,
@@ -1871,7 +1872,7 @@ async fn thread_resume_token_usage_replay_can_belong_to_interrupted_turn() -> Re
             "timestamp": meta_rfc3339,
             "type": "event_msg",
             "payload": serde_json::to_value(EventMsg::TurnStarted(TurnStartedEvent {
-                interaction_id: interrupted_turn_id.to_string(),
+                turn_id: interrupted_turn_id.to_string(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: None,
@@ -1918,7 +1919,7 @@ async fn thread_resume_token_usage_replay_can_belong_to_interrupted_turn() -> Re
             "timestamp": meta_rfc3339,
             "type": "event_msg",
             "payload": serde_json::to_value(EventMsg::TurnAborted(TurnAbortedEvent {
-                interaction_id: Some(interrupted_turn_id.to_string()),
+                turn_id: Some(interrupted_turn_id.to_string()),
                 reason: TurnAbortReason::Interrupted,
                 completed_at: None,
                 duration_ms: None,
@@ -2068,13 +2069,13 @@ stream_max_retries = 0
         session_id: conversation_id.into(),
         id: conversation_id,
         forked_from_id: None,
-        parent_chat_id: None,
+        parent_thread_id: None,
         timestamp: "2025-01-05T12:00:00Z".to_string(),
         cwd: repo_path.clone(),
         originator: "codex".to_string(),
         cli_version: "0.0.0".to_string(),
         source: RolloutSessionSource::Cli,
-        chat_source: None,
+        thread_source: None,
         agent_path: None,
         agent_nickname: None,
         agent_role: None,
@@ -2195,7 +2196,7 @@ async fn thread_resume_and_read_interrupt_incomplete_rollout_turn_when_thread_is
             "timestamp": meta_rfc3339,
             "type": "event_msg",
             "payload": serde_json::to_value(EventMsg::TurnStarted(TurnStartedEvent {
-                interaction_id: interaction_id.to_string(),
+                turn_id: interaction_id.to_string(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: None,

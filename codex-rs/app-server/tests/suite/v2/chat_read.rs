@@ -28,6 +28,7 @@ use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::ChatStatus;
 use datax_app_server_protocol::ClientInfo;
 use datax_app_server_protocol::ClientRequest;
+use datax_app_server_protocol::ClientRequest::*;
 use datax_app_server_protocol::InitializeCapabilities;
 use datax_app_server_protocol::InitializeParams;
 use datax_app_server_protocol::InteractionMessagesView;
@@ -484,8 +485,8 @@ async fn thread_read_loaded_include_turns_reads_store_history_without_rollout_pa
     let chat_id = datax_protocol::ThreadId::from_string(&thread.id)?;
     store
         .append_items(AppendThreadItemsParams {
-            chat_id,
-            messages: store_history_items(),
+            thread_id: chat_id,
+            items: store_history_items(),
         })
         .await?;
 
@@ -1365,12 +1366,12 @@ async fn seed_pathless_store_thread(
     store
         .create_thread(CreateThreadParams {
             session_id: chat_id.into(),
-            chat_id,
+            thread_id: chat_id,
             extra_config: None,
             forked_from_id: None,
-            parent_chat_id: None,
+            parent_thread_id: None,
             source: ProtocolSessionSource::Cli,
-            chat_source: None,
+            thread_source: None,
             base_instructions: BaseInstructions::default(),
             dynamic_tools: Vec::new(),
             multi_agent_version: None,
@@ -1383,13 +1384,13 @@ async fn seed_pathless_store_thread(
         .await?;
     store
         .append_items(AppendThreadItemsParams {
-            chat_id,
-            messages: store_history_items(),
+            thread_id: chat_id,
+            items: store_history_items(),
         })
         .await?;
     store
         .update_thread_metadata(UpdateThreadMetadataParams {
-            chat_id,
+            thread_id: chat_id,
             patch: ThreadMetadataPatch {
                 name: Some(Some("named pathless thread".to_string())),
                 ..Default::default()

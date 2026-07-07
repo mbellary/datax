@@ -32,10 +32,11 @@ use datax_app_server_protocol::ChatStartParams;
 use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::ClientInfo;
 use datax_app_server_protocol::ClientRequest;
+use datax_app_server_protocol::ClientRequest::*;
 use datax_app_server_protocol::InitializeParams;
 use datax_app_server_protocol::InteractionStartParams;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::ServerNotification::*;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_arg0::Arg0DispatchPaths;
 use datax_config::CloudConfigBundleLoader;
@@ -146,12 +147,12 @@ async fn thread_delete_with_non_local_thread_store_does_not_create_local_persist
     thread_store
         .create_thread(StoreCreateThreadParams {
             session_id: unloaded_thread_id.into(),
-            chat_id: unloaded_thread_id,
+            thread_id: unloaded_thread_id,
             extra_config: None,
             forked_from_id: None,
-            parent_chat_id: None,
+            parent_thread_id: None,
             source: SessionSource::Cli,
-            chat_source: None,
+            thread_source: None,
             base_instructions: BaseInstructions::default(),
             dynamic_tools: Vec::new(),
             multi_agent_version: None,

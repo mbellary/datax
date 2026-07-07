@@ -122,12 +122,12 @@ async fn get_conversation_summary_by_thread_id_reads_pathless_store_thread() -> 
     store
         .create_thread(CreateThreadParams {
             session_id: chat_id.into(),
-            chat_id,
+            thread_id: chat_id,
             extra_config: None,
             forked_from_id: None,
-            parent_chat_id: None,
+            parent_thread_id: None,
             source: SessionSource::Cli,
-            chat_source: None,
+            thread_source: None,
             base_instructions: BaseInstructions::default(),
             dynamic_tools: Vec::new(),
             multi_agent_version: None,

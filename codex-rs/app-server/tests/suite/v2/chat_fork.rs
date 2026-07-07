@@ -26,6 +26,7 @@ use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::Message;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::ServerNotification::*;
 use datax_app_server_protocol::SessionSource;
 use datax_app_server_protocol::UserInput;
 use datax_config::types::AuthCredentialsStoreMode;

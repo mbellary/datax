@@ -435,7 +435,7 @@ pub struct CodexGoalEvent {
     pub turn_id: Option<String>,
     pub goal_id: String,
     pub event_kind: GoalEventKind,
-    pub goal_status: datax_state::ChatGoalStatus,
+    pub goal_status: datax_state::ThreadGoalStatus,
     pub has_token_budget: bool,
     pub cumulative_tokens_accounted: Option<i64>,
     pub cumulative_time_accounted_seconds: Option<i64>,

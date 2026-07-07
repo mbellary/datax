@@ -220,8 +220,8 @@ impl<'a> AnalyticsDropSite<'a> {
     ) -> Self {
         Self {
             event_name: "tool item",
-            thread_id: &notification.thread_id,
-            turn_id: Some(&notification.turn_id),
+            thread_id: &notification.chat_id,
+            turn_id: Some(&notification.interaction_id),
             review_id: None,
             item_id: Some(item_id),
         }
@@ -620,7 +620,7 @@ impl AnalyticsReducer {
                 self.requests.insert(
                     (connection_id, request_id),
                     RequestState::TurnStart(PendingTurnStartState {
-                        thread_id: params.thread_id,
+                        thread_id: params.chat_id,
                         num_input_images: num_input_images(&params.input),
                     }),
                 );
@@ -629,7 +629,7 @@ impl AnalyticsReducer {
                 self.requests.insert(
                     (connection_id, request_id),
                     RequestState::TurnSteer(PendingTurnSteerState {
-                        thread_id: params.thread_id,
+                        thread_id: params.chat_id,
                         expected_turn_id: params.expected_turn_id,
                         num_input_images: num_input_images(&params.input),
                         created_at: now_unix_seconds(),
@@ -941,9 +941,9 @@ impl AnalyticsReducer {
                 self.pending_reviews.insert(
                     request_id.clone(),
                     PendingReviewState {
-                        thread_id: params.thread_id,
-                        turn_id: params.turn_id,
-                        item_id: Some(params.item_id),
+                        thread_id: params.chat_id,
+                        turn_id: params.interaction_id,
+                        item_id: Some(params.message_id),
                         review_id: user_review_id(&request_id),
                         subject_kind: if is_network_access_review {
                             ReviewSubjectKind::NetworkAccess
@@ -970,9 +970,9 @@ impl AnalyticsReducer {
                 self.pending_reviews.insert(
                     request_id.clone(),
                     PendingReviewState {
-                        thread_id: params.thread_id,
-                        turn_id: params.turn_id,
-                        item_id: Some(params.item_id),
+                        thread_id: params.chat_id,
+                        turn_id: params.interaction_id,
+                        item_id: Some(params.message_id),
                         review_id: user_review_id(&request_id),
                         subject_kind: ReviewSubjectKind::FileChange,
                         subject_name: "apply_patch".to_string(),
@@ -1009,9 +1009,9 @@ impl AnalyticsReducer {
                 self.pending_reviews.insert(
                     request_id.clone(),
                     PendingReviewState {
-                        thread_id: params.thread_id,
-                        turn_id: params.turn_id,
-                        item_id: Some(params.item_id),
+                        thread_id: params.chat_id,
+                        turn_id: params.interaction_id,
+                        item_id: Some(params.message_id),
                         review_id: user_review_id(&request_id),
                         subject_kind: ReviewSubjectKind::Permissions,
                         subject_name: "permissions".to_string(),
@@ -1177,8 +1177,8 @@ impl AnalyticsReducer {
                 };
                 self.tool_items_started_at_ms.insert(
                     ToolItemKey {
-                        thread_id: notification.thread_id,
-                        turn_id: notification.turn_id,
+                        thread_id: notification.chat_id,
+                        turn_id: notification.interaction_id,
                         item_id: item_id.to_string(),
                     },
                     started_at_ms,
@@ -1186,10 +1186,10 @@ impl AnalyticsReducer {
             }
             ServerNotification::MessageCompleted(notification) => {
                 if matches!(notification.item, Message::SubAgentActivity { .. }) {
-                    let Some(turn_state) = self.turns.get_mut(&notification.turn_id) else {
+                    let Some(turn_state) = self.turns.get_mut(&notification.interaction_id) else {
                         tracing::warn!(
-                            thread_id = %notification.thread_id,
-                            turn_id = %notification.turn_id,
+                            thread_id = %notification.chat_id,
+                            turn_id = %notification.interaction_id,
                             "dropping sub-agent activity tool count update: missing turn state"
                         );
                         return;
@@ -1200,10 +1200,10 @@ impl AnalyticsReducer {
                 let Some(item_id) = tracked_tool_item_id(&notification.item) else {
                     return;
                 };
-                let Some(turn_state) = self.turns.get_mut(&notification.turn_id) else {
+                let Some(turn_state) = self.turns.get_mut(&notification.interaction_id) else {
                     tracing::warn!(
-                        thread_id = %notification.thread_id,
-                        turn_id = %notification.turn_id,
+                        thread_id = %notification.chat_id,
+                        turn_id = %notification.interaction_id,
                         item_id,
                         "dropping turn tool count update: missing turn state"
                     );
@@ -1211,14 +1211,14 @@ impl AnalyticsReducer {
                 };
                 turn_state.tool_counts.record(&notification.item);
                 let key = ToolItemKey {
-                    thread_id: notification.thread_id.clone(),
-                    turn_id: notification.turn_id.clone(),
+                    thread_id: notification.chat_id.clone(),
+                    turn_id: notification.interaction_id.clone(),
                     item_id: item_id.to_string(),
                 };
                 let Some(started_at_ms) = self.tool_items_started_at_ms.remove(&key) else {
                     tracing::warn!(
-                        thread_id = %notification.thread_id,
-                        turn_id = %notification.turn_id,
+                        thread_id = %notification.chat_id,
+                        turn_id = %notification.interaction_id,
                         item_id,
                         "dropping tool item analytics event: missing item started notification"
                     );
@@ -1234,8 +1234,8 @@ impl AnalyticsReducer {
                     return;
                 };
                 if let Some(event) = tool_item_event(ToolItemEventInput {
-                    thread_id: &notification.thread_id,
-                    turn_id: &notification.turn_id,
+                    thread_id: &notification.chat_id,
+                    turn_id: &notification.interaction_id,
                     item: &notification.item,
                     started_at_ms,
                     completed_at_ms,
@@ -1261,8 +1261,11 @@ impl AnalyticsReducer {
                     .and_then(|started_at| u64::try_from(started_at).ok());
             }
             ServerNotification::InteractionDiffUpdated(notification) => {
-                let turn_state = self.turns.entry(notification.turn_id.clone()).or_default();
-                turn_state.thread_id = Some(notification.thread_id);
+                let turn_state = self
+                    .turns
+                    .entry(notification.interaction_id.clone())
+                    .or_default();
+                turn_state.thread_id = Some(notification.chat_id);
                 turn_state.latest_diff = Some(notification.diff);
             }
             ServerNotification::InteractionCompleted(notification) => {
@@ -1301,7 +1304,7 @@ impl AnalyticsReducer {
         let session_source: SessionSource = thread.source.into();
         let session_id = thread.session_id;
         let thread_id = thread.id;
-        let parent_thread_id = thread.parent_thread_id;
+        let parent_thread_id = thread.parent_chat_id;
         let forked_from_thread_id = thread.forked_from_id;
         let Some(connection_state) = self.connections.get(&connection_id) else {
             return;
@@ -1309,7 +1312,7 @@ impl AnalyticsReducer {
         let thread_metadata = ThreadMetadataState::from_thread_metadata(
             session_id.clone(),
             &session_source,
-            thread.thread_source.map(Into::into),
+            thread.chat_source.map(Into::into),
             parent_thread_id,
             initialization_mode,
         );
@@ -1397,9 +1400,9 @@ impl AnalyticsReducer {
             return;
         };
         let pending_review = PendingReviewState {
-            thread_id: notification.thread_id,
-            turn_id: notification.turn_id,
-            item_id: notification.target_item_id,
+            thread_id: notification.chat_id,
+            turn_id: notification.interaction_id,
+            item_id: notification.target_message_id,
             review_id: notification.review_id,
             subject_kind,
             subject_name,
@@ -1437,13 +1440,13 @@ impl AnalyticsReducer {
         else {
             return;
         };
-        if let Some(turn_state) = self.turns.get_mut(&response.turn_id) {
+        if let Some(turn_state) = self.turns.get_mut(&response.interaction_id) {
             turn_state.steer_count += 1;
         }
         self.emit_turn_steer_event(
             connection_id,
             pending_request,
-            Some(response.turn_id),
+            Some(response.interaction_id),
             TurnSteerResult::Accepted,
             /*rejection_reason*/ None,
             out,
@@ -2184,7 +2187,7 @@ fn effective_permissions_review_result(
     }
 
     match response.scope {
-        CorePermissionGrantScope::Interaction => (ReviewStatus::Approved, ReviewResolution::None),
+        CorePermissionGrantScope::Turn => (ReviewStatus::Approved, ReviewResolution::None),
         CorePermissionGrantScope::Session => {
             (ReviewStatus::Approved, ReviewResolution::SessionApproval)
         }

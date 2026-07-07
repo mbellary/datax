@@ -830,7 +830,7 @@ pub(crate) struct CodexGoalEventParams {
     pub(crate) parent_thread_id: Option<String>,
     pub(crate) goal_id: String,
     pub(crate) event_kind: GoalEventKind,
-    pub(crate) goal_status: datax_state::ChatGoalStatus,
+    pub(crate) goal_status: datax_state::ThreadGoalStatus,
     pub(crate) has_token_budget: bool,
     pub(crate) cumulative_tokens_accounted: Option<i64>,
     pub(crate) cumulative_time_accounted_seconds: Option<i64>,

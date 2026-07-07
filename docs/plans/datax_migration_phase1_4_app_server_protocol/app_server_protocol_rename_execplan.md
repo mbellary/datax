@@ -26,6 +26,7 @@ This milestone deliberately targets the app-server public API boundary. Internal
 - [x] (2026-07-07T00:00:00Z) Ran `just fmt` from `codex-rs` after code changes.
 - [x] (2026-07-07T00:00:00Z) Completed lightweight acceptance searches; targeted app-server tests remain staged/deferred per the migration execution model.
 - [x] (2026-07-07T00:00:00Z) Fixed deferred `just test -p datax-app-server` compile fallout in `datax-tools`, where the request-plugin-install helper still constructed `McpServerElicitationRequestParams` with obsolete `thread_id` and `turn_id` fields instead of `chat_id` and `interaction_id`.
+- [x] (2026-07-07T00:00:00Z) Fixed deferred `just test -p datax-app-server` compile fallout in `datax-analytics`, where analytics ingestion still read old app-server public fields such as `thread_id`, `turn_id`, `item_id`, and `target_item_id` from renamed chat, interaction, and message protocol payloads.
 
 ## Surprises & Discoveries
 
@@ -46,6 +47,9 @@ This milestone deliberately targets the app-server public API boundary. Internal
 
 - Observation: The `datax-tools` crate constructs app-server elicitation protocol payloads used by app-server tests and is part of the Phase 1.4 compile surface.
   Evidence: The user-run `just test -p datax-app-server` reported `McpServerElicitationRequestParams` has no `thread_id` or `turn_id` fields in `codex-rs/tools/src/request_plugin_install.rs`; those fields are now `chat_id` and `interaction_id`.
+
+- Observation: The `datax-analytics` crate consumes app-server v2 request, response, and notification types and maps them into the analytics event schema.
+  Evidence: The user-run `just test -p datax-app-server` reported compile errors in `codex-rs/analytics/src/reducer.rs`, `codex-rs/analytics/src/events.rs`, `codex-rs/analytics/src/facts.rs`, and `codex-rs/analytics/src/lib.rs` for stale app-server fields and renamed state types.
 
 ## Decision Log
 
@@ -144,6 +148,10 @@ The table below tracks files and file sets that belong to Phase 1.4. Rows marked
 | `codex-rs/app-server-client/README.md` | `Completed` | Inspected because it documents app-server client usage; update only if it references renamed public methods. |
 | `codex-rs/tui/**` | `Completed` | Direct `datax_app_server_protocol` imports and usages were updated to the renamed app-server API types. Internal TUI thread/session vocabulary remains deferred. |
 | `codex-rs/core/**` | `Completed` | Small compatibility edits were required where core constructs or consumes app-server protocol types. Internal `ThreadId`, thread manager, and turn execution vocabulary remain deferred. |
+| `codex-rs/analytics/src/reducer.rs` | `Completed` | App-server public `chat_id`, `interaction_id`, `message_id`, `parent_chat_id`, and `chat_source` fields are mapped into the existing analytics event schema fields. |
+| `codex-rs/analytics/src/events.rs` | `Completed` | Goal event status type updated to the state crate's internal `ThreadGoalStatus`; analytics event field names remain unchanged. |
+| `codex-rs/analytics/src/facts.rs` | `Completed` | Goal fact status type updated to the state crate's internal `ThreadGoalStatus`; analytics fact field names remain unchanged. |
+| `codex-rs/analytics/src/lib.rs` | `Completed` | Public re-export updated from removed `TurnStatus` to existing `InteractionStatus`. |
 | `codex-rs/analytics/**` | `Completed` | Direct app-server protocol request/response/notification type usage was updated to the renamed public API types while analytics fact names remain internal. |
 | `codex-rs/exec/**` | `Completed` | Direct app-server protocol request/response/notification type usage was updated to the renamed public API types while exec event names remain internal. |
 | `codex-rs/external-agent-sessions/**` | `Completed` | Direct app-server protocol message type usage was updated to the renamed public API type. |
@@ -215,7 +223,7 @@ After source edits, run formatter from `codex-rs`:
 | `just write-app-server-schema` | `codex-rs` | `Completed` | App-server schema and TypeScript artifacts regenerate with renamed public names. User ran this command and pushed commit `dd5fd69a44`. |
 | `just write-app-server-schema --experimental` | `codex-rs` | `Deferred` | Experimental app-server schema artifacts regenerate with renamed experimental method markers. |
 | `just test -p datax-app-server-protocol` | `codex-rs` | `Deferred` | Protocol schema and TypeScript fixture tests pass. |
-| `just test -p datax-app-server` | `codex-rs` | `Deferred` | App-server request processor and integration tests pass with renamed public methods. User-run compile fallout in `datax-tools` was fixed; command awaits user rerun. |
+| `just test -p datax-app-server` | `codex-rs` | `Deferred` | App-server request processor and integration tests pass with renamed public methods. User-run compile fallout in `datax-tools` and `datax-analytics` was fixed; command awaits user rerun. |
 
 ## Validation and Acceptance
 

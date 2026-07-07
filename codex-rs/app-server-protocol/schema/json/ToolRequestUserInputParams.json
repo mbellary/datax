@@ -66,7 +66,13 @@
         "null"
       ]
     },
-    "itemId": {
+    "chatId": {
+      "type": "string"
+    },
+    "interactionId": {
+      "type": "string"
+    },
+    "messageId": {
       "type": "string"
     },
     "questions": {
@@ -74,19 +80,13 @@
         "$ref": "#/definitions/ToolRequestUserInputQuestion"
       },
       "type": "array"
-    },
-    "threadId": {
-      "type": "string"
-    },
-    "turnId": {
-      "type": "string"
     }
   },
   "required": [
-    "itemId",
-    "questions",
-    "threadId",
-    "turnId"
+    "chatId",
+    "interactionId",
+    "messageId",
+    "questions"
   ],
   "title": "ToolRequestUserInputParams",
   "type": "object"

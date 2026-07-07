@@ -87,7 +87,7 @@
     "ApplyPatchApprovalParams": {
       "properties": {
         "callId": {
-          "description": "Use to correlate this with [codex_protocol::protocol::PatchApplyBeginEvent] and [codex_protocol::protocol::PatchApplyEndEvent].",
+          "description": "Use to correlate this with [datax_protocol::protocol::PatchApplyBeginEvent] and [datax_protocol::protocol::PatchApplyEndEvent].",
           "type": "string"
         },
         "conversationId": {
@@ -345,11 +345,14 @@
     "CommandExecutionRequestApprovalParams": {
       "properties": {
         "approvalId": {
-          "description": "Unique identifier for this specific approval callback.\n\nFor regular shell/unified_exec approvals, this is null.\n\nFor zsh-exec-bridge subcommand approvals, multiple callbacks can belong to one parent `itemId`, so `approvalId` is a distinct opaque callback id (a UUID) used to disambiguate routing.",
+          "description": "Unique identifier for this specific approval callback.\n\nFor regular shell/unified_exec approvals, this is null.\n\nFor zsh-exec-bridge subcommand approvals, multiple callbacks can belong to one parent `messageId`, so `approvalId` is a distinct opaque callback id (a UUID) used to disambiguate routing.",
           "type": [
             "string",
             "null"
           ]
+        },
+        "chatId": {
+          "type": "string"
         },
         "command": {
           "description": "The command to be executed.",
@@ -387,7 +390,10 @@
             "null"
           ]
         },
-        "itemId": {
+        "interactionId": {
+          "type": "string"
+        },
+        "messageId": {
           "type": "string"
         },
         "networkApprovalContext": {
@@ -432,19 +438,13 @@
           "description": "Unix timestamp (in milliseconds) when this approval request started.",
           "format": "int64",
           "type": "integer"
-        },
-        "threadId": {
-          "type": "string"
-        },
-        "turnId": {
-          "type": "string"
         }
       },
       "required": [
-        "itemId",
-        "startedAtMs",
-        "threadId",
-        "turnId"
+        "chatId",
+        "interactionId",
+        "messageId",
+        "startedAtMs"
       ],
       "type": "object"
     },
@@ -454,28 +454,28 @@
         "callId": {
           "type": "string"
         },
+        "chatId": {
+          "type": "string"
+        },
+        "interactionId": {
+          "type": "string"
+        },
         "namespace": {
           "type": [
             "string",
             "null"
           ]
         },
-        "threadId": {
-          "type": "string"
-        },
         "tool": {
-          "type": "string"
-        },
-        "turnId": {
           "type": "string"
         }
       },
       "required": [
         "arguments",
         "callId",
-        "threadId",
-        "tool",
-        "turnId"
+        "chatId",
+        "interactionId",
+        "tool"
       ],
       "type": "object"
     },
@@ -489,7 +489,7 @@
           ]
         },
         "callId": {
-          "description": "Use to correlate this with [codex_protocol::protocol::ExecCommandBeginEvent] and [codex_protocol::protocol::ExecCommandEndEvent].",
+          "description": "Use to correlate this with [datax_protocol::protocol::ExecCommandBeginEvent] and [datax_protocol::protocol::ExecCommandEndEvent].",
           "type": "string"
         },
         "command": {
@@ -598,6 +598,9 @@
     },
     "FileChangeRequestApprovalParams": {
       "properties": {
+        "chatId": {
+          "type": "string"
+        },
         "grantRoot": {
           "description": "[UNSTABLE] When set, the agent is asking the user to allow writes under this root for the remainder of the session (unclear if this is honored today).",
           "type": [
@@ -605,7 +608,10 @@
             "null"
           ]
         },
-        "itemId": {
+        "interactionId": {
+          "type": "string"
+        },
+        "messageId": {
           "type": "string"
         },
         "reason": {
@@ -619,19 +625,13 @@
           "description": "Unix timestamp (in milliseconds) when this approval request started.",
           "format": "int64",
           "type": "integer"
-        },
-        "threadId": {
-          "type": "string"
-        },
-        "turnId": {
-          "type": "string"
         }
       },
       "required": [
-        "itemId",
-        "startedAtMs",
-        "threadId",
-        "turnId"
+        "chatId",
+        "interactionId",
+        "messageId",
+        "startedAtMs"
       ],
       "type": "object"
     },
@@ -1184,9 +1184,6 @@
             "null"
           ]
         },
-        "items": {
-          "$ref": "#/definitions/McpElicitationTitledEnumItems"
-        },
         "maxItems": {
           "format": "uint64",
           "minimum": 0.0,
@@ -1194,6 +1191,9 @@
             "integer",
             "null"
           ]
+        },
+        "messages": {
+          "$ref": "#/definitions/McpElicitationTitledEnumItems"
         },
         "minItems": {
           "format": "uint64",
@@ -1214,7 +1214,7 @@
         }
       },
       "required": [
-        "items",
+        "messages",
         "type"
       ],
       "type": "object"
@@ -1293,9 +1293,6 @@
             "null"
           ]
         },
-        "items": {
-          "$ref": "#/definitions/McpElicitationUntitledEnumItems"
-        },
         "maxItems": {
           "format": "uint64",
           "minimum": 0.0,
@@ -1303,6 +1300,9 @@
             "integer",
             "null"
           ]
+        },
+        "messages": {
+          "$ref": "#/definitions/McpElicitationUntitledEnumItems"
         },
         "minItems": {
           "format": "uint64",
@@ -1323,7 +1323,7 @@
         }
       },
       "required": [
-        "items",
+        "messages",
         "type"
       ],
       "type": "object"
@@ -1440,23 +1440,23 @@
         }
       ],
       "properties": {
-        "serverName": {
+        "chatId": {
           "type": "string"
         },
-        "threadId": {
-          "type": "string"
-        },
-        "turnId": {
+        "interactionId": {
           "description": "Active Codex turn when this elicitation was observed, if app-server could correlate one.\n\nThis is nullable because MCP models elicitation as a standalone server-to-client request identified by the MCP server request id. It may be triggered during a turn, but turn context is app-server correlation rather than part of the protocol identity of the elicitation itself.",
           "type": [
             "string",
             "null"
           ]
+        },
+        "serverName": {
+          "type": "string"
         }
       },
       "required": [
-        "serverName",
-        "threadId"
+        "chatId",
+        "serverName"
       ],
       "type": "object"
     },
@@ -1619,6 +1619,9 @@
     },
     "PermissionsRequestApprovalParams": {
       "properties": {
+        "chatId": {
+          "type": "string"
+        },
         "cwd": {
           "$ref": "#/definitions/AbsolutePathBuf"
         },
@@ -1629,7 +1632,10 @@
             "null"
           ]
         },
-        "itemId": {
+        "interactionId": {
+          "type": "string"
+        },
+        "messageId": {
           "type": "string"
         },
         "permissions": {
@@ -1645,21 +1651,15 @@
           "description": "Unix timestamp (in milliseconds) when this approval request started.",
           "format": "int64",
           "type": "integer"
-        },
-        "threadId": {
-          "type": "string"
-        },
-        "turnId": {
-          "type": "string"
         }
       },
       "required": [
+        "chatId",
         "cwd",
-        "itemId",
+        "interactionId",
+        "messageId",
         "permissions",
-        "startedAtMs",
-        "threadId",
-        "turnId"
+        "startedAtMs"
       ],
       "type": "object"
     },
@@ -1731,7 +1731,13 @@
             "null"
           ]
         },
-        "itemId": {
+        "chatId": {
+          "type": "string"
+        },
+        "interactionId": {
+          "type": "string"
+        },
+        "messageId": {
           "type": "string"
         },
         "questions": {
@@ -1739,19 +1745,13 @@
             "$ref": "#/definitions/ToolRequestUserInputQuestion"
           },
           "type": "array"
-        },
-        "threadId": {
-          "type": "string"
-        },
-        "turnId": {
-          "type": "string"
         }
       },
       "required": [
-        "itemId",
-        "questions",
-        "threadId",
-        "turnId"
+        "chatId",
+        "interactionId",
+        "messageId",
+        "questions"
       ],
       "type": "object"
     },
@@ -1796,16 +1796,16 @@
   "description": "Request initiated from the server and sent to the client.",
   "oneOf": [
     {
-      "description": "NEW APIs Sent when approval is requested for a specific command execution. This request is used for Turns started via turn/start.",
+      "description": "NEW APIs Sent when approval is requested for a specific command execution. This request is used for Turns started via interaction/start.",
       "properties": {
         "id": {
           "$ref": "#/definitions/RequestId"
         },
         "method": {
           "enum": [
-            "item/commandExecution/requestApproval"
+            "message/commandExecution/requestApproval"
           ],
-          "title": "Item/commandExecution/requestApprovalRequestMethod",
+          "title": "Message/commandExecution/requestApprovalRequestMethod",
           "type": "string"
         },
         "params": {
@@ -1817,20 +1817,20 @@
         "method",
         "params"
       ],
-      "title": "Item/commandExecution/requestApprovalRequest",
+      "title": "Message/commandExecution/requestApprovalRequest",
       "type": "object"
     },
     {
-      "description": "Sent when approval is requested for a specific file change. This request is used for Turns started via turn/start.",
+      "description": "Sent when approval is requested for a specific file change. This request is used for Turns started via interaction/start.",
       "properties": {
         "id": {
           "$ref": "#/definitions/RequestId"
         },
         "method": {
           "enum": [
-            "item/fileChange/requestApproval"
+            "message/fileChange/requestApproval"
           ],
-          "title": "Item/fileChange/requestApprovalRequestMethod",
+          "title": "Message/fileChange/requestApprovalRequestMethod",
           "type": "string"
         },
         "params": {
@@ -1842,7 +1842,7 @@
         "method",
         "params"
       ],
-      "title": "Item/fileChange/requestApprovalRequest",
+      "title": "Message/fileChange/requestApprovalRequest",
       "type": "object"
     },
     {
@@ -1853,9 +1853,9 @@
         },
         "method": {
           "enum": [
-            "item/tool/requestUserInput"
+            "message/tool/requestUserInput"
           ],
-          "title": "Item/tool/requestUserInputRequestMethod",
+          "title": "Message/tool/requestUserInputRequestMethod",
           "type": "string"
         },
         "params": {
@@ -1867,7 +1867,7 @@
         "method",
         "params"
       ],
-      "title": "Item/tool/requestUserInputRequest",
+      "title": "Message/tool/requestUserInputRequest",
       "type": "object"
     },
     {
@@ -1903,9 +1903,9 @@
         },
         "method": {
           "enum": [
-            "item/permissions/requestApproval"
+            "message/permissions/requestApproval"
           ],
-          "title": "Item/permissions/requestApprovalRequestMethod",
+          "title": "Message/permissions/requestApprovalRequestMethod",
           "type": "string"
         },
         "params": {
@@ -1917,7 +1917,7 @@
         "method",
         "params"
       ],
-      "title": "Item/permissions/requestApprovalRequest",
+      "title": "Message/permissions/requestApprovalRequest",
       "type": "object"
     },
     {
@@ -1928,9 +1928,9 @@
         },
         "method": {
           "enum": [
-            "item/tool/call"
+            "message/tool/call"
           ],
-          "title": "Item/tool/callRequestMethod",
+          "title": "Message/tool/callRequestMethod",
           "type": "string"
         },
         "params": {
@@ -1942,7 +1942,7 @@
         "method",
         "params"
       ],
-      "title": "Item/tool/callRequest",
+      "title": "Message/tool/callRequest",
       "type": "object"
     },
     {

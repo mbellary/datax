@@ -20,6 +20,6 @@ requestAttestation: boolean,
 mcpServerOpenaiFormElicitation?: boolean,
 /**
  * Exact notification method names that should be suppressed for this
- * connection (for example `thread/started`).
+ * connection (for example `chat/started`).
  */
 optOutNotificationMethods?: Array<string> | null, };

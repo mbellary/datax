@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "properties": {
+    "chatId": {
+      "type": "string"
+    },
+    "event": {
+      "description": "Serialized `datax_protocol::protocol::GuardianAssessmentEvent`."
+    }
+  },
+  "required": [
+    "chatId",
+    "event"
+  ],
+  "title": "ChatApproveGuardianDeniedActionParams",
+  "type": "object"
+}

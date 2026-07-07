@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "ChatGoal": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        },
+        "createdAt": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "objective": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/ChatGoalStatus"
+        },
+        "timeUsedSeconds": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "tokenBudget": {
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "tokensUsed": {
+          "format": "int64",
+          "type": "integer"
+        },
+        "updatedAt": {
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "chatId",
+        "createdAt",
+        "objective",
+        "status",
+        "timeUsedSeconds",
+        "tokensUsed",
+        "updatedAt"
+      ],
+      "type": "object"
+    },
+    "ChatGoalStatus": {
+      "enum": [
+        "active",
+        "paused",
+        "blocked",
+        "usageLimited",
+        "budgetLimited",
+        "complete"
+      ],
+      "type": "string"
+    }
+  },
+  "properties": {
+    "chatId": {
+      "type": "string"
+    },
+    "goal": {
+      "$ref": "#/definitions/ChatGoal"
+    },
+    "interactionId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "chatId",
+    "goal"
+  ],
+  "title": "ChatGoalUpdatedNotification",
+  "type": "object"
+}

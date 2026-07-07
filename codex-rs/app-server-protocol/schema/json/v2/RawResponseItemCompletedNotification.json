@@ -1176,20 +1176,20 @@
     }
   },
   "properties": {
+    "chatId": {
+      "type": "string"
+    },
+    "interactionId": {
+      "type": "string"
+    },
     "item": {
       "$ref": "#/definitions/ResponseItem"
-    },
-    "threadId": {
-      "type": "string"
-    },
-    "turnId": {
-      "type": "string"
     }
   },
   "required": [
-    "item",
-    "threadId",
-    "turnId"
+    "chatId",
+    "interactionId",
+    "item"
   ],
   "title": "RawResponseItemCompletedNotification",
   "type": "object"

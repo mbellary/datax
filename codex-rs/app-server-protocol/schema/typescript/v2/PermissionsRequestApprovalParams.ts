@@ -4,7 +4,7 @@
 import type { AbsolutePathBuf } from "../AbsolutePathBuf";
 import type { RequestPermissionProfile } from "./RequestPermissionProfile";
 
-export type PermissionsRequestApprovalParams = { threadId: string, turnId: string, itemId: string, environmentId: string | null,
+export type PermissionsRequestApprovalParams = { chatId: string, interactionId: string, messageId: string, environmentId: string | null,
 /**
  * Unix timestamp (in milliseconds) when this approval request started.
  */

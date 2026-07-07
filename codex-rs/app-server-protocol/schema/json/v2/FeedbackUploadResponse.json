@@ -1,12 +1,12 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "properties": {
-    "threadId": {
+    "chatId": {
       "type": "string"
     }
   },
   "required": [
-    "threadId"
+    "chatId"
   ],
   "title": "FeedbackUploadResponse",
   "type": "object"

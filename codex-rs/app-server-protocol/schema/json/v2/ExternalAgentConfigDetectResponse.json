@@ -179,7 +179,7 @@
     }
   },
   "properties": {
-    "items": {
+    "messages": {
       "items": {
         "$ref": "#/definitions/ExternalAgentConfigMigrationItem"
       },
@@ -187,7 +187,7 @@
     }
   },
   "required": [
-    "items"
+    "messages"
   ],
   "title": "ExternalAgentConfigDetectResponse",
   "type": "object"

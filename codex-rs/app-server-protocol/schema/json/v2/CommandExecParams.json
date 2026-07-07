@@ -196,7 +196,7 @@
           "type": "null"
         }
       ],
-      "description": "Optional sandbox policy for this command.\n\nUses the same shape as thread/turn execution sandbox configuration and defaults to the user's configured policy when omitted. Cannot be combined with `permissionProfile`."
+      "description": "Optional sandbox policy for this command.\n\nUses the same shape as chat/turn execution sandbox configuration and defaults to the user's configured policy when omitted. Cannot be combined with `permissionProfile`."
     },
     "size": {
       "anyOf": [

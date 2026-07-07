@@ -10,6 +10,12 @@
     }
   },
   "properties": {
+    "chatId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "cursor": {
       "description": "Opaque pagination cursor returned by a previous call.",
       "type": [
@@ -34,12 +40,6 @@
       "minimum": 0.0,
       "type": [
         "integer",
-        "null"
-      ]
-    },
-    "threadId": {
-      "type": [
-        "string",
         "null"
       ]
     }

@@ -9,10 +9,10 @@
     }
   },
   "properties": {
-    "threadId": {
+    "chatId": {
       "type": "string"
     },
-    "turnId": {
+    "interactionId": {
       "type": "string"
     },
     "verifications": {
@@ -23,8 +23,8 @@
     }
   },
   "required": [
-    "threadId",
-    "turnId",
+    "chatId",
+    "interactionId",
     "verifications"
   ],
   "title": "ModelVerificationNotification",

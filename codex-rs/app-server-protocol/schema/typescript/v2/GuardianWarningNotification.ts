@@ -4,9 +4,9 @@
 
 export type GuardianWarningNotification = {
 /**
- * Thread target for the guardian warning.
+ * Chat target for the guardian warning.
  */
-threadId: string,
+chatId: string,
 /**
  * Concise guardian warning message for the user.
  */

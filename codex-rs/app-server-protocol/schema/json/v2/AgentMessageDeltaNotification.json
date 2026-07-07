@@ -1,24 +1,24 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "properties": {
+    "chatId": {
+      "type": "string"
+    },
     "delta": {
       "type": "string"
     },
-    "itemId": {
+    "interactionId": {
       "type": "string"
     },
-    "threadId": {
-      "type": "string"
-    },
-    "turnId": {
+    "messageId": {
       "type": "string"
     }
   },
   "required": [
+    "chatId",
     "delta",
-    "itemId",
-    "threadId",
-    "turnId"
+    "interactionId",
+    "messageId"
   ],
   "title": "AgentMessageDeltaNotification",
   "type": "object"

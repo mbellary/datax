@@ -86,21 +86,21 @@
       },
       "type": "array"
     },
-    "itemId": {
+    "chatId": {
       "type": "string"
     },
-    "threadId": {
+    "interactionId": {
       "type": "string"
     },
-    "turnId": {
+    "messageId": {
       "type": "string"
     }
   },
   "required": [
     "changes",
-    "itemId",
-    "threadId",
-    "turnId"
+    "chatId",
+    "interactionId",
+    "messageId"
   ],
   "title": "FileChangePatchUpdatedNotification",
   "type": "object"

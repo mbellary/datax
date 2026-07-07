@@ -1,0 +1,101 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "ChatActiveFlag": {
+      "enum": [
+        "waitingOnApproval",
+        "waitingOnUserInput"
+      ],
+      "type": "string"
+    },
+    "ChatStatus": {
+      "oneOf": [
+        {
+          "properties": {
+            "type": {
+              "enum": [
+                "notLoaded"
+              ],
+              "title": "NotLoadedChatStatusType",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "title": "NotLoadedChatStatus",
+          "type": "object"
+        },
+        {
+          "properties": {
+            "type": {
+              "enum": [
+                "idle"
+              ],
+              "title": "IdleChatStatusType",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "title": "IdleChatStatus",
+          "type": "object"
+        },
+        {
+          "properties": {
+            "type": {
+              "enum": [
+                "systemError"
+              ],
+              "title": "SystemErrorChatStatusType",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "title": "SystemErrorChatStatus",
+          "type": "object"
+        },
+        {
+          "properties": {
+            "activeFlags": {
+              "items": {
+                "$ref": "#/definitions/ChatActiveFlag"
+              },
+              "type": "array"
+            },
+            "type": {
+              "enum": [
+                "active"
+              ],
+              "title": "ActiveChatStatusType",
+              "type": "string"
+            }
+          },
+          "required": [
+            "activeFlags",
+            "type"
+          ],
+          "title": "ActiveChatStatus",
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "properties": {
+    "chatId": {
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/definitions/ChatStatus"
+    }
+  },
+  "required": [
+    "chatId",
+    "status"
+  ],
+  "title": "ChatStatusChangedNotification",
+  "type": "object"
+}

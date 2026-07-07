@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "RealtimeConversationVersion": {
+      "enum": [
+        "v1",
+        "v2"
+      ],
+      "type": "string"
+    }
+  },
+  "description": "EXPERIMENTAL - emitted when thread realtime startup is accepted.",
+  "properties": {
+    "chatId": {
+      "type": "string"
+    },
+    "realtimeSessionId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "version": {
+      "$ref": "#/definitions/RealtimeConversationVersion"
+    }
+  },
+  "required": [
+    "chatId",
+    "version"
+  ],
+  "title": "ChatRealtimeStartedNotification",
+  "type": "object"
+}

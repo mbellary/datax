@@ -280,7 +280,7 @@
     },
     "PermissionGrantScope": {
       "enum": [
-        "turn",
+        "interaction",
         "session"
       ],
       "type": "string"
@@ -296,7 +296,7 @@
           "$ref": "#/definitions/PermissionGrantScope"
         }
       ],
-      "default": "turn"
+      "default": "interaction"
     },
     "strictAutoReview": {
       "description": "Review every subsequent command in this turn before normal sandboxed execution.",

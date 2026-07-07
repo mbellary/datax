@@ -101,6 +101,9 @@
     }
   },
   "properties": {
+    "chatId": {
+      "type": "string"
+    },
     "delivery": {
       "anyOf": [
         {
@@ -111,18 +114,15 @@
         }
       ],
       "default": null,
-      "description": "Where to run the review: inline (default) on the current thread or detached on a new thread (returned in `reviewThreadId`)."
+      "description": "Where to run the review: inline (default) on the current thread or detached on a new thread (returned in `reviewChatId`)."
     },
     "target": {
       "$ref": "#/definitions/ReviewTarget"
-    },
-    "threadId": {
-      "type": "string"
     }
   },
   "required": [
-    "target",
-    "threadId"
+    "chatId",
+    "target"
   ],
   "title": "ReviewStartParams",
   "type": "object"

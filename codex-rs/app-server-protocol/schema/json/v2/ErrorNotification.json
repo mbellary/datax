@@ -116,7 +116,7 @@
         },
         {
           "additionalProperties": false,
-          "description": "Returned when `turn/start` or `turn/steer` is submitted while the current active turn cannot accept same-turn steering, for example `/review` or manual `/compact`.",
+          "description": "Returned when `interaction/start` or `interaction/steer` is submitted while the current active turn cannot accept same-turn steering, for example `/review` or manual `/compact`.",
           "properties": {
             "activeTurnNotSteerable": {
               "properties": {
@@ -138,14 +138,7 @@
         }
       ]
     },
-    "NonSteerableTurnKind": {
-      "enum": [
-        "review",
-        "compact"
-      ],
-      "type": "string"
-    },
-    "TurnError": {
+    "InteractionError": {
       "properties": {
         "additionalDetails": {
           "default": null,
@@ -172,16 +165,23 @@
         "message"
       ],
       "type": "object"
+    },
+    "NonSteerableTurnKind": {
+      "enum": [
+        "review",
+        "compact"
+      ],
+      "type": "string"
     }
   },
   "properties": {
-    "error": {
-      "$ref": "#/definitions/TurnError"
-    },
-    "threadId": {
+    "chatId": {
       "type": "string"
     },
-    "turnId": {
+    "error": {
+      "$ref": "#/definitions/InteractionError"
+    },
+    "interactionId": {
       "type": "string"
     },
     "willRetry": {
@@ -189,9 +189,9 @@
     }
   },
   "required": [
+    "chatId",
     "error",
-    "threadId",
-    "turnId",
+    "interactionId",
     "willRetry"
   ],
   "title": "ErrorNotification",

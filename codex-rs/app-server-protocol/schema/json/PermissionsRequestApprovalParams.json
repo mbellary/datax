@@ -285,6 +285,9 @@
     }
   },
   "properties": {
+    "chatId": {
+      "type": "string"
+    },
     "cwd": {
       "$ref": "#/definitions/AbsolutePathBuf"
     },
@@ -295,7 +298,10 @@
         "null"
       ]
     },
-    "itemId": {
+    "interactionId": {
+      "type": "string"
+    },
+    "messageId": {
       "type": "string"
     },
     "permissions": {
@@ -311,21 +317,15 @@
       "description": "Unix timestamp (in milliseconds) when this approval request started.",
       "format": "int64",
       "type": "integer"
-    },
-    "threadId": {
-      "type": "string"
-    },
-    "turnId": {
-      "type": "string"
     }
   },
   "required": [
+    "chatId",
     "cwd",
-    "itemId",
+    "interactionId",
+    "messageId",
     "permissions",
-    "startedAtMs",
-    "threadId",
-    "turnId"
+    "startedAtMs"
   ],
   "title": "PermissionsRequestApprovalParams",
   "type": "object"

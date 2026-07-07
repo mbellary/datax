@@ -90,6 +90,13 @@
     "AppsListParams": {
       "description": "EXPERIMENTAL - list available apps/connectors.",
       "properties": {
+        "chatId": {
+          "description": "Optional thread id used to evaluate app feature gating from that thread's config.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "cursor": {
           "description": "Opaque pagination cursor returned by a previous call.",
           "type": [
@@ -107,13 +114,6 @@
           "minimum": 0.0,
           "type": [
             "integer",
-            "null"
-          ]
-        },
-        "threadId": {
-          "description": "Optional thread id used to evaluate app feature gating from that thread's config.",
-          "type": [
-            "string",
             "null"
           ]
         }
@@ -230,6 +230,885 @@
         }
       ]
     },
+    "ChatApproveGuardianDeniedActionParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        },
+        "event": {
+          "description": "Serialized `datax_protocol::protocol::GuardianAssessmentEvent`."
+        }
+      },
+      "required": [
+        "chatId",
+        "event"
+      ],
+      "type": "object"
+    },
+    "ChatArchiveParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "chatId"
+      ],
+      "type": "object"
+    },
+    "ChatCompactStartParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "chatId"
+      ],
+      "type": "object"
+    },
+    "ChatDeleteParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "chatId"
+      ],
+      "type": "object"
+    },
+    "ChatForkParams": {
+      "description": "There are two ways to fork a thread: 1. By chat_id: load the thread from disk by chat_id and fork it into a new thread. 2. By path: load the thread from disk by path and fork it into a new thread.\n\nIf using a non-empty path, the chat_id param will be ignored. Empty string path values are treated as absent.\n\nPrefer using chat_id whenever possible.",
+      "properties": {
+        "approvalPolicy": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AskForApproval"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "approvalsReviewer": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ApprovalsReviewer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Override where approval requests are routed for review on this thread and subsequent interactions."
+        },
+        "baseInstructions": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "chatId": {
+          "type": "string"
+        },
+        "chatSource": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ChatSource"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional client-supplied analytics source classification for this forked thread."
+        },
+        "config": {
+          "additionalProperties": true,
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "cwd": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "developerInstructions": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ephemeral": {
+          "type": "boolean"
+        },
+        "model": {
+          "description": "Configuration overrides for the forked thread, if any.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "modelProvider": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sandbox": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SandboxMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "serviceTier": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "chatId"
+      ],
+      "type": "object"
+    },
+    "ChatGoalClearParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "chatId"
+      ],
+      "type": "object"
+    },
+    "ChatGoalGetParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "chatId"
+      ],
+      "type": "object"
+    },
+    "ChatGoalSetParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        },
+        "objective": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ChatGoalStatus"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tokenBudget": {
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "chatId"
+      ],
+      "type": "object"
+    },
+    "ChatGoalStatus": {
+      "enum": [
+        "active",
+        "paused",
+        "blocked",
+        "usageLimited",
+        "budgetLimited",
+        "complete"
+      ],
+      "type": "string"
+    },
+    "ChatInjectMessagesParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        },
+        "messages": {
+          "description": "Raw Responses API messages to append to the thread's model-visible history.",
+          "items": true,
+          "type": "array"
+        }
+      },
+      "required": [
+        "chatId",
+        "messages"
+      ],
+      "type": "object"
+    },
+    "ChatListCwdFilter": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      ]
+    },
+    "ChatListParams": {
+      "properties": {
+        "archived": {
+          "description": "Optional archived filter; when set to true, only archived threads are returned. If false or null, only non-archived threads are returned.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "cursor": {
+          "description": "Opaque pagination cursor returned by a previous call.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cwd": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ChatListCwdFilter"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional cwd filter or filters; when set, only threads whose session cwd exactly matches one of these paths are returned."
+        },
+        "limit": {
+          "description": "Optional page size; defaults to a reasonable server-side value.",
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "modelProviders": {
+          "description": "Optional provider filter; when set, only sessions recorded under these providers are returned. When present but empty, includes all providers.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "searchTerm": {
+          "description": "Optional substring filter for the extracted thread title.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sortDirection": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SortDirection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional sort direction; defaults to descending (newest first)."
+        },
+        "sortKey": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ChatSortKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional sort key; defaults to created_at."
+        },
+        "sourceKinds": {
+          "description": "Optional source filter; when set, only sessions from these source kinds are returned. When omitted or empty, defaults to interactive sources.",
+          "items": {
+            "$ref": "#/definitions/ChatSourceKind"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "useStateDbOnly": {
+          "description": "If true, return from the state DB without scanning JSONL rollouts to repair thread metadata. Omitted or false preserves scan-and-repair behavior.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "ChatLoadedListParams": {
+      "properties": {
+        "cursor": {
+          "description": "Opaque pagination cursor returned by a previous call.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "limit": {
+          "description": "Optional page size; defaults to no limit.",
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "ChatMemoryMode": {
+      "enum": [
+        "enabled",
+        "disabled"
+      ],
+      "type": "string"
+    },
+    "ChatMetadataGitInfoUpdateParams": {
+      "properties": {
+        "branch": {
+          "description": "Omit to leave the stored branch unchanged, set to `null` to clear it, or provide a non-empty string to replace it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "originUrl": {
+          "description": "Omit to leave the stored origin URL unchanged, set to `null` to clear it, or provide a non-empty string to replace it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha": {
+          "description": "Omit to leave the stored commit unchanged, set to `null` to clear it, or provide a non-empty string to replace it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "ChatMetadataUpdateParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        },
+        "gitInfo": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ChatMetadataGitInfoUpdateParams"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Patch the stored Git metadata for this thread. Omit a field to leave it unchanged, set it to `null` to clear it, or provide a string to replace the stored value."
+        }
+      },
+      "required": [
+        "chatId"
+      ],
+      "type": "object"
+    },
+    "ChatReadParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        },
+        "includeInteractions": {
+          "description": "When true, include interactions and their messages from rollout history.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "chatId"
+      ],
+      "type": "object"
+    },
+    "ChatRealtimeAudioChunk": {
+      "description": "EXPERIMENTAL - thread realtime audio chunk.",
+      "properties": {
+        "data": {
+          "type": "string"
+        },
+        "messageId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "numChannels": {
+          "format": "uint16",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "sampleRate": {
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": "integer"
+        },
+        "samplesPerChannel": {
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "data",
+        "numChannels",
+        "sampleRate"
+      ],
+      "type": "object"
+    },
+    "ChatRealtimeStartTransport": {
+      "description": "EXPERIMENTAL - transport used by thread realtime.",
+      "oneOf": [
+        {
+          "properties": {
+            "type": {
+              "enum": [
+                "websocket"
+              ],
+              "title": "WebsocketChatRealtimeStartTransportType",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "title": "WebsocketChatRealtimeStartTransport",
+          "type": "object"
+        },
+        {
+          "properties": {
+            "sdp": {
+              "description": "SDP offer generated by a WebRTC RTCPeerConnection after configuring audio and the realtime events data channel.",
+              "type": "string"
+            },
+            "type": {
+              "enum": [
+                "webrtc"
+              ],
+              "title": "WebrtcChatRealtimeStartTransportType",
+              "type": "string"
+            }
+          },
+          "required": [
+            "sdp",
+            "type"
+          ],
+          "title": "WebrtcChatRealtimeStartTransport",
+          "type": "object"
+        }
+      ]
+    },
+    "ChatResumeInitialInteractionsPageParams": {
+      "properties": {
+        "limit": {
+          "description": "Optional turn page size.",
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "messagesView": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/InteractionMessagesView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "How much item detail to include for each returned turn; defaults to summary."
+        },
+        "sortDirection": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SortDirection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional turn pagination direction; defaults to descending."
+        }
+      },
+      "type": "object"
+    },
+    "ChatResumeParams": {
+      "description": "There are three ways to resume a thread: 1. By chat_id: load the thread from disk by chat_id and resume it. 2. By history: instantiate the thread from memory and resume it. 3. By path: load the thread from disk by path and resume it.\n\nFor non-running threads, the precedence is: history > non-empty path > chat_id. If using history or a non-empty path for a non-running thread, the chat_id param will be ignored.\n\nIf chat_id identifies a running thread, app-server rejoins that thread and treats a non-empty path as a consistency check against the active rollout path. Empty string path values are treated as absent.\n\nPrefer using chat_id whenever possible.",
+      "properties": {
+        "approvalPolicy": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AskForApproval"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "approvalsReviewer": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ApprovalsReviewer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Override where approval requests are routed for review on this thread and subsequent interactions."
+        },
+        "baseInstructions": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "chatId": {
+          "type": "string"
+        },
+        "config": {
+          "additionalProperties": true,
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "cwd": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "developerInstructions": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "initialInteractionsPage": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ChatResumeInitialInteractionsPageParams"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "When present, include a `chat/interactions/list` page in the resume response so clients can bootstrap recent interactions without a second request."
+        },
+        "model": {
+          "description": "Configuration overrides for the resumed thread, if any.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "modelProvider": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "personality": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Personality"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sandbox": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SandboxMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "serviceTier": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "chatId"
+      ],
+      "type": "object"
+    },
+    "ChatRollbackParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        },
+        "numTurns": {
+          "description": "The number of interactions to drop from the end of the thread. Must be >= 1.\n\nThis only modifies the thread's history and does not revert local file changes that have been made by the agent. Clients are responsible for reverting these changes.",
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "chatId",
+        "numTurns"
+      ],
+      "type": "object"
+    },
+    "ChatSetNameParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "chatId",
+        "name"
+      ],
+      "type": "object"
+    },
+    "ChatShellCommandParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        },
+        "command": {
+          "description": "Shell command string evaluated by the thread's configured shell. Unlike `command/exec`, this intentionally preserves shell syntax such as pipes, redirects, and quoting. This runs unsandboxed with full access rather than inheriting the thread sandbox policy.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "chatId",
+        "command"
+      ],
+      "type": "object"
+    },
+    "ChatSortKey": {
+      "enum": [
+        "created_at",
+        "updated_at",
+        "recency_at"
+      ],
+      "type": "string"
+    },
+    "ChatSource": {
+      "type": "string"
+    },
+    "ChatSourceKind": {
+      "enum": [
+        "cli",
+        "vscode",
+        "exec",
+        "appServer",
+        "subAgent",
+        "subAgentReview",
+        "subAgentCompact",
+        "subAgentThreadSpawn",
+        "subAgentOther",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "ChatStartParams": {
+      "properties": {
+        "approvalPolicy": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AskForApproval"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "approvalsReviewer": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ApprovalsReviewer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Override where approval requests are routed for review on this thread and subsequent interactions."
+        },
+        "baseInstructions": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "chatSource": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ChatSource"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional client-supplied analytics source classification for this thread."
+        },
+        "config": {
+          "additionalProperties": true,
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "cwd": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "developerInstructions": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ephemeral": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "model": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "modelProvider": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "personality": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Personality"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sandbox": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SandboxMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "serviceName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "serviceTier": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sessionStartSource": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ChatStartSource"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "ChatStartSource": {
+      "enum": [
+        "startup",
+        "clear"
+      ],
+      "type": "string"
+    },
+    "ChatUnarchiveParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "chatId"
+      ],
+      "type": "object"
+    },
+    "ChatUnsubscribeParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "chatId"
+      ],
+      "type": "object"
+    },
     "ClientInfo": {
       "properties": {
         "name": {
@@ -330,7 +1209,7 @@
               "type": "null"
             }
           ],
-          "description": "Optional sandbox policy for this command.\n\nUses the same shape as thread/turn execution sandbox configuration and defaults to the user's configured policy when omitted. Cannot be combined with `permissionProfile`."
+          "description": "Optional sandbox policy for this command.\n\nUses the same shape as chat/turn execution sandbox configuration and defaults to the user's configured policy when omitted. Cannot be combined with `permissionProfile`."
         },
         "size": {
           "anyOf": [
@@ -762,6 +1641,13 @@
     },
     "ExperimentalFeatureListParams": {
       "properties": {
+        "chatId": {
+          "description": "Optional loaded thread id. Pass this when showing feature state for an existing thread so enablement is computed from that thread's refreshed config, including project-local config for the thread's cwd.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "cursor": {
           "description": "Opaque pagination cursor returned by a previous call.",
           "type": [
@@ -775,13 +1661,6 @@
           "minimum": 0.0,
           "type": [
             "integer",
-            "null"
-          ]
-        },
-        "threadId": {
-          "description": "Optional loaded thread id. Pass this when showing feature state for an existing thread so enablement is computed from that thread's refreshed config, including project-local config for the thread's cwd.",
-          "type": [
-            "string",
             "null"
           ]
         }
@@ -816,7 +1695,7 @@
           "type": "array"
         },
         "source": {
-          "description": "Source product that produced the migration items. Missing means unspecified.",
+          "description": "Source product that produced the migration messages. Missing means unspecified.",
           "type": [
             "string",
             "null"
@@ -876,6 +1755,12 @@
     },
     "FeedbackUploadParams": {
       "properties": {
+        "chatId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "classification": {
           "type": "string"
         },
@@ -903,12 +1788,6 @@
           },
           "type": [
             "object",
-            "null"
-          ]
-        },
-        "threadId": {
-          "type": [
-            "string",
             "null"
           ]
         }
@@ -1277,7 +2156,7 @@
           "type": "boolean"
         },
         "optOutNotificationMethods": {
-          "description": "Exact notification method names that should be suppressed for this connection (for example `thread/started`).",
+          "description": "Exact notification method names that should be suppressed for this connection (for example `chat/started`).",
           "items": {
             "type": "string"
           },
@@ -1315,6 +2194,204 @@
       ],
       "type": "object"
     },
+    "InteractionEnvironmentParams": {
+      "properties": {
+        "cwd": {
+          "$ref": "#/definitions/LegacyAppPathString"
+        },
+        "environmentId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "cwd",
+        "environmentId"
+      ],
+      "type": "object"
+    },
+    "InteractionInterruptParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        },
+        "interactionId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "chatId",
+        "interactionId"
+      ],
+      "type": "object"
+    },
+    "InteractionMessagesView": {
+      "oneOf": [
+        {
+          "description": "`messages` was not loaded for this turn. The field is intentionally empty.",
+          "enum": [
+            "notLoaded"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "`messages` contains only a display summary for this turn.",
+          "enum": [
+            "summary"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "`messages` contains every Message available from persisted app-server history for this turn.",
+          "enum": [
+            "full"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "InteractionStartParams": {
+      "properties": {
+        "approvalPolicy": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AskForApproval"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Override the approval policy for this turn and subsequent interactions."
+        },
+        "approvalsReviewer": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ApprovalsReviewer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Override where approval requests are routed for review on this turn and subsequent interactions."
+        },
+        "chatId": {
+          "type": "string"
+        },
+        "clientUserMessageId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "cwd": {
+          "description": "Override the working directory for this turn and subsequent interactions.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "effort": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ReasoningEffort"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Override the reasoning effort for this turn and subsequent interactions."
+        },
+        "input": {
+          "items": {
+            "$ref": "#/definitions/UserInput"
+          },
+          "type": "array"
+        },
+        "model": {
+          "description": "Override the model for this turn and subsequent interactions.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "outputSchema": {
+          "description": "Optional JSON Schema used to constrain the final assistant message for this turn."
+        },
+        "personality": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Personality"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Override the personality for this turn and subsequent interactions."
+        },
+        "sandboxPolicy": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SandboxPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Override the sandbox policy for this turn and subsequent interactions."
+        },
+        "serviceTier": {
+          "description": "Override the service tier for this turn and subsequent interactions.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ReasoningSummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Override the reasoning summary for this turn and subsequent interactions."
+        }
+      },
+      "required": [
+        "chatId",
+        "input"
+      ],
+      "type": "object"
+    },
+    "InteractionSteerParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        },
+        "clientUserMessageId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expectedInteractionId": {
+          "description": "Required active turn id precondition. The request fails when it does not match the currently active turn.",
+          "type": "string"
+        },
+        "input": {
+          "items": {
+            "$ref": "#/definitions/UserInput"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "chatId",
+        "expectedInteractionId",
+        "input"
+      ],
+      "type": "object"
+    },
     "InternalChatMessageMetadataPassthrough": {
       "description": "Internal Responses API passthrough metadata copied into underlying chat messages.\n\nResponses API strongly types this payload. Do not modify it without first getting API approval and making the corresponding Responses API change.",
       "properties": {
@@ -1332,6 +2409,12 @@
     },
     "ListMcpServerStatusParams": {
       "properties": {
+        "chatId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "cursor": {
           "description": "Opaque pagination cursor returned by a previous call.",
           "type": [
@@ -1356,12 +2439,6 @@
           "minimum": 0.0,
           "type": [
             "integer",
-            "null"
-          ]
-        },
-        "threadId": {
-          "type": [
-            "string",
             "null"
           ]
         }
@@ -1575,14 +2652,14 @@
     },
     "McpResourceReadParams": {
       "properties": {
-        "server": {
-          "type": "string"
-        },
-        "threadId": {
+        "chatId": {
           "type": [
             "string",
             "null"
           ]
+        },
+        "server": {
+          "type": "string"
         },
         "uri": {
           "type": "string"
@@ -1643,10 +2720,10 @@
       "properties": {
         "_meta": true,
         "arguments": true,
-        "server": {
+        "chatId": {
           "type": "string"
         },
-        "threadId": {
+        "server": {
           "type": "string"
         },
         "tool": {
@@ -1654,8 +2731,8 @@
         }
       },
       "required": [
+        "chatId",
         "server",
-        "threadId",
         "tool"
       ],
       "type": "object"
@@ -3102,6 +4179,9 @@
     },
     "ReviewStartParams": {
       "properties": {
+        "chatId": {
+          "type": "string"
+        },
         "delivery": {
           "anyOf": [
             {
@@ -3112,18 +4192,15 @@
             }
           ],
           "default": null,
-          "description": "Where to run the review: inline (default) on the current thread or detached on a new thread (returned in `reviewThreadId`)."
+          "description": "Where to run the review: inline (default) on the current thread or detached on a new thread (returned in `reviewChatId`)."
         },
         "target": {
           "$ref": "#/definitions/ReviewTarget"
-        },
-        "threadId": {
-          "type": "string"
         }
       },
       "required": [
-        "target",
-        "threadId"
+        "chatId",
+        "target"
       ],
       "type": "object"
     },
@@ -3507,1072 +4584,6 @@
       ],
       "type": "object"
     },
-    "ThreadApproveGuardianDeniedActionParams": {
-      "properties": {
-        "event": {
-          "description": "Serialized `codex_protocol::protocol::GuardianAssessmentEvent`."
-        },
-        "threadId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "event",
-        "threadId"
-      ],
-      "type": "object"
-    },
-    "ThreadArchiveParams": {
-      "properties": {
-        "threadId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "threadId"
-      ],
-      "type": "object"
-    },
-    "ThreadCompactStartParams": {
-      "properties": {
-        "threadId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "threadId"
-      ],
-      "type": "object"
-    },
-    "ThreadDeleteParams": {
-      "properties": {
-        "threadId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "threadId"
-      ],
-      "type": "object"
-    },
-    "ThreadForkParams": {
-      "description": "There are two ways to fork a thread: 1. By thread_id: load the thread from disk by thread_id and fork it into a new thread. 2. By path: load the thread from disk by path and fork it into a new thread.\n\nIf using a non-empty path, the thread_id param will be ignored. Empty string path values are treated as absent.\n\nPrefer using thread_id whenever possible.",
-      "properties": {
-        "approvalPolicy": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/AskForApproval"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "approvalsReviewer": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ApprovalsReviewer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Override where approval requests are routed for review on this thread and subsequent turns."
-        },
-        "baseInstructions": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "config": {
-          "additionalProperties": true,
-          "type": [
-            "object",
-            "null"
-          ]
-        },
-        "cwd": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "developerInstructions": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "ephemeral": {
-          "type": "boolean"
-        },
-        "model": {
-          "description": "Configuration overrides for the forked thread, if any.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "modelProvider": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "sandbox": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/SandboxMode"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "serviceTier": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "threadId": {
-          "type": "string"
-        },
-        "threadSource": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ThreadSource"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Optional client-supplied analytics source classification for this forked thread."
-        }
-      },
-      "required": [
-        "threadId"
-      ],
-      "type": "object"
-    },
-    "ThreadGoalClearParams": {
-      "properties": {
-        "threadId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "threadId"
-      ],
-      "type": "object"
-    },
-    "ThreadGoalGetParams": {
-      "properties": {
-        "threadId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "threadId"
-      ],
-      "type": "object"
-    },
-    "ThreadGoalSetParams": {
-      "properties": {
-        "objective": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "status": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ThreadGoalStatus"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "threadId": {
-          "type": "string"
-        },
-        "tokenBudget": {
-          "format": "int64",
-          "type": [
-            "integer",
-            "null"
-          ]
-        }
-      },
-      "required": [
-        "threadId"
-      ],
-      "type": "object"
-    },
-    "ThreadGoalStatus": {
-      "enum": [
-        "active",
-        "paused",
-        "blocked",
-        "usageLimited",
-        "budgetLimited",
-        "complete"
-      ],
-      "type": "string"
-    },
-    "ThreadInjectItemsParams": {
-      "properties": {
-        "items": {
-          "description": "Raw Responses API items to append to the thread's model-visible history.",
-          "items": true,
-          "type": "array"
-        },
-        "threadId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "items",
-        "threadId"
-      ],
-      "type": "object"
-    },
-    "ThreadListCwdFilter": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        }
-      ]
-    },
-    "ThreadListParams": {
-      "properties": {
-        "archived": {
-          "description": "Optional archived filter; when set to true, only archived threads are returned. If false or null, only non-archived threads are returned.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "cursor": {
-          "description": "Opaque pagination cursor returned by a previous call.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "cwd": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ThreadListCwdFilter"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Optional cwd filter or filters; when set, only threads whose session cwd exactly matches one of these paths are returned."
-        },
-        "limit": {
-          "description": "Optional page size; defaults to a reasonable server-side value.",
-          "format": "uint32",
-          "minimum": 0.0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "modelProviders": {
-          "description": "Optional provider filter; when set, only sessions recorded under these providers are returned. When present but empty, includes all providers.",
-          "items": {
-            "type": "string"
-          },
-          "type": [
-            "array",
-            "null"
-          ]
-        },
-        "searchTerm": {
-          "description": "Optional substring filter for the extracted thread title.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "sortDirection": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/SortDirection"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Optional sort direction; defaults to descending (newest first)."
-        },
-        "sortKey": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ThreadSortKey"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Optional sort key; defaults to created_at."
-        },
-        "sourceKinds": {
-          "description": "Optional source filter; when set, only sessions from these source kinds are returned. When omitted or empty, defaults to interactive sources.",
-          "items": {
-            "$ref": "#/definitions/ThreadSourceKind"
-          },
-          "type": [
-            "array",
-            "null"
-          ]
-        },
-        "useStateDbOnly": {
-          "description": "If true, return from the state DB without scanning JSONL rollouts to repair thread metadata. Omitted or false preserves scan-and-repair behavior.",
-          "type": "boolean"
-        }
-      },
-      "type": "object"
-    },
-    "ThreadLoadedListParams": {
-      "properties": {
-        "cursor": {
-          "description": "Opaque pagination cursor returned by a previous call.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "limit": {
-          "description": "Optional page size; defaults to no limit.",
-          "format": "uint32",
-          "minimum": 0.0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        }
-      },
-      "type": "object"
-    },
-    "ThreadMemoryMode": {
-      "enum": [
-        "enabled",
-        "disabled"
-      ],
-      "type": "string"
-    },
-    "ThreadMetadataGitInfoUpdateParams": {
-      "properties": {
-        "branch": {
-          "description": "Omit to leave the stored branch unchanged, set to `null` to clear it, or provide a non-empty string to replace it.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "originUrl": {
-          "description": "Omit to leave the stored origin URL unchanged, set to `null` to clear it, or provide a non-empty string to replace it.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "sha": {
-          "description": "Omit to leave the stored commit unchanged, set to `null` to clear it, or provide a non-empty string to replace it.",
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      },
-      "type": "object"
-    },
-    "ThreadMetadataUpdateParams": {
-      "properties": {
-        "gitInfo": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ThreadMetadataGitInfoUpdateParams"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Patch the stored Git metadata for this thread. Omit a field to leave it unchanged, set it to `null` to clear it, or provide a string to replace the stored value."
-        },
-        "threadId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "threadId"
-      ],
-      "type": "object"
-    },
-    "ThreadReadParams": {
-      "properties": {
-        "includeTurns": {
-          "description": "When true, include turns and their items from rollout history.",
-          "type": "boolean"
-        },
-        "threadId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "threadId"
-      ],
-      "type": "object"
-    },
-    "ThreadRealtimeAudioChunk": {
-      "description": "EXPERIMENTAL - thread realtime audio chunk.",
-      "properties": {
-        "data": {
-          "type": "string"
-        },
-        "itemId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "numChannels": {
-          "format": "uint16",
-          "minimum": 0.0,
-          "type": "integer"
-        },
-        "sampleRate": {
-          "format": "uint32",
-          "minimum": 0.0,
-          "type": "integer"
-        },
-        "samplesPerChannel": {
-          "format": "uint32",
-          "minimum": 0.0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        }
-      },
-      "required": [
-        "data",
-        "numChannels",
-        "sampleRate"
-      ],
-      "type": "object"
-    },
-    "ThreadRealtimeStartTransport": {
-      "description": "EXPERIMENTAL - transport used by thread realtime.",
-      "oneOf": [
-        {
-          "properties": {
-            "type": {
-              "enum": [
-                "websocket"
-              ],
-              "title": "WebsocketThreadRealtimeStartTransportType",
-              "type": "string"
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "title": "WebsocketThreadRealtimeStartTransport",
-          "type": "object"
-        },
-        {
-          "properties": {
-            "sdp": {
-              "description": "SDP offer generated by a WebRTC RTCPeerConnection after configuring audio and the realtime events data channel.",
-              "type": "string"
-            },
-            "type": {
-              "enum": [
-                "webrtc"
-              ],
-              "title": "WebrtcThreadRealtimeStartTransportType",
-              "type": "string"
-            }
-          },
-          "required": [
-            "sdp",
-            "type"
-          ],
-          "title": "WebrtcThreadRealtimeStartTransport",
-          "type": "object"
-        }
-      ]
-    },
-    "ThreadResumeInitialTurnsPageParams": {
-      "properties": {
-        "itemsView": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/TurnItemsView"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "How much item detail to include for each returned turn; defaults to summary."
-        },
-        "limit": {
-          "description": "Optional turn page size.",
-          "format": "uint32",
-          "minimum": 0.0,
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "sortDirection": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/SortDirection"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Optional turn pagination direction; defaults to descending."
-        }
-      },
-      "type": "object"
-    },
-    "ThreadResumeParams": {
-      "description": "There are three ways to resume a thread: 1. By thread_id: load the thread from disk by thread_id and resume it. 2. By history: instantiate the thread from memory and resume it. 3. By path: load the thread from disk by path and resume it.\n\nFor non-running threads, the precedence is: history > non-empty path > thread_id. If using history or a non-empty path for a non-running thread, the thread_id param will be ignored.\n\nIf thread_id identifies a running thread, app-server rejoins that thread and treats a non-empty path as a consistency check against the active rollout path. Empty string path values are treated as absent.\n\nPrefer using thread_id whenever possible.",
-      "properties": {
-        "approvalPolicy": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/AskForApproval"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "approvalsReviewer": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ApprovalsReviewer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Override where approval requests are routed for review on this thread and subsequent turns."
-        },
-        "baseInstructions": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "config": {
-          "additionalProperties": true,
-          "type": [
-            "object",
-            "null"
-          ]
-        },
-        "cwd": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "developerInstructions": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "model": {
-          "description": "Configuration overrides for the resumed thread, if any.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "modelProvider": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "personality": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Personality"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "sandbox": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/SandboxMode"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "serviceTier": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "threadId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "threadId"
-      ],
-      "type": "object"
-    },
-    "ThreadRollbackParams": {
-      "properties": {
-        "numTurns": {
-          "description": "The number of turns to drop from the end of the thread. Must be >= 1.\n\nThis only modifies the thread's history and does not revert local file changes that have been made by the agent. Clients are responsible for reverting these changes.",
-          "format": "uint32",
-          "minimum": 0.0,
-          "type": "integer"
-        },
-        "threadId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "numTurns",
-        "threadId"
-      ],
-      "type": "object"
-    },
-    "ThreadSetNameParams": {
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "threadId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "name",
-        "threadId"
-      ],
-      "type": "object"
-    },
-    "ThreadShellCommandParams": {
-      "properties": {
-        "command": {
-          "description": "Shell command string evaluated by the thread's configured shell. Unlike `command/exec`, this intentionally preserves shell syntax such as pipes, redirects, and quoting. This runs unsandboxed with full access rather than inheriting the thread sandbox policy.",
-          "type": "string"
-        },
-        "threadId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "command",
-        "threadId"
-      ],
-      "type": "object"
-    },
-    "ThreadSortKey": {
-      "enum": [
-        "created_at",
-        "updated_at",
-        "recency_at"
-      ],
-      "type": "string"
-    },
-    "ThreadSource": {
-      "type": "string"
-    },
-    "ThreadSourceKind": {
-      "enum": [
-        "cli",
-        "vscode",
-        "exec",
-        "appServer",
-        "subAgent",
-        "subAgentReview",
-        "subAgentCompact",
-        "subAgentThreadSpawn",
-        "subAgentOther",
-        "unknown"
-      ],
-      "type": "string"
-    },
-    "ThreadStartParams": {
-      "properties": {
-        "approvalPolicy": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/AskForApproval"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "approvalsReviewer": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ApprovalsReviewer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Override where approval requests are routed for review on this thread and subsequent turns."
-        },
-        "baseInstructions": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "config": {
-          "additionalProperties": true,
-          "type": [
-            "object",
-            "null"
-          ]
-        },
-        "cwd": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "developerInstructions": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "ephemeral": {
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "model": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "modelProvider": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "personality": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Personality"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "sandbox": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/SandboxMode"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "serviceName": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "serviceTier": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "sessionStartSource": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ThreadStartSource"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "threadSource": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ThreadSource"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Optional client-supplied analytics source classification for this thread."
-        }
-      },
-      "type": "object"
-    },
-    "ThreadStartSource": {
-      "enum": [
-        "startup",
-        "clear"
-      ],
-      "type": "string"
-    },
-    "ThreadUnarchiveParams": {
-      "properties": {
-        "threadId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "threadId"
-      ],
-      "type": "object"
-    },
-    "ThreadUnsubscribeParams": {
-      "properties": {
-        "threadId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "threadId"
-      ],
-      "type": "object"
-    },
-    "TurnEnvironmentParams": {
-      "properties": {
-        "cwd": {
-          "$ref": "#/definitions/LegacyAppPathString"
-        },
-        "environmentId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "cwd",
-        "environmentId"
-      ],
-      "type": "object"
-    },
-    "TurnInterruptParams": {
-      "properties": {
-        "threadId": {
-          "type": "string"
-        },
-        "turnId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "threadId",
-        "turnId"
-      ],
-      "type": "object"
-    },
-    "TurnItemsView": {
-      "oneOf": [
-        {
-          "description": "`items` was not loaded for this turn. The field is intentionally empty.",
-          "enum": [
-            "notLoaded"
-          ],
-          "type": "string"
-        },
-        {
-          "description": "`items` contains only a display summary for this turn.",
-          "enum": [
-            "summary"
-          ],
-          "type": "string"
-        },
-        {
-          "description": "`items` contains every ThreadItem available from persisted app-server history for this turn.",
-          "enum": [
-            "full"
-          ],
-          "type": "string"
-        }
-      ]
-    },
-    "TurnStartParams": {
-      "properties": {
-        "approvalPolicy": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/AskForApproval"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Override the approval policy for this turn and subsequent turns."
-        },
-        "approvalsReviewer": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ApprovalsReviewer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Override where approval requests are routed for review on this turn and subsequent turns."
-        },
-        "clientUserMessageId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "cwd": {
-          "description": "Override the working directory for this turn and subsequent turns.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "effort": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ReasoningEffort"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Override the reasoning effort for this turn and subsequent turns."
-        },
-        "input": {
-          "items": {
-            "$ref": "#/definitions/UserInput"
-          },
-          "type": "array"
-        },
-        "model": {
-          "description": "Override the model for this turn and subsequent turns.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "outputSchema": {
-          "description": "Optional JSON Schema used to constrain the final assistant message for this turn."
-        },
-        "personality": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Personality"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Override the personality for this turn and subsequent turns."
-        },
-        "sandboxPolicy": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/SandboxPolicy"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Override the sandbox policy for this turn and subsequent turns."
-        },
-        "serviceTier": {
-          "description": "Override the service tier for this turn and subsequent turns.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "summary": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ReasoningSummary"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Override the reasoning summary for this turn and subsequent turns."
-        },
-        "threadId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "input",
-        "threadId"
-      ],
-      "type": "object"
-    },
-    "TurnSteerParams": {
-      "properties": {
-        "clientUserMessageId": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "expectedTurnId": {
-          "description": "Required active turn id precondition. The request fails when it does not match the currently active turn.",
-          "type": "string"
-        },
-        "input": {
-          "items": {
-            "$ref": "#/definitions/UserInput"
-          },
-          "type": "array"
-        },
-        "threadId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "expectedTurnId",
-        "input",
-        "threadId"
-      ],
-      "type": "object"
-    },
     "UserInput": {
       "oneOf": [
         {
@@ -4778,13 +4789,13 @@
         },
         "method": {
           "enum": [
-            "thread/start"
+            "chat/start"
           ],
-          "title": "Thread/startRequestMethod",
+          "title": "Chat/startRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/ThreadStartParams"
+          "$ref": "#/definitions/ChatStartParams"
         }
       },
       "required": [
@@ -4792,7 +4803,7 @@
         "method",
         "params"
       ],
-      "title": "Thread/startRequest",
+      "title": "Chat/startRequest",
       "type": "object"
     },
     {
@@ -4802,13 +4813,13 @@
         },
         "method": {
           "enum": [
-            "thread/resume"
+            "chat/resume"
           ],
-          "title": "Thread/resumeRequestMethod",
+          "title": "Chat/resumeRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/ThreadResumeParams"
+          "$ref": "#/definitions/ChatResumeParams"
         }
       },
       "required": [
@@ -4816,7 +4827,7 @@
         "method",
         "params"
       ],
-      "title": "Thread/resumeRequest",
+      "title": "Chat/resumeRequest",
       "type": "object"
     },
     {
@@ -4826,13 +4837,13 @@
         },
         "method": {
           "enum": [
-            "thread/fork"
+            "chat/fork"
           ],
-          "title": "Thread/forkRequestMethod",
+          "title": "Chat/forkRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/ThreadForkParams"
+          "$ref": "#/definitions/ChatForkParams"
         }
       },
       "required": [
@@ -4840,7 +4851,7 @@
         "method",
         "params"
       ],
-      "title": "Thread/forkRequest",
+      "title": "Chat/forkRequest",
       "type": "object"
     },
     {
@@ -4850,13 +4861,13 @@
         },
         "method": {
           "enum": [
-            "thread/archive"
+            "chat/archive"
           ],
-          "title": "Thread/archiveRequestMethod",
+          "title": "Chat/archiveRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/ThreadArchiveParams"
+          "$ref": "#/definitions/ChatArchiveParams"
         }
       },
       "required": [
@@ -4864,7 +4875,7 @@
         "method",
         "params"
       ],
-      "title": "Thread/archiveRequest",
+      "title": "Chat/archiveRequest",
       "type": "object"
     },
     {
@@ -4874,13 +4885,13 @@
         },
         "method": {
           "enum": [
-            "thread/delete"
+            "chat/delete"
           ],
-          "title": "Thread/deleteRequestMethod",
+          "title": "Chat/deleteRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/ThreadDeleteParams"
+          "$ref": "#/definitions/ChatDeleteParams"
         }
       },
       "required": [
@@ -4888,7 +4899,7 @@
         "method",
         "params"
       ],
-      "title": "Thread/deleteRequest",
+      "title": "Chat/deleteRequest",
       "type": "object"
     },
     {
@@ -4898,13 +4909,13 @@
         },
         "method": {
           "enum": [
-            "thread/unsubscribe"
+            "chat/unsubscribe"
           ],
-          "title": "Thread/unsubscribeRequestMethod",
+          "title": "Chat/unsubscribeRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/ThreadUnsubscribeParams"
+          "$ref": "#/definitions/ChatUnsubscribeParams"
         }
       },
       "required": [
@@ -4912,7 +4923,7 @@
         "method",
         "params"
       ],
-      "title": "Thread/unsubscribeRequest",
+      "title": "Chat/unsubscribeRequest",
       "type": "object"
     },
     {
@@ -4922,13 +4933,13 @@
         },
         "method": {
           "enum": [
-            "thread/name/set"
+            "chat/name/set"
           ],
-          "title": "Thread/name/setRequestMethod",
+          "title": "Chat/name/setRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/ThreadSetNameParams"
+          "$ref": "#/definitions/ChatSetNameParams"
         }
       },
       "required": [
@@ -4936,7 +4947,7 @@
         "method",
         "params"
       ],
-      "title": "Thread/name/setRequest",
+      "title": "Chat/name/setRequest",
       "type": "object"
     },
     {
@@ -4946,13 +4957,13 @@
         },
         "method": {
           "enum": [
-            "thread/goal/set"
+            "chat/goal/set"
           ],
-          "title": "Thread/goal/setRequestMethod",
+          "title": "Chat/goal/setRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/ThreadGoalSetParams"
+          "$ref": "#/definitions/ChatGoalSetParams"
         }
       },
       "required": [
@@ -4960,7 +4971,7 @@
         "method",
         "params"
       ],
-      "title": "Thread/goal/setRequest",
+      "title": "Chat/goal/setRequest",
       "type": "object"
     },
     {
@@ -4970,13 +4981,13 @@
         },
         "method": {
           "enum": [
-            "thread/goal/get"
+            "chat/goal/get"
           ],
-          "title": "Thread/goal/getRequestMethod",
+          "title": "Chat/goal/getRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/ThreadGoalGetParams"
+          "$ref": "#/definitions/ChatGoalGetParams"
         }
       },
       "required": [
@@ -4984,7 +4995,7 @@
         "method",
         "params"
       ],
-      "title": "Thread/goal/getRequest",
+      "title": "Chat/goal/getRequest",
       "type": "object"
     },
     {
@@ -4994,13 +5005,13 @@
         },
         "method": {
           "enum": [
-            "thread/goal/clear"
+            "chat/goal/clear"
           ],
-          "title": "Thread/goal/clearRequestMethod",
+          "title": "Chat/goal/clearRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/ThreadGoalClearParams"
+          "$ref": "#/definitions/ChatGoalClearParams"
         }
       },
       "required": [
@@ -5008,7 +5019,7 @@
         "method",
         "params"
       ],
-      "title": "Thread/goal/clearRequest",
+      "title": "Chat/goal/clearRequest",
       "type": "object"
     },
     {
@@ -5018,13 +5029,13 @@
         },
         "method": {
           "enum": [
-            "thread/metadata/update"
+            "chat/metadata/update"
           ],
-          "title": "Thread/metadata/updateRequestMethod",
+          "title": "Chat/metadata/updateRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/ThreadMetadataUpdateParams"
+          "$ref": "#/definitions/ChatMetadataUpdateParams"
         }
       },
       "required": [
@@ -5032,7 +5043,7 @@
         "method",
         "params"
       ],
-      "title": "Thread/metadata/updateRequest",
+      "title": "Chat/metadata/updateRequest",
       "type": "object"
     },
     {
@@ -5042,13 +5053,13 @@
         },
         "method": {
           "enum": [
-            "thread/unarchive"
+            "chat/unarchive"
           ],
-          "title": "Thread/unarchiveRequestMethod",
+          "title": "Chat/unarchiveRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/ThreadUnarchiveParams"
+          "$ref": "#/definitions/ChatUnarchiveParams"
         }
       },
       "required": [
@@ -5056,7 +5067,7 @@
         "method",
         "params"
       ],
-      "title": "Thread/unarchiveRequest",
+      "title": "Chat/unarchiveRequest",
       "type": "object"
     },
     {
@@ -5066,13 +5077,13 @@
         },
         "method": {
           "enum": [
-            "thread/compact/start"
+            "chat/compact/start"
           ],
-          "title": "Thread/compact/startRequestMethod",
+          "title": "Chat/compact/startRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/ThreadCompactStartParams"
+          "$ref": "#/definitions/ChatCompactStartParams"
         }
       },
       "required": [
@@ -5080,7 +5091,7 @@
         "method",
         "params"
       ],
-      "title": "Thread/compact/startRequest",
+      "title": "Chat/compact/startRequest",
       "type": "object"
     },
     {
@@ -5090,13 +5101,13 @@
         },
         "method": {
           "enum": [
-            "thread/shellCommand"
+            "chat/shellCommand"
           ],
-          "title": "Thread/shellCommandRequestMethod",
+          "title": "Chat/shellCommandRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/ThreadShellCommandParams"
+          "$ref": "#/definitions/ChatShellCommandParams"
         }
       },
       "required": [
@@ -5104,7 +5115,7 @@
         "method",
         "params"
       ],
-      "title": "Thread/shellCommandRequest",
+      "title": "Chat/shellCommandRequest",
       "type": "object"
     },
     {
@@ -5114,13 +5125,13 @@
         },
         "method": {
           "enum": [
-            "thread/approveGuardianDeniedAction"
+            "chat/approveGuardianDeniedAction"
           ],
-          "title": "Thread/approveGuardianDeniedActionRequestMethod",
+          "title": "Chat/approveGuardianDeniedActionRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/ThreadApproveGuardianDeniedActionParams"
+          "$ref": "#/definitions/ChatApproveGuardianDeniedActionParams"
         }
       },
       "required": [
@@ -5128,7 +5139,7 @@
         "method",
         "params"
       ],
-      "title": "Thread/approveGuardianDeniedActionRequest",
+      "title": "Chat/approveGuardianDeniedActionRequest",
       "type": "object"
     },
     {
@@ -5138,13 +5149,13 @@
         },
         "method": {
           "enum": [
-            "thread/rollback"
+            "chat/rollback"
           ],
-          "title": "Thread/rollbackRequestMethod",
+          "title": "Chat/rollbackRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/ThreadRollbackParams"
+          "$ref": "#/definitions/ChatRollbackParams"
         }
       },
       "required": [
@@ -5152,7 +5163,7 @@
         "method",
         "params"
       ],
-      "title": "Thread/rollbackRequest",
+      "title": "Chat/rollbackRequest",
       "type": "object"
     },
     {
@@ -5162,13 +5173,13 @@
         },
         "method": {
           "enum": [
-            "thread/list"
+            "chat/list"
           ],
-          "title": "Thread/listRequestMethod",
+          "title": "Chat/listRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/ThreadListParams"
+          "$ref": "#/definitions/ChatListParams"
         }
       },
       "required": [
@@ -5176,7 +5187,7 @@
         "method",
         "params"
       ],
-      "title": "Thread/listRequest",
+      "title": "Chat/listRequest",
       "type": "object"
     },
     {
@@ -5186,13 +5197,13 @@
         },
         "method": {
           "enum": [
-            "thread/loaded/list"
+            "chat/loaded/list"
           ],
-          "title": "Thread/loaded/listRequestMethod",
+          "title": "Chat/loaded/listRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/ThreadLoadedListParams"
+          "$ref": "#/definitions/ChatLoadedListParams"
         }
       },
       "required": [
@@ -5200,7 +5211,7 @@
         "method",
         "params"
       ],
-      "title": "Thread/loaded/listRequest",
+      "title": "Chat/loaded/listRequest",
       "type": "object"
     },
     {
@@ -5210,13 +5221,13 @@
         },
         "method": {
           "enum": [
-            "thread/read"
+            "chat/read"
           ],
-          "title": "Thread/readRequestMethod",
+          "title": "Chat/readRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/ThreadReadParams"
+          "$ref": "#/definitions/ChatReadParams"
         }
       },
       "required": [
@@ -5224,24 +5235,24 @@
         "method",
         "params"
       ],
-      "title": "Thread/readRequest",
+      "title": "Chat/readRequest",
       "type": "object"
     },
     {
-      "description": "Append raw Responses API items to the thread history without starting a user turn.",
+      "description": "Append raw Responses API messages to the thread history without starting a user turn.",
       "properties": {
         "id": {
           "$ref": "#/definitions/RequestId"
         },
         "method": {
           "enum": [
-            "thread/inject_items"
+            "chat/inject_messages"
           ],
-          "title": "Thread/injectItemsRequestMethod",
+          "title": "Chat/injectMessagesRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/ThreadInjectItemsParams"
+          "$ref": "#/definitions/ChatInjectMessagesParams"
         }
       },
       "required": [
@@ -5249,7 +5260,7 @@
         "method",
         "params"
       ],
-      "title": "Thread/injectItemsRequest",
+      "title": "Chat/injectMessagesRequest",
       "type": "object"
     },
     {
@@ -5931,13 +5942,13 @@
         },
         "method": {
           "enum": [
-            "turn/start"
+            "interaction/start"
           ],
-          "title": "Turn/startRequestMethod",
+          "title": "Interaction/startRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/TurnStartParams"
+          "$ref": "#/definitions/InteractionStartParams"
         }
       },
       "required": [
@@ -5945,7 +5956,7 @@
         "method",
         "params"
       ],
-      "title": "Turn/startRequest",
+      "title": "Interaction/startRequest",
       "type": "object"
     },
     {
@@ -5955,13 +5966,13 @@
         },
         "method": {
           "enum": [
-            "turn/steer"
+            "interaction/steer"
           ],
-          "title": "Turn/steerRequestMethod",
+          "title": "Interaction/steerRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/TurnSteerParams"
+          "$ref": "#/definitions/InteractionSteerParams"
         }
       },
       "required": [
@@ -5969,7 +5980,7 @@
         "method",
         "params"
       ],
-      "title": "Turn/steerRequest",
+      "title": "Interaction/steerRequest",
       "type": "object"
     },
     {
@@ -5979,13 +5990,13 @@
         },
         "method": {
           "enum": [
-            "turn/interrupt"
+            "interaction/interrupt"
           ],
-          "title": "Turn/interruptRequestMethod",
+          "title": "Interaction/interruptRequestMethod",
           "type": "string"
         },
         "params": {
-          "$ref": "#/definitions/TurnInterruptParams"
+          "$ref": "#/definitions/InteractionInterruptParams"
         }
       },
       "required": [
@@ -5993,7 +6004,7 @@
         "method",
         "params"
       ],
-      "title": "Turn/interruptRequest",
+      "title": "Interaction/interruptRequest",
       "type": "object"
     },
     {

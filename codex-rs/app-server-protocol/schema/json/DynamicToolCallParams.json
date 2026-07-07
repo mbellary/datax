@@ -5,28 +5,28 @@
     "callId": {
       "type": "string"
     },
+    "chatId": {
+      "type": "string"
+    },
+    "interactionId": {
+      "type": "string"
+    },
     "namespace": {
       "type": [
         "string",
         "null"
       ]
     },
-    "threadId": {
-      "type": "string"
-    },
     "tool": {
-      "type": "string"
-    },
-    "turnId": {
       "type": "string"
     }
   },
   "required": [
     "arguments",
     "callId",
-    "threadId",
-    "tool",
-    "turnId"
+    "chatId",
+    "interactionId",
+    "tool"
   ],
   "title": "DynamicToolCallParams",
   "type": "object"

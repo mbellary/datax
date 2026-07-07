@@ -14,16 +14,16 @@
     }
   },
   "properties": {
+    "chatId": {
+      "type": "string"
+    },
     "requestId": {
       "$ref": "#/definitions/RequestId"
-    },
-    "threadId": {
-      "type": "string"
     }
   },
   "required": [
-    "requestId",
-    "threadId"
+    "chatId",
+    "requestId"
   ],
   "title": "ServerRequestResolvedNotification",
   "type": "object"

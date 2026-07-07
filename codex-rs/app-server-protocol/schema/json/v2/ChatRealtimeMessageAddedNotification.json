@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "EXPERIMENTAL - raw non-audio thread realtime item emitted by the backend.",
+  "properties": {
+    "chatId": {
+      "type": "string"
+    },
+    "message": true
+  },
+  "required": [
+    "chatId",
+    "message"
+  ],
+  "title": "ChatRealtimeMessageAddedNotification",
+  "type": "object"
+}

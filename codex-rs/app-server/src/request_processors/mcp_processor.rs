@@ -95,18 +95,18 @@ impl McpRequestProcessor {
 
     async fn load_thread(
         &self,
-        thread_id: &str,
+        chat_id: &str,
     ) -> Result<(ThreadId, Arc<CodexThread>), JSONRPCErrorError> {
-        let thread_id = ThreadId::from_string(thread_id)
+        let chat_id = ThreadId::from_string(chat_id)
             .map_err(|err| invalid_request(format!("invalid thread id: {err}")))?;
 
         let thread = self
             .thread_manager
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
-            .map_err(|_| invalid_request(format!("thread not found: {thread_id}")))?;
+            .map_err(|_| invalid_request(format!("thread not found: {chat_id}")))?;
 
-        Ok((thread_id, thread))
+        Ok((chat_id, thread))
     }
 
     async fn mcp_server_oauth_login_response(
@@ -204,9 +204,9 @@ impl McpRequestProcessor {
         let request = request_id.clone();
 
         let outgoing = Arc::clone(&self.outgoing);
-        let (config, thread) = match params.thread_id.as_deref() {
-            Some(thread_id) => {
-                let (_, thread) = self.load_thread(thread_id).await?;
+        let (config, thread) = match params.chat_id.as_deref() {
+            Some(chat_id) => {
+                let (_, thread) = self.load_thread(chat_id).await?;
                 let thread_config = thread.config().await;
                 let config = self
                     .config_manager
@@ -357,13 +357,13 @@ impl McpRequestProcessor {
     ) -> Result<(), JSONRPCErrorError> {
         let outgoing = Arc::clone(&self.outgoing);
         let McpResourceReadParams {
-            thread_id,
+            chat_id,
             server,
             uri,
         } = params;
 
-        if let Some(thread_id) = thread_id {
-            let (_, thread) = self.load_thread(&thread_id).await?;
+        if let Some(chat_id) = chat_id {
+            let (_, thread) = self.load_thread(&chat_id).await?;
             let request_id = request_id.clone();
 
             tokio::spawn(async move {
@@ -426,9 +426,9 @@ impl McpRequestProcessor {
         params: McpServerToolCallParams,
     ) -> Result<(), JSONRPCErrorError> {
         let outgoing = Arc::clone(&self.outgoing);
-        let thread_id = params.thread_id.clone();
-        let (_, thread) = self.load_thread(&thread_id).await?;
-        let meta = with_mcp_tool_call_thread_id_meta(params.meta, &thread_id);
+        let chat_id = params.chat_id.clone();
+        let (_, thread) = self.load_thread(&chat_id).await?;
+        let meta = with_mcp_tool_call_thread_id_meta(params.meta, &chat_id);
         let request_id = request_id.clone();
 
         tokio::spawn(async move {
@@ -445,13 +445,13 @@ impl McpRequestProcessor {
 
 fn with_mcp_tool_call_thread_id_meta(
     meta: Option<serde_json::Value>,
-    thread_id: &str,
+    chat_id: &str,
 ) -> Option<serde_json::Value> {
     match meta {
         Some(serde_json::Value::Object(mut map)) => {
             map.insert(
                 MCP_TOOL_THREAD_ID_META_KEY.to_string(),
-                serde_json::Value::String(thread_id.to_string()),
+                serde_json::Value::String(chat_id.to_string()),
             );
             Some(serde_json::Value::Object(map))
         }
@@ -459,7 +459,7 @@ fn with_mcp_tool_call_thread_id_meta(
             let mut map = serde_json::Map::new();
             map.insert(
                 MCP_TOOL_THREAD_ID_META_KEY.to_string(),
-                serde_json::Value::String(thread_id.to_string()),
+                serde_json::Value::String(chat_id.to_string()),
             );
             Some(serde_json::Value::Object(map))
         }

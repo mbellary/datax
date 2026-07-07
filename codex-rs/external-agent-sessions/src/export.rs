@@ -177,7 +177,7 @@ fn turn_complete_item(turn_id: String, completed_at: Option<i64>) -> RolloutItem
 #[cfg(test)]
 mod tests {
     use super::*;
-    use datax_app_server_protocol::ThreadItem;
+    use datax_app_server_protocol::Message;
     use datax_app_server_protocol::build_turns_from_rollout_items;
     use serde_json::Value as JsonValue;
     use std::path::Path;
@@ -209,7 +209,7 @@ mod tests {
         assert_eq!(turns[1].items.len(), 2);
         assert_eq!(
             turns[1].items[1],
-            ThreadItem::AgentMessage {
+            Message::AgentMessage {
                 id: "item-4".into(),
                 text: EXTERNAL_SESSION_IMPORTED_MARKER.into(),
                 phase: None,
@@ -241,7 +241,7 @@ mod tests {
         assert_eq!(turns.len(), 1);
         assert_eq!(
             turns[0].items.last(),
-            Some(&ThreadItem::AgentMessage {
+            Some(&Message::AgentMessage {
                 id: "item-3".into(),
                 text: EXTERNAL_SESSION_IMPORTED_MARKER.into(),
                 phase: None,

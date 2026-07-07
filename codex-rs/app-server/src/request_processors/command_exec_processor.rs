@@ -149,7 +149,7 @@ impl CommandExecRequestProcessor {
         let cwd = cwd.map_or_else(|| self.config.cwd.clone(), |cwd| self.config.cwd.join(cwd));
         let mut env = create_env(
             &self.config.permissions.shell_environment_policy,
-            /*thread_id*/ None,
+            /*chat_id*/ None,
         );
         if let Some(env_overrides) = env_overrides {
             for (key, value) in env_overrides {

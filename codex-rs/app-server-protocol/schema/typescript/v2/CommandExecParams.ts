@@ -78,7 +78,7 @@ env?: { [key in string]?: string | null } | null, /**
 size?: CommandExecTerminalSize | null, /**
  * Optional sandbox policy for this command.
  *
- * Uses the same shape as thread/turn execution sandbox configuration and
+ * Uses the same shape as chat/turn execution sandbox configuration and
  * defaults to the user's configured policy when omitted. Cannot be
  * combined with `permissionProfile`.
  */

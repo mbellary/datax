@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "InteractionPlanStep": {
+      "properties": {
+        "status": {
+          "$ref": "#/definitions/InteractionPlanStepStatus"
+        },
+        "step": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "step"
+      ],
+      "type": "object"
+    },
+    "InteractionPlanStepStatus": {
+      "enum": [
+        "pending",
+        "inProgress",
+        "completed"
+      ],
+      "type": "string"
+    }
+  },
+  "properties": {
+    "chatId": {
+      "type": "string"
+    },
+    "explanation": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "interactionId": {
+      "type": "string"
+    },
+    "plan": {
+      "items": {
+        "$ref": "#/definitions/InteractionPlanStep"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "chatId",
+    "interactionId",
+    "plan"
+  ],
+  "title": "InteractionPlanUpdatedNotification",
+  "type": "object"
+}

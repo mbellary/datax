@@ -6,14 +6,14 @@ use app_test_support::create_final_assistant_message_sse_response;
 use app_test_support::to_response;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::CurrentTimeReadResponse;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::ServerRequest;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
 use datax_app_server_protocol::UserInput;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
@@ -44,18 +44,18 @@ async fn current_time_read_round_trip_adds_reminder_to_model_input() -> Result<(
     timeout(DEFAULT_READ_TIMEOUT, app_server.initialize()).await??;
 
     let thread_request_id = app_server
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
     let thread_response: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
         app_server.read_stream_until_response_message(RequestId::Integer(thread_request_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(thread_response)?;
+    let ChatStartResponse { thread, .. } = to_response(thread_response)?;
 
     let turn_request_id = app_server
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             input: vec![UserInput::Text {
                 text: "What time is it?".to_string(),
                 text_elements: Vec::new(),
@@ -68,7 +68,7 @@ async fn current_time_read_round_trip_adds_reminder_to_model_input() -> Result<(
         app_server.read_stream_until_response_message(RequestId::Integer(turn_request_id)),
     )
     .await??;
-    let _: TurnStartResponse = to_response(turn_response)?;
+    let _: InteractionStartResponse = to_response(turn_response)?;
 
     let server_request = timeout(
         DEFAULT_READ_TIMEOUT,
@@ -78,7 +78,7 @@ async fn current_time_read_round_trip_adds_reminder_to_model_input() -> Result<(
     let ServerRequest::CurrentTimeRead { request_id, params } = server_request else {
         panic!("expected CurrentTimeRead request, got: {server_request:?}");
     };
-    assert_eq!(params.thread_id, thread.id);
+    assert_eq!(params.chat_id, thread.id);
     app_server
         .send_response(
             request_id,
@@ -89,7 +89,7 @@ async fn current_time_read_round_trip_adds_reminder_to_model_input() -> Result<(
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        app_server.read_stream_until_notification_message("turn/completed"),
+        app_server.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 

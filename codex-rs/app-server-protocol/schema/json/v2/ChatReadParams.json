@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "properties": {
+    "chatId": {
+      "type": "string"
+    },
+    "includeInteractions": {
+      "description": "When true, include interactions and their messages from rollout history.",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "chatId"
+  ],
+  "title": "ChatReadParams",
+  "type": "object"
+}

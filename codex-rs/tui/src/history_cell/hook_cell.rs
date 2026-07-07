@@ -886,7 +886,7 @@ mod tests {
             event_name: HookEventName::PostToolUse,
             handler_type: datax_app_server_protocol::HookHandlerType::Command,
             execution_mode: datax_app_server_protocol::HookExecutionMode::Sync,
-            scope: datax_app_server_protocol::HookScope::Turn,
+            scope: datax_app_server_protocol::HookScope::Interaction,
             source_path: test_path_buf("/tmp/hooks.json").abs(),
             source: datax_app_server_protocol::HookSource::User,
             display_order: 0,

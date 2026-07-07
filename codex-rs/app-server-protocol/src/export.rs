@@ -45,7 +45,7 @@ const JSON_V1_ALLOWLIST: &[&str] = &["InitializeParams", "InitializeResponse"];
 const EXPERIMENTAL_CLIENT_METHOD_DEPENDENCY_TYPES: &[&str] = &[
     "RemoteControlClient",
     "RemoteControlClientsListOrder",
-    "ThreadBackgroundTerminal",
+    "ChatBackgroundTerminal",
 ];
 const SPECIAL_DEFINITIONS: &[&str] = &[
     "ClientNotification",
@@ -511,9 +511,9 @@ fn prune_experimental_methods(bundle: &mut Value, experimental_methods: &[&str])
 
 fn prune_experimental_methods_inner(value: &mut Value, experimental_methods: &HashSet<&str>) {
     match value {
-        Value::Array(items) => {
-            items.retain(|item| !is_experimental_method_variant(item, experimental_methods));
-            for item in items {
+        Value::Array(messages) => {
+            messages.retain(|item| !is_experimental_method_variant(item, experimental_methods));
+            for item in messages {
                 prune_experimental_methods_inner(item, experimental_methods);
             }
         }
@@ -1154,8 +1154,8 @@ fn collect_non_v2_refs_inner(value: &Value, refs: &mut HashSet<String>) {
                 collect_non_v2_refs_inner(child, refs);
             }
         }
-        Value::Array(items) => {
-            for child in items {
+        Value::Array(messages) => {
+            for child in messages {
                 collect_non_v2_refs_inner(child, refs);
             }
         }
@@ -1195,8 +1195,8 @@ fn rewrite_ref_prefix(value: &mut Value, prefix: &str, replacement: &str) {
                 rewrite_ref_prefix(child, prefix, replacement);
             }
         }
-        Value::Array(items) => {
-            for child in items {
+        Value::Array(messages) => {
+            for child in messages {
                 rewrite_ref_prefix(child, prefix, replacement);
             }
         }
@@ -1224,7 +1224,7 @@ fn first_ref_with_prefix(value: &Value, prefix: &str) -> Option<String> {
             obj.values()
                 .find_map(|child| first_ref_with_prefix(child, prefix))
         }
-        Value::Array(items) => items
+        Value::Array(messages) => messages
             .iter()
             .find_map(|child| first_ref_with_prefix(child, prefix)),
         _ => None,
@@ -1268,8 +1268,8 @@ fn collect_missing_definitions(
                 collect_missing_definitions(child, definitions, missing);
             }
         }
-        Value::Array(items) => {
-            for child in items {
+        Value::Array(messages) => {
+            for child in messages {
                 collect_missing_definitions(child, definitions, missing);
             }
         }
@@ -1459,8 +1459,8 @@ fn collect_local_definition_refs_excluding_maps(
                 collect_local_definition_refs_excluding_maps(child, defs_key, queue, reachable);
             }
         }
-        Value::Array(items) => {
-            for child in items {
+        Value::Array(messages) => {
+            for child in messages {
                 collect_local_definition_refs_excluding_maps(child, defs_key, queue, reachable);
             }
         }
@@ -1482,8 +1482,8 @@ fn collect_local_definition_refs(
                 collect_local_definition_refs(child, defs_key, queue, reachable);
             }
         }
-        Value::Array(items) => {
-            for child in items {
+        Value::Array(messages) => {
+            for child in messages {
                 collect_local_definition_refs(child, defs_key, queue, reachable);
             }
         }
@@ -1567,8 +1567,8 @@ fn rewrite_refs_to_namespace(value: &mut Value, ns: &str) {
                 rewrite_refs_to_namespace(v, ns);
             }
         }
-        Value::Array(items) => {
-            for v in items.iter_mut() {
+        Value::Array(messages) => {
+            for v in messages.iter_mut() {
                 rewrite_refs_to_namespace(v, ns);
             }
         }
@@ -1604,8 +1604,8 @@ fn rewrite_refs_to_known_namespaces(value: &mut Value, types: &HashMap<String, S
                 rewrite_refs_to_known_namespaces(v, types);
             }
         }
-        Value::Array(items) => {
-            for v in items.iter_mut() {
+        Value::Array(messages) => {
+            for v in messages.iter_mut() {
                 rewrite_refs_to_known_namespaces(v, types);
             }
         }
@@ -1708,8 +1708,8 @@ fn string_literal(value: &Value) -> Option<&str> {
 fn annotate_schema(value: &mut Value, base: Option<&str>) {
     match value {
         Value::Object(map) => annotate_object(map, base),
-        Value::Array(items) => {
-            for item in items {
+        Value::Array(messages) => {
+            for item in messages {
                 annotate_schema(item, base);
             }
         }
@@ -1750,8 +1750,8 @@ fn annotate_object(map: &mut Map<String, Value>, base: Option<&str>) {
         }
     }
 
-    if let Some(items) = map.get_mut("items") {
-        annotate_schema(items, base);
+    if let Some(messages) = map.get_mut("messages") {
+        annotate_schema(messages, base);
     }
 
     if let Some(additional) = map.get_mut("additionalProperties") {
@@ -1765,7 +1765,7 @@ fn annotate_object(map: &mut Map<String, Value>, base: Option<&str>) {
             | "definitions"
             | "$defs"
             | "properties"
-            | "items"
+            | "messages"
             | "additionalProperties" => {}
             _ => annotate_schema(child, base),
         }
@@ -1923,8 +1923,8 @@ fn rewrite_named_ref_to_namespace(value: &mut Value, ns: &str, name: &str) {
                 rewrite_named_ref_to_namespace(child, ns, name);
             }
         }
-        Value::Array(items) => {
-            for child in items {
+        Value::Array(messages) => {
+            for child in messages {
                 rewrite_named_ref_to_namespace(child, ns, name);
             }
         }
@@ -2142,8 +2142,8 @@ mod tests {
         assert_eq!(typescript_index.contains("export type { EventMsg }"), false);
         let thread_start_ts = std::str::from_utf8(
             fixture_tree
-                .get(Path::new("v2/ThreadStartParams.ts"))
-                .ok_or_else(|| anyhow::anyhow!("missing v2/ThreadStartParams.ts fixture"))?,
+                .get(Path::new("v2/ChatStartParams.ts"))
+                .ok_or_else(|| anyhow::anyhow!("missing v2/ChatStartParams.ts fixture"))?,
         )?;
         assert_eq!(thread_start_ts.contains("mockExperimentalField"), false);
         assert_eq!(
@@ -2380,7 +2380,7 @@ mod tests {
             true
         );
 
-        let thread_start_ts = v2::ThreadStartParams::export_to_string()?;
+        let thread_start_ts = v2::ChatStartParams::export_to_string()?;
         assert_eq!(thread_start_ts.contains("mockExperimentalField"), true);
         let command_execution_request_approval_ts =
             v2::CommandExecutionRequestApprovalParams::export_to_string()?;
@@ -2396,10 +2396,8 @@ mod tests {
     fn stable_schema_filter_removes_mock_thread_start_field() -> Result<()> {
         let output_dir = std::env::temp_dir().join(format!("codex_schema_{}", Uuid::now_v7()));
         fs::create_dir(&output_dir)?;
-        let schema = write_json_schema_with_return::<v2::ThreadStartParams>(
-            &output_dir,
-            "ThreadStartParams",
-        )?;
+        let schema =
+            write_json_schema_with_return::<v2::ChatStartParams>(&output_dir, "ChatStartParams")?;
         let mut bundle = build_schema_bundle(vec![schema])?;
         filter_experimental_schema(&mut bundle)?;
 
@@ -2408,11 +2406,11 @@ mod tests {
             .expect("schema bundle should include definitions");
         let (_, def_schema) = definitions
             .iter()
-            .find(|(name, _)| definition_matches_type(name, "ThreadStartParams"))
-            .expect("ThreadStartParams definition should exist");
+            .find(|(name, _)| definition_matches_type(name, "ChatStartParams"))
+            .expect("ChatStartParams definition should exist");
         let properties = def_schema["properties"]
             .as_object()
-            .expect("ThreadStartParams should have properties");
+            .expect("ChatStartParams should have properties");
         assert_eq!(properties.contains_key("mockExperimentalField"), false);
         let _cleanup = fs::remove_dir_all(&output_dir);
         Ok(())
@@ -2436,11 +2434,11 @@ mod tests {
                         "TurnItem": {
                             "type": "object",
                             "properties": {
-                                "thread_id": { "$ref": "#/definitions/ThreadId" },
+                                "chat_id": { "$ref": "#/definitions/ThreadId" },
                                 "phase": { "$ref": "#/definitions/MessagePhase" },
                                 "content": {
                                     "type": "array",
-                                    "items": { "$ref": "#/definitions/UserInput" }
+                                    "messages": { "$ref": "#/definitions/UserInput" }
                                 }
                             }
                         }
@@ -2485,7 +2483,7 @@ mod tests {
             serde_json::json!("#/definitions/TurnItem")
         );
         assert_eq!(
-            bundle["definitions"]["TurnItem"]["properties"]["thread_id"]["$ref"],
+            bundle["definitions"]["TurnItem"]["properties"]["chat_id"]["$ref"],
             serde_json::json!("#/definitions/v2/ThreadId")
         );
         assert_eq!(
@@ -2493,7 +2491,7 @@ mod tests {
             serde_json::json!("#/definitions/v2/MessagePhase")
         );
         assert_eq!(
-            bundle["definitions"]["TurnItem"]["properties"]["content"]["items"]["$ref"],
+            bundle["definitions"]["TurnItem"]["properties"]["content"]["messages"]["$ref"],
             serde_json::json!("#/definitions/v2/UserInput")
         );
 
@@ -2513,7 +2511,7 @@ mod tests {
                             "title": "StartRequest",
                             "type": "object",
                             "properties": {
-                                "params": { "$ref": "#/definitions/v2/ThreadStartParams" },
+                                "params": { "$ref": "#/definitions/v2/ChatStartParams" },
                                 "shared": { "$ref": "#/definitions/SharedHelper" }
                             }
                         },
@@ -2552,7 +2550,7 @@ mod tests {
                 },
                 "ServerNotification": {
                     "oneOf": [
-                        { "$ref": "#/definitions/v2/ThreadStartedNotification" },
+                        { "$ref": "#/definitions/v2/ChatStartedNotification" },
                         {
                             "title": "ServerRequestResolvedNotification",
                             "type": "object",
@@ -2581,15 +2579,15 @@ mod tests {
                     "type": "string"
                 },
                 "v2": {
-                    "ThreadStartParams": {
-                        "title": "ThreadStartParams",
+                    "ChatStartParams": {
+                        "title": "ChatStartParams",
                         "type": "object",
                         "properties": {
                             "cwd": { "type": "string" }
                         }
                     },
-                    "ThreadStartResponse": {
-                        "title": "ThreadStartResponse",
+                    "ChatStartResponse": {
+                        "title": "ChatStartResponse",
                         "type": "object",
                         "properties": {
                             "ok": { "type": "boolean" }
@@ -2599,14 +2597,14 @@ mod tests {
                         "title": "ThreadStartedEventMsg",
                         "type": "object",
                         "properties": {
-                            "thread_id": { "type": "string" }
+                            "chat_id": { "type": "string" }
                         }
                     },
-                    "ThreadStartedNotification": {
-                        "title": "ThreadStartedNotification",
+                    "ChatStartedNotification": {
+                        "title": "ChatStartedNotification",
                         "type": "object",
                         "properties": {
-                            "thread_id": { "type": "string" }
+                            "chat_id": { "type": "string" }
                         }
                     }
                 }
@@ -2623,9 +2621,9 @@ mod tests {
             serde_json::json!("CodexAppServerProtocolV2")
         );
         assert_eq!(definitions.contains_key("v2"), false);
-        assert_eq!(definitions.contains_key("ThreadStartParams"), true);
-        assert_eq!(definitions.contains_key("ThreadStartResponse"), true);
-        assert_eq!(definitions.contains_key("ThreadStartedNotification"), true);
+        assert_eq!(definitions.contains_key("ChatStartParams"), true);
+        assert_eq!(definitions.contains_key("ChatStartResponse"), true);
+        assert_eq!(definitions.contains_key("ChatStartedNotification"), true);
         assert_eq!(definitions.contains_key("SharedHelper"), true);
         assert_eq!(definitions.contains_key("SharedLeaf"), true);
         assert_eq!(definitions.contains_key("InitializeParams"), true);
@@ -2793,7 +2791,7 @@ env?: { [key in string]?: string | null } | null, /**
 size?: CommandExecTerminalSize | null, /**
  * Optional sandbox policy for this command.
  *
- * Uses the same shape as thread/turn execution sandbox configuration and
+ * Uses the same shape as chat/turn execution sandbox configuration and
  * defaults to the user's configured policy when omitted. Cannot be
  * combined with `permissionProfile`.
  */
@@ -2848,7 +2846,7 @@ permissionProfile?: string | null};
         generate_json_with_experimental(&output_dir, /*experimental_api*/ false)?;
 
         let thread_start_json =
-            fs::read_to_string(output_dir.join("v2").join("ThreadStartParams.json"))?;
+            fs::read_to_string(output_dir.join("v2").join("ChatStartParams.json"))?;
         assert_eq!(thread_start_json.contains("mockExperimentalField"), false);
         let command_execution_request_approval_json =
             fs::read_to_string(output_dir.join("CommandExecutionRequestApprovalParams.json"))?;

@@ -22,6 +22,8 @@ use datax_app_server_protocol::GetAccountParams;
 use datax_app_server_protocol::GetAccountResponse;
 use datax_app_server_protocol::GetAuthStatusParams;
 use datax_app_server_protocol::GetAuthStatusResponse;
+use datax_app_server_protocol::InteractionCompletedNotification;
+use datax_app_server_protocol::InteractionStatus;
 use datax_app_server_protocol::JSONRPCError;
 use datax_app_server_protocol::JSONRPCErrorError;
 use datax_app_server_protocol::JSONRPCNotification;
@@ -31,8 +33,6 @@ use datax_app_server_protocol::LogoutAccountResponse;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::ServerNotification;
 use datax_app_server_protocol::ServerRequest;
-use datax_app_server_protocol::TurnCompletedNotification;
-use datax_app_server_protocol::TurnStatus;
 use datax_config::types::AuthCredentialsStoreMode;
 use datax_login::AuthKeyringBackendKind;
 use datax_login::CLIENT_ID_OVERRIDE_ENV_VAR;
@@ -500,7 +500,7 @@ async fn external_auth_refreshes_on_unauthorized() -> Result<()> {
     .await??;
 
     let thread_req = mcp
-        .send_thread_start_request(datax_app_server_protocol::ThreadStartParams {
+        .send_chat_start_request(datax_app_server_protocol::ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -510,11 +510,11 @@ async fn external_auth_refreshes_on_unauthorized() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let thread = to_response::<datax_app_server_protocol::ThreadStartResponse>(thread_resp)?;
+    let thread = to_response::<datax_app_server_protocol::ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
-        .send_turn_start_request(datax_app_server_protocol::TurnStartParams {
-            thread_id: thread.thread.id,
+        .send_interaction_start_request(datax_app_server_protocol::InteractionStartParams {
+            chat_id: thread.thread.id,
             client_user_message_id: None,
             input: vec![datax_app_server_protocol::UserInput::Text {
                 text: "Hello".to_string(),
@@ -537,7 +537,7 @@ async fn external_auth_refreshes_on_unauthorized() -> Result<()> {
     .await??;
     let _turn_completed = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -608,7 +608,7 @@ async fn external_auth_refresh_error_fails_turn() -> Result<()> {
     .await??;
 
     let thread_req = mcp
-        .send_thread_start_request(datax_app_server_protocol::ThreadStartParams {
+        .send_chat_start_request(datax_app_server_protocol::ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -618,11 +618,11 @@ async fn external_auth_refresh_error_fails_turn() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let thread = to_response::<datax_app_server_protocol::ThreadStartResponse>(thread_resp)?;
+    let thread = to_response::<datax_app_server_protocol::ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
-        .send_turn_start_request(datax_app_server_protocol::TurnStartParams {
-            thread_id: thread.thread.id.clone(),
+        .send_interaction_start_request(datax_app_server_protocol::InteractionStartParams {
+            chat_id: thread.thread.id.clone(),
             client_user_message_id: None,
             input: vec![datax_app_server_protocol::UserInput::Text {
                 text: "Hello".to_string(),
@@ -658,15 +658,15 @@ async fn external_auth_refresh_error_fails_turn() -> Result<()> {
     .await??;
     let completed_notif: JSONRPCNotification = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
-    let completed: TurnCompletedNotification = serde_json::from_value(
+    let completed: InteractionCompletedNotification = serde_json::from_value(
         completed_notif
             .params
-            .expect("turn/completed params must be present"),
+            .expect("interaction/completed params must be present"),
     )?;
-    assert_eq!(completed.turn.status, TurnStatus::Failed);
+    assert_eq!(completed.turn.status, InteractionStatus::Failed);
     assert!(completed.turn.error.is_some());
 
     Ok(())
@@ -732,7 +732,7 @@ async fn external_auth_refresh_mismatched_workspace_fails_turn() -> Result<()> {
     .await??;
 
     let thread_req = mcp
-        .send_thread_start_request(datax_app_server_protocol::ThreadStartParams {
+        .send_chat_start_request(datax_app_server_protocol::ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -742,11 +742,11 @@ async fn external_auth_refresh_mismatched_workspace_fails_turn() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let thread = to_response::<datax_app_server_protocol::ThreadStartResponse>(thread_resp)?;
+    let thread = to_response::<datax_app_server_protocol::ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
-        .send_turn_start_request(datax_app_server_protocol::TurnStartParams {
-            thread_id: thread.thread.id.clone(),
+        .send_interaction_start_request(datax_app_server_protocol::InteractionStartParams {
+            chat_id: thread.thread.id.clone(),
             client_user_message_id: None,
             input: vec![datax_app_server_protocol::UserInput::Text {
                 text: "Hello".to_string(),
@@ -782,15 +782,15 @@ async fn external_auth_refresh_mismatched_workspace_fails_turn() -> Result<()> {
     .await??;
     let completed_notif: JSONRPCNotification = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
-    let completed: TurnCompletedNotification = serde_json::from_value(
+    let completed: InteractionCompletedNotification = serde_json::from_value(
         completed_notif
             .params
-            .expect("turn/completed params must be present"),
+            .expect("interaction/completed params must be present"),
     )?;
-    assert_eq!(completed.turn.status, TurnStatus::Failed);
+    assert_eq!(completed.turn.status, InteractionStatus::Failed);
     assert!(completed.turn.error.is_some());
 
     Ok(())
@@ -849,7 +849,7 @@ async fn external_auth_refresh_invalid_access_token_fails_turn() -> Result<()> {
     .await??;
 
     let thread_req = mcp
-        .send_thread_start_request(datax_app_server_protocol::ThreadStartParams {
+        .send_chat_start_request(datax_app_server_protocol::ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -859,11 +859,11 @@ async fn external_auth_refresh_invalid_access_token_fails_turn() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let thread = to_response::<datax_app_server_protocol::ThreadStartResponse>(thread_resp)?;
+    let thread = to_response::<datax_app_server_protocol::ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
-        .send_turn_start_request(datax_app_server_protocol::TurnStartParams {
-            thread_id: thread.thread.id.clone(),
+        .send_interaction_start_request(datax_app_server_protocol::InteractionStartParams {
+            chat_id: thread.thread.id.clone(),
             client_user_message_id: None,
             input: vec![datax_app_server_protocol::UserInput::Text {
                 text: "Hello".to_string(),
@@ -899,15 +899,15 @@ async fn external_auth_refresh_invalid_access_token_fails_turn() -> Result<()> {
     .await??;
     let completed_notif: JSONRPCNotification = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
-    let completed: TurnCompletedNotification = serde_json::from_value(
+    let completed: InteractionCompletedNotification = serde_json::from_value(
         completed_notif
             .params
-            .expect("turn/completed params must be present"),
+            .expect("interaction/completed params must be present"),
     )?;
-    assert_eq!(completed.turn.status, TurnStatus::Failed);
+    assert_eq!(completed.turn.status, InteractionStatus::Failed);
     assert!(completed.turn.error.is_some());
 
     Ok(())

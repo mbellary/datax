@@ -990,7 +990,7 @@ model = "gpt-5.3-spark"
                     merge_strategy: MergeStrategy::Replace,
                 },
                 ConfigEdit {
-                    key_path: "items.sample@catalog.enabled".to_string(),
+                    key_path: "messages.sample@catalog.enabled".to_string(),
                     value: json!(true),
                     merge_strategy: MergeStrategy::Replace,
                 },
@@ -1022,7 +1022,7 @@ model = "gpt-5.3-spark"
         config["profiles"]["team.prod"]["model"].as_str(),
         Some("gpt-5.3-spark")
     );
-    assert_eq!(config.get("items"), None);
+    assert_eq!(config.get("messages"), None);
 
     Ok(())
 }

@@ -675,8 +675,8 @@ async fn maybe_request_codex_apps_auth_elicitation(
 
     let request_id = rmcp::model::RequestId::String(plan.elicitation.elicitation_id.clone().into());
     let params = McpServerElicitationRequestParams {
-        thread_id: sess.thread_id.to_string(),
-        turn_id: Some(turn_context.sub_id.clone()),
+        chat_id: sess.thread_id.to_string(),
+        interaction_id: Some(turn_context.sub_id.clone()),
         server_name: CODEX_APPS_MCP_SERVER_NAME.to_string(),
         request: McpServerElicitationRequest::Url {
             meta: Some(plan.elicitation.meta),
@@ -849,7 +849,7 @@ fn truncate_mcp_tool_result_for_event(
 ) -> Result<CallToolResult, String> {
     match result {
         Ok(call_tool_result) => {
-            // The app-server rebuilds `ThreadItem::McpToolCall` from this item,
+            // The app-server rebuilds `Message::McpToolCall` from this item,
             // so avoid persisting multi-megabyte results in rollout storage.
             let Ok(serialized) = serde_json::to_string(call_tool_result) else {
                 return Ok(call_tool_result.clone());
@@ -1669,8 +1669,8 @@ fn build_mcp_tool_approval_elicitation_request(
         .unwrap_or_else(|| request.question.question.clone());
 
     McpServerElicitationRequestParams {
-        thread_id: sess.thread_id.to_string(),
-        turn_id: Some(turn_context.sub_id.clone()),
+        chat_id: sess.thread_id.to_string(),
+        interaction_id: Some(turn_context.sub_id.clone()),
         server_name: request.server.to_string(),
         request: McpServerElicitationRequest::Form {
             meta: build_mcp_tool_approval_elicitation_meta(

@@ -55,15 +55,15 @@ impl FeedbackRequestProcessor {
         let FeedbackUploadParams {
             classification,
             reason,
-            thread_id,
+            chat_id,
             include_logs,
             extra_log_files,
             tags,
         } = params;
         let mut upload_tags = tags.unwrap_or_default();
 
-        let conversation_id = match thread_id.as_deref() {
-            Some(thread_id) => match ThreadId::from_string(thread_id) {
+        let conversation_id = match chat_id.as_deref() {
+            Some(chat_id) => match ThreadId::from_string(chat_id) {
                 Ok(conversation_id) => Some(conversation_id),
                 Err(err) => return Err(invalid_request(format!("invalid thread id: {err}"))),
             },
@@ -85,7 +85,7 @@ impl FeedbackRequestProcessor {
             tracing::info!(target: "feedback_tags", account_id);
         }
         let snapshot = self.feedback.snapshot(conversation_id);
-        let thread_id = snapshot.thread_id.clone();
+        let chat_id = snapshot.thread_id.clone();
         let (feedback_thread_ids, sqlite_feedback_logs, state_db_ctx) = if include_logs {
             if let Some(log_db) = self.log_db.as_ref() {
                 log_db.flush().await;
@@ -97,12 +97,12 @@ impl FeedbackRequestProcessor {
                     .list_agent_subtree_thread_ids(conversation_id)
                     .await
                 {
-                    Ok(thread_ids) => thread_ids,
+                    Ok(chat_ids) => chat_ids,
                     Err(err) => {
                         warn!(
-                            "failed to list feedback subtree for thread_id={conversation_id}: {err}"
+                            "failed to list feedback subtree for chat_id={conversation_id}: {err}"
                         );
-                        let mut thread_ids = vec![conversation_id];
+                        let mut chat_ids = vec![conversation_id];
                         if let Some(state_db_ctx) = state_db_ctx.as_ref() {
                             for status in [
                                 datax_state::DirectionalThreadSpawnEdgeStatus::Open,
@@ -115,14 +115,14 @@ impl FeedbackRequestProcessor {
                                     )
                                     .await
                                 {
-                                    Ok(descendant_ids) => thread_ids.extend(descendant_ids),
+                                    Ok(descendant_ids) => chat_ids.extend(descendant_ids),
                                     Err(err) => warn!(
-                                        "failed to list persisted feedback subtree for thread_id={conversation_id}: {err}"
+                                        "failed to list persisted feedback subtree for chat_id={conversation_id}: {err}"
                                     ),
                                 }
                             }
                         }
-                        thread_ids
+                        chat_ids
                     }
                 },
                 None => Vec::new(),
@@ -132,16 +132,16 @@ impl FeedbackRequestProcessor {
             if let Some(conversation_id) = conversation_id {
                 let mut descendant_thread_ids = feedback_thread_ids
                     .into_iter()
-                    .filter(|thread_id| *thread_id != conversation_id)
+                    .filter(|chat_id| *chat_id != conversation_id)
                     .collect::<Vec<_>>();
-                // Thread ids are UUIDv7, so lexicographic order tracks creation time.
+                // Chat ids are UUIDv7, so lexicographic order tracks creation time.
                 descendant_thread_ids.sort_unstable_by_key(ToString::to_string);
                 if original_len > MAX_FEEDBACK_TREE_THREADS {
                     let keep_descendants = MAX_FEEDBACK_TREE_THREADS.saturating_sub(1);
                     let split_index = descendant_thread_ids.len().saturating_sub(keep_descendants);
                     descendant_thread_ids = descendant_thread_ids.split_off(split_index);
                     warn!(
-                        "feedback log upload for thread_id={conversation_id:?} truncated from {original_len} threads to root plus {keep_descendants} most recent descendants"
+                        "feedback log upload for chat_id={conversation_id:?} truncated from {original_len} threads to root plus {keep_descendants} most recent descendants"
                     );
                 }
                 feedback_thread_ids = Vec::with_capacity(descendant_thread_ids.len() + 1);
@@ -166,9 +166,9 @@ impl FeedbackRequestProcessor {
                     Ok(logs) if logs.is_empty() => None,
                     Ok(logs) => Some(logs),
                     Err(err) => {
-                        let thread_ids = thread_id_texts.join(", ");
+                        let chat_ids = thread_id_texts.join(", ");
                         warn!(
-                            "failed to query feedback logs from sqlite for thread_ids=[{thread_ids}]: {err}"
+                            "failed to query feedback logs from sqlite for chat_ids=[{chat_ids}]: {err}"
                         );
                         None
                     }
@@ -267,7 +267,7 @@ impl FeedbackRequestProcessor {
         };
 
         upload_result.map_err(|err| internal_error(format!("failed to upload feedback: {err}")))?;
-        Ok(FeedbackUploadResponse { thread_id })
+        Ok(FeedbackUploadResponse { chat_id })
     }
 
     async fn resolve_rollout_path(
@@ -286,14 +286,14 @@ impl FeedbackRequestProcessor {
             .find_rollout_path_by_id(conversation_id, /*archived_only*/ None)
             .await
             .unwrap_or_else(|err| {
-                warn!("failed to resolve rollout path for thread_id={conversation_id}: {err}");
+                warn!("failed to resolve rollout path for chat_id={conversation_id}: {err}");
                 None
             })
     }
 }
 
-fn auto_review_rollout_filename(thread_id: ThreadId) -> String {
-    format!("auto-review-rollout-{thread_id}.jsonl")
+fn auto_review_rollout_filename(chat_id: ThreadId) -> String {
+    format!("auto-review-rollout-{chat_id}.jsonl")
 }
 
 #[cfg(target_os = "windows")]

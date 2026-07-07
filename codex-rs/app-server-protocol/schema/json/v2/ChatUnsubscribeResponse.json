@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "ChatUnsubscribeStatus": {
+      "enum": [
+        "notLoaded",
+        "notSubscribed",
+        "unsubscribed"
+      ],
+      "type": "string"
+    }
+  },
+  "properties": {
+    "status": {
+      "$ref": "#/definitions/ChatUnsubscribeStatus"
+    }
+  },
+  "required": [
+    "status"
+  ],
+  "title": "ChatUnsubscribeResponse",
+  "type": "object"
+}

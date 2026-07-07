@@ -2,7 +2,7 @@ use super::App;
 use crate::session_resume::read_session_model;
 use crate::session_state::ThreadSessionState;
 use datax_app_server_protocol::AskForApproval;
-use datax_app_server_protocol::Thread;
+use datax_app_server_protocol::Chat;
 use datax_protocol::ThreadId;
 use datax_protocol::models::ActivePermissionProfile;
 use datax_protocol::models::PermissionProfile;
@@ -74,7 +74,7 @@ impl App {
     pub(super) async fn session_state_for_thread_read(
         &self,
         thread_id: ThreadId,
-        thread: &Thread,
+        thread: &Chat,
     ) -> ThreadSessionState {
         let permission_profile = self.current_permission_profile();
         let active_permission_profile = self.current_active_permission_profile();
@@ -407,7 +407,7 @@ mod tests {
             permission_profile: PermissionProfile::workspace_write(),
             ..test_thread_session(primary_thread_id, test_path_buf("/tmp/primary"))
         };
-        let read_thread = Thread {
+        let read_thread = Chat {
             id: read_thread_id.to_string(),
             session_id: read_thread_id.to_string(),
             forked_from_id: None,
@@ -418,7 +418,7 @@ mod tests {
             created_at: 1,
             updated_at: 2,
             recency_at: Some(2),
-            status: datax_app_server_protocol::ThreadStatus::Idle,
+            status: datax_app_server_protocol::ChatStatus::Idle,
             path: None,
             cwd: test_path_buf("/tmp/read").abs(),
             cli_version: "0.0.0".to_string(),

@@ -1,11 +1,11 @@
 use crate::outgoing_message::ConnectionId;
 use crate::outgoing_message::ConnectionRequestId;
+use datax_app_server_protocol::ChatGoal;
+use datax_app_server_protocol::ChatHistoryBuilder;
+use datax_app_server_protocol::ChatSettings;
+use datax_app_server_protocol::Interaction;
+use datax_app_server_protocol::InteractionError;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadGoal;
-use datax_app_server_protocol::ThreadHistoryBuilder;
-use datax_app_server_protocol::ThreadSettings;
-use datax_app_server_protocol::Turn;
-use datax_app_server_protocol::TurnError;
 use datax_core::CodexThread;
 use datax_core::ThreadConfigSnapshot;
 use datax_file_watcher::WatchRegistration;
@@ -34,12 +34,12 @@ pub(crate) struct PendingThreadResumeRequest {
     pub(crate) history_items: Vec<RolloutItem>,
     pub(crate) config_snapshot: ThreadConfigSnapshot,
     pub(crate) instruction_sources: Vec<LegacyAppPathString>,
-    pub(crate) thread_summary: datax_app_server_protocol::Thread,
+    pub(crate) thread_summary: datax_app_server_protocol::Chat,
     pub(crate) emit_thread_goal_update: bool,
     pub(crate) thread_goal_state_db: Option<StateDbHandle>,
-    pub(crate) include_turns: bool,
+    pub(crate) include_interactions: bool,
     pub(crate) initial_turns_page:
-        Option<datax_app_server_protocol::ThreadResumeInitialTurnsPageParams>,
+        Option<datax_app_server_protocol::ChatResumeInitialInteractionsPageParams>,
     pub(crate) redact_resume_payloads: bool,
 }
 
@@ -49,8 +49,8 @@ pub(crate) enum ThreadListenerCommand {
     SendThreadResumeResponse(Box<PendingThreadResumeRequest>),
     // EmitThreadGoalUpdated is used to order goal updates with running-thread resume responses and goal clears.
     EmitThreadGoalUpdated {
-        turn_id: Option<String>,
-        goal: ThreadGoal,
+        interaction_id: Option<String>,
+        goal: ChatGoal,
     },
     // EmitThreadGoalCleared is used to order app-server goal clears with running-thread resume responses.
     EmitThreadGoalCleared,
@@ -71,7 +71,7 @@ pub(crate) enum ThreadListenerCommand {
 pub(crate) struct TurnSummary {
     pub(crate) started_at: Option<i64>,
     pub(crate) command_execution_started: HashSet<String>,
-    pub(crate) last_error: Option<TurnError>,
+    pub(crate) last_error: Option<InteractionError>,
 }
 
 #[derive(Default)]
@@ -83,9 +83,9 @@ pub(crate) struct ThreadState {
     pub(crate) cancel_tx: Option<oneshot::Sender<()>>,
     pub(crate) experimental_raw_events: bool,
     pub(crate) listener_generation: u64,
-    last_thread_settings: Option<ThreadSettings>,
+    last_thread_settings: Option<ChatSettings>,
     listener_command_tx: Option<mpsc::UnboundedSender<ThreadListenerCommand>>,
-    current_turn_history: ThreadHistoryBuilder,
+    current_turn_history: ChatHistoryBuilder,
     listener_thread: Option<Weak<CodexThread>>,
     watch_registration: WatchRegistration,
 }
@@ -103,7 +103,7 @@ impl ThreadState {
         cancel_tx: oneshot::Sender<()>,
         conversation: &Arc<CodexThread>,
         watch_registration: WatchRegistration,
-        thread_settings_baseline: ThreadSettings,
+        thread_settings_baseline: ChatSettings,
     ) -> (mpsc::UnboundedReceiver<ThreadListenerCommand>, u64) {
         if let Some(previous) = self.cancel_tx.replace(cancel_tx) {
             let _ = previous.send(());
@@ -137,7 +137,7 @@ impl ThreadState {
         self.listener_command_tx.clone()
     }
 
-    pub(crate) fn active_turn_snapshot(&self) -> Option<Turn> {
+    pub(crate) fn active_turn_snapshot(&self) -> Option<Interaction> {
         self.current_turn_history.active_turn_snapshot()
     }
 
@@ -154,7 +154,7 @@ impl ThreadState {
         }
     }
 
-    pub(crate) fn note_thread_settings(&mut self, thread_settings: ThreadSettings) -> bool {
+    pub(crate) fn note_thread_settings(&mut self, thread_settings: ChatSettings) -> bool {
         let changed = self.last_thread_settings.as_ref() != Some(&thread_settings);
         self.last_thread_settings = Some(thread_settings);
         changed
@@ -221,8 +221,8 @@ mod tests {
         assert_eq!(results, vec![true, false, true, false]);
     }
 
-    fn thread_settings(model: &str) -> ThreadSettings {
-        ThreadSettings {
+    fn thread_settings(model: &str) -> ChatSettings {
+        ChatSettings {
             cwd: AbsolutePathBuf::from_absolute_path("/tmp").expect("absolute path"),
             approval_policy: AskForApproval::OnRequest,
             approvals_reviewer: ApprovalsReviewer::User,
@@ -315,12 +315,12 @@ impl ThreadStateManager {
 
     pub(crate) async fn first_attestation_capable_connection_for_thread(
         &self,
-        thread_id: ThreadId,
+        chat_id: ThreadId,
     ) -> Option<ConnectionId> {
         let state = self.state.lock().await;
         state
             .threads
-            .get(&thread_id)?
+            .get(&chat_id)?
             .connection_ids
             .iter()
             .filter_map(|connection_id| {
@@ -333,12 +333,12 @@ impl ThreadStateManager {
             .min_by_key(|connection_id| connection_id.0)
     }
 
-    pub(crate) async fn wait_for_thread_subscriber(&self, thread_id: ThreadId) {
+    pub(crate) async fn wait_for_thread_subscriber(&self, chat_id: ThreadId) {
         let mut has_connections = {
             let mut state = self.state.lock().await;
             state
                 .threads
-                .entry(thread_id)
+                .entry(chat_id)
                 .or_default()
                 .has_connections_watcher
                 .subscribe()
@@ -350,68 +350,68 @@ impl ThreadStateManager {
         }
     }
 
-    pub(crate) async fn subscribed_connection_ids(&self, thread_id: ThreadId) -> Vec<ConnectionId> {
+    pub(crate) async fn subscribed_connection_ids(&self, chat_id: ThreadId) -> Vec<ConnectionId> {
         let state = self.state.lock().await;
         state
             .threads
-            .get(&thread_id)
+            .get(&chat_id)
             .map(|thread_entry| thread_entry.connection_ids.iter().copied().collect())
             .unwrap_or_default()
     }
 
-    pub(crate) async fn thread_state(&self, thread_id: ThreadId) -> Arc<Mutex<ThreadState>> {
+    pub(crate) async fn thread_state(&self, chat_id: ThreadId) -> Arc<Mutex<ThreadState>> {
         let mut state = self.state.lock().await;
-        state.threads.entry(thread_id).or_default().state.clone()
+        state.threads.entry(chat_id).or_default().state.clone()
     }
 
     pub(crate) fn current_listener_command_tx(
         &self,
-        thread_id: ThreadId,
+        chat_id: ThreadId,
     ) -> Option<mpsc::UnboundedSender<ThreadListenerCommand>> {
         self.listener_commands
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .get(&thread_id)
+            .get(&chat_id)
             .cloned()
     }
 
     pub(crate) fn register_listener_command_tx(
         &self,
-        thread_id: ThreadId,
+        chat_id: ThreadId,
         tx: mpsc::UnboundedSender<ThreadListenerCommand>,
     ) {
         self.listener_commands
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .insert(thread_id, tx);
+            .insert(chat_id, tx);
     }
 
-    pub(crate) fn unregister_listener_command_tx(&self, thread_id: ThreadId) {
+    pub(crate) fn unregister_listener_command_tx(&self, chat_id: ThreadId) {
         self.listener_commands
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .remove(&thread_id);
+            .remove(&chat_id);
     }
 
-    pub(crate) async fn remove_thread_state(&self, thread_id: ThreadId) {
+    pub(crate) async fn remove_thread_state(&self, chat_id: ThreadId) {
         let thread_state = {
             let mut state = self.state.lock().await;
             let thread_state = state
                 .threads
-                .remove(&thread_id)
+                .remove(&chat_id)
                 .map(|thread_entry| thread_entry.state);
-            state.thread_ids_by_connection.retain(|_, thread_ids| {
-                thread_ids.remove(&thread_id);
-                !thread_ids.is_empty()
+            state.thread_ids_by_connection.retain(|_, chat_ids| {
+                chat_ids.remove(&chat_id);
+                !chat_ids.is_empty()
             });
             thread_state
         };
-        self.unregister_listener_command_tx(thread_id);
+        self.unregister_listener_command_tx(chat_id);
 
         if let Some(thread_state) = thread_state {
             let mut thread_state = thread_state.lock().await;
             tracing::debug!(
-                thread_id = %thread_id,
+                chat_id = %chat_id,
                 listener_generation = thread_state.listener_generation,
                 had_listener = thread_state.cancel_tx.is_some(),
                 had_active_turn = thread_state.active_turn_snapshot().is_some(),
@@ -427,15 +427,15 @@ impl ThreadStateManager {
             state
                 .threads
                 .iter()
-                .map(|(thread_id, thread_entry)| (*thread_id, thread_entry.state.clone()))
+                .map(|(chat_id, thread_entry)| (*chat_id, thread_entry.state.clone()))
                 .collect::<Vec<_>>()
         };
 
-        for (thread_id, thread_state) in thread_states {
-            self.unregister_listener_command_tx(thread_id);
+        for (chat_id, thread_state) in thread_states {
+            self.unregister_listener_command_tx(chat_id);
             let mut thread_state = thread_state.lock().await;
             tracing::debug!(
-                thread_id = %thread_id,
+                chat_id = %chat_id,
                 listener_generation = thread_state.listener_generation,
                 had_listener = thread_state.cancel_tx.is_some(),
                 had_active_turn = thread_state.active_turn_snapshot().is_some(),
@@ -447,30 +447,30 @@ impl ThreadStateManager {
 
     pub(crate) async fn unsubscribe_connection_from_thread(
         &self,
-        thread_id: ThreadId,
+        chat_id: ThreadId,
         connection_id: ConnectionId,
     ) -> bool {
         {
             let mut state = self.state.lock().await;
-            if !state.threads.contains_key(&thread_id) {
+            if !state.threads.contains_key(&chat_id) {
                 return false;
             }
 
             if !state
                 .thread_ids_by_connection
                 .get(&connection_id)
-                .is_some_and(|thread_ids| thread_ids.contains(&thread_id))
+                .is_some_and(|chat_ids| chat_ids.contains(&chat_id))
             {
                 return false;
             }
 
-            if let Some(thread_ids) = state.thread_ids_by_connection.get_mut(&connection_id) {
-                thread_ids.remove(&thread_id);
-                if thread_ids.is_empty() {
+            if let Some(chat_ids) = state.thread_ids_by_connection.get_mut(&connection_id) {
+                chat_ids.remove(&chat_id);
+                if chat_ids.is_empty() {
                     state.thread_ids_by_connection.remove(&connection_id);
                 }
             }
-            if let Some(thread_entry) = state.threads.get_mut(&thread_id) {
+            if let Some(thread_entry) = state.threads.get_mut(&chat_id) {
                 thread_entry.connection_ids.remove(&connection_id);
                 thread_entry.update_has_connections();
             }
@@ -480,18 +480,18 @@ impl ThreadStateManager {
     }
 
     #[cfg(test)]
-    pub(crate) async fn has_subscribers(&self, thread_id: ThreadId) -> bool {
+    pub(crate) async fn has_subscribers(&self, chat_id: ThreadId) -> bool {
         self.state
             .lock()
             .await
             .threads
-            .get(&thread_id)
+            .get(&chat_id)
             .is_some_and(|thread_entry| !thread_entry.connection_ids.is_empty())
     }
 
     pub(crate) async fn try_ensure_connection_subscribed(
         &self,
-        thread_id: ThreadId,
+        chat_id: ThreadId,
         connection_id: ConnectionId,
         experimental_raw_events: bool,
     ) -> Option<Arc<Mutex<ThreadState>>> {
@@ -504,8 +504,8 @@ impl ThreadStateManager {
                 .thread_ids_by_connection
                 .entry(connection_id)
                 .or_default()
-                .insert(thread_id);
-            let thread_entry = state.threads.entry(thread_id).or_default();
+                .insert(chat_id);
+            let thread_entry = state.threads.entry(chat_id).or_default();
             thread_entry.connection_ids.insert(connection_id);
             thread_entry.update_has_connections();
             thread_entry.state.clone()
@@ -521,7 +521,7 @@ impl ThreadStateManager {
 
     pub(crate) async fn try_add_connection_to_thread(
         &self,
-        thread_id: ThreadId,
+        chat_id: ThreadId,
         connection_id: ConnectionId,
     ) -> bool {
         let mut state = self.state.lock().await;
@@ -532,8 +532,8 @@ impl ThreadStateManager {
             .thread_ids_by_connection
             .entry(connection_id)
             .or_default()
-            .insert(thread_id);
-        let thread_entry = state.threads.entry(thread_id).or_default();
+            .insert(chat_id);
+        let thread_entry = state.threads.entry(chat_id).or_default();
         thread_entry.connection_ids.insert(connection_id);
         thread_entry.update_has_connections();
         true
@@ -543,22 +543,22 @@ impl ThreadStateManager {
         {
             let mut state = self.state.lock().await;
             state.live_connections.remove(&connection_id);
-            let thread_ids = state
+            let chat_ids = state
                 .thread_ids_by_connection
                 .remove(&connection_id)
                 .unwrap_or_default();
-            for thread_id in &thread_ids {
-                if let Some(thread_entry) = state.threads.get_mut(thread_id) {
+            for chat_id in &chat_ids {
+                if let Some(thread_entry) = state.threads.get_mut(chat_id) {
                     thread_entry.connection_ids.remove(&connection_id);
                     thread_entry.update_has_connections();
                 }
             }
-            thread_ids
+            chat_ids
                 .into_iter()
-                .filter(|thread_id| {
+                .filter(|chat_id| {
                     state
                         .threads
-                        .get(thread_id)
+                        .get(chat_id)
                         .is_some_and(|thread_entry| thread_entry.connection_ids.is_empty())
                 })
                 .collect::<Vec<_>>()
@@ -567,12 +567,12 @@ impl ThreadStateManager {
 
     pub(crate) async fn subscribe_to_has_connections(
         &self,
-        thread_id: ThreadId,
+        chat_id: ThreadId,
     ) -> Option<watch::Receiver<bool>> {
         let state = self.state.lock().await;
         state
             .threads
-            .get(&thread_id)
+            .get(&chat_id)
             .map(|thread_entry| thread_entry.has_connections_watcher.subscribe())
     }
 }

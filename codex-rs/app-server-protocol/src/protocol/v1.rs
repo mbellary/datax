@@ -54,7 +54,7 @@ pub struct InitializeCapabilities {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub mcp_server_openai_form_elicitation: bool,
     /// Exact notification method names that should be suppressed for this
-    /// connection (for example `thread/started`).
+    /// connection (for example `chat/started`).
     #[ts(optional = nullable)]
     pub opt_out_notification_methods: Option<Vec<String>>,
 }

@@ -6,6 +6,8 @@ use app_test_support::create_final_assistant_message_sse_response;
 use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::to_response;
 use core_test_support::skip_if_windows;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::ConfigBatchWriteParams;
 use datax_app_server_protocol::ConfigEdit;
 use datax_app_server_protocol::HookEventName;
@@ -16,12 +18,10 @@ use datax_app_server_protocol::HookTrustStatus;
 use datax_app_server_protocol::HooksListEntry;
 use datax_app_server_protocol::HooksListParams;
 use datax_app_server_protocol::HooksListResponse;
+use datax_app_server_protocol::InteractionStartParams;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::MergeStrategy;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_core::config::set_project_trust_level;
 use datax_protocol::config_types::TrustLevel;
@@ -316,9 +316,9 @@ async fn hooks_list_warms_plugin_capabilities_for_thread_start() -> Result<()> {
     std::fs::remove_file(plugin_mcp_path)?;
 
     let thread_start_id = mcp
-        .send_thread_start_request(ThreadStartParams::default())
+        .send_chat_start_request(ChatStartParams::default())
         .await?;
-    let _: ThreadStartResponse = to_response(
+    let _: ChatStartResponse = to_response(
         timeout(
             DEFAULT_TIMEOUT,
             mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
@@ -725,7 +725,7 @@ command = "python3 {hook_script_path}"
     assert_eq!(hook.trust_status, HookTrustStatus::Untrusted);
 
     let thread_start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -735,11 +735,11 @@ command = "python3 {hook_script_path}"
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(response)?;
+    let ChatStartResponse { thread, .. } = to_response(response)?;
 
     let first_turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "first turn".to_string(),
@@ -755,7 +755,7 @@ command = "python3 {hook_script_path}"
     .await??;
     timeout(
         DEFAULT_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
     assert!(!std::fs::exists(&hook_log_path)?);
@@ -800,8 +800,8 @@ command = "python3 {hook_script_path}"
     assert_eq!(trusted_hook.trust_status, HookTrustStatus::Trusted);
 
     let second_turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "second turn".to_string(),
@@ -817,7 +817,7 @@ command = "python3 {hook_script_path}"
     .await??;
     timeout(
         DEFAULT_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
     assert_eq!(
@@ -870,8 +870,8 @@ command = "python3 {hook_script_path}"
     assert_eq!(modified_hook.trust_status, HookTrustStatus::Modified);
 
     let third_turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id,
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id,
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "third turn".to_string(),
@@ -887,7 +887,7 @@ command = "python3 {hook_script_path}"
     .await??;
     timeout(
         DEFAULT_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
     assert_eq!(
@@ -998,7 +998,7 @@ command = "python3 {hook_script_path}"
     let _: datax_app_server_protocol::ConfigWriteResponse = to_response(response)?;
 
     let thread_start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -1008,11 +1008,11 @@ command = "python3 {hook_script_path}"
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(response)?;
+    let ChatStartResponse { thread, .. } = to_response(response)?;
 
     let first_turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "first turn".to_string(),
@@ -1028,7 +1028,7 @@ command = "python3 {hook_script_path}"
     .await??;
     timeout(
         DEFAULT_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
     assert_eq!(
@@ -1063,8 +1063,8 @@ command = "python3 {hook_script_path}"
     let _: datax_app_server_protocol::ConfigWriteResponse = to_response(response)?;
 
     let second_turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id,
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id,
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "second turn".to_string(),
@@ -1080,7 +1080,7 @@ command = "python3 {hook_script_path}"
     .await??;
     timeout(
         DEFAULT_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
     assert_eq!(

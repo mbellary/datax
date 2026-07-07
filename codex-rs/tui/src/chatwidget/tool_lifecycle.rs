@@ -43,7 +43,7 @@ impl ChatWidget {
         self.request_redraw();
     }
 
-    pub(super) fn on_file_change_completed(&mut self, item: ThreadItem) {
+    pub(super) fn on_file_change_completed(&mut self, item: Message) {
         let item2 = item.clone();
         self.defer_or_handle(
             |q| q.push_item_completed(item),
@@ -51,7 +51,7 @@ impl ChatWidget {
         );
     }
 
-    pub(super) fn on_mcp_tool_call_started(&mut self, item: ThreadItem) {
+    pub(super) fn on_mcp_tool_call_started(&mut self, item: Message) {
         let item2 = item.clone();
         self.defer_or_handle(
             |q| q.push_item_started(item),
@@ -59,7 +59,7 @@ impl ChatWidget {
         );
     }
 
-    pub(super) fn on_mcp_tool_call_completed(&mut self, item: ThreadItem) {
+    pub(super) fn on_mcp_tool_call_completed(&mut self, item: Message) {
         let item2 = item.clone();
         self.defer_or_handle(
             |q| q.push_item_completed(item),
@@ -114,9 +114,9 @@ impl ChatWidget {
         self.request_redraw();
     }
 
-    pub(super) fn on_collab_agent_tool_call(&mut self, item: ThreadItem) {
+    pub(super) fn on_collab_agent_tool_call(&mut self, item: Message) {
         self.record_visible_turn_activity();
-        let ThreadItem::CollabAgentToolCall {
+        let Message::CollabAgentToolCall {
             id, tool, status, ..
         } = &item
         else {
@@ -146,15 +146,15 @@ impl ChatWidget {
         }
     }
 
-    pub(super) fn on_sub_agent_activity(&mut self, item: ThreadItem) {
+    pub(super) fn on_sub_agent_activity(&mut self, item: Message) {
         self.record_visible_turn_activity();
         if let Some(cell) = multi_agents::sub_agent_activity_history_cell(&item) {
             self.on_collab_event(cell);
         }
     }
 
-    pub(crate) fn handle_file_change_completed_now(&mut self, item: ThreadItem) {
-        let ThreadItem::FileChange { status, .. } = item else {
+    pub(crate) fn handle_file_change_completed_now(&mut self, item: Message) {
+        let Message::FileChange { status, .. } = item else {
             return;
         };
         // If the patch was successful, just let the "Edited" block stand.
@@ -166,9 +166,9 @@ impl ChatWidget {
         self.transcript.had_work_activity = true;
     }
 
-    pub(crate) fn handle_mcp_tool_call_started_now(&mut self, item: ThreadItem) {
+    pub(crate) fn handle_mcp_tool_call_started_now(&mut self, item: Message) {
         self.record_visible_turn_activity();
-        let ThreadItem::McpToolCall {
+        let Message::McpToolCall {
             id,
             server,
             tool,
@@ -193,10 +193,10 @@ impl ChatWidget {
         self.request_redraw();
     }
 
-    pub(crate) fn handle_mcp_tool_call_completed_now(&mut self, item: ThreadItem) {
+    pub(crate) fn handle_mcp_tool_call_completed_now(&mut self, item: Message) {
         self.flush_answer_stream_with_separator();
 
-        let ThreadItem::McpToolCall {
+        let Message::McpToolCall {
             id,
             server,
             tool,
@@ -254,25 +254,25 @@ impl ChatWidget {
         self.transcript.had_work_activity = true;
     }
 
-    pub(crate) fn handle_queued_item_started_now(&mut self, item: ThreadItem) {
+    pub(crate) fn handle_queued_item_started_now(&mut self, item: Message) {
         match item {
-            item @ ThreadItem::CommandExecution { .. } => {
+            item @ Message::CommandExecution { .. } => {
                 self.handle_command_execution_started_now(item);
             }
-            item @ ThreadItem::McpToolCall { .. } => {
+            item @ Message::McpToolCall { .. } => {
                 self.handle_mcp_tool_call_started_now(item);
             }
             _ => {}
         }
     }
 
-    pub(crate) fn handle_queued_item_completed_now(&mut self, item: ThreadItem) {
+    pub(crate) fn handle_queued_item_completed_now(&mut self, item: Message) {
         match item {
-            item @ ThreadItem::CommandExecution { .. } => {
+            item @ Message::CommandExecution { .. } => {
                 self.handle_command_execution_completed_now(item);
             }
-            item @ ThreadItem::FileChange { .. } => self.handle_file_change_completed_now(item),
-            item @ ThreadItem::McpToolCall { .. } => self.handle_mcp_tool_call_completed_now(item),
+            item @ Message::FileChange { .. } => self.handle_file_change_completed_now(item),
+            item @ Message::McpToolCall { .. } => self.handle_mcp_tool_call_completed_now(item),
             _ => {}
         }
     }

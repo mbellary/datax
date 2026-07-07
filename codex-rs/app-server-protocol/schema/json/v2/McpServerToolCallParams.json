@@ -3,10 +3,10 @@
   "properties": {
     "_meta": true,
     "arguments": true,
-    "server": {
+    "chatId": {
       "type": "string"
     },
-    "threadId": {
+    "server": {
       "type": "string"
     },
     "tool": {
@@ -14,8 +14,8 @@
     }
   },
   "required": [
+    "chatId",
     "server",
-    "threadId",
     "tool"
   ],
   "title": "McpServerToolCallParams",

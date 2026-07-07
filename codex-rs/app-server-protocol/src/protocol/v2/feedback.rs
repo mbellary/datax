@@ -13,7 +13,7 @@ pub struct FeedbackUploadParams {
     #[ts(optional = nullable)]
     pub reason: Option<String>,
     #[ts(optional = nullable)]
-    pub thread_id: Option<String>,
+    pub chat_id: Option<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub include_logs: bool,
     #[ts(optional = nullable)]
@@ -26,5 +26,5 @@ pub struct FeedbackUploadParams {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct FeedbackUploadResponse {
-    pub thread_id: String,
+    pub chat_id: String,
 }

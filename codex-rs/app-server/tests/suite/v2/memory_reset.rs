@@ -34,7 +34,7 @@ async fn memory_reset_clears_memory_files_and_rows_preserves_threads() -> Result
     )
     .await?;
 
-    let thread_id = seed_stage1_output(&state_db, codex_home.path()).await?;
+    let chat_id = seed_stage1_output(&state_db, codex_home.path()).await?;
 
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
@@ -55,7 +55,7 @@ async fn memory_reset_clears_memory_files_and_rows_preserves_threads() -> Result
         .await?;
     assert_eq!(stage1_outputs, Vec::new());
     assert_eq!(
-        state_db.get_thread_memory_mode(thread_id).await?.as_deref(),
+        state_db.get_thread_memory_mode(chat_id).await?.as_deref(),
         Some("enabled")
     );
 
@@ -70,10 +70,10 @@ async fn memory_reset_clears_memory_files_and_rows_preserves_threads() -> Result
 
 async fn seed_stage1_output(state_db: &Arc<StateRuntime>, codex_home: &Path) -> Result<ThreadId> {
     let now = Utc::now();
-    let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string())?;
+    let chat_id = ThreadId::from_string(&Uuid::new_v4().to_string())?;
     let worker_id = ThreadId::from_string(&Uuid::new_v4().to_string())?;
     let mut builder = ThreadMetadataBuilder::new(
-        thread_id,
+        chat_id,
         codex_home.join("sessions").join("test.jsonl"),
         now,
         SessionSource::Cli,
@@ -86,7 +86,7 @@ async fn seed_stage1_output(state_db: &Arc<StateRuntime>, codex_home: &Path) -> 
     let claim = state_db
         .memories()
         .try_claim_stage1_job(
-            thread_id,
+            chat_id,
             worker_id,
             now.timestamp(),
             /*lease_seconds*/ 3600,
@@ -100,7 +100,7 @@ async fn seed_stage1_output(state_db: &Arc<StateRuntime>, codex_home: &Path) -> 
         state_db
             .memories()
             .mark_stage1_job_succeeded(
-                thread_id,
+                chat_id,
                 ownership_token.as_str(),
                 now.timestamp(),
                 "raw memory",
@@ -115,7 +115,7 @@ async fn seed_stage1_output(state_db: &Arc<StateRuntime>, codex_home: &Path) -> 
         .enqueue_global_consolidation(now.timestamp())
         .await?;
 
-    Ok(thread_id)
+    Ok(chat_id)
 }
 
 async fn init_state_db(codex_home: &Path) -> Result<Arc<StateRuntime>> {

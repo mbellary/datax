@@ -40,7 +40,7 @@ pub(crate) struct ThreadSessionState {
     /// Permission snapshot used by TUI display surfaces. Legacy app-server
     /// responses are converted to a profile at ingestion time using the
     /// response cwd so cached sessions do not reinterpret cwd-bound grants.
-    /// Turn requests must not treat this snapshot as a local permission
+    /// Interaction requests must not treat this snapshot as a local permission
     /// override unless the user explicitly changed permissions in the TUI.
     pub(crate) permission_profile: PermissionProfile,
     /// Named or implicit built-in profile that produced `permission_profile`,

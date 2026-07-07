@@ -1,7 +1,7 @@
+use super::ChatStatus;
 use super::CodexErrorInfo;
-use super::ThreadItem;
-use super::ThreadStatus;
-use super::TurnStatus;
+use super::InteractionStatus;
+use super::Message;
 use datax_protocol::protocol::SessionSource as CoreSessionSource;
 use datax_protocol::protocol::SubAgentSource as CoreSubAgentSource;
 use datax_protocol::protocol::ThreadSource as CoreThreadSource;
@@ -67,16 +67,16 @@ impl From<SessionSource> for CoreSessionSource {
 #[serde(try_from = "String", into = "String")]
 #[ts(type = "string")]
 #[ts(export_to = "v2/")]
-pub enum ThreadSource {
+pub enum ChatSource {
     User,
     Subagent,
     Feature(String),
     MemoryConsolidation,
 }
 
-impl JsonSchema for ThreadSource {
+impl JsonSchema for ChatSource {
     fn schema_name() -> String {
-        "ThreadSource".to_string()
+        "ChatSource".to_string()
     }
 
     fn json_schema(generator: &mut SchemaGenerator) -> Schema {
@@ -84,7 +84,7 @@ impl JsonSchema for ThreadSource {
     }
 }
 
-impl TryFrom<String> for ThreadSource {
+impl TryFrom<String> for ChatSource {
     type Error = String;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
@@ -92,30 +92,30 @@ impl TryFrom<String> for ThreadSource {
     }
 }
 
-impl From<ThreadSource> for String {
-    fn from(value: ThreadSource) -> Self {
+impl From<ChatSource> for String {
+    fn from(value: ChatSource) -> Self {
         CoreThreadSource::from(value).into()
     }
 }
 
-impl From<CoreThreadSource> for ThreadSource {
+impl From<CoreThreadSource> for ChatSource {
     fn from(value: CoreThreadSource) -> Self {
         match value {
-            CoreThreadSource::User => ThreadSource::User,
-            CoreThreadSource::Subagent => ThreadSource::Subagent,
-            CoreThreadSource::Feature(feature) => ThreadSource::Feature(feature),
-            CoreThreadSource::MemoryConsolidation => ThreadSource::MemoryConsolidation,
+            CoreThreadSource::User => ChatSource::User,
+            CoreThreadSource::Subagent => ChatSource::Subagent,
+            CoreThreadSource::Feature(feature) => ChatSource::Feature(feature),
+            CoreThreadSource::MemoryConsolidation => ChatSource::MemoryConsolidation,
         }
     }
 }
 
-impl From<ThreadSource> for CoreThreadSource {
-    fn from(value: ThreadSource) -> Self {
+impl From<ChatSource> for CoreThreadSource {
+    fn from(value: ChatSource) -> Self {
         match value {
-            ThreadSource::User => CoreThreadSource::User,
-            ThreadSource::Subagent => CoreThreadSource::Subagent,
-            ThreadSource::Feature(feature) => CoreThreadSource::Feature(feature),
-            ThreadSource::MemoryConsolidation => CoreThreadSource::MemoryConsolidation,
+            ChatSource::User => CoreThreadSource::User,
+            ChatSource::Subagent => CoreThreadSource::Subagent,
+            ChatSource::Feature(feature) => CoreThreadSource::Feature(feature),
+            ChatSource::MemoryConsolidation => CoreThreadSource::MemoryConsolidation,
         }
     }
 }
@@ -132,32 +132,32 @@ pub struct GitInfo {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub struct Thread {
+pub struct Chat {
     pub id: String,
     /// Session id shared by threads that belong to the same session tree.
     pub session_id: String,
-    /// Source thread id when this thread was created by forking another thread.
+    /// Source chat id when this chat was created by forking another chat.
     pub forked_from_id: Option<String>,
-    /// The ID of the parent thread. This will only be set if this thread is a subagent.
-    pub parent_thread_id: Option<String>,
+    /// The ID of the parent chat. This will only be set if this chat is a subagent.
+    pub parent_chat_id: Option<String>,
     /// Usually the first user message in the thread, if available.
     pub preview: String,
-    /// Whether the thread is ephemeral and should not be materialized on disk.
+    /// Whether the chat is ephemeral and should not be materialized on disk.
     pub ephemeral: bool,
     /// Model provider used for this thread (for example, 'openai').
     pub model_provider: String,
-    /// Unix timestamp (in seconds) when the thread was created.
+    /// Unix timestamp (in seconds) when the chat was created.
     #[ts(type = "number")]
     pub created_at: i64,
-    /// Unix timestamp (in seconds) when the thread was last updated.
+    /// Unix timestamp (in seconds) when the chat was last updated.
     #[ts(type = "number")]
     pub updated_at: i64,
-    /// Unix timestamp (in seconds) used for thread recency ordering.
+    /// Unix timestamp (in seconds) used for chat recency ordering.
     #[ts(type = "number | null")]
     pub recency_at: Option<i64>,
     /// Current runtime status for the thread.
-    pub status: ThreadStatus,
-    /// [UNSTABLE] Path to the thread on disk.
+    pub status: ChatStatus,
+    /// [UNSTABLE] Path to the chat on disk.
     pub path: Option<PathBuf>,
     /// Working directory captured for the thread.
     pub cwd: AbsolutePathBuf,
@@ -166,35 +166,35 @@ pub struct Thread {
     /// Origin of the thread (CLI, VSCode, codex exec, codex app-server, etc.).
     pub source: SessionSource,
     /// Optional analytics source classification for this thread.
-    pub thread_source: Option<ThreadSource>,
+    pub chat_source: Option<ChatSource>,
     /// Optional random unique nickname assigned to an AgentControl-spawned sub-agent.
     pub agent_nickname: Option<String>,
     /// Optional role (agent_role) assigned to an AgentControl-spawned sub-agent.
     pub agent_role: Option<String>,
-    /// Optional Git metadata captured when the thread was created.
+    /// Optional Git metadata captured when the chat was created.
     pub git_info: Option<GitInfo>,
-    /// Optional user-facing thread title.
+    /// Optional user-facing chat title.
     pub name: Option<String>,
-    /// Only populated on `thread/resume`, `thread/rollback`, `thread/fork`, and `thread/read`
-    /// (when `includeTurns` is true) responses.
-    /// For all other responses and notifications returning a Thread,
-    /// the turns field will be an empty list.
-    pub turns: Vec<Turn>,
+    /// Only populated on `chat/resume`, `chat/rollback`, `chat/fork`, and `chat/read`
+    /// (when `includeInteractions` is true) responses.
+    /// For all other responses and notifications returning a Chat,
+    /// the interactions field will be an empty list.
+    pub interactions: Vec<Interaction>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub struct Turn {
+pub struct Interaction {
     pub id: String,
-    /// Thread items currently included in this turn payload.
-    pub items: Vec<ThreadItem>,
-    /// Describes how much of `items` has been loaded for this turn.
+    /// Chat messages currently included in this turn payload.
+    pub messages: Vec<Message>,
+    /// Describes how much of `messages` has been loaded for this turn.
     #[serde(default)]
-    pub items_view: TurnItemsView,
-    pub status: TurnStatus,
-    /// Only populated when the Turn's status is failed.
-    pub error: Option<TurnError>,
+    pub messages_view: InteractionMessagesView,
+    pub status: InteractionStatus,
+    /// Only populated when the Interaction's status is failed.
+    pub error: Option<InteractionError>,
     /// Unix timestamp (in seconds) when the turn started.
     #[ts(type = "number | null")]
     pub started_at: Option<i64>,
@@ -209,12 +209,12 @@ pub struct Turn {
 #[derive(Default, Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub enum TurnItemsView {
-    /// `items` was not loaded for this turn. The field is intentionally empty.
+pub enum InteractionMessagesView {
+    /// `messages` was not loaded for this turn. The field is intentionally empty.
     NotLoaded,
-    /// `items` contains only a display summary for this turn.
+    /// `messages` contains only a display summary for this turn.
     Summary,
-    /// `items` contains every ThreadItem available from persisted app-server history for this turn.
+    /// `messages` contains every Message available from persisted app-server history for this turn.
     #[default]
     Full,
 }
@@ -223,7 +223,7 @@ pub enum TurnItemsView {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 #[error("{message}")]
-pub struct TurnError {
+pub struct InteractionError {
     pub message: String,
     pub codex_error_info: Option<CodexErrorInfo>,
     #[serde(default)]

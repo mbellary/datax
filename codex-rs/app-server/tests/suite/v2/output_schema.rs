@@ -3,12 +3,12 @@ use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use pretty_assertions::assert_eq;
 use std::path::Path;
@@ -36,7 +36,7 @@ async fn turn_start_accepts_output_schema_v2() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             ..Default::default()
         })
         .await?;
@@ -45,7 +45,7 @@ async fn turn_start_accepts_output_schema_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let output_schema = serde_json::json!({
         "type": "object",
@@ -57,8 +57,8 @@ async fn turn_start_accepts_output_schema_v2() -> Result<()> {
     });
 
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "Hello".to_string(),
@@ -73,11 +73,11 @@ async fn turn_start_accepts_output_schema_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let _turn: TurnStartResponse = to_response::<TurnStartResponse>(turn_resp)?;
+    let _turn: InteractionStartResponse = to_response::<InteractionStartResponse>(turn_resp)?;
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -119,7 +119,7 @@ async fn turn_start_output_schema_is_per_turn_v2() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             ..Default::default()
         })
         .await?;
@@ -128,7 +128,7 @@ async fn turn_start_output_schema_is_per_turn_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let output_schema = serde_json::json!({
         "type": "object",
@@ -140,8 +140,8 @@ async fn turn_start_output_schema_is_per_turn_v2() -> Result<()> {
     });
 
     let turn_req_1 = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "Hello".to_string(),
@@ -156,11 +156,11 @@ async fn turn_start_output_schema_is_per_turn_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req_1)),
     )
     .await??;
-    let _turn: TurnStartResponse = to_response::<TurnStartResponse>(turn_resp_1)?;
+    let _turn: InteractionStartResponse = to_response::<InteractionStartResponse>(turn_resp_1)?;
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -183,8 +183,8 @@ async fn turn_start_output_schema_is_per_turn_v2() -> Result<()> {
     let response_mock2 = responses::mount_sse_once(&server, body2).await;
 
     let turn_req_2 = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "Hello again".to_string(),
@@ -199,11 +199,11 @@ async fn turn_start_output_schema_is_per_turn_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req_2)),
     )
     .await??;
-    let _turn: TurnStartResponse = to_response::<TurnStartResponse>(turn_resp_2)?;
+    let _turn: InteractionStartResponse = to_response::<InteractionStartResponse>(turn_resp_2)?;
 
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 

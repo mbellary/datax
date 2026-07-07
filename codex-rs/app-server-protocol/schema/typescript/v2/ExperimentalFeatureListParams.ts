@@ -16,4 +16,4 @@ limit?: number | null,
  * existing thread so enablement is computed from that thread's refreshed
  * config, including project-local config for the thread's cwd.
  */
-threadId?: string | null, };
+chatId?: string | null, };

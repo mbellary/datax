@@ -1,8 +1,8 @@
 use crate::app_command::AppCommand;
+use datax_app_server_protocol::Message;
 use datax_app_server_protocol::RequestId as AppServerRequestId;
 use datax_app_server_protocol::ServerNotification;
 use datax_app_server_protocol::ServerRequest;
-use datax_app_server_protocol::ThreadItem;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -24,7 +24,7 @@ impl ElicitationRequestKey {
 #[derive(Debug, Default)]
 // Tracks which interactive prompts are still unresolved in the thread-event buffer.
 //
-// Thread snapshots are replayed when switching threads/agents. Most events should replay
+// Chat snapshots are replayed when switching threads/agents. Most events should replay
 // verbatim, but interactive prompts (approvals, request_user_input, MCP elicitations) must
 // only replay if they are still pending. This state is updated from:
 // - inbound events (`note_event`)
@@ -251,15 +251,15 @@ impl PendingInteractiveReplayState {
 
     pub(super) fn note_server_notification(&mut self, notification: &ServerNotification) {
         match notification {
-            ServerNotification::ItemStarted(notification) => match &notification.item {
-                ThreadItem::CommandExecution { id, .. } => {
+            ServerNotification::MessageStarted(notification) => match &notification.item {
+                Message::CommandExecution { id, .. } => {
                     self.exec_approval_call_ids.remove(id);
                     Self::remove_call_id_from_turn_map(
                         &mut self.exec_approval_call_ids_by_turn_id,
                         id,
                     );
                 }
-                ThreadItem::FileChange { id, .. } => {
+                Message::FileChange { id, .. } => {
                     self.patch_approval_call_ids.remove(id);
                     Self::remove_call_id_from_turn_map(
                         &mut self.patch_approval_call_ids_by_turn_id,
@@ -268,7 +268,7 @@ impl PendingInteractiveReplayState {
                 }
                 _ => {}
             },
-            ServerNotification::TurnCompleted(notification) => {
+            ServerNotification::InteractionCompleted(notification) => {
                 self.clear_exec_approval_turn(&notification.turn.id);
                 self.clear_patch_approval_turn(&notification.turn.id);
                 self.clear_request_permissions_turn(&notification.turn.id);
@@ -277,7 +277,7 @@ impl PendingInteractiveReplayState {
             ServerNotification::ServerRequestResolved(notification) => {
                 self.remove_request(&notification.request_id);
             }
-            ServerNotification::ThreadClosed(_) => self.clear(),
+            ServerNotification::ChatClosed(_) => self.clear(),
             _ => {}
         }
     }
@@ -565,9 +565,13 @@ mod tests {
     use super::super::ThreadBufferedEvent;
     use super::super::ThreadEventStore;
     use crate::app_command::AppCommand as Op;
+    use datax_app_server_protocol::ChatClosedNotification;
     use datax_app_server_protocol::CommandExecutionApprovalDecision;
     use datax_app_server_protocol::CommandExecutionRequestApprovalParams;
     use datax_app_server_protocol::FileChangeRequestApprovalParams;
+    use datax_app_server_protocol::Interaction;
+    use datax_app_server_protocol::InteractionCompletedNotification;
+    use datax_app_server_protocol::InteractionStatus;
     use datax_app_server_protocol::McpElicitationObjectType;
     use datax_app_server_protocol::McpElicitationSchema;
     use datax_app_server_protocol::McpServerElicitationAction;
@@ -577,12 +581,8 @@ mod tests {
     use datax_app_server_protocol::ServerNotification;
     use datax_app_server_protocol::ServerRequest;
     use datax_app_server_protocol::ServerRequestResolvedNotification;
-    use datax_app_server_protocol::ThreadClosedNotification;
     use datax_app_server_protocol::ToolRequestUserInputParams;
     use datax_app_server_protocol::ToolRequestUserInputResponse;
-    use datax_app_server_protocol::Turn;
-    use datax_app_server_protocol::TurnCompletedNotification;
-    use datax_app_server_protocol::TurnStatus;
     use datax_utils_absolute_path::test_support::PathBufExt;
     use datax_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
@@ -665,13 +665,13 @@ mod tests {
     }
 
     fn turn_completed(turn_id: &str) -> ServerNotification {
-        ServerNotification::TurnCompleted(TurnCompletedNotification {
+        ServerNotification::InteractionCompleted(InteractionCompletedNotification {
             thread_id: "thread-1".to_string(),
-            turn: Turn {
+            turn: Interaction {
                 id: turn_id.to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: Vec::new(),
-                status: TurnStatus::Completed,
+                status: InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: Some(0),
@@ -681,7 +681,7 @@ mod tests {
     }
 
     fn thread_closed() -> ServerNotification {
-        ServerNotification::ThreadClosed(ThreadClosedNotification {
+        ServerNotification::ChatClosed(ChatClosedNotification {
             thread_id: "thread-1".to_string(),
         })
     }

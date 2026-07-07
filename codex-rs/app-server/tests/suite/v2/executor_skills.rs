@@ -5,12 +5,12 @@ use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use core_test_support::responses;
 use datax_app_server_protocol::CapabilityRootLocation;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::InteractionStartParams;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::SelectedCapabilityRoot;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
 use datax_app_server_protocol::UserInput;
 use tempfile::TempDir;
 use tokio::time::timeout;
@@ -84,7 +84,7 @@ stream_max_retries = 0
     timeout(READ_TIMEOUT, app_server.initialize()).await??;
 
     let request_id = app_server
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             selected_capability_roots: Some(vec![SelectedCapabilityRoot {
                 id: "demo-plugin@1".to_string(),
@@ -101,11 +101,11 @@ stream_max_retries = 0
         app_server.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(response)?;
+    let ChatStartResponse { thread, .. } = to_response(response)?;
 
     let request_id = app_server
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id,
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id,
             input: vec![UserInput::Text {
                 text: format!("Use ${SKILL_NAME}"),
                 text_elements: Vec::new(),
@@ -120,7 +120,7 @@ stream_max_retries = 0
     .await??;
     timeout(
         READ_TIMEOUT,
-        app_server.read_stream_until_notification_message("turn/completed"),
+        app_server.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 

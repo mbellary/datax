@@ -46,8 +46,8 @@ impl AppsRequestProcessor {
         request_id: &ConnectionRequestId,
         params: AppsListParams,
     ) -> Result<Option<AppsListResponse>, JSONRPCErrorError> {
-        let thread = if let Some(thread_id) = params.thread_id.as_deref() {
-            let (_, loaded_thread) = self.load_thread(thread_id).await?;
+        let thread = if let Some(chat_id) = params.chat_id.as_deref() {
+            let (_, loaded_thread) = self.load_thread(chat_id).await?;
             Some(loaded_thread)
         } else {
             None
@@ -171,7 +171,7 @@ impl AppsRequestProcessor {
         let AppsListParams {
             cursor,
             limit,
-            thread_id: _,
+            chat_id: _,
             force_refetch,
         } = params;
         let start = match cursor {
@@ -310,18 +310,18 @@ impl AppsRequestProcessor {
 
     async fn load_thread(
         &self,
-        thread_id: &str,
+        chat_id: &str,
     ) -> Result<(ThreadId, Arc<CodexThread>), JSONRPCErrorError> {
-        let thread_id = ThreadId::from_string(thread_id)
+        let chat_id = ThreadId::from_string(chat_id)
             .map_err(|err| invalid_request(format!("invalid thread id: {err}")))?;
 
         let thread = self
             .thread_manager
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
-            .map_err(|_| invalid_request(format!("thread not found: {thread_id}")))?;
+            .map_err(|_| invalid_request(format!("thread not found: {chat_id}")))?;
 
-        Ok((thread_id, thread))
+        Ok((chat_id, thread))
     }
 
     async fn load_latest_config(

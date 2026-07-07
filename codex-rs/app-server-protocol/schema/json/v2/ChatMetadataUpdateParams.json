@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "ChatMetadataGitInfoUpdateParams": {
+      "properties": {
+        "branch": {
+          "description": "Omit to leave the stored branch unchanged, set to `null` to clear it, or provide a non-empty string to replace it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "originUrl": {
+          "description": "Omit to leave the stored origin URL unchanged, set to `null` to clear it, or provide a non-empty string to replace it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha": {
+          "description": "Omit to leave the stored commit unchanged, set to `null` to clear it, or provide a non-empty string to replace it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    }
+  },
+  "properties": {
+    "chatId": {
+      "type": "string"
+    },
+    "gitInfo": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ChatMetadataGitInfoUpdateParams"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Patch the stored Git metadata for this chat. Omit a field to leave it unchanged, set it to `null` to clear it, or provide a string to replace the stored value."
+    }
+  },
+  "required": [
+    "chatId"
+  ],
+  "title": "ChatMetadataUpdateParams",
+  "type": "object"
+}

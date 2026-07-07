@@ -151,7 +151,7 @@ fn read_file_bytes(path: &Path) -> Result<Vec<u8>> {
 
 fn canonicalize_json(value: &Value) -> Value {
     match value {
-        Value::Array(items) => {
+        Value::Array(messages) => {
             // NOTE: We sort some JSON arrays to make schema fixture comparisons stable across
             // platforms.
             //
@@ -171,19 +171,19 @@ fn canonicalize_json(value: &Value) -> Value {
             // (e.g. tuple validation / `prefixItems`-style arrays), we only sort arrays when we
             // can derive a stable sort key for *every* element. If we cannot, we preserve the
             // original ordering.
-            let items = items.iter().map(canonicalize_json).collect::<Vec<_>>();
-            let mut sortable = Vec::with_capacity(items.len());
-            for item in &items {
+            let messages = messages.iter().map(canonicalize_json).collect::<Vec<_>>();
+            let mut sortable = Vec::with_capacity(messages.len());
+            for item in &messages {
                 let Some(key) = schema_array_item_sort_key(item) else {
-                    return Value::Array(items);
+                    return Value::Array(messages);
                 };
                 let stable = serde_json::to_string(item).unwrap_or_default();
                 sortable.push((key, stable));
             }
 
-            let mut items = items.into_iter().zip(sortable).collect::<Vec<_>>();
+            let mut messages = messages.into_iter().zip(sortable).collect::<Vec<_>>();
 
-            items.sort_by(
+            messages.sort_by(
                 |(_, (key_left, stable_left)), (_, (key_right, stable_right))| match key_left
                     .cmp(key_right)
                 {
@@ -192,7 +192,7 @@ fn canonicalize_json(value: &Value) -> Value {
                 },
             );
 
-            Value::Array(items.into_iter().map(|(item, _)| item).collect())
+            Value::Array(messages.into_iter().map(|(item, _)| item).collect())
         }
         Value::Object(map) => {
             let mut entries: Vec<_> = map.iter().collect();

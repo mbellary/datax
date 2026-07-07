@@ -5,26 +5,26 @@ use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::create_mock_responses_server_sequence;
 use app_test_support::create_shell_command_sse_response;
 use app_test_support::to_response;
-use datax_app_server_protocol::ItemCompletedNotification;
-use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::ChatStartedNotification;
+use datax_app_server_protocol::ChatStatusChangedNotification;
+use datax_app_server_protocol::InteractionMessagesView;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStatus;
 use datax_app_server_protocol::JSONRPCError;
 use datax_app_server_protocol::JSONRPCMessage;
 use datax_app_server_protocol::JSONRPCNotification;
 use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::Message;
+use datax_app_server_protocol::MessageCompletedNotification;
+use datax_app_server_protocol::MessageStartedNotification;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::ReviewDelivery;
 use datax_app_server_protocol::ReviewStartParams;
 use datax_app_server_protocol::ReviewStartResponse;
 use datax_app_server_protocol::ReviewTarget;
 use datax_app_server_protocol::ServerRequest;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::ThreadStartedNotification;
-use datax_app_server_protocol::ThreadStatusChangedNotification;
-use datax_app_server_protocol::TurnItemsView;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStatus;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::json;
@@ -62,11 +62,11 @@ async fn review_start_runs_review_turn_and_emits_code_review_item() -> Result<()
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let thread_id = start_default_thread(&mut mcp).await?;
+    let chat_id = start_default_thread(&mut mcp).await?;
 
     let review_req = mcp
         .send_review_start_request(ReviewStartParams {
-            thread_id: thread_id.clone(),
+            chat_id: chat_id.clone(),
             delivery: Some(ReviewDelivery::Inline),
             target: ReviewTarget::Commit {
                 sha: "1234567deadbeef".to_string(),
@@ -83,14 +83,14 @@ async fn review_start_runs_review_turn_and_emits_code_review_item() -> Result<()
         turn,
         review_thread_id,
     } = to_response::<ReviewStartResponse>(review_resp)?;
-    assert_eq!(review_thread_id, thread_id.clone());
-    let turn_id = turn.id.clone();
-    assert_eq!(turn.status, TurnStatus::InProgress);
-    assert_eq!(turn.items_view, TurnItemsView::NotLoaded);
+    assert_eq!(review_thread_id, chat_id.clone());
+    let interaction_id = turn.id.clone();
+    assert_eq!(turn.status, InteractionStatus::InProgress);
+    assert_eq!(turn.messages_view, InteractionMessagesView::NotLoaded);
     assert_eq!(
-        turn.items,
-        vec![ThreadItem::UserMessage {
-            id: turn_id.clone(),
+        turn.messages,
+        vec![Message::UserMessage {
+            id: interaction_id.clone(),
             client_id: None,
             content: vec![V2UserInput::Text {
                 text: "commit 1234567: Tidy UI colors".to_string(),
@@ -104,14 +104,14 @@ async fn review_start_runs_review_turn_and_emits_code_review_item() -> Result<()
     for _ in 0..10 {
         let item_started: JSONRPCNotification = timeout(
             DEFAULT_READ_TIMEOUT,
-            mcp.read_stream_until_notification_message("item/started"),
+            mcp.read_stream_until_notification_message("message/started"),
         )
         .await??;
-        let started: ItemStartedNotification =
+        let started: MessageStartedNotification =
             serde_json::from_value(item_started.params.expect("params must be present"))?;
         match started.item {
-            ThreadItem::EnteredReviewMode { id, review } => {
-                assert_eq!(id, turn_id);
+            Message::EnteredReviewMode { id, review } => {
+                assert_eq!(id, interaction_id);
                 assert_eq!(review, "commit 1234567: Tidy UI colors");
                 saw_entered_review_mode = true;
                 break;
@@ -125,19 +125,19 @@ async fn review_start_runs_review_turn_and_emits_code_review_item() -> Result<()
     );
 
     // Confirm we see the ExitedReviewMode marker (with review text)
-    // on the same turn. Ignore any other items the stream surfaces.
+    // on the same turn. Ignore any other messages the stream surfaces.
     let mut review_body: Option<String> = None;
     for _ in 0..10 {
         let review_notif: JSONRPCNotification = timeout(
             DEFAULT_READ_TIMEOUT,
-            mcp.read_stream_until_notification_message("item/completed"),
+            mcp.read_stream_until_notification_message("message/completed"),
         )
         .await??;
-        let completed: ItemCompletedNotification =
+        let completed: MessageCompletedNotification =
             serde_json::from_value(review_notif.params.expect("params must be present"))?;
         match completed.item {
-            ThreadItem::ExitedReviewMode { id, review } => {
-                assert_eq!(id, turn_id);
+            Message::ExitedReviewMode { id, review } => {
+                assert_eq!(id, interaction_id);
                 review_body = Some(review);
                 break;
             }
@@ -176,11 +176,11 @@ async fn review_start_exec_approval_item_id_matches_command_execution_item() -> 
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let thread_id = start_default_thread(&mut mcp).await?;
+    let chat_id = start_default_thread(&mut mcp).await?;
 
     let review_req = mcp
         .send_review_start_request(ReviewStartParams {
-            thread_id,
+            chat_id,
             delivery: Some(ReviewDelivery::Inline),
             target: ReviewTarget::Commit {
                 sha: "1234567deadbeef".to_string(),
@@ -194,12 +194,12 @@ async fn review_start_exec_approval_item_id_matches_command_execution_item() -> 
     )
     .await??;
     let ReviewStartResponse { turn, .. } = to_response::<ReviewStartResponse>(review_resp)?;
-    let turn_id = turn.id.clone();
-    assert_eq!(turn.items_view, TurnItemsView::NotLoaded);
+    let interaction_id = turn.id.clone();
+    assert_eq!(turn.messages_view, InteractionMessagesView::NotLoaded);
     assert_eq!(
-        turn.items,
-        vec![ThreadItem::UserMessage {
-            id: turn_id.clone(),
+        turn.messages,
+        vec![Message::UserMessage {
+            id: interaction_id.clone(),
             client_id: None,
             content: vec![V2UserInput::Text {
                 text: "commit 1234567: Check review approvals".to_string(),
@@ -216,25 +216,25 @@ async fn review_start_exec_approval_item_id_matches_command_execution_item() -> 
     let ServerRequest::CommandExecutionRequestApproval { request_id, params } = server_req else {
         panic!("expected CommandExecutionRequestApproval request");
     };
-    assert_eq!(params.item_id, "review-call-1");
-    assert_eq!(params.turn_id, turn_id);
+    assert_eq!(params.message_id, "review-call-1");
+    assert_eq!(params.interaction_id, interaction_id);
 
     let mut command_item_id = None;
     for _ in 0..10 {
         let item_started: JSONRPCNotification = timeout(
             DEFAULT_READ_TIMEOUT,
-            mcp.read_stream_until_notification_message("item/started"),
+            mcp.read_stream_until_notification_message("message/started"),
         )
         .await??;
-        let started: ItemStartedNotification =
+        let started: MessageStartedNotification =
             serde_json::from_value(item_started.params.expect("params must be present"))?;
-        if let ThreadItem::CommandExecution { id, .. } = started.item {
+        if let Message::CommandExecution { id, .. } = started.item {
             command_item_id = Some(id);
             break;
         }
     }
     let command_item_id = command_item_id.expect("did not observe command execution item");
-    assert_eq!(command_item_id, params.item_id);
+    assert_eq!(command_item_id, params.message_id);
 
     mcp.send_response(
         request_id,
@@ -243,7 +243,7 @@ async fn review_start_exec_approval_item_id_matches_command_execution_item() -> 
     .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -258,11 +258,11 @@ async fn review_start_rejects_empty_base_branch() -> Result<()> {
 
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
-    let thread_id = start_default_thread(&mut mcp).await?;
+    let chat_id = start_default_thread(&mut mcp).await?;
 
     let request_id = mcp
         .send_review_start_request(ReviewStartParams {
-            thread_id,
+            chat_id,
             delivery: Some(ReviewDelivery::Inline),
             target: ReviewTarget::BaseBranch {
                 branch: "   ".to_string(),
@@ -302,12 +302,12 @@ async fn review_start_with_detached_delivery_returns_new_thread_id() -> Result<(
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let thread_id = start_default_thread(&mut mcp).await?;
-    materialize_thread_rollout(&mut mcp, &thread_id).await?;
+    let chat_id = start_default_thread(&mut mcp).await?;
+    materialize_thread_rollout(&mut mcp, &chat_id).await?;
 
     let review_req = mcp
         .send_review_start_request(ReviewStartParams {
-            thread_id: thread_id.clone(),
+            chat_id: chat_id.clone(),
             delivery: Some(ReviewDelivery::Detached),
             target: ReviewTarget::Custom {
                 instructions: "detached review".to_string(),
@@ -324,11 +324,11 @@ async fn review_start_with_detached_delivery_returns_new_thread_id() -> Result<(
         review_thread_id,
     } = to_response::<ReviewStartResponse>(review_resp)?;
 
-    assert_eq!(turn.status, TurnStatus::InProgress);
-    assert_eq!(turn.items_view, TurnItemsView::NotLoaded);
+    assert_eq!(turn.status, InteractionStatus::InProgress);
+    assert_eq!(turn.messages_view, InteractionMessagesView::NotLoaded);
     assert_eq!(
-        turn.items,
-        vec![ThreadItem::UserMessage {
+        turn.messages,
+        vec![Message::UserMessage {
             id: turn.id.clone(),
             client_id: None,
             content: vec![V2UserInput::Text {
@@ -338,7 +338,7 @@ async fn review_start_with_detached_delivery_returns_new_thread_id() -> Result<(
         }]
     );
     assert_ne!(
-        review_thread_id, thread_id,
+        review_thread_id, chat_id,
         "detached review should run on a different thread"
     );
 
@@ -349,21 +349,21 @@ async fn review_start_with_detached_delivery_returns_new_thread_id() -> Result<(
         let JSONRPCMessage::Notification(notification) = message else {
             continue;
         };
-        if notification.method == "thread/status/changed" {
-            let status_changed: ThreadStatusChangedNotification =
+        if notification.method == "chat/status/changed" {
+            let status_changed: ChatStatusChangedNotification =
                 serde_json::from_value(notification.params.expect("params must be present"))?;
-            if status_changed.thread_id == review_thread_id {
+            if status_changed.chat_id == review_thread_id {
                 anyhow::bail!(
-                    "detached review threads should be introduced without a preceding thread/status/changed"
+                    "detached review threads should be introduced without a preceding chat/status/changed"
                 );
             }
             continue;
         }
-        if notification.method == "thread/started" {
+        if notification.method == "chat/started" {
             break notification;
         }
     };
-    let started: ThreadStartedNotification =
+    let started: ChatStartedNotification =
         serde_json::from_value(notification.params.expect("params must be present"))?;
     assert_eq!(started.thread.id, review_thread_id);
     assert_eq!(started.thread.session_id, review_thread_id);
@@ -379,11 +379,11 @@ async fn review_start_rejects_empty_commit_sha() -> Result<()> {
 
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
-    let thread_id = start_default_thread(&mut mcp).await?;
+    let chat_id = start_default_thread(&mut mcp).await?;
 
     let request_id = mcp
         .send_review_start_request(ReviewStartParams {
-            thread_id,
+            chat_id,
             delivery: Some(ReviewDelivery::Inline),
             target: ReviewTarget::Commit {
                 sha: "\t".to_string(),
@@ -414,11 +414,11 @@ async fn review_start_rejects_empty_custom_instructions() -> Result<()> {
 
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
-    let thread_id = start_default_thread(&mut mcp).await?;
+    let chat_id = start_default_thread(&mut mcp).await?;
 
     let request_id = mcp
         .send_review_start_request(ReviewStartParams {
-            thread_id,
+            chat_id,
             delivery: Some(ReviewDelivery::Inline),
             target: ReviewTarget::Custom {
                 instructions: "\n\n".to_string(),
@@ -445,7 +445,7 @@ async fn review_start_rejects_empty_custom_instructions() -> Result<()> {
 
 async fn start_default_thread(mcp: &mut TestAppServer) -> Result<String> {
     let thread_req = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -455,19 +455,19 @@ async fn start_default_thread(mcp: &mut TestAppServer) -> Result<String> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("thread/started"),
+        mcp.read_stream_until_notification_message("chat/started"),
     )
     .await??;
     Ok(thread.id)
 }
 
-async fn materialize_thread_rollout(mcp: &mut TestAppServer, thread_id: &str) -> Result<()> {
+async fn materialize_thread_rollout(mcp: &mut TestAppServer, chat_id: &str) -> Result<()> {
     let turn_req = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread_id.to_string(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: chat_id.to_string(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "materialize rollout".to_string(),
@@ -483,7 +483,7 @@ async fn materialize_thread_rollout(mcp: &mut TestAppServer, thread_id: &str) ->
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
     Ok(())

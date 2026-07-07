@@ -7,7 +7,7 @@
 //! config-driven selection path without touching local rollout or sqlite storage.
 //!
 //! The important failure mode is accidentally materializing local persistence
-//! while a non-local store is configured. After `thread/start` and a simple turn,
+//! while a non-local store is configured. After `chat/start` and a simple turn,
 //! the temporary `codex_home` must not contain rollout session files or sqlite
 //! state files. This does not observe read-only probes that leave no artifact; it
 //! is a stop-gap that prevents additional local persistence writes from slipping
@@ -23,19 +23,20 @@ use datax_app_server::in_process;
 use datax_app_server::in_process::InProcessClientHandle;
 use datax_app_server::in_process::InProcessServerEvent;
 use datax_app_server::in_process::InProcessStartArgs;
+use datax_app_server_protocol::ChatDeleteParams;
+use datax_app_server_protocol::ChatDeleteResponse;
+use datax_app_server_protocol::ChatListParams;
+use datax_app_server_protocol::ChatListResponse;
+use datax_app_server_protocol::ChatResumeParams;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::ClientInfo;
 use datax_app_server_protocol::ClientRequest;
+use datax_app_server_protocol::ClientRequest::*;
 use datax_app_server_protocol::InitializeParams;
+use datax_app_server_protocol::InteractionStartParams;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ServerNotification;
-use datax_app_server_protocol::ThreadDeleteParams;
-use datax_app_server_protocol::ThreadDeleteResponse;
-use datax_app_server_protocol::ThreadListParams;
-use datax_app_server_protocol::ThreadListResponse;
-use datax_app_server_protocol::ThreadResumeParams;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
+use datax_app_server_protocol::ServerNotification::*;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_arg0::Arg0DispatchPaths;
 use datax_config::CloudConfigBundleLoader;
@@ -76,21 +77,21 @@ async fn thread_delete_with_non_local_thread_store_does_not_create_local_persist
     let mut client = start_in_process_server(codex_home.path()).await?;
 
     let response = client
-        .request(ClientRequest::ThreadStart {
+        .request(ChatStart {
             request_id: RequestId::Integer(1),
-            params: ThreadStartParams::default(),
+            params: ChatStartParams::default(),
         })
         .await?
-        .expect("thread/start should succeed");
-    let ThreadStartResponse { thread, .. } =
-        serde_json::from_value(response).expect("thread/start response should parse");
+        .expect("chat/start should succeed");
+    let ChatStartResponse { thread, .. } =
+        serde_json::from_value(response).expect("chat/start response should parse");
     assert_eq!(thread.path, None);
 
     client
-        .request(ClientRequest::TurnStart {
+        .request(InteractionStart {
             request_id: RequestId::Integer(2),
-            params: TurnStartParams {
-                thread_id: thread.id.clone(),
+            params: InteractionStartParams {
+                chat_id: thread.id.clone(),
                 client_user_message_id: None,
                 input: vec![V2UserInput::Text {
                     text: "Hello".to_string(),
@@ -100,17 +101,15 @@ async fn thread_delete_with_non_local_thread_store_does_not_create_local_persist
             },
         })
         .await?
-        .expect("turn/start should succeed");
+        .expect("interaction/start should succeed");
 
     timeout(DEFAULT_READ_TIMEOUT, async {
         loop {
             let Some(event) = client.next_event().await else {
-                anyhow::bail!("in-process app-server stopped before turn/completed");
+                anyhow::bail!("in-process app-server stopped before interaction/completed");
             };
-            if let InProcessServerEvent::ServerNotification(ServerNotification::TurnCompleted(
-                completed,
-            )) = event
-                && completed.thread_id == thread.id
+            if let InProcessServerEvent::ServerNotification(InteractionCompleted(completed)) = event
+                && completed.chat_id == thread.id
             {
                 return Ok::<(), anyhow::Error>(());
             }
@@ -119,9 +118,9 @@ async fn thread_delete_with_non_local_thread_store_does_not_create_local_persist
     .await??;
 
     let response = client
-        .request(ClientRequest::ThreadList {
+        .request(ChatList {
             request_id: RequestId::Integer(3),
-            params: ThreadListParams {
+            params: ChatListParams {
                 cursor: None,
                 limit: Some(10),
                 sort_key: None,
@@ -132,13 +131,13 @@ async fn thread_delete_with_non_local_thread_store_does_not_create_local_persist
                 cwd: None,
                 use_state_db_only: false,
                 search_term: None,
-                parent_thread_id: None,
+                parent_chat_id: None,
             },
         })
         .await?
-        .expect("thread/list should succeed");
-    let ThreadListResponse { data, .. } =
-        serde_json::from_value(response).expect("thread/list response should parse");
+        .expect("chat/list should succeed");
+    let ChatListResponse { data, .. } =
+        serde_json::from_value(response).expect("chat/list response should parse");
     assert_eq!(data.len(), 1);
     assert_eq!(data[0].id, thread.id);
     assert_eq!(data[0].path, None);
@@ -179,7 +178,7 @@ async fn thread_delete_with_non_local_thread_store_does_not_create_local_persist
     assert_eq!(calls.delete_thread, 2);
     assert!(
         calls.append_items > 0,
-        "turn/start should append rollout items through the injected store"
+        "interaction/start should append rollout messages through the injected store"
     );
     assert!(
         calls.flush_thread > 0,
@@ -212,19 +211,19 @@ async fn cold_thread_resume_reuses_non_local_history_probe() -> Result<()> {
 
     let mut client = start_in_process_client(config.clone(), loader_overrides.clone()).await?;
     let response = client
-        .request(ClientRequest::ThreadStart {
+        .request(ChatStart {
             request_id: RequestId::Integer(1),
-            params: ThreadStartParams::default(),
+            params: ChatStartParams::default(),
         })
         .await?
-        .expect("thread/start should succeed");
-    let ThreadStartResponse { thread, .. } = serde_json::from_value(response)?;
+        .expect("chat/start should succeed");
+    let ChatStartResponse { thread, .. } = serde_json::from_value(response)?;
 
     client
-        .request(ClientRequest::TurnStart {
+        .request(InteractionStart {
             request_id: RequestId::Integer(2),
-            params: TurnStartParams {
-                thread_id: thread.id.clone(),
+            params: InteractionStartParams {
+                chat_id: thread.id.clone(),
                 client_user_message_id: None,
                 input: vec![V2UserInput::Text {
                     text: "Materialize the thread".to_string(),
@@ -234,16 +233,14 @@ async fn cold_thread_resume_reuses_non_local_history_probe() -> Result<()> {
             },
         })
         .await?
-        .expect("turn/start should succeed");
+        .expect("interaction/start should succeed");
     timeout(DEFAULT_READ_TIMEOUT, async {
         loop {
             let Some(event) = client.next_event().await else {
-                anyhow::bail!("in-process app-server stopped before turn/completed");
+                anyhow::bail!("in-process app-server stopped before interaction/completed");
             };
-            if let InProcessServerEvent::ServerNotification(ServerNotification::TurnCompleted(
-                completed,
-            )) = event
-                && completed.thread_id == thread.id
+            if let InProcessServerEvent::ServerNotification(InteractionCompleted(completed)) = event
+                && completed.chat_id == thread.id
             {
                 return Ok::<(), anyhow::Error>(());
             }
@@ -257,10 +254,10 @@ async fn cold_thread_resume_reuses_non_local_history_probe() -> Result<()> {
     // The in-memory store is pathless, so resume currently fails later while
     // assembling the response. The history-bearing probe must still be reused.
     let _resume_result = client
-        .request(ClientRequest::ThreadResume {
+        .request(ChatResume {
             request_id: RequestId::Integer(3),
-            params: ThreadResumeParams {
-                thread_id: thread.id.clone(),
+            params: ChatResumeParams {
+                chat_id: thread.id.clone(),
                 ..Default::default()
             },
         })
@@ -324,16 +321,16 @@ async fn start_in_process_client(
 async fn delete_thread(
     client: &InProcessClientHandle,
     request_id: i64,
-    thread_id: String,
+    chat_id: String,
 ) -> Result<()> {
     let response = client
-        .request(ClientRequest::ThreadDelete {
+        .request(ChatDelete {
             request_id: RequestId::Integer(request_id),
-            params: ThreadDeleteParams { thread_id },
+            params: ChatDeleteParams { chat_id },
         })
         .await?
-        .map_err(|error| anyhow::anyhow!("thread/delete failed: {}", error.message))?;
-    let _: ThreadDeleteResponse = serde_json::from_value(response)?;
+        .map_err(|error| anyhow::anyhow!("chat/delete failed: {}", error.message))?;
+    let _: ChatDeleteResponse = serde_json::from_value(response)?;
     Ok(())
 }
 

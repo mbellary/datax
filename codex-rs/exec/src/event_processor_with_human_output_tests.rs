@@ -1,7 +1,7 @@
+use datax_app_server_protocol::Interaction;
+use datax_app_server_protocol::InteractionStatus;
+use datax_app_server_protocol::Message;
 use datax_app_server_protocol::ServerNotification;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::Turn;
-use datax_app_server_protocol::TurnStatus;
 use datax_core::config::ConfigBuilder;
 use datax_protocol::SessionId;
 use datax_protocol::ThreadId;
@@ -243,17 +243,17 @@ async fn config_summary_entries_include_runtime_workspace_roots() {
 #[test]
 fn final_message_from_turn_items_uses_latest_agent_message() {
     let message = final_message_from_turn_items(&[
-        ThreadItem::AgentMessage {
+        Message::AgentMessage {
             id: "msg-1".to_string(),
             text: "first".to_string(),
             phase: None,
             memory_citation: None,
         },
-        ThreadItem::Plan {
+        Message::Plan {
             id: "plan-1".to_string(),
             text: "plan".to_string(),
         },
-        ThreadItem::AgentMessage {
+        Message::AgentMessage {
             id: "msg-2".to_string(),
             text: "second".to_string(),
             phase: None,
@@ -267,16 +267,16 @@ fn final_message_from_turn_items_uses_latest_agent_message() {
 #[test]
 fn final_message_from_turn_items_falls_back_to_latest_plan() {
     let message = final_message_from_turn_items(&[
-        ThreadItem::Reasoning {
+        Message::Reasoning {
             id: "reasoning-1".to_string(),
             summary: vec!["inspect".to_string()],
             content: Vec::new(),
         },
-        ThreadItem::Plan {
+        Message::Plan {
             id: "plan-1".to_string(),
             text: "first plan".to_string(),
         },
-        ThreadItem::Plan {
+        Message::Plan {
             id: "plan-2".to_string(),
             text: "final plan".to_string(),
         },
@@ -305,19 +305,19 @@ fn turn_completed_recovers_final_message_from_turn_items() {
         last_total_token_usage: None,
     };
 
-    let status = processor.process_server_notification(ServerNotification::TurnCompleted(
-        datax_app_server_protocol::TurnCompletedNotification {
+    let status = processor.process_server_notification(ServerNotification::InteractionCompleted(
+        datax_app_server_protocol::InteractionCompletedNotification {
             thread_id: "thread-1".to_string(),
-            turn: Turn {
+            turn: Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
-                items: vec![ThreadItem::AgentMessage {
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                items: vec![Message::AgentMessage {
                     id: "msg-1".to_string(),
                     text: "final answer".to_string(),
                     phase: None,
                     memory_citation: None,
                 }],
-                status: TurnStatus::Completed,
+                status: InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: Some(0),
@@ -353,19 +353,19 @@ fn turn_completed_overwrites_stale_final_message_from_turn_items() {
         last_total_token_usage: None,
     };
 
-    let status = processor.process_server_notification(ServerNotification::TurnCompleted(
-        datax_app_server_protocol::TurnCompletedNotification {
+    let status = processor.process_server_notification(ServerNotification::InteractionCompleted(
+        datax_app_server_protocol::InteractionCompletedNotification {
             thread_id: "thread-1".to_string(),
-            turn: Turn {
+            turn: Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
-                items: vec![ThreadItem::AgentMessage {
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                items: vec![Message::AgentMessage {
                     id: "msg-1".to_string(),
                     text: "final answer".to_string(),
                     phase: None,
                     memory_citation: None,
                 }],
-                status: TurnStatus::Completed,
+                status: InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: Some(0),
@@ -402,14 +402,14 @@ fn turn_completed_preserves_streamed_final_message_when_turn_items_are_empty() {
         last_total_token_usage: None,
     };
 
-    let status = processor.process_server_notification(ServerNotification::TurnCompleted(
-        datax_app_server_protocol::TurnCompletedNotification {
+    let status = processor.process_server_notification(ServerNotification::InteractionCompleted(
+        datax_app_server_protocol::InteractionCompletedNotification {
             thread_id: "thread-1".to_string(),
-            turn: Turn {
+            turn: Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: Vec::new(),
-                status: TurnStatus::Completed,
+                status: InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: Some(0),
@@ -446,14 +446,14 @@ fn turn_failed_clears_stale_final_message() {
         last_total_token_usage: None,
     };
 
-    let status = processor.process_server_notification(ServerNotification::TurnCompleted(
-        datax_app_server_protocol::TurnCompletedNotification {
+    let status = processor.process_server_notification(ServerNotification::InteractionCompleted(
+        datax_app_server_protocol::InteractionCompletedNotification {
             thread_id: "thread-1".to_string(),
-            turn: Turn {
+            turn: Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: Vec::new(),
-                status: TurnStatus::Failed,
+                status: InteractionStatus::Failed,
                 error: None,
                 started_at: None,
                 completed_at: Some(0),
@@ -491,14 +491,14 @@ fn turn_interrupted_clears_stale_final_message() {
         last_total_token_usage: None,
     };
 
-    let status = processor.process_server_notification(ServerNotification::TurnCompleted(
-        datax_app_server_protocol::TurnCompletedNotification {
+    let status = processor.process_server_notification(ServerNotification::InteractionCompleted(
+        datax_app_server_protocol::InteractionCompletedNotification {
             thread_id: "thread-1".to_string(),
-            turn: Turn {
+            turn: Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
+                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 items: Vec::new(),
-                status: TurnStatus::Interrupted,
+                status: InteractionStatus::Interrupted,
                 error: None,
                 started_at: None,
                 completed_at: Some(0),

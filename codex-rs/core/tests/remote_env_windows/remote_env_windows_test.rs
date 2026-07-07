@@ -8,11 +8,11 @@ use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
 use app_test_support::write_mock_responses_config_toml;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnEnvironmentParams;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::InteractionEnvironmentParams;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_exec_server::REMOTE_ENVIRONMENT_ID;
 use datax_exec_server::CODEX_EXEC_SERVER_URL_ENV_VAR;
@@ -280,8 +280,8 @@ async fn app_server_starts_thread_with_windows_environment_native_cwd() -> Resul
             timeout(APP_SERVER_READ_TIMEOUT, app_server.initialize()).await??;
 
             let request_id = app_server
-                .send_thread_start_request(ThreadStartParams {
-                    environments: Some(vec![TurnEnvironmentParams {
+                .send_thread_start_request(ChatStartParams {
+                    environments: Some(vec![InteractionEnvironmentParams {
                         environment_id: REMOTE_ENVIRONMENT_ID.to_string(),
                         cwd: serde_json::from_value::<LegacyAppPathString>(json!(NATIVE_CWD))?,
                     }]),
@@ -293,7 +293,7 @@ async fn app_server_starts_thread_with_windows_environment_native_cwd() -> Resul
                 app_server.read_stream_until_response_message(RequestId::Integer(request_id)),
             )
             .await??;
-            let response: ThreadStartResponse = to_response(response)?;
+            let response: ChatStartResponse = to_response(response)?;
             assert!(!response.thread.id.is_empty());
             let host_cwd = codex_home.path().to_path_buf().abs();
             // TODO(anp): Return the selected environment's native cwd from thread/start.
@@ -311,7 +311,7 @@ async fn app_server_starts_thread_with_windows_environment_native_cwd() -> Resul
             assert_eq!(response.active_permission_profile, None);
 
             let turn_request_id = app_server
-                .send_turn_start_request(TurnStartParams {
+                .send_interaction_start_request(InteractionStartParams {
                     thread_id: response.thread.id,
                     client_user_message_id: None,
                     input: vec![V2UserInput::Text {
@@ -326,7 +326,7 @@ async fn app_server_starts_thread_with_windows_environment_native_cwd() -> Resul
                 app_server.read_stream_until_response_message(RequestId::Integer(turn_request_id)),
             )
             .await??;
-            let _: TurnStartResponse = to_response(turn_response)?;
+            let _: InteractionStartResponse = to_response(turn_response)?;
             timeout(
                 APP_SERVER_READ_TIMEOUT,
                 app_server.read_stream_until_notification_message("turn/completed"),

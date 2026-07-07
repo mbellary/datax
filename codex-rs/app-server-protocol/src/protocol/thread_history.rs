@@ -10,16 +10,16 @@ use crate::protocol::v2::CollabAgentToolCallStatus;
 use crate::protocol::v2::CommandExecutionStatus;
 use crate::protocol::v2::DynamicToolCallOutputContentItem;
 use crate::protocol::v2::DynamicToolCallStatus;
+use crate::protocol::v2::Interaction;
+use crate::protocol::v2::InteractionError as V2TurnError;
+use crate::protocol::v2::InteractionError;
+use crate::protocol::v2::InteractionMessagesView;
+use crate::protocol::v2::InteractionStatus;
 use crate::protocol::v2::McpToolCallAppContext;
 use crate::protocol::v2::McpToolCallError;
 use crate::protocol::v2::McpToolCallResult;
 use crate::protocol::v2::McpToolCallStatus;
-use crate::protocol::v2::ThreadItem;
-use crate::protocol::v2::Turn;
-use crate::protocol::v2::TurnError as V2TurnError;
-use crate::protocol::v2::TurnError;
-use crate::protocol::v2::TurnItemsView;
-use crate::protocol::v2::TurnStatus;
+use crate::protocol::v2::Message;
 use crate::protocol::v2::UserInput;
 use crate::protocol::v2::WebSearchAction;
 use datax_protocol::items::parse_hook_prompt_message;
@@ -72,46 +72,46 @@ use datax_protocol::protocol::ExecCommandStatus as CoreExecCommandStatus;
 #[cfg(test)]
 use datax_protocol::protocol::PatchApplyStatus as CorePatchApplyStatus;
 
-/// Convert persisted [`RolloutItem`] entries into a sequence of [`Turn`] values.
+/// Convert persisted [`RolloutItem`] entries into a sequence of [`Interaction`] values.
 ///
-/// When available, this uses `TurnContext.turn_id` as the canonical turn id so
+/// When available, this uses `TurnContext.interaction_id` as the canonical turn id so
 /// resumed/rebuilt thread history preserves the original turn identifiers.
-pub fn build_turns_from_rollout_items(items: &[RolloutItem]) -> Vec<Turn> {
-    let mut builder = ThreadHistoryBuilder::new();
-    for item in items {
+pub fn build_turns_from_rollout_items(messages: &[RolloutItem]) -> Vec<Interaction> {
+    let mut builder = ChatHistoryBuilder::new();
+    for item in messages {
         builder.handle_rollout_item(item);
     }
     builder.finish()
 }
 
-/// A materialized `ThreadItem` snapshot that changed while handling one input.
+/// A materialized `Message` snapshot that changed while handling one input.
 #[derive(Debug, Clone, PartialEq)]
-pub struct ThreadHistoryItemChange {
-    pub turn_id: String,
-    pub item: ThreadItem,
+pub struct ChatHistoryMessageChange {
+    pub interaction_id: String,
+    pub item: Message,
 }
 
 /// Lightweight turn metadata snapshot for projectors that track turn status without
 /// re-reading the full item list.
 #[derive(Debug, Clone, PartialEq)]
-pub struct ThreadHistoryTurnChange {
-    pub turn_id: String,
-    pub status: TurnStatus,
-    pub error: Option<TurnError>,
+pub struct ChatHistoryInteractionChange {
+    pub interaction_id: String,
+    pub status: InteractionStatus,
+    pub error: Option<InteractionError>,
     pub started_at: Option<i64>,
     pub completed_at: Option<i64>,
     pub duration_ms: Option<i64>,
 }
 
-/// Incremental changes produced by opt-in `ThreadHistoryBuilder` handlers.
+/// Incremental changes produced by opt-in `ChatHistoryBuilder` handlers.
 #[derive(Debug, Default, Clone, PartialEq)]
-pub struct ThreadHistoryChangeSet {
-    pub changed_items: Vec<ThreadHistoryItemChange>,
-    pub changed_turns: Vec<ThreadHistoryTurnChange>,
+pub struct ChatHistoryChangeSet {
+    pub changed_items: Vec<ChatHistoryMessageChange>,
+    pub changed_turns: Vec<ChatHistoryInteractionChange>,
     pub removed_turn_ids: Vec<String>,
 }
 
-impl ThreadHistoryChangeSet {
+impl ChatHistoryChangeSet {
     pub fn is_empty(&self) -> bool {
         self.changed_items.is_empty()
             && self.changed_turns.is_empty()
@@ -119,10 +119,10 @@ impl ThreadHistoryChangeSet {
     }
 }
 
-impl ThreadHistoryTurnChange {
+impl ChatHistoryInteractionChange {
     fn from_pending_turn(turn: &PendingTurn) -> Self {
         Self {
-            turn_id: turn.id.clone(),
+            interaction_id: turn.id.clone(),
             status: turn.status.clone(),
             error: turn.error.clone(),
             started_at: turn.started_at,
@@ -131,9 +131,9 @@ impl ThreadHistoryTurnChange {
         }
     }
 
-    fn from_turn(turn: &Turn) -> Self {
+    fn from_turn(turn: &Interaction) -> Self {
         Self {
-            turn_id: turn.id.clone(),
+            interaction_id: turn.id.clone(),
             status: turn.status.clone(),
             error: turn.error.clone(),
             started_at: turn.started_at,
@@ -144,22 +144,22 @@ impl ThreadHistoryTurnChange {
 }
 
 /// Coalesces per-rollout-item changes into an end-of-batch view. It preserves
-/// first-change order while replacing repeated item/turn snapshots with their
-/// latest value, and drops accumulated changes for turns removed by rollback.
+/// first-change order while replacing repeated message/turn snapshots with their
+/// latest value, and drops accumulated changes for interactions removed by rollback.
 #[derive(Default)]
 struct ThreadHistoryChangeAccumulator {
-    changed_items: Vec<Option<ThreadHistoryItemChange>>,
+    changed_items: Vec<Option<ChatHistoryMessageChange>>,
     changed_item_indexes: HashMap<(String, String), usize>,
-    changed_turns: Vec<Option<ThreadHistoryTurnChange>>,
+    changed_turns: Vec<Option<ChatHistoryInteractionChange>>,
     changed_turn_indexes: HashMap<String, usize>,
     removed_turn_ids: Vec<String>,
     removed_turn_indexes: HashMap<String, usize>,
 }
 
 impl ThreadHistoryChangeAccumulator {
-    fn push(&mut self, changes: ThreadHistoryChangeSet) {
-        for turn_id in changes.removed_turn_ids {
-            self.push_removed_turn_id(turn_id);
+    fn push(&mut self, changes: ChatHistoryChangeSet) {
+        for interaction_id in changes.removed_turn_ids {
+            self.push_removed_turn_id(interaction_id);
         }
         for item_change in changes.changed_items {
             self.push_item_change(item_change);
@@ -169,16 +169,16 @@ impl ThreadHistoryChangeAccumulator {
         }
     }
 
-    fn finish(self) -> ThreadHistoryChangeSet {
-        ThreadHistoryChangeSet {
+    fn finish(self) -> ChatHistoryChangeSet {
+        ChatHistoryChangeSet {
             changed_items: self.changed_items.into_iter().flatten().collect(),
             changed_turns: self.changed_turns.into_iter().flatten().collect(),
             removed_turn_ids: self.removed_turn_ids,
         }
     }
 
-    fn push_item_change(&mut self, change: ThreadHistoryItemChange) {
-        let key = (change.turn_id.clone(), change.item.id().to_string());
+    fn push_item_change(&mut self, change: ChatHistoryMessageChange) {
+        let key = (change.interaction_id.clone(), change.item.id().to_string());
         if let Some(index) = self.changed_item_indexes.get(&key).copied() {
             self.changed_items[index] = Some(change);
             return;
@@ -189,32 +189,36 @@ impl ThreadHistoryChangeAccumulator {
         self.changed_items.push(Some(change));
     }
 
-    fn push_turn_change(&mut self, change: ThreadHistoryTurnChange) {
-        if let Some(index) = self.changed_turn_indexes.get(&change.turn_id).copied() {
+    fn push_turn_change(&mut self, change: ChatHistoryInteractionChange) {
+        if let Some(index) = self
+            .changed_turn_indexes
+            .get(&change.interaction_id)
+            .copied()
+        {
             self.changed_turns[index] = Some(change);
             return;
         }
 
         self.changed_turn_indexes
-            .insert(change.turn_id.clone(), self.changed_turns.len());
+            .insert(change.interaction_id.clone(), self.changed_turns.len());
         self.changed_turns.push(Some(change));
     }
 
-    fn push_removed_turn_id(&mut self, turn_id: String) {
-        if !self.removed_turn_indexes.contains_key(&turn_id) {
+    fn push_removed_turn_id(&mut self, interaction_id: String) {
+        if !self.removed_turn_indexes.contains_key(&interaction_id) {
             self.removed_turn_indexes
-                .insert(turn_id.clone(), self.removed_turn_ids.len());
-            self.removed_turn_ids.push(turn_id.clone());
+                .insert(interaction_id.clone(), self.removed_turn_ids.len());
+            self.removed_turn_ids.push(interaction_id.clone());
         }
 
-        if let Some(index) = self.changed_turn_indexes.remove(&turn_id) {
+        if let Some(index) = self.changed_turn_indexes.remove(&interaction_id) {
             self.changed_turns[index] = None;
         }
 
         let removed_item_keys: Vec<(String, String)> = self
             .changed_item_indexes
             .keys()
-            .filter(|(item_turn_id, _)| item_turn_id == &turn_id)
+            .filter(|(item_turn_id, _)| item_turn_id == &interaction_id)
             .cloned()
             .collect();
         for key in removed_item_keys {
@@ -225,25 +229,25 @@ impl ThreadHistoryChangeAccumulator {
     }
 }
 
-pub struct ThreadHistoryBuilder {
-    turns: Vec<Turn>,
+pub struct ChatHistoryBuilder {
+    interactions: Vec<Interaction>,
     current_turn: Option<PendingTurn>,
     next_item_index: i64,
     current_rollout_index: usize,
     next_rollout_index: usize,
-    active_change_set: Option<ThreadHistoryChangeSet>,
+    active_change_set: Option<ChatHistoryChangeSet>,
 }
 
-impl Default for ThreadHistoryBuilder {
+impl Default for ChatHistoryBuilder {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ThreadHistoryBuilder {
+impl ChatHistoryBuilder {
     pub fn new() -> Self {
         Self {
-            turns: Vec::new(),
+            interactions: Vec::new(),
             current_turn: None,
             next_item_index: 1,
             current_rollout_index: 0,
@@ -256,24 +260,29 @@ impl ThreadHistoryBuilder {
         *self = Self::new();
     }
 
-    pub fn finish(mut self) -> Vec<Turn> {
+    pub fn finish(mut self) -> Vec<Interaction> {
         self.finish_current_turn();
-        self.turns
+        self.interactions
     }
 
-    pub fn active_turn_snapshot(&self) -> Option<Turn> {
+    pub fn active_turn_snapshot(&self) -> Option<Interaction> {
         self.current_turn
             .as_ref()
-            .map(Turn::from)
-            .or_else(|| self.turns.last().cloned())
+            .map(Interaction::from)
+            .or_else(|| self.interactions.last().cloned())
     }
 
-    pub fn turn_snapshot(&self, turn_id: &str) -> Option<Turn> {
+    pub fn turn_snapshot(&self, interaction_id: &str) -> Option<Interaction> {
         self.current_turn
             .as_ref()
-            .filter(|turn| turn.id == turn_id)
-            .map(Turn::from)
-            .or_else(|| self.turns.iter().find(|turn| turn.id == turn_id).cloned())
+            .filter(|turn| turn.id == interaction_id)
+            .map(Interaction::from)
+            .or_else(|| {
+                self.interactions
+                    .iter()
+                    .find(|turn| turn.id == interaction_id)
+                    .cloned()
+            })
     }
 
     /// Returns the index of the active turn snapshot within the finished turn list.
@@ -282,11 +291,11 @@ impl ThreadHistoryBuilder {
     /// `finish`. When no turn is open, it is the index of the last finished turn.
     pub fn active_turn_position(&self) -> Option<usize> {
         if self.current_turn.is_some() {
-            Some(self.turns.len())
-        } else if self.turns.is_empty() {
+            Some(self.interactions.len())
+        } else if self.interactions.is_empty() {
             None
         } else {
-            Some(self.turns.len() - 1)
+            Some(self.interactions.len() - 1)
         }
     }
 
@@ -391,38 +400,35 @@ impl ThreadHistoryBuilder {
         }
     }
 
-    /// Handles one event and returns the materialized items or turn metadata
+    /// Handles one event and returns the materialized messages or turn metadata
     /// changed by that event.
-    pub fn handle_event_with_changes(&mut self, event: &EventMsg) -> ThreadHistoryChangeSet {
+    pub fn handle_event_with_changes(&mut self, event: &EventMsg) -> ChatHistoryChangeSet {
         self.collect_changes(|builder| builder.handle_event(event))
     }
 
-    /// Handles a rollout item and returns the materialized items or turn metadata
+    /// Handles a rollout item and returns the materialized messages or turn metadata
     /// changed by that one append.
-    pub fn handle_rollout_item_with_changes(
-        &mut self,
-        item: &RolloutItem,
-    ) -> ThreadHistoryChangeSet {
+    pub fn handle_rollout_item_with_changes(&mut self, item: &RolloutItem) -> ChatHistoryChangeSet {
         self.collect_changes(|builder| builder.handle_rollout_item(item))
     }
 
-    /// Handles rollout items in order and returns a coalesced end-of-batch
+    /// Handles rollout messages in order and returns a coalesced end-of-batch
     /// change set. Multiple changes to the same item or turn are deduplicated
     /// so only the latest snapshot is emitted.
     pub fn handle_rollout_items_with_changes(
         &mut self,
-        items: &[RolloutItem],
-    ) -> ThreadHistoryChangeSet {
+        messages: &[RolloutItem],
+    ) -> ChatHistoryChangeSet {
         let mut accumulator = ThreadHistoryChangeAccumulator::default();
-        for item in items {
+        for item in messages {
             accumulator.push(self.handle_rollout_item_with_changes(item));
         }
         accumulator.finish()
     }
 
-    fn collect_changes(&mut self, handle: impl FnOnce(&mut Self)) -> ThreadHistoryChangeSet {
+    fn collect_changes(&mut self, handle: impl FnOnce(&mut Self)) -> ChatHistoryChangeSet {
         debug_assert!(self.active_change_set.is_none());
-        self.active_change_set = Some(ThreadHistoryChangeSet::default());
+        self.active_change_set = Some(ChatHistoryChangeSet::default());
         handle(self);
         self.active_change_set.take().unwrap_or_default()
     }
@@ -443,7 +449,7 @@ impl ThreadHistoryBuilder {
             return;
         };
 
-        self.push_item_in_current_turn(ThreadItem::HookPrompt {
+        self.push_item_in_current_turn(Message::HookPrompt {
             id: hook_prompt.id,
             fragments: hook_prompt
                 .fragments
@@ -454,18 +460,18 @@ impl ThreadHistoryBuilder {
     }
 
     fn handle_user_message(&mut self, payload: &UserMessageEvent) {
-        // User messages should stay in explicitly opened turns. For backward
-        // compatibility with older streams that did not open turns explicitly,
+        // User messages should stay in explicitly opened interactions. For backward
+        // compatibility with older streams that did not open interactions explicitly,
         // close any implicit/inactive turn and start a fresh one for this input.
         if let Some(turn) = self.current_turn.as_ref()
             && !turn.opened_explicitly
-            && !(turn.saw_compaction && turn.items.is_empty())
+            && !(turn.saw_compaction && turn.messages.is_empty())
         {
             self.finish_current_turn();
         }
         let id = self.next_item_id();
         let content = self.build_user_inputs(payload);
-        self.push_item_in_current_turn(ThreadItem::UserMessage {
+        self.push_item_in_current_turn(Message::UserMessage {
             id,
             client_id: payload.client_id.clone(),
             content,
@@ -483,7 +489,7 @@ impl ThreadHistoryBuilder {
         }
 
         let id = self.next_item_id();
-        self.push_item_in_current_turn(ThreadItem::AgentMessage {
+        self.push_item_in_current_turn(Message::AgentMessage {
             id,
             text,
             phase,
@@ -500,10 +506,10 @@ impl ThreadHistoryBuilder {
         let existing_item_change = {
             let tracking_changes = self.is_tracking_changes();
             let turn = self.ensure_turn();
-            if let Some(ThreadItem::Reasoning { summary, .. }) = turn.items.last_mut() {
+            if let Some(Message::Reasoning { summary, .. }) = turn.messages.last_mut() {
                 summary.push(payload.text.clone());
                 let changed_item = if tracking_changes {
-                    turn.items
+                    turn.messages
                         .last()
                         .cloned()
                         .map(|item| (turn.id.clone(), item))
@@ -516,15 +522,15 @@ impl ThreadHistoryBuilder {
             }
         };
         if let Some(changed_item) = existing_item_change {
-            if let Some((turn_id, item)) = changed_item {
-                self.record_changed_item(turn_id, item);
+            if let Some((interaction_id, item)) = changed_item {
+                self.record_changed_item(interaction_id, item);
             }
             return;
         }
 
         // Otherwise, create a new reasoning item.
         let id = self.next_item_id();
-        self.push_item_in_current_turn(ThreadItem::Reasoning {
+        self.push_item_in_current_turn(Message::Reasoning {
             id,
             summary: vec![payload.text.clone()],
             content: Vec::new(),
@@ -540,10 +546,10 @@ impl ThreadHistoryBuilder {
         let existing_item_change = {
             let tracking_changes = self.is_tracking_changes();
             let turn = self.ensure_turn();
-            if let Some(ThreadItem::Reasoning { content, .. }) = turn.items.last_mut() {
+            if let Some(Message::Reasoning { content, .. }) = turn.messages.last_mut() {
                 content.push(payload.text.clone());
                 let changed_item = if tracking_changes {
-                    turn.items
+                    turn.messages
                         .last()
                         .cloned()
                         .map(|item| (turn.id.clone(), item))
@@ -556,15 +562,15 @@ impl ThreadHistoryBuilder {
             }
         };
         if let Some(changed_item) = existing_item_change {
-            if let Some((turn_id, item)) = changed_item {
-                self.record_changed_item(turn_id, item);
+            if let Some((interaction_id, item)) = changed_item {
+                self.record_changed_item(interaction_id, item);
             }
             return;
         }
 
         // Otherwise, create a new reasoning item.
         let id = self.next_item_id();
-        self.push_item_in_current_turn(ThreadItem::Reasoning {
+        self.push_item_in_current_turn(Message::Reasoning {
             id,
             summary: Vec::new(),
             content: vec![payload.text.clone()],
@@ -577,16 +583,10 @@ impl ThreadHistoryBuilder {
                 if plan.text.is_empty() {
                     return;
                 }
-                self.upsert_item_in_turn_id(
-                    &payload.turn_id,
-                    ThreadItem::from(payload.item.clone()),
-                );
+                self.upsert_item_in_turn_id(&payload.turn_id, Message::from(payload.item.clone()));
             }
             datax_protocol::items::TurnItem::Sleep(_) => {
-                self.upsert_item_in_turn_id(
-                    &payload.turn_id,
-                    ThreadItem::from(payload.item.clone()),
-                );
+                self.upsert_item_in_turn_id(&payload.turn_id, Message::from(payload.item.clone()));
             }
             datax_protocol::items::TurnItem::UserMessage(_)
             | datax_protocol::items::TurnItem::HookPrompt(_)
@@ -607,16 +607,10 @@ impl ThreadHistoryBuilder {
                 if plan.text.is_empty() {
                     return;
                 }
-                self.upsert_item_in_turn_id(
-                    &payload.turn_id,
-                    ThreadItem::from(payload.item.clone()),
-                );
+                self.upsert_item_in_turn_id(&payload.turn_id, Message::from(payload.item.clone()));
             }
             datax_protocol::items::TurnItem::Sleep(_) => {
-                self.upsert_item_in_turn_id(
-                    &payload.turn_id,
-                    ThreadItem::from(payload.item.clone()),
-                );
+                self.upsert_item_in_turn_id(&payload.turn_id, Message::from(payload.item.clone()));
             }
             datax_protocol::items::TurnItem::UserMessage(_)
             | datax_protocol::items::TurnItem::HookPrompt(_)
@@ -632,7 +626,7 @@ impl ThreadHistoryBuilder {
     }
 
     fn handle_web_search_begin(&mut self, payload: &WebSearchBeginEvent) {
-        let item = ThreadItem::WebSearch {
+        let item = Message::WebSearch {
             id: payload.call_id.clone(),
             query: String::new(),
             action: None,
@@ -641,7 +635,7 @@ impl ThreadHistoryBuilder {
     }
 
     fn handle_web_search_end(&mut self, payload: &WebSearchEndEvent) {
-        let item = ThreadItem::WebSearch {
+        let item = Message::WebSearch {
             id: payload.call_id.clone(),
             query: payload.query.clone(),
             action: Some(WebSearchAction::from(payload.action.clone())),
@@ -659,7 +653,7 @@ impl ThreadHistoryBuilder {
         // Command completions can arrive out of order. Unified exec may return
         // while a PTY is still running, then emit ExecCommandEnd later from a
         // background exit watcher when that process finally exits. By then, a
-        // newer user turn may already have started. Route by event turn_id so
+        // newer user turn may already have started. Route by event interaction_id so
         // replay preserves the original turn association.
         self.upsert_item_in_turn_id(&payload.turn_id, item);
     }
@@ -714,7 +708,7 @@ impl ThreadHistoryBuilder {
         &mut self,
         payload: &datax_protocol::dynamic_tools::DynamicToolCallRequest,
     ) {
-        let item = ThreadItem::DynamicToolCall {
+        let item = Message::DynamicToolCall {
             id: payload.call_id.clone(),
             namespace: payload.namespace.clone(),
             tool: payload.tool.clone(),
@@ -738,7 +732,7 @@ impl ThreadHistoryBuilder {
             DynamicToolCallStatus::Failed
         };
         let duration_ms = i64::try_from(payload.duration.as_millis()).ok();
-        let item = ThreadItem::DynamicToolCall {
+        let item = Message::DynamicToolCall {
             id: payload.call_id.clone(),
             namespace: payload.namespace.clone(),
             tool: payload.tool.clone(),
@@ -756,7 +750,7 @@ impl ThreadHistoryBuilder {
     }
 
     fn handle_mcp_tool_call_begin(&mut self, payload: &McpToolCallBeginEvent) {
-        let item = ThreadItem::McpToolCall {
+        let item = Message::McpToolCall {
             id: payload.call_id.clone(),
             server: payload.invocation.server.clone(),
             tool: payload.invocation.tool.clone(),
@@ -806,7 +800,7 @@ impl ThreadHistoryBuilder {
                 }),
             ),
         };
-        let item = ThreadItem::McpToolCall {
+        let item = Message::McpToolCall {
             id: payload.call_id.clone(),
             server: payload.invocation.server.clone(),
             tool: payload.invocation.tool.clone(),
@@ -834,7 +828,7 @@ impl ThreadHistoryBuilder {
     }
 
     fn handle_view_image_tool_call(&mut self, payload: &ViewImageToolCallEvent) {
-        let item = ThreadItem::ImageView {
+        let item = Message::ImageView {
             id: payload.call_id.clone(),
             path: payload.path.clone(),
         };
@@ -842,7 +836,7 @@ impl ThreadHistoryBuilder {
     }
 
     fn handle_image_generation_begin(&mut self, payload: &ImageGenerationBeginEvent) {
-        let item = ThreadItem::ImageGeneration {
+        let item = Message::ImageGeneration {
             id: payload.call_id.clone(),
             status: String::new(),
             revised_prompt: None,
@@ -853,7 +847,7 @@ impl ThreadHistoryBuilder {
     }
 
     fn handle_image_generation_end(&mut self, payload: &ImageGenerationEndEvent) {
-        let item = ThreadItem::ImageGeneration {
+        let item = Message::ImageGeneration {
             id: payload.call_id.clone(),
             status: payload.status.clone(),
             revised_prompt: payload.revised_prompt.clone(),
@@ -867,7 +861,7 @@ impl ThreadHistoryBuilder {
         &mut self,
         payload: &datax_protocol::protocol::CollabAgentSpawnBeginEvent,
     ) {
-        let item = ThreadItem::CollabAgentToolCall {
+        let item = Message::CollabAgentToolCall {
             id: payload.call_id.clone(),
             tool: CollabAgentTool::SpawnAgent,
             status: CollabAgentToolCallStatus::InProgress,
@@ -902,7 +896,7 @@ impl ThreadHistoryBuilder {
             }
             None => (Vec::new(), HashMap::new()),
         };
-        self.upsert_item_in_current_turn(ThreadItem::CollabAgentToolCall {
+        self.upsert_item_in_current_turn(Message::CollabAgentToolCall {
             id: payload.call_id.clone(),
             tool: CollabAgentTool::SpawnAgent,
             status,
@@ -919,7 +913,7 @@ impl ThreadHistoryBuilder {
         &mut self,
         payload: &datax_protocol::protocol::CollabAgentInteractionBeginEvent,
     ) {
-        let item = ThreadItem::CollabAgentToolCall {
+        let item = Message::CollabAgentToolCall {
             id: payload.call_id.clone(),
             tool: CollabAgentTool::SendInput,
             status: CollabAgentToolCallStatus::InProgress,
@@ -943,7 +937,7 @@ impl ThreadHistoryBuilder {
         };
         let receiver_id = payload.receiver_thread_id.to_string();
         let received_status = CollabAgentState::from(payload.status.clone());
-        self.upsert_item_in_current_turn(ThreadItem::CollabAgentToolCall {
+        self.upsert_item_in_current_turn(Message::CollabAgentToolCall {
             id: payload.call_id.clone(),
             tool: CollabAgentTool::SendInput,
             status,
@@ -960,7 +954,7 @@ impl ThreadHistoryBuilder {
         &mut self,
         payload: &datax_protocol::protocol::SubAgentActivityEvent,
     ) {
-        self.upsert_item_in_current_turn(ThreadItem::SubAgentActivity {
+        self.upsert_item_in_current_turn(Message::SubAgentActivity {
             id: payload.event_id.clone(),
             kind: payload.kind.into(),
             agent_thread_id: payload.agent_thread_id.to_string(),
@@ -972,7 +966,7 @@ impl ThreadHistoryBuilder {
         &mut self,
         payload: &datax_protocol::protocol::CollabWaitingBeginEvent,
     ) {
-        let item = ThreadItem::CollabAgentToolCall {
+        let item = Message::CollabAgentToolCall {
             id: payload.call_id.clone(),
             tool: CollabAgentTool::Wait,
             status: CollabAgentToolCallStatus::InProgress,
@@ -1011,7 +1005,7 @@ impl ThreadHistoryBuilder {
             .iter()
             .map(|(id, status)| (id.to_string(), CollabAgentState::from(status.clone())))
             .collect();
-        self.upsert_item_in_current_turn(ThreadItem::CollabAgentToolCall {
+        self.upsert_item_in_current_turn(Message::CollabAgentToolCall {
             id: payload.call_id.clone(),
             tool: CollabAgentTool::Wait,
             status,
@@ -1028,7 +1022,7 @@ impl ThreadHistoryBuilder {
         &mut self,
         payload: &datax_protocol::protocol::CollabCloseBeginEvent,
     ) {
-        let item = ThreadItem::CollabAgentToolCall {
+        let item = Message::CollabAgentToolCall {
             id: payload.call_id.clone(),
             tool: CollabAgentTool::CloseAgent,
             status: CollabAgentToolCallStatus::InProgress,
@@ -1054,7 +1048,7 @@ impl ThreadHistoryBuilder {
         )]
         .into_iter()
         .collect();
-        self.upsert_item_in_current_turn(ThreadItem::CollabAgentToolCall {
+        self.upsert_item_in_current_turn(Message::CollabAgentToolCall {
             id: payload.call_id.clone(),
             tool: CollabAgentTool::CloseAgent,
             status,
@@ -1071,7 +1065,7 @@ impl ThreadHistoryBuilder {
         &mut self,
         payload: &datax_protocol::protocol::CollabResumeBeginEvent,
     ) {
-        let item = ThreadItem::CollabAgentToolCall {
+        let item = Message::CollabAgentToolCall {
             id: payload.call_id.clone(),
             tool: CollabAgentTool::ResumeAgent,
             status: CollabAgentToolCallStatus::InProgress,
@@ -1100,7 +1094,7 @@ impl ThreadHistoryBuilder {
         )]
         .into_iter()
         .collect();
-        self.upsert_item_in_current_turn(ThreadItem::CollabAgentToolCall {
+        self.upsert_item_in_current_turn(Message::CollabAgentToolCall {
             id: payload.call_id.clone(),
             tool: CollabAgentTool::ResumeAgent,
             status,
@@ -1115,7 +1109,7 @@ impl ThreadHistoryBuilder {
 
     fn handle_context_compacted(&mut self, _payload: &ContextCompactedEvent) {
         let id = self.next_item_id();
-        self.push_item_in_current_turn(ThreadItem::ContextCompaction { id });
+        self.push_item_in_current_turn(Message::ContextCompaction { id });
     }
 
     fn handle_entered_review_mode(&mut self, payload: &datax_protocol::protocol::ReviewRequest) {
@@ -1124,7 +1118,7 @@ impl ThreadHistoryBuilder {
             .clone()
             .unwrap_or_else(|| "Review requested.".to_string());
         let id = self.next_item_id();
-        self.push_item_in_current_turn(ThreadItem::EnteredReviewMode { id, review });
+        self.push_item_in_current_turn(Message::EnteredReviewMode { id, review });
     }
 
     fn handle_exited_review_mode(
@@ -1137,7 +1131,7 @@ impl ThreadHistoryBuilder {
             .map(render_review_output_text)
             .unwrap_or_else(|| REVIEW_FALLBACK_MESSAGE.to_string());
         let id = self.next_item_id();
-        self.push_item_in_current_turn(ThreadItem::ExitedReviewMode { id, review });
+        self.push_item_in_current_turn(Message::ExitedReviewMode { id, review });
     }
 
     fn handle_error(&mut self, payload: &ErrorEvent) {
@@ -1146,13 +1140,13 @@ impl ThreadHistoryBuilder {
         }
         let tracking_changes = self.is_tracking_changes();
         let changed_turn = if let Some(turn) = self.current_turn.as_mut() {
-            turn.status = TurnStatus::Failed;
+            turn.status = InteractionStatus::Failed;
             turn.error = Some(V2TurnError {
                 message: payload.message.clone(),
                 codex_error_info: payload.codex_error_info.clone().map(Into::into),
                 additional_details: None,
             });
-            tracking_changes.then(|| ThreadHistoryTurnChange::from_pending_turn(turn))
+            tracking_changes.then(|| ChatHistoryInteractionChange::from_pending_turn(turn))
         } else {
             None
         };
@@ -1163,24 +1157,32 @@ impl ThreadHistoryBuilder {
 
     fn handle_turn_aborted(&mut self, payload: &TurnAbortedEvent) {
         let apply_abort = |turn: &mut PendingTurn| {
-            turn.status = TurnStatus::Interrupted;
+            turn.status = InteractionStatus::Interrupted;
             turn.completed_at = payload.completed_at;
             turn.duration_ms = payload.duration_ms;
-            ThreadHistoryTurnChange::from_pending_turn(turn)
+            ChatHistoryInteractionChange::from_pending_turn(turn)
         };
-        if let Some(turn_id) = payload.turn_id.as_deref() {
+        if let Some(interaction_id) = payload.turn_id.as_deref() {
             // Prefer an exact ID match so we interrupt the turn explicitly targeted by the event.
-            if let Some(turn) = self.current_turn.as_mut().filter(|turn| turn.id == turn_id) {
+            if let Some(turn) = self
+                .current_turn
+                .as_mut()
+                .filter(|turn| turn.id == interaction_id)
+            {
                 let changed_turn = apply_abort(turn);
                 self.record_changed_turn(changed_turn);
                 return;
             }
 
-            if let Some(turn) = self.turns.iter_mut().find(|turn| turn.id == turn_id) {
-                turn.status = TurnStatus::Interrupted;
+            if let Some(turn) = self
+                .interactions
+                .iter_mut()
+                .find(|turn| turn.id == interaction_id)
+            {
+                turn.status = InteractionStatus::Interrupted;
                 turn.completed_at = payload.completed_at;
                 turn.duration_ms = payload.duration_ms;
-                let changed_turn = ThreadHistoryTurnChange::from_turn(turn);
+                let changed_turn = ChatHistoryInteractionChange::from_turn(turn);
                 self.record_changed_turn(changed_turn);
                 return;
             }
@@ -1197,7 +1199,7 @@ impl ThreadHistoryBuilder {
         self.finish_current_turn();
         let turn = self
             .new_turn(Some(payload.turn_id.clone()))
-            .with_status(TurnStatus::InProgress)
+            .with_status(InteractionStatus::InProgress)
             .with_started_at(payload.started_at)
             .opened_explicitly();
         self.record_changed_pending_turn(&turn);
@@ -1206,12 +1208,15 @@ impl ThreadHistoryBuilder {
 
     fn handle_turn_complete(&mut self, payload: &TurnCompleteEvent) {
         let mark_completed = |turn: &mut PendingTurn| {
-            if matches!(turn.status, TurnStatus::Completed | TurnStatus::InProgress) {
-                turn.status = TurnStatus::Completed;
+            if matches!(
+                turn.status,
+                InteractionStatus::Completed | InteractionStatus::InProgress
+            ) {
+                turn.status = InteractionStatus::Completed;
             }
             turn.completed_at = payload.completed_at;
             turn.duration_ms = payload.duration_ms;
-            ThreadHistoryTurnChange::from_pending_turn(turn)
+            ChatHistoryInteractionChange::from_pending_turn(turn)
         };
 
         // Prefer an exact ID match from the active turn and then close it.
@@ -1227,16 +1232,19 @@ impl ThreadHistoryBuilder {
         }
 
         if let Some(turn) = self
-            .turns
+            .interactions
             .iter_mut()
             .find(|turn| turn.id == payload.turn_id)
         {
-            if matches!(turn.status, TurnStatus::Completed | TurnStatus::InProgress) {
-                turn.status = TurnStatus::Completed;
+            if matches!(
+                turn.status,
+                InteractionStatus::Completed | InteractionStatus::InProgress
+            ) {
+                turn.status = InteractionStatus::Completed;
             }
             turn.completed_at = payload.completed_at;
             turn.duration_ms = payload.duration_ms;
-            let changed_turn = ThreadHistoryTurnChange::from_turn(turn);
+            let changed_turn = ChatHistoryInteractionChange::from_turn(turn);
             self.record_changed_turn(changed_turn);
             return;
         }
@@ -1251,8 +1259,8 @@ impl ThreadHistoryBuilder {
 
     /// Marks the current turn as containing a persisted compaction marker.
     ///
-    /// This keeps compaction-only legacy turns from being dropped by
-    /// `finish_current_turn` when they have no renderable items and were not
+    /// This keeps compaction-only legacy interactions from being dropped by
+    /// `finish_current_turn` when they have no renderable messages and were not
     /// explicitly opened.
     fn handle_compacted(&mut self, _payload: &CompactedItem) {
         self.ensure_turn().saw_compaction = true;
@@ -1262,34 +1270,38 @@ impl ThreadHistoryBuilder {
         self.finish_current_turn();
 
         let n = usize::try_from(payload.num_turns).unwrap_or(usize::MAX);
-        let removed_turn_ids = if n >= self.turns.len() {
-            self.turns.iter().map(|turn| turn.id.clone()).collect()
+        let removed_turn_ids = if n >= self.interactions.len() {
+            self.interactions
+                .iter()
+                .map(|turn| turn.id.clone())
+                .collect()
         } else if n == 0 {
             Vec::new()
         } else {
-            self.turns[self.turns.len() - n..]
+            self.interactions[self.interactions.len() - n..]
                 .iter()
                 .map(|turn| turn.id.clone())
                 .collect()
         };
         self.record_removed_turn_ids(removed_turn_ids);
 
-        if n >= self.turns.len() {
-            self.turns.clear();
+        if n >= self.interactions.len() {
+            self.interactions.clear();
         } else {
-            self.turns.truncate(self.turns.len().saturating_sub(n));
+            self.interactions
+                .truncate(self.interactions.len().saturating_sub(n));
         }
 
-        let item_count: usize = self.turns.iter().map(|t| t.items.len()).sum();
+        let item_count: usize = self.interactions.iter().map(|t| t.messages.len()).sum();
         self.next_item_index = i64::try_from(item_count.saturating_add(1)).unwrap_or(i64::MAX);
     }
 
     fn finish_current_turn(&mut self) {
         if let Some(turn) = self.current_turn.take() {
-            if turn.items.is_empty() && !turn.opened_explicitly && !turn.saw_compaction {
+            if turn.messages.is_empty() && !turn.opened_explicitly && !turn.saw_compaction {
                 return;
             }
-            self.turns.push(Turn::from(turn));
+            self.interactions.push(Interaction::from(turn));
         }
     }
 
@@ -1303,9 +1315,9 @@ impl ThreadHistoryBuilder {
         });
         PendingTurn {
             id,
-            items: Vec::new(),
+            messages: Vec::new(),
             error: None,
-            status: TurnStatus::Completed,
+            status: InteractionStatus::Completed,
             started_at: None,
             completed_at: None,
             duration_ms: None,
@@ -1329,60 +1341,64 @@ impl ThreadHistoryBuilder {
         unreachable!("current turn must exist after initialization");
     }
 
-    fn push_item_in_current_turn(&mut self, item: ThreadItem) {
+    fn push_item_in_current_turn(&mut self, item: Message) {
         let tracking_changes = self.is_tracking_changes();
         let changed_item = {
             let turn = self.ensure_turn();
             let changed_item = tracking_changes.then(|| (turn.id.clone(), item.clone()));
-            turn.items.push(item);
+            turn.messages.push(item);
             changed_item
         };
-        if let Some((turn_id, item)) = changed_item {
-            self.record_changed_item(turn_id, item);
+        if let Some((interaction_id, item)) = changed_item {
+            self.record_changed_item(interaction_id, item);
         }
     }
 
-    fn upsert_item_in_turn_id(&mut self, turn_id: &str, item: ThreadItem) {
+    fn upsert_item_in_turn_id(&mut self, interaction_id: &str, item: Message) {
         let tracking_changes = self.is_tracking_changes();
         if let Some(turn) = self.current_turn.as_mut()
-            && turn.id == turn_id
+            && turn.id == interaction_id
         {
             let changed_item = {
-                let item = upsert_turn_item(&mut turn.items, item);
+                let item = upsert_turn_item(&mut turn.messages, item);
                 tracking_changes.then(|| (turn.id.clone(), item.clone()))
             };
-            if let Some((turn_id, item)) = changed_item {
-                self.record_changed_item(turn_id, item);
+            if let Some((interaction_id, item)) = changed_item {
+                self.record_changed_item(interaction_id, item);
             }
             return;
         }
 
-        if let Some(turn) = self.turns.iter_mut().find(|turn| turn.id == turn_id) {
+        if let Some(turn) = self
+            .interactions
+            .iter_mut()
+            .find(|turn| turn.id == interaction_id)
+        {
             let changed_item = {
-                let item = upsert_turn_item(&mut turn.items, item);
+                let item = upsert_turn_item(&mut turn.messages, item);
                 tracking_changes.then(|| (turn.id.clone(), item.clone()))
             };
-            if let Some((turn_id, item)) = changed_item {
-                self.record_changed_item(turn_id, item);
+            if let Some((interaction_id, item)) = changed_item {
+                self.record_changed_item(interaction_id, item);
             }
             return;
         }
 
         warn!(
-            item_id = item.id(),
-            "dropping turn-scoped item for unknown turn id `{turn_id}`"
+            message_id = item.id(),
+            "dropping turn-scoped item for unknown turn id `{interaction_id}`"
         );
     }
 
-    fn upsert_item_in_current_turn(&mut self, item: ThreadItem) {
+    fn upsert_item_in_current_turn(&mut self, item: Message) {
         let tracking_changes = self.is_tracking_changes();
         let changed_item = {
             let turn = self.ensure_turn();
-            let item = upsert_turn_item(&mut turn.items, item);
+            let item = upsert_turn_item(&mut turn.messages, item);
             tracking_changes.then(|| (turn.id.clone(), item.clone()))
         };
-        if let Some((turn_id, item)) = changed_item {
-            self.record_changed_item(turn_id, item);
+        if let Some((interaction_id, item)) = changed_item {
+            self.record_changed_item(interaction_id, item);
         }
     }
 
@@ -1390,21 +1406,22 @@ impl ThreadHistoryBuilder {
         self.active_change_set.is_some()
     }
 
-    fn record_changed_item(&mut self, turn_id: String, item: ThreadItem) {
+    fn record_changed_item(&mut self, interaction_id: String, item: Message) {
         if let Some(change_set) = self.active_change_set.as_mut() {
-            change_set
-                .changed_items
-                .push(ThreadHistoryItemChange { turn_id, item });
+            change_set.changed_items.push(ChatHistoryMessageChange {
+                interaction_id,
+                item,
+            });
         }
     }
 
     fn record_changed_pending_turn(&mut self, turn: &PendingTurn) {
         if self.is_tracking_changes() {
-            self.record_changed_turn(ThreadHistoryTurnChange::from_pending_turn(turn));
+            self.record_changed_turn(ChatHistoryInteractionChange::from_pending_turn(turn));
         }
     }
 
-    fn record_changed_turn(&mut self, turn: ThreadHistoryTurnChange) {
+    fn record_changed_turn(&mut self, turn: ChatHistoryInteractionChange) {
         if let Some(change_set) = self.active_change_set.as_mut() {
             change_set.changed_turns.push(turn);
         }
@@ -1465,9 +1482,9 @@ fn render_review_output_text(output: &ReviewOutputEvent) -> String {
 }
 
 fn convert_dynamic_tool_content_items(
-    items: &[datax_protocol::dynamic_tools::DynamicToolCallOutputContentItem],
+    messages: &[datax_protocol::dynamic_tools::DynamicToolCallOutputContentItem],
 ) -> Vec<DynamicToolCallOutputContentItem> {
-    items
+    messages
         .iter()
         .cloned()
         .map(|item| match item {
@@ -1481,32 +1498,32 @@ fn convert_dynamic_tool_content_items(
         .collect()
 }
 
-fn upsert_turn_item(items: &mut Vec<ThreadItem>, item: ThreadItem) -> &ThreadItem {
-    if let Some(existing_item_index) = items
+fn upsert_turn_item(messages: &mut Vec<Message>, item: Message) -> &Message {
+    if let Some(existing_item_index) = messages
         .iter()
         .position(|existing_item| existing_item.id() == item.id())
     {
-        items[existing_item_index] = item;
-        return &items[existing_item_index];
+        messages[existing_item_index] = item;
+        return &messages[existing_item_index];
     }
-    let inserted_item_index = items.len();
-    items.push(item);
-    &items[inserted_item_index]
+    let inserted_item_index = messages.len();
+    messages.push(item);
+    &messages[inserted_item_index]
 }
 
 struct PendingTurn {
     id: String,
-    items: Vec<ThreadItem>,
-    error: Option<TurnError>,
-    status: TurnStatus,
+    messages: Vec<Message>,
+    error: Option<InteractionError>,
+    status: InteractionStatus,
     started_at: Option<i64>,
     completed_at: Option<i64>,
     duration_ms: Option<i64>,
     /// True when this turn originated from an explicit `turn_started`/`turn_complete`
-    /// boundary, so we preserve it even if it has no renderable items.
+    /// boundary, so we preserve it even if it has no renderable messages.
     opened_explicitly: bool,
     /// True when this turn includes a persisted `RolloutItem::Compacted`, which
-    /// should keep the turn from being dropped even without normal items.
+    /// should keep the turn from being dropped even without normal messages.
     saw_compaction: bool,
     /// Index of the rollout item that opened this turn during replay.
     rollout_start_index: usize,
@@ -1518,7 +1535,7 @@ impl PendingTurn {
         self
     }
 
-    fn with_status(mut self, status: TurnStatus) -> Self {
+    fn with_status(mut self, status: InteractionStatus) -> Self {
         self.status = status;
         self
     }
@@ -1529,12 +1546,12 @@ impl PendingTurn {
     }
 }
 
-impl From<PendingTurn> for Turn {
+impl From<PendingTurn> for Interaction {
     fn from(value: PendingTurn) -> Self {
         Self {
             id: value.id,
-            items: value.items,
-            items_view: TurnItemsView::Full,
+            messages: value.messages,
+            messages_view: InteractionMessagesView::Full,
             error: value.error,
             status: value.status,
             started_at: value.started_at,
@@ -1544,12 +1561,12 @@ impl From<PendingTurn> for Turn {
     }
 }
 
-impl From<&PendingTurn> for Turn {
+impl From<&PendingTurn> for Interaction {
     fn from(value: &PendingTurn) -> Self {
         Self {
             id: value.id.clone(),
-            items: value.items.clone(),
-            items_view: TurnItemsView::Full,
+            messages: value.messages.clone(),
+            messages_view: InteractionMessagesView::Full,
             error: value.error.clone(),
             status: value.status.clone(),
             started_at: value.started_at,
@@ -1640,20 +1657,20 @@ mod tests {
             }),
         ];
 
-        let mut builder = ThreadHistoryBuilder::new();
+        let mut builder = ChatHistoryBuilder::new();
         for event in &events {
             builder.handle_event(event);
         }
-        let turns = builder.finish();
-        assert_eq!(turns.len(), 2);
+        let interactions = builder.finish();
+        assert_eq!(interactions.len(), 2);
 
-        let first = &turns[0];
+        let first = &interactions[0];
         assert!(Uuid::parse_str(&first.id).is_ok());
-        assert_eq!(first.status, TurnStatus::Completed);
-        assert_eq!(first.items.len(), 3);
+        assert_eq!(first.status, InteractionStatus::Completed);
+        assert_eq!(first.messages.len(), 3);
         assert_eq!(
-            first.items[0],
-            ThreadItem::UserMessage {
+            first.messages[0],
+            Message::UserMessage {
                 id: "item-1".into(),
                 client_id: None,
                 content: vec![
@@ -1669,8 +1686,8 @@ mod tests {
             }
         );
         assert_eq!(
-            first.items[1],
-            ThreadItem::AgentMessage {
+            first.messages[1],
+            Message::AgentMessage {
                 id: "item-2".into(),
                 text: "Hi there".into(),
                 phase: None,
@@ -1678,21 +1695,21 @@ mod tests {
             }
         );
         assert_eq!(
-            first.items[2],
-            ThreadItem::Reasoning {
+            first.messages[2],
+            Message::Reasoning {
                 id: "item-3".into(),
                 summary: vec!["thinking".into()],
                 content: vec!["full reasoning".into()],
             }
         );
 
-        let second = &turns[1];
+        let second = &interactions[1];
         assert!(Uuid::parse_str(&second.id).is_ok());
         assert_ne!(first.id, second.id);
-        assert_eq!(second.items.len(), 2);
+        assert_eq!(second.messages.len(), 2);
         assert_eq!(
-            second.items[0],
-            ThreadItem::UserMessage {
+            second.messages[0],
+            Message::UserMessage {
                 id: "item-4".into(),
                 client_id: None,
                 content: vec![UserInput::Text {
@@ -1702,8 +1719,8 @@ mod tests {
             }
         );
         assert_eq!(
-            second.items[1],
-            ThreadItem::AgentMessage {
+            second.messages[1],
+            Message::AgentMessage {
                 id: "item-5".into(),
                 text: "Reply two".into(),
                 phase: None,
@@ -1727,12 +1744,12 @@ mod tests {
             },
         ))];
 
-        let turns = build_turns_from_rollout_items(&events);
+        let interactions = build_turns_from_rollout_items(&events);
 
-        assert_eq!(turns.len(), 1);
+        assert_eq!(interactions.len(), 1);
         assert_eq!(
-            turns[0].items[0],
-            ThreadItem::UserMessage {
+            interactions[0].messages[0],
+            Message::UserMessage {
                 id: "item-1".into(),
                 client_id: None,
                 content: vec![
@@ -1755,11 +1772,11 @@ mod tests {
 
     #[test]
     fn ignores_user_message_item_lifecycle_events() {
-        let turn_id = "turn-1";
-        let thread_id = ThreadId::new();
+        let interaction_id = "turn-1";
+        let chat_id = ThreadId::new();
         let events = vec![
             EventMsg::TurnStarted(TurnStartedEvent {
-                turn_id: turn_id.to_string(),
+                turn_id: interaction_id.to_string(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: None,
@@ -1774,8 +1791,8 @@ mod tests {
                 ..Default::default()
             }),
             EventMsg::ItemStarted(ItemStartedEvent {
-                thread_id,
-                turn_id: turn_id.to_string(),
+                thread_id: chat_id.clone(),
+                turn_id: interaction_id.to_string(),
                 item: CoreTurnItem::UserMessage(CoreUserMessageItem {
                     id: "user-item-id".to_string(),
                     client_id: None,
@@ -1784,7 +1801,7 @@ mod tests {
                 started_at_ms: 0,
             }),
             EventMsg::TurnComplete(TurnCompleteEvent {
-                turn_id: turn_id.to_string(),
+                turn_id: interaction_id.to_string(),
                 last_agent_message: None,
                 completed_at: None,
                 duration_ms: None,
@@ -1792,16 +1809,16 @@ mod tests {
             }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 1);
-        assert_eq!(turns[0].items.len(), 1);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 1);
+        assert_eq!(interactions[0].messages.len(), 1);
         assert_eq!(
-            turns[0].items[0],
-            ThreadItem::UserMessage {
+            interactions[0].messages[0],
+            Message::UserMessage {
                 id: "item-1".into(),
                 client_id: None,
                 content: vec![UserInput::Text {
@@ -1814,28 +1831,28 @@ mod tests {
 
     #[test]
     fn rebuilds_sleep_item_from_persisted_completion() {
-        let turn_id = "turn-1";
-        let thread_id = ThreadId::new();
+        let interaction_id = "turn-1";
+        let chat_id = ThreadId::new();
         let sleep_item = CoreTurnItem::Sleep(CoreSleepItem {
             id: "sleep-1".to_string(),
             duration_ms: 1_000,
         });
         let events = vec![
             EventMsg::TurnStarted(TurnStartedEvent {
-                turn_id: turn_id.to_string(),
+                turn_id: interaction_id.to_string(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: None,
                 collaboration_mode_kind: Default::default(),
             }),
             EventMsg::ItemCompleted(ItemCompletedEvent {
-                thread_id,
-                turn_id: turn_id.to_string(),
+                thread_id: chat_id.clone(),
+                turn_id: interaction_id.to_string(),
                 item: sleep_item,
                 completed_at_ms: 1_000,
             }),
             EventMsg::TurnComplete(TurnCompleteEvent {
-                turn_id: turn_id.to_string(),
+                turn_id: interaction_id.to_string(),
                 last_agent_message: None,
                 completed_at: None,
                 duration_ms: None,
@@ -1843,16 +1860,16 @@ mod tests {
             }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
+        let interactions = build_turns_from_rollout_items(&messages);
 
-        assert_eq!(turns.len(), 1);
+        assert_eq!(interactions.len(), 1);
         assert_eq!(
-            turns[0].items,
-            vec![ThreadItem::Sleep {
+            interactions[0].messages,
+            vec![Message::Sleep {
                 id: "sleep-1".to_string(),
                 duration_ms: 1_000,
             }]
@@ -1861,19 +1878,19 @@ mod tests {
 
     #[test]
     fn preserves_user_message_client_id_from_legacy_event() {
-        let turn_id = "turn-1";
-        let thread_id = ThreadId::new();
+        let interaction_id = "turn-1";
+        let chat_id = ThreadId::new();
         let events = vec![
             EventMsg::TurnStarted(TurnStartedEvent {
-                turn_id: turn_id.to_string(),
+                turn_id: interaction_id.to_string(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: None,
                 collaboration_mode_kind: Default::default(),
             }),
             EventMsg::ItemStarted(ItemStartedEvent {
-                thread_id,
-                turn_id: turn_id.to_string(),
+                thread_id: chat_id.clone(),
+                turn_id: interaction_id.to_string(),
                 item: CoreTurnItem::UserMessage(CoreUserMessageItem {
                     id: "user-item-id".to_string(),
                     client_id: Some("client-message-1".to_string()),
@@ -1893,7 +1910,7 @@ mod tests {
                 ..Default::default()
             }),
             EventMsg::TurnComplete(TurnCompleteEvent {
-                turn_id: turn_id.to_string(),
+                turn_id: interaction_id.to_string(),
                 last_agent_message: None,
                 completed_at: None,
                 duration_ms: None,
@@ -1901,15 +1918,15 @@ mod tests {
             }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 1);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 1);
         assert_eq!(
-            turns[0].items,
-            vec![ThreadItem::UserMessage {
+            interactions[0].messages,
+            vec![Message::UserMessage {
                 id: "item-1".into(),
                 client_id: Some("client-message-1".to_string()),
                 content: vec![UserInput::Text {
@@ -1928,15 +1945,15 @@ mod tests {
             memory_citation: None,
         })];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 1);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 1);
         assert_eq!(
-            turns[0].items[0],
-            ThreadItem::AgentMessage {
+            interactions[0].messages[0],
+            Message::AgentMessage {
                 id: "item-1".into(),
                 text: "Final reply".into(),
                 phase: Some(MessagePhase::FinalAnswer),
@@ -1947,7 +1964,7 @@ mod tests {
 
     #[test]
     fn replays_image_generation_end_events_into_turn_history() {
-        let items = vec![
+        let messages = vec![
             RolloutItem::EventMsg(EventMsg::TurnStarted(TurnStartedEvent {
                 turn_id: "turn-image".into(),
                 trace_id: None,
@@ -1979,20 +1996,20 @@ mod tests {
             })),
         ];
 
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 1);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 1);
         assert_eq!(
-            turns[0],
-            Turn {
+            interactions[0],
+            Interaction {
                 id: "turn-image".into(),
-                status: TurnStatus::Completed,
+                status: InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
                 duration_ms: None,
-                items_view: TurnItemsView::Full,
-                items: vec![
-                    ThreadItem::UserMessage {
+                messages_view: InteractionMessagesView::Full,
+                messages: vec![
+                    Message::UserMessage {
                         id: "item-1".into(),
                         client_id: None,
                         content: vec![UserInput::Text {
@@ -2000,7 +2017,7 @@ mod tests {
                             text_elements: Vec::new(),
                         }],
                     },
-                    ThreadItem::ImageGeneration {
+                    Message::ImageGeneration {
                         id: "ig_123".into(),
                         status: "completed".into(),
                         revised_prompt: Some("final prompt".into()),
@@ -2017,7 +2034,7 @@ mod tests {
         let events = vec![
             EventMsg::UserMessage(UserMessageEvent {
                 client_id: None,
-                message: "Turn start".into(),
+                message: "Interaction start".into(),
                 images: None,
                 text_elements: Vec::new(),
                 local_images: Vec::new(),
@@ -2039,26 +2056,26 @@ mod tests {
             }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 1);
-        let turn = &turns[0];
-        assert_eq!(turn.items.len(), 4);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 1);
+        let turn = &interactions[0];
+        assert_eq!(turn.messages.len(), 4);
 
         assert_eq!(
-            turn.items[1],
-            ThreadItem::Reasoning {
+            turn.messages[1],
+            Message::Reasoning {
                 id: "item-2".into(),
                 summary: vec!["first summary".into()],
                 content: vec!["first content".into()],
             }
         );
         assert_eq!(
-            turn.items[3],
-            ThreadItem::Reasoning {
+            turn.messages[3],
+            Message::Reasoning {
                 id: "item-4".into(),
                 summary: vec!["second summary".into()],
                 content: Vec::new(),
@@ -2103,19 +2120,19 @@ mod tests {
             }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 2);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 2);
 
-        let first_turn = &turns[0];
-        assert_eq!(first_turn.status, TurnStatus::Interrupted);
-        assert_eq!(first_turn.items.len(), 2);
+        let first_turn = &interactions[0];
+        assert_eq!(first_turn.status, InteractionStatus::Interrupted);
+        assert_eq!(first_turn.messages.len(), 2);
         assert_eq!(
-            first_turn.items[0],
-            ThreadItem::UserMessage {
+            first_turn.messages[0],
+            Message::UserMessage {
                 id: "item-1".into(),
                 client_id: None,
                 content: vec![UserInput::Text {
@@ -2125,8 +2142,8 @@ mod tests {
             }
         );
         assert_eq!(
-            first_turn.items[1],
-            ThreadItem::AgentMessage {
+            first_turn.messages[1],
+            Message::AgentMessage {
                 id: "item-2".into(),
                 text: "Working...".into(),
                 phase: None,
@@ -2134,12 +2151,12 @@ mod tests {
             }
         );
 
-        let second_turn = &turns[1];
-        assert_eq!(second_turn.status, TurnStatus::Completed);
-        assert_eq!(second_turn.items.len(), 2);
+        let second_turn = &interactions[1];
+        assert_eq!(second_turn.status, InteractionStatus::Completed);
+        assert_eq!(second_turn.messages.len(), 2);
         assert_eq!(
-            second_turn.items[0],
-            ThreadItem::UserMessage {
+            second_turn.messages[0],
+            Message::UserMessage {
                 id: "item-3".into(),
                 client_id: None,
                 content: vec![UserInput::Text {
@@ -2149,8 +2166,8 @@ mod tests {
             }
         );
         assert_eq!(
-            second_turn.items[1],
-            ThreadItem::AgentMessage {
+            second_turn.messages[1],
+            Message::AgentMessage {
                 id: "item-4".into(),
                 text: "Second attempt complete.".into(),
                 phase: None,
@@ -2204,21 +2221,21 @@ mod tests {
             }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 2);
-        assert_eq!(turns[0].id, "rollout-0");
-        assert_eq!(turns[1].id, "rollout-5");
-        assert_ne!(turns[0].id, turns[1].id);
-        assert_eq!(turns[0].status, TurnStatus::Completed);
-        assert_eq!(turns[1].status, TurnStatus::Completed);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 2);
+        assert_eq!(interactions[0].id, "rollout-0");
+        assert_eq!(interactions[1].id, "rollout-5");
+        assert_ne!(interactions[0].id, interactions[1].id);
+        assert_eq!(interactions[0].status, InteractionStatus::Completed);
+        assert_eq!(interactions[1].status, InteractionStatus::Completed);
         assert_eq!(
-            turns[0].items,
+            interactions[0].messages,
             vec![
-                ThreadItem::UserMessage {
+                Message::UserMessage {
                     id: "item-1".into(),
                     client_id: None,
                     content: vec![UserInput::Text {
@@ -2226,7 +2243,7 @@ mod tests {
                         text_elements: Vec::new(),
                     }],
                 },
-                ThreadItem::AgentMessage {
+                Message::AgentMessage {
                     id: "item-2".into(),
                     text: "A1".into(),
                     phase: None,
@@ -2235,9 +2252,9 @@ mod tests {
             ]
         );
         assert_eq!(
-            turns[1].items,
+            interactions[1].messages,
             vec![
-                ThreadItem::UserMessage {
+                Message::UserMessage {
                     id: "item-3".into(),
                     client_id: None,
                     content: vec![UserInput::Text {
@@ -2245,7 +2262,7 @@ mod tests {
                         text_elements: Vec::new(),
                     }],
                 },
-                ThreadItem::AgentMessage {
+                Message::AgentMessage {
                     id: "item-4".into(),
                     text: "A3".into(),
                     phase: None,
@@ -2287,12 +2304,12 @@ mod tests {
             EventMsg::ThreadRolledBack(ThreadRolledBackEvent { num_turns: 99 }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns, Vec::<Turn>::new());
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions, Vec::<Interaction>::new());
     }
 
     #[test]
@@ -2330,17 +2347,17 @@ mod tests {
             }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 1);
-        assert_eq!(turns[0].id, "turn-a");
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 1);
+        assert_eq!(interactions[0].id, "turn-a");
         assert_eq!(
-            turns[0].items,
+            interactions[0].messages,
             vec![
-                ThreadItem::UserMessage {
+                Message::UserMessage {
                     id: "item-1".into(),
                     client_id: None,
                     content: vec![UserInput::Text {
@@ -2348,7 +2365,7 @@ mod tests {
                         text_elements: Vec::new(),
                     }],
                 },
-                ThreadItem::UserMessage {
+                Message::UserMessage {
                     id: "item-2".into(),
                     client_id: None,
                     content: vec![UserInput::Text {
@@ -2422,16 +2439,16 @@ mod tests {
             }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 1);
-        assert_eq!(turns[0].items.len(), 4);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 1);
+        assert_eq!(interactions[0].messages.len(), 4);
         assert_eq!(
-            turns[0].items[1],
-            ThreadItem::WebSearch {
+            interactions[0].messages[1],
+            Message::WebSearch {
                 id: "search-1".into(),
                 query: "codex".into(),
                 action: Some(WebSearchAction::Search {
@@ -2441,8 +2458,8 @@ mod tests {
             }
         );
         assert_eq!(
-            turns[0].items[2],
-            ThreadItem::CommandExecution {
+            interactions[0].messages[2],
+            Message::CommandExecution {
                 id: "exec-1".into(),
                 command: "echo 'hello world'".into(),
                 cwd: test_path_buf("/tmp").abs().into(),
@@ -2458,8 +2475,8 @@ mod tests {
             }
         );
         assert_eq!(
-            turns[0].items[3],
-            ThreadItem::McpToolCall {
+            interactions[0].messages[3],
+            Message::McpToolCall {
                 id: "mcp-1".into(),
                 server: "docs".into(),
                 tool: "lookup".into(),
@@ -2513,15 +2530,15 @@ mod tests {
             }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 1);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 1);
         assert_eq!(
-            turns[0].items[0],
-            ThreadItem::McpToolCall {
+            interactions[0].messages[0],
+            Message::McpToolCall {
                 id: "mcp-1".into(),
                 server: "docs".into(),
                 tool: "lookup".into(),
@@ -2594,16 +2611,16 @@ mod tests {
             }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 1);
-        assert_eq!(turns[0].items.len(), 2);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 1);
+        assert_eq!(interactions[0].messages.len(), 2);
         assert_eq!(
-            turns[0].items[1],
-            ThreadItem::DynamicToolCall {
+            interactions[0].messages[1],
+            Message::DynamicToolCall {
                 id: "dyn-1".into(),
                 namespace: Some("codex_app".into()),
                 tool: "lookup_ticket".into(),
@@ -2672,16 +2689,16 @@ mod tests {
             }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 1);
-        assert_eq!(turns[0].items.len(), 3);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 1);
+        assert_eq!(interactions[0].messages.len(), 3);
         assert_eq!(
-            turns[0].items[1],
-            ThreadItem::CommandExecution {
+            interactions[0].messages[1],
+            Message::CommandExecution {
                 id: "exec-declined".into(),
                 command: "ls".into(),
                 cwd: test_path_buf("/tmp").abs().into(),
@@ -2697,8 +2714,8 @@ mod tests {
             }
         );
         assert_eq!(
-            turns[0].items[2],
-            ThreadItem::FileChange {
+            interactions[0].messages[2],
+            Message::FileChange {
                 id: "patch-declined".into(),
                 changes: vec![FileUpdateChange {
                     path: "README.md".into(),
@@ -2770,16 +2787,16 @@ mod tests {
             }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 1);
-        assert_eq!(turns[0].items.len(), 2);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 1);
+        assert_eq!(interactions[0].messages.len(), 2);
         assert_eq!(
-            turns[0].items[1],
-            ThreadItem::CommandExecution {
+            interactions[0].messages[1],
+            Message::CommandExecution {
                 id: "guardian-exec".into(),
                 command: "rm -rf /tmp/guardian".into(),
                 cwd: test_path_buf("/tmp").abs().into(),
@@ -2836,16 +2853,16 @@ mod tests {
             }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 1);
-        assert_eq!(turns[0].items.len(), 2);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 1);
+        assert_eq!(interactions[0].messages.len(), 2);
         assert_eq!(
-            turns[0].items[1],
-            ThreadItem::CommandExecution {
+            interactions[0].messages[1],
+            Message::CommandExecution {
                 id: "guardian-execve".into(),
                 command: "/bin/rm -f /tmp/file.sqlite".into(),
                 cwd: test_path_buf("/tmp").abs().into(),
@@ -2931,19 +2948,19 @@ mod tests {
             }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 2);
-        assert_eq!(turns[0].id, "turn-a");
-        assert_eq!(turns[1].id, "turn-b");
-        assert_eq!(turns[0].items.len(), 2);
-        assert_eq!(turns[1].items.len(), 1);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 2);
+        assert_eq!(interactions[0].id, "turn-a");
+        assert_eq!(interactions[1].id, "turn-b");
+        assert_eq!(interactions[0].messages.len(), 2);
+        assert_eq!(interactions[1].messages.len(), 1);
         assert_eq!(
-            turns[0].items[1],
-            ThreadItem::CommandExecution {
+            interactions[0].messages[1],
+            Message::CommandExecution {
                 id: "exec-late".into(),
                 command: "echo done".into(),
                 cwd: test_path_buf("/tmp").abs().into(),
@@ -3029,19 +3046,19 @@ mod tests {
             }),
         ];
 
-        let mut builder = ThreadHistoryBuilder::new();
+        let mut builder = ChatHistoryBuilder::new();
         for event in &events {
             builder.handle_event(event);
         }
-        let turns = builder.finish();
-        assert_eq!(turns.len(), 2);
-        assert_eq!(turns[0].id, "turn-a");
-        assert_eq!(turns[1].id, "turn-b");
-        assert_eq!(turns[0].items.len(), 1);
-        assert_eq!(turns[1].items.len(), 1);
+        let interactions = builder.finish();
+        assert_eq!(interactions.len(), 2);
+        assert_eq!(interactions[0].id, "turn-a");
+        assert_eq!(interactions[1].id, "turn-b");
+        assert_eq!(interactions[0].messages.len(), 1);
+        assert_eq!(interactions[1].messages.len(), 1);
         assert_eq!(
-            turns[1].items[0],
-            ThreadItem::UserMessage {
+            interactions[1].messages[0],
+            Message::UserMessage {
                 id: "item-2".into(),
                 client_id: None,
                 content: vec![UserInput::Text {
@@ -3054,11 +3071,11 @@ mod tests {
 
     #[test]
     fn patch_apply_begin_updates_active_turn_snapshot_with_file_change() {
-        let turn_id = "turn-1";
-        let mut builder = ThreadHistoryBuilder::new();
+        let interaction_id = "turn-1";
+        let mut builder = ChatHistoryBuilder::new();
         let events = vec![
             EventMsg::TurnStarted(TurnStartedEvent {
-                turn_id: turn_id.to_string(),
+                turn_id: interaction_id.to_string(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: None,
@@ -3074,7 +3091,7 @@ mod tests {
             }),
             EventMsg::PatchApplyBegin(PatchApplyBeginEvent {
                 call_id: "patch-call".into(),
-                turn_id: turn_id.to_string(),
+                turn_id: interaction_id.to_string(),
                 auto_approved: false,
                 changes: [(
                     PathBuf::from("README.md"),
@@ -3094,12 +3111,12 @@ mod tests {
         let snapshot = builder
             .active_turn_snapshot()
             .expect("active turn snapshot");
-        assert_eq!(snapshot.id, turn_id);
-        assert_eq!(snapshot.status, TurnStatus::InProgress);
+        assert_eq!(snapshot.id, interaction_id);
+        assert_eq!(snapshot.status, InteractionStatus::InProgress);
         assert_eq!(
-            snapshot.items,
+            snapshot.messages,
             vec![
-                ThreadItem::UserMessage {
+                Message::UserMessage {
                     id: "item-1".into(),
                     client_id: None,
                     content: vec![UserInput::Text {
@@ -3107,7 +3124,7 @@ mod tests {
                         text_elements: Vec::new(),
                     }],
                 },
-                ThreadItem::FileChange {
+                Message::FileChange {
                     id: "patch-call".into(),
                     changes: vec![FileUpdateChange {
                         path: "README.md".into(),
@@ -3122,11 +3139,11 @@ mod tests {
 
     #[test]
     fn apply_patch_approval_request_updates_active_turn_snapshot_with_file_change() {
-        let turn_id = "turn-1";
-        let mut builder = ThreadHistoryBuilder::new();
+        let interaction_id = "turn-1";
+        let mut builder = ChatHistoryBuilder::new();
         let events = vec![
             EventMsg::TurnStarted(TurnStartedEvent {
-                turn_id: turn_id.to_string(),
+                turn_id: interaction_id.to_string(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: None,
@@ -3142,7 +3159,7 @@ mod tests {
             }),
             EventMsg::ApplyPatchApprovalRequest(ApplyPatchApprovalRequestEvent {
                 call_id: "patch-call".into(),
-                turn_id: turn_id.to_string(),
+                turn_id: interaction_id.to_string(),
                 started_at_ms: 0,
                 changes: [(
                     PathBuf::from("README.md"),
@@ -3164,12 +3181,12 @@ mod tests {
         let snapshot = builder
             .active_turn_snapshot()
             .expect("active turn snapshot");
-        assert_eq!(snapshot.id, turn_id);
-        assert_eq!(snapshot.status, TurnStatus::InProgress);
+        assert_eq!(snapshot.id, interaction_id);
+        assert_eq!(snapshot.status, InteractionStatus::InProgress);
         assert_eq!(
-            snapshot.items,
+            snapshot.messages,
             vec![
-                ThreadItem::UserMessage {
+                Message::UserMessage {
                     id: "item-1".into(),
                     client_id: None,
                     content: vec![UserInput::Text {
@@ -3177,7 +3194,7 @@ mod tests {
                         text_elements: Vec::new(),
                     }],
                 },
-                ThreadItem::FileChange {
+                Message::FileChange {
                     id: "patch-call".into(),
                     changes: vec![FileUpdateChange {
                         path: "README.md".into(),
@@ -3251,15 +3268,15 @@ mod tests {
             }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 2);
-        assert_eq!(turns[0].id, "turn-a");
-        assert_eq!(turns[1].id, "turn-b");
-        assert_eq!(turns[1].items.len(), 2);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 2);
+        assert_eq!(interactions[0].id, "turn-a");
+        assert_eq!(interactions[1].id, "turn-b");
+        assert_eq!(interactions[1].messages.len(), 2);
     }
 
     #[test]
@@ -3315,21 +3332,21 @@ mod tests {
             }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 2);
-        assert_eq!(turns[0].id, "turn-a");
-        assert_eq!(turns[1].id, "turn-b");
-        assert_eq!(turns[1].status, TurnStatus::InProgress);
-        assert_eq!(turns[1].items.len(), 2);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 2);
+        assert_eq!(interactions[0].id, "turn-a");
+        assert_eq!(interactions[1].id, "turn-b");
+        assert_eq!(interactions[1].status, InteractionStatus::InProgress);
+        assert_eq!(interactions[1].messages.len(), 2);
     }
 
     #[test]
     fn preserves_compaction_only_turn() {
-        let items = vec![
+        let messages = vec![
             RolloutItem::EventMsg(EventMsg::TurnStarted(TurnStartedEvent {
                 turn_id: "turn-compact".into(),
                 trace_id: None,
@@ -3354,18 +3371,18 @@ mod tests {
             })),
         ];
 
-        let turns = build_turns_from_rollout_items(&items);
+        let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(
-            turns,
-            vec![Turn {
+            interactions,
+            vec![Interaction {
                 id: "turn-compact".into(),
-                status: TurnStatus::Completed,
+                status: InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
                 duration_ms: None,
-                items_view: TurnItemsView::Full,
-                items: Vec::new(),
+                messages_view: InteractionMessagesView::Full,
+                messages: Vec::new(),
             }]
         );
     }
@@ -3394,16 +3411,16 @@ mod tests {
             }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 1);
-        assert_eq!(turns[0].items.len(), 2);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 1);
+        assert_eq!(interactions[0].messages.len(), 2);
         assert_eq!(
-            turns[0].items[1],
-            ThreadItem::CollabAgentToolCall {
+            interactions[0].messages[1],
+            Message::CollabAgentToolCall {
                 id: "resume-1".into(),
                 tool: CollabAgentTool::ResumeAgent,
                 status: CollabAgentToolCallStatus::Completed,
@@ -3454,16 +3471,16 @@ mod tests {
             }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 1);
-        assert_eq!(turns[0].items.len(), 2);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 1);
+        assert_eq!(interactions[0].messages.len(), 2);
         assert_eq!(
-            turns[0].items[1],
-            ThreadItem::CollabAgentToolCall {
+            interactions[0].messages[1],
+            Message::CollabAgentToolCall {
                 id: "spawn-1".into(),
                 tool: CollabAgentTool::SpawnAgent,
                 status: CollabAgentToolCallStatus::Completed,
@@ -3526,16 +3543,16 @@ mod tests {
             ),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 1);
-        assert_eq!(turns[0].items.len(), 2);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 1);
+        assert_eq!(interactions[0].messages.len(), 2);
         assert_eq!(
-            turns[0].items[1],
-            ThreadItem::CollabAgentToolCall {
+            interactions[0].messages[1],
+            Message::CollabAgentToolCall {
                 id: "send-1".into(),
                 tool: CollabAgentTool::SendInput,
                 status: CollabAgentToolCallStatus::Completed,
@@ -3579,14 +3596,14 @@ mod tests {
             }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 1);
-        assert_eq!(turns[0].status, TurnStatus::Completed);
-        assert_eq!(turns[0].error, None);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 1);
+        assert_eq!(interactions[0].status, InteractionStatus::Completed);
+        assert_eq!(interactions[0].error, None);
     }
 
     #[test]
@@ -3620,23 +3637,23 @@ mod tests {
             }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 1);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 1);
         assert_eq!(
-            turns[0],
-            Turn {
+            interactions[0],
+            Interaction {
                 id: "turn-a".into(),
-                status: TurnStatus::Completed,
+                status: InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,
                 duration_ms: None,
-                items_view: TurnItemsView::Full,
-                items: vec![ThreadItem::UserMessage {
+                messages_view: InteractionMessagesView::Full,
+                messages: vec![Message::UserMessage {
                     id: "item-1".into(),
                     client_id: None,
                     content: vec![UserInput::Text {
@@ -3681,17 +3698,17 @@ mod tests {
             }),
         ];
 
-        let items = events
+        let messages = events
             .into_iter()
             .map(RolloutItem::EventMsg)
             .collect::<Vec<_>>();
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 1);
-        assert_eq!(turns[0].id, "turn-a");
-        assert_eq!(turns[0].status, TurnStatus::Failed);
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 1);
+        assert_eq!(interactions[0].id, "turn-a");
+        assert_eq!(interactions[0].status, InteractionStatus::Failed);
         assert_eq!(
-            turns[0].error,
-            Some(TurnError {
+            interactions[0].error,
+            Some(InteractionError {
                 message: "stream failure".into(),
                 codex_error_info: Some(
                     crate::protocol::v2::CodexErrorInfo::ResponseStreamDisconnected {
@@ -3710,7 +3727,7 @@ mod tests {
             CoreHookPromptFragment::from_single_hook("Then summarize cleanly.", "hook-run-2"),
         ])
         .expect("hook prompt message");
-        let items = vec![
+        let messages = vec![
             RolloutItem::EventMsg(EventMsg::TurnStarted(TurnStartedEvent {
                 turn_id: "turn-a".into(),
                 trace_id: None,
@@ -3736,14 +3753,14 @@ mod tests {
             })),
         ];
 
-        let turns = build_turns_from_rollout_items(&items);
+        let interactions = build_turns_from_rollout_items(&messages);
 
-        assert_eq!(turns.len(), 1);
-        assert_eq!(turns[0].items.len(), 2);
+        assert_eq!(interactions.len(), 1);
+        assert_eq!(interactions[0].messages.len(), 2);
         assert_eq!(
-            turns[0].items[1],
-            ThreadItem::HookPrompt {
-                id: turns[0].items[1].id().to_string(),
+            interactions[0].messages[1],
+            Message::HookPrompt {
+                id: interactions[0].messages[1].id().to_string(),
                 fragments: vec![
                     crate::protocol::v2::HookPromptFragment {
                         text: "Retry with tests.".into(),
@@ -3760,7 +3777,7 @@ mod tests {
 
     #[test]
     fn ignores_plain_user_response_items_in_rollout_replay() {
-        let items = vec![
+        let messages = vec![
             RolloutItem::EventMsg(EventMsg::TurnStarted(TurnStartedEvent {
                 turn_id: "turn-a".into(),
                 trace_id: None,
@@ -3786,14 +3803,14 @@ mod tests {
             })),
         ];
 
-        let turns = build_turns_from_rollout_items(&items);
-        assert_eq!(turns.len(), 1);
-        assert!(turns[0].items.is_empty());
+        let interactions = build_turns_from_rollout_items(&messages);
+        assert_eq!(interactions.len(), 1);
+        assert!(interactions[0].messages.is_empty());
     }
 
     #[test]
     fn changed_rollout_item_reports_new_item_snapshot() {
-        let mut builder = ThreadHistoryBuilder::new();
+        let mut builder = ChatHistoryBuilder::new();
 
         let changes = builder.handle_rollout_item_with_changes(&RolloutItem::EventMsg(
             EventMsg::UserMessage(UserMessageEvent {
@@ -3808,10 +3825,10 @@ mod tests {
 
         assert_eq!(
             changes,
-            ThreadHistoryChangeSet {
-                changed_items: vec![ThreadHistoryItemChange {
-                    turn_id: "rollout-0".into(),
-                    item: ThreadItem::UserMessage {
+            ChatHistoryChangeSet {
+                changed_items: vec![ChatHistoryMessageChange {
+                    interaction_id: "rollout-0".into(),
+                    item: Message::UserMessage {
                         id: "item-1".into(),
                         client_id: Some("client-message-1".into()),
                         content: vec![UserInput::Text {
@@ -3820,9 +3837,9 @@ mod tests {
                         }],
                     },
                 }],
-                changed_turns: vec![ThreadHistoryTurnChange {
-                    turn_id: "rollout-0".into(),
-                    status: TurnStatus::Completed,
+                changed_turns: vec![ChatHistoryInteractionChange {
+                    interaction_id: "rollout-0".into(),
+                    status: InteractionStatus::Completed,
                     error: None,
                     started_at: None,
                     completed_at: None,
@@ -3835,7 +3852,7 @@ mod tests {
 
     #[test]
     fn changed_rollout_item_reports_updated_existing_item_snapshot() {
-        let mut builder = ThreadHistoryBuilder::new();
+        let mut builder = ChatHistoryBuilder::new();
         builder.handle_rollout_item_with_changes(&RolloutItem::EventMsg(EventMsg::WebSearchBegin(
             WebSearchBeginEvent {
                 call_id: "search-1".into(),
@@ -3855,10 +3872,10 @@ mod tests {
 
         assert_eq!(
             changes,
-            ThreadHistoryChangeSet {
-                changed_items: vec![ThreadHistoryItemChange {
-                    turn_id: "rollout-0".into(),
-                    item: ThreadItem::WebSearch {
+            ChatHistoryChangeSet {
+                changed_items: vec![ChatHistoryMessageChange {
+                    interaction_id: "rollout-0".into(),
+                    item: Message::WebSearch {
                         id: "search-1".into(),
                         query: "codex".into(),
                         action: Some(WebSearchAction::Search {
@@ -3875,7 +3892,7 @@ mod tests {
 
     #[test]
     fn changed_rollout_item_reports_streaming_item_mutation() {
-        let mut builder = ThreadHistoryBuilder::new();
+        let mut builder = ChatHistoryBuilder::new();
         builder.handle_rollout_item_with_changes(&RolloutItem::EventMsg(EventMsg::AgentReasoning(
             AgentReasoningEvent {
                 text: "summary".into(),
@@ -3890,10 +3907,10 @@ mod tests {
 
         assert_eq!(
             changes,
-            ThreadHistoryChangeSet {
-                changed_items: vec![ThreadHistoryItemChange {
-                    turn_id: "rollout-0".into(),
-                    item: ThreadItem::Reasoning {
+            ChatHistoryChangeSet {
+                changed_items: vec![ChatHistoryMessageChange {
+                    interaction_id: "rollout-0".into(),
+                    item: Message::Reasoning {
                         id: "item-1".into(),
                         summary: vec!["summary".into()],
                         content: vec!["raw content".into()],
@@ -3907,7 +3924,7 @@ mod tests {
 
     #[test]
     fn changed_rollout_item_reports_turn_completion_metadata() {
-        let mut builder = ThreadHistoryBuilder::new();
+        let mut builder = ChatHistoryBuilder::new();
 
         let start_changes = builder.handle_rollout_item_with_changes(&RolloutItem::EventMsg(
             EventMsg::TurnStarted(TurnStartedEvent {
@@ -3920,11 +3937,11 @@ mod tests {
         ));
         assert_eq!(
             start_changes,
-            ThreadHistoryChangeSet {
+            ChatHistoryChangeSet {
                 changed_items: Vec::new(),
-                changed_turns: vec![ThreadHistoryTurnChange {
-                    turn_id: "turn-a".into(),
-                    status: TurnStatus::InProgress,
+                changed_turns: vec![ChatHistoryInteractionChange {
+                    interaction_id: "turn-a".into(),
+                    status: InteractionStatus::InProgress,
                     error: None,
                     started_at: Some(10),
                     completed_at: None,
@@ -3956,11 +3973,11 @@ mod tests {
 
         assert_eq!(
             complete_changes,
-            ThreadHistoryChangeSet {
+            ChatHistoryChangeSet {
                 changed_items: Vec::new(),
-                changed_turns: vec![ThreadHistoryTurnChange {
-                    turn_id: "turn-a".into(),
-                    status: TurnStatus::Completed,
+                changed_turns: vec![ChatHistoryInteractionChange {
+                    interaction_id: "turn-a".into(),
+                    status: InteractionStatus::Completed,
                     error: None,
                     started_at: Some(10),
                     completed_at: Some(20),
@@ -3973,7 +3990,7 @@ mod tests {
 
     #[test]
     fn changed_rollout_items_dedupe_updated_item_snapshots() {
-        let mut builder = ThreadHistoryBuilder::new();
+        let mut builder = ChatHistoryBuilder::new();
         let changes = builder.handle_rollout_items_with_changes(&[
             RolloutItem::EventMsg(EventMsg::WebSearchBegin(WebSearchBeginEvent {
                 call_id: "search-1".into(),
@@ -3990,10 +4007,10 @@ mod tests {
 
         assert_eq!(
             changes,
-            ThreadHistoryChangeSet {
-                changed_items: vec![ThreadHistoryItemChange {
-                    turn_id: "rollout-0".into(),
-                    item: ThreadItem::WebSearch {
+            ChatHistoryChangeSet {
+                changed_items: vec![ChatHistoryMessageChange {
+                    interaction_id: "rollout-0".into(),
+                    item: Message::WebSearch {
                         id: "search-1".into(),
                         query: "codex".into(),
                         action: Some(WebSearchAction::Search {
@@ -4002,9 +4019,9 @@ mod tests {
                         }),
                     },
                 }],
-                changed_turns: vec![ThreadHistoryTurnChange {
-                    turn_id: "rollout-0".into(),
-                    status: TurnStatus::Completed,
+                changed_turns: vec![ChatHistoryInteractionChange {
+                    interaction_id: "rollout-0".into(),
+                    status: InteractionStatus::Completed,
                     error: None,
                     started_at: None,
                     completed_at: None,
@@ -4017,7 +4034,7 @@ mod tests {
 
     #[test]
     fn changed_rollout_items_dedupe_turn_metadata_snapshots() {
-        let mut builder = ThreadHistoryBuilder::new();
+        let mut builder = ChatHistoryBuilder::new();
         let changes = builder.handle_rollout_items_with_changes(&[
             RolloutItem::EventMsg(EventMsg::TurnStarted(TurnStartedEvent {
                 turn_id: "turn-a".into(),
@@ -4037,11 +4054,11 @@ mod tests {
 
         assert_eq!(
             changes,
-            ThreadHistoryChangeSet {
+            ChatHistoryChangeSet {
                 changed_items: Vec::new(),
-                changed_turns: vec![ThreadHistoryTurnChange {
-                    turn_id: "turn-a".into(),
-                    status: TurnStatus::Completed,
+                changed_turns: vec![ChatHistoryInteractionChange {
+                    interaction_id: "turn-a".into(),
+                    status: InteractionStatus::Completed,
                     error: None,
                     started_at: Some(10),
                     completed_at: Some(20),
@@ -4054,7 +4071,7 @@ mod tests {
 
     #[test]
     fn changed_rollout_items_drop_prior_changes_for_removed_turns() {
-        let mut builder = ThreadHistoryBuilder::new();
+        let mut builder = ChatHistoryBuilder::new();
         let changes = builder.handle_rollout_items_with_changes(&[
             RolloutItem::EventMsg(EventMsg::TurnStarted(TurnStartedEvent {
                 turn_id: "turn-a".into(),
@@ -4078,7 +4095,7 @@ mod tests {
 
         assert_eq!(
             changes,
-            ThreadHistoryChangeSet {
+            ChatHistoryChangeSet {
                 changed_items: Vec::new(),
                 changed_turns: Vec::new(),
                 removed_turn_ids: vec!["turn-a".into()],

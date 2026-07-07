@@ -75,6 +75,7 @@ use crate::facts::CustomAnalyticsFact;
 use crate::facts::ExternalAgentConfigImportCompletedInput;
 use crate::facts::ExternalAgentConfigImportFailureInput;
 use crate::facts::HookRunInput;
+use crate::facts::InteractionStatus;
 use crate::facts::PluginInstallFailedInput;
 use crate::facts::PluginState;
 use crate::facts::PluginStateChangedInput;
@@ -87,7 +88,6 @@ use crate::facts::TurnCodexErrorFact;
 use crate::facts::TurnProfile;
 use crate::facts::TurnProfileFact;
 use crate::facts::TurnResolvedConfigFact;
-use crate::facts::TurnStatus;
 use crate::facts::TurnSteerRejectionReason;
 use crate::facts::TurnSteerResult;
 use crate::facts::TurnTokenUsageFact;
@@ -111,7 +111,9 @@ use datax_app_server_protocol::FileChangeApprovalDecision;
 use datax_app_server_protocol::GuardianApprovalReviewAction;
 use datax_app_server_protocol::GuardianApprovalReviewStatus;
 use datax_app_server_protocol::InitializeParams;
+use datax_app_server_protocol::InteractionSteerResponse;
 use datax_app_server_protocol::McpToolCallStatus;
+use datax_app_server_protocol::Message;
 use datax_app_server_protocol::NetworkPolicyRuleAction;
 use datax_app_server_protocol::PatchApplyStatus;
 use datax_app_server_protocol::PatchChangeKind;
@@ -120,8 +122,6 @@ use datax_app_server_protocol::RequestPermissionProfile;
 use datax_app_server_protocol::ServerNotification;
 use datax_app_server_protocol::ServerRequest;
 use datax_app_server_protocol::ServerResponse;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::TurnSteerResponse;
 use datax_app_server_protocol::UserInput;
 use datax_app_server_protocol::WebSearchAction;
 use datax_git_utils::collect_git_info;
@@ -215,13 +215,13 @@ impl<'a> AnalyticsDropSite<'a> {
     }
 
     fn tool_item(
-        notification: &'a datax_app_server_protocol::ItemCompletedNotification,
+        notification: &'a datax_app_server_protocol::MessageCompletedNotification,
         item_id: &'a str,
     ) -> Self {
         Self {
             event_name: "tool item",
-            thread_id: &notification.thread_id,
-            turn_id: Some(&notification.turn_id),
+            thread_id: &notification.chat_id,
+            turn_id: Some(&notification.interaction_id),
             review_id: None,
             item_id: Some(item_id),
         }
@@ -334,7 +334,7 @@ struct PendingTurnSteerState {
 
 #[derive(Clone)]
 struct CompletedTurnState {
-    status: Option<TurnStatus>,
+    status: Option<InteractionStatus>,
     turn_error: Option<CodexErrorInfo>,
     completed_at: u64,
     duration_ms: Option<u64>,
@@ -376,27 +376,27 @@ struct TurnToolCounts {
 }
 
 impl TurnToolCounts {
-    fn record(&mut self, item: &ThreadItem) {
+    fn record(&mut self, item: &Message) {
         match item {
-            ThreadItem::CommandExecution { .. } => self.shell_command += 1,
-            ThreadItem::FileChange { .. } => self.file_change += 1,
-            ThreadItem::McpToolCall { .. } => self.mcp_tool_call += 1,
-            ThreadItem::DynamicToolCall { .. } => self.dynamic_tool_call += 1,
-            ThreadItem::CollabAgentToolCall { .. } | ThreadItem::SubAgentActivity { .. } => {
+            Message::CommandExecution { .. } => self.shell_command += 1,
+            Message::FileChange { .. } => self.file_change += 1,
+            Message::McpToolCall { .. } => self.mcp_tool_call += 1,
+            Message::DynamicToolCall { .. } => self.dynamic_tool_call += 1,
+            Message::CollabAgentToolCall { .. } | Message::SubAgentActivity { .. } => {
                 self.subagent_tool_call += 1;
             }
-            ThreadItem::WebSearch { .. } => self.web_search += 1,
-            ThreadItem::ImageGeneration { .. } => self.image_generation += 1,
-            ThreadItem::UserMessage { .. }
-            | ThreadItem::HookPrompt { .. }
-            | ThreadItem::AgentMessage { .. }
-            | ThreadItem::Plan { .. }
-            | ThreadItem::Reasoning { .. }
-            | ThreadItem::ImageView { .. }
-            | ThreadItem::Sleep { .. }
-            | ThreadItem::EnteredReviewMode { .. }
-            | ThreadItem::ExitedReviewMode { .. }
-            | ThreadItem::ContextCompaction { .. } => return,
+            Message::WebSearch { .. } => self.web_search += 1,
+            Message::ImageGeneration { .. } => self.image_generation += 1,
+            Message::UserMessage { .. }
+            | Message::HookPrompt { .. }
+            | Message::AgentMessage { .. }
+            | Message::Plan { .. }
+            | Message::Reasoning { .. }
+            | Message::ImageView { .. }
+            | Message::Sleep { .. }
+            | Message::EnteredReviewMode { .. }
+            | Message::ExitedReviewMode { .. }
+            | Message::ContextCompaction { .. } => return,
         }
         self.total += 1;
     }
@@ -616,20 +616,20 @@ impl AnalyticsReducer {
         request: ClientRequest,
     ) {
         match request {
-            ClientRequest::TurnStart { params, .. } => {
+            ClientRequest::InteractionStart { params, .. } => {
                 self.requests.insert(
                     (connection_id, request_id),
                     RequestState::TurnStart(PendingTurnStartState {
-                        thread_id: params.thread_id,
+                        thread_id: params.chat_id,
                         num_input_images: num_input_images(&params.input),
                     }),
                 );
             }
-            ClientRequest::TurnSteer { params, .. } => {
+            ClientRequest::InteractionSteer { params, .. } => {
                 self.requests.insert(
                     (connection_id, request_id),
                     RequestState::TurnSteer(PendingTurnSteerState {
-                        thread_id: params.thread_id,
+                        thread_id: params.chat_id,
                         expected_turn_id: params.expected_turn_id,
                         num_input_images: num_input_images(&params.input),
                         created_at: now_unix_seconds(),
@@ -857,7 +857,7 @@ impl AnalyticsReducer {
         out: &mut Vec<TrackEventRequest>,
     ) {
         match response {
-            ClientResponse::ThreadStart { response, .. } => {
+            ClientResponse::ChatStart { response, .. } => {
                 self.emit_thread_initialized(
                     connection_id,
                     response.thread,
@@ -866,7 +866,7 @@ impl AnalyticsReducer {
                     out,
                 );
             }
-            ClientResponse::ThreadResume { response, .. } => {
+            ClientResponse::ChatResume { response, .. } => {
                 self.emit_thread_initialized(
                     connection_id,
                     response.thread,
@@ -875,7 +875,7 @@ impl AnalyticsReducer {
                     out,
                 );
             }
-            ClientResponse::ThreadFork { response, .. } => {
+            ClientResponse::ChatFork { response, .. } => {
                 self.emit_thread_initialized(
                     connection_id,
                     response.thread,
@@ -884,7 +884,7 @@ impl AnalyticsReducer {
                     out,
                 );
             }
-            ClientResponse::TurnStart {
+            ClientResponse::InteractionStart {
                 request_id,
                 response,
             } => {
@@ -900,7 +900,7 @@ impl AnalyticsReducer {
                 turn_state.num_input_images = Some(pending_request.num_input_images);
                 self.maybe_emit_turn_event(&turn_id, out).await;
             }
-            ClientResponse::TurnSteer {
+            ClientResponse::InteractionSteer {
                 request_id,
                 response,
             } => {
@@ -941,9 +941,9 @@ impl AnalyticsReducer {
                 self.pending_reviews.insert(
                     request_id.clone(),
                     PendingReviewState {
-                        thread_id: params.thread_id,
-                        turn_id: params.turn_id,
-                        item_id: Some(params.item_id),
+                        thread_id: params.chat_id,
+                        turn_id: params.interaction_id,
+                        item_id: Some(params.message_id),
                         review_id: user_review_id(&request_id),
                         subject_kind: if is_network_access_review {
                             ReviewSubjectKind::NetworkAccess
@@ -970,9 +970,9 @@ impl AnalyticsReducer {
                 self.pending_reviews.insert(
                     request_id.clone(),
                     PendingReviewState {
-                        thread_id: params.thread_id,
-                        turn_id: params.turn_id,
-                        item_id: Some(params.item_id),
+                        thread_id: params.chat_id,
+                        turn_id: params.interaction_id,
+                        item_id: Some(params.message_id),
                         review_id: user_review_id(&request_id),
                         subject_kind: ReviewSubjectKind::FileChange,
                         subject_name: "apply_patch".to_string(),
@@ -1009,9 +1009,9 @@ impl AnalyticsReducer {
                 self.pending_reviews.insert(
                     request_id.clone(),
                     PendingReviewState {
-                        thread_id: params.thread_id,
-                        turn_id: params.turn_id,
-                        item_id: Some(params.item_id),
+                        thread_id: params.chat_id,
+                        turn_id: params.interaction_id,
+                        item_id: Some(params.message_id),
                         review_id: user_review_id(&request_id),
                         subject_kind: ReviewSubjectKind::Permissions,
                         subject_name: "permissions".to_string(),
@@ -1167,7 +1167,7 @@ impl AnalyticsReducer {
         out: &mut Vec<TrackEventRequest>,
     ) {
         match notification {
-            ServerNotification::ItemStarted(notification) => {
+            ServerNotification::MessageStarted(notification) => {
                 let Some(item_id) = tracked_tool_item_id(&notification.item) else {
                     return;
                 };
@@ -1177,19 +1177,19 @@ impl AnalyticsReducer {
                 };
                 self.tool_items_started_at_ms.insert(
                     ToolItemKey {
-                        thread_id: notification.thread_id,
-                        turn_id: notification.turn_id,
+                        thread_id: notification.chat_id,
+                        turn_id: notification.interaction_id,
                         item_id: item_id.to_string(),
                     },
                     started_at_ms,
                 );
             }
-            ServerNotification::ItemCompleted(notification) => {
-                if matches!(notification.item, ThreadItem::SubAgentActivity { .. }) {
-                    let Some(turn_state) = self.turns.get_mut(&notification.turn_id) else {
+            ServerNotification::MessageCompleted(notification) => {
+                if matches!(notification.item, Message::SubAgentActivity { .. }) {
+                    let Some(turn_state) = self.turns.get_mut(&notification.interaction_id) else {
                         tracing::warn!(
-                            thread_id = %notification.thread_id,
-                            turn_id = %notification.turn_id,
+                            thread_id = %notification.chat_id,
+                            turn_id = %notification.interaction_id,
                             "dropping sub-agent activity tool count update: missing turn state"
                         );
                         return;
@@ -1200,10 +1200,10 @@ impl AnalyticsReducer {
                 let Some(item_id) = tracked_tool_item_id(&notification.item) else {
                     return;
                 };
-                let Some(turn_state) = self.turns.get_mut(&notification.turn_id) else {
+                let Some(turn_state) = self.turns.get_mut(&notification.interaction_id) else {
                     tracing::warn!(
-                        thread_id = %notification.thread_id,
-                        turn_id = %notification.turn_id,
+                        thread_id = %notification.chat_id,
+                        turn_id = %notification.interaction_id,
                         item_id,
                         "dropping turn tool count update: missing turn state"
                     );
@@ -1211,14 +1211,14 @@ impl AnalyticsReducer {
                 };
                 turn_state.tool_counts.record(&notification.item);
                 let key = ToolItemKey {
-                    thread_id: notification.thread_id.clone(),
-                    turn_id: notification.turn_id.clone(),
+                    thread_id: notification.chat_id.clone(),
+                    turn_id: notification.interaction_id.clone(),
                     item_id: item_id.to_string(),
                 };
                 let Some(started_at_ms) = self.tool_items_started_at_ms.remove(&key) else {
                     tracing::warn!(
-                        thread_id = %notification.thread_id,
-                        turn_id = %notification.turn_id,
+                        thread_id = %notification.chat_id,
+                        turn_id = %notification.interaction_id,
                         item_id,
                         "dropping tool item analytics event: missing item started notification"
                     );
@@ -1234,8 +1234,8 @@ impl AnalyticsReducer {
                     return;
                 };
                 if let Some(event) = tool_item_event(ToolItemEventInput {
-                    thread_id: &notification.thread_id,
-                    turn_id: &notification.turn_id,
+                    thread_id: &notification.chat_id,
+                    turn_id: &notification.interaction_id,
                     item: &notification.item,
                     started_at_ms,
                     completed_at_ms,
@@ -1247,25 +1247,28 @@ impl AnalyticsReducer {
                 }
                 self.item_review_summaries.remove(&key);
             }
-            ServerNotification::ItemGuardianApprovalReviewStarted(notification) => {
+            ServerNotification::MessageGuardianApprovalReviewStarted(notification) => {
                 let _ = notification;
             }
-            ServerNotification::ItemGuardianApprovalReviewCompleted(notification) => {
+            ServerNotification::MessageGuardianApprovalReviewCompleted(notification) => {
                 self.ingest_guardian_review_completed(notification, out);
             }
-            ServerNotification::TurnStarted(notification) => {
+            ServerNotification::InteractionStarted(notification) => {
                 let turn_state = self.turns.entry(notification.turn.id).or_default();
                 turn_state.started_at = notification
                     .turn
                     .started_at
                     .and_then(|started_at| u64::try_from(started_at).ok());
             }
-            ServerNotification::TurnDiffUpdated(notification) => {
-                let turn_state = self.turns.entry(notification.turn_id.clone()).or_default();
-                turn_state.thread_id = Some(notification.thread_id);
+            ServerNotification::InteractionDiffUpdated(notification) => {
+                let turn_state = self
+                    .turns
+                    .entry(notification.interaction_id.clone())
+                    .or_default();
+                turn_state.thread_id = Some(notification.chat_id);
                 turn_state.latest_diff = Some(notification.diff);
             }
-            ServerNotification::TurnCompleted(notification) => {
+            ServerNotification::InteractionCompleted(notification) => {
                 let turn_state = self.turns.entry(notification.turn.id.clone()).or_default();
                 turn_state.completed = Some(CompletedTurnState {
                     status: analytics_turn_status(notification.turn.status),
@@ -1293,7 +1296,7 @@ impl AnalyticsReducer {
     fn emit_thread_initialized(
         &mut self,
         connection_id: u64,
-        thread: datax_app_server_protocol::Thread,
+        thread: datax_app_server_protocol::Chat,
         model: String,
         initialization_mode: ThreadInitializationMode,
         out: &mut Vec<TrackEventRequest>,
@@ -1301,7 +1304,7 @@ impl AnalyticsReducer {
         let session_source: SessionSource = thread.source.into();
         let session_id = thread.session_id;
         let thread_id = thread.id;
-        let parent_thread_id = thread.parent_thread_id;
+        let parent_thread_id = thread.parent_chat_id;
         let forked_from_thread_id = thread.forked_from_id;
         let Some(connection_state) = self.connections.get(&connection_id) else {
             return;
@@ -1309,7 +1312,7 @@ impl AnalyticsReducer {
         let thread_metadata = ThreadMetadataState::from_thread_metadata(
             session_id.clone(),
             &session_source,
-            thread.thread_source.map(Into::into),
+            thread.chat_source.map(Into::into),
             parent_thread_id,
             initialization_mode,
         );
@@ -1385,7 +1388,7 @@ impl AnalyticsReducer {
 
     fn ingest_guardian_review_completed(
         &mut self,
-        notification: datax_app_server_protocol::ItemGuardianApprovalReviewCompletedNotification,
+        notification: datax_app_server_protocol::MessageGuardianApprovalReviewCompletedNotification,
         out: &mut Vec<TrackEventRequest>,
     ) {
         let Some((status, resolution)) = guardian_review_result(notification.review.status) else {
@@ -1397,9 +1400,9 @@ impl AnalyticsReducer {
             return;
         };
         let pending_review = PendingReviewState {
-            thread_id: notification.thread_id,
-            turn_id: notification.turn_id,
-            item_id: notification.target_item_id,
+            thread_id: notification.chat_id,
+            turn_id: notification.interaction_id,
+            item_id: notification.target_message_id,
             review_id: notification.review_id,
             subject_kind,
             subject_name,
@@ -1429,7 +1432,7 @@ impl AnalyticsReducer {
         &mut self,
         connection_id: u64,
         request_id: RequestId,
-        response: TurnSteerResponse,
+        response: InteractionSteerResponse,
         out: &mut Vec<TrackEventRequest>,
     ) {
         let Some(RequestState::TurnSteer(pending_request)) =
@@ -1437,13 +1440,13 @@ impl AnalyticsReducer {
         else {
             return;
         };
-        if let Some(turn_state) = self.turns.get_mut(&response.turn_id) {
+        if let Some(turn_state) = self.turns.get_mut(&response.interaction_id) {
             turn_state.steer_count += 1;
         }
         self.emit_turn_steer_event(
             connection_id,
             pending_request,
-            Some(response.turn_id),
+            Some(response.interaction_id),
             TurnSteerResult::Accepted,
             /*rejection_reason*/ None,
             out,
@@ -1680,26 +1683,26 @@ fn warn_missing_analytics_context(
     );
 }
 
-fn tracked_tool_item_id(item: &ThreadItem) -> Option<&str> {
+fn tracked_tool_item_id(item: &Message) -> Option<&str> {
     match item {
-        ThreadItem::CommandExecution { id, .. }
-        | ThreadItem::FileChange { id, .. }
-        | ThreadItem::McpToolCall { id, .. }
-        | ThreadItem::DynamicToolCall { id, .. }
-        | ThreadItem::CollabAgentToolCall { id, .. }
-        | ThreadItem::WebSearch { id, .. }
-        | ThreadItem::ImageGeneration { id, .. } => Some(id),
-        ThreadItem::UserMessage { .. }
-        | ThreadItem::HookPrompt { .. }
-        | ThreadItem::AgentMessage { .. }
-        | ThreadItem::Plan { .. }
-        | ThreadItem::Reasoning { .. }
-        | ThreadItem::SubAgentActivity { .. }
-        | ThreadItem::ImageView { .. }
-        | ThreadItem::Sleep { .. }
-        | ThreadItem::EnteredReviewMode { .. }
-        | ThreadItem::ExitedReviewMode { .. }
-        | ThreadItem::ContextCompaction { .. } => None,
+        Message::CommandExecution { id, .. }
+        | Message::FileChange { id, .. }
+        | Message::McpToolCall { id, .. }
+        | Message::DynamicToolCall { id, .. }
+        | Message::CollabAgentToolCall { id, .. }
+        | Message::WebSearch { id, .. }
+        | Message::ImageGeneration { id, .. } => Some(id),
+        Message::UserMessage { .. }
+        | Message::HookPrompt { .. }
+        | Message::AgentMessage { .. }
+        | Message::Plan { .. }
+        | Message::Reasoning { .. }
+        | Message::SubAgentActivity { .. }
+        | Message::ImageView { .. }
+        | Message::Sleep { .. }
+        | Message::EnteredReviewMode { .. }
+        | Message::ExitedReviewMode { .. }
+        | Message::ContextCompaction { .. } => None,
     }
 }
 
@@ -1719,7 +1722,7 @@ fn item_review_summary_key(pending_review: &PendingReviewState) -> Option<ToolIt
 struct ToolItemEventInput<'a> {
     thread_id: &'a str,
     turn_id: &'a str,
-    item: &'a ThreadItem,
+    item: &'a Message,
     started_at_ms: u64,
     completed_at_ms: u64,
     connection_state: &'a ConnectionState,
@@ -1739,7 +1742,7 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
         review_summary,
     } = input;
     match item {
-        ThreadItem::CommandExecution {
+        Message::CommandExecution {
             id,
             source,
             status,
@@ -1784,7 +1787,7 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
                 },
             ))
         }
-        ThreadItem::FileChange {
+        Message::FileChange {
             id,
             changes,
             status,
@@ -1821,7 +1824,7 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
                 },
             }))
         }
-        ThreadItem::McpToolCall {
+        Message::McpToolCall {
             id,
             server,
             tool,
@@ -1863,7 +1866,7 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
                 },
             ))
         }
-        ThreadItem::DynamicToolCall {
+        Message::DynamicToolCall {
             id,
             tool,
             status,
@@ -1908,7 +1911,7 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
                 },
             ))
         }
-        ThreadItem::CollabAgentToolCall {
+        Message::CollabAgentToolCall {
             id,
             tool,
             status,
@@ -1974,7 +1977,7 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
                 },
             ))
         }
-        ThreadItem::WebSearch { id, query, action } => {
+        Message::WebSearch { id, query, action } => {
             let base = tool_item_base(
                 thread_id,
                 turn_id,
@@ -2003,7 +2006,7 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
                 },
             }))
         }
-        ThreadItem::ImageGeneration {
+        Message::ImageGeneration {
             id,
             status,
             revised_prompt,
@@ -2689,12 +2692,18 @@ fn personality_mode(personality: Option<Personality>) -> Option<String> {
     }
 }
 
-fn analytics_turn_status(status: datax_app_server_protocol::TurnStatus) -> Option<TurnStatus> {
+fn analytics_turn_status(
+    status: datax_app_server_protocol::InteractionStatus,
+) -> Option<InteractionStatus> {
     match status {
-        datax_app_server_protocol::TurnStatus::Completed => Some(TurnStatus::Completed),
-        datax_app_server_protocol::TurnStatus::Failed => Some(TurnStatus::Failed),
-        datax_app_server_protocol::TurnStatus::Interrupted => Some(TurnStatus::Interrupted),
-        datax_app_server_protocol::TurnStatus::InProgress => None,
+        datax_app_server_protocol::InteractionStatus::Completed => {
+            Some(InteractionStatus::Completed)
+        }
+        datax_app_server_protocol::InteractionStatus::Failed => Some(InteractionStatus::Failed),
+        datax_app_server_protocol::InteractionStatus::Interrupted => {
+            Some(InteractionStatus::Interrupted)
+        }
+        datax_app_server_protocol::InteractionStatus::InProgress => None,
     }
 }
 

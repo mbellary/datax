@@ -13,6 +13,7 @@ use std::path::PathBuf;
 use datax_app_server_protocol::AddCreditsNudgeCreditType;
 use datax_app_server_protocol::AddCreditsNudgeEmailStatus;
 use datax_app_server_protocol::AppInfo;
+use datax_app_server_protocol::ChatGoalStatus;
 use datax_app_server_protocol::ConsumeAccountRateLimitResetCreditResponse;
 use datax_app_server_protocol::GetAccountRateLimitsResponse;
 use datax_app_server_protocol::GetAccountTokenUsageResponse;
@@ -28,7 +29,6 @@ use datax_app_server_protocol::PluginReadParams;
 use datax_app_server_protocol::PluginReadResponse;
 use datax_app_server_protocol::PluginUninstallResponse;
 use datax_app_server_protocol::SkillsListResponse;
-use datax_app_server_protocol::ThreadGoalStatus;
 use datax_file_search::FileMatch;
 use datax_protocol::ThreadId;
 use datax_protocol::openai_models::ModelPreset;
@@ -58,7 +58,7 @@ pub(crate) enum ThreadGoalSetMode {
     ConfirmIfExists,
     ReplaceExisting,
     UpdateExisting {
-        status: ThreadGoalStatus,
+        status: ChatGoalStatus,
         token_budget: Option<i64>,
     },
 }
@@ -295,7 +295,7 @@ pub(crate) enum AppEvent {
     /// Pause or resume the current thread goal.
     SetThreadGoalStatus {
         thread_id: ThreadId,
-        status: ThreadGoalStatus,
+        status: ChatGoalStatus,
     },
 
     /// Clear the current thread goal.

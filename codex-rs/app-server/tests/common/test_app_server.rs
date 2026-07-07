@@ -14,6 +14,33 @@ use tokio::process::ChildStdout;
 use anyhow::Context;
 use datax_app_server_protocol::AppsListParams;
 use datax_app_server_protocol::CancelLoginAccountParams;
+use datax_app_server_protocol::ChatArchiveParams;
+use datax_app_server_protocol::ChatCompactStartParams;
+use datax_app_server_protocol::ChatDeleteParams;
+use datax_app_server_protocol::ChatForkParams;
+use datax_app_server_protocol::ChatInjectMessagesParams;
+use datax_app_server_protocol::ChatInteractionsListParams;
+use datax_app_server_protocol::ChatInteractionsMessagesListParams;
+use datax_app_server_protocol::ChatListParams;
+use datax_app_server_protocol::ChatLoadedListParams;
+use datax_app_server_protocol::ChatMemoryModeSetParams;
+use datax_app_server_protocol::ChatMetadataUpdateParams;
+use datax_app_server_protocol::ChatReadParams;
+use datax_app_server_protocol::ChatRealtimeAppendAudioParams;
+use datax_app_server_protocol::ChatRealtimeAppendSpeechParams;
+use datax_app_server_protocol::ChatRealtimeAppendTextParams;
+use datax_app_server_protocol::ChatRealtimeListVoicesParams;
+use datax_app_server_protocol::ChatRealtimeStartParams;
+use datax_app_server_protocol::ChatRealtimeStopParams;
+use datax_app_server_protocol::ChatResumeParams;
+use datax_app_server_protocol::ChatRollbackParams;
+use datax_app_server_protocol::ChatSearchParams;
+use datax_app_server_protocol::ChatSetNameParams;
+use datax_app_server_protocol::ChatSettingsUpdateParams;
+use datax_app_server_protocol::ChatShellCommandParams;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatUnarchiveParams;
+use datax_app_server_protocol::ChatUnsubscribeParams;
 use datax_app_server_protocol::ClientInfo;
 use datax_app_server_protocol::ClientNotification;
 use datax_app_server_protocol::CollaborationModeListParams;
@@ -42,6 +69,10 @@ use datax_app_server_protocol::GetConversationSummaryParams;
 use datax_app_server_protocol::HooksListParams;
 use datax_app_server_protocol::InitializeCapabilities;
 use datax_app_server_protocol::InitializeParams;
+use datax_app_server_protocol::InteractionCompletedNotification;
+use datax_app_server_protocol::InteractionInterruptParams;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionSteerParams;
 use datax_app_server_protocol::JSONRPCError;
 use datax_app_server_protocol::JSONRPCErrorError;
 use datax_app_server_protocol::JSONRPCMessage;
@@ -79,37 +110,6 @@ use datax_app_server_protocol::SendAddCreditsNudgeEmailParams;
 use datax_app_server_protocol::ServerRequest;
 use datax_app_server_protocol::SkillsExtraRootsSetParams;
 use datax_app_server_protocol::SkillsListParams;
-use datax_app_server_protocol::ThreadArchiveParams;
-use datax_app_server_protocol::ThreadCompactStartParams;
-use datax_app_server_protocol::ThreadDeleteParams;
-use datax_app_server_protocol::ThreadForkParams;
-use datax_app_server_protocol::ThreadInjectItemsParams;
-use datax_app_server_protocol::ThreadListParams;
-use datax_app_server_protocol::ThreadLoadedListParams;
-use datax_app_server_protocol::ThreadMemoryModeSetParams;
-use datax_app_server_protocol::ThreadMetadataUpdateParams;
-use datax_app_server_protocol::ThreadReadParams;
-use datax_app_server_protocol::ThreadRealtimeAppendAudioParams;
-use datax_app_server_protocol::ThreadRealtimeAppendSpeechParams;
-use datax_app_server_protocol::ThreadRealtimeAppendTextParams;
-use datax_app_server_protocol::ThreadRealtimeListVoicesParams;
-use datax_app_server_protocol::ThreadRealtimeStartParams;
-use datax_app_server_protocol::ThreadRealtimeStopParams;
-use datax_app_server_protocol::ThreadResumeParams;
-use datax_app_server_protocol::ThreadRollbackParams;
-use datax_app_server_protocol::ThreadSearchParams;
-use datax_app_server_protocol::ThreadSetNameParams;
-use datax_app_server_protocol::ThreadSettingsUpdateParams;
-use datax_app_server_protocol::ThreadShellCommandParams;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadTurnsItemsListParams;
-use datax_app_server_protocol::ThreadTurnsListParams;
-use datax_app_server_protocol::ThreadUnarchiveParams;
-use datax_app_server_protocol::ThreadUnsubscribeParams;
-use datax_app_server_protocol::TurnCompletedNotification;
-use datax_app_server_protocol::TurnInterruptParams;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnSteerParams;
 use datax_app_server_protocol::WindowsSandboxSetupStartParams;
 use datax_login::default_client::CODEX_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR;
 use tokio::process::Command;
@@ -440,175 +440,167 @@ impl TestAppServer {
         self.send_request("feedback/upload", params).await
     }
 
-    /// Send a `thread/start` JSON-RPC request.
-    pub async fn send_thread_start_request(
+    /// Send a `chat/start` JSON-RPC request.
+    pub async fn send_chat_start_request(
         &mut self,
-        params: ThreadStartParams,
+        params: ChatStartParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/start", params).await
+        self.send_request("chat/start", params).await
     }
 
-    /// Send a `thread/resume` JSON-RPC request.
-    pub async fn send_thread_resume_request(
+    /// Send a `chat/resume` JSON-RPC request.
+    pub async fn send_chat_resume_request(
         &mut self,
-        params: ThreadResumeParams,
+        params: ChatResumeParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/resume", params).await
+        self.send_request("chat/resume", params).await
     }
 
-    /// Send a `thread/fork` JSON-RPC request.
-    pub async fn send_thread_fork_request(
-        &mut self,
-        params: ThreadForkParams,
-    ) -> anyhow::Result<i64> {
+    /// Send a `chat/fork` JSON-RPC request.
+    pub async fn send_chat_fork_request(&mut self, params: ChatForkParams) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/fork", params).await
+        self.send_request("chat/fork", params).await
     }
 
-    /// Send a `thread/archive` JSON-RPC request.
-    pub async fn send_thread_archive_request(
+    /// Send a `chat/archive` JSON-RPC request.
+    pub async fn send_chat_archive_request(
         &mut self,
-        params: ThreadArchiveParams,
+        params: ChatArchiveParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/archive", params).await
+        self.send_request("chat/archive", params).await
     }
 
-    /// Send a `thread/delete` JSON-RPC request.
-    pub async fn send_thread_delete_request(
+    /// Send a `chat/delete` JSON-RPC request.
+    pub async fn send_chat_delete_request(
         &mut self,
-        params: ThreadDeleteParams,
+        params: ChatDeleteParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/delete", params).await
+        self.send_request("chat/delete", params).await
     }
 
-    /// Send a `thread/name/set` JSON-RPC request.
-    pub async fn send_thread_set_name_request(
+    /// Send a `chat/name/set` JSON-RPC request.
+    pub async fn send_chat_set_name_request(
         &mut self,
-        params: ThreadSetNameParams,
+        params: ChatSetNameParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/name/set", params).await
+        self.send_request("chat/name/set", params).await
     }
 
-    /// Send a `thread/metadata/update` JSON-RPC request.
-    pub async fn send_thread_metadata_update_request(
+    /// Send a `chat/metadata/update` JSON-RPC request.
+    pub async fn send_chat_metadata_update_request(
         &mut self,
-        params: ThreadMetadataUpdateParams,
+        params: ChatMetadataUpdateParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/metadata/update", params).await
+        self.send_request("chat/metadata/update", params).await
     }
 
-    /// Send a `thread/settings/update` JSON-RPC request.
-    pub async fn send_thread_settings_update_request(
+    /// Send a `chat/settings/update` JSON-RPC request.
+    pub async fn send_chat_settings_update_request(
         &mut self,
-        params: ThreadSettingsUpdateParams,
+        params: ChatSettingsUpdateParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/settings/update", params).await
+        self.send_request("chat/settings/update", params).await
     }
 
-    /// Send a `thread/unsubscribe` JSON-RPC request.
-    pub async fn send_thread_unsubscribe_request(
+    /// Send a `chat/unsubscribe` JSON-RPC request.
+    pub async fn send_chat_unsubscribe_request(
         &mut self,
-        params: ThreadUnsubscribeParams,
+        params: ChatUnsubscribeParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/unsubscribe", params).await
+        self.send_request("chat/unsubscribe", params).await
     }
 
-    /// Send a `thread/unarchive` JSON-RPC request.
-    pub async fn send_thread_unarchive_request(
+    /// Send a `chat/unarchive` JSON-RPC request.
+    pub async fn send_chat_unarchive_request(
         &mut self,
-        params: ThreadUnarchiveParams,
+        params: ChatUnarchiveParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/unarchive", params).await
+        self.send_request("chat/unarchive", params).await
     }
 
-    /// Send a `thread/compact/start` JSON-RPC request.
-    pub async fn send_thread_compact_start_request(
+    /// Send a `chat/compact/start` JSON-RPC request.
+    pub async fn send_chat_compact_start_request(
         &mut self,
-        params: ThreadCompactStartParams,
+        params: ChatCompactStartParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/compact/start", params).await
+        self.send_request("chat/compact/start", params).await
     }
 
-    /// Send a `thread/shellCommand` JSON-RPC request.
-    pub async fn send_thread_shell_command_request(
+    /// Send a `chat/shellCommand` JSON-RPC request.
+    pub async fn send_chat_shell_command_request(
         &mut self,
-        params: ThreadShellCommandParams,
+        params: ChatShellCommandParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/shellCommand", params).await
+        self.send_request("chat/shellCommand", params).await
     }
 
-    /// Send a `thread/rollback` JSON-RPC request.
-    pub async fn send_thread_rollback_request(
+    /// Send a `chat/rollback` JSON-RPC request.
+    pub async fn send_chat_rollback_request(
         &mut self,
-        params: ThreadRollbackParams,
+        params: ChatRollbackParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/rollback", params).await
+        self.send_request("chat/rollback", params).await
     }
 
-    /// Send a `thread/list` JSON-RPC request.
-    pub async fn send_thread_list_request(
-        &mut self,
-        params: ThreadListParams,
-    ) -> anyhow::Result<i64> {
+    /// Send a `chat/list` JSON-RPC request.
+    pub async fn send_chat_list_request(&mut self, params: ChatListParams) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/list", params).await
+        self.send_request("chat/list", params).await
     }
 
-    /// Send a `thread/search` JSON-RPC request.
-    pub async fn send_thread_search_request(
+    /// Send a `chat/search` JSON-RPC request.
+    pub async fn send_chat_search_request(
         &mut self,
-        params: ThreadSearchParams,
+        params: ChatSearchParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/search", params).await
+        self.send_request("chat/search", params).await
     }
 
-    /// Send a `thread/loaded/list` JSON-RPC request.
-    pub async fn send_thread_loaded_list_request(
+    /// Send a `chat/loaded/list` JSON-RPC request.
+    pub async fn send_chat_loaded_list_request(
         &mut self,
-        params: ThreadLoadedListParams,
+        params: ChatLoadedListParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/loaded/list", params).await
+        self.send_request("chat/loaded/list", params).await
     }
 
-    /// Send a `thread/read` JSON-RPC request.
-    pub async fn send_thread_read_request(
-        &mut self,
-        params: ThreadReadParams,
-    ) -> anyhow::Result<i64> {
+    /// Send a `chat/read` JSON-RPC request.
+    pub async fn send_chat_read_request(&mut self, params: ChatReadParams) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/read", params).await
+        self.send_request("chat/read", params).await
     }
 
-    /// Send a `thread/turns/list` JSON-RPC request.
-    pub async fn send_thread_turns_list_request(
+    /// Send a `chat/interactions/list` JSON-RPC request.
+    pub async fn send_chat_interactions_list_request(
         &mut self,
-        params: ThreadTurnsListParams,
+        params: ChatInteractionsListParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/turns/list", params).await
+        self.send_request("chat/interactions/list", params).await
     }
 
-    /// Send a `thread/turns/items/list` JSON-RPC request.
-    pub async fn send_thread_turns_items_list_request(
+    /// Send a `chat/interactions/messages/list` JSON-RPC request.
+    pub async fn send_chat_interactions_messages_list_request(
         &mut self,
-        params: ThreadTurnsItemsListParams,
+        params: ChatInteractionsMessagesListParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/turns/items/list", params).await
+        self.send_request("chat/interactions/messages/list", params)
+            .await
     }
 
     /// Send a `model/list` JSON-RPC request.
@@ -900,31 +892,31 @@ impl TestAppServer {
         self.send_request("mock/experimentalMethod", params).await
     }
 
-    /// Send a `thread/memoryMode/set` JSON-RPC request (v2, experimental).
-    pub async fn send_thread_memory_mode_set_request(
+    /// Send a `chat/memoryMode/set` JSON-RPC request (v2, experimental).
+    pub async fn send_chat_memory_mode_set_request(
         &mut self,
-        params: ThreadMemoryModeSetParams,
+        params: ChatMemoryModeSetParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/memoryMode/set", params).await
+        self.send_request("chat/memoryMode/set", params).await
     }
 
-    /// Send a `turn/start` JSON-RPC request (v2).
-    pub async fn send_turn_start_request(
+    /// Send a `interaction/start` JSON-RPC request (v2).
+    pub async fn send_interaction_start_request(
         &mut self,
-        params: TurnStartParams,
+        params: InteractionStartParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("turn/start", params).await
+        self.send_request("interaction/start", params).await
     }
 
-    /// Send a `thread/inject_items` JSON-RPC request (v2).
-    pub async fn send_thread_inject_items_request(
+    /// Send a `chat/inject_items` JSON-RPC request (v2).
+    pub async fn send_chat_inject_messages_request(
         &mut self,
-        params: ThreadInjectItemsParams,
+        params: ChatInjectMessagesParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/inject_items", params).await
+        self.send_request("chat/inject_items", params).await
     }
 
     /// Send a `command/exec` JSON-RPC request (v2).
@@ -999,70 +991,67 @@ impl TestAppServer {
         self.send_request("command/exec/terminate", params).await
     }
 
-    /// Send a `turn/interrupt` JSON-RPC request (v2).
-    pub async fn send_turn_interrupt_request(
+    /// Send a `interaction/interrupt` JSON-RPC request (v2).
+    pub async fn send_interaction_interrupt_request(
         &mut self,
-        params: TurnInterruptParams,
+        params: InteractionInterruptParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("turn/interrupt", params).await
+        self.send_request("interaction/interrupt", params).await
     }
 
-    /// Send a `thread/realtime/start` JSON-RPC request (v2).
-    pub async fn send_thread_realtime_start_request(
+    /// Send a `chat/realtime/start` JSON-RPC request (v2).
+    pub async fn send_chat_realtime_start_request(
         &mut self,
-        params: ThreadRealtimeStartParams,
+        params: ChatRealtimeStartParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/realtime/start", params).await
+        self.send_request("chat/realtime/start", params).await
     }
 
-    /// Send a `thread/realtime/appendAudio` JSON-RPC request (v2).
-    pub async fn send_thread_realtime_append_audio_request(
+    /// Send a `chat/realtime/appendAudio` JSON-RPC request (v2).
+    pub async fn send_chat_realtime_append_audio_request(
         &mut self,
-        params: ThreadRealtimeAppendAudioParams,
+        params: ChatRealtimeAppendAudioParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/realtime/appendAudio", params)
+        self.send_request("chat/realtime/appendAudio", params).await
+    }
+
+    /// Send a `chat/realtime/appendText` JSON-RPC request (v2).
+    pub async fn send_chat_realtime_append_text_request(
+        &mut self,
+        params: ChatRealtimeAppendTextParams,
+    ) -> anyhow::Result<i64> {
+        let params = Some(serde_json::to_value(params)?);
+        self.send_request("chat/realtime/appendText", params).await
+    }
+
+    /// Send a `chat/realtime/appendSpeech` JSON-RPC request (v2).
+    pub async fn send_chat_realtime_append_speech_request(
+        &mut self,
+        params: ChatRealtimeAppendSpeechParams,
+    ) -> anyhow::Result<i64> {
+        let params = Some(serde_json::to_value(params)?);
+        self.send_request("chat/realtime/appendSpeech", params)
             .await
     }
 
-    /// Send a `thread/realtime/appendText` JSON-RPC request (v2).
-    pub async fn send_thread_realtime_append_text_request(
+    /// Send a `chat/realtime/stop` JSON-RPC request (v2).
+    pub async fn send_chat_realtime_stop_request(
         &mut self,
-        params: ThreadRealtimeAppendTextParams,
+        params: ChatRealtimeStopParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/realtime/appendText", params)
-            .await
+        self.send_request("chat/realtime/stop", params).await
     }
 
-    /// Send a `thread/realtime/appendSpeech` JSON-RPC request (v2).
-    pub async fn send_thread_realtime_append_speech_request(
+    pub async fn send_chat_realtime_list_voices_request(
         &mut self,
-        params: ThreadRealtimeAppendSpeechParams,
+        params: ChatRealtimeListVoicesParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/realtime/appendSpeech", params)
-            .await
-    }
-
-    /// Send a `thread/realtime/stop` JSON-RPC request (v2).
-    pub async fn send_thread_realtime_stop_request(
-        &mut self,
-        params: ThreadRealtimeStopParams,
-    ) -> anyhow::Result<i64> {
-        let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/realtime/stop", params).await
-    }
-
-    pub async fn send_thread_realtime_list_voices_request(
-        &mut self,
-        params: ThreadRealtimeListVoicesParams,
-    ) -> anyhow::Result<i64> {
-        let params = Some(serde_json::to_value(params)?);
-        self.send_request("thread/realtime/listVoices", params)
-            .await
+        self.send_request("chat/realtime/listVoices", params).await
     }
 
     /// Deterministically clean up an intentionally in-flight turn.
@@ -1072,19 +1061,19 @@ impl TestAppServer {
     /// racing teardown and intermittently show up as `LEAK` in nextest.
     ///
     /// In rare races, the turn can also fail or complete on its own after we send
-    /// `turn/interrupt` but before the server emits the interrupt response. The helper treats a
-    /// buffered matching `turn/completed` notification as sufficient terminal cleanup in that
+    /// `interaction/interrupt` but before the server emits the interrupt response. The helper treats a
+    /// buffered matching `interaction/completed` notification as sufficient terminal cleanup in that
     /// case so teardown does not flap on timing.
     pub async fn interrupt_turn_and_wait_for_aborted(
         &mut self,
-        thread_id: String,
-        turn_id: String,
+        chat_id: String,
+        interaction_id: String,
         read_timeout: std::time::Duration,
     ) -> anyhow::Result<()> {
         let interrupt_request_id = self
-            .send_turn_interrupt_request(TurnInterruptParams {
-                thread_id: thread_id.clone(),
-                turn_id: turn_id.clone(),
+            .send_interaction_interrupt_request(InteractionInterruptParams {
+                chat_id: chat_id.clone(),
+                interaction_id: interaction_id.clone(),
             })
             .await?;
         match tokio::time::timeout(
@@ -1097,7 +1086,7 @@ impl TestAppServer {
                 result.with_context(|| "failed while waiting for turn interrupt response")?;
             }
             Err(err) => {
-                if self.pending_turn_completed_notification(&thread_id, &turn_id) {
+                if self.pending_turn_completed_notification(&chat_id, &interaction_id) {
                     return Ok(());
                 }
                 return Err(err).with_context(|| "timed out waiting for turn interrupt response");
@@ -1105,7 +1094,7 @@ impl TestAppServer {
         }
         match tokio::time::timeout(
             read_timeout,
-            self.read_stream_until_notification_message("turn/completed"),
+            self.read_stream_until_notification_message("interaction/completed"),
         )
         .await
         {
@@ -1113,7 +1102,7 @@ impl TestAppServer {
                 result.with_context(|| "failed while waiting for terminal turn notification")?;
             }
             Err(err) => {
-                if self.pending_turn_completed_notification(&thread_id, &turn_id) {
+                if self.pending_turn_completed_notification(&chat_id, &interaction_id) {
                     return Ok(());
                 }
                 return Err(err)
@@ -1123,13 +1112,13 @@ impl TestAppServer {
         Ok(())
     }
 
-    /// Send a `turn/steer` JSON-RPC request (v2).
-    pub async fn send_turn_steer_request(
+    /// Send a `interaction/steer` JSON-RPC request (v2).
+    pub async fn send_interaction_steer_request(
         &mut self,
-        params: TurnSteerParams,
+        params: InteractionSteerParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("turn/steer", params).await
+        self.send_request("interaction/steer", params).await
     }
 
     /// Send a `review/start` JSON-RPC request (v2).
@@ -1542,7 +1531,7 @@ impl TestAppServer {
         self.read_stream_until_message(|_| true).await
     }
 
-    /// Clears any buffered messages so future reads only consider new stream items.
+    /// Clears any buffered messages so future reads only consider new stream messages.
     ///
     /// We call this when e.g. we want to validate against the next turn and no longer care about
     /// messages buffered from the prior turn.
@@ -1589,22 +1578,23 @@ impl TestAppServer {
         None
     }
 
-    fn pending_turn_completed_notification(&self, thread_id: &str, turn_id: &str) -> bool {
+    fn pending_turn_completed_notification(&self, chat_id: &str, interaction_id: &str) -> bool {
         self.pending_messages.iter().any(|message| {
             let JSONRPCMessage::Notification(notification) = message else {
                 return false;
             };
-            if notification.method != "turn/completed" {
+            if notification.method != "interaction/completed" {
                 return false;
             }
             let Some(params) = notification.params.as_ref() else {
                 return false;
             };
-            let Ok(payload) = serde_json::from_value::<TurnCompletedNotification>(params.clone())
+            let Ok(payload) =
+                serde_json::from_value::<InteractionCompletedNotification>(params.clone())
             else {
                 return false;
             };
-            payload.thread_id == thread_id && payload.turn.id == turn_id
+            payload.chat_id == chat_id && payload.turn.id == interaction_id
         })
     }
 

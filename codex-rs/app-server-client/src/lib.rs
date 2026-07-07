@@ -163,9 +163,9 @@ fn event_requires_delivery(event: &InProcessServerEvent) -> bool {
 pub(crate) fn server_notification_requires_delivery(notification: &ServerNotification) -> bool {
     matches!(
         notification,
-        ServerNotification::TurnCompleted(_)
-            | ServerNotification::ThreadSettingsUpdated(_)
-            | ServerNotification::ItemCompleted(_)
+        InteractionCompleted(_)
+            | ChatSettingsUpdated(_)
+            | MessageCompleted(_)
             | ServerNotification::ExternalAgentConfigImportCompleted(_)
             | ServerNotification::AgentMessageDelta(_)
             | ServerNotification::PlanDelta(_)
@@ -186,7 +186,7 @@ enum ForwardEventResult {
 /// Forwards a single in-process event to the consumer, respecting the
 /// lossless/best-effort split.
 ///
-/// Lossless events (transcript deltas, item/turn completions) block until the
+/// Lossless events (transcript deltas, message/turn completions) block until the
 /// consumer drains capacity. Best-effort events use `try_send` and increment
 /// `skipped_events` on failure. When a lag marker needs to be flushed before a
 /// lossless event, the flush itself blocks so the marker is never lost.
@@ -946,6 +946,8 @@ pub(crate) fn request_method_name(request: &ClientRequest) -> String {
 mod tests {
     use super::*;
     use datax_app_server_protocol::AccountUpdatedNotification;
+    use datax_app_server_protocol::ChatStartParams;
+    use datax_app_server_protocol::ChatStartResponse;
     use datax_app_server_protocol::ConfigRequirementsReadResponse;
     use datax_app_server_protocol::GetAccountResponse;
     use datax_app_server_protocol::JSONRPCMessage;
@@ -953,8 +955,6 @@ mod tests {
     use datax_app_server_protocol::JSONRPCResponse;
     use datax_app_server_protocol::ServerNotification;
     use datax_app_server_protocol::SessionSource as ApiSessionSource;
-    use datax_app_server_protocol::ThreadStartParams;
-    use datax_app_server_protocol::ThreadStartResponse;
     use datax_app_server_protocol::ToolRequestUserInputParams;
     use datax_app_server_protocol::ToolRequestUserInputQuestion;
     use datax_core::config::ConfigBuilder;
@@ -1183,9 +1183,9 @@ mod tests {
     fn command_execution_output_delta_notification(delta: &str) -> ServerNotification {
         ServerNotification::CommandExecutionOutputDelta(
             datax_app_server_protocol::CommandExecutionOutputDeltaNotification {
-                thread_id: "thread".to_string(),
-                turn_id: "turn".to_string(),
-                item_id: "item".to_string(),
+                chat_id: "thread".to_string(),
+                interaction_id: "turn".to_string(),
+                message_id: "item".to_string(),
                 delta: delta.to_string(),
             },
         )
@@ -1194,20 +1194,20 @@ mod tests {
     fn agent_message_delta_notification(delta: &str) -> ServerNotification {
         ServerNotification::AgentMessageDelta(
             datax_app_server_protocol::AgentMessageDeltaNotification {
-                thread_id: "thread".to_string(),
-                turn_id: "turn".to_string(),
-                item_id: "item".to_string(),
+                chat_id: "thread".to_string(),
+                interaction_id: "turn".to_string(),
+                message_id: "item".to_string(),
                 delta: delta.to_string(),
             },
         )
     }
 
     fn item_completed_notification(text: &str) -> ServerNotification {
-        ServerNotification::ItemCompleted(datax_app_server_protocol::ItemCompletedNotification {
-            thread_id: "thread".to_string(),
-            turn_id: "turn".to_string(),
+        MessageCompleted(datax_app_server_protocol::MessageCompletedNotification {
+            chat_id: "thread".to_string(),
+            interaction_id: "turn".to_string(),
             completed_at_ms: 0,
-            item: datax_app_server_protocol::ThreadItem::AgentMessage {
+            item: datax_app_server_protocol::Message::AgentMessage {
                 id: "item".to_string(),
                 text: text.to_string(),
                 phase: None,
@@ -1217,19 +1217,21 @@ mod tests {
     }
 
     fn turn_completed_notification() -> ServerNotification {
-        ServerNotification::TurnCompleted(datax_app_server_protocol::TurnCompletedNotification {
-            thread_id: "thread".to_string(),
-            turn: datax_app_server_protocol::Turn {
-                id: "turn".to_string(),
-                items_view: datax_app_server_protocol::TurnItemsView::Full,
-                items: Vec::new(),
-                status: datax_app_server_protocol::TurnStatus::Completed,
-                error: None,
-                started_at: None,
-                completed_at: Some(0),
-                duration_ms: Some(1),
+        InteractionCompleted(
+            datax_app_server_protocol::InteractionCompletedNotification {
+                chat_id: "thread".to_string(),
+                turn: datax_app_server_protocol::Interaction {
+                    id: "turn".to_string(),
+                    messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                    messages: Vec::new(),
+                    status: datax_app_server_protocol::InteractionStatus::Completed,
+                    error: None,
+                    started_at: None,
+                    completed_at: Some(0),
+                    duration_ms: Some(1),
+                },
             },
-        })
+        )
     }
 
     fn test_remote_connect_args(websocket_url: String) -> RemoteAppServerConnectArgs {
@@ -1277,17 +1279,17 @@ mod tests {
     async fn typed_request_reports_json_rpc_errors() {
         let client = start_test_client(SessionSource::Exec).await;
         let err = client
-            .request_typed::<ConfigRequirementsReadResponse>(ClientRequest::ThreadRead {
+            .request_typed::<ConfigRequirementsReadResponse>(ChatRead {
                 request_id: RequestId::Integer(99),
-                params: datax_app_server_protocol::ThreadReadParams {
-                    thread_id: "missing-thread".to_string(),
-                    include_turns: false,
+                params: datax_app_server_protocol::ChatReadParams {
+                    chat_id: "missing-thread".to_string(),
+                    include_interactions: false,
                 },
             })
             .await
             .expect_err("missing thread should return a JSON-RPC error");
         assert!(
-            err.to_string().starts_with("thread/read failed:"),
+            err.to_string().starts_with("chat/read failed:"),
             "expected method-qualified JSON-RPC failure message"
         );
         client.shutdown().await.expect("shutdown should complete");
@@ -1300,16 +1302,16 @@ mod tests {
             (SessionSource::Cli, ApiSessionSource::Cli),
         ] {
             let client = start_test_client(session_source).await;
-            let parsed: ThreadStartResponse = client
-                .request_typed(ClientRequest::ThreadStart {
+            let parsed: ChatStartResponse = client
+                .request_typed(ChatStart {
                     request_id: RequestId::Integer(2),
-                    params: ThreadStartParams {
+                    params: ChatStartParams {
                         ephemeral: Some(true),
-                        ..ThreadStartParams::default()
+                        ..ChatStartParams::default()
                     },
                 })
                 .await
-                .expect("thread/start should succeed");
+                .expect("chat/start should succeed");
             assert_eq!(parsed.thread.source, expected_source);
             client.shutdown().await.expect("shutdown should complete");
         }
@@ -1319,28 +1321,26 @@ mod tests {
     async fn threads_started_via_app_server_are_visible_through_typed_requests() {
         let client = start_test_client(SessionSource::Cli).await;
 
-        let response: ThreadStartResponse = client
-            .request_typed(ClientRequest::ThreadStart {
+        let response: ChatStartResponse = client
+            .request_typed(ChatStart {
                 request_id: RequestId::Integer(3),
-                params: ThreadStartParams {
+                params: ChatStartParams {
                     ephemeral: Some(true),
-                    ..ThreadStartParams::default()
+                    ..ChatStartParams::default()
                 },
             })
             .await
-            .expect("thread/start should succeed");
+            .expect("chat/start should succeed");
         let read = client
-            .request_typed::<datax_app_server_protocol::ThreadReadResponse>(
-                ClientRequest::ThreadRead {
-                    request_id: RequestId::Integer(4),
-                    params: datax_app_server_protocol::ThreadReadParams {
-                        thread_id: response.thread.id.clone(),
-                        include_turns: false,
-                    },
+            .request_typed::<datax_app_server_protocol::ChatReadResponse>(ChatRead {
+                request_id: RequestId::Integer(4),
+                params: datax_app_server_protocol::ChatReadParams {
+                    chat_id: response.thread.id.clone(),
+                    include_interactions: false,
                 },
-            )
+            })
             .await
-            .expect("thread/read should return the newly started thread");
+            .expect("chat/read should return the newly started thread");
         assert_eq!(read.thread.id, response.thread.id);
 
         client.shutdown().await.expect("shutdown should complete");
@@ -1433,18 +1433,18 @@ mod tests {
         ));
         assert!(matches!(
             &events[3],
-            InProcessServerEvent::ServerNotification(ServerNotification::ItemCompleted(
+            InProcessServerEvent::ServerNotification(MessageCompleted(
                 notification
             )) if matches!(
                 &notification.item,
-                datax_app_server_protocol::ThreadItem::AgentMessage { text, .. } if text == "hello"
+                datax_app_server_protocol::Message::AgentMessage { text, .. } if text == "hello"
             )
         ));
         assert!(matches!(
             &events[4],
-            InProcessServerEvent::ServerNotification(ServerNotification::TurnCompleted(
+            InProcessServerEvent::ServerNotification(InteractionCompleted(
                 notification
-            )) if notification.turn.status == datax_app_server_protocol::TurnStatus::Completed
+            )) if notification.turn.status == datax_app_server_protocol::InteractionStatus::Completed
         ));
     }
 
@@ -1858,19 +1858,17 @@ mod tests {
                 )) if notification.delta == "hello" => {
                     transcript_event_names.push("agent_message_delta");
                 }
-                AppServerEvent::ServerNotification(ServerNotification::ItemCompleted(
-                    notification,
-                )) if matches!(
-                    &notification.item,
-                    datax_app_server_protocol::ThreadItem::AgentMessage { text, .. } if text == "hello"
-                ) =>
+                AppServerEvent::ServerNotification(MessageCompleted(notification))
+                    if matches!(
+                        &notification.item,
+                        datax_app_server_protocol::Message::AgentMessage { text, .. } if text == "hello"
+                    ) =>
                 {
                     transcript_event_names.push("item_completed");
                 }
-                AppServerEvent::ServerNotification(ServerNotification::TurnCompleted(
-                    notification,
-                )) if notification.turn.status
-                    == datax_app_server_protocol::TurnStatus::Completed =>
+                AppServerEvent::ServerNotification(InteractionCompleted(notification))
+                    if notification.turn.status
+                        == datax_app_server_protocol::InteractionStatus::Completed =>
                 {
                     transcript_event_names.push("turn_completed");
                 }
@@ -1895,12 +1893,12 @@ mod tests {
             let request_id = RequestId::String("srv-1".to_string());
             let server_request = JSONRPCRequest {
                 id: request_id.clone(),
-                method: "item/tool/requestUserInput".to_string(),
+                method: "message/tool/requestUserInput".to_string(),
                 params: Some(
                     serde_json::to_value(ToolRequestUserInputParams {
-                        thread_id: "thread-1".to_string(),
-                        turn_id: "turn-1".to_string(),
-                        item_id: "call-1".to_string(),
+                        chat_id: "thread-1".to_string(),
+                        interaction_id: "turn-1".to_string(),
+                        message_id: "call-1".to_string(),
                         questions: vec![ToolRequestUserInputQuestion {
                             id: "question-1".to_string(),
                             header: "Mode".to_string(),
@@ -1957,12 +1955,12 @@ mod tests {
                 &mut websocket,
                 JSONRPCMessage::Request(JSONRPCRequest {
                     id: request_id.clone(),
-                    method: "item/tool/requestUserInput".to_string(),
+                    method: "message/tool/requestUserInput".to_string(),
                     params: Some(
                         serde_json::to_value(ToolRequestUserInputParams {
-                            thread_id: "thread-1".to_string(),
-                            turn_id: "turn-1".to_string(),
-                            item_id: "call-1".to_string(),
+                            chat_id: "thread-1".to_string(),
+                            interaction_id: "turn-1".to_string(),
+                            message_id: "call-1".to_string(),
                             questions: vec![ToolRequestUserInputQuestion {
                                 id: "question-1".to_string(),
                                 header: "Mode".to_string(),
@@ -2030,7 +2028,7 @@ mod tests {
                 &mut websocket,
                 JSONRPCMessage::Request(JSONRPCRequest {
                     id: request_id.clone(),
-                    method: "thread/unknown".to_string(),
+                    method: "chat/unknown".to_string(),
                     params: None,
                     trace: None,
                 }),
@@ -2045,7 +2043,7 @@ mod tests {
             assert_eq!(response.error.code, -32601);
             assert_eq!(
                 response.error.message,
-                "unsupported remote app-server request `thread/unknown`"
+                "unsupported remote app-server request `chat/unknown`"
             );
         })
         .await;
@@ -2083,7 +2081,7 @@ mod tests {
         assert_eq!(std::error::Error::source(&transport).is_some(), true);
 
         let server = TypedRequestError::Server {
-            method: "thread/read".to_string(),
+            method: "chat/read".to_string(),
             source: JSONRPCErrorError {
                 code: -32603,
                 data: Some(serde_json::json!({"detail": "config lock mismatch"})),
@@ -2093,11 +2091,11 @@ mod tests {
         assert_eq!(std::error::Error::source(&server).is_some(), false);
         assert_eq!(
             server.to_string(),
-            "thread/read failed: internal (code -32603), data: {\"detail\":\"config lock mismatch\"}"
+            "chat/read failed: internal (code -32603), data: {\"detail\":\"config lock mismatch\"}"
         );
 
         let deserialize = TypedRequestError::Deserialize {
-            method: "thread/start".to_string(),
+            method: "chat/start".to_string(),
             source: serde_json::from_str::<u32>("\"nope\"")
                 .expect_err("invalid integer should return deserialize error"),
         };
@@ -2136,14 +2134,14 @@ mod tests {
     fn event_requires_delivery_marks_transcript_and_terminal_events() {
         assert!(event_requires_delivery(
             &InProcessServerEvent::ServerNotification(
-                datax_app_server_protocol::ServerNotification::TurnCompleted(
-                    datax_app_server_protocol::TurnCompletedNotification {
-                        thread_id: "thread".to_string(),
-                        turn: datax_app_server_protocol::Turn {
+                datax_app_server_protocol::InteractionCompleted(
+                    datax_app_server_protocol::InteractionCompletedNotification {
+                        chat_id: "thread".to_string(),
+                        turn: datax_app_server_protocol::Interaction {
                             id: "turn".to_string(),
-                            items_view: datax_app_server_protocol::TurnItemsView::Full,
-                            items: Vec::new(),
-                            status: datax_app_server_protocol::TurnStatus::Completed,
+                            messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                            messages: Vec::new(),
+                            status: datax_app_server_protocol::InteractionStatus::Completed,
                             error: None,
                             started_at: None,
                             completed_at: Some(0),
@@ -2157,30 +2155,28 @@ mod tests {
             &InProcessServerEvent::ServerNotification(
                 datax_app_server_protocol::ServerNotification::AgentMessageDelta(
                     datax_app_server_protocol::AgentMessageDeltaNotification {
-                        thread_id: "thread".to_string(),
-                        turn_id: "turn".to_string(),
-                        item_id: "item".to_string(),
+                        chat_id: "thread".to_string(),
+                        interaction_id: "turn".to_string(),
+                        message_id: "item".to_string(),
                         delta: "hello".to_string(),
                     }
                 )
             )
         ));
         assert!(event_requires_delivery(
-            &InProcessServerEvent::ServerNotification(
-                datax_app_server_protocol::ServerNotification::ItemCompleted(
-                    datax_app_server_protocol::ItemCompletedNotification {
-                        thread_id: "thread".to_string(),
-                        turn_id: "turn".to_string(),
-                        completed_at_ms: 0,
-                        item: datax_app_server_protocol::ThreadItem::AgentMessage {
-                            id: "item".to_string(),
-                            text: "hello".to_string(),
-                            phase: None,
-                            memory_citation: None,
-                        },
-                    }
-                )
-            )
+            &InProcessServerEvent::ServerNotification(datax_app_server_protocol::MessageCompleted(
+                datax_app_server_protocol::MessageCompletedNotification {
+                    chat_id: "thread".to_string(),
+                    interaction_id: "turn".to_string(),
+                    completed_at_ms: 0,
+                    item: datax_app_server_protocol::Message::AgentMessage {
+                        id: "item".to_string(),
+                        text: "hello".to_string(),
+                        phase: None,
+                        memory_citation: None,
+                    },
+                }
+            ))
         ));
         assert!(event_requires_delivery(
             &InProcessServerEvent::ServerNotification(
@@ -2199,9 +2195,9 @@ mod tests {
             &InProcessServerEvent::ServerNotification(
                 datax_app_server_protocol::ServerNotification::CommandExecutionOutputDelta(
                     datax_app_server_protocol::CommandExecutionOutputDeltaNotification {
-                        thread_id: "thread".to_string(),
-                        turn_id: "turn".to_string(),
-                        item_id: "item".to_string(),
+                        chat_id: "thread".to_string(),
+                        interaction_id: "turn".to_string(),
+                        message_id: "item".to_string(),
                         delta: "stdout".to_string(),
                     }
                 )

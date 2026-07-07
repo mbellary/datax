@@ -9,28 +9,28 @@
     }
   },
   "properties": {
+    "chatId": {
+      "type": "string"
+    },
     "fromModel": {
+      "type": "string"
+    },
+    "interactionId": {
       "type": "string"
     },
     "reason": {
       "$ref": "#/definitions/ModelRerouteReason"
     },
-    "threadId": {
-      "type": "string"
-    },
     "toModel": {
-      "type": "string"
-    },
-    "turnId": {
       "type": "string"
     }
   },
   "required": [
+    "chatId",
     "fromModel",
+    "interactionId",
     "reason",
-    "threadId",
-    "toModel",
-    "turnId"
+    "toModel"
   ],
   "title": "ModelReroutedNotification",
   "type": "object"

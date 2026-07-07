@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "properties": {
+    "chatId": {
+      "type": "string"
+    },
+    "command": {
+      "description": "Shell command string evaluated by the chat configured shell. Unlike `command/exec`, this intentionally preserves shell syntax such as pipes, redirects, and quoting. This runs unsandboxed with full access rather than inheriting the chat sandbox policy.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "chatId",
+    "command"
+  ],
+  "title": "ChatShellCommandParams",
+  "type": "object"
+}

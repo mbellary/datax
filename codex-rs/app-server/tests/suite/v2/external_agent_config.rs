@@ -9,24 +9,24 @@ use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use app_test_support::write_mock_responses_config_toml;
 use core_test_support::responses;
+use datax_app_server_protocol::ChatListParams;
+use datax_app_server_protocol::ChatListResponse;
+use datax_app_server_protocol::ChatReadParams;
+use datax_app_server_protocol::ChatReadResponse;
+use datax_app_server_protocol::ChatResumeParams;
+use datax_app_server_protocol::ChatResumeResponse;
 use datax_app_server_protocol::ExternalAgentConfigDetectResponse;
 use datax_app_server_protocol::ExternalAgentConfigImportCompletedNotification;
 use datax_app_server_protocol::ExternalAgentConfigImportHistoriesReadResponse;
 use datax_app_server_protocol::ExternalAgentConfigImportProgressNotification;
 use datax_app_server_protocol::ExternalAgentConfigImportResponse;
 use datax_app_server_protocol::ExternalAgentConfigMigrationItemType;
+use datax_app_server_protocol::InteractionStartParams;
 use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::Message;
 use datax_app_server_protocol::PluginListParams;
 use datax_app_server_protocol::PluginListResponse;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadListParams;
-use datax_app_server_protocol::ThreadListResponse;
-use datax_app_server_protocol::ThreadReadParams;
-use datax_app_server_protocol::ThreadReadResponse;
-use datax_app_server_protocol::ThreadResumeParams;
-use datax_app_server_protocol::ThreadResumeResponse;
-use datax_app_server_protocol::TurnStartParams;
 use datax_app_server_protocol::UserInput;
 use datax_config::types::AuthCredentialsStoreMode;
 use pretty_assertions::assert_eq;
@@ -652,12 +652,12 @@ async fn external_agent_config_import_creates_session_rollouts() -> Result<()> {
     )
     .await??;
     let detected: ExternalAgentConfigDetectResponse = to_response(response)?;
-    assert_eq!(detected.items.len(), 1);
+    assert_eq!(detected.messages.len(), 1);
 
     let request_id = mcp
         .send_raw_request(
             "externalAgentConfig/import",
-            Some(serde_json::json!({ "migrationItems": detected.items })),
+            Some(serde_json::json!({ "migrationItems": detected.messages })),
         )
         .await?;
     let response: JSONRPCResponse = timeout(
@@ -702,7 +702,7 @@ async fn external_agent_config_import_creates_session_rollouts() -> Result<()> {
         .to_string();
 
     let request_id = mcp
-        .send_thread_list_request(ThreadListParams {
+        .send_chat_list_request(ChatListParams {
             cursor: None,
             limit: None,
             sort_key: None,
@@ -713,7 +713,7 @@ async fn external_agent_config_import_creates_session_rollouts() -> Result<()> {
             cwd: None,
             use_state_db_only: false,
             search_term: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
         })
         .await?;
     let response: JSONRPCResponse = timeout(
@@ -721,7 +721,7 @@ async fn external_agent_config_import_creates_session_rollouts() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let response: ThreadListResponse = to_response(response)?;
+    let response: ChatListResponse = to_response(response)?;
     let thread = response
         .data
         .first()
@@ -732,9 +732,9 @@ async fn external_agent_config_import_creates_session_rollouts() -> Result<()> {
     assert_eq!(thread.name.as_deref(), Some("source session title"));
 
     let request_id = mcp
-        .send_thread_read_request(ThreadReadParams {
-            thread_id: thread.id.clone(),
-            include_turns: true,
+        .send_chat_read_request(ChatReadParams {
+            chat_id: thread.id.clone(),
+            include_interactions: true,
         })
         .await?;
     let response: JSONRPCResponse = timeout(
@@ -742,13 +742,13 @@ async fn external_agent_config_import_creates_session_rollouts() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let response: ThreadReadResponse = to_response(response)?;
-    assert_eq!(response.thread.turns.len(), 1);
-    let items = &response.thread.turns[0].items;
-    assert_eq!(items.len(), 3);
+    let response: ChatReadResponse = to_response(response)?;
+    assert_eq!(response.thread.interactions.len(), 1);
+    let messages = &response.thread.interactions[0].messages;
+    assert_eq!(messages.len(), 3);
     assert_eq!(
-        items.last(),
-        Some(&ThreadItem::AgentMessage {
+        messages.last(),
+        Some(&Message::AgentMessage {
             id: "item-3".into(),
             text: "<EXTERNAL SESSION IMPORTED>".into(),
             phase: None,
@@ -757,8 +757,8 @@ async fn external_agent_config_import_creates_session_rollouts() -> Result<()> {
     );
 
     let request_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: thread.id.clone(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: thread.id.clone(),
             ..Default::default()
         })
         .await?;
@@ -767,11 +767,11 @@ async fn external_agent_config_import_creates_session_rollouts() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let _: ThreadResumeResponse = to_response(response)?;
+    let _: ChatResumeResponse = to_response(response)?;
 
     let request_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "follow up".to_string(),
@@ -787,14 +787,14 @@ async fn external_agent_config_import_creates_session_rollouts() -> Result<()> {
     .await??;
     timeout(
         DEFAULT_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
     let request_id = mcp
-        .send_thread_read_request(ThreadReadParams {
-            thread_id: thread.id,
-            include_turns: true,
+        .send_chat_read_request(ChatReadParams {
+            chat_id: thread.id,
+            include_interactions: true,
         })
         .await?;
     let response: JSONRPCResponse = timeout(
@@ -802,10 +802,10 @@ async fn external_agent_config_import_creates_session_rollouts() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let response: ThreadReadResponse = to_response(response)?;
-    assert_eq!(response.thread.turns.len(), 2);
-    match &response.thread.turns[1].items[1] {
-        ThreadItem::AgentMessage { text, .. } => assert_eq!(text, "follow-up answer"),
+    let response: ChatReadResponse = to_response(response)?;
+    assert_eq!(response.thread.interactions.len(), 2);
+    match &response.thread.interactions[1].messages[1] {
+        Message::AgentMessage { text, .. } => assert_eq!(text, "follow-up answer"),
         other => panic!("expected agent message item, got {other:?}"),
     }
 
@@ -880,7 +880,7 @@ required = true
     .await??;
 
     let request_id = mcp
-        .send_thread_list_request(ThreadListParams {
+        .send_chat_list_request(ChatListParams {
             cursor: None,
             limit: None,
             sort_key: None,
@@ -891,7 +891,7 @@ required = true
             cwd: None,
             use_state_db_only: false,
             search_term: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
         })
         .await?;
     let response: JSONRPCResponse = timeout(
@@ -899,7 +899,7 @@ required = true
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let response: ThreadListResponse = to_response(response)?;
+    let response: ChatListResponse = to_response(response)?;
     assert_eq!(response.data.len(), 1);
 
     Ok(())
@@ -971,7 +971,7 @@ async fn external_agent_config_import_accepts_detected_session_payload_after_res
     assert_eq!(completed.import_id, import_id);
 
     let request_id = mcp
-        .send_thread_list_request(ThreadListParams {
+        .send_chat_list_request(ChatListParams {
             cursor: None,
             limit: None,
             sort_key: None,
@@ -982,7 +982,7 @@ async fn external_agent_config_import_accepts_detected_session_payload_after_res
             cwd: None,
             use_state_db_only: false,
             search_term: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
         })
         .await?;
     let response: JSONRPCResponse = timeout(
@@ -990,7 +990,7 @@ async fn external_agent_config_import_accepts_detected_session_payload_after_res
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let response: ThreadListResponse = to_response(response)?;
+    let response: ChatListResponse = to_response(response)?;
     assert_eq!(response.data.len(), 1);
 
     Ok(())
@@ -1041,7 +1041,7 @@ async fn external_agent_config_import_skips_already_imported_session_versions() 
         let request_id = mcp
             .send_raw_request(
                 "externalAgentConfig/import",
-                Some(serde_json::json!({ "migrationItems": detected.items.clone() })),
+                Some(serde_json::json!({ "migrationItems": detected.messages.clone() })),
             )
             .await?;
         let response: JSONRPCResponse = timeout(
@@ -1063,7 +1063,7 @@ async fn external_agent_config_import_skips_already_imported_session_versions() 
     }
 
     let request_id = mcp
-        .send_thread_list_request(ThreadListParams {
+        .send_chat_list_request(ChatListParams {
             cursor: None,
             limit: None,
             sort_key: None,
@@ -1074,7 +1074,7 @@ async fn external_agent_config_import_skips_already_imported_session_versions() 
             cwd: None,
             use_state_db_only: false,
             search_term: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
         })
         .await?;
     let response: JSONRPCResponse = timeout(
@@ -1082,7 +1082,7 @@ async fn external_agent_config_import_skips_already_imported_session_versions() 
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let response: ThreadListResponse = to_response(response)?;
+    let response: ChatListResponse = to_response(response)?;
     assert_eq!(response.data.len(), 1);
 
     Ok(())
@@ -1128,8 +1128,8 @@ async fn external_agent_config_import_returns_before_background_session_import_f
     )
     .await??;
     let detected: ExternalAgentConfigDetectResponse = to_response(response)?;
-    assert_eq!(detected.items.len(), 1);
-    let detected_items = detected.items;
+    assert_eq!(detected.messages.len(), 1);
+    let detected_items = detected.messages;
 
     std::fs::remove_file(&session_path)?;
     let status = std::process::Command::new("mkfifo")
@@ -1202,7 +1202,7 @@ async fn external_agent_config_import_returns_before_background_session_import_f
     assert_eq!(completed_import_ids, expected_import_ids);
 
     let request_id = mcp
-        .send_thread_list_request(ThreadListParams {
+        .send_chat_list_request(ChatListParams {
             cursor: None,
             limit: None,
             sort_key: None,
@@ -1213,7 +1213,7 @@ async fn external_agent_config_import_returns_before_background_session_import_f
             cwd: None,
             use_state_db_only: false,
             search_term: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
         })
         .await?;
     let response: JSONRPCResponse = timeout(
@@ -1221,7 +1221,7 @@ async fn external_agent_config_import_returns_before_background_session_import_f
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let response: ThreadListResponse = to_response(response)?;
+    let response: ChatListResponse = to_response(response)?;
     assert_eq!(response.data.len(), 1);
 
     Ok(())
@@ -1305,12 +1305,12 @@ async fn external_agent_config_import_compacts_huge_session_before_first_follow_
     )
     .await??;
     let detected: ExternalAgentConfigDetectResponse = to_response(response)?;
-    assert_eq!(detected.items.len(), 1);
+    assert_eq!(detected.messages.len(), 1);
 
     let request_id = mcp
         .send_raw_request(
             "externalAgentConfig/import",
-            Some(serde_json::json!({ "migrationItems": detected.items })),
+            Some(serde_json::json!({ "migrationItems": detected.messages })),
         )
         .await?;
     let response: JSONRPCResponse = timeout(
@@ -1331,7 +1331,7 @@ async fn external_agent_config_import_compacts_huge_session_before_first_follow_
     assert_eq!(completed.import_id, import_id);
 
     let request_id = mcp
-        .send_thread_list_request(ThreadListParams {
+        .send_chat_list_request(ChatListParams {
             cursor: None,
             limit: None,
             sort_key: None,
@@ -1342,7 +1342,7 @@ async fn external_agent_config_import_compacts_huge_session_before_first_follow_
             cwd: None,
             use_state_db_only: false,
             search_term: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
         })
         .await?;
     let response: JSONRPCResponse = timeout(
@@ -1350,7 +1350,7 @@ async fn external_agent_config_import_compacts_huge_session_before_first_follow_
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let response: ThreadListResponse = to_response(response)?;
+    let response: ChatListResponse = to_response(response)?;
     let thread = response
         .data
         .first()
@@ -1358,8 +1358,8 @@ async fn external_agent_config_import_compacts_huge_session_before_first_follow_
         .clone();
 
     let request_id = mcp
-        .send_thread_resume_request(ThreadResumeParams {
-            thread_id: thread.id.clone(),
+        .send_chat_resume_request(ChatResumeParams {
+            chat_id: thread.id.clone(),
             ..Default::default()
         })
         .await?;
@@ -1368,11 +1368,11 @@ async fn external_agent_config_import_compacts_huge_session_before_first_follow_
         mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let _: ThreadResumeResponse = to_response(response)?;
+    let _: ChatResumeResponse = to_response(response)?;
 
     let request_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "follow up".to_string(),
@@ -1388,7 +1388,7 @@ async fn external_agent_config_import_compacts_huge_session_before_first_follow_
     .await??;
     timeout(
         DEFAULT_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 

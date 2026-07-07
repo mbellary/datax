@@ -10,8 +10,8 @@ use crate::history_cell::PlainHistoryCell;
 use crate::history_cell::ReasoningSummaryCell;
 use crate::history_cell::UserHistoryCell;
 use crate::multi_agents::sub_agent_activity_summary;
-use datax_app_server_protocol::Thread;
-use datax_app_server_protocol::ThreadItem;
+use datax_app_server_protocol::Chat;
+use datax_app_server_protocol::Message;
 use datax_protocol::ThreadId;
 use datax_protocol::items::UserMessageItem;
 use ratatui::style::Stylize as _;
@@ -41,14 +41,14 @@ pub(crate) async fn load_session_transcript(
 }
 
 pub(crate) fn thread_to_transcript_cells(
-    thread: &Thread,
+    thread: &Chat,
     raw_reasoning_visibility: RawReasoningVisibility,
 ) -> TranscriptCells {
     let cwd = thread.cwd.as_path();
     let mut cells: TranscriptCells = Vec::new();
     for item in thread.turns.iter().flat_map(|turn| turn.items.iter()) {
         match item {
-            ThreadItem::UserMessage {
+            Message::UserMessage {
                 id,
                 client_id,
                 content,
@@ -69,7 +69,7 @@ pub(crate) fn thread_to_transcript_cells(
                     remote_image_urls: item.image_urls(),
                 }));
             }
-            ThreadItem::AgentMessage { text, .. } => {
+            Message::AgentMessage { text, .. } => {
                 let parsed = parse_assistant_markdown(text, cwd);
                 if !parsed.visible_markdown.trim().is_empty() {
                     cells.push(Arc::new(AgentMarkdownCell::new(
@@ -78,7 +78,7 @@ pub(crate) fn thread_to_transcript_cells(
                     )));
                 }
             }
-            ThreadItem::Plan { text, .. } => {
+            Message::Plan { text, .. } => {
                 if !text.trim().is_empty() {
                     cells.push(Arc::new(crate::history_cell::new_proposed_plan(
                         text.clone(),
@@ -86,7 +86,7 @@ pub(crate) fn thread_to_transcript_cells(
                     )));
                 }
             }
-            ThreadItem::Reasoning {
+            Message::Reasoning {
                 summary, content, ..
             } => {
                 let text = if matches!(raw_reasoning_visibility, RawReasoningVisibility::Visible)
@@ -120,9 +120,9 @@ pub(crate) fn thread_to_transcript_cells(
     cells
 }
 
-fn fallback_transcript_cell(item: &ThreadItem) -> Option<PlainHistoryCell> {
+fn fallback_transcript_cell(item: &Message) -> Option<PlainHistoryCell> {
     let lines = match item {
-        ThreadItem::HookPrompt { fragments, .. } => fragments
+        Message::HookPrompt { fragments, .. } => fragments
             .iter()
             .map(|fragment| {
                 vec![
@@ -132,7 +132,7 @@ fn fallback_transcript_cell(item: &ThreadItem) -> Option<PlainHistoryCell> {
                 .into()
             })
             .collect::<Vec<_>>(),
-        ThreadItem::CommandExecution {
+        Message::CommandExecution {
             command,
             status,
             aggregated_output,
@@ -162,14 +162,14 @@ fn fallback_transcript_cell(item: &ThreadItem) -> Option<PlainHistoryCell> {
             }
             lines
         }
-        ThreadItem::FileChange {
+        Message::FileChange {
             changes, status, ..
         } => vec![
             format!("file changes: {status:?} · {} changes", changes.len())
                 .dim()
                 .into(),
         ],
-        ThreadItem::McpToolCall {
+        Message::McpToolCall {
             server,
             tool,
             status,
@@ -179,7 +179,7 @@ fn fallback_transcript_cell(item: &ThreadItem) -> Option<PlainHistoryCell> {
                 .dim()
                 .into(),
         ],
-        ThreadItem::DynamicToolCall {
+        Message::DynamicToolCall {
             namespace,
             tool,
             status,
@@ -191,21 +191,21 @@ fn fallback_transcript_cell(item: &ThreadItem) -> Option<PlainHistoryCell> {
                 .unwrap_or_else(|| tool.clone());
             vec![format!("tool: {name} · {status:?}").dim().into()]
         }
-        ThreadItem::CollabAgentToolCall { tool, status, .. } => {
+        Message::CollabAgentToolCall { tool, status, .. } => {
             vec![format!("agent tool: {tool:?} · {status:?}").dim().into()]
         }
-        ThreadItem::SubAgentActivity {
+        Message::SubAgentActivity {
             kind, agent_path, ..
         } => {
             vec![sub_agent_activity_summary(*kind, agent_path).dim().into()]
         }
-        ThreadItem::WebSearch { query, .. } => {
+        Message::WebSearch { query, .. } => {
             vec![vec!["web search: ".dim(), query.clone().into()].into()]
         }
-        ThreadItem::ImageView { path, .. } => {
+        Message::ImageView { path, .. } => {
             vec![format!("image: {}", path.as_path().display()).dim().into()]
         }
-        ThreadItem::ImageGeneration {
+        Message::ImageGeneration {
             status, saved_path, ..
         } => {
             let saved = saved_path
@@ -214,20 +214,20 @@ fn fallback_transcript_cell(item: &ThreadItem) -> Option<PlainHistoryCell> {
                 .unwrap_or_default();
             vec![format!("image generation: {status}{saved}").dim().into()]
         }
-        ThreadItem::EnteredReviewMode { review, .. } => {
+        Message::EnteredReviewMode { review, .. } => {
             vec![vec!["review started: ".dim(), review.clone().into()].into()]
         }
-        ThreadItem::ExitedReviewMode { review, .. } => {
+        Message::ExitedReviewMode { review, .. } => {
             vec![vec!["review finished: ".dim(), review.clone().into()].into()]
         }
-        ThreadItem::ContextCompaction { .. } => {
+        Message::ContextCompaction { .. } => {
             vec!["context compacted".dim().into()]
         }
-        ThreadItem::UserMessage { .. }
-        | ThreadItem::AgentMessage { .. }
-        | ThreadItem::Plan { .. }
-        | ThreadItem::Reasoning { .. }
-        | ThreadItem::Sleep { .. } => return None,
+        Message::UserMessage { .. }
+        | Message::AgentMessage { .. }
+        | Message::Plan { .. }
+        | Message::Reasoning { .. }
+        | Message::Sleep { .. } => return None,
     };
     (!lines.is_empty()).then(|| PlainHistoryCell::new(lines))
 }

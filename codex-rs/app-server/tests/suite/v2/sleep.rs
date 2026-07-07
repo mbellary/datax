@@ -2,16 +2,16 @@ use anyhow::Result;
 use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use core_test_support::responses;
-use datax_app_server_protocol::ItemCompletedNotification;
-use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
 use datax_app_server_protocol::JSONRPCMessage;
 use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::Message;
+use datax_app_server_protocol::MessageCompletedNotification;
+use datax_app_server_protocol::MessageStartedNotification;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use pretty_assertions::assert_eq;
 use std::path::Path;
@@ -54,7 +54,7 @@ async fn sleep_emits_started_and_completed_items() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -64,11 +64,11 @@ async fn sleep_emits_started_and_completed_items() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(thread_start_response)?;
+    let ChatStartResponse { thread, .. } = to_response(thread_start_response)?;
 
     let turn_start_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "Sleep briefly".to_string(),
@@ -82,7 +82,7 @@ async fn sleep_emits_started_and_completed_items() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_start_id)),
     )
     .await??;
-    let TurnStartResponse { turn, .. } = to_response(turn_start_response)?;
+    let InteractionStartResponse { turn, .. } = to_response(turn_start_response)?;
 
     let (started, completed) = timeout(DEFAULT_READ_TIMEOUT, async {
         let mut started = None;
@@ -92,18 +92,19 @@ async fn sleep_emits_started_and_completed_items() -> Result<()> {
                 continue;
             };
             match notification.method.as_str() {
-                "item/started" => {
-                    let payload: ItemStartedNotification =
-                        serde_json::from_value(notification.params.expect("item/started params"))?;
-                    if matches!(&payload.item, ThreadItem::Sleep { .. }) {
+                "message/started" => {
+                    let payload: MessageStartedNotification = serde_json::from_value(
+                        notification.params.expect("message/started params"),
+                    )?;
+                    if matches!(&payload.item, Message::Sleep { .. }) {
                         started = Some(payload);
                     }
                 }
-                "item/completed" => {
-                    let payload: ItemCompletedNotification = serde_json::from_value(
-                        notification.params.expect("item/completed params"),
+                "message/completed" => {
+                    let payload: MessageCompletedNotification = serde_json::from_value(
+                        notification.params.expect("message/completed params"),
                     )?;
-                    if matches!(&payload.item, ThreadItem::Sleep { .. }) {
+                    if matches!(&payload.item, Message::Sleep { .. }) {
                         completed = Some(payload);
                     }
                 }
@@ -118,30 +119,30 @@ async fn sleep_emits_started_and_completed_items() -> Result<()> {
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
-    let expected_item = ThreadItem::Sleep {
+    let expected_item = Message::Sleep {
         id: CALL_ID.to_string(),
         duration_ms: DURATION_MS,
     };
     assert!(completed.completed_at_ms >= started.started_at_ms);
     assert_eq!(
         started,
-        ItemStartedNotification {
+        MessageStartedNotification {
             item: expected_item.clone(),
-            thread_id: thread.id.clone(),
-            turn_id: turn.id.clone(),
+            chat_id: thread.id.clone(),
+            interaction_id: turn.id.clone(),
             started_at_ms: started.started_at_ms,
         }
     );
     assert_eq!(
         completed,
-        ItemCompletedNotification {
+        MessageCompletedNotification {
             item: expected_item,
-            thread_id: thread.id,
-            turn_id: turn.id,
+            chat_id: thread.id,
+            interaction_id: turn.id,
             completed_at_ms: completed.completed_at_ms,
         }
     );

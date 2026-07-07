@@ -1,6 +1,9 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "properties": {
+    "chatId": {
+      "type": "string"
+    },
     "grantRoot": {
       "description": "[UNSTABLE] When set, the agent is asking the user to allow writes under this root for the remainder of the session (unclear if this is honored today).",
       "type": [
@@ -8,7 +11,10 @@
         "null"
       ]
     },
-    "itemId": {
+    "interactionId": {
+      "type": "string"
+    },
+    "messageId": {
       "type": "string"
     },
     "reason": {
@@ -22,19 +28,13 @@
       "description": "Unix timestamp (in milliseconds) when this approval request started.",
       "format": "int64",
       "type": "integer"
-    },
-    "threadId": {
-      "type": "string"
-    },
-    "turnId": {
-      "type": "string"
     }
   },
   "required": [
-    "itemId",
-    "startedAtMs",
-    "threadId",
-    "turnId"
+    "chatId",
+    "interactionId",
+    "messageId",
+    "startedAtMs"
   ],
   "title": "FileChangeRequestApprovalParams",
   "type": "object"

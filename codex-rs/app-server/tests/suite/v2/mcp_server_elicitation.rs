@@ -17,9 +17,16 @@ use axum::routing::get;
 use core_test_support::assert_regex_match;
 use core_test_support::responses;
 use core_test_support::responses::ResponseMock;
+use datax_app_server_protocol::ChatResumeParams;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::ClientInfo;
 use datax_app_server_protocol::InitializeCapabilities;
 use datax_app_server_protocol::InitializeParams;
+use datax_app_server_protocol::InteractionCompletedNotification;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
+use datax_app_server_protocol::InteractionStatus;
 use datax_app_server_protocol::JSONRPCMessage;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::McpElicitationSchema;
@@ -30,13 +37,6 @@ use datax_app_server_protocol::McpServerElicitationRequestResponse;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::ServerRequest;
 use datax_app_server_protocol::ServerRequestResolvedNotification;
-use datax_app_server_protocol::ThreadResumeParams;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnCompletedNotification;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
-use datax_app_server_protocol::TurnStatus;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_config::types::AuthCredentialsStoreMode;
 use pretty_assertions::assert_eq;
@@ -112,8 +112,8 @@ async fn mcp_server_form_elicitation_round_trip() -> Result<()> {
     assert_eq!(
         params,
         McpServerElicitationRequestParams {
-            thread_id: fixture.thread_id.clone(),
-            turn_id: Some(fixture.turn_id.clone()),
+            chat_id: fixture.chat_id.clone(),
+            interaction_id: Some(fixture.interaction_id.clone()),
             server_name: "codex_apps".to_string(),
             request: McpServerElicitationRequest::Form {
                 meta: None,
@@ -136,8 +136,8 @@ async fn mcp_server_openai_form_elicitation_round_trip() -> Result<()> {
     assert_eq!(
         params,
         McpServerElicitationRequestParams {
-            thread_id: fixture.thread_id.clone(),
-            turn_id: Some(fixture.turn_id.clone()),
+            chat_id: fixture.chat_id.clone(),
+            interaction_id: Some(fixture.interaction_id.clone()),
             server_name: "codex_apps".to_string(),
             request: McpServerElicitationRequest::OpenAiForm {
                 meta: None,
@@ -148,7 +148,7 @@ async fn mcp_server_openai_form_elicitation_round_trip() -> Result<()> {
                         "template": {
                             "type": "openai/imagePicker",
                             "title": "Template",
-                            "items": [{
+                            "messages": [{
                                 "id": "monthly-review",
                                 "title": "Monthly review",
                                 "image": IMAGE_DATA_URL,
@@ -194,23 +194,23 @@ async fn openai_form_capability_follows_the_turn_starting_connection() -> Result
 
     send_request(
         &mut supported_client,
-        "thread/start",
+        "chat/start",
         /*id*/ 2,
-        Some(serde_json::to_value(ThreadStartParams {
+        Some(serde_json::to_value(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })?),
     )
     .await?;
-    let ThreadStartResponse { thread, .. } =
+    let ChatStartResponse { thread, .. } =
         to_response(read_response_for_id(&mut supported_client, /*id*/ 2).await?)?;
 
     send_request(
         &mut supported_client,
-        "turn/start",
+        "interaction/start",
         /*id*/ 3,
-        Some(serde_json::to_value(TurnStartParams {
-            thread_id: thread.id.clone(),
+        Some(serde_json::to_value(InteractionStartParams {
+            chat_id: thread.id.clone(),
             input: vec![V2UserInput::Text {
                 text: "Warm up connectors.".to_string(),
                 text_elements: Vec::new(),
@@ -220,13 +220,13 @@ async fn openai_form_capability_follows_the_turn_starting_connection() -> Result
         })?),
     )
     .await?;
-    let _: TurnStartResponse =
+    let _: InteractionStartResponse =
         to_response(read_response_for_id(&mut supported_client, /*id*/ 3).await?)?;
-    let _: TurnCompletedNotification = serde_json::from_value(
-        read_notification_for_method(&mut supported_client, "turn/completed")
+    let _: InteractionCompletedNotification = serde_json::from_value(
+        read_notification_for_method(&mut supported_client, "interaction/completed")
             .await?
             .params
-            .expect("turn/completed params"),
+            .expect("interaction/completed params"),
     )?;
 
     let mut unsupported_client = connect_websocket(bind_addr).await?;
@@ -239,10 +239,10 @@ async fn openai_form_capability_follows_the_turn_starting_connection() -> Result
     .await?;
     send_request(
         &mut unsupported_client,
-        "thread/resume",
+        "chat/resume",
         /*id*/ 5,
-        Some(serde_json::to_value(ThreadResumeParams {
-            thread_id: thread.id.clone(),
+        Some(serde_json::to_value(ChatResumeParams {
+            chat_id: thread.id.clone(),
             ..Default::default()
         })?),
     )
@@ -251,10 +251,10 @@ async fn openai_form_capability_follows_the_turn_starting_connection() -> Result
 
     send_request(
         &mut supported_client,
-        "turn/start",
+        "interaction/start",
         /*id*/ 6,
-        Some(serde_json::to_value(TurnStartParams {
-            thread_id: thread.id.clone(),
+        Some(serde_json::to_value(InteractionStartParams {
+            chat_id: thread.id.clone(),
             input: vec![V2UserInput::Text {
                 text: "Use [$calendar](app://calendar) to run the calendar tool.".to_string(),
                 text_elements: Vec::new(),
@@ -264,7 +264,7 @@ async fn openai_form_capability_follows_the_turn_starting_connection() -> Result
         })?),
     )
     .await?;
-    let TurnStartResponse { turn } =
+    let InteractionStartResponse { turn } =
         to_response(read_response_for_id(&mut supported_client, /*id*/ 6).await?)?;
 
     let (request_id, params) = loop {
@@ -289,7 +289,7 @@ async fn openai_form_capability_follows_the_turn_starting_connection() -> Result
                     "template": {
                         "type": "openai/imagePicker",
                         "title": "Template",
-                        "items": [{
+                        "messages": [{
                             "id": "monthly-review",
                             "title": "Monthly review",
                             "image": IMAGE_DATA_URL,
@@ -313,15 +313,15 @@ async fn openai_form_capability_follows_the_turn_starting_connection() -> Result
     )
     .await?;
 
-    let completed: TurnCompletedNotification = serde_json::from_value(
-        read_notification_for_method(&mut supported_client, "turn/completed")
+    let completed: InteractionCompletedNotification = serde_json::from_value(
+        read_notification_for_method(&mut supported_client, "interaction/completed")
             .await?
             .params
-            .expect("turn/completed params"),
+            .expect("interaction/completed params"),
     )?;
-    assert_eq!(completed.thread_id, thread.id);
+    assert_eq!(completed.chat_id, thread.id);
     assert_eq!(completed.turn.id, turn.id);
-    assert_eq!(completed.turn.status, TurnStatus::Completed);
+    assert_eq!(completed.turn.status, InteractionStatus::Completed);
     assert_eq!(response_mock.requests().len(), 3);
 
     process.kill().await?;
@@ -402,8 +402,8 @@ struct ElicitationRoundTripFixture {
     mcp: TestAppServer,
     response_mock: ResponseMock,
     _responses_server: wiremock::MockServer,
-    thread_id: String,
-    turn_id: String,
+    chat_id: String,
+    interaction_id: String,
     apps_server_handle: JoinHandle<()>,
 }
 
@@ -441,7 +441,7 @@ impl ElicitationRoundTripFixture {
         .await??;
 
         let thread_start_id = mcp
-            .send_thread_start_request(ThreadStartParams {
+            .send_chat_start_request(ChatStartParams {
                 model: Some("mock-model".to_string()),
                 ..Default::default()
             })
@@ -451,11 +451,11 @@ impl ElicitationRoundTripFixture {
             mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
         )
         .await??;
-        let ThreadStartResponse { thread, .. } = to_response(thread_start_resp)?;
+        let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
 
         let warmup_turn_start_id = mcp
-            .send_turn_start_request(TurnStartParams {
-                thread_id: thread.id.clone(),
+            .send_interaction_start_request(InteractionStartParams {
+                chat_id: thread.id.clone(),
                 client_user_message_id: None,
                 input: vec![V2UserInput::Text {
                     text: "Warm up connectors.".to_string(),
@@ -470,24 +470,24 @@ impl ElicitationRoundTripFixture {
             mcp.read_stream_until_response_message(RequestId::Integer(warmup_turn_start_id)),
         )
         .await??;
-        let _: TurnStartResponse = to_response(warmup_turn_start_resp)?;
+        let _: InteractionStartResponse = to_response(warmup_turn_start_resp)?;
         let warmup_completed = timeout(
             DEFAULT_READ_TIMEOUT,
-            mcp.read_stream_until_notification_message("turn/completed"),
+            mcp.read_stream_until_notification_message("interaction/completed"),
         )
         .await??;
-        let warmup_completed: TurnCompletedNotification = serde_json::from_value(
+        let warmup_completed: InteractionCompletedNotification = serde_json::from_value(
             warmup_completed
                 .params
                 .clone()
-                .expect("warmup turn/completed params"),
+                .expect("warmup interaction/completed params"),
         )?;
-        assert_eq!(warmup_completed.thread_id, thread.id);
-        assert_eq!(warmup_completed.turn.status, TurnStatus::Completed);
+        assert_eq!(warmup_completed.chat_id, thread.id);
+        assert_eq!(warmup_completed.turn.status, InteractionStatus::Completed);
 
         let turn_start_id = mcp
-            .send_turn_start_request(TurnStartParams {
-                thread_id: thread.id.clone(),
+            .send_interaction_start_request(InteractionStartParams {
+                chat_id: thread.id.clone(),
                 client_user_message_id: None,
                 input: vec![V2UserInput::Text {
                     text: "Use [$calendar](app://calendar) to run the calendar tool.".to_string(),
@@ -502,14 +502,14 @@ impl ElicitationRoundTripFixture {
             mcp.read_stream_until_response_message(RequestId::Integer(turn_start_id)),
         )
         .await??;
-        let TurnStartResponse { turn } = to_response(turn_start_resp)?;
+        let InteractionStartResponse { turn } = to_response(turn_start_resp)?;
 
         Ok(Self {
             mcp,
             response_mock,
             _responses_server: responses_server,
-            thread_id: thread.id,
-            turn_id: turn.id,
+            chat_id: thread.id,
+            interaction_id: turn.id,
             apps_server_handle,
         })
     }
@@ -554,21 +554,24 @@ impl ElicitationRoundTripFixture {
                             .clone()
                             .expect("serverRequest/resolved params"),
                     )?;
-                    assert_eq!(notification.thread_id, self.thread_id);
+                    assert_eq!(notification.chat_id, self.chat_id);
                     assert_eq!(notification.request_id, request_id);
                     resolved = true;
                 }
-                "turn/completed" => {
-                    let notification: TurnCompletedNotification = serde_json::from_value(
-                        notification.params.clone().expect("turn/completed params"),
+                "interaction/completed" => {
+                    let notification: InteractionCompletedNotification = serde_json::from_value(
+                        notification
+                            .params
+                            .clone()
+                            .expect("interaction/completed params"),
                     )?;
                     assert!(
                         resolved,
                         "server request should resolve before turn completion"
                     );
-                    assert_eq!(notification.thread_id, self.thread_id);
-                    assert_eq!(notification.turn.id, self.turn_id);
-                    assert_eq!(notification.turn.status, TurnStatus::Completed);
+                    assert_eq!(notification.chat_id, self.chat_id);
+                    assert_eq!(notification.turn.id, self.interaction_id);
+                    assert_eq!(notification.turn.status, InteractionStatus::Completed);
                     break;
                 }
                 _ => {}
@@ -724,7 +727,7 @@ impl ServerHandler for ElicitationAppsMcpServer {
                                     "template": {
                                         "type": "openai/imagePicker",
                                         "title": "Template",
-                                        "items": [{
+                                        "messages": [{
                                             "id": "monthly-review",
                                             "title": "Monthly review",
                                             "image": IMAGE_DATA_URL,

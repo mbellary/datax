@@ -3,16 +3,16 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 
+use datax_app_server_protocol::ChatTokenUsage;
 use datax_app_server_protocol::CollabAgentTool;
 use datax_app_server_protocol::CollabAgentToolCallStatus;
 use datax_app_server_protocol::CommandExecutionStatus;
+use datax_app_server_protocol::InteractionStatus;
 use datax_app_server_protocol::McpToolCallStatus;
+use datax_app_server_protocol::Message;
 use datax_app_server_protocol::PatchApplyStatus;
 use datax_app_server_protocol::PatchChangeKind;
 use datax_app_server_protocol::ServerNotification;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadTokenUsage;
-use datax_app_server_protocol::TurnStatus;
 use datax_core::config::Config;
 use datax_protocol::models::WebSearchAction;
 use datax_protocol::protocol::SessionConfiguredEvent;
@@ -39,12 +39,12 @@ use crate::exec_events::McpToolCallItem;
 use crate::exec_events::McpToolCallItemError;
 use crate::exec_events::McpToolCallItemResult;
 use crate::exec_events::McpToolCallStatus as ExecMcpToolCallStatus;
+use crate::exec_events::Message as ExecThreadItem;
 use crate::exec_events::PatchApplyStatus as ExecPatchApplyStatus;
 use crate::exec_events::PatchChangeKind as ExecPatchChangeKind;
 use crate::exec_events::ReasoningItem;
 use crate::exec_events::ThreadErrorEvent;
 use crate::exec_events::ThreadEvent;
-use crate::exec_events::ThreadItem as ExecThreadItem;
 use crate::exec_events::ThreadItemDetails;
 use crate::exec_events::ThreadStartedEvent;
 use crate::exec_events::TodoItem;
@@ -60,7 +60,7 @@ pub struct EventProcessorWithJsonOutput {
     next_item_id: AtomicU64,
     raw_to_exec_item_id: HashMap<String, String>,
     running_todo_list: Option<RunningTodoList>,
-    last_total_token_usage: Option<ThreadTokenUsage>,
+    last_total_token_usage: Option<ChatTokenUsage>,
     last_critical_error: Option<ThreadErrorEvent>,
     final_message: Option<String>,
     emit_final_message_on_shutdown: bool,
@@ -126,28 +126,27 @@ impl EventProcessorWithJsonOutput {
         }
     }
 
-    pub fn map_todo_items(plan: &[datax_app_server_protocol::TurnPlanStep]) -> Vec<TodoItem> {
+    pub fn map_todo_items(
+        plan: &[datax_app_server_protocol::InteractionPlanStep],
+    ) -> Vec<TodoItem> {
         plan.iter()
             .map(|step| TodoItem {
                 text: step.step.clone(),
                 completed: matches!(
                     step.status,
-                    datax_app_server_protocol::TurnPlanStepStatus::Completed
+                    datax_app_server_protocol::InteractionPlanStepStatus::Completed
                 ),
             })
             .collect()
     }
 
-    fn map_item_with_id(
-        item: ThreadItem,
-        make_id: impl FnOnce() -> String,
-    ) -> Option<ExecThreadItem> {
+    fn map_item_with_id(item: Message, make_id: impl FnOnce() -> String) -> Option<ExecThreadItem> {
         match item {
-            ThreadItem::AgentMessage { text, .. } => Some(ExecThreadItem {
+            Message::AgentMessage { text, .. } => Some(ExecThreadItem {
                 id: make_id(),
                 details: ThreadItemDetails::AgentMessage(AgentMessageItem { text }),
             }),
-            ThreadItem::Reasoning { summary, .. } => {
+            Message::Reasoning { summary, .. } => {
                 let text = summary.join("\n");
                 if text.trim().is_empty() {
                     return None;
@@ -157,7 +156,7 @@ impl EventProcessorWithJsonOutput {
                     details: ThreadItemDetails::Reasoning(ReasoningItem { text }),
                 })
             }
-            ThreadItem::CommandExecution {
+            Message::CommandExecution {
                 command,
                 aggregated_output,
                 exit_code,
@@ -177,7 +176,7 @@ impl EventProcessorWithJsonOutput {
                     },
                 }),
             }),
-            ThreadItem::FileChange {
+            Message::FileChange {
                 changes, status, ..
             } => Some(ExecThreadItem {
                 id: make_id(),
@@ -202,7 +201,7 @@ impl EventProcessorWithJsonOutput {
                     },
                 }),
             }),
-            ThreadItem::McpToolCall {
+            Message::McpToolCall {
                 server,
                 tool,
                 status,
@@ -231,7 +230,7 @@ impl EventProcessorWithJsonOutput {
                     }),
                 }),
             }),
-            ThreadItem::CollabAgentToolCall {
+            Message::CollabAgentToolCall {
                 tool,
                 sender_thread_id,
                 receiver_thread_ids,
@@ -293,7 +292,7 @@ impl EventProcessorWithJsonOutput {
                     },
                 }),
             }),
-            ThreadItem::WebSearch {
+            Message::WebSearch {
                 id: raw_id,
                 query,
                 action,
@@ -331,9 +330,9 @@ impl EventProcessorWithJsonOutput {
             .unwrap_or_else(|| self.next_item_id())
     }
 
-    fn map_started_item(&mut self, item: ThreadItem) -> Option<ExecThreadItem> {
+    fn map_started_item(&mut self, item: Message) -> Option<ExecThreadItem> {
         match item {
-            ThreadItem::AgentMessage { .. } | ThreadItem::Reasoning { .. } => None,
+            Message::AgentMessage { .. } | Message::Reasoning { .. } => None,
             other => {
                 let raw_id = other.id().to_string();
                 Self::map_item_with_id(other, || self.started_item_id(&raw_id))
@@ -341,14 +340,14 @@ impl EventProcessorWithJsonOutput {
         }
     }
 
-    fn map_completed_item_mut(&mut self, item: ThreadItem) -> Option<ExecThreadItem> {
-        if let ThreadItem::Reasoning { summary, .. } = &item
+    fn map_completed_item_mut(&mut self, item: Message) -> Option<ExecThreadItem> {
+        if let Message::Reasoning { summary, .. } = &item
             && summary.join("\n").trim().is_empty()
         {
             return None;
         }
         match &item {
-            ThreadItem::AgentMessage { .. } | ThreadItem::Reasoning { .. } => {
+            Message::AgentMessage { .. } | Message::Reasoning { .. } => {
                 Self::map_item_with_id(item, || self.next_item_id())
             }
             other => {
@@ -358,10 +357,7 @@ impl EventProcessorWithJsonOutput {
         }
     }
 
-    fn reconcile_unfinished_started_items(
-        &mut self,
-        turn_items: &[ThreadItem],
-    ) -> Vec<ThreadEvent> {
+    fn reconcile_unfinished_started_items(&mut self, turn_items: &[Message]) -> Vec<ThreadEvent> {
         turn_items
             .iter()
             .filter_map(|item| {
@@ -375,17 +371,17 @@ impl EventProcessorWithJsonOutput {
             .collect()
     }
 
-    fn final_message_from_turn_items(items: &[ThreadItem]) -> Option<String> {
+    fn final_message_from_turn_items(items: &[Message]) -> Option<String> {
         items
             .iter()
             .rev()
             .find_map(|item| match item {
-                ThreadItem::AgentMessage { text, .. } => Some(text.clone()),
+                Message::AgentMessage { text, .. } => Some(text.clone()),
                 _ => None,
             })
             .or_else(|| {
                 items.iter().rev().find_map(|item| match item {
-                    ThreadItem::Plan { text, .. } => Some(text.clone()),
+                    Message::Plan { text, .. } => Some(text.clone()),
                     _ => None,
                 })
             })
@@ -465,13 +461,13 @@ impl EventProcessorWithJsonOutput {
             ServerNotification::HookStarted(_) | ServerNotification::HookCompleted(_) => {
                 CodexStatus::Running
             }
-            ServerNotification::ItemStarted(notification) => {
+            ServerNotification::MessageStarted(notification) => {
                 if let Some(item) = self.map_started_item(notification.item) {
                     events.push(ThreadEvent::ItemStarted(ItemStartedEvent { item }));
                 }
                 CodexStatus::Running
             }
-            ServerNotification::ItemCompleted(notification) => {
+            ServerNotification::MessageCompleted(notification) => {
                 if let Some(item) = self.map_completed_item_mut(notification.item) {
                     if let ThreadItemDetails::AgentMessage(AgentMessageItem { text }) =
                         &item.details
@@ -497,11 +493,11 @@ impl EventProcessorWithJsonOutput {
                 CodexStatus::Running
             }
             ServerNotification::ModelVerification(_) => CodexStatus::Running,
-            ServerNotification::ThreadTokenUsageUpdated(notification) => {
+            ServerNotification::ChatTokenUsageUpdated(notification) => {
                 self.last_total_token_usage = Some(notification.token_usage);
                 CodexStatus::Running
             }
-            ServerNotification::TurnCompleted(notification) => {
+            ServerNotification::InteractionCompleted(notification) => {
                 if let Some(running) = self.running_todo_list.take() {
                     events.push(ThreadEvent::ItemCompleted(ItemCompletedEvent {
                         item: ExecThreadItem {
@@ -514,7 +510,7 @@ impl EventProcessorWithJsonOutput {
                 }
                 events.extend(self.reconcile_unfinished_started_items(&notification.turn.items));
                 match notification.turn.status {
-                    TurnStatus::Completed => {
+                    InteractionStatus::Completed => {
                         if let Some(final_message) =
                             Self::final_message_from_turn_items(notification.turn.items.as_slice())
                         {
@@ -526,7 +522,7 @@ impl EventProcessorWithJsonOutput {
                         }));
                         CodexStatus::InitiateShutdown
                     }
-                    TurnStatus::Failed => {
+                    InteractionStatus::Failed => {
                         self.final_message = None;
                         self.emit_final_message_on_shutdown = false;
                         let error = notification
@@ -547,16 +543,16 @@ impl EventProcessorWithJsonOutput {
                         events.push(ThreadEvent::TurnFailed(TurnFailedEvent { error }));
                         CodexStatus::InitiateShutdown
                     }
-                    TurnStatus::Interrupted => {
+                    InteractionStatus::Interrupted => {
                         self.final_message = None;
                         self.emit_final_message_on_shutdown = false;
                         CodexStatus::InitiateShutdown
                     }
-                    TurnStatus::InProgress => CodexStatus::Running,
+                    InteractionStatus::InProgress => CodexStatus::Running,
                 }
             }
-            ServerNotification::TurnDiffUpdated(_) => CodexStatus::Running,
-            ServerNotification::TurnPlanUpdated(notification) => {
+            ServerNotification::InteractionDiffUpdated(_) => CodexStatus::Running,
+            ServerNotification::InteractionPlanUpdated(notification) => {
                 let items = Self::map_todo_items(&notification.plan);
                 if let Some(running) = self.running_todo_list.as_mut() {
                     running.items = items.clone();
@@ -582,7 +578,7 @@ impl EventProcessorWithJsonOutput {
                 }
                 CodexStatus::Running
             }
-            ServerNotification::TurnStarted(_) => {
+            ServerNotification::InteractionStarted(_) => {
                 events.push(ThreadEvent::TurnStarted(TurnStartedEvent {}));
                 CodexStatus::Running
             }

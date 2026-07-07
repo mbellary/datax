@@ -385,15 +385,15 @@ pub(super) fn handle_token_count(chat: &mut ChatWidget, info: Option<TokenUsageI
     match info {
         Some(info) => {
             chat.handle_server_notification(
-                ServerNotification::ThreadTokenUsageUpdated(
-                    datax_app_server_protocol::ThreadTokenUsageUpdatedNotification {
+                ServerNotification::ChatTokenUsageUpdated(
+                    datax_app_server_protocol::ChatTokenUsageUpdatedNotification {
                         thread_id: thread_id(chat),
                         turn_id: chat
                             .turn_lifecycle
                             .last_turn_id
                             .clone()
                             .unwrap_or_else(|| "turn-1".to_string()),
-                        token_usage: datax_app_server_protocol::ThreadTokenUsage {
+                        token_usage: datax_app_server_protocol::ChatTokenUsage {
                             total: token_usage_breakdown(info.total_token_usage),
                             last: token_usage_breakdown(info.last_token_usage),
                             model_context_window: info.model_context_window,
@@ -529,7 +529,7 @@ pub(super) fn handle_agent_reasoning_delta(chat: &mut ChatWidget, delta: impl In
 
 pub(super) fn handle_agent_reasoning_final(chat: &mut ChatWidget) {
     chat.handle_server_notification(
-        ServerNotification::ItemCompleted(ItemCompletedNotification {
+        ServerNotification::MessageCompleted(MessageCompletedNotification {
             thread_id: thread_id(chat),
             turn_id: chat
                 .turn_lifecycle
@@ -549,7 +549,7 @@ pub(super) fn handle_agent_reasoning_final(chat: &mut ChatWidget) {
 
 pub(super) fn handle_entered_review_mode(chat: &mut ChatWidget, review: impl Into<String>) {
     chat.handle_server_notification(
-        ServerNotification::ItemStarted(ItemStartedNotification {
+        ServerNotification::MessageStarted(MessageStartedNotification {
             thread_id: thread_id(chat),
             turn_id: chat
                 .turn_lifecycle
@@ -579,7 +579,7 @@ pub(super) fn replay_entered_review_mode(chat: &mut ChatWidget, review: impl Int
 
 pub(super) fn handle_exited_review_mode(chat: &mut ChatWidget) {
     chat.handle_server_notification(
-        ServerNotification::ItemCompleted(ItemCompletedNotification {
+        ServerNotification::MessageCompleted(MessageCompletedNotification {
             thread_id: thread_id(chat),
             turn_id: chat
                 .turn_lifecycle
@@ -640,7 +640,7 @@ pub(super) fn handle_patch_apply_begin(
     changes: HashMap<PathBuf, FileChange>,
 ) {
     chat.handle_server_notification(
-        ServerNotification::ItemStarted(ItemStartedNotification {
+        ServerNotification::MessageStarted(MessageStartedNotification {
             thread_id: thread_id(chat),
             turn_id: turn_id.into(),
             started_at_ms: 0,
@@ -662,7 +662,7 @@ pub(super) fn handle_patch_apply_end(
     status: AppServerPatchApplyStatus,
 ) {
     chat.handle_server_notification(
-        ServerNotification::ItemCompleted(ItemCompletedNotification {
+        ServerNotification::MessageCompleted(MessageCompletedNotification {
             thread_id: thread_id(chat),
             turn_id: turn_id.into(),
             completed_at_ms: 0,
@@ -682,7 +682,7 @@ pub(super) fn handle_view_image_tool_call(
     path: AbsolutePathBuf,
 ) {
     chat.handle_server_notification(
-        ServerNotification::ItemCompleted(ItemCompletedNotification {
+        ServerNotification::MessageCompleted(MessageCompletedNotification {
             thread_id: thread_id(chat),
             turn_id: "turn-1".to_string(),
             completed_at_ms: 0,
@@ -703,7 +703,7 @@ pub(super) fn handle_image_generation_end(
     saved_path: Option<AbsolutePathBuf>,
 ) {
     chat.handle_server_notification(
-        ServerNotification::ItemCompleted(ItemCompletedNotification {
+        ServerNotification::MessageCompleted(MessageCompletedNotification {
             thread_id: thread_id(chat),
             turn_id: "turn-1".to_string(),
             completed_at_ms: 0,
@@ -773,7 +773,7 @@ pub(super) fn replay_agent_message(
 
 pub(super) fn replay_turn_started(chat: &mut ChatWidget, replay_kind: ReplayKind) {
     chat.handle_server_notification(
-        ServerNotification::TurnStarted(TurnStartedNotification {
+        ServerNotification::InteractionStarted(InteractionStartedNotification {
             thread_id: thread_id(chat),
             turn: app_server_turn(
                 "turn-1",
@@ -859,7 +859,7 @@ pub(super) fn begin_unified_exec_startup(
 
 pub(super) fn handle_exec_begin(chat: &mut ChatWidget, item: AppServerThreadItem) {
     chat.handle_server_notification(
-        ServerNotification::ItemStarted(ItemStartedNotification {
+        ServerNotification::MessageStarted(MessageStartedNotification {
             thread_id: thread_id(chat),
             turn_id: chat
                 .turn_lifecycle
@@ -904,7 +904,7 @@ pub(super) fn complete_assistant_message(
     phase: Option<MessagePhase>,
 ) {
     chat.handle_server_notification(
-        ServerNotification::ItemCompleted(ItemCompletedNotification {
+        ServerNotification::MessageCompleted(MessageCompletedNotification {
             thread_id: chat.thread_id.map(|id| id.to_string()).unwrap_or_default(),
             turn_id: "turn-1".to_string(),
             completed_at_ms: 0,
@@ -947,7 +947,7 @@ pub(super) fn complete_user_message_for_inputs(
     content: Vec<UserInput>,
 ) {
     chat.handle_server_notification(
-        ServerNotification::ItemCompleted(ItemCompletedNotification {
+        ServerNotification::MessageCompleted(MessageCompletedNotification {
             thread_id: chat.thread_id.map(|id| id.to_string()).unwrap_or_default(),
             turn_id: "turn-1".to_string(),
             completed_at_ms: 0,
@@ -969,7 +969,7 @@ pub(super) fn app_server_turn(
 ) -> AppServerTurn {
     AppServerTurn {
         id: turn_id.to_string(),
-        items_view: datax_app_server_protocol::TurnItemsView::Full,
+        items_view: datax_app_server_protocol::InteractionMessagesView::Full,
         items: Vec::new(),
         status,
         error,
@@ -981,7 +981,7 @@ pub(super) fn app_server_turn(
 
 pub(super) fn handle_turn_started(chat: &mut ChatWidget, turn_id: &str) {
     chat.handle_server_notification(
-        ServerNotification::TurnStarted(TurnStartedNotification {
+        ServerNotification::InteractionStarted(InteractionStartedNotification {
             thread_id: chat.thread_id.map(|id| id.to_string()).unwrap_or_default(),
             turn: app_server_turn(
                 turn_id,
@@ -1000,7 +1000,7 @@ pub(super) fn handle_turn_completed(
     duration_ms: Option<i64>,
 ) {
     chat.handle_server_notification(
-        ServerNotification::TurnCompleted(TurnCompletedNotification {
+        ServerNotification::InteractionCompleted(InteractionCompletedNotification {
             thread_id: chat.thread_id.map(|id| id.to_string()).unwrap_or_default(),
             turn: app_server_turn(
                 turn_id,
@@ -1015,7 +1015,7 @@ pub(super) fn handle_turn_completed(
 
 pub(super) fn handle_turn_interrupted(chat: &mut ChatWidget, turn_id: &str) {
     chat.handle_server_notification(
-        ServerNotification::TurnCompleted(TurnCompletedNotification {
+        ServerNotification::InteractionCompleted(InteractionCompletedNotification {
             thread_id: chat.thread_id.map(|id| id.to_string()).unwrap_or_default(),
             turn: app_server_turn(
                 turn_id,
@@ -1088,7 +1088,7 @@ pub(super) fn end_exec(
 
 pub(super) fn handle_exec_end(chat: &mut ChatWidget, item: AppServerThreadItem) {
     chat.handle_server_notification(
-        ServerNotification::ItemCompleted(ItemCompletedNotification {
+        ServerNotification::MessageCompleted(MessageCompletedNotification {
             thread_id: thread_id(chat),
             turn_id: chat
                 .turn_lifecycle
@@ -1586,7 +1586,7 @@ pub(super) fn hook_run(
         event_name,
         handler_type: datax_app_server_protocol::HookHandlerType::Command,
         execution_mode: datax_app_server_protocol::HookExecutionMode::Sync,
-        scope: datax_app_server_protocol::HookScope::Turn,
+        scope: datax_app_server_protocol::HookScope::Interaction,
         source_path: PathBuf::from(test_path_display("/tmp/hooks.json")).abs(),
         source: datax_app_server_protocol::HookSource::User,
         display_order: 0,

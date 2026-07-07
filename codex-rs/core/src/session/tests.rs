@@ -366,8 +366,8 @@ async fn request_mcp_server_elicitation_auto_accepts_when_auto_deny_is_enabled()
             turn_context.as_ref(),
             RequestId::String("request-1".into()),
             McpServerElicitationRequestParams {
-                thread_id: session.thread_id.to_string(),
-                turn_id: Some(turn_context.sub_id.clone()),
+                chat_id: session.thread_id.to_string(),
+                interaction_id: Some(turn_context.sub_id.clone()),
                 server_name: "codex_apps".to_string(),
                 request: McpServerElicitationRequest::Form {
                     meta: None,
@@ -2762,7 +2762,7 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
     let request = first_forked_request.single_request();
     let snapshot = context_snapshot::format_labeled_requests_snapshot(
         "First request after fork when startup preserves the parent baseline, the fork changes approval policy, and the first forked turn enters plan mode.",
-        &[("First Forked Turn Request", &request)],
+        &[("First Forked Interaction Request", &request)],
         &ContextSnapshotOptions::default()
             .render_mode(ContextSnapshotRenderMode::KindWithTextPrefix { max_chars: 96 })
             .strip_capability_instructions()
@@ -3824,9 +3824,9 @@ async fn attach_thread_persistence(session: &mut Session) -> PathBuf {
                 cwd: Some(config.cwd.to_path_buf()),
                 model_provider: config.model_provider_id.clone(),
                 memory_mode: if config.memories.generate_memories {
-                    ThreadMemoryMode::Enabled
+                    datax_protocol::protocol::ThreadMemoryMode::Enabled
                 } else {
-                    ThreadMemoryMode::Disabled
+                    datax_protocol::protocol::ThreadMemoryMode::Disabled
                 },
             },
         },
@@ -6303,7 +6303,7 @@ fn op_kind_for_input_and_context_ops() {
         "user_input"
     );
     assert_eq!(
-        Op::ThreadSettings {
+        Op::ChatSettings {
             thread_settings: ThreadSettingsOverrides::default(),
         }
         .kind(),
@@ -6668,9 +6668,9 @@ async fn shutdown_complete_does_not_append_to_thread_store_after_shutdown() {
                 cwd: Some(config.cwd.to_path_buf()),
                 model_provider: config.model_provider_id.clone(),
                 memory_mode: if config.memories.generate_memories {
-                    ThreadMemoryMode::Enabled
+                    datax_protocol::protocol::ThreadMemoryMode::Enabled
                 } else {
-                    ThreadMemoryMode::Disabled
+                    datax_protocol::protocol::ThreadMemoryMode::Disabled
                 },
             },
         },

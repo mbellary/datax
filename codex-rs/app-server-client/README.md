@@ -20,7 +20,7 @@ This crate centralizes startup and lifecycle management for an in-process
 Callers pass both the app-server `SessionSource` and the initialize
 `client_info.name` explicitly when starting the facade.
 
-That keeps thread metadata (for example in `thread/list` and `thread/read`)
+That keeps thread metadata (for example in `chat/list` and `chat/read`)
 aligned with the originating runtime without baking TUI/exec-specific policy
 into the shared client layer.
 
@@ -47,7 +47,7 @@ boundary, not to introduce a second response contract.
 The client facade starts an already-initialized in-process runtime, but
 thread bootstrap still follows normal app-server flow:
 
-- caller sends `thread/start` or `thread/resume`
+- caller sends `chat/start` or `chat/resume`
 - app-server returns the immediate typed response
 - richer session metadata may arrive later as a `SessionConfigured`
   legacy event

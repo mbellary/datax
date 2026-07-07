@@ -475,8 +475,8 @@ async fn queued_bare_rename_drains_next_input_after_name_update() {
     );
 
     chat.handle_server_notification(
-        ServerNotification::ThreadNameUpdated(
-            datax_app_server_protocol::ThreadNameUpdatedNotification {
+        ServerNotification::ChatNameUpdated(
+            datax_app_server_protocol::ChatNameUpdatedNotification {
                 thread_id: thread_id.to_string(),
                 thread_name: Some("Queued rename".to_string()),
             },
@@ -549,8 +549,8 @@ async fn queued_inline_rename_does_not_drain_again_before_turn_started() {
     );
 
     chat.handle_server_notification(
-        ServerNotification::ThreadNameUpdated(
-            datax_app_server_protocol::ThreadNameUpdatedNotification {
+        ServerNotification::ChatNameUpdated(
+            datax_app_server_protocol::ChatNameUpdatedNotification {
                 thread_id: thread_id.to_string(),
                 thread_name: Some("Queued rename".to_string()),
             },
@@ -1702,7 +1702,7 @@ async fn slash_copy_state_tracks_plan_item_completion() {
     let plan_text = "## Plan\n\n1. Build it\n2. Test it".to_string();
 
     chat.handle_server_notification(
-        ServerNotification::ItemCompleted(ItemCompletedNotification {
+        ServerNotification::MessageCompleted(MessageCompletedNotification {
             thread_id: String::new(),
             turn_id: "turn-1".to_string(),
             completed_at_ms: 0,
@@ -2001,14 +2001,14 @@ async fn active_goal_without_follow_up_suppresses_agent_turn_complete_notificati
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Goals, /*enabled*/ true);
     chat.handle_server_notification(
-        ServerNotification::ThreadGoalUpdated(
-            datax_app_server_protocol::ThreadGoalUpdatedNotification {
+        ServerNotification::ChatGoalUpdated(
+            datax_app_server_protocol::ChatGoalUpdatedNotification {
                 thread_id: "thread-1".to_string(),
                 turn_id: None,
-                goal: datax_app_server_protocol::ThreadGoal {
+                goal: datax_app_server_protocol::ChatGoal {
                     thread_id: "thread-1".to_string(),
                     objective: "finish the benchmark".to_string(),
-                    status: datax_app_server_protocol::ThreadGoalStatus::Active,
+                    status: datax_app_server_protocol::ChatGoalStatus::Active,
                     token_budget: None,
                     tokens_used: 0,
                     time_used_seconds: 0,

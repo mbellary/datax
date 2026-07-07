@@ -1,14 +1,14 @@
-//! Shared builders for app-server [`ThreadItem`] values derived from compatibility events.
+//! Shared builders for app-server [`Message`] values derived from compatibility events.
 //!
-//! Most live tool items now come from first-class core `ItemStarted` / `ItemCompleted` events.
+//! Most live tool messages now come from first-class core `ItemStarted` / `ItemCompleted` events.
 //! These builders remain for approval flows, rebuilt legacy history, and other pre-execution
 //! paths where the underlying tool has not started or never starts at all.
 //!
 //! Keeping these builders in one place is useful for two reasons:
-//! - Live notifications and rebuilt `thread/read` history both need to construct the same
-//!   synthetic items, so sharing the logic avoids drift between those paths.
+//! - Live notifications and rebuilt `chat/read` history both need to construct the same
+//!   synthetic messages, so sharing the logic avoids drift between those paths.
 //! - The projection is presentation-specific. Core protocol events stay generic, while the
-//!   app-server protocol decides how to surface those events as `ThreadItem`s for clients.
+//!   app-server protocol decides how to surface those events as `Message`s for clients.
 use crate::protocol::common::ServerNotification;
 use crate::protocol::v2::AutoReviewDecisionSource;
 use crate::protocol::v2::CommandAction;
@@ -17,11 +17,11 @@ use crate::protocol::v2::CommandExecutionStatus;
 use crate::protocol::v2::FileUpdateChange;
 use crate::protocol::v2::GuardianApprovalReview;
 use crate::protocol::v2::GuardianApprovalReviewStatus;
-use crate::protocol::v2::ItemGuardianApprovalReviewCompletedNotification;
-use crate::protocol::v2::ItemGuardianApprovalReviewStartedNotification;
+use crate::protocol::v2::Message;
+use crate::protocol::v2::MessageGuardianApprovalReviewCompletedNotification;
+use crate::protocol::v2::MessageGuardianApprovalReviewStartedNotification;
 use crate::protocol::v2::PatchApplyStatus;
 use crate::protocol::v2::PatchChangeKind;
-use crate::protocol::v2::ThreadItem;
 use datax_protocol::ThreadId;
 use datax_protocol::parse_command::ParsedCommand;
 use datax_protocol::protocol::ApplyPatchApprovalRequestEvent;
@@ -43,24 +43,24 @@ use tracing::warn;
 
 pub fn build_file_change_approval_request_item(
     payload: &ApplyPatchApprovalRequestEvent,
-) -> ThreadItem {
-    ThreadItem::FileChange {
+) -> Message {
+    Message::FileChange {
         id: payload.call_id.clone(),
         changes: convert_patch_changes(&payload.changes),
         status: PatchApplyStatus::InProgress,
     }
 }
 
-pub fn build_file_change_begin_item(payload: &PatchApplyBeginEvent) -> ThreadItem {
-    ThreadItem::FileChange {
+pub fn build_file_change_begin_item(payload: &PatchApplyBeginEvent) -> Message {
+    Message::FileChange {
         id: payload.call_id.clone(),
         changes: convert_patch_changes(&payload.changes),
         status: PatchApplyStatus::InProgress,
     }
 }
 
-pub fn build_file_change_end_item(payload: &PatchApplyEndEvent) -> ThreadItem {
-    ThreadItem::FileChange {
+pub fn build_file_change_end_item(payload: &PatchApplyEndEvent) -> Message {
+    Message::FileChange {
         id: payload.call_id.clone(),
         changes: convert_patch_changes(&payload.changes),
         status: (&payload.status).into(),
@@ -69,8 +69,8 @@ pub fn build_file_change_end_item(payload: &PatchApplyEndEvent) -> ThreadItem {
 
 pub fn build_command_execution_approval_request_item(
     payload: &ExecApprovalRequestEvent,
-) -> ThreadItem {
-    ThreadItem::CommandExecution {
+) -> Message {
+    Message::CommandExecution {
         id: payload.call_id.clone(),
         command: shlex_join(&payload.command),
         cwd: payload.cwd.clone().into(),
@@ -89,9 +89,9 @@ pub fn build_command_execution_approval_request_item(
     }
 }
 
-pub fn build_command_execution_begin_item(payload: &ExecCommandBeginEvent) -> ThreadItem {
+pub fn build_command_execution_begin_item(payload: &ExecCommandBeginEvent) -> Message {
     let command_actions = command_actions_for_path_uri(&payload.parsed_cmd, &payload.cwd);
-    ThreadItem::CommandExecution {
+    Message::CommandExecution {
         id: payload.call_id.clone(),
         command: shlex_join(&payload.command),
         cwd: payload.cwd.clone().into(),
@@ -105,7 +105,7 @@ pub fn build_command_execution_begin_item(payload: &ExecCommandBeginEvent) -> Th
     }
 }
 
-pub fn build_command_execution_end_item(payload: &ExecCommandEndEvent) -> ThreadItem {
+pub fn build_command_execution_end_item(payload: &ExecCommandEndEvent) -> Message {
     let aggregated_output = if payload.aggregated_output.is_empty() {
         None
     } else {
@@ -114,7 +114,7 @@ pub fn build_command_execution_end_item(payload: &ExecCommandEndEvent) -> Thread
     let duration_ms = i64::try_from(payload.duration.as_millis()).unwrap_or(i64::MAX);
     let command_actions = command_actions_for_path_uri(&payload.parsed_cmd, &payload.cwd);
 
-    ThreadItem::CommandExecution {
+    Message::CommandExecution {
         id: payload.call_id.clone(),
         command: shlex_join(&payload.command),
         cwd: payload.cwd.clone().into(),
@@ -169,14 +169,14 @@ fn command_actions_for_path_uri(parsed_cmd: &[ParsedCommand], cwd: &PathUri) -> 
         .collect()
 }
 
-/// Build a guardian-derived [`ThreadItem`].
+/// Build a guardian-derived [`Message`].
 ///
-/// Currently this only synthesizes [`ThreadItem::CommandExecution`] for
+/// Currently this only synthesizes [`Message::CommandExecution`] for
 /// [`GuardianAssessmentAction::Command`] and [`GuardianAssessmentAction::Execve`].
 pub fn build_item_from_guardian_event(
     assessment: &GuardianAssessmentEvent,
     status: CommandExecutionStatus,
-) -> Option<ThreadItem> {
+) -> Option<Message> {
     match &assessment.action {
         GuardianAssessmentAction::Command { command, cwd, .. } => {
             let id = assessment.target_item_id.as_ref()?;
@@ -184,7 +184,7 @@ pub fn build_item_from_guardian_event(
             let command_actions = vec![CommandAction::Unknown {
                 command: command.clone(),
             }];
-            Some(ThreadItem::CommandExecution {
+            Some(Message::CommandExecution {
                 id: id.clone(),
                 command,
                 cwd: cwd.clone().into(),
@@ -220,7 +220,7 @@ pub fn build_item_from_guardian_event(
                     .map(|parsed| CommandAction::from_core_with_cwd(parsed, cwd))
                     .collect()
             };
-            Some(ThreadItem::CommandExecution {
+            Some(Message::CommandExecution {
                 id: id.clone(),
                 command,
                 cwd: cwd.clone().into(),
@@ -245,7 +245,7 @@ pub fn guardian_auto_approval_review_notification(
     event_turn_id: &str,
     assessment: &GuardianAssessmentEvent,
 ) -> ServerNotification {
-    let turn_id = if assessment.turn_id.is_empty() {
+    let interaction_id = if assessment.turn_id.is_empty() {
         event_turn_id.to_string()
     } else {
         assessment.turn_id.clone()
@@ -275,13 +275,13 @@ pub fn guardian_auto_approval_review_notification(
     let action = assessment.action.clone().into();
     match assessment.status {
         datax_protocol::protocol::GuardianAssessmentStatus::InProgress => {
-            ServerNotification::ItemGuardianApprovalReviewStarted(
-                ItemGuardianApprovalReviewStartedNotification {
-                    thread_id: conversation_id.to_string(),
-                    turn_id,
+            ServerNotification::MessageGuardianApprovalReviewStarted(
+                MessageGuardianApprovalReviewStartedNotification {
+                    chat_id: conversation_id.to_string(),
+                    interaction_id,
                     review_id: assessment.id.clone(),
                     started_at_ms: assessment.started_at_ms,
-                    target_item_id: assessment.target_item_id.clone(),
+                    target_message_id: assessment.target_item_id.clone(),
                     review,
                     action,
                 },
@@ -291,16 +291,16 @@ pub fn guardian_auto_approval_review_notification(
         | datax_protocol::protocol::GuardianAssessmentStatus::Denied
         | datax_protocol::protocol::GuardianAssessmentStatus::TimedOut
         | datax_protocol::protocol::GuardianAssessmentStatus::Aborted => {
-            ServerNotification::ItemGuardianApprovalReviewCompleted(
-                ItemGuardianApprovalReviewCompletedNotification {
-                    thread_id: conversation_id.to_string(),
-                    turn_id,
+            ServerNotification::MessageGuardianApprovalReviewCompleted(
+                MessageGuardianApprovalReviewCompletedNotification {
+                    chat_id: conversation_id.to_string(),
+                    interaction_id,
                     review_id: assessment.id.clone(),
                     started_at_ms: assessment.started_at_ms,
                     completed_at_ms: assessment
                         .completed_at_ms
                         .unwrap_or(assessment.started_at_ms),
-                    target_item_id: assessment.target_item_id.clone(),
+                    target_message_id: assessment.target_item_id.clone(),
                     decision_source: assessment
                         .decision_source
                         .map(AutoReviewDecisionSource::from)

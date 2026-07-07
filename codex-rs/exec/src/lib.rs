@@ -19,37 +19,37 @@ use datax_app_server_client::ExecServerRuntimePaths;
 use datax_app_server_client::InProcessAppServerClient;
 use datax_app_server_client::InProcessClientStartArgs;
 use datax_app_server_client::InProcessServerEvent;
+use datax_app_server_protocol::Chat as AppServerThread;
+use datax_app_server_protocol::ChatListParams;
+use datax_app_server_protocol::ChatListResponse;
+use datax_app_server_protocol::ChatReadParams;
+use datax_app_server_protocol::ChatReadResponse;
+use datax_app_server_protocol::ChatResumeParams;
+use datax_app_server_protocol::ChatResumeResponse;
+use datax_app_server_protocol::ChatSortKey;
+use datax_app_server_protocol::ChatSource;
+use datax_app_server_protocol::ChatSourceKind;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::ChatUnsubscribeParams;
+use datax_app_server_protocol::ChatUnsubscribeResponse;
 use datax_app_server_protocol::ClientRequest;
 use datax_app_server_protocol::ConfigWarningNotification;
+use datax_app_server_protocol::InteractionInterruptParams;
+use datax_app_server_protocol::InteractionInterruptResponse;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
+use datax_app_server_protocol::InteractionStartedNotification;
 use datax_app_server_protocol::JSONRPCErrorError;
 use datax_app_server_protocol::McpServerElicitationAction;
 use datax_app_server_protocol::McpServerElicitationRequestResponse;
+use datax_app_server_protocol::Message as AppServerThreadItem;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::ReviewStartParams;
 use datax_app_server_protocol::ReviewStartResponse;
 use datax_app_server_protocol::ReviewTarget as ApiReviewTarget;
 use datax_app_server_protocol::ServerNotification;
 use datax_app_server_protocol::ServerRequest;
-use datax_app_server_protocol::Thread as AppServerThread;
-use datax_app_server_protocol::ThreadItem as AppServerThreadItem;
-use datax_app_server_protocol::ThreadListParams;
-use datax_app_server_protocol::ThreadListResponse;
-use datax_app_server_protocol::ThreadReadParams;
-use datax_app_server_protocol::ThreadReadResponse;
-use datax_app_server_protocol::ThreadResumeParams;
-use datax_app_server_protocol::ThreadResumeResponse;
-use datax_app_server_protocol::ThreadSortKey;
-use datax_app_server_protocol::ThreadSource;
-use datax_app_server_protocol::ThreadSourceKind;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::ThreadUnsubscribeParams;
-use datax_app_server_protocol::ThreadUnsubscribeResponse;
-use datax_app_server_protocol::TurnInterruptParams;
-use datax_app_server_protocol::TurnInterruptResponse;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
-use datax_app_server_protocol::TurnStartedNotification;
 use datax_arg0::Arg0DispatchPaths;
 use datax_cloud_config::cloud_config_bundle_loader_for_storage;
 use datax_config::CloudConfigBundleLoader;
@@ -123,12 +123,12 @@ pub use exec_events::McpToolCallItem;
 pub use exec_events::McpToolCallItemError;
 pub use exec_events::McpToolCallItemResult;
 pub use exec_events::McpToolCallStatus;
+pub use exec_events::Message as ExecThreadItem;
 pub use exec_events::PatchApplyStatus;
 pub use exec_events::PatchChangeKind;
 pub use exec_events::ReasoningItem;
 pub use exec_events::ThreadErrorEvent;
 pub use exec_events::ThreadEvent;
-pub use exec_events::ThreadItem as ExecThreadItem;
 pub use exec_events::ThreadItemDetails;
 pub use exec_events::ThreadStartedEvent;
 pub use exec_events::TodoItem;
@@ -800,9 +800,9 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
         if let Some(thread_id) =
             resolve_resume_thread_id(&client, &config, state_db.as_ref(), args).await?
         {
-            let response: ThreadResumeResponse = send_request_with_response(
+            let response: ChatResumeResponse = send_request_with_response(
                 &client,
-                ClientRequest::ThreadResume {
+                ClientRequest::ChatResume {
                     request_id: request_ids.next(),
                     params: thread_resume_params_from_config(&config, thread_id),
                 },
@@ -815,9 +815,9 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
                     .map_err(anyhow::Error::msg)?;
             (session_configured.thread_id, session_configured)
         } else {
-            let response: ThreadStartResponse = send_request_with_response(
+            let response: ChatStartResponse = send_request_with_response(
                 &client,
-                ClientRequest::ThreadStart {
+                ClientRequest::ChatStart {
                     request_id: request_ids.next(),
                     params: thread_start_params_from_config(&config),
                 },
@@ -831,9 +831,9 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
             (session_configured.thread_id, session_configured)
         }
     } else {
-        let response: ThreadStartResponse = send_request_with_response(
+        let response: ChatStartResponse = send_request_with_response(
             &client,
-            ClientRequest::ThreadStart {
+            ClientRequest::ChatStart {
                 request_id: request_ids.next(),
                 params: thread_start_params_from_config(&config),
             },
@@ -879,11 +879,11 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
             items,
             output_schema,
         } => {
-            let response: TurnStartResponse = send_request_with_response(
+            let response: InteractionStartResponse = send_request_with_response(
                 &client,
-                ClientRequest::TurnStart {
+                ClientRequest::InteractionStart {
                     request_id: request_ids.next(),
-                    params: TurnStartParams {
+                    params: InteractionStartParams {
                         thread_id: primary_thread_id_for_span.clone(),
                         client_user_message_id: None,
                         input: items.into_iter().map(Into::into).collect(),
@@ -929,12 +929,12 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
             )
             .await
             .map_err(anyhow::Error::msg)?;
-            let _ = event_processor.process_server_notification(ServerNotification::TurnStarted(
-                TurnStartedNotification {
+            let _ = event_processor.process_server_notification(
+                ServerNotification::InteractionStarted(InteractionStartedNotification {
                     thread_id: response.review_thread_id.clone(),
                     turn: response.turn.clone(),
-                },
-            ));
+                }),
+            );
             let task_id = response.turn.id;
             info!("Sent review request with event ID: {task_id}");
             task_id
@@ -955,11 +955,11 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
                     interrupt_channel_open = false;
                     continue;
                 }
-                if let Err(err) = send_request_with_response::<TurnInterruptResponse>(
+                if let Err(err) = send_request_with_response::<InteractionInterruptResponse>(
                     &client,
-                    ClientRequest::TurnInterrupt {
+                    ClientRequest::InteractionInterrupt {
                         request_id: request_ids.next(),
-                        params: TurnInterruptParams {
+                        params: InteractionInterruptParams {
                             thread_id: primary_thread_id_for_requests.clone(),
                             turn_id: task_id.clone(),
                         },
@@ -991,13 +991,13 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
                     {
                         error_seen = true;
                     }
-                } else if let ServerNotification::TurnCompleted(payload) = &notification
+                } else if let ServerNotification::InteractionCompleted(payload) = &notification
                     && payload.thread_id == primary_thread_id_for_requests
                     && payload.turn.id == task_id
                     && matches!(
                         payload.turn.status,
-                        datax_app_server_protocol::TurnStatus::Failed
-                            | datax_app_server_protocol::TurnStatus::Interrupted
+                        datax_app_server_protocol::InteractionStatus::Failed
+                            | datax_app_server_protocol::InteractionStatus::Interrupted
                     )
                 {
                     error_seen = true;
@@ -1052,7 +1052,7 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn thread_start_params_from_config(config: &Config) -> ThreadStartParams {
+fn thread_start_params_from_config(config: &Config) -> ChatStartParams {
     let permissions = permissions_selection_from_config(config);
     let sandbox = permissions.is_none().then(|| {
         sandbox_mode_from_permission_profile(
@@ -1060,7 +1060,7 @@ fn thread_start_params_from_config(config: &Config) -> ThreadStartParams {
             config.cwd.as_path(),
         )
     });
-    ThreadStartParams {
+    ChatStartParams {
         model: config.model.clone(),
         model_provider: Some(config.model_provider_id.clone()),
         cwd: Some(config.cwd.to_string_lossy().to_string()),
@@ -1071,12 +1071,12 @@ fn thread_start_params_from_config(config: &Config) -> ThreadStartParams {
         permissions,
         config: thread_config_overrides_from_config(config),
         ephemeral: Some(config.ephemeral),
-        thread_source: Some(ThreadSource::User),
-        ..ThreadStartParams::default()
+        thread_source: Some(ChatSource::User),
+        ..ChatStartParams::default()
     }
 }
 
-fn thread_resume_params_from_config(config: &Config, thread_id: String) -> ThreadResumeParams {
+fn thread_resume_params_from_config(config: &Config, thread_id: String) -> ChatResumeParams {
     let permissions = permissions_selection_from_config(config);
     let sandbox = permissions.is_none().then(|| {
         sandbox_mode_from_permission_profile(
@@ -1084,7 +1084,7 @@ fn thread_resume_params_from_config(config: &Config, thread_id: String) -> Threa
             config.cwd.as_path(),
         )
     });
-    ThreadResumeParams {
+    ChatResumeParams {
         thread_id,
         model: config.model.clone(),
         model_provider: Some(config.model_provider_id.clone()),
@@ -1095,7 +1095,7 @@ fn thread_resume_params_from_config(config: &Config, thread_id: String) -> Threa
         sandbox: sandbox.flatten(),
         permissions,
         config: thread_config_overrides_from_config(config),
-        ..ThreadResumeParams::default()
+        ..ChatResumeParams::default()
     }
 }
 
@@ -1165,7 +1165,7 @@ where
 }
 
 fn session_configured_from_thread_start_response(
-    response: &ThreadStartResponse,
+    response: &ChatStartResponse,
     config: &Config,
 ) -> Result<SessionConfiguredEvent, String> {
     session_configured_from_thread_response(
@@ -1188,7 +1188,7 @@ fn session_configured_from_thread_start_response(
 }
 
 fn session_configured_from_thread_resume_response(
-    response: &ThreadResumeResponse,
+    response: &ChatResumeResponse,
     config: &Config,
 ) -> Result<SessionConfiguredEvent, String> {
     session_configured_from_thread_response(
@@ -1304,10 +1304,10 @@ fn should_process_notification(
                     .as_deref()
                     .is_none_or(|candidate| candidate == turn_id)
         }
-        ServerNotification::ItemCompleted(notification) => {
+        ServerNotification::MessageCompleted(notification) => {
             notification.thread_id == thread_id && notification.turn_id == turn_id
         }
-        ServerNotification::ItemStarted(notification) => {
+        ServerNotification::MessageStarted(notification) => {
             notification.thread_id == thread_id && notification.turn_id == turn_id
         }
         ServerNotification::ModelRerouted(notification) => {
@@ -1316,19 +1316,19 @@ fn should_process_notification(
         ServerNotification::ModelVerification(notification) => {
             notification.thread_id == thread_id && notification.turn_id == turn_id
         }
-        ServerNotification::ThreadTokenUsageUpdated(notification) => {
+        ServerNotification::ChatTokenUsageUpdated(notification) => {
             notification.thread_id == thread_id && notification.turn_id == turn_id
         }
-        ServerNotification::TurnCompleted(notification) => {
+        ServerNotification::InteractionCompleted(notification) => {
             notification.thread_id == thread_id && notification.turn.id == turn_id
         }
-        ServerNotification::TurnDiffUpdated(notification) => {
+        ServerNotification::InteractionDiffUpdated(notification) => {
             notification.thread_id == thread_id && notification.turn_id == turn_id
         }
-        ServerNotification::TurnPlanUpdated(notification) => {
+        ServerNotification::InteractionPlanUpdated(notification) => {
             notification.thread_id == thread_id && notification.turn_id == turn_id
         }
-        ServerNotification::TurnStarted(notification) => {
+        ServerNotification::InteractionStarted(notification) => {
             notification.thread_id == thread_id && notification.turn.id == turn_id
         }
         _ => false,
@@ -1349,15 +1349,15 @@ async fn maybe_backfill_turn_completed_items(
         return;
     }
 
-    let ServerNotification::TurnCompleted(payload) = notification else {
+    let ServerNotification::InteractionCompleted(payload) = notification else {
         return;
     };
 
-    let response = send_request_with_response::<ThreadReadResponse>(
+    let response = send_request_with_response::<ChatReadResponse>(
         client,
-        ClientRequest::ThreadRead {
+        ClientRequest::ChatRead {
             request_id: request_ids.next(),
-            params: ThreadReadParams {
+            params: ChatReadParams {
                 thread_id: payload.thread_id.clone(),
                 include_turns: true,
             },
@@ -1384,7 +1384,7 @@ fn should_backfill_turn_completed_items(
     thread_ephemeral: bool,
     notification: &ServerNotification,
 ) -> bool {
-    let ServerNotification::TurnCompleted(payload) = notification else {
+    let ServerNotification::InteractionCompleted(payload) = notification else {
         return false;
     };
 
@@ -1402,18 +1402,18 @@ fn turn_items_for_thread(
         .map(|turn| turn.items.clone())
 }
 
-fn all_thread_source_kinds() -> Vec<ThreadSourceKind> {
+fn all_thread_source_kinds() -> Vec<ChatSourceKind> {
     vec![
-        ThreadSourceKind::Cli,
-        ThreadSourceKind::VsCode,
-        ThreadSourceKind::Exec,
-        ThreadSourceKind::AppServer,
-        ThreadSourceKind::SubAgent,
-        ThreadSourceKind::SubAgentReview,
-        ThreadSourceKind::SubAgentCompact,
-        ThreadSourceKind::SubAgentThreadSpawn,
-        ThreadSourceKind::SubAgentOther,
-        ThreadSourceKind::Unknown,
+        ChatSourceKind::Cli,
+        ChatSourceKind::VsCode,
+        ChatSourceKind::Exec,
+        ChatSourceKind::AppServer,
+        ChatSourceKind::SubAgent,
+        ChatSourceKind::SubAgentReview,
+        ChatSourceKind::SubAgentCompact,
+        ChatSourceKind::SubAgentThreadSpawn,
+        ChatSourceKind::SubAgentOther,
+        ChatSourceKind::Unknown,
     ]
 }
 
@@ -1458,14 +1458,14 @@ async fn resolve_resume_thread_id(
     if args.last {
         let mut cursor = None;
         loop {
-            let response: ThreadListResponse = send_request_with_response(
+            let response: ChatListResponse = send_request_with_response(
                 client,
-                ClientRequest::ThreadList {
+                ClientRequest::ChatList {
                     request_id: RequestId::Integer(0),
-                    params: ThreadListParams {
+                    params: ChatListParams {
                         cursor,
                         limit: Some(100),
-                        sort_key: Some(ThreadSortKey::UpdatedAt),
+                        sort_key: Some(ChatSortKey::UpdatedAt),
                         sort_direction: None,
                         model_providers: model_providers.clone(),
                         source_kinds: Some(all_thread_source_kinds()),
@@ -1524,14 +1524,14 @@ async fn resolve_resume_thread_id(
 
     let mut cursor = None;
     loop {
-        let response: ThreadListResponse = send_request_with_response(
+        let response: ChatListResponse = send_request_with_response(
             client,
-            ClientRequest::ThreadList {
+            ClientRequest::ChatList {
                 request_id: RequestId::Integer(0),
-                params: ThreadListParams {
+                params: ChatListParams {
                     cursor,
                     limit: Some(100),
-                    sort_key: Some(ThreadSortKey::UpdatedAt),
+                    sort_key: Some(ChatSortKey::UpdatedAt),
                     sort_direction: None,
                     model_providers: model_providers.clone(),
                     source_kinds: Some(all_thread_source_kinds()),
@@ -1587,13 +1587,13 @@ async fn request_shutdown(
     request_ids: &mut RequestIdSequencer,
     thread_id: &str,
 ) -> Result<(), String> {
-    let request = ClientRequest::ThreadUnsubscribe {
+    let request = ClientRequest::ChatUnsubscribe {
         request_id: request_ids.next(),
-        params: ThreadUnsubscribeParams {
+        params: ChatUnsubscribeParams {
             thread_id: thread_id.to_string(),
         },
     };
-    send_request_with_response::<ThreadUnsubscribeResponse>(client, request, "thread/unsubscribe")
+    send_request_with_response::<ChatUnsubscribeResponse>(client, request, "thread/unsubscribe")
         .await
         .map(|_| ())
 }

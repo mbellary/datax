@@ -333,7 +333,7 @@ fn build_ws_client_metadata_includes_window_lineage_and_turn_metadata() {
         Some("turn-123"),
         expected_window_id.clone(),
         Some(parent_thread_id),
-        TestCodexResponsesRequestKind::Turn,
+        TestCodexResponsesRequestKind::Interaction,
     );
     let client_metadata =
         client.build_ws_client_metadata(&responses_metadata, /*use_responses_lite*/ false);

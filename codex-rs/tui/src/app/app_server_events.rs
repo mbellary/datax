@@ -137,7 +137,7 @@ impl App {
         }
 
         match server_notification_thread_target(&notification) {
-            ServerNotificationThreadTarget::Thread(thread_id) => {
+            ServerNotificationThreadTarget::Chat(thread_id) => {
                 let result = if self.primary_thread_id == Some(thread_id)
                     || self.primary_thread_id.is_none()
                 {

@@ -258,14 +258,14 @@
           "type": "object"
         },
         {
-          "description": "User denied the command. The agent will continue the turn.",
+          "description": "User denied the command. The agent will continue the interaction.",
           "enum": [
             "decline"
           ],
           "type": "string"
         },
         {
-          "description": "User denied the command. The turn will also be immediately interrupted.",
+          "description": "User denied the command. The interaction will also be immediately interrupted.",
           "enum": [
             "cancel"
           ],
@@ -521,11 +521,14 @@
   },
   "properties": {
     "approvalId": {
-      "description": "Unique identifier for this specific approval callback.\n\nFor regular shell/unified_exec approvals, this is null.\n\nFor zsh-exec-bridge subcommand approvals, multiple callbacks can belong to one parent `itemId`, so `approvalId` is a distinct opaque callback id (a UUID) used to disambiguate routing.",
+      "description": "Unique identifier for this specific approval callback.\n\nFor regular shell/unified_exec approvals, this is null.\n\nFor zsh-exec-bridge subcommand approvals, multiple callbacks can belong to one parent `messageId`, so `approvalId` is a distinct opaque callback id (a UUID) used to disambiguate routing.",
       "type": [
         "string",
         "null"
       ]
+    },
+    "chatId": {
+      "type": "string"
     },
     "command": {
       "description": "The command to be executed.",
@@ -563,7 +566,10 @@
         "null"
       ]
     },
-    "itemId": {
+    "interactionId": {
+      "type": "string"
+    },
+    "messageId": {
       "type": "string"
     },
     "networkApprovalContext": {
@@ -608,19 +614,13 @@
       "description": "Unix timestamp (in milliseconds) when this approval request started.",
       "format": "int64",
       "type": "integer"
-    },
-    "threadId": {
-      "type": "string"
-    },
-    "turnId": {
-      "type": "string"
     }
   },
   "required": [
-    "itemId",
-    "startedAtMs",
-    "threadId",
-    "turnId"
+    "chatId",
+    "interactionId",
+    "messageId",
+    "startedAtMs"
   ],
   "title": "CommandExecutionRequestApprovalParams",
   "type": "object"

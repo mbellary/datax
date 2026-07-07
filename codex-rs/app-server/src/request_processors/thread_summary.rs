@@ -188,8 +188,8 @@ pub(crate) fn thread_response_sandbox_policy(
 
 pub(crate) fn thread_settings_from_config_snapshot(
     config_snapshot: &ThreadConfigSnapshot,
-) -> ThreadSettings {
-    ThreadSettings {
+) -> ChatSettings {
+    ChatSettings {
         cwd: config_snapshot.cwd().clone(),
         approval_policy: config_snapshot.approval_policy.into(),
         approvals_reviewer: config_snapshot.approvals_reviewer.into(),
@@ -213,7 +213,7 @@ pub(crate) fn thread_settings_from_config_snapshot(
 
 pub(crate) fn thread_settings_from_core_snapshot(
     snapshot: datax_protocol::protocol::ThreadSettingsSnapshot,
-) -> ThreadSettings {
+) -> ChatSettings {
     let datax_protocol::protocol::ThreadSettingsSnapshot {
         model,
         model_provider_id,
@@ -229,7 +229,7 @@ pub(crate) fn thread_settings_from_core_snapshot(
         collaboration_mode,
     } = snapshot;
     let sandbox_policy = thread_response_sandbox_policy(&permission_profile, cwd.as_path());
-    ThreadSettings {
+    ChatSettings {
         sandbox_policy,
         cwd,
         approval_policy: approval_policy.into(),
@@ -270,16 +270,16 @@ async fn read_updated_at(path: &Path, created_at: Option<&str>) -> Option<String
     updated_at.or_else(|| created_at.map(str::to_string))
 }
 
-pub(super) fn thread_started_notification(mut thread: Thread) -> ThreadStartedNotification {
-    thread.turns.clear();
-    ThreadStartedNotification { thread }
+pub(super) fn thread_started_notification(mut thread: Chat) -> ChatStartedNotification {
+    thread.interactions.clear();
+    ChatStartedNotification { thread }
 }
 
 #[cfg(test)]
 pub(crate) fn summary_to_thread(
     summary: ConversationSummary,
     fallback_cwd: &AbsolutePathBuf,
-) -> Thread {
+) -> Chat {
     let ConversationSummary {
         conversation_id,
         path,
@@ -311,29 +311,29 @@ pub(crate) fn summary_to_thread(
                 fallback_cwd.clone()
             });
 
-    let thread_id = conversation_id.to_string();
-    Thread {
-        id: thread_id.clone(),
-        session_id: thread_id,
+    let chat_id = conversation_id.to_string();
+    Chat {
+        id: chat_id.clone(),
+        session_id: chat_id,
         forked_from_id: None,
-        parent_thread_id: None,
+        parent_chat_id: None,
         preview,
         ephemeral: false,
         model_provider,
         created_at: created_at.map(|dt| dt.timestamp()).unwrap_or(0),
         updated_at: updated_at.map(|dt| dt.timestamp()).unwrap_or(0),
         recency_at: updated_at.map(|dt| dt.timestamp()),
-        status: ThreadStatus::NotLoaded,
+        status: ChatStatus::NotLoaded,
         path: (!path.as_os_str().is_empty()).then_some(path),
         cwd,
         cli_version,
         agent_nickname: source.get_nickname(),
         agent_role: source.get_agent_role(),
         source: source.into(),
-        thread_source: None,
+        chat_source: None,
         git_info,
         name: None,
-        turns: Vec::new(),
+        interactions: Vec::new(),
     }
 }
 

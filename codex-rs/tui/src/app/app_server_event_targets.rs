@@ -1,4 +1,4 @@
-//! Thread targeting helpers for app-server requests and notifications.
+//! Chat targeting helpers for app-server requests and notifications.
 
 use datax_app_server_protocol::ServerNotification;
 use datax_app_server_protocol::ServerRequest;
@@ -36,7 +36,7 @@ pub(super) fn server_request_thread_id(request: &ServerRequest) -> Option<Thread
 
 #[derive(Debug, PartialEq, Eq)]
 pub(super) enum ServerNotificationThreadTarget {
-    Thread(ThreadId),
+    Chat(ThreadId),
     InvalidThreadId(String),
     AppScoped,
     Global,
@@ -47,43 +47,45 @@ pub(super) fn server_notification_thread_target(
 ) -> ServerNotificationThreadTarget {
     let thread_id = match notification {
         ServerNotification::Error(notification) => Some(notification.thread_id.as_str()),
-        ServerNotification::ThreadStarted(notification) => Some(notification.thread.id.as_str()),
-        ServerNotification::ThreadStatusChanged(notification) => {
+        ServerNotification::ChatStarted(notification) => Some(notification.thread.id.as_str()),
+        ServerNotification::ChatStatusChanged(notification) => {
             Some(notification.thread_id.as_str())
         }
-        ServerNotification::ThreadArchived(notification) => Some(notification.thread_id.as_str()),
-        ServerNotification::ThreadDeleted(notification) => Some(notification.thread_id.as_str()),
-        ServerNotification::ThreadUnarchived(notification) => Some(notification.thread_id.as_str()),
-        ServerNotification::ThreadClosed(notification) => Some(notification.thread_id.as_str()),
-        ServerNotification::ThreadNameUpdated(notification) => {
+        ServerNotification::ChatArchived(notification) => Some(notification.thread_id.as_str()),
+        ServerNotification::ChatDeleted(notification) => Some(notification.thread_id.as_str()),
+        ServerNotification::ChatUnarchived(notification) => Some(notification.thread_id.as_str()),
+        ServerNotification::ChatClosed(notification) => Some(notification.thread_id.as_str()),
+        ServerNotification::ChatNameUpdated(notification) => Some(notification.thread_id.as_str()),
+        ServerNotification::ChatTokenUsageUpdated(notification) => {
             Some(notification.thread_id.as_str())
         }
-        ServerNotification::ThreadTokenUsageUpdated(notification) => {
+        ServerNotification::ChatGoalUpdated(notification) => Some(notification.thread_id.as_str()),
+        ServerNotification::ChatGoalCleared(notification) => Some(notification.thread_id.as_str()),
+        ServerNotification::ChatSettingsUpdated(notification) => {
             Some(notification.thread_id.as_str())
         }
-        ServerNotification::ThreadGoalUpdated(notification) => {
+        ServerNotification::InteractionStarted(notification) => {
             Some(notification.thread_id.as_str())
         }
-        ServerNotification::ThreadGoalCleared(notification) => {
-            Some(notification.thread_id.as_str())
-        }
-        ServerNotification::ThreadSettingsUpdated(notification) => {
-            Some(notification.thread_id.as_str())
-        }
-        ServerNotification::TurnStarted(notification) => Some(notification.thread_id.as_str()),
         ServerNotification::HookStarted(notification) => Some(notification.thread_id.as_str()),
-        ServerNotification::TurnCompleted(notification) => Some(notification.thread_id.as_str()),
+        ServerNotification::InteractionCompleted(notification) => {
+            Some(notification.thread_id.as_str())
+        }
         ServerNotification::HookCompleted(notification) => Some(notification.thread_id.as_str()),
-        ServerNotification::TurnDiffUpdated(notification) => Some(notification.thread_id.as_str()),
-        ServerNotification::TurnPlanUpdated(notification) => Some(notification.thread_id.as_str()),
-        ServerNotification::ItemStarted(notification) => Some(notification.thread_id.as_str()),
-        ServerNotification::ItemGuardianApprovalReviewStarted(notification) => {
+        ServerNotification::InteractionDiffUpdated(notification) => {
             Some(notification.thread_id.as_str())
         }
-        ServerNotification::ItemGuardianApprovalReviewCompleted(notification) => {
+        ServerNotification::InteractionPlanUpdated(notification) => {
             Some(notification.thread_id.as_str())
         }
-        ServerNotification::ItemCompleted(notification) => Some(notification.thread_id.as_str()),
+        ServerNotification::MessageStarted(notification) => Some(notification.thread_id.as_str()),
+        ServerNotification::MessageGuardianApprovalReviewStarted(notification) => {
+            Some(notification.thread_id.as_str())
+        }
+        ServerNotification::MessageGuardianApprovalReviewCompleted(notification) => {
+            Some(notification.thread_id.as_str())
+        }
+        ServerNotification::MessageCompleted(notification) => Some(notification.thread_id.as_str()),
         ServerNotification::RawResponseItemCompleted(notification) => {
             Some(notification.thread_id.as_str())
         }
@@ -126,31 +128,29 @@ pub(super) fn server_notification_thread_target(
         ServerNotification::ModelSafetyBufferingUpdated(notification) => {
             Some(notification.thread_id.as_str())
         }
-        ServerNotification::TurnModerationMetadata(notification) => {
+        ServerNotification::InteractionModerationMetadata(notification) => {
             Some(notification.thread_id.as_str())
         }
-        ServerNotification::ThreadRealtimeStarted(notification) => {
+        ServerNotification::ChatRealtimeStarted(notification) => {
             Some(notification.thread_id.as_str())
         }
-        ServerNotification::ThreadRealtimeItemAdded(notification) => {
+        ServerNotification::ChatRealtimeItemAdded(notification) => {
             Some(notification.thread_id.as_str())
         }
-        ServerNotification::ThreadRealtimeTranscriptDelta(notification) => {
+        ServerNotification::ChatRealtimeTranscriptDelta(notification) => {
             Some(notification.thread_id.as_str())
         }
-        ServerNotification::ThreadRealtimeTranscriptDone(notification) => {
+        ServerNotification::ChatRealtimeTranscriptDone(notification) => {
             Some(notification.thread_id.as_str())
         }
-        ServerNotification::ThreadRealtimeOutputAudioDelta(notification) => {
+        ServerNotification::ChatRealtimeOutputAudioDelta(notification) => {
             Some(notification.thread_id.as_str())
         }
-        ServerNotification::ThreadRealtimeSdp(notification) => {
+        ServerNotification::ChatRealtimeSdp(notification) => Some(notification.thread_id.as_str()),
+        ServerNotification::ChatRealtimeError(notification) => {
             Some(notification.thread_id.as_str())
         }
-        ServerNotification::ThreadRealtimeError(notification) => {
-            Some(notification.thread_id.as_str())
-        }
-        ServerNotification::ThreadRealtimeClosed(notification) => {
+        ServerNotification::ChatRealtimeClosed(notification) => {
             Some(notification.thread_id.as_str())
         }
         ServerNotification::Warning(notification) => notification.thread_id.as_deref(),
@@ -184,7 +184,7 @@ pub(super) fn server_notification_thread_target(
 
     match thread_id {
         Some(thread_id) => match ThreadId::from_string(thread_id) {
-            Ok(thread_id) => ServerNotificationThreadTarget::Thread(thread_id),
+            Ok(thread_id) => ServerNotificationThreadTarget::Chat(thread_id),
             Err(_) => ServerNotificationThreadTarget::InvalidThreadId(thread_id.to_string()),
         },
         None => ServerNotificationThreadTarget::Global,
@@ -197,12 +197,12 @@ mod tests {
     use super::server_notification_thread_target;
     use crate::test_support::PathBufExt;
     use crate::test_support::test_path_buf;
+    use datax_app_server_protocol::ChatSettings;
+    use datax_app_server_protocol::ChatSettingsUpdatedNotification;
     use datax_app_server_protocol::GuardianWarningNotification;
     use datax_app_server_protocol::McpServerStartupState;
     use datax_app_server_protocol::McpServerStatusUpdatedNotification;
     use datax_app_server_protocol::ServerNotification;
-    use datax_app_server_protocol::ThreadSettings;
-    use datax_app_server_protocol::ThreadSettingsUpdatedNotification;
     use datax_app_server_protocol::WarningNotification;
     use datax_protocol::ThreadId;
     use datax_protocol::config_types::CollaborationMode;
@@ -211,8 +211,8 @@ mod tests {
     use datax_protocol::openai_models::ReasoningEffort;
     use pretty_assertions::assert_eq;
 
-    fn test_thread_settings() -> ThreadSettings {
-        ThreadSettings {
+    fn test_thread_settings() -> ChatSettings {
+        ChatSettings {
             cwd: test_path_buf("/tmp/thread-settings").abs(),
             approval_policy: datax_app_server_protocol::AskForApproval::Never,
             approvals_reviewer: datax_app_server_protocol::ApprovalsReviewer::User,
@@ -260,7 +260,7 @@ mod tests {
 
         let target = server_notification_thread_target(&notification);
 
-        assert_eq!(target, ServerNotificationThreadTarget::Thread(thread_id));
+        assert_eq!(target, ServerNotificationThreadTarget::Chat(thread_id));
     }
 
     #[test]
@@ -273,7 +273,7 @@ mod tests {
 
         let target = server_notification_thread_target(&notification);
 
-        assert_eq!(target, ServerNotificationThreadTarget::Thread(thread_id));
+        assert_eq!(target, ServerNotificationThreadTarget::Chat(thread_id));
     }
 
     #[test]
@@ -289,7 +289,7 @@ mod tests {
 
         let target = server_notification_thread_target(&notification);
 
-        assert_eq!(target, ServerNotificationThreadTarget::Thread(thread_id));
+        assert_eq!(target, ServerNotificationThreadTarget::Chat(thread_id));
     }
 
     #[test]
@@ -311,13 +311,13 @@ mod tests {
     fn thread_settings_updated_notifications_route_to_threads() {
         let thread_id = ThreadId::new();
         let notification =
-            ServerNotification::ThreadSettingsUpdated(ThreadSettingsUpdatedNotification {
+            ServerNotification::ChatSettingsUpdated(ChatSettingsUpdatedNotification {
                 thread_id: thread_id.to_string(),
                 thread_settings: test_thread_settings(),
             });
 
         let target = server_notification_thread_target(&notification);
 
-        assert_eq!(target, ServerNotificationThreadTarget::Thread(thread_id));
+        assert_eq!(target, ServerNotificationThreadTarget::Chat(thread_id));
     }
 }

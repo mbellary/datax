@@ -1,6 +1,6 @@
 use crate::status::format_tokens_compact;
-use datax_app_server_protocol::ThreadGoal;
-use datax_app_server_protocol::ThreadGoalStatus;
+use datax_app_server_protocol::ChatGoal;
+use datax_app_server_protocol::ChatGoalStatus;
 
 pub(crate) const GOAL_USAGE: &str = "Usage: /goal [<objective>|clear|edit|pause|resume]";
 
@@ -30,18 +30,18 @@ pub(crate) fn format_goal_elapsed_seconds(seconds: i64) -> String {
     }
 }
 
-pub(crate) fn goal_status_label(status: ThreadGoalStatus) -> &'static str {
+pub(crate) fn goal_status_label(status: ChatGoalStatus) -> &'static str {
     match status {
-        ThreadGoalStatus::Active => "active",
-        ThreadGoalStatus::Paused => "paused",
-        ThreadGoalStatus::Blocked => "blocked",
-        ThreadGoalStatus::UsageLimited => "usage limited",
-        ThreadGoalStatus::BudgetLimited => "limited by budget",
-        ThreadGoalStatus::Complete => "complete",
+        ChatGoalStatus::Active => "active",
+        ChatGoalStatus::Paused => "paused",
+        ChatGoalStatus::Blocked => "blocked",
+        ChatGoalStatus::UsageLimited => "usage limited",
+        ChatGoalStatus::BudgetLimited => "limited by budget",
+        ChatGoalStatus::Complete => "complete",
     }
 }
 
-pub(crate) fn goal_usage_summary(goal: &ThreadGoal) -> String {
+pub(crate) fn goal_usage_summary(goal: &ChatGoal) -> String {
     let mut parts = vec![format!("Objective: {}", goal.objective)];
     if goal.time_used_seconds > 0 {
         parts.push(format!(
@@ -62,8 +62,8 @@ pub(crate) fn goal_usage_summary(goal: &ThreadGoal) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use datax_app_server_protocol::ThreadGoal;
-    use datax_app_server_protocol::ThreadGoalStatus;
+    use datax_app_server_protocol::ChatGoal;
+    use datax_app_server_protocol::ChatGoalStatus;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -84,12 +84,12 @@ mod tests {
         assert_eq!(format_goal_elapsed_seconds(almost_three_days), "2d 23h 42m");
     }
 
-    fn test_thread_goal(token_budget: Option<i64>, tokens_used: i64) -> ThreadGoal {
-        ThreadGoal {
+    fn test_thread_goal(token_budget: Option<i64>, tokens_used: i64) -> ChatGoal {
+        ChatGoal {
             thread_id: "thread-1".to_string(),
             objective: "Complete the task described in ../gameboy-long-running-prompt5.txt"
                 .to_string(),
-            status: ThreadGoalStatus::BudgetLimited,
+            status: ChatGoalStatus::BudgetLimited,
             token_budget,
             tokens_used,
             time_used_seconds: 120,

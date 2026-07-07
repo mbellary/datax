@@ -12,6 +12,12 @@
     }
   },
   "properties": {
+    "chatId": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "error": {
       "type": [
         "string",
@@ -23,12 +29,6 @@
     },
     "status": {
       "$ref": "#/definitions/McpServerStartupState"
-    },
-    "threadId": {
-      "type": [
-        "string",
-        "null"
-      ]
     }
   },
   "required": [

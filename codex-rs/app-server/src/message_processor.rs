@@ -21,6 +21,7 @@ use crate::outgoing_message::RequestContext;
 use crate::request_processors::AccountRequestProcessor;
 use crate::request_processors::AppsRequestProcessor;
 use crate::request_processors::CatalogRequestProcessor;
+use crate::request_processors::ChatRequestProcessor;
 use crate::request_processors::CommandExecRequestProcessor;
 use crate::request_processors::ConfigRequestProcessor;
 use crate::request_processors::EnvironmentRequestProcessor;
@@ -30,6 +31,7 @@ use crate::request_processors::FeedbackRequestProcessor;
 use crate::request_processors::FsRequestProcessor;
 use crate::request_processors::GitRequestProcessor;
 use crate::request_processors::InitializeRequestProcessor;
+use crate::request_processors::InteractionRequestProcessor;
 use crate::request_processors::MarketplaceRequestProcessor;
 use crate::request_processors::McpRequestProcessor;
 use crate::request_processors::PluginRequestProcessor;
@@ -37,8 +39,6 @@ use crate::request_processors::ProcessExecRequestProcessor;
 use crate::request_processors::RemoteControlRequestProcessor;
 use crate::request_processors::SearchRequestProcessor;
 use crate::request_processors::ThreadGoalRequestProcessor;
-use crate::request_processors::ThreadRequestProcessor;
-use crate::request_processors::TurnRequestProcessor;
 use crate::request_processors::WindowsSandboxRequestProcessor;
 use crate::request_serialization::QueuedInitializedRequest;
 use crate::request_serialization::RequestSerializationQueueKey;
@@ -56,6 +56,7 @@ use datax_app_server_protocol::ChatgptAuthTokensRefreshReason;
 use datax_app_server_protocol::ChatgptAuthTokensRefreshResponse;
 use datax_app_server_protocol::ClientNotification;
 use datax_app_server_protocol::ClientRequest;
+use datax_app_server_protocol::ClientRequest::*;
 use datax_app_server_protocol::ClientResponsePayload;
 use datax_app_server_protocol::ConfigWarningNotification;
 use datax_app_server_protocol::ExperimentalApi;
@@ -205,8 +206,8 @@ pub(crate) struct MessageProcessor {
     remote_control_processor: RemoteControlRequestProcessor,
     search_processor: SearchRequestProcessor,
     thread_goal_processor: ThreadGoalRequestProcessor,
-    thread_processor: ThreadRequestProcessor,
-    turn_processor: TurnRequestProcessor,
+    chat_processor: ChatRequestProcessor,
+    interaction_processor: InteractionRequestProcessor,
     windows_sandbox_processor: WindowsSandboxRequestProcessor,
     request_serialization_queues: RequestSerializationQueues,
 }
@@ -479,7 +480,7 @@ impl MessageProcessor {
             state_db.clone(),
             Arc::clone(&goal_service),
         );
-        let thread_processor = ThreadRequestProcessor::new(
+        let chat_processor = ChatRequestProcessor::new(
             auth_manager.clone(),
             Arc::clone(&thread_manager),
             outgoing.clone(),
@@ -496,7 +497,7 @@ impl MessageProcessor {
             log_db,
             Arc::clone(&skills_watcher),
         );
-        let turn_processor = TurnRequestProcessor::new(
+        let interaction_processor = InteractionRequestProcessor::new(
             auth_manager.clone(),
             Arc::clone(&thread_manager),
             outgoing.clone(),
@@ -574,8 +575,8 @@ impl MessageProcessor {
             remote_control_processor,
             search_processor,
             thread_goal_processor,
-            thread_processor,
-            turn_processor,
+            chat_processor,
+            interaction_processor,
             windows_sandbox_processor,
             request_serialization_queues: RequestSerializationQueues::default(),
         }
@@ -717,7 +718,7 @@ impl MessageProcessor {
     }
 
     pub(crate) fn thread_created_receiver(&self) -> broadcast::Receiver<ThreadId> {
-        self.thread_processor.thread_created_receiver()
+        self.chat_processor.thread_created_receiver()
     }
 
     pub(crate) async fn send_initialize_notifications_to_connection(
@@ -734,7 +735,7 @@ impl MessageProcessor {
         connection_id: ConnectionId,
         request_attestation: bool,
     ) {
-        self.thread_processor
+        self.chat_processor
             .connection_initialized(
                 connection_id,
                 ConnectionCapabilities {
@@ -752,17 +753,17 @@ impl MessageProcessor {
 
     pub(crate) async fn try_attach_thread_listener(
         &self,
-        thread_id: ThreadId,
+        chat_id: ThreadId,
         connection_ids: Vec<ConnectionId>,
     ) {
-        self.thread_processor
-            .try_attach_thread_listener(thread_id, connection_ids)
+        self.chat_processor
+            .try_attach_thread_listener(chat_id, connection_ids)
             .await;
     }
 
     pub(crate) async fn drain_background_tasks(&self) {
         self.models_refresh_worker.shutdown();
-        self.thread_processor.drain_background_tasks().await;
+        self.chat_processor.drain_background_tasks().await;
     }
 
     pub(crate) async fn cancel_active_login(&self) {
@@ -770,11 +771,11 @@ impl MessageProcessor {
     }
 
     pub(crate) async fn clear_all_thread_listeners(&self) {
-        self.thread_processor.clear_all_thread_listeners().await;
+        self.chat_processor.clear_all_thread_listeners().await;
     }
 
     pub(crate) async fn shutdown_threads(&self) {
-        self.thread_processor.shutdown_threads().await;
+        self.chat_processor.shutdown_threads().await;
     }
 
     pub(crate) async fn connection_closed(
@@ -803,12 +804,11 @@ impl MessageProcessor {
         self.process_exec_processor
             .connection_closed(connection_id)
             .await;
-        self.thread_processor.connection_closed(connection_id).await;
+        self.chat_processor.connection_closed(connection_id).await;
     }
 
     pub(crate) fn subscribe_running_assistant_turn_count(&self) -> watch::Receiver<usize> {
-        self.thread_processor
-            .subscribe_running_assistant_turn_count()
+        self.chat_processor.subscribe_running_assistant_turn_count()
     }
 
     /// Handle a standalone JSON-RPC response originating from the peer.
@@ -848,7 +848,7 @@ impl MessageProcessor {
                 )
                 .await?;
             if connection_initialized {
-                self.thread_processor
+                self.chat_processor
                     .connection_initialized(
                         connection_id,
                         ConnectionCapabilities {
@@ -1087,8 +1087,8 @@ impl MessageProcessor {
                 .model_provider_capabilities_read()
                 .await
                 .map(|response| Some(response.into())),
-            ClientRequest::ThreadStart { params, .. } => {
-                self.thread_processor
+            ChatStart { params, .. } => {
+                self.chat_processor
                     .thread_start(
                         request_id.clone(),
                         params,
@@ -1099,13 +1099,13 @@ impl MessageProcessor {
                     )
                     .await
             }
-            ClientRequest::ThreadUnsubscribe { params, .. } => {
-                self.thread_processor
+            ChatUnsubscribe { params, .. } => {
+                self.chat_processor
                     .thread_unsubscribe(&request_id, params)
                     .await
             }
-            ClientRequest::ThreadResume { params, .. } => {
-                self.thread_processor
+            ChatResume { params, .. } => {
+                self.chat_processor
                     .thread_resume(
                         request_id.clone(),
                         params,
@@ -1116,8 +1116,8 @@ impl MessageProcessor {
                     )
                     .await
             }
-            ClientRequest::ThreadFork { params, .. } => {
-                self.thread_processor
+            ChatFork { params, .. } => {
+                self.chat_processor
                     .thread_fork(
                         request_id.clone(),
                         params,
@@ -1128,116 +1128,106 @@ impl MessageProcessor {
                     )
                     .await
             }
-            ClientRequest::ThreadArchive { params, .. } => {
-                self.thread_processor
+            ChatArchive { params, .. } => {
+                self.chat_processor
                     .thread_archive(request_id.clone(), params)
                     .await
             }
-            ClientRequest::ThreadDelete { params, .. } => {
-                self.thread_processor
+            ChatDelete { params, .. } => {
+                self.chat_processor
                     .thread_delete(request_id.clone(), params)
                     .await
             }
-            ClientRequest::ThreadIncrementElicitation { params, .. } => {
-                self.thread_processor
+            ChatIncrementElicitation { params, .. } => {
+                self.chat_processor
                     .thread_increment_elicitation(params)
                     .await
             }
-            ClientRequest::ThreadDecrementElicitation { params, .. } => {
-                self.thread_processor
+            ChatDecrementElicitation { params, .. } => {
+                self.chat_processor
                     .thread_decrement_elicitation(params)
                     .await
             }
-            ClientRequest::ThreadSetName { params, .. } => {
-                self.thread_processor
+            ChatSetName { params, .. } => {
+                self.chat_processor
                     .thread_set_name(request_id.clone(), params)
                     .await
             }
-            ClientRequest::ThreadGoalSet { params, .. } => {
+            ChatGoalSet { params, .. } => {
                 self.thread_goal_processor
                     .thread_goal_set(request_id.clone(), params)
                     .await
             }
-            ClientRequest::ThreadGoalGet { params, .. } => {
-                self.thread_goal_processor.thread_goal_get(params).await
-            }
-            ClientRequest::ThreadGoalClear { params, .. } => {
+            ChatGoalGet { params, .. } => self.thread_goal_processor.thread_goal_get(params).await,
+            ChatGoalClear { params, .. } => {
                 self.thread_goal_processor
                     .thread_goal_clear(request_id.clone(), params)
                     .await
             }
-            ClientRequest::ThreadMetadataUpdate { params, .. } => {
-                self.thread_processor.thread_metadata_update(params).await
+            ChatMetadataUpdate { params, .. } => {
+                self.chat_processor.thread_metadata_update(params).await
             }
-            ClientRequest::ThreadSettingsUpdate { params, .. } => {
-                self.turn_processor
+            ChatSettingsUpdate { params, .. } => {
+                self.interaction_processor
                     .thread_settings_update(&request_id, params)
                     .await
             }
-            ClientRequest::ThreadMemoryModeSet { params, .. } => {
-                self.thread_processor.thread_memory_mode_set(params).await
+            ChatMemoryModeSet { params, .. } => {
+                self.chat_processor.thread_memory_mode_set(params).await
             }
-            ClientRequest::MemoryReset { .. } => self.thread_processor.memory_reset().await,
-            ClientRequest::ThreadUnarchive { params, .. } => {
-                self.thread_processor
+            ClientRequest::MemoryReset { .. } => self.chat_processor.memory_reset().await,
+            ChatUnarchive { params, .. } => {
+                self.chat_processor
                     .thread_unarchive(request_id.clone(), params)
                     .await
             }
-            ClientRequest::ThreadCompactStart { params, .. } => {
-                self.thread_processor
+            ChatCompactStart { params, .. } => {
+                self.chat_processor
                     .thread_compact_start(&request_id, params)
                     .await
             }
-            ClientRequest::ThreadBackgroundTerminalsClean { params, .. } => {
-                self.thread_processor
+            ChatBackgroundTerminalsClean { params, .. } => {
+                self.chat_processor
                     .thread_background_terminals_clean(&request_id, params)
                     .await
             }
-            ClientRequest::ThreadBackgroundTerminalsList { params, .. } => {
-                self.thread_processor
+            ChatBackgroundTerminalsList { params, .. } => {
+                self.chat_processor
                     .thread_background_terminals_list(params)
                     .await
             }
-            ClientRequest::ThreadBackgroundTerminalsTerminate { params, .. } => {
-                self.thread_processor
+            ChatBackgroundTerminalsTerminate { params, .. } => {
+                self.chat_processor
                     .thread_background_terminals_terminate(params)
                     .await
             }
-            ClientRequest::ThreadRollback { params, .. } => {
-                self.thread_processor
+            ChatRollback { params, .. } => {
+                self.chat_processor
                     .thread_rollback(&request_id, params)
                     .await
             }
-            ClientRequest::ThreadList { params, .. } => {
-                self.thread_processor.thread_list(params).await
+            ChatList { params, .. } => self.chat_processor.thread_list(params).await,
+            ChatSearch { params, .. } => self.chat_processor.thread_search(params).await,
+            ChatLoadedList { params, .. } => self.chat_processor.thread_loaded_list(params).await,
+            ChatRead { params, .. } => self.chat_processor.thread_read(params).await,
+            ChatInteractionsList { params, .. } => {
+                self.chat_processor.thread_turns_list(params).await
             }
-            ClientRequest::ThreadSearch { params, .. } => {
-                self.thread_processor.thread_search(params).await
+            ChatInteractionsMessagesList { params, .. } => {
+                self.chat_processor.thread_turns_items_list(params).await
             }
-            ClientRequest::ThreadLoadedList { params, .. } => {
-                self.thread_processor.thread_loaded_list(params).await
-            }
-            ClientRequest::ThreadRead { params, .. } => {
-                self.thread_processor.thread_read(params).await
-            }
-            ClientRequest::ThreadTurnsList { params, .. } => {
-                self.thread_processor.thread_turns_list(params).await
-            }
-            ClientRequest::ThreadTurnsItemsList { params, .. } => {
-                self.thread_processor.thread_turns_items_list(params).await
-            }
-            ClientRequest::ThreadShellCommand { params, .. } => {
-                self.thread_processor
+            ChatShellCommand { params, .. } => {
+                self.chat_processor
                     .thread_shell_command(&request_id, params)
                     .await
             }
-            ClientRequest::ThreadApproveGuardianDeniedAction { params, .. } => {
-                self.thread_processor
+            ChatApproveGuardianDeniedAction { params, .. } => {
+                self.chat_processor
                     .thread_approve_guardian_denied_action(&request_id, params)
                     .await
             }
             ClientRequest::GetConversationSummary { params, .. } => {
-                self.thread_processor.conversation_summary(params).await
+                self.chat_processor.conversation_summary(params).await
             }
             ClientRequest::SkillsList { params, .. } => {
                 self.catalog_processor.skills_list(params).await
@@ -1317,8 +1307,8 @@ impl MessageProcessor {
                     .mock_experimental_method(params)
                     .await
             }
-            ClientRequest::TurnStart { params, .. } => {
-                self.turn_processor
+            InteractionStart { params, .. } => {
+                self.interaction_processor
                     .turn_start(
                         request_id.clone(),
                         params,
@@ -1329,47 +1319,53 @@ impl MessageProcessor {
                     )
                     .await
             }
-            ClientRequest::ThreadInjectItems { params, .. } => {
-                self.turn_processor.thread_inject_items(params).await
+            ChatInjectMessages { params, .. } => {
+                self.interaction_processor.thread_inject_items(params).await
             }
-            ClientRequest::TurnSteer { params, .. } => {
-                self.turn_processor.turn_steer(&request_id, params).await
+            InteractionSteer { params, .. } => {
+                self.interaction_processor
+                    .turn_steer(&request_id, params)
+                    .await
             }
-            ClientRequest::TurnInterrupt { params, .. } => {
-                self.turn_processor
+            InteractionInterrupt { params, .. } => {
+                self.interaction_processor
                     .turn_interrupt(&request_id, params)
                     .await
             }
-            ClientRequest::ThreadRealtimeStart { params, .. } => {
-                self.turn_processor
+            ChatRealtimeStart { params, .. } => {
+                self.interaction_processor
                     .thread_realtime_start(&request_id, params)
                     .await
             }
-            ClientRequest::ThreadRealtimeAppendAudio { params, .. } => {
-                self.turn_processor
+            ChatRealtimeAppendAudio { params, .. } => {
+                self.interaction_processor
                     .thread_realtime_append_audio(&request_id, params)
                     .await
             }
-            ClientRequest::ThreadRealtimeAppendText { params, .. } => {
-                self.turn_processor
+            ChatRealtimeAppendText { params, .. } => {
+                self.interaction_processor
                     .thread_realtime_append_text(&request_id, params)
                     .await
             }
-            ClientRequest::ThreadRealtimeAppendSpeech { params, .. } => {
-                self.turn_processor
+            ChatRealtimeAppendSpeech { params, .. } => {
+                self.interaction_processor
                     .thread_realtime_append_speech(&request_id, params)
                     .await
             }
-            ClientRequest::ThreadRealtimeStop { params, .. } => {
-                self.turn_processor
+            ChatRealtimeStop { params, .. } => {
+                self.interaction_processor
                     .thread_realtime_stop(&request_id, params)
                     .await
             }
-            ClientRequest::ThreadRealtimeListVoices { params: _, .. } => {
-                self.turn_processor.thread_realtime_list_voices().await
+            ChatRealtimeListVoices { params: _, .. } => {
+                self.interaction_processor
+                    .thread_realtime_list_voices()
+                    .await
             }
             ClientRequest::ReviewStart { params, .. } => {
-                self.turn_processor.review_start(&request_id, params).await
+                self.interaction_processor
+                    .review_start(&request_id, params)
+                    .await
             }
             ClientRequest::McpServerOauthLogin { params, .. } => {
                 self.mcp_processor.mcp_server_oauth_login(params).await

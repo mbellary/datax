@@ -82,9 +82,9 @@ async fn get_conversation_summary_by_thread_id_reads_rollout() -> Result<()> {
         Some(MODEL_PROVIDER),
         /*git_info*/ None,
     )?;
-    let thread_id = ThreadId::from_string(&conversation_id)?;
+    let chat_id = ThreadId::from_string(&conversation_id)?;
     let expected = expected_summary(
-        thread_id,
+        chat_id,
         normalized_canonical_path(rollout_path(
             codex_home.path(),
             FILENAME_TS,
@@ -97,7 +97,7 @@ async fn get_conversation_summary_by_thread_id_reads_rollout() -> Result<()> {
 
     let request_id = mcp
         .send_get_conversation_summary_request(GetConversationSummaryParams::ThreadId {
-            conversation_id: thread_id,
+            conversation_id: chat_id,
         })
         .await?;
     let response: JSONRPCResponse = timeout(
@@ -118,11 +118,11 @@ async fn get_conversation_summary_by_thread_id_reads_pathless_store_thread() -> 
     create_config_toml_with_in_memory_thread_store(codex_home.path(), &store_id)?;
     let store = InMemoryThreadStore::for_id(store_id.clone());
     let _in_memory_store = InMemoryThreadStoreId { store_id };
-    let thread_id = ThreadId::from_string("00000000-0000-4000-8000-000000000125")?;
+    let chat_id = ThreadId::from_string("00000000-0000-4000-8000-000000000125")?;
     store
         .create_thread(CreateThreadParams {
-            session_id: thread_id.into(),
-            thread_id,
+            session_id: chat_id.into(),
+            thread_id: chat_id,
             extra_config: None,
             forked_from_id: None,
             parent_thread_id: None,
@@ -180,14 +180,14 @@ async fn get_conversation_summary_by_thread_id_reads_pathless_store_thread() -> 
         .request(ClientRequest::GetConversationSummary {
             request_id: RequestId::Integer(1),
             params: GetConversationSummaryParams::ThreadId {
-                conversation_id: thread_id,
+                conversation_id: chat_id,
             },
         })
         .await?
         .expect("getConversationSummary should succeed");
     let GetConversationSummaryResponse { summary } = serde_json::from_value(result)?;
 
-    assert_eq!(summary.conversation_id, thread_id);
+    assert_eq!(summary.conversation_id, chat_id);
     assert_eq!(summary.path, PathBuf::new());
     assert_eq!(summary.cwd, PathBuf::new());
     assert_eq!(summary.model_provider, "test");
@@ -208,10 +208,10 @@ async fn get_conversation_summary_by_relative_rollout_path_resolves_from_codex_h
         Some(MODEL_PROVIDER),
         /*git_info*/ None,
     )?;
-    let thread_id = ThreadId::from_string(&conversation_id)?;
+    let chat_id = ThreadId::from_string(&conversation_id)?;
     let rollout_path = rollout_path(codex_home.path(), FILENAME_TS, &conversation_id);
     let relative_path = rollout_path.strip_prefix(codex_home.path())?.to_path_buf();
-    let expected = expected_summary(thread_id, normalized_canonical_path(rollout_path)?);
+    let expected = expected_summary(chat_id, normalized_canonical_path(rollout_path)?);
 
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;

@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Notification that the interaction-level unified diff has changed. Contains the latest aggregated diff across all file changes in the interaction.",
+  "properties": {
+    "chatId": {
+      "type": "string"
+    },
+    "diff": {
+      "type": "string"
+    },
+    "interactionId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "chatId",
+    "diff",
+    "interactionId"
+  ],
+  "title": "InteractionDiffUpdatedNotification",
+  "type": "object"
+}

@@ -12,10 +12,10 @@ use anyhow::bail;
 use app_test_support::create_final_assistant_message_sse_response;
 use app_test_support::to_response;
 use core_test_support::responses;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::InteractionStartParams;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use futures::SinkExt;
 use futures::StreamExt;
@@ -188,11 +188,11 @@ async fn start_ctrl_c_restart_fixture(turn_delay: Duration) -> Result<GracefulCt
     let init_response = read_response_for_id(&mut ws, /*id*/ 1).await?;
     assert_eq!(init_response.id, RequestId::Integer(1));
 
-    send_thread_start_request(&mut ws, /*id*/ 2).await?;
+    send_chat_start_request(&mut ws, /*id*/ 2).await?;
     let thread_start_response = read_response_for_id(&mut ws, /*id*/ 2).await?;
-    let ThreadStartResponse { thread, .. } = to_response(thread_start_response)?;
+    let ChatStartResponse { thread, .. } = to_response(thread_start_response)?;
 
-    send_turn_start_request(&mut ws, /*id*/ 3, &thread.id).await?;
+    send_interaction_start_request(&mut ws, /*id*/ 3, &thread.id).await?;
     let turn_start_response = read_response_for_id(&mut ws, /*id*/ 3).await?;
     assert_eq!(turn_start_response.id, RequestId::Integer(3));
 
@@ -206,12 +206,12 @@ async fn start_ctrl_c_restart_fixture(turn_delay: Duration) -> Result<GracefulCt
     })
 }
 
-async fn send_thread_start_request(stream: &mut WsClient, id: i64) -> Result<()> {
+async fn send_chat_start_request(stream: &mut WsClient, id: i64) -> Result<()> {
     send_request(
         stream,
-        "thread/start",
+        "chat/start",
         id,
-        Some(serde_json::to_value(ThreadStartParams {
+        Some(serde_json::to_value(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })?),
@@ -219,13 +219,17 @@ async fn send_thread_start_request(stream: &mut WsClient, id: i64) -> Result<()>
     .await
 }
 
-async fn send_turn_start_request(stream: &mut WsClient, id: i64, thread_id: &str) -> Result<()> {
+async fn send_interaction_start_request(
+    stream: &mut WsClient,
+    id: i64,
+    chat_id: &str,
+) -> Result<()> {
     send_request(
         stream,
-        "turn/start",
+        "interaction/start",
         id,
-        Some(serde_json::to_value(TurnStartParams {
-            thread_id: thread_id.to_string(),
+        Some(serde_json::to_value(InteractionStartParams {
+            chat_id: chat_id.to_string(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "Hello".to_string(),

@@ -27,6 +27,16 @@ use clap::Parser;
 use clap::Subcommand;
 use datax_app_server_protocol::AccountLoginCompletedNotification;
 use datax_app_server_protocol::AskForApproval;
+use datax_app_server_protocol::ChatDecrementElicitationParams;
+use datax_app_server_protocol::ChatDecrementElicitationResponse;
+use datax_app_server_protocol::ChatIncrementElicitationParams;
+use datax_app_server_protocol::ChatIncrementElicitationResponse;
+use datax_app_server_protocol::ChatListParams;
+use datax_app_server_protocol::ChatListResponse;
+use datax_app_server_protocol::ChatResumeParams;
+use datax_app_server_protocol::ChatResumeResponse;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::ClientInfo;
 use datax_app_server_protocol::ClientRequest;
 use datax_app_server_protocol::CommandExecutionApprovalDecision;
@@ -41,31 +51,21 @@ use datax_app_server_protocol::GetAccountRateLimitsResponse;
 use datax_app_server_protocol::InitializeCapabilities;
 use datax_app_server_protocol::InitializeParams;
 use datax_app_server_protocol::InitializeResponse;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
+use datax_app_server_protocol::InteractionStatus;
 use datax_app_server_protocol::JSONRPCMessage;
 use datax_app_server_protocol::JSONRPCNotification;
 use datax_app_server_protocol::JSONRPCRequest;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::LoginAccountResponse;
+use datax_app_server_protocol::Message;
 use datax_app_server_protocol::ModelListParams;
 use datax_app_server_protocol::ModelListResponse;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::SandboxPolicy;
 use datax_app_server_protocol::ServerNotification;
 use datax_app_server_protocol::ServerRequest;
-use datax_app_server_protocol::ThreadDecrementElicitationParams;
-use datax_app_server_protocol::ThreadDecrementElicitationResponse;
-use datax_app_server_protocol::ThreadIncrementElicitationParams;
-use datax_app_server_protocol::ThreadIncrementElicitationResponse;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadListParams;
-use datax_app_server_protocol::ThreadListResponse;
-use datax_app_server_protocol::ThreadResumeParams;
-use datax_app_server_protocol::ThreadResumeResponse;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
-use datax_app_server_protocol::TurnStatus;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_core::config::Config;
 use datax_otel::OtelProvider;
@@ -96,11 +96,11 @@ mod request_user_input;
 const NOTIFICATIONS_TO_OPT_OUT: &[&str] = &[
     // v2 item deltas.
     "command/exec/outputDelta",
-    "item/agentMessage/delta",
-    "item/plan/delta",
-    "item/fileChange/outputDelta",
-    "item/reasoning/summaryTextDelta",
-    "item/reasoning/textDelta",
+    "message/agentMessage/delta",
+    "message/plan/delta",
+    "message/fileChange/outputDelta",
+    "message/reasoning/summaryTextDelta",
+    "message/reasoning/textDelta",
 ];
 const APP_SERVER_GRACEFUL_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 const APP_SERVER_GRACEFUL_SHUTDOWN_POLL_INTERVAL: Duration = Duration::from_millis(100);
@@ -170,7 +170,7 @@ enum CliCommand {
         /// User message to send to Codex.
         user_message: String,
     },
-    /// Send a user message through the app-server V2 thread/turn APIs.
+    /// Send a user message through the app-server V2 chat/interaction APIs.
     SendMessageV2 {
         /// Opt into experimental app-server methods and fields.
         #[arg(long)]
@@ -178,18 +178,18 @@ enum CliCommand {
         /// User message to send to Codex.
         user_message: String,
     },
-    /// Resume a V2 thread by id, then send a user message.
+    /// Resume a V2 chat by id, then send a user message.
     ResumeMessageV2 {
-        /// Existing thread id to resume.
+        /// Existing chat id to resume.
         thread_id: String,
         /// User message to send to Codex.
         user_message: String,
     },
-    /// Resume a V2 thread and continuously stream notifications/events.
+    /// Resume a V2 chat and continuously stream notifications/events.
     ///
     /// This command does not auto-exit; stop it with SIGINT/SIGTERM/SIGKILL.
-    ThreadResume {
-        /// Existing thread id to resume.
+    ChatResume {
+        /// Existing chat id to resume.
         thread_id: String,
     },
     /// Initialize the app-server and dump all inbound messages until interrupted.
@@ -242,29 +242,29 @@ enum CliCommand {
     #[command(name = "model-list")]
     ModelList,
     /// List stored threads from the Codex app-server.
-    #[command(name = "thread-list")]
-    ThreadList {
+    #[command(name = "chat-list")]
+    ChatList {
         /// Number of threads to return.
         #[arg(long, default_value_t = 20)]
         limit: u32,
     },
     /// Increment the out-of-band elicitation pause counter for a thread.
-    #[command(name = "thread-increment-elicitation")]
-    ThreadIncrementElicitation {
-        /// Existing thread id to update.
+    #[command(name = "chat-increment-elicitation")]
+    ChatIncrementElicitation {
+        /// Existing chat id to update.
         thread_id: String,
     },
     /// Decrement the out-of-band elicitation pause counter for a thread.
-    #[command(name = "thread-decrement-elicitation")]
-    ThreadDecrementElicitation {
-        /// Existing thread id to update.
+    #[command(name = "chat-decrement-elicitation")]
+    ChatDecrementElicitation {
+        /// Existing chat id to update.
         thread_id: String,
     },
     /// Run the live websocket harness that proves elicitation pause prevents a
     /// 10s unified exec timeout from killing a 15s helper script.
     #[command(name = "live-elicitation-timeout-pause")]
     LiveElicitationTimeoutPause {
-        /// Model passed to `thread/start`.
+        /// Model passed to `chat/start`.
         #[arg(long, env = "CODEX_E2E_MODEL", default_value = "gpt-5")]
         model: String,
         /// Existing workspace path used as the turn cwd.
@@ -363,7 +363,7 @@ pub async fn run() -> Result<()> {
             )
             .await
         }
-        CliCommand::ThreadResume { thread_id } => {
+        CliCommand::ChatResume { thread_id } => {
             ensure_dynamic_tools_unused(&dynamic_tools, "thread-resume")?;
             let endpoint = resolve_endpoint(datax_bin, url)?;
             thread_resume_follow(&endpoint, &config_overrides, thread_id).await
@@ -430,20 +430,20 @@ pub async fn run() -> Result<()> {
             let endpoint = resolve_endpoint(datax_bin, url)?;
             model_list(&endpoint, &config_overrides).await
         }
-        CliCommand::ThreadList { limit } => {
-            ensure_dynamic_tools_unused(&dynamic_tools, "thread-list")?;
+        CliCommand::ChatList { limit } => {
+            ensure_dynamic_tools_unused(&dynamic_tools, "chat-list")?;
             let endpoint = resolve_endpoint(datax_bin, url)?;
-            thread_list(&endpoint, &config_overrides, limit).await
+            chat_list(&endpoint, &config_overrides, limit).await
         }
-        CliCommand::ThreadIncrementElicitation { thread_id } => {
-            ensure_dynamic_tools_unused(&dynamic_tools, "thread-increment-elicitation")?;
-            let url = resolve_shared_websocket_url(datax_bin, url, "thread-increment-elicitation")?;
-            thread_increment_elicitation(&url, thread_id)
+        CliCommand::ChatIncrementElicitation { thread_id } => {
+            ensure_dynamic_tools_unused(&dynamic_tools, "chat-increment-elicitation")?;
+            let url = resolve_shared_websocket_url(datax_bin, url, "chat-increment-elicitation")?;
+            chat_increment_elicitation(&url, thread_id)
         }
-        CliCommand::ThreadDecrementElicitation { thread_id } => {
-            ensure_dynamic_tools_unused(&dynamic_tools, "thread-decrement-elicitation")?;
-            let url = resolve_shared_websocket_url(datax_bin, url, "thread-decrement-elicitation")?;
-            thread_decrement_elicitation(&url, thread_id)
+        CliCommand::ChatDecrementElicitation { thread_id } => {
+            ensure_dynamic_tools_unused(&dynamic_tools, "chat-decrement-elicitation")?;
+            let url = resolve_shared_websocket_url(datax_bin, url, "chat-decrement-elicitation")?;
+            chat_decrement_elicitation(&url, thread_id)
         }
         CliCommand::LiveElicitationTimeoutPause {
             model,
@@ -809,11 +809,11 @@ async fn trigger_zsh_fork_multi_cmd_approval(
             let initialize = client.initialize()?;
             println!("< initialize response: {initialize:?}");
 
-            let thread_response = client.thread_start(ThreadStartParams {
+            let thread_response = client.chat_start(ChatStartParams {
                 dynamic_tools: dynamic_tools.clone(),
                 ..Default::default()
             })?;
-            println!("< thread/start response: {thread_response:?}");
+            println!("< chat/start response: {thread_response:?}");
 
             client.command_approval_behavior = match abort_on {
                 Some(index) => CommandApprovalBehavior::AbortOn(index),
@@ -824,7 +824,7 @@ async fn trigger_zsh_fork_multi_cmd_approval(
             client.command_execution_statuses.clear();
             client.last_turn_status = None;
 
-            let mut turn_params = TurnStartParams {
+            let mut turn_params = InteractionStartParams {
                 thread_id: thread_response.thread.id.clone(),
                 client_user_message_id: None,
                 input: vec![V2UserInput::Text {
@@ -838,8 +838,8 @@ async fn trigger_zsh_fork_multi_cmd_approval(
                 network_access: false,
             });
 
-            let turn_response = client.turn_start(turn_params)?;
-            println!("< turn/start response: {turn_response:?}");
+            let turn_response = client.interaction_start(turn_params)?;
+            println!("< interaction/start response: {turn_response:?}");
             client.stream_turn(&thread_response.thread.id, &turn_response.turn.id)?;
 
             if client.command_approval_count < min_approvals {
@@ -865,7 +865,7 @@ async fn trigger_zsh_fork_multi_cmd_approval(
                 if last_command_status != Some(&CommandExecutionStatus::Completed) {
                     bail!("expected completed command execution, got {last_command_status:?}");
                 }
-                if client.last_turn_status != Some(TurnStatus::Completed) {
+                if client.last_turn_status != Some(InteractionStatus::Completed) {
                     bail!(
                         "expected completed turn in all-accept flow, got {:?}",
                         client.last_turn_status
@@ -903,13 +903,13 @@ async fn resume_message_v2(
         let initialize = client.initialize()?;
         println!("< initialize response: {initialize:?}");
 
-        let resume_response = client.thread_resume(ThreadResumeParams {
+        let resume_response = client.chat_resume(ChatResumeParams {
             thread_id,
             ..Default::default()
         })?;
         println!("< thread/resume response: {resume_response:?}");
 
-        let turn_response = client.turn_start(TurnStartParams {
+        let turn_response = client.interaction_start(InteractionStartParams {
             thread_id: resume_response.thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
@@ -918,7 +918,7 @@ async fn resume_message_v2(
             }],
             ..Default::default()
         })?;
-        println!("< turn/start response: {turn_response:?}");
+        println!("< interaction/start response: {turn_response:?}");
 
         client.stream_turn(&resume_response.thread.id, &turn_response.turn.id)?;
 
@@ -936,7 +936,7 @@ async fn thread_resume_follow(
         let initialize = client.initialize()?;
         println!("< initialize response: {initialize:?}");
 
-        let resume_response = client.thread_resume(ThreadResumeParams {
+        let resume_response = client.chat_resume(ChatResumeParams {
             thread_id,
             ..Default::default()
         })?;
@@ -1046,12 +1046,12 @@ async fn send_message_v2_with_policies(
             let initialize = client.initialize_with_experimental_api(policies.experimental_api)?;
             println!("< initialize response: {initialize:?}");
 
-            let thread_response = client.thread_start(ThreadStartParams {
+            let thread_response = client.chat_start(ChatStartParams {
                 dynamic_tools: policies.dynamic_tools.clone(),
                 ..Default::default()
             })?;
-            println!("< thread/start response: {thread_response:?}");
-            let mut turn_params = TurnStartParams {
+            println!("< chat/start response: {thread_response:?}");
+            let mut turn_params = InteractionStartParams {
                 thread_id: thread_response.thread.id.clone(),
                 client_user_message_id: None,
                 input: vec![V2UserInput::Text {
@@ -1064,8 +1064,8 @@ async fn send_message_v2_with_policies(
             turn_params.approval_policy = policies.approval_policy;
             turn_params.sandbox_policy = policies.sandbox_policy;
 
-            let turn_response = client.turn_start(turn_params)?;
-            println!("< turn/start response: {turn_response:?}");
+            let turn_response = client.interaction_start(turn_params)?;
+            println!("< interaction/start response: {turn_response:?}");
 
             client.stream_turn(&thread_response.thread.id, &turn_response.turn.id)?;
 
@@ -1086,13 +1086,13 @@ async fn send_follow_up_v2(
         let initialize = client.initialize()?;
         println!("< initialize response: {initialize:?}");
 
-        let thread_response = client.thread_start(ThreadStartParams {
+        let thread_response = client.chat_start(ChatStartParams {
             dynamic_tools: dynamic_tools.clone(),
             ..Default::default()
         })?;
-        println!("< thread/start response: {thread_response:?}");
+        println!("< chat/start response: {thread_response:?}");
 
-        let first_turn_params = TurnStartParams {
+        let first_turn_params = InteractionStartParams {
             thread_id: thread_response.thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
@@ -1102,11 +1102,11 @@ async fn send_follow_up_v2(
             }],
             ..Default::default()
         };
-        let first_turn_response = client.turn_start(first_turn_params)?;
-        println!("< turn/start response (initial): {first_turn_response:?}");
+        let first_turn_response = client.interaction_start(first_turn_params)?;
+        println!("< interaction/start response (initial): {first_turn_response:?}");
         client.stream_turn(&thread_response.thread.id, &first_turn_response.turn.id)?;
 
-        let follow_up_params = TurnStartParams {
+        let follow_up_params = InteractionStartParams {
             thread_id: thread_response.thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
@@ -1116,8 +1116,8 @@ async fn send_follow_up_v2(
             }],
             ..Default::default()
         };
-        let follow_up_response = client.turn_start(follow_up_params)?;
-        println!("< turn/start response (follow-up): {follow_up_response:?}");
+        let follow_up_response = client.interaction_start(follow_up_params)?;
+        println!("< interaction/start response (follow-up): {follow_up_response:?}");
         client.stream_turn(&thread_response.thread.id, &follow_up_response.turn.id)?;
 
         Ok(())
@@ -1208,12 +1208,12 @@ async fn model_list(endpoint: &Endpoint, config_overrides: &[String]) -> Result<
     .await
 }
 
-async fn thread_list(endpoint: &Endpoint, config_overrides: &[String], limit: u32) -> Result<()> {
-    with_client("thread-list", endpoint, config_overrides, |client| {
+async fn chat_list(endpoint: &Endpoint, config_overrides: &[String], limit: u32) -> Result<()> {
+    with_client("chat-list", endpoint, config_overrides, |client| {
         let initialize = client.initialize()?;
         println!("< initialize response: {initialize:?}");
 
-        let response = client.thread_list(ThreadListParams {
+        let response = client.chat_list(ChatListParams {
             cursor: None,
             limit: Some(limit),
             sort_key: None,
@@ -1255,7 +1255,7 @@ async fn with_client<T>(
     result
 }
 
-fn thread_increment_elicitation(url: &str, thread_id: String) -> Result<()> {
+fn chat_increment_elicitation(url: &str, thread_id: String) -> Result<()> {
     let endpoint = Endpoint::ConnectWs(url.to_string());
     let mut client = DataxClient::connect(&endpoint, &[])?;
 
@@ -1263,13 +1263,13 @@ fn thread_increment_elicitation(url: &str, thread_id: String) -> Result<()> {
     println!("< initialize response: {initialize:?}");
 
     let response =
-        client.thread_increment_elicitation(ThreadIncrementElicitationParams { thread_id })?;
+        client.chat_increment_elicitation(ChatIncrementElicitationParams { thread_id })?;
     println!("< thread/increment_elicitation response: {response:?}");
 
     Ok(())
 }
 
-fn thread_decrement_elicitation(url: &str, thread_id: String) -> Result<()> {
+fn chat_decrement_elicitation(url: &str, thread_id: String) -> Result<()> {
     let endpoint = Endpoint::ConnectWs(url.to_string());
     let mut client = DataxClient::connect(&endpoint, &[])?;
 
@@ -1277,7 +1277,7 @@ fn thread_decrement_elicitation(url: &str, thread_id: String) -> Result<()> {
     println!("< initialize response: {initialize:?}");
 
     let response =
-        client.thread_decrement_elicitation(ThreadDecrementElicitationParams { thread_id })?;
+        client.chat_decrement_elicitation(ChatDecrementElicitationParams { thread_id })?;
     println!("< thread/decrement_elicitation response: {response:?}");
 
     Ok(())
@@ -1332,11 +1332,11 @@ fn live_elicitation_timeout_pause(
     let initialize = client.initialize()?;
     println!("< initialize response: {initialize:?}");
 
-    let thread_response = client.thread_start(ThreadStartParams {
+    let thread_response = client.chat_start(ChatStartParams {
         model: Some(model),
         ..Default::default()
     })?;
-    println!("< thread/start response: {thread_response:?}");
+    println!("< chat/start response: {thread_response:?}");
 
     let thread_id = thread_response.thread.id;
     let command = format!(
@@ -1351,7 +1351,7 @@ fn live_elicitation_timeout_pause(
     );
 
     let started_at = Instant::now();
-    let turn_response = client.turn_start(TurnStartParams {
+    let turn_response = client.interaction_start(InteractionStartParams {
         thread_id: thread_id.clone(),
         client_user_message_id: None,
         input: vec![V2UserInput::Text {
@@ -1364,7 +1364,7 @@ fn live_elicitation_timeout_pause(
         cwd: Some(workspace),
         ..Default::default()
     })?;
-    println!("< turn/start response: {turn_response:?}");
+    println!("< interaction/start response: {turn_response:?}");
 
     let stream_result = client.stream_turn(&thread_id, &turn_response.turn.id);
     let elapsed = started_at.elapsed();
@@ -1380,7 +1380,7 @@ fn live_elicitation_timeout_pause(
             .ok_or_else(|| anyhow::anyhow!("expected helper script markers in command output"))?;
         let minimum_elapsed = Duration::from_secs(hold_seconds.saturating_sub(1));
 
-        if client.last_turn_status != Some(TurnStatus::Completed) {
+        if client.last_turn_status != Some(InteractionStatus::Completed) {
             bail!(
                 "expected completed turn, got {:?} (last error: {:?})",
                 client.last_turn_status,
@@ -1419,7 +1419,7 @@ fn live_elicitation_timeout_pause(
         Ok(())
     })();
 
-    match client.thread_decrement_elicitation(ThreadDecrementElicitationParams {
+    match client.chat_decrement_elicitation(ChatDecrementElicitationParams {
         thread_id: thread_id.clone(),
     }) {
         Ok(response) => {
@@ -1446,7 +1446,7 @@ fn ensure_dynamic_tools_unused(
 ) -> Result<()> {
     if dynamic_tools.is_some() {
         bail!(
-            "dynamic tools are only supported for v2 thread/start; remove --dynamic-tools for {command} or use send-message-v2"
+            "dynamic tools are only supported for v2 chat/start; remove --dynamic-tools for {command} or use send-message-v2"
         );
     }
     Ok(())
@@ -1499,8 +1499,8 @@ struct DataxClient {
     command_item_started: bool,
     helper_done_seen: bool,
     turn_completed_before_helper_done: bool,
-    unexpected_items_before_helper_done: Vec<ThreadItem>,
-    last_turn_status: Option<TurnStatus>,
+    unexpected_items_before_helper_done: Vec<Message>,
+    last_turn_status: Option<InteractionStatus>,
     last_turn_error_message: Option<String>,
 }
 
@@ -1511,7 +1511,7 @@ enum CommandApprovalBehavior {
 }
 
 fn item_started_before_helper_done_is_unexpected(
-    item: &ThreadItem,
+    item: &Message,
     command_item_started: bool,
     helper_done_seen: bool,
 ) -> bool {
@@ -1519,7 +1519,7 @@ fn item_started_before_helper_done_is_unexpected(
         return false;
     }
 
-    !matches!(item, ThreadItem::UserMessage { .. })
+    !matches!(item, Message::UserMessage { .. })
 }
 
 impl DataxClient {
@@ -1686,34 +1686,37 @@ impl DataxClient {
         Ok(response)
     }
 
-    fn thread_start(&mut self, params: ThreadStartParams) -> Result<ThreadStartResponse> {
+    fn chat_start(&mut self, params: ChatStartParams) -> Result<ChatStartResponse> {
         let request_id = self.request_id();
-        let request = ClientRequest::ThreadStart {
+        let request = ClientRequest::ChatStart {
             request_id: request_id.clone(),
             params,
         };
 
-        self.send_request(request, request_id, "thread/start")
+        self.send_request(request, request_id, "chat/start")
     }
 
-    fn thread_resume(&mut self, params: ThreadResumeParams) -> Result<ThreadResumeResponse> {
+    fn chat_resume(&mut self, params: ChatResumeParams) -> Result<ChatResumeResponse> {
         let request_id = self.request_id();
-        let request = ClientRequest::ThreadResume {
+        let request = ClientRequest::ChatResume {
             request_id: request_id.clone(),
             params,
         };
 
-        self.send_request(request, request_id, "thread/resume")
+        self.send_request(request, request_id, "chat/resume")
     }
 
-    fn turn_start(&mut self, params: TurnStartParams) -> Result<TurnStartResponse> {
+    fn interaction_start(
+        &mut self,
+        params: InteractionStartParams,
+    ) -> Result<InteractionStartResponse> {
         let request_id = self.request_id();
-        let request = ClientRequest::TurnStart {
+        let request = ClientRequest::InteractionStart {
             request_id: request_id.clone(),
             params,
         };
 
-        self.send_request(request, request_id, "turn/start")
+        self.send_request(request, request_id, "interaction/start")
     }
 
     fn login_account_chatgpt(&mut self) -> Result<LoginAccountResponse> {
@@ -1758,40 +1761,40 @@ impl DataxClient {
         self.send_request(request, request_id, "model/list")
     }
 
-    fn thread_list(&mut self, params: ThreadListParams) -> Result<ThreadListResponse> {
+    fn chat_list(&mut self, params: ChatListParams) -> Result<ChatListResponse> {
         let request_id = self.request_id();
-        let request = ClientRequest::ThreadList {
+        let request = ClientRequest::ChatList {
             request_id: request_id.clone(),
             params,
         };
 
-        self.send_request(request, request_id, "thread/list")
+        self.send_request(request, request_id, "chat/list")
     }
 
-    fn thread_increment_elicitation(
+    fn chat_increment_elicitation(
         &mut self,
-        params: ThreadIncrementElicitationParams,
-    ) -> Result<ThreadIncrementElicitationResponse> {
+        params: ChatIncrementElicitationParams,
+    ) -> Result<ChatIncrementElicitationResponse> {
         let request_id = self.request_id();
-        let request = ClientRequest::ThreadIncrementElicitation {
+        let request = ClientRequest::ChatIncrementElicitation {
             request_id: request_id.clone(),
             params,
         };
 
-        self.send_request(request, request_id, "thread/increment_elicitation")
+        self.send_request(request, request_id, "chat/increment_elicitation")
     }
 
-    fn thread_decrement_elicitation(
+    fn chat_decrement_elicitation(
         &mut self,
-        params: ThreadDecrementElicitationParams,
-    ) -> Result<ThreadDecrementElicitationResponse> {
+        params: ChatDecrementElicitationParams,
+    ) -> Result<ChatDecrementElicitationResponse> {
         let request_id = self.request_id();
-        let request = ClientRequest::ThreadDecrementElicitation {
+        let request = ClientRequest::ChatDecrementElicitation {
             request_id: request_id.clone(),
             params,
         };
 
-        self.send_request(request, request_id, "thread/decrement_elicitation")
+        self.send_request(request, request_id, "chat/decrement_elicitation")
     }
 
     fn wait_for_account_login_completion(
@@ -1831,14 +1834,17 @@ impl DataxClient {
             };
 
             match server_notification {
-                ServerNotification::ThreadStarted(payload) => {
+                ServerNotification::ChatStarted(payload) => {
                     if payload.thread.id == thread_id {
-                        println!("< thread/started notification: {:?}", payload.thread);
+                        println!("< chat/started notification: {:?}", payload.thread);
                     }
                 }
-                ServerNotification::TurnStarted(payload) => {
+                ServerNotification::InteractionStarted(payload) => {
                     if payload.turn.id == turn_id {
-                        println!("< turn/started notification: {:?}", payload.turn.status);
+                        println!(
+                            "< interaction/started notification: {:?}",
+                            payload.turn.status
+                        );
                     }
                 }
                 ServerNotification::AgentMessageDelta(delta) => {
@@ -1854,8 +1860,8 @@ impl DataxClient {
                     println!("[stdin sent: {}]", delta.stdin);
                     std::io::stdout().flush().ok();
                 }
-                ServerNotification::ItemStarted(payload) => {
-                    if matches!(payload.item, ThreadItem::CommandExecution { .. }) {
+                ServerNotification::MessageStarted(payload) => {
+                    if matches!(payload.item, Message::CommandExecution { .. }) {
                         if self.command_item_started && !self.helper_done_seen {
                             self.unexpected_items_before_helper_done
                                 .push(payload.item.clone());
@@ -1871,8 +1877,8 @@ impl DataxClient {
                     }
                     println!("\n< item started: {:?}", payload.item);
                 }
-                ServerNotification::ItemCompleted(payload) => {
-                    if let ThreadItem::CommandExecution {
+                ServerNotification::MessageCompleted(payload) => {
+                    if let Message::CommandExecution {
                         status,
                         aggregated_output,
                         ..
@@ -1886,7 +1892,7 @@ impl DataxClient {
                     }
                     println!("< item completed: {:?}", payload.item);
                 }
-                ServerNotification::TurnCompleted(payload) => {
+                ServerNotification::InteractionCompleted(payload) => {
                     if payload.turn.id == turn_id {
                         self.last_turn_status = Some(payload.turn.status.clone());
                         if self.command_item_started && !self.helper_done_seen {
@@ -1898,7 +1904,7 @@ impl DataxClient {
                             .as_ref()
                             .map(|error| error.message.clone());
                         println!("\n< turn/completed notification: {:?}", payload.turn.status);
-                        if payload.turn.status == TurnStatus::Failed
+                        if payload.turn.status == InteractionStatus::Failed
                             && let Some(error) = payload.turn.error
                         {
                             println!("[turn error] {}", error.message);

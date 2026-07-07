@@ -572,9 +572,9 @@ fn toml_value_to_value(value: &TomlValue) -> anyhow::Result<toml_edit::Value> {
         TomlValue::Float(val) => Ok(toml_edit::Value::from(*val)),
         TomlValue::Boolean(val) => Ok(toml_edit::Value::from(*val)),
         TomlValue::Datetime(val) => Ok(toml_edit::Value::from(*val)),
-        TomlValue::Array(items) => {
+        TomlValue::Array(messages) => {
             let mut array = toml_edit::Array::new();
-            for item in items {
+            for item in messages {
                 array.push(toml_value_to_value(item)?);
             }
             Ok(toml_edit::Value::Array(array))
@@ -605,10 +605,10 @@ fn value_at_path<'a>(root: &'a TomlValue, segments: &[String]) -> Option<&'a Tom
             TomlValue::Table(table) => {
                 current = table.get(segment)?;
             }
-            TomlValue::Array(items) => {
+            TomlValue::Array(messages) => {
                 let idx = segment.parse::<i64>().ok()?;
                 let idx = usize::try_from(idx).ok()?;
-                current = items.get(idx)?;
+                current = messages.get(idx)?;
             }
             _ => return None,
         }

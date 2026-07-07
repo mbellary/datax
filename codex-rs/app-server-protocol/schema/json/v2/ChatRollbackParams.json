@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "properties": {
+    "chatId": {
+      "type": "string"
+    },
+    "numInteractions": {
+      "description": "The number of interactions to drop from the end of the chat. Must be >= 1.\n\nThis only modifies the chat.s history and does not revert local file changes that have been made by the agent. Clients are responsible for reverting these changes.",
+      "format": "uint32",
+      "minimum": 0.0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "chatId",
+    "numInteractions"
+  ],
+  "title": "ChatRollbackParams",
+  "type": "object"
+}

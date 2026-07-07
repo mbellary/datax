@@ -2,8 +2,8 @@
 //!
 //! Phases:
 //! 1) Arrange: mock responses/compact endpoints + config.
-//! 2) Act: start a thread and submit multiple turns to trigger auto-compaction.
-//! 3) Assert: verify item/started + item/completed notifications for context compaction.
+//! 2) Act: start a thread and submit multiple interactions to trigger auto-compaction.
+//! 3) Assert: verify message/started + message/completed notifications for context compaction.
 
 use anyhow::Result;
 use app_test_support::ChatGptAuthFixture;
@@ -13,20 +13,20 @@ use app_test_support::write_chatgpt_auth;
 use app_test_support::write_mock_responses_config_toml;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
-use datax_app_server_protocol::ItemCompletedNotification;
-use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::ChatCompactStartParams;
+use datax_app_server_protocol::ChatCompactStartResponse;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::InteractionCompletedNotification;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
 use datax_app_server_protocol::JSONRPCError;
 use datax_app_server_protocol::JSONRPCNotification;
 use datax_app_server_protocol::JSONRPCResponse;
+use datax_app_server_protocol::Message;
+use datax_app_server_protocol::MessageCompletedNotification;
+use datax_app_server_protocol::MessageStartedNotification;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadCompactStartParams;
-use datax_app_server_protocol::ThreadCompactStartResponse;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnCompletedNotification;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
 use datax_app_server_protocol::UserInput as V2UserInput;
 use datax_config::types::AuthCredentialsStoreMode;
 use datax_features::Feature;
@@ -84,23 +84,23 @@ async fn auto_compaction_local_emits_started_and_completed_items() -> Result<()>
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let thread_id = start_thread(&mut mcp).await?;
+    let chat_id = start_thread(&mut mcp).await?;
     for message in ["first", "second", "third"] {
-        send_turn_and_wait(&mut mcp, &thread_id, message).await?;
+        send_turn_and_wait(&mut mcp, &chat_id, message).await?;
     }
 
     let started = wait_for_context_compaction_started(&mut mcp).await?;
     let completed = wait_for_context_compaction_completed(&mut mcp).await?;
 
-    let ThreadItem::ContextCompaction { id: started_id } = started.item else {
+    let Message::ContextCompaction { id: started_id } = started.item else {
         unreachable!("started item should be context compaction");
     };
-    let ThreadItem::ContextCompaction { id: completed_id } = completed.item else {
+    let Message::ContextCompaction { id: completed_id } = completed.item else {
         unreachable!("completed item should be context compaction");
     };
 
-    assert_eq!(started.thread_id, thread_id);
-    assert_eq!(completed.thread_id, thread_id);
+    assert_eq!(started.chat_id, chat_id);
+    assert_eq!(completed.chat_id, chat_id);
     assert_eq!(started_id, completed_id);
 
     Ok(())
@@ -168,23 +168,23 @@ async fn auto_compaction_remote_emits_started_and_completed_items() -> Result<()
         TestAppServer::new_with_env(codex_home.path(), &[("OPENAI_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let thread_id = start_thread(&mut mcp).await?;
+    let chat_id = start_thread(&mut mcp).await?;
     for message in ["first", "second", "third"] {
-        send_turn_and_wait(&mut mcp, &thread_id, message).await?;
+        send_turn_and_wait(&mut mcp, &chat_id, message).await?;
     }
 
     let started = wait_for_context_compaction_started(&mut mcp).await?;
     let completed = wait_for_context_compaction_completed(&mut mcp).await?;
 
-    let ThreadItem::ContextCompaction { id: started_id } = started.item else {
+    let Message::ContextCompaction { id: started_id } = started.item else {
         unreachable!("started item should be context compaction");
     };
-    let ThreadItem::ContextCompaction { id: completed_id } = completed.item else {
+    let Message::ContextCompaction { id: completed_id } = completed.item else {
         unreachable!("completed item should be context compaction");
     };
 
-    assert_eq!(started.thread_id, thread_id);
-    assert_eq!(completed.thread_id, thread_id);
+    assert_eq!(started.chat_id, chat_id);
+    assert_eq!(completed.chat_id, chat_id);
     assert_eq!(started_id, completed_id);
 
     let compact_requests = compact_mock.requests();
@@ -206,9 +206,9 @@ async fn auto_compaction_remote_emits_started_and_completed_items() -> Result<()
     for (request, metadata) in response_requests.iter().zip(&turn_metadata) {
         assert_eq!(metadata["request_kind"].as_str(), Some("turn"));
         assert!(
-            metadata["turn_id"]
+            metadata["interaction_id"]
                 .as_str()
-                .is_some_and(|turn_id| !turn_id.is_empty()),
+                .is_some_and(|interaction_id| !interaction_id.is_empty()),
             "turn request should carry a non-empty turn id"
         );
         assert_eq!(
@@ -238,7 +238,7 @@ async fn auto_compaction_remote_emits_started_and_completed_items() -> Result<()
         })
     );
     assert_eq!(
-        compact_metadata["turn_id"], turn_metadata[2]["turn_id"],
+        compact_metadata["interaction_id"], turn_metadata[2]["interaction_id"],
         "pre-turn compaction should carry the current turn id"
     );
     assert_eq!(
@@ -274,10 +274,10 @@ async fn thread_compact_start_triggers_compaction_and_returns_empty_response() -
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let thread_id = start_thread(&mut mcp).await?;
+    let chat_id = start_thread(&mut mcp).await?;
     let compact_id = mcp
-        .send_thread_compact_start_request(ThreadCompactStartParams {
-            thread_id: thread_id.clone(),
+        .send_chat_compact_start_request(ChatCompactStartParams {
+            chat_id: chat_id.clone(),
         })
         .await?;
     let compact_resp: JSONRPCResponse = timeout(
@@ -285,21 +285,20 @@ async fn thread_compact_start_triggers_compaction_and_returns_empty_response() -
         mcp.read_stream_until_response_message(RequestId::Integer(compact_id)),
     )
     .await??;
-    let _compact: ThreadCompactStartResponse =
-        to_response::<ThreadCompactStartResponse>(compact_resp)?;
+    let _compact: ChatCompactStartResponse = to_response::<ChatCompactStartResponse>(compact_resp)?;
 
     let started = wait_for_context_compaction_started(&mut mcp).await?;
     let completed = wait_for_context_compaction_completed(&mut mcp).await?;
 
-    let ThreadItem::ContextCompaction { id: started_id } = started.item else {
+    let Message::ContextCompaction { id: started_id } = started.item else {
         unreachable!("started item should be context compaction");
     };
-    let ThreadItem::ContextCompaction { id: completed_id } = completed.item else {
+    let Message::ContextCompaction { id: completed_id } = completed.item else {
         unreachable!("completed item should be context compaction");
     };
 
-    assert_eq!(started.thread_id, thread_id);
-    assert_eq!(completed.thread_id, thread_id);
+    assert_eq!(started.chat_id, chat_id);
+    assert_eq!(completed.chat_id, chat_id);
     assert_eq!(started_id, completed_id);
 
     Ok(())
@@ -325,8 +324,8 @@ async fn thread_compact_start_rejects_invalid_thread_id() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
-        .send_thread_compact_start_request(ThreadCompactStartParams {
-            thread_id: "not-a-thread-id".to_string(),
+        .send_chat_compact_start_request(ChatCompactStartParams {
+            chat_id: "not-a-thread-id".to_string(),
         })
         .await?;
     let error: JSONRPCError = timeout(
@@ -361,8 +360,8 @@ async fn thread_compact_start_rejects_unknown_thread_id() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
-        .send_thread_compact_start_request(ThreadCompactStartParams {
-            thread_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".to_string(),
+        .send_chat_compact_start_request(ChatCompactStartParams {
+            chat_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".to_string(),
         })
         .await?;
     let error: JSONRPCError = timeout(
@@ -378,29 +377,25 @@ async fn thread_compact_start_rejects_unknown_thread_id() -> Result<()> {
 }
 
 async fn start_thread(mcp: &mut TestAppServer) -> Result<String> {
-    let thread_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+    let chat_id = mcp
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
         .await?;
     let thread_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(thread_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(chat_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response::<ThreadStartResponse>(thread_resp)?;
+    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
     Ok(thread.id)
 }
 
-async fn send_turn_and_wait(
-    mcp: &mut TestAppServer,
-    thread_id: &str,
-    text: &str,
-) -> Result<String> {
-    let turn_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread_id.to_string(),
+async fn send_turn_and_wait(mcp: &mut TestAppServer, chat_id: &str, text: &str) -> Result<String> {
+    let interaction_id = mcp
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: chat_id.to_string(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: text.to_string(),
@@ -411,24 +406,28 @@ async fn send_turn_and_wait(
         .await?;
     let turn_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
-    let TurnStartResponse { turn } = to_response::<TurnStartResponse>(turn_resp)?;
+    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
     wait_for_turn_completed(mcp, &turn.id).await?;
     Ok(turn.id)
 }
 
-async fn wait_for_turn_completed(mcp: &mut TestAppServer, turn_id: &str) -> Result<()> {
+async fn wait_for_turn_completed(mcp: &mut TestAppServer, interaction_id: &str) -> Result<()> {
     loop {
         let notification: JSONRPCNotification = timeout(
             DEFAULT_READ_TIMEOUT,
-            mcp.read_stream_until_notification_message("turn/completed"),
+            mcp.read_stream_until_notification_message("interaction/completed"),
         )
         .await??;
-        let completed: TurnCompletedNotification =
-            serde_json::from_value(notification.params.clone().expect("turn/completed params"))?;
-        if completed.turn.id == turn_id {
+        let completed: InteractionCompletedNotification = serde_json::from_value(
+            notification
+                .params
+                .clone()
+                .expect("interaction/completed params"),
+        )?;
+        if completed.turn.id == interaction_id {
             return Ok(());
         }
     }
@@ -436,16 +435,16 @@ async fn wait_for_turn_completed(mcp: &mut TestAppServer, turn_id: &str) -> Resu
 
 async fn wait_for_context_compaction_started(
     mcp: &mut TestAppServer,
-) -> Result<ItemStartedNotification> {
+) -> Result<MessageStartedNotification> {
     loop {
         let notification: JSONRPCNotification = timeout(
             DEFAULT_READ_TIMEOUT,
-            mcp.read_stream_until_notification_message("item/started"),
+            mcp.read_stream_until_notification_message("message/started"),
         )
         .await??;
-        let started: ItemStartedNotification =
-            serde_json::from_value(notification.params.clone().expect("item/started params"))?;
-        if let ThreadItem::ContextCompaction { .. } = started.item {
+        let started: MessageStartedNotification =
+            serde_json::from_value(notification.params.clone().expect("message/started params"))?;
+        if let Message::ContextCompaction { .. } = started.item {
             return Ok(started);
         }
     }
@@ -453,16 +452,20 @@ async fn wait_for_context_compaction_started(
 
 async fn wait_for_context_compaction_completed(
     mcp: &mut TestAppServer,
-) -> Result<ItemCompletedNotification> {
+) -> Result<MessageCompletedNotification> {
     loop {
         let notification: JSONRPCNotification = timeout(
             DEFAULT_READ_TIMEOUT,
-            mcp.read_stream_until_notification_message("item/completed"),
+            mcp.read_stream_until_notification_message("message/completed"),
         )
         .await??;
-        let completed: ItemCompletedNotification =
-            serde_json::from_value(notification.params.clone().expect("item/completed params"))?;
-        if let ThreadItem::ContextCompaction { .. } = completed.item {
+        let completed: MessageCompletedNotification = serde_json::from_value(
+            notification
+                .params
+                .clone()
+                .expect("message/completed params"),
+        )?;
+        if let Message::ContextCompaction { .. } = completed.item {
             return Ok(completed);
         }
     }

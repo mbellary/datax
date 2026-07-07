@@ -2,16 +2,16 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "description": "Deprecated: Use `ContextCompaction` item type instead.",
   "properties": {
-    "threadId": {
+    "chatId": {
       "type": "string"
     },
-    "turnId": {
+    "interactionId": {
       "type": "string"
     }
   },
   "required": [
-    "threadId",
-    "turnId"
+    "chatId",
+    "interactionId"
   ],
   "title": "ContextCompactedNotification",
   "type": "object"

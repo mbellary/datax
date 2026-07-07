@@ -1,9 +1,9 @@
+use datax_app_server_protocol::Interaction;
 use datax_app_server_protocol::McpToolCallResult;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::Turn;
+use datax_app_server_protocol::Message;
 use serde_json::Value as JsonValue;
 
-// Temporary bandaid for remote clients: thread/resume can include large MCP and
+// Temporary bandaid for remote clients: chat/resume can include large MCP and
 // image-generation payloads. Keep this response-only so persisted rollout
 // history, model resume history, and other APIs stay unchanged.
 const REDACTED_PAYLOAD: &str = "[redacted]";
@@ -14,10 +14,10 @@ pub(super) fn should_redact_thread_resume_payloads(client_name: Option<&str>) ->
     client_name.is_some_and(|client_name| CHATGPT_REMOTE_CLIENT_NAMES.contains(&client_name))
 }
 
-pub(super) fn redact_thread_resume_payloads(turns: &mut [Turn]) {
-    for turn in turns {
-        turn.items.retain_mut(|item| match item {
-            ThreadItem::McpToolCall {
+pub(super) fn redact_thread_resume_payloads(interactions: &mut [Interaction]) {
+    for turn in interactions {
+        turn.messages.retain_mut(|item| match item {
+            Message::McpToolCall {
                 arguments,
                 result,
                 error,
@@ -32,7 +32,7 @@ pub(super) fn redact_thread_resume_payloads(turns: &mut [Turn]) {
                 }
                 true
             }
-            ThreadItem::ImageGeneration { .. } => false,
+            Message::ImageGeneration { .. } => false,
             _ => true,
         });
     }
@@ -52,14 +52,14 @@ fn redacted_mcp_tool_call_result() -> McpToolCallResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use datax_app_server_protocol::Chat;
+    use datax_app_server_protocol::ChatStatus;
+    use datax_app_server_protocol::InteractionMessagesView;
+    use datax_app_server_protocol::InteractionStatus;
     use datax_app_server_protocol::McpToolCallAppContext;
     use datax_app_server_protocol::McpToolCallError;
     use datax_app_server_protocol::McpToolCallStatus;
     use datax_app_server_protocol::SessionSource;
-    use datax_app_server_protocol::Thread;
-    use datax_app_server_protocol::ThreadStatus;
-    use datax_app_server_protocol::TurnItemsView;
-    use datax_app_server_protocol::TurnStatus;
     use datax_utils_absolute_path::test_support::PathBufExt;
     use datax_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
@@ -67,13 +67,13 @@ mod tests {
     #[test]
     fn redacts_mcp_success_result_and_removes_image_generation() {
         let mut thread = test_thread(vec![
-            ThreadItem::AgentMessage {
+            Message::AgentMessage {
                 id: "agent-1".to_string(),
                 text: "kept".to_string(),
                 phase: None,
                 memory_citation: None,
             },
-            ThreadItem::McpToolCall {
+            Message::McpToolCall {
                 id: "mcp-1".to_string(),
                 server: "docs".to_string(),
                 tool: "lookup".to_string(),
@@ -97,7 +97,7 @@ mod tests {
                 error: None,
                 duration_ms: Some(8),
             },
-            ThreadItem::ImageGeneration {
+            Message::ImageGeneration {
                 id: "ig-1".to_string(),
                 status: "completed".to_string(),
                 revised_prompt: Some("revised".to_string()),
@@ -106,12 +106,12 @@ mod tests {
             },
         ]);
 
-        redact_thread_resume_payloads(&mut thread.turns);
+        redact_thread_resume_payloads(&mut thread.interactions);
 
-        assert_eq!(thread.turns[0].items.len(), 2);
+        assert_eq!(thread.interactions[0].messages.len(), 2);
         assert_eq!(
-            thread.turns[0].items[0],
-            ThreadItem::AgentMessage {
+            thread.interactions[0].messages[0],
+            Message::AgentMessage {
                 id: "agent-1".to_string(),
                 text: "kept".to_string(),
                 phase: None,
@@ -119,8 +119,8 @@ mod tests {
             }
         );
         assert_eq!(
-            thread.turns[0].items[1],
-            ThreadItem::McpToolCall {
+            thread.interactions[0].messages[1],
+            Message::McpToolCall {
                 id: "mcp-1".to_string(),
                 server: "docs".to_string(),
                 tool: "lookup".to_string(),
@@ -142,7 +142,7 @@ mod tests {
 
     #[test]
     fn redacts_mcp_error_message() {
-        let mut thread = test_thread(vec![ThreadItem::McpToolCall {
+        let mut thread = test_thread(vec![Message::McpToolCall {
             id: "mcp-1".to_string(),
             server: "docs".to_string(),
             tool: "lookup".to_string(),
@@ -158,11 +158,11 @@ mod tests {
             duration_ms: Some(8),
         }]);
 
-        redact_thread_resume_payloads(&mut thread.turns);
+        redact_thread_resume_payloads(&mut thread.interactions);
 
         assert_eq!(
-            thread.turns[0].items[0],
-            ThreadItem::McpToolCall {
+            thread.interactions[0].messages[0],
+            Message::McpToolCall {
                 id: "mcp-1".to_string(),
                 server: "docs".to_string(),
                 tool: "lookup".to_string(),
@@ -180,33 +180,33 @@ mod tests {
         );
     }
 
-    fn test_thread(items: Vec<ThreadItem>) -> Thread {
-        Thread {
+    fn test_thread(messages: Vec<Message>) -> Chat {
+        Chat {
             id: "thread-1".to_string(),
             session_id: "session-1".to_string(),
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             preview: "preview".to_string(),
             ephemeral: false,
             model_provider: "mock_provider".to_string(),
             created_at: 0,
             updated_at: 0,
             recency_at: Some(0),
-            status: ThreadStatus::Idle,
+            status: ChatStatus::Idle,
             path: None,
             cwd: test_path_buf("/tmp").abs(),
             cli_version: "0.0.0".to_string(),
             source: SessionSource::Cli,
-            thread_source: None,
+            chat_source: None,
             agent_nickname: None,
             agent_role: None,
             git_info: None,
             name: None,
-            turns: vec![Turn {
+            interactions: vec![Interaction {
                 id: "turn-1".to_string(),
-                items,
-                items_view: TurnItemsView::Full,
-                status: TurnStatus::Completed,
+                messages,
+                messages_view: InteractionMessagesView::Full,
+                status: InteractionStatus::Completed,
                 error: None,
                 started_at: None,
                 completed_at: None,

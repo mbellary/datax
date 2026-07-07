@@ -60,6 +60,7 @@ use crate::facts::ExternalAgentConfigImportFailureInput;
 use crate::facts::HookRunFact;
 use crate::facts::HookRunInput;
 use crate::facts::InputError;
+use crate::facts::InteractionStatus;
 use crate::facts::InvocationType;
 use crate::facts::PluginInstallFailedInput;
 use crate::facts::PluginState;
@@ -74,7 +75,6 @@ use crate::facts::TurnCodexErrorFact;
 use crate::facts::TurnProfile;
 use crate::facts::TurnProfileFact;
 use crate::facts::TurnResolvedConfigFact;
-use crate::facts::TurnStatus;
 use crate::facts::TurnSteerRequestError;
 use crate::facts::TurnTokenUsageFact;
 use crate::reducer::AnalyticsReducer;
@@ -82,6 +82,13 @@ use crate::reducer::normalize_path_for_skill_id;
 use crate::reducer::skill_id_for_local_skill;
 use datax_app_server_protocol::ApprovalsReviewer as AppServerApprovalsReviewer;
 use datax_app_server_protocol::AskForApproval as AppServerAskForApproval;
+use datax_app_server_protocol::Chat;
+use datax_app_server_protocol::ChatArchiveParams;
+use datax_app_server_protocol::ChatArchiveResponse;
+use datax_app_server_protocol::ChatResumeResponse;
+use datax_app_server_protocol::ChatSource as AppServerThreadSource;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::ChatStatus as AppServerThreadStatus;
 use datax_app_server_protocol::ClientInfo;
 use datax_app_server_protocol::ClientRequest;
 use datax_app_server_protocol::ClientResponsePayload;
@@ -101,11 +108,21 @@ use datax_app_server_protocol::GuardianApprovalReviewStatus;
 use datax_app_server_protocol::GuardianCommandSource as AppServerGuardianCommandSource;
 use datax_app_server_protocol::InitializeCapabilities;
 use datax_app_server_protocol::InitializeParams;
-use datax_app_server_protocol::ItemCompletedNotification;
-use datax_app_server_protocol::ItemGuardianApprovalReviewCompletedNotification;
-use datax_app_server_protocol::ItemStartedNotification;
+use datax_app_server_protocol::Interaction;
+use datax_app_server_protocol::InteractionCompletedNotification;
+use datax_app_server_protocol::InteractionDiffUpdatedNotification;
+use datax_app_server_protocol::InteractionError as AppServerTurnError;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartedNotification;
+use datax_app_server_protocol::InteractionStatus as AppServerTurnStatus;
+use datax_app_server_protocol::InteractionSteerParams;
+use datax_app_server_protocol::InteractionSteerResponse;
 use datax_app_server_protocol::JSONRPCErrorError;
 use datax_app_server_protocol::McpToolCallStatus;
+use datax_app_server_protocol::Message;
+use datax_app_server_protocol::MessageCompletedNotification;
+use datax_app_server_protocol::MessageGuardianApprovalReviewCompletedNotification;
+use datax_app_server_protocol::MessageStartedNotification;
 use datax_app_server_protocol::NonSteerableTurnKind;
 use datax_app_server_protocol::PatchApplyStatus;
 use datax_app_server_protocol::PermissionsRequestApprovalParams;
@@ -117,23 +134,6 @@ use datax_app_server_protocol::ServerRequest;
 use datax_app_server_protocol::ServerResponse;
 use datax_app_server_protocol::SessionSource as AppServerSessionSource;
 use datax_app_server_protocol::SubAgentActivityKind;
-use datax_app_server_protocol::Thread;
-use datax_app_server_protocol::ThreadArchiveParams;
-use datax_app_server_protocol::ThreadArchiveResponse;
-use datax_app_server_protocol::ThreadItem;
-use datax_app_server_protocol::ThreadResumeResponse;
-use datax_app_server_protocol::ThreadSource as AppServerThreadSource;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::ThreadStatus as AppServerThreadStatus;
-use datax_app_server_protocol::Turn;
-use datax_app_server_protocol::TurnCompletedNotification;
-use datax_app_server_protocol::TurnDiffUpdatedNotification;
-use datax_app_server_protocol::TurnError as AppServerTurnError;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartedNotification;
-use datax_app_server_protocol::TurnStatus as AppServerTurnStatus;
-use datax_app_server_protocol::TurnSteerParams;
-use datax_app_server_protocol::TurnSteerResponse;
 use datax_app_server_protocol::UserInput;
 use datax_login::default_client::DEFAULT_ORIGINATOR;
 use datax_login::default_client::originator;
@@ -174,8 +174,8 @@ fn sample_thread_with_metadata(
     source: AppServerSessionSource,
     thread_source: Option<AppServerThreadSource>,
     parent_thread_id: Option<String>,
-) -> Thread {
-    Thread {
+) -> Chat {
+    Chat {
         id: thread_id.to_string(),
         session_id: format!("session-{thread_id}"),
         forked_from_id: None,
@@ -205,7 +205,7 @@ fn sample_thread_start_response(
     ephemeral: bool,
     model: &str,
 ) -> ClientResponsePayload {
-    ClientResponsePayload::ThreadStart(ThreadStartResponse {
+    ClientResponsePayload::ChatStart(ChatStartResponse {
         thread: sample_thread_with_metadata(
             thread_id,
             ephemeral,
@@ -270,7 +270,7 @@ fn sample_thread_resume_response_with_source(
     thread_source: Option<AppServerThreadSource>,
     parent_thread_id: Option<String>,
 ) -> ClientResponsePayload {
-    ClientResponsePayload::ThreadResume(ThreadResumeResponse {
+    ClientResponsePayload::ChatResume(ChatResumeResponse {
         thread: sample_thread_with_metadata(
             thread_id,
             ephemeral,
@@ -295,9 +295,9 @@ fn sample_thread_resume_response_with_source(
 }
 
 fn sample_turn_start_request(thread_id: &str, request_id: i64) -> ClientRequest {
-    ClientRequest::TurnStart {
+    ClientRequest::InteractionStart {
         request_id: RequestId::Integer(request_id),
-        params: TurnStartParams {
+        params: InteractionStartParams {
             thread_id: thread_id.to_string(),
             client_user_message_id: None,
             input: vec![
@@ -316,10 +316,10 @@ fn sample_turn_start_request(thread_id: &str, request_id: i64) -> ClientRequest 
 }
 
 fn sample_turn_start_response(turn_id: &str) -> ClientResponsePayload {
-    ClientResponsePayload::TurnStart(datax_app_server_protocol::TurnStartResponse {
-        turn: Turn {
+    ClientResponsePayload::InteractionStart(datax_app_server_protocol::InteractionStartResponse {
+        turn: Interaction {
             id: turn_id.to_string(),
-            items_view: datax_app_server_protocol::TurnItemsView::Full,
+            items_view: datax_app_server_protocol::InteractionMessagesView::Full,
             items: vec![],
             status: AppServerTurnStatus::InProgress,
             error: None,
@@ -331,11 +331,11 @@ fn sample_turn_start_response(turn_id: &str) -> ClientResponsePayload {
 }
 
 fn sample_turn_started_notification(thread_id: &str, turn_id: &str) -> ServerNotification {
-    ServerNotification::TurnStarted(TurnStartedNotification {
+    ServerNotification::InteractionStarted(InteractionStartedNotification {
         thread_id: thread_id.to_string(),
-        turn: Turn {
+        turn: Interaction {
             id: turn_id.to_string(),
-            items_view: datax_app_server_protocol::TurnItemsView::Full,
+            items_view: datax_app_server_protocol::InteractionMessagesView::Full,
             items: vec![],
             status: AppServerTurnStatus::InProgress,
             error: None,
@@ -366,11 +366,11 @@ fn sample_turn_completed_notification(
     status: AppServerTurnStatus,
     codex_error_info: Option<datax_app_server_protocol::CodexErrorInfo>,
 ) -> ServerNotification {
-    ServerNotification::TurnCompleted(TurnCompletedNotification {
+    ServerNotification::InteractionCompleted(InteractionCompletedNotification {
         thread_id: thread_id.to_string(),
-        turn: Turn {
+        turn: Interaction {
             id: turn_id.to_string(),
-            items_view: datax_app_server_protocol::TurnItemsView::Full,
+            items_view: datax_app_server_protocol::InteractionMessagesView::Full,
             items: vec![],
             status,
             error: codex_error_info.map(|codex_error_info| AppServerTurnError {
@@ -427,9 +427,9 @@ fn sample_turn_steer_request(
     expected_turn_id: &str,
     request_id: i64,
 ) -> ClientRequest {
-    ClientRequest::TurnSteer {
+    ClientRequest::InteractionSteer {
         request_id: RequestId::Integer(request_id),
-        params: TurnSteerParams {
+        params: InteractionSteerParams {
             thread_id: thread_id.to_string(),
             expected_turn_id: expected_turn_id.to_string(),
             client_user_message_id: None,
@@ -450,7 +450,7 @@ fn sample_turn_steer_request(
 }
 
 fn sample_turn_steer_response(turn_id: &str) -> ClientResponsePayload {
-    ClientResponsePayload::TurnSteer(TurnSteerResponse {
+    ClientResponsePayload::InteractionSteer(InteractionSteerResponse {
         turn_id: turn_id.to_string(),
     })
 }
@@ -727,8 +727,8 @@ async fn ingest_completed_command_execution_item(
         .await;
     reducer
         .ingest(
-            AnalyticsFact::Notification(Box::new(ServerNotification::ItemStarted(
-                ItemStartedNotification {
+            AnalyticsFact::Notification(Box::new(ServerNotification::MessageStarted(
+                MessageStartedNotification {
                     thread_id: thread_id.to_string(),
                     turn_id: "turn-1".to_string(),
                     started_at_ms: 1_000,
@@ -745,8 +745,8 @@ async fn ingest_completed_command_execution_item(
         .await;
     reducer
         .ingest(
-            AnalyticsFact::Notification(Box::new(ServerNotification::ItemCompleted(
-                ItemCompletedNotification {
+            AnalyticsFact::Notification(Box::new(ServerNotification::MessageCompleted(
+                MessageCompletedNotification {
                     thread_id: thread_id.to_string(),
                     turn_id: "turn-1".to_string(),
                     completed_at_ms: 1_042,
@@ -821,7 +821,7 @@ fn sample_command_execution_item(
     status: CommandExecutionStatus,
     exit_code: Option<i32>,
     duration_ms: Option<i64>,
-) -> ThreadItem {
+) -> Message {
     sample_command_execution_item_with_id("item-1", status, exit_code, duration_ms)
 }
 
@@ -830,8 +830,8 @@ fn sample_command_execution_item_with_id(
     status: CommandExecutionStatus,
     exit_code: Option<i32>,
     duration_ms: Option<i64>,
-) -> ThreadItem {
-    ThreadItem::CommandExecution {
+) -> Message {
+    Message::CommandExecution {
         id: id.to_string(),
         command: "echo hi".to_string(),
         cwd: test_path_buf("/tmp").abs().into(),
@@ -850,9 +850,9 @@ fn sample_command_execution_item_with_actions(
     exit_code: Option<i32>,
     duration_ms: Option<i64>,
     command_actions: Vec<CommandAction>,
-) -> ThreadItem {
+) -> Message {
     let mut item = sample_command_execution_item(status, exit_code, duration_ms);
-    let ThreadItem::CommandExecution {
+    let Message::CommandExecution {
         command_actions: item_command_actions,
         ..
     } = &mut item
@@ -933,8 +933,8 @@ fn sample_guardian_review_completed(
     target_item_id: Option<&str>,
     status: GuardianApprovalReviewStatus,
 ) -> ServerNotification {
-    ServerNotification::ItemGuardianApprovalReviewCompleted(
-        ItemGuardianApprovalReviewCompletedNotification {
+    ServerNotification::MessageGuardianApprovalReviewCompleted(
+        MessageGuardianApprovalReviewCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             started_at_ms: 1_000,
@@ -1169,8 +1169,8 @@ index 1111111..2222222
 
     reducer
         .ingest(
-            AnalyticsFact::Notification(Box::new(ServerNotification::TurnDiffUpdated(
-                TurnDiffUpdatedNotification {
+            AnalyticsFact::Notification(Box::new(ServerNotification::InteractionDiffUpdated(
+                InteractionDiffUpdatedNotification {
                     thread_id: "thread-2".to_string(),
                     turn_id: "turn-2".to_string(),
                     diff,
@@ -1239,8 +1239,8 @@ index 1111111..2222222
         );
         reducer
             .ingest(
-                AnalyticsFact::Notification(Box::new(ServerNotification::TurnDiffUpdated(
-                    TurnDiffUpdatedNotification {
+                AnalyticsFact::Notification(Box::new(ServerNotification::InteractionDiffUpdated(
+                    InteractionDiffUpdatedNotification {
                         thread_id: "thread-2".to_string(),
                         turn_id: "turn-2".to_string(),
                         diff,
@@ -1751,9 +1751,9 @@ async fn unrelated_client_requests_are_ignored_by_reducer() {
             AnalyticsFact::ClientRequest {
                 connection_id: 7,
                 request_id: RequestId::Integer(3),
-                request: Box::new(ClientRequest::ThreadArchive {
+                request: Box::new(ClientRequest::ChatArchive {
                     request_id: RequestId::Integer(3),
-                    params: ThreadArchiveParams {
+                    params: ChatArchiveParams {
                         thread_id: "thread-2".to_string(),
                     },
                 }),
@@ -1789,9 +1789,7 @@ async fn unrelated_client_responses_are_ignored_by_reducer() {
             AnalyticsFact::ClientResponse {
                 connection_id: 7,
                 request_id: RequestId::Integer(9),
-                response: Box::new(ClientResponsePayload::ThreadArchive(
-                    ThreadArchiveResponse {},
-                )),
+                response: Box::new(ClientResponsePayload::ChatArchive(ChatArchiveResponse {})),
             },
             &mut events,
         )
@@ -2111,8 +2109,8 @@ async fn item_lifecycle_notifications_publish_command_execution_event() {
         .await;
     reducer
         .ingest(
-            AnalyticsFact::Notification(Box::new(ServerNotification::ItemStarted(
-                ItemStartedNotification {
+            AnalyticsFact::Notification(Box::new(ServerNotification::MessageStarted(
+                MessageStartedNotification {
                     thread_id: "thread-1".to_string(),
                     turn_id: "turn-1".to_string(),
                     started_at_ms: 1_000,
@@ -2133,8 +2131,8 @@ async fn item_lifecycle_notifications_publish_command_execution_event() {
 
     reducer
         .ingest(
-            AnalyticsFact::Notification(Box::new(ServerNotification::ItemCompleted(
-                ItemCompletedNotification {
+            AnalyticsFact::Notification(Box::new(ServerNotification::MessageCompleted(
+                MessageCompletedNotification {
                     thread_id: "thread-1".to_string(),
                     turn_id: "turn-1".to_string(),
                     completed_at_ms: 1_045,
@@ -2961,8 +2959,8 @@ async fn subagent_tool_items_inherit_parent_connection_metadata() {
 
     reducer
         .ingest(
-            AnalyticsFact::Notification(Box::new(ServerNotification::ItemStarted(
-                ItemStartedNotification {
+            AnalyticsFact::Notification(Box::new(ServerNotification::MessageStarted(
+                MessageStartedNotification {
                     thread_id: "thread-subagent".to_string(),
                     turn_id: "turn-subagent".to_string(),
                     started_at_ms: 1_000,
@@ -2978,8 +2976,8 @@ async fn subagent_tool_items_inherit_parent_connection_metadata() {
         .await;
     reducer
         .ingest(
-            AnalyticsFact::Notification(Box::new(ServerNotification::ItemCompleted(
-                ItemCompletedNotification {
+            AnalyticsFact::Notification(Box::new(ServerNotification::MessageCompleted(
+                MessageCompletedNotification {
                     thread_id: "thread-subagent".to_string(),
                     turn_id: "turn-subagent".to_string(),
                     completed_at_ms: 1_042,
@@ -3679,7 +3677,7 @@ fn turn_event_serializes_expected_shape() {
             workspace_kind: Some("projectless".to_string()),
             num_input_images: 2,
             is_first_turn: true,
-            status: Some(TurnStatus::Completed),
+            status: Some(InteractionStatus::Completed),
             turn_error: None,
             codex_error_kind: None,
             codex_error_http_status_code: None,
@@ -4118,7 +4116,7 @@ async fn turn_event_counts_completed_tool_items() {
     )
     .await;
 
-    let mcp_tool_call_item = |status, duration_ms| ThreadItem::McpToolCall {
+    let mcp_tool_call_item = |status, duration_ms| Message::McpToolCall {
         id: "mcp-1".to_string(),
         server: "server".to_string(),
         tool: "search".to_string(),
@@ -4133,8 +4131,8 @@ async fn turn_event_counts_completed_tool_items() {
     };
     reducer
         .ingest(
-            AnalyticsFact::Notification(Box::new(ServerNotification::ItemStarted(
-                ItemStartedNotification {
+            AnalyticsFact::Notification(Box::new(ServerNotification::MessageStarted(
+                MessageStartedNotification {
                     thread_id: "thread-2".to_string(),
                     turn_id: "turn-2".to_string(),
                     started_at_ms: 998,
@@ -4147,13 +4145,13 @@ async fn turn_event_counts_completed_tool_items() {
 
     let completed_tool_items = vec![
         sample_command_execution_item(CommandExecutionStatus::Completed, Some(0), Some(1)),
-        ThreadItem::FileChange {
+        Message::FileChange {
             id: "file-change-1".to_string(),
             changes: Vec::new(),
             status: PatchApplyStatus::Completed,
         },
         mcp_tool_call_item(McpToolCallStatus::Completed, Some(2)),
-        ThreadItem::DynamicToolCall {
+        Message::DynamicToolCall {
             id: "dynamic-1".to_string(),
             namespace: None,
             tool: "render".to_string(),
@@ -4163,7 +4161,7 @@ async fn turn_event_counts_completed_tool_items() {
             success: Some(true),
             duration_ms: Some(3),
         },
-        ThreadItem::CollabAgentToolCall {
+        Message::CollabAgentToolCall {
             id: "collab-1".to_string(),
             tool: CollabAgentTool::SpawnAgent,
             status: CollabAgentToolCallStatus::Completed,
@@ -4174,18 +4172,18 @@ async fn turn_event_counts_completed_tool_items() {
             reasoning_effort: None,
             agents_states: Default::default(),
         },
-        ThreadItem::SubAgentActivity {
+        Message::SubAgentActivity {
             id: "sub-agent-activity-1".to_string(),
             kind: SubAgentActivityKind::Interacted,
             agent_thread_id: "thread-child".to_string(),
             agent_path: "/root/child".to_string(),
         },
-        ThreadItem::WebSearch {
+        Message::WebSearch {
             id: "web-1".to_string(),
             query: "codex".to_string(),
             action: None,
         },
-        ThreadItem::ImageGeneration {
+        Message::ImageGeneration {
             id: "image-1".to_string(),
             status: "completed".to_string(),
             revised_prompt: None,
@@ -4197,8 +4195,8 @@ async fn turn_event_counts_completed_tool_items() {
     for item in completed_tool_items {
         reducer
             .ingest(
-                AnalyticsFact::Notification(Box::new(ServerNotification::ItemCompleted(
-                    ItemCompletedNotification {
+                AnalyticsFact::Notification(Box::new(ServerNotification::MessageCompleted(
+                    MessageCompletedNotification {
                         thread_id: "thread-2".to_string(),
                         turn_id: "turn-2".to_string(),
                         completed_at_ms: 1_000,
@@ -4254,8 +4252,8 @@ async fn item_completed_without_turn_state_does_not_create_turn_state() {
 
     reducer
         .ingest(
-            AnalyticsFact::Notification(Box::new(ServerNotification::ItemCompleted(
-                ItemCompletedNotification {
+            AnalyticsFact::Notification(Box::new(ServerNotification::MessageCompleted(
+                MessageCompletedNotification {
                     thread_id: "thread-2".to_string(),
                     turn_id: "turn-2".to_string(),
                     completed_at_ms: 1_000,

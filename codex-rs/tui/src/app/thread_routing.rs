@@ -1,4 +1,4 @@
-//! Thread routing, buffering, and app-server operation submission for the TUI app.
+//! Chat routing, buffering, and app-server operation submission for the TUI app.
 //!
 //! This module manages active thread channels, routes server requests and notifications into those
 //! channels, submits thread-scoped operations through the app server, and replays buffered events
@@ -867,14 +867,14 @@ impl App {
         thread_id: ThreadId,
         notification: ServerNotification,
     ) -> Result<()> {
-        if matches!(notification, ServerNotification::ThreadSettingsUpdated(_))
+        if matches!(notification, ServerNotification::ChatSettingsUpdated(_))
             && self.primary_thread_id.is_some()
             && self.primary_thread_id != Some(thread_id)
             && !self.thread_event_channels.contains_key(&thread_id)
         {
             return Ok(());
         }
-        if let ServerNotification::ThreadSettingsUpdated(notification) = &notification {
+        if let ServerNotification::ChatSettingsUpdated(notification) = &notification {
             self.apply_thread_settings_to_cached_session(thread_id, &notification.thread_settings)
                 .await;
         }
@@ -973,7 +973,7 @@ impl App {
         thread_id: ThreadId,
         notification: &ServerNotification,
     ) -> Option<ThreadSessionState> {
-        let ServerNotification::ThreadStarted(notification) = notification else {
+        let ServerNotification::ChatStarted(notification) = notification else {
             return None;
         };
         let mut session = self.primary_session_configured.clone()?;
@@ -1097,7 +1097,7 @@ impl App {
     pub(super) async fn enqueue_primary_thread_session(
         &mut self,
         session: ThreadSessionState,
-        turns: Vec<Turn>,
+        turns: Vec<Interaction>,
     ) -> Result<()> {
         let thread_id = session.thread_id;
         self.primary_thread_id = Some(thread_id);
@@ -1288,7 +1288,7 @@ impl App {
         &self,
         notification: &ServerNotification,
     ) -> Option<(ThreadId, ThreadId)> {
-        if !matches!(notification, ServerNotification::ThreadClosed(_)) {
+        if !matches!(notification, ServerNotification::ChatClosed(_)) {
             return None;
         }
         let active_thread_id = self.active_thread_id?;
@@ -1394,7 +1394,7 @@ impl App {
         &mut self,
         thread_id: ThreadId,
         num_turns: u32,
-        response: &ThreadRollbackResponse,
+        response: &ChatRollbackResponse,
     ) {
         if let Some(channel) = self.thread_event_channels.get(&thread_id) {
             let mut store = channel.store.lock().await;
@@ -1427,8 +1427,8 @@ impl App {
     pub(super) fn handle_thread_event_now(&mut self, event: ThreadBufferedEvent) {
         let needs_refresh = matches!(
             &event,
-            ThreadBufferedEvent::Notification(ServerNotification::TurnStarted(_))
-                | ThreadBufferedEvent::Notification(ServerNotification::ThreadTokenUsageUpdated(_))
+            ThreadBufferedEvent::Notification(ServerNotification::InteractionStarted(_))
+                | ThreadBufferedEvent::Notification(ServerNotification::ChatTokenUsageUpdated(_))
         );
         match event {
             ThreadBufferedEvent::Notification(notification) => {
@@ -1489,7 +1489,7 @@ impl App {
         // the exit marker when the currently active thread acknowledges shutdown.
         let pending_shutdown_exit_completed = matches!(
             &event,
-            ThreadBufferedEvent::Notification(ServerNotification::ThreadClosed(_))
+            ThreadBufferedEvent::Notification(ServerNotification::ChatClosed(_))
         ) && self.pending_shutdown_exit_thread_id
             == self.active_thread_id;
 

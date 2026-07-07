@@ -25,6 +25,58 @@ use datax_app_server_client::TypedRequestError;
 use datax_app_server_protocol::Account;
 use datax_app_server_protocol::AskForApproval;
 use datax_app_server_protocol::AuthMode;
+use datax_app_server_protocol::Chat;
+use datax_app_server_protocol::ChatApproveGuardianDeniedActionParams;
+use datax_app_server_protocol::ChatApproveGuardianDeniedActionResponse;
+use datax_app_server_protocol::ChatArchiveParams;
+use datax_app_server_protocol::ChatArchiveResponse;
+use datax_app_server_protocol::ChatBackgroundTerminalsCleanParams;
+use datax_app_server_protocol::ChatBackgroundTerminalsCleanResponse;
+use datax_app_server_protocol::ChatCompactStartParams;
+use datax_app_server_protocol::ChatCompactStartResponse;
+use datax_app_server_protocol::ChatDeleteParams;
+use datax_app_server_protocol::ChatDeleteResponse;
+use datax_app_server_protocol::ChatForkParams;
+use datax_app_server_protocol::ChatForkResponse;
+use datax_app_server_protocol::ChatGoalClearParams;
+use datax_app_server_protocol::ChatGoalClearResponse;
+use datax_app_server_protocol::ChatGoalGetParams;
+use datax_app_server_protocol::ChatGoalGetResponse;
+use datax_app_server_protocol::ChatGoalSetParams;
+use datax_app_server_protocol::ChatGoalSetResponse;
+use datax_app_server_protocol::ChatGoalStatus;
+use datax_app_server_protocol::ChatInjectMessagesParams;
+use datax_app_server_protocol::ChatInjectMessagesResponse;
+use datax_app_server_protocol::ChatListParams;
+use datax_app_server_protocol::ChatListResponse;
+use datax_app_server_protocol::ChatLoadedListParams;
+use datax_app_server_protocol::ChatLoadedListResponse;
+use datax_app_server_protocol::ChatMemoryMode;
+use datax_app_server_protocol::ChatMemoryModeSetParams;
+use datax_app_server_protocol::ChatMemoryModeSetResponse;
+use datax_app_server_protocol::ChatMetadataGitInfoUpdateParams;
+use datax_app_server_protocol::ChatMetadataUpdateParams;
+use datax_app_server_protocol::ChatMetadataUpdateResponse;
+use datax_app_server_protocol::ChatReadParams;
+use datax_app_server_protocol::ChatReadResponse;
+use datax_app_server_protocol::ChatResumeParams;
+use datax_app_server_protocol::ChatResumeResponse;
+use datax_app_server_protocol::ChatRollbackParams;
+use datax_app_server_protocol::ChatRollbackResponse;
+use datax_app_server_protocol::ChatSetNameParams;
+use datax_app_server_protocol::ChatSetNameResponse;
+use datax_app_server_protocol::ChatSettingsUpdateParams;
+use datax_app_server_protocol::ChatSettingsUpdateResponse;
+use datax_app_server_protocol::ChatShellCommandParams;
+use datax_app_server_protocol::ChatShellCommandResponse;
+use datax_app_server_protocol::ChatSource;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::ChatStartSource;
+use datax_app_server_protocol::ChatUnarchiveParams;
+use datax_app_server_protocol::ChatUnarchiveResponse;
+use datax_app_server_protocol::ChatUnsubscribeParams;
+use datax_app_server_protocol::ChatUnsubscribeResponse;
 use datax_app_server_protocol::ClientRequest;
 use datax_app_server_protocol::ConfigBatchWriteParams;
 use datax_app_server_protocol::ConfigWriteResponse;
@@ -36,6 +88,13 @@ use datax_app_server_protocol::ExternalAgentConfigMigrationItem;
 use datax_app_server_protocol::GetAccountParams;
 use datax_app_server_protocol::GetAccountRateLimitsResponse;
 use datax_app_server_protocol::GetAccountResponse;
+use datax_app_server_protocol::Interaction;
+use datax_app_server_protocol::InteractionInterruptParams;
+use datax_app_server_protocol::InteractionInterruptResponse;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
+use datax_app_server_protocol::InteractionSteerParams;
+use datax_app_server_protocol::InteractionSteerResponse;
 use datax_app_server_protocol::JSONRPCErrorError;
 use datax_app_server_protocol::LogoutAccountResponse;
 use datax_app_server_protocol::MemoryResetResponse;
@@ -50,65 +109,6 @@ use datax_app_server_protocol::ReviewStartResponse;
 use datax_app_server_protocol::ReviewTarget;
 use datax_app_server_protocol::SkillsListParams;
 use datax_app_server_protocol::SkillsListResponse;
-use datax_app_server_protocol::Thread;
-use datax_app_server_protocol::ThreadApproveGuardianDeniedActionParams;
-use datax_app_server_protocol::ThreadApproveGuardianDeniedActionResponse;
-use datax_app_server_protocol::ThreadArchiveParams;
-use datax_app_server_protocol::ThreadArchiveResponse;
-use datax_app_server_protocol::ThreadBackgroundTerminalsCleanParams;
-use datax_app_server_protocol::ThreadBackgroundTerminalsCleanResponse;
-use datax_app_server_protocol::ThreadCompactStartParams;
-use datax_app_server_protocol::ThreadCompactStartResponse;
-use datax_app_server_protocol::ThreadDeleteParams;
-use datax_app_server_protocol::ThreadDeleteResponse;
-use datax_app_server_protocol::ThreadForkParams;
-use datax_app_server_protocol::ThreadForkResponse;
-use datax_app_server_protocol::ThreadGoalClearParams;
-use datax_app_server_protocol::ThreadGoalClearResponse;
-use datax_app_server_protocol::ThreadGoalGetParams;
-use datax_app_server_protocol::ThreadGoalGetResponse;
-use datax_app_server_protocol::ThreadGoalSetParams;
-use datax_app_server_protocol::ThreadGoalSetResponse;
-use datax_app_server_protocol::ThreadGoalStatus;
-use datax_app_server_protocol::ThreadInjectItemsParams;
-use datax_app_server_protocol::ThreadInjectItemsResponse;
-use datax_app_server_protocol::ThreadListParams;
-use datax_app_server_protocol::ThreadListResponse;
-use datax_app_server_protocol::ThreadLoadedListParams;
-use datax_app_server_protocol::ThreadLoadedListResponse;
-use datax_app_server_protocol::ThreadMemoryMode;
-use datax_app_server_protocol::ThreadMemoryModeSetParams;
-use datax_app_server_protocol::ThreadMemoryModeSetResponse;
-use datax_app_server_protocol::ThreadMetadataGitInfoUpdateParams;
-use datax_app_server_protocol::ThreadMetadataUpdateParams;
-use datax_app_server_protocol::ThreadMetadataUpdateResponse;
-use datax_app_server_protocol::ThreadReadParams;
-use datax_app_server_protocol::ThreadReadResponse;
-use datax_app_server_protocol::ThreadResumeParams;
-use datax_app_server_protocol::ThreadResumeResponse;
-use datax_app_server_protocol::ThreadRollbackParams;
-use datax_app_server_protocol::ThreadRollbackResponse;
-use datax_app_server_protocol::ThreadSetNameParams;
-use datax_app_server_protocol::ThreadSetNameResponse;
-use datax_app_server_protocol::ThreadSettingsUpdateParams;
-use datax_app_server_protocol::ThreadSettingsUpdateResponse;
-use datax_app_server_protocol::ThreadShellCommandParams;
-use datax_app_server_protocol::ThreadShellCommandResponse;
-use datax_app_server_protocol::ThreadSource;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::ThreadStartSource;
-use datax_app_server_protocol::ThreadUnarchiveParams;
-use datax_app_server_protocol::ThreadUnarchiveResponse;
-use datax_app_server_protocol::ThreadUnsubscribeParams;
-use datax_app_server_protocol::ThreadUnsubscribeResponse;
-use datax_app_server_protocol::Turn;
-use datax_app_server_protocol::TurnInterruptParams;
-use datax_app_server_protocol::TurnInterruptResponse;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
-use datax_app_server_protocol::TurnSteerParams;
-use datax_app_server_protocol::TurnSteerResponse;
 use datax_app_server_protocol::UserInput;
 use datax_otel::TelemetryAuthMode;
 use datax_protocol::ThreadId;
@@ -199,7 +199,7 @@ impl ThreadParamsMode {
 #[derive(Debug)]
 pub(crate) struct AppServerStartedThread {
     pub(crate) session: ThreadSessionState,
-    pub(crate) turns: Vec<Turn>,
+    pub(crate) turns: Vec<Interaction>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -435,13 +435,13 @@ impl AppServerSession {
     pub(crate) async fn start_thread_with_session_start_source(
         &mut self,
         config: &Config,
-        session_start_source: Option<ThreadStartSource>,
+        session_start_source: Option<ChatStartSource>,
     ) -> Result<AppServerStartedThread> {
         let request_id = self.next_request_id();
         let session_config = self.session_config_with_effective_service_tier(config);
-        let response: ThreadStartResponse = self
+        let response: ChatStartResponse = self
             .client
-            .request_typed(ClientRequest::ThreadStart {
+            .request_typed(ClientRequest::ChatStart {
                 request_id,
                 params: thread_start_params_from_config(
                     &session_config,
@@ -464,9 +464,9 @@ impl AppServerSession {
     ) -> Result<AppServerStartedThread> {
         let request_id = self.next_request_id();
         let session_config = self.session_config_with_effective_service_tier(&config);
-        let response: ThreadResumeResponse = self
+        let response: ChatResumeResponse = self
             .client
-            .request_typed(ClientRequest::ThreadResume {
+            .request_typed(ClientRequest::ChatResume {
                 request_id,
                 params: thread_resume_params_from_config(
                     session_config,
@@ -496,9 +496,9 @@ impl AppServerSession {
     ) -> Result<AppServerStartedThread> {
         let request_id = self.next_request_id();
         let session_config = self.session_config_with_effective_service_tier(&config);
-        let response: ThreadForkResponse = self
+        let response: ChatForkResponse = self
             .client
-            .request_typed(ClientRequest::ThreadFork {
+            .request_typed(ClientRequest::ChatFork {
                 request_id,
                 params: thread_fork_params_from_config(
                     session_config,
@@ -575,13 +575,10 @@ impl AppServerSession {
         }
     }
 
-    pub(crate) async fn thread_list(
-        &mut self,
-        params: ThreadListParams,
-    ) -> Result<ThreadListResponse> {
+    pub(crate) async fn thread_list(&mut self, params: ChatListParams) -> Result<ChatListResponse> {
         let request_id = self.next_request_id();
         self.client
-            .request_typed(ClientRequest::ThreadList { request_id, params })
+            .request_typed(ClientRequest::ChatList { request_id, params })
             .await
             .wrap_err("thread/list failed during TUI session lookup")
     }
@@ -593,11 +590,11 @@ impl AppServerSession {
     /// `thread_read` and walks the spawn tree.
     pub(crate) async fn thread_loaded_list(
         &mut self,
-        params: ThreadLoadedListParams,
-    ) -> Result<ThreadLoadedListResponse> {
+        params: ChatLoadedListParams,
+    ) -> Result<ChatLoadedListResponse> {
         let request_id = self.next_request_id();
         self.client
-            .request_typed(ClientRequest::ThreadLoadedList { request_id, params })
+            .request_typed(ClientRequest::ChatLoadedList { request_id, params })
             .await
             .wrap_err("failed to list loaded threads from app server")
     }
@@ -606,13 +603,13 @@ impl AppServerSession {
         &mut self,
         thread_id: ThreadId,
         include_turns: bool,
-    ) -> Result<Thread> {
+    ) -> Result<Chat> {
         let request_id = self.next_request_id();
-        let response: ThreadReadResponse = self
+        let response: ChatReadResponse = self
             .client
-            .request_typed(ClientRequest::ThreadRead {
+            .request_typed(ClientRequest::ChatRead {
                 request_id,
-                params: ThreadReadParams {
+                params: ChatReadParams {
                     thread_id: thread_id.to_string(),
                     include_turns,
                 },
@@ -624,11 +621,11 @@ impl AppServerSession {
 
     pub(crate) async fn thread_archive(&mut self, thread_id: ThreadId) -> Result<()> {
         let request_id = self.next_request_id();
-        let _: ThreadArchiveResponse = self
+        let _: ChatArchiveResponse = self
             .client
-            .request_typed(ClientRequest::ThreadArchive {
+            .request_typed(ClientRequest::ChatArchive {
                 request_id,
-                params: ThreadArchiveParams {
+                params: ChatArchiveParams {
                     thread_id: thread_id.to_string(),
                 },
             })
@@ -639,11 +636,11 @@ impl AppServerSession {
 
     pub(crate) async fn thread_delete(&mut self, thread_id: ThreadId) -> Result<()> {
         let request_id = self.next_request_id();
-        let _: ThreadDeleteResponse = self
+        let _: ChatDeleteResponse = self
             .client
-            .request_typed(ClientRequest::ThreadDelete {
+            .request_typed(ClientRequest::ChatDelete {
                 request_id,
-                params: ThreadDeleteParams {
+                params: ChatDeleteParams {
                     thread_id: thread_id.to_string(),
                 },
             })
@@ -652,13 +649,13 @@ impl AppServerSession {
         Ok(())
     }
 
-    pub(crate) async fn thread_unarchive(&mut self, thread_id: ThreadId) -> Result<Thread> {
+    pub(crate) async fn thread_unarchive(&mut self, thread_id: ThreadId) -> Result<Chat> {
         let request_id = self.next_request_id();
-        let response: ThreadUnarchiveResponse = self
+        let response: ChatUnarchiveResponse = self
             .client
-            .request_typed(ClientRequest::ThreadUnarchive {
+            .request_typed(ClientRequest::ChatUnarchive {
                 request_id,
-                params: ThreadUnarchiveParams {
+                params: ChatUnarchiveParams {
                     thread_id: thread_id.to_string(),
                 },
             })
@@ -671,14 +668,14 @@ impl AppServerSession {
         &mut self,
         thread_id: ThreadId,
         branch: String,
-    ) -> Result<ThreadMetadataUpdateResponse> {
+    ) -> Result<ChatMetadataUpdateResponse> {
         let request_id = self.next_request_id();
         self.client
-            .request_typed(ClientRequest::ThreadMetadataUpdate {
+            .request_typed(ClientRequest::ChatMetadataUpdate {
                 request_id,
-                params: ThreadMetadataUpdateParams {
+                params: ChatMetadataUpdateParams {
                     thread_id: thread_id.to_string(),
-                    git_info: Some(ThreadMetadataGitInfoUpdateParams {
+                    git_info: Some(ChatMetadataGitInfoUpdateParams {
                         sha: None,
                         branch: Some(Some(branch)),
                         origin_url: None,
@@ -691,7 +688,7 @@ impl AppServerSession {
 
     pub(crate) async fn thread_settings_update(
         &mut self,
-        params: ThreadSettingsUpdateParams,
+        params: ChatSettingsUpdateParams,
     ) -> Result<()> {
         if !self.thread_settings_update_supported {
             return Ok(());
@@ -699,7 +696,7 @@ impl AppServerSession {
         let request_id = self.next_request_id();
         match self
             .client
-            .request_typed::<ThreadSettingsUpdateResponse>(ClientRequest::ThreadSettingsUpdate {
+            .request_typed::<ChatSettingsUpdateResponse>(ClientRequest::ChatSettingsUpdate {
                 request_id,
                 params,
             })
@@ -726,7 +723,7 @@ impl AppServerSession {
         &mut self,
         thread_id: ThreadId,
         items: Vec<ResponseItem>,
-    ) -> Result<ThreadInjectItemsResponse> {
+    ) -> Result<ChatInjectMessagesResponse> {
         let items = items
             .into_iter()
             .map(serde_json::to_value)
@@ -734,9 +731,9 @@ impl AppServerSession {
             .wrap_err("failed to encode thread/inject_items payload")?;
         let request_id = self.next_request_id();
         self.client
-            .request_typed(ClientRequest::ThreadInjectItems {
+            .request_typed(ClientRequest::ChatInjectItems {
                 request_id,
-                params: ThreadInjectItemsParams {
+                params: ChatInjectMessagesParams {
                     thread_id: thread_id.to_string(),
                     items,
                 },
@@ -762,14 +759,14 @@ impl AppServerSession {
         collaboration_mode: Option<datax_protocol::config_types::CollaborationMode>,
         personality: Option<datax_protocol::config_types::Personality>,
         output_schema: Option<serde_json::Value>,
-    ) -> Result<TurnStartResponse> {
+    ) -> Result<InteractionStartResponse> {
         let request_id = self.next_request_id();
         let (sandbox_policy, permissions) =
             turn_permissions_overrides(permissions_override, cwd.as_path());
         self.client
-            .request_typed(ClientRequest::TurnStart {
+            .request_typed(ClientRequest::InteractionStart {
                 request_id,
-                params: TurnStartParams {
+                params: InteractionStartParams {
                     thread_id: thread_id.to_string(),
                     client_user_message_id: None,
                     input: items,
@@ -802,11 +799,11 @@ impl AppServerSession {
         turn_id: String,
     ) -> std::result::Result<(), TypedRequestError> {
         let request_id = self.next_request_id();
-        let _: TurnInterruptResponse = self
+        let _: InteractionInterruptResponse = self
             .client
-            .request_typed(ClientRequest::TurnInterrupt {
+            .request_typed(ClientRequest::InteractionInterrupt {
                 request_id,
-                params: TurnInterruptParams {
+                params: InteractionInterruptParams {
                     thread_id: thread_id.to_string(),
                     turn_id,
                 },
@@ -827,12 +824,12 @@ impl AppServerSession {
         thread_id: ThreadId,
         turn_id: String,
         items: Vec<UserInput>,
-    ) -> std::result::Result<TurnSteerResponse, TypedRequestError> {
+    ) -> std::result::Result<InteractionSteerResponse, TypedRequestError> {
         let request_id = self.next_request_id();
         self.client
-            .request_typed(ClientRequest::TurnSteer {
+            .request_typed(ClientRequest::InteractionSteer {
                 request_id,
-                params: TurnSteerParams {
+                params: InteractionSteerParams {
                     thread_id: thread_id.to_string(),
                     client_user_message_id: None,
                     input: items,
@@ -850,11 +847,11 @@ impl AppServerSession {
         name: String,
     ) -> Result<()> {
         let request_id = self.next_request_id();
-        let _: ThreadSetNameResponse = self
+        let _: ChatSetNameResponse = self
             .client
-            .request_typed(ClientRequest::ThreadSetName {
+            .request_typed(ClientRequest::ChatSetName {
                 request_id,
-                params: ThreadSetNameParams {
+                params: ChatSetNameParams {
                     thread_id: thread_id.to_string(),
                     name,
                 },
@@ -867,14 +864,14 @@ impl AppServerSession {
     pub(crate) async fn thread_memory_mode_set(
         &mut self,
         thread_id: ThreadId,
-        mode: ThreadMemoryMode,
+        mode: ChatMemoryMode,
     ) -> Result<()> {
         let request_id = self.next_request_id();
-        let _: ThreadMemoryModeSetResponse = self
+        let _: ChatMemoryModeSetResponse = self
             .client
-            .request_typed(ClientRequest::ThreadMemoryModeSet {
+            .request_typed(ClientRequest::ChatMemoryModeSet {
                 request_id,
-                params: ThreadMemoryModeSetParams {
+                params: ChatMemoryModeSetParams {
                     thread_id: thread_id.to_string(),
                     mode,
                 },
@@ -900,12 +897,12 @@ impl AppServerSession {
     pub(crate) async fn thread_goal_get(
         &mut self,
         thread_id: ThreadId,
-    ) -> Result<ThreadGoalGetResponse> {
+    ) -> Result<ChatGoalGetResponse> {
         let request_id = self.next_request_id();
         self.client
-            .request_typed(ClientRequest::ThreadGoalGet {
+            .request_typed(ClientRequest::ChatGoalGet {
                 request_id,
-                params: ThreadGoalGetParams {
+                params: ChatGoalGetParams {
                     thread_id: thread_id.to_string(),
                 },
             })
@@ -917,14 +914,14 @@ impl AppServerSession {
         &mut self,
         thread_id: ThreadId,
         objective: Option<String>,
-        status: Option<ThreadGoalStatus>,
+        status: Option<ChatGoalStatus>,
         token_budget: Option<Option<i64>>,
-    ) -> Result<ThreadGoalSetResponse> {
+    ) -> Result<ChatGoalSetResponse> {
         let request_id = self.next_request_id();
         self.client
-            .request_typed(ClientRequest::ThreadGoalSet {
+            .request_typed(ClientRequest::ChatGoalSet {
                 request_id,
-                params: ThreadGoalSetParams {
+                params: ChatGoalSetParams {
                     thread_id: thread_id.to_string(),
                     objective,
                     status,
@@ -938,12 +935,12 @@ impl AppServerSession {
     pub(crate) async fn thread_goal_clear(
         &mut self,
         thread_id: ThreadId,
-    ) -> Result<ThreadGoalClearResponse> {
+    ) -> Result<ChatGoalClearResponse> {
         let request_id = self.next_request_id();
         self.client
-            .request_typed(ClientRequest::ThreadGoalClear {
+            .request_typed(ClientRequest::ChatGoalClear {
                 request_id,
-                params: ThreadGoalClearParams {
+                params: ChatGoalClearParams {
                     thread_id: thread_id.to_string(),
                 },
             })
@@ -966,11 +963,11 @@ impl AppServerSession {
 
     pub(crate) async fn thread_unsubscribe(&mut self, thread_id: ThreadId) -> Result<()> {
         let request_id = self.next_request_id();
-        let _: ThreadUnsubscribeResponse = self
+        let _: ChatUnsubscribeResponse = self
             .client
-            .request_typed(ClientRequest::ThreadUnsubscribe {
+            .request_typed(ClientRequest::ChatUnsubscribe {
                 request_id,
-                params: ThreadUnsubscribeParams {
+                params: ChatUnsubscribeParams {
                     thread_id: thread_id.to_string(),
                 },
             })
@@ -981,11 +978,11 @@ impl AppServerSession {
 
     pub(crate) async fn thread_compact_start(&mut self, thread_id: ThreadId) -> Result<()> {
         let request_id = self.next_request_id();
-        let _: ThreadCompactStartResponse = self
+        let _: ChatCompactStartResponse = self
             .client
-            .request_typed(ClientRequest::ThreadCompactStart {
+            .request_typed(ClientRequest::ChatCompactStart {
                 request_id,
-                params: ThreadCompactStartParams {
+                params: ChatCompactStartParams {
                     thread_id: thread_id.to_string(),
                 },
             })
@@ -1000,11 +997,11 @@ impl AppServerSession {
         command: String,
     ) -> Result<()> {
         let request_id = self.next_request_id();
-        let _: ThreadShellCommandResponse = self
+        let _: ChatShellCommandResponse = self
             .client
-            .request_typed(ClientRequest::ThreadShellCommand {
+            .request_typed(ClientRequest::ChatShellCommand {
                 request_id,
-                params: ThreadShellCommandParams {
+                params: ChatShellCommandParams {
                     thread_id: thread_id.to_string(),
                     command,
                 },
@@ -1020,11 +1017,11 @@ impl AppServerSession {
         event: &GuardianAssessmentEvent,
     ) -> Result<()> {
         let request_id = self.next_request_id();
-        let _: ThreadApproveGuardianDeniedActionResponse = self
+        let _: ChatApproveGuardianDeniedActionResponse = self
             .client
-            .request_typed(ClientRequest::ThreadApproveGuardianDeniedAction {
+            .request_typed(ClientRequest::ChatApproveGuardianDeniedAction {
                 request_id,
-                params: ThreadApproveGuardianDeniedActionParams {
+                params: ChatApproveGuardianDeniedActionParams {
                     thread_id: thread_id.to_string(),
                     event: serde_json::to_value(event)
                         .wrap_err("failed to serialize Auto Review denial event")?,
@@ -1040,11 +1037,11 @@ impl AppServerSession {
         thread_id: ThreadId,
     ) -> Result<()> {
         let request_id = self.next_request_id();
-        let _: ThreadBackgroundTerminalsCleanResponse = self
+        let _: ChatBackgroundTerminalsCleanResponse = self
             .client
-            .request_typed(ClientRequest::ThreadBackgroundTerminalsClean {
+            .request_typed(ClientRequest::ChatBackgroundTerminalsClean {
                 request_id,
-                params: ThreadBackgroundTerminalsCleanParams {
+                params: ChatBackgroundTerminalsCleanParams {
                     thread_id: thread_id.to_string(),
                 },
             })
@@ -1057,12 +1054,12 @@ impl AppServerSession {
         &mut self,
         thread_id: ThreadId,
         num_turns: u32,
-    ) -> Result<ThreadRollbackResponse> {
+    ) -> Result<ChatRollbackResponse> {
         let request_id = self.next_request_id();
         self.client
-            .request_typed(ClientRequest::ThreadRollback {
+            .request_typed(ClientRequest::ChatRollback {
                 request_id,
-                params: ThreadRollbackParams {
+                params: ChatRollbackParams {
                     thread_id: thread_id.to_string(),
                     num_turns,
                 },
@@ -1156,8 +1153,8 @@ pub(crate) async fn start_thread_with_request_handle(
     thread_params_mode: ThreadParamsMode,
     remote_cwd_override: Option<PathBuf>,
 ) -> Result<AppServerStartedThread> {
-    let response: ThreadStartResponse = request_handle
-        .request_typed(ClientRequest::ThreadStart {
+    let response: ChatStartResponse = request_handle
+        .request_typed(ClientRequest::ChatStart {
             request_id: RequestId::String(format!("startup-thread-start-{}", Uuid::new_v4())),
             params: thread_start_params_from_config(
                 &config,
@@ -1376,8 +1373,8 @@ fn thread_start_params_from_config(
     config: &Config,
     thread_params_mode: ThreadParamsMode,
     remote_cwd_override: Option<&std::path::Path>,
-    session_start_source: Option<ThreadStartSource>,
-) -> ThreadStartParams {
+    session_start_source: Option<ChatStartSource>,
+) -> ChatStartParams {
     let permissions = permissions_selection_from_config(config, thread_params_mode);
     let sandbox = permissions
         .is_none()
@@ -1388,7 +1385,7 @@ fn thread_start_params_from_config(
             )
         })
         .flatten();
-    ThreadStartParams {
+    ChatStartParams {
         model: config.model.clone(),
         model_provider: thread_params_mode.model_provider_from_config(config),
         service_tier: service_tier_override_from_config(config),
@@ -1401,11 +1398,11 @@ fn thread_start_params_from_config(
         config: config_request_overrides_from_config(config),
         ephemeral: Some(config.ephemeral),
         session_start_source,
-        thread_source: Some(ThreadSource::User),
+        thread_source: Some(ChatSource::User),
         developer_instructions: with_terminal_visualization_instructions(
             config, /*control_instructions*/ None,
         ),
-        ..ThreadStartParams::default()
+        ..ChatStartParams::default()
     }
 }
 
@@ -1414,7 +1411,7 @@ fn thread_resume_params_from_config(
     thread_id: ThreadId,
     thread_params_mode: ThreadParamsMode,
     remote_cwd_override: Option<&std::path::Path>,
-) -> ThreadResumeParams {
+) -> ChatResumeParams {
     let permissions = permissions_selection_from_config(&config, thread_params_mode);
     let sandbox = permissions
         .is_none()
@@ -1425,7 +1422,7 @@ fn thread_resume_params_from_config(
             )
         })
         .flatten();
-    ThreadResumeParams {
+    ChatResumeParams {
         thread_id: thread_id.to_string(),
         model: config.model.clone(),
         model_provider: thread_params_mode.model_provider_from_config(&config),
@@ -1440,7 +1437,7 @@ fn thread_resume_params_from_config(
         developer_instructions: with_terminal_visualization_instructions(
             &config, /*control_instructions*/ None,
         ),
-        ..ThreadResumeParams::default()
+        ..ChatResumeParams::default()
     }
 }
 
@@ -1449,7 +1446,7 @@ fn thread_fork_params_from_config(
     thread_id: ThreadId,
     thread_params_mode: ThreadParamsMode,
     remote_cwd_override: Option<&std::path::Path>,
-) -> ThreadForkParams {
+) -> ChatForkParams {
     let permissions = permissions_selection_from_config(&config, thread_params_mode);
     let sandbox = permissions
         .is_none()
@@ -1460,7 +1457,7 @@ fn thread_fork_params_from_config(
             )
         })
         .flatten();
-    ThreadForkParams {
+    ChatForkParams {
         thread_id: thread_id.to_string(),
         model: config.model.clone(),
         model_provider: thread_params_mode.model_provider_from_config(&config),
@@ -1478,8 +1475,8 @@ fn thread_fork_params_from_config(
             config.developer_instructions.clone(),
         ),
         ephemeral: config.ephemeral,
-        thread_source: Some(ThreadSource::User),
-        ..ThreadForkParams::default()
+        thread_source: Some(ChatSource::User),
+        ..ChatForkParams::default()
     }
 }
 
@@ -1497,7 +1494,7 @@ fn thread_cwd_from_config(
 }
 
 async fn started_thread_from_start_response(
-    response: ThreadStartResponse,
+    response: ChatStartResponse,
     config: &Config,
     thread_params_mode: ThreadParamsMode,
 ) -> Result<AppServerStartedThread> {
@@ -1512,7 +1509,7 @@ async fn started_thread_from_start_response(
 }
 
 async fn started_thread_from_resume_response(
-    response: ThreadResumeResponse,
+    response: ChatResumeResponse,
     config: &Config,
     thread_params_mode: ThreadParamsMode,
 ) -> Result<AppServerStartedThread> {
@@ -1527,7 +1524,7 @@ async fn started_thread_from_resume_response(
 }
 
 async fn started_thread_from_fork_response(
-    response: ThreadForkResponse,
+    response: ChatForkResponse,
     config: &Config,
     thread_params_mode: ThreadParamsMode,
 ) -> Result<AppServerStartedThread> {
@@ -1542,7 +1539,7 @@ async fn started_thread_from_fork_response(
 }
 
 async fn thread_session_state_from_thread_start_response(
-    response: &ThreadStartResponse,
+    response: &ChatStartResponse,
     config: &Config,
     thread_params_mode: ThreadParamsMode,
 ) -> Result<ThreadSessionState, String> {
@@ -1574,7 +1571,7 @@ async fn thread_session_state_from_thread_start_response(
 }
 
 async fn thread_session_state_from_thread_resume_response(
-    response: &ThreadResumeResponse,
+    response: &ChatResumeResponse,
     config: &Config,
     thread_params_mode: ThreadParamsMode,
 ) -> Result<ThreadSessionState, String> {
@@ -1615,7 +1612,7 @@ async fn thread_session_state_from_thread_resume_response(
 }
 
 async fn thread_session_state_from_thread_fork_response(
-    response: &ThreadForkResponse,
+    response: &ChatForkResponse,
     config: &Config,
     thread_params_mode: ThreadParamsMode,
 ) -> Result<ThreadSessionState, String> {
@@ -1744,9 +1741,9 @@ mod tests {
     use super::*;
     use crate::legacy_core::config::ConfigBuilder;
     use crate::legacy_core::config::ConfigOverrides;
-    use datax_app_server_protocol::ThreadStatus;
-    use datax_app_server_protocol::Turn;
-    use datax_app_server_protocol::TurnStatus;
+    use datax_app_server_protocol::ChatStatus;
+    use datax_app_server_protocol::Interaction;
+    use datax_app_server_protocol::InteractionStatus;
     use datax_features::Feature;
     use datax_protocol::config_types::Personality;
     use datax_protocol::config_types::ReasoningSummary;
@@ -1880,7 +1877,7 @@ mod tests {
                 .map(permission_profile_id_from_active_profile)
         );
         assert_eq!(params.model_provider, Some(config.model_provider_id));
-        assert_eq!(params.thread_source, Some(ThreadSource::User));
+        assert_eq!(params.thread_source, Some(ChatSource::User));
     }
 
     #[tokio::test]
@@ -1892,10 +1889,10 @@ mod tests {
             &config,
             ThreadParamsMode::Embedded,
             /*remote_cwd_override*/ None,
-            Some(ThreadStartSource::Clear),
+            Some(ChatStartSource::Clear),
         );
 
-        assert_eq!(params.session_start_source, Some(ThreadStartSource::Clear));
+        assert_eq!(params.session_start_source, Some(ChatStartSource::Clear));
     }
 
     #[test]
@@ -2032,8 +2029,8 @@ mod tests {
         assert_eq!(start.permissions, None);
         assert_eq!(resume.permissions, None);
         assert_eq!(fork.permissions, None);
-        assert_eq!(start.thread_source, Some(ThreadSource::User));
-        assert_eq!(fork.thread_source, Some(ThreadSource::User));
+        assert_eq!(start.thread_source, Some(ChatSource::User));
+        assert_eq!(fork.thread_source, Some(ChatSource::User));
     }
 
     #[test]
@@ -2137,8 +2134,8 @@ mod tests {
         assert_eq!(start.permissions, None);
         assert_eq!(resume.permissions, None);
         assert_eq!(fork.permissions, None);
-        assert_eq!(start.thread_source, Some(ThreadSource::User));
-        assert_eq!(fork.thread_source, Some(ThreadSource::User));
+        assert_eq!(start.thread_source, Some(ChatSource::User));
+        assert_eq!(fork.thread_source, Some(ChatSource::User));
     }
 
     #[tokio::test]
@@ -2317,8 +2314,8 @@ mod tests {
         let thread_id = ThreadId::new();
         let forked_from_id = ThreadId::new();
         let read_only_profile = PermissionProfile::read_only();
-        let response = ThreadResumeResponse {
-            thread: datax_app_server_protocol::Thread {
+        let response = ChatResumeResponse {
+            thread: datax_app_server_protocol::Chat {
                 id: thread_id.to_string(),
                 session_id: ThreadId::new().to_string(),
                 forked_from_id: Some(forked_from_id.to_string()),
@@ -2329,7 +2326,7 @@ mod tests {
                 created_at: 1,
                 updated_at: 2,
                 recency_at: Some(2),
-                status: ThreadStatus::Idle,
+                status: ChatStatus::Idle,
                 path: None,
                 cwd: test_path_buf("/tmp/project").abs(),
                 cli_version: "0.0.0".to_string(),
@@ -2339,11 +2336,11 @@ mod tests {
                 agent_role: None,
                 git_info: None,
                 name: None,
-                turns: vec![Turn {
+                turns: vec![Interaction {
                     id: "turn-1".to_string(),
-                    items_view: datax_app_server_protocol::TurnItemsView::Full,
+                    items_view: datax_app_server_protocol::InteractionMessagesView::Full,
                     items: vec![
-                        datax_app_server_protocol::ThreadItem::UserMessage {
+                        datax_app_server_protocol::Message::UserMessage {
                             id: "user-1".to_string(),
                             client_id: None,
                             content: vec![datax_app_server_protocol::UserInput::Text {
@@ -2351,14 +2348,14 @@ mod tests {
                                 text_elements: Vec::new(),
                             }],
                         },
-                        datax_app_server_protocol::ThreadItem::AgentMessage {
+                        datax_app_server_protocol::Message::AgentMessage {
                             id: "assistant-1".to_string(),
                             text: "assistant reply".to_string(),
                             phase: None,
                             memory_citation: None,
                         },
                     ],
-                    status: TurnStatus::Completed,
+                    status: InteractionStatus::Completed,
                     error: None,
                     started_at: None,
                     completed_at: None,

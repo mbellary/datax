@@ -20,27 +20,27 @@ struct UnloadingState {
     delay: Duration,
     has_subscribers_rx: watch::Receiver<bool>,
     has_subscribers: (bool, Instant),
-    thread_status_rx: watch::Receiver<ThreadStatus>,
+    thread_status_rx: watch::Receiver<ChatStatus>,
     is_active: (bool, Instant),
 }
 
 impl UnloadingState {
     async fn new(
         listener_task_context: &ListenerTaskContext,
-        thread_id: ThreadId,
+        chat_id: ThreadId,
         delay: Duration,
     ) -> Option<Self> {
         let has_subscribers_rx = listener_task_context
             .thread_state_manager
-            .subscribe_to_has_connections(thread_id)
+            .subscribe_to_has_connections(chat_id)
             .await?;
         let thread_status_rx = listener_task_context
             .thread_watch_manager
-            .subscribe(thread_id)
+            .subscribe(chat_id)
             .await?;
         let has_subscribers = (*has_subscribers_rx.borrow(), Instant::now());
         let is_active = (
-            matches!(*thread_status_rx.borrow(), ThreadStatus::Active { .. }),
+            matches!(*thread_status_rx.borrow(), ChatStatus::Active { .. }),
             Instant::now(),
         );
         Some(Self {
@@ -67,7 +67,7 @@ impl UnloadingState {
             self.has_subscribers = (has_subscribers, Instant::now());
         }
 
-        let is_active = matches!(*self.thread_status_rx.borrow(), ThreadStatus::Active { .. });
+        let is_active = matches!(*self.thread_status_rx.borrow(), ChatStatus::Active { .. });
         if self.is_active.0 != is_active {
             self.is_active = (is_active, Instant::now());
         }
@@ -188,7 +188,7 @@ pub(super) async fn ensure_conversation_listener(
 
 pub(super) fn log_listener_attach_result(
     result: Result<EnsureConversationListenerResult, JSONRPCErrorError>,
-    thread_id: ThreadId,
+    chat_id: ThreadId,
     connection_id: ConnectionId,
     thread_kind: &'static str,
 ) {
@@ -196,14 +196,14 @@ pub(super) fn log_listener_attach_result(
         Ok(EnsureConversationListenerResult::Attached) => {}
         Ok(EnsureConversationListenerResult::ConnectionClosed) => {
             tracing::debug!(
-                thread_id = %thread_id,
+                chat_id = %chat_id,
                 connection_id = ?connection_id,
                 "skipping auto-attach for closed connection"
             );
         }
         Err(err) => {
             tracing::warn!(
-                "failed to attach listener for {thread_kind} {thread_id}: {message}",
+                "failed to attach listener for {thread_kind} {chat_id}: {message}",
                 message = err.message
             );
         }
@@ -410,47 +410,47 @@ pub(super) async fn unload_thread_without_subscribers(
     pending_thread_unloads: Arc<Mutex<HashSet<ThreadId>>>,
     thread_state_manager: ThreadStateManager,
     thread_watch_manager: ThreadWatchManager,
-    thread_id: ThreadId,
+    chat_id: ThreadId,
     thread: Arc<CodexThread>,
 ) {
-    info!("thread {thread_id} has no subscribers and is idle; shutting down");
+    info!("thread {chat_id} has no subscribers and is idle; shutting down");
 
     // Any pending app-server -> client requests for this thread can no longer be
     // answered; cancel their callbacks before shutdown/unload.
     outgoing
-        .cancel_requests_for_thread(thread_id, /*error*/ None)
+        .cancel_requests_for_thread(chat_id, /*error*/ None)
         .await;
-    thread_state_manager.remove_thread_state(thread_id).await;
+    thread_state_manager.remove_thread_state(chat_id).await;
 
     tokio::spawn(async move {
         match wait_for_thread_shutdown(&thread).await {
             ThreadShutdownResult::Complete => {
-                if thread_manager.remove_thread(&thread_id).await.is_none() {
-                    info!("thread {thread_id} was already removed before teardown finalized");
+                if thread_manager.remove_thread(&chat_id).await.is_none() {
+                    info!("thread {chat_id} was already removed before teardown finalized");
                     thread_watch_manager
-                        .remove_thread(&thread_id.to_string())
+                        .remove_thread(&chat_id.to_string())
                         .await;
-                    pending_thread_unloads.lock().await.remove(&thread_id);
+                    pending_thread_unloads.lock().await.remove(&chat_id);
                     return;
                 }
                 thread_watch_manager
-                    .remove_thread(&thread_id.to_string())
+                    .remove_thread(&chat_id.to_string())
                     .await;
-                let notification = ThreadClosedNotification {
-                    thread_id: thread_id.to_string(),
+                let notification = ChatClosedNotification {
+                    chat_id: chat_id.to_string(),
                 };
                 outgoing
-                    .send_server_notification(ServerNotification::ThreadClosed(notification))
+                    .send_server_notification(ChatClosed(notification))
                     .await;
-                pending_thread_unloads.lock().await.remove(&thread_id);
+                pending_thread_unloads.lock().await.remove(&chat_id);
             }
             ThreadShutdownResult::SubmitFailed => {
-                pending_thread_unloads.lock().await.remove(&thread_id);
-                warn!("failed to submit Shutdown to thread {thread_id}");
+                pending_thread_unloads.lock().await.remove(&chat_id);
+                warn!("failed to submit Shutdown to thread {chat_id}");
             }
             ThreadShutdownResult::TimedOut => {
-                pending_thread_unloads.lock().await.remove(&thread_id);
-                warn!("thread {thread_id} shutdown timed out; leaving thread loaded");
+                pending_thread_unloads.lock().await.remove(&chat_id);
+                warn!("thread {chat_id} shutdown timed out; leaving thread loaded");
             }
         }
     });
@@ -483,24 +483,23 @@ pub(super) async fn handle_thread_listener_command(
             )
             .await;
         }
-        ThreadListenerCommand::EmitThreadGoalUpdated { turn_id, goal } => {
+        ThreadListenerCommand::EmitThreadGoalUpdated {
+            interaction_id,
+            goal,
+        } => {
             outgoing
-                .send_server_notification(ServerNotification::ThreadGoalUpdated(
-                    ThreadGoalUpdatedNotification {
-                        thread_id: conversation_id.to_string(),
-                        turn_id,
-                        goal,
-                    },
-                ))
+                .send_server_notification(ChatGoalUpdated(ChatGoalUpdatedNotification {
+                    chat_id: conversation_id.to_string(),
+                    interaction_id,
+                    goal,
+                }))
                 .await;
         }
         ThreadListenerCommand::EmitThreadGoalCleared => {
             outgoing
-                .send_server_notification(ServerNotification::ThreadGoalCleared(
-                    ThreadGoalClearedNotification {
-                        thread_id: conversation_id.to_string(),
-                    },
-                ))
+                .send_server_notification(ChatGoalCleared(ChatGoalClearedNotification {
+                    chat_id: conversation_id.to_string(),
+                }))
                 .await;
         }
         ThreadListenerCommand::EmitThreadGoalSnapshot { state_db } => {
@@ -543,7 +542,7 @@ pub(super) async fn handle_pending_thread_resume_request(
         state.active_turn_snapshot()
     };
     tracing::debug!(
-        thread_id = %conversation_id,
+        chat_id = %conversation_id,
         request_id = ?pending.request_id,
         active_turn_present = active_turn.is_some(),
         active_turn_id = ?active_turn.as_ref().map(|turn| turn.id.as_str()),
@@ -554,12 +553,12 @@ pub(super) async fn handle_pending_thread_resume_request(
         matches!(conversation.agent_status().await, AgentStatus::Running)
             || active_turn
                 .as_ref()
-                .is_some_and(|turn| matches!(turn.status, TurnStatus::InProgress));
+                .is_some_and(|turn| matches!(turn.status, InteractionStatus::InProgress));
 
     let request_id = pending.request_id;
     let connection_id = request_id.connection_id;
     let mut thread = pending.thread_summary;
-    if pending.include_turns {
+    if pending.include_interactions {
         populate_thread_turns_from_history(
             &mut thread,
             &pending.history_items,
@@ -576,9 +575,9 @@ pub(super) async fn handle_pending_thread_resume_request(
         thread_status,
         has_live_in_progress_turn,
     );
-    let token_usage_thread = pending.include_turns.then(|| thread.clone());
+    let token_usage_thread = pending.include_interactions.then(|| thread.clone());
     let mut initial_turns_page = if let Some(params) = pending.initial_turns_page.as_ref() {
-        match super::thread_processor::build_thread_resume_initial_turns_page(
+        match super::chat_processor::build_thread_resume_initial_turns_page(
             &pending.history_items,
             thread.status.clone(),
             has_live_in_progress_turn,
@@ -595,7 +594,7 @@ pub(super) async fn handle_pending_thread_resume_request(
         None
     };
     if pending.redact_resume_payloads {
-        redact_thread_resume_payloads(&mut thread.turns);
+        redact_thread_resume_payloads(&mut thread.interactions);
         if let Some(initial_turns_page) = initial_turns_page.as_mut() {
             redact_thread_resume_payloads(&mut initial_turns_page.data);
         }
@@ -609,7 +608,7 @@ pub(super) async fn handle_pending_thread_resume_request(
                 .send_error(
                     request_id,
                     invalid_request(format!(
-                        "thread {conversation_id} is closing; retry thread/resume after the thread is closed"
+                        "thread {conversation_id} is closing; retry chat/resume after the thread is closed"
                     )),
                 )
                 .await;
@@ -620,7 +619,7 @@ pub(super) async fn handle_pending_thread_resume_request(
             .await
         {
             tracing::debug!(
-                thread_id = %conversation_id,
+                chat_id = %conversation_id,
                 connection_id = ?connection_id,
                 "skipping running thread resume for closed connection"
             );
@@ -649,7 +648,7 @@ pub(super) async fn handle_pending_thread_resume_request(
     let session_id = conversation.session_configured().session_id.to_string();
     thread.session_id = session_id;
 
-    let response = ThreadResumeResponse {
+    let response = ChatResumeResponse {
         thread,
         model,
         model_provider: model_provider_id,
@@ -671,7 +670,7 @@ pub(super) async fn handle_pending_thread_resume_request(
     if let Some(token_usage_thread) = token_usage_thread {
         let token_usage_turn_id = latest_token_usage_turn_id_from_rollout_items(
             &pending.history_items,
-            token_usage_thread.turns.as_slice(),
+            token_usage_thread.interactions.as_slice(),
         );
         // Rejoining a loaded thread has the same UI contract as a cold resume, but
         // uses the live conversation state instead of reconstructing a new session.
@@ -690,7 +689,7 @@ pub(super) async fn handle_pending_thread_resume_request(
             send_thread_goal_snapshot_notification(outgoing, conversation_id, &state_db).await;
         } else {
             tracing::warn!(
-                thread_id = %conversation_id,
+                chat_id = %conversation_id,
                 "state db unavailable when reading thread goal for running thread resume"
             );
         }
@@ -707,33 +706,29 @@ pub(super) async fn handle_pending_thread_resume_request(
 
 pub(super) async fn send_thread_goal_snapshot_notification(
     outgoing: &Arc<OutgoingMessageSender>,
-    thread_id: ThreadId,
+    chat_id: ThreadId,
     state_db: &StateDbHandle,
 ) {
-    match state_db.thread_goals().get_thread_goal(thread_id).await {
+    match state_db.thread_goals().get_thread_goal(chat_id).await {
         Ok(Some(goal)) => {
             outgoing
-                .send_server_notification(ServerNotification::ThreadGoalUpdated(
-                    ThreadGoalUpdatedNotification {
-                        thread_id: thread_id.to_string(),
-                        turn_id: None,
-                        goal: api_thread_goal_from_state(goal),
-                    },
-                ))
+                .send_server_notification(ChatGoalUpdated(ChatGoalUpdatedNotification {
+                    chat_id: chat_id.to_string(),
+                    interaction_id: None,
+                    goal: api_thread_goal_from_state(goal),
+                }))
                 .await;
         }
         Ok(None) => {
             outgoing
-                .send_server_notification(ServerNotification::ThreadGoalCleared(
-                    ThreadGoalClearedNotification {
-                        thread_id: thread_id.to_string(),
-                    },
-                ))
+                .send_server_notification(ChatGoalCleared(ChatGoalClearedNotification {
+                    chat_id: chat_id.to_string(),
+                }))
                 .await;
         }
         Err(err) => {
             tracing::warn!(
-                thread_id = %thread_id,
+                chat_id = %chat_id,
                 "failed to read thread goal for resume snapshot: {err}"
             );
         }
@@ -741,15 +736,15 @@ pub(super) async fn send_thread_goal_snapshot_notification(
 }
 
 pub(crate) fn populate_thread_turns_from_history(
-    thread: &mut Thread,
-    items: &[RolloutItem],
-    active_turn: Option<&Turn>,
+    thread: &mut Chat,
+    messages: &[RolloutItem],
+    active_turn: Option<&Interaction>,
 ) {
-    let mut turns = build_api_turns_from_rollout_items(items);
+    let mut interactions = build_api_turns_from_rollout_items(messages);
     if let Some(active_turn) = active_turn {
-        merge_turn_history_with_active_turn(&mut turns, active_turn.clone());
+        merge_turn_history_with_active_turn(&mut interactions, active_turn.clone());
     }
-    thread.turns = turns;
+    thread.interactions = interactions;
 }
 
 pub(super) async fn resolve_pending_server_request(
@@ -758,7 +753,7 @@ pub(super) async fn resolve_pending_server_request(
     outgoing: &Arc<OutgoingMessageSender>,
     request_id: RequestId,
 ) {
-    let thread_id = conversation_id.to_string();
+    let chat_id = conversation_id.to_string();
     let subscribed_connection_ids = thread_state_manager
         .subscribed_connection_ids(conversation_id)
         .await;
@@ -770,28 +765,31 @@ pub(super) async fn resolve_pending_server_request(
     outgoing
         .send_server_notification(ServerNotification::ServerRequestResolved(
             ServerRequestResolvedNotification {
-                thread_id,
+                chat_id,
                 request_id,
             },
         ))
         .await;
 }
 
-pub(super) fn merge_turn_history_with_active_turn(turns: &mut Vec<Turn>, active_turn: Turn) {
-    turns.retain(|turn| turn.id != active_turn.id);
-    turns.push(active_turn);
+pub(super) fn merge_turn_history_with_active_turn(
+    interactions: &mut Vec<Interaction>,
+    active_turn: Interaction,
+) {
+    interactions.retain(|turn| turn.id != active_turn.id);
+    interactions.push(active_turn);
 }
 
 pub(super) fn set_thread_status_and_interrupt_stale_turns(
-    thread: &mut Thread,
-    loaded_status: ThreadStatus,
+    thread: &mut Chat,
+    loaded_status: ChatStatus,
     has_live_in_progress_turn: bool,
 ) {
     let status = resolve_thread_status(loaded_status, has_live_in_progress_turn);
-    if !matches!(status, ThreadStatus::Active { .. }) {
-        for turn in &mut thread.turns {
-            if matches!(turn.status, TurnStatus::InProgress) {
-                turn.status = TurnStatus::Interrupted;
+    if !matches!(status, ChatStatus::Active { .. }) {
+        for turn in &mut thread.interactions {
+            if matches!(turn.status, InteractionStatus::InProgress) {
+                turn.status = InteractionStatus::Interrupted;
             }
         }
     }

@@ -152,8 +152,8 @@
     },
     "HookScope": {
       "enum": [
-        "thread",
-        "turn"
+        "chat",
+        "interaction"
       ],
       "type": "string"
     },
@@ -175,22 +175,22 @@
     }
   },
   "properties": {
-    "run": {
-      "$ref": "#/definitions/HookRunSummary"
-    },
-    "threadId": {
+    "chatId": {
       "type": "string"
     },
-    "turnId": {
+    "interactionId": {
       "type": [
         "string",
         "null"
       ]
+    },
+    "run": {
+      "$ref": "#/definitions/HookRunSummary"
     }
   },
   "required": [
-    "run",
-    "threadId"
+    "chatId",
+    "run"
   ],
   "title": "HookCompletedNotification",
   "type": "object"

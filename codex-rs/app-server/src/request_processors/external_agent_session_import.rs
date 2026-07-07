@@ -189,7 +189,7 @@ impl ExternalAgentSessionImporter {
         let model_info = models_manager
             .get_model_info(model.as_str(), &config.to_models_manager_config())
             .await;
-        let thread_id = ThreadId::new();
+        let chat_id = ThreadId::new();
         let source = self.thread_manager.session_source();
         let cwd = config.cwd.to_path_buf();
         let model_provider = config.model_provider_id.clone();
@@ -200,8 +200,8 @@ impl ExternalAgentSessionImporter {
         };
         let now = Utc::now();
         let create_params = CreateThreadParams {
-            session_id: thread_id.into(),
-            thread_id,
+            session_id: chat_id.into(),
+            thread_id: chat_id,
             extra_config: None,
             forked_from_id: None,
             parent_thread_id: None,
@@ -232,7 +232,6 @@ impl ExternalAgentSessionImporter {
             created_at: Some(now),
             updated_at: Some(now),
             source: Some(source.clone()),
-            thread_source: Some(None),
             agent_nickname: Some(source.get_nickname()),
             agent_role: Some(source.get_agent_role()),
             agent_path: Some(source.get_agent_path().map(Into::into)),
@@ -251,32 +250,32 @@ impl ExternalAgentSessionImporter {
             && let Err(err) = self
                 .thread_store
                 .append_items(AppendThreadItemsParams {
-                    thread_id,
+                    thread_id: chat_id,
                     items: rollout_items,
                 })
                 .await
         {
-            let _ = self.thread_store.discard_thread(thread_id).await;
+            let _ = self.thread_store.discard_thread(chat_id).await;
             return Err(format!("failed to import session: {err}"));
         }
 
         self.thread_store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                thread_id: chat_id,
                 patch: metadata,
                 include_archived: false,
             })
             .await
             .map_err(|err| format!("failed to update imported session: {err}"))?;
         self.thread_store
-            .persist_thread(thread_id)
+            .persist_thread(chat_id)
             .await
             .map_err(|err| format!("failed to persist imported session: {err}"))?;
         self.thread_store
-            .shutdown_thread(thread_id)
+            .shutdown_thread(chat_id)
             .await
             .map_err(|err| format!("failed to shutdown imported session: {err}"))?;
-        Ok(thread_id)
+        Ok(chat_id)
     }
 }
 

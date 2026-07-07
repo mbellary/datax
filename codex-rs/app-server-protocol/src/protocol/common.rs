@@ -75,7 +75,7 @@ macro_rules! experimental_reason_expr {
         Some($reason)
     };
     // `inspect_params: true` is used when a method is mostly stable but needs
-    // field-level gating from its params type (for example, ThreadStart).
+    // field-level gating from its params type (for example, ChatStart).
     (variant $variant:ident, $params:ident, true) => {
         crate::experimental_api::ExperimentalApi::experimental_reason($params)
     };
@@ -109,7 +109,7 @@ macro_rules! experimental_type_entry {
 pub enum ClientRequestSerializationScope {
     Global(&'static str),
     GlobalSharedRead(&'static str),
-    Thread { thread_id: String },
+    Chat { chat_id: String },
     ThreadPath { path: PathBuf },
     CommandExecProcess { process_id: String },
     Process { process_handle: String },
@@ -128,27 +128,27 @@ macro_rules! serialization_scope_expr {
     ($actual_params:ident, global_shared_read($key:literal)) => {
         Some(ClientRequestSerializationScope::GlobalSharedRead($key))
     };
-    ($actual_params:ident, thread_id($params:ident . $field:ident)) => {
-        Some(ClientRequestSerializationScope::Thread {
-            thread_id: $actual_params.$field.clone(),
+    ($actual_params:ident, chat_id($params:ident . $field:ident)) => {
+        Some(ClientRequestSerializationScope::Chat {
+            chat_id: $actual_params.$field.clone(),
         })
     };
     ($actual_params:ident, optional_thread_id($params:ident . $field:ident)) => {
         $actual_params
             .$field
             .clone()
-            .map(|thread_id| ClientRequestSerializationScope::Thread { thread_id })
+            .map(|chat_id| ClientRequestSerializationScope::Chat { chat_id })
     };
     ($actual_params:ident, thread_or_path($params:ident . $thread_field:ident, $params2:ident . $path_field:ident)) => {
         if !$actual_params.$thread_field.is_empty() {
-            Some(ClientRequestSerializationScope::Thread {
-                thread_id: $actual_params.$thread_field.clone(),
+            Some(ClientRequestSerializationScope::Chat {
+                chat_id: $actual_params.$thread_field.clone(),
             })
         } else if let Some(path) = $actual_params.$path_field.clone() {
             Some(ClientRequestSerializationScope::ThreadPath { path })
         } else {
-            Some(ClientRequestSerializationScope::Thread {
-                thread_id: $actual_params.$thread_field.clone(),
+            Some(ClientRequestSerializationScope::Chat {
+                chat_id: $actual_params.$thread_field.clone(),
             })
         }
     };
@@ -471,97 +471,97 @@ client_request_definitions! {
     },
 
     /// NEW APIs
-    // Thread lifecycle
+    // Chat lifecycle
     // Uses `inspect_params` because only some fields are experimental.
-    ThreadStart => "thread/start" {
-        params: v2::ThreadStartParams,
+    ChatStart => "chat/start" {
+        params: v2::ChatStartParams,
         inspect_params: true,
         serialization: None,
-        response: v2::ThreadStartResponse,
+        response: v2::ChatStartResponse,
     },
-    ThreadResume => "thread/resume" {
-        params: v2::ThreadResumeParams,
+    ChatResume => "chat/resume" {
+        params: v2::ChatResumeParams,
         inspect_params: true,
-        serialization: thread_or_path(params.thread_id, params.path),
-        response: v2::ThreadResumeResponse,
+        serialization: thread_or_path(params.chat_id, params.path),
+        response: v2::ChatResumeResponse,
     },
-    ThreadFork => "thread/fork" {
-        params: v2::ThreadForkParams,
+    ChatFork => "chat/fork" {
+        params: v2::ChatForkParams,
         inspect_params: true,
-        serialization: thread_or_path(params.thread_id, params.path),
-        response: v2::ThreadForkResponse,
+        serialization: thread_or_path(params.chat_id, params.path),
+        response: v2::ChatForkResponse,
     },
-    ThreadArchive => "thread/archive" {
-        params: v2::ThreadArchiveParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadArchiveResponse,
+    ChatArchive => "chat/archive" {
+        params: v2::ChatArchiveParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatArchiveResponse,
     },
-    ThreadDelete => "thread/delete" {
-        params: v2::ThreadDeleteParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadDeleteResponse,
+    ChatDelete => "chat/delete" {
+        params: v2::ChatDeleteParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatDeleteResponse,
     },
-    ThreadUnsubscribe => "thread/unsubscribe" {
-        params: v2::ThreadUnsubscribeParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadUnsubscribeResponse,
+    ChatUnsubscribe => "chat/unsubscribe" {
+        params: v2::ChatUnsubscribeParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatUnsubscribeResponse,
     },
-    #[experimental("thread/increment_elicitation")]
+    #[experimental("chat/increment_elicitation")]
     /// Increment the thread-local out-of-band elicitation counter.
     ///
     /// This is used by external helpers to pause timeout accounting while a user
     /// approval or other elicitation is pending outside the app-server request flow.
-    ThreadIncrementElicitation => "thread/increment_elicitation" {
-        params: v2::ThreadIncrementElicitationParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadIncrementElicitationResponse,
+    ChatIncrementElicitation => "chat/increment_elicitation" {
+        params: v2::ChatIncrementElicitationParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatIncrementElicitationResponse,
     },
-    #[experimental("thread/decrement_elicitation")]
+    #[experimental("chat/decrement_elicitation")]
     /// Decrement the thread-local out-of-band elicitation counter.
     ///
     /// When the count reaches zero, timeout accounting resumes for the thread.
-    ThreadDecrementElicitation => "thread/decrement_elicitation" {
-        params: v2::ThreadDecrementElicitationParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadDecrementElicitationResponse,
+    ChatDecrementElicitation => "chat/decrement_elicitation" {
+        params: v2::ChatDecrementElicitationParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatDecrementElicitationResponse,
     },
-    ThreadSetName => "thread/name/set" {
-        params: v2::ThreadSetNameParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadSetNameResponse,
+    ChatSetName => "chat/name/set" {
+        params: v2::ChatSetNameParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatSetNameResponse,
     },
-    ThreadGoalSet => "thread/goal/set" {
-        params: v2::ThreadGoalSetParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadGoalSetResponse,
+    ChatGoalSet => "chat/goal/set" {
+        params: v2::ChatGoalSetParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatGoalSetResponse,
     },
-    ThreadGoalGet => "thread/goal/get" {
-        params: v2::ThreadGoalGetParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadGoalGetResponse,
+    ChatGoalGet => "chat/goal/get" {
+        params: v2::ChatGoalGetParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatGoalGetResponse,
     },
-    ThreadGoalClear => "thread/goal/clear" {
-        params: v2::ThreadGoalClearParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadGoalClearResponse,
+    ChatGoalClear => "chat/goal/clear" {
+        params: v2::ChatGoalClearParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatGoalClearResponse,
     },
-    ThreadMetadataUpdate => "thread/metadata/update" {
-        params: v2::ThreadMetadataUpdateParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadMetadataUpdateResponse,
+    ChatMetadataUpdate => "chat/metadata/update" {
+        params: v2::ChatMetadataUpdateParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatMetadataUpdateResponse,
     },
-    #[experimental("thread/settings/update")]
-    ThreadSettingsUpdate => "thread/settings/update" {
-        params: v2::ThreadSettingsUpdateParams,
+    #[experimental("chat/settings/update")]
+    ChatSettingsUpdate => "chat/settings/update" {
+        params: v2::ChatSettingsUpdateParams,
         inspect_params: true,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadSettingsUpdateResponse,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatSettingsUpdateResponse,
     },
-    #[experimental("thread/memoryMode/set")]
-    ThreadMemoryModeSet => "thread/memoryMode/set" {
-        params: v2::ThreadMemoryModeSetParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadMemoryModeSetResponse,
+    #[experimental("chat/memoryMode/set")]
+    ChatMemoryModeSet => "chat/memoryMode/set" {
+        params: v2::ChatMemoryModeSetParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatMemoryModeSetResponse,
     },
     #[experimental("memory/reset")]
     MemoryReset => "memory/reset" {
@@ -569,90 +569,90 @@ client_request_definitions! {
         serialization: global("memory"),
         response: v2::MemoryResetResponse,
     },
-    ThreadUnarchive => "thread/unarchive" {
-        params: v2::ThreadUnarchiveParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadUnarchiveResponse,
+    ChatUnarchive => "chat/unarchive" {
+        params: v2::ChatUnarchiveParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatUnarchiveResponse,
     },
-    ThreadCompactStart => "thread/compact/start" {
-        params: v2::ThreadCompactStartParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadCompactStartResponse,
+    ChatCompactStart => "chat/compact/start" {
+        params: v2::ChatCompactStartParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatCompactStartResponse,
     },
-    ThreadShellCommand => "thread/shellCommand" {
-        params: v2::ThreadShellCommandParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadShellCommandResponse,
+    ChatShellCommand => "chat/shellCommand" {
+        params: v2::ChatShellCommandParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatShellCommandResponse,
     },
-    ThreadApproveGuardianDeniedAction => "thread/approveGuardianDeniedAction" {
-        params: v2::ThreadApproveGuardianDeniedActionParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadApproveGuardianDeniedActionResponse,
+    ChatApproveGuardianDeniedAction => "chat/approveGuardianDeniedAction" {
+        params: v2::ChatApproveGuardianDeniedActionParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatApproveGuardianDeniedActionResponse,
     },
-    #[experimental("thread/backgroundTerminals/clean")]
-    ThreadBackgroundTerminalsClean => "thread/backgroundTerminals/clean" {
-        params: v2::ThreadBackgroundTerminalsCleanParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadBackgroundTerminalsCleanResponse,
+    #[experimental("chat/backgroundTerminals/clean")]
+    ChatBackgroundTerminalsClean => "chat/backgroundTerminals/clean" {
+        params: v2::ChatBackgroundTerminalsCleanParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatBackgroundTerminalsCleanResponse,
     },
-    #[experimental("thread/backgroundTerminals/list")]
-    ThreadBackgroundTerminalsList => "thread/backgroundTerminals/list" {
-        params: v2::ThreadBackgroundTerminalsListParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadBackgroundTerminalsListResponse,
+    #[experimental("chat/backgroundTerminals/list")]
+    ChatBackgroundTerminalsList => "chat/backgroundTerminals/list" {
+        params: v2::ChatBackgroundTerminalsListParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatBackgroundTerminalsListResponse,
     },
-    #[experimental("thread/backgroundTerminals/terminate")]
-    ThreadBackgroundTerminalsTerminate => "thread/backgroundTerminals/terminate" {
-        params: v2::ThreadBackgroundTerminalsTerminateParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadBackgroundTerminalsTerminateResponse,
+    #[experimental("chat/backgroundTerminals/terminate")]
+    ChatBackgroundTerminalsTerminate => "chat/backgroundTerminals/terminate" {
+        params: v2::ChatBackgroundTerminalsTerminateParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatBackgroundTerminalsTerminateResponse,
     },
-    ThreadRollback => "thread/rollback" {
-        params: v2::ThreadRollbackParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadRollbackResponse,
+    ChatRollback => "chat/rollback" {
+        params: v2::ChatRollbackParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatRollbackResponse,
     },
-    ThreadList => "thread/list" {
-        params: v2::ThreadListParams,
+    ChatList => "chat/list" {
+        params: v2::ChatListParams,
         inspect_params: true,
         serialization: None,
-        response: v2::ThreadListResponse,
+        response: v2::ChatListResponse,
     },
-    #[experimental("thread/search")]
-    ThreadSearch => "thread/search" {
-        params: v2::ThreadSearchParams,
+    #[experimental("chat/search")]
+    ChatSearch => "chat/search" {
+        params: v2::ChatSearchParams,
         serialization: None,
-        response: v2::ThreadSearchResponse,
+        response: v2::ChatSearchResponse,
     },
-    ThreadLoadedList => "thread/loaded/list" {
-        params: v2::ThreadLoadedListParams,
+    ChatLoadedList => "chat/loaded/list" {
+        params: v2::ChatLoadedListParams,
         serialization: None,
-        response: v2::ThreadLoadedListResponse,
+        response: v2::ChatLoadedListResponse,
     },
-    ThreadRead => "thread/read" {
-        params: v2::ThreadReadParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadReadResponse,
+    ChatRead => "chat/read" {
+        params: v2::ChatReadParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatReadResponse,
     },
-    #[experimental("thread/turns/list")]
-    ThreadTurnsList => "thread/turns/list" {
-        params: v2::ThreadTurnsListParams,
+    #[experimental("chat/interactions/list")]
+    ChatInteractionsList => "chat/interactions/list" {
+        params: v2::ChatInteractionsListParams,
         // Explicitly concurrent: this primarily reads append-only rollout storage.
         serialization: None,
-        response: v2::ThreadTurnsListResponse,
+        response: v2::ChatInteractionsListResponse,
     },
-    #[experimental("thread/turns/items/list")]
-    ThreadTurnsItemsList => "thread/turns/items/list" {
-        params: v2::ThreadTurnsItemsListParams,
+    #[experimental("chat/interactions/messages/list")]
+    ChatInteractionsMessagesList => "chat/interactions/messages/list" {
+        params: v2::ChatInteractionsMessagesListParams,
         // Explicitly concurrent: this primarily reads append-only rollout storage.
         serialization: None,
-        response: v2::ThreadTurnsItemsListResponse,
+        response: v2::ChatInteractionsMessagesListResponse,
     },
-    /// Append raw Responses API items to the thread history without starting a user turn.
-    ThreadInjectItems => "thread/inject_items" {
-        params: v2::ThreadInjectItemsParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadInjectItemsResponse,
+    /// Append raw Responses API messages to the thread history without starting a user turn.
+    ChatInjectMessages => "chat/inject_messages" {
+        params: v2::ChatInjectMessagesParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatInjectMessagesResponse,
     },
     SkillsList => "skills/list" {
         params: v2::SkillsListParams,
@@ -796,62 +796,62 @@ client_request_definitions! {
         serialization: global("config"),
         response: v2::PluginUninstallResponse,
     },
-    TurnStart => "turn/start" {
-        params: v2::TurnStartParams,
+    InteractionStart => "interaction/start" {
+        params: v2::InteractionStartParams,
         inspect_params: true,
-        serialization: thread_id(params.thread_id),
-        response: v2::TurnStartResponse,
+        serialization: chat_id(params.chat_id),
+        response: v2::InteractionStartResponse,
     },
-    TurnSteer => "turn/steer" {
-        params: v2::TurnSteerParams,
+    InteractionSteer => "interaction/steer" {
+        params: v2::InteractionSteerParams,
         inspect_params: true,
-        serialization: thread_id(params.thread_id),
-        response: v2::TurnSteerResponse,
+        serialization: chat_id(params.chat_id),
+        response: v2::InteractionSteerResponse,
     },
-    TurnInterrupt => "turn/interrupt" {
-        params: v2::TurnInterruptParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::TurnInterruptResponse,
+    InteractionInterrupt => "interaction/interrupt" {
+        params: v2::InteractionInterruptParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::InteractionInterruptResponse,
     },
-    #[experimental("thread/realtime/start")]
-    ThreadRealtimeStart => "thread/realtime/start" {
-        params: v2::ThreadRealtimeStartParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadRealtimeStartResponse,
+    #[experimental("chat/realtime/start")]
+    ChatRealtimeStart => "chat/realtime/start" {
+        params: v2::ChatRealtimeStartParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatRealtimeStartResponse,
     },
-    #[experimental("thread/realtime/appendAudio")]
-    ThreadRealtimeAppendAudio => "thread/realtime/appendAudio" {
-        params: v2::ThreadRealtimeAppendAudioParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadRealtimeAppendAudioResponse,
+    #[experimental("chat/realtime/appendAudio")]
+    ChatRealtimeAppendAudio => "chat/realtime/appendAudio" {
+        params: v2::ChatRealtimeAppendAudioParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatRealtimeAppendAudioResponse,
     },
-    #[experimental("thread/realtime/appendText")]
-    ThreadRealtimeAppendText => "thread/realtime/appendText" {
-        params: v2::ThreadRealtimeAppendTextParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadRealtimeAppendTextResponse,
+    #[experimental("chat/realtime/appendText")]
+    ChatRealtimeAppendText => "chat/realtime/appendText" {
+        params: v2::ChatRealtimeAppendTextParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatRealtimeAppendTextResponse,
     },
-    #[experimental("thread/realtime/appendSpeech")]
-    ThreadRealtimeAppendSpeech => "thread/realtime/appendSpeech" {
-        params: v2::ThreadRealtimeAppendSpeechParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadRealtimeAppendSpeechResponse,
+    #[experimental("chat/realtime/appendSpeech")]
+    ChatRealtimeAppendSpeech => "chat/realtime/appendSpeech" {
+        params: v2::ChatRealtimeAppendSpeechParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatRealtimeAppendSpeechResponse,
     },
-    #[experimental("thread/realtime/stop")]
-    ThreadRealtimeStop => "thread/realtime/stop" {
-        params: v2::ThreadRealtimeStopParams,
-        serialization: thread_id(params.thread_id),
-        response: v2::ThreadRealtimeStopResponse,
+    #[experimental("chat/realtime/stop")]
+    ChatRealtimeStop => "chat/realtime/stop" {
+        params: v2::ChatRealtimeStopParams,
+        serialization: chat_id(params.chat_id),
+        response: v2::ChatRealtimeStopResponse,
     },
-    #[experimental("thread/realtime/listVoices")]
-    ThreadRealtimeListVoices => "thread/realtime/listVoices" {
-        params: v2::ThreadRealtimeListVoicesParams,
+    #[experimental("chat/realtime/listVoices")]
+    ChatRealtimeListVoices => "chat/realtime/listVoices" {
+        params: v2::ChatRealtimeListVoicesParams,
         serialization: None,
-        response: v2::ThreadRealtimeListVoicesResponse,
+        response: v2::ChatRealtimeListVoicesResponse,
     },
     ReviewStart => "review/start" {
         params: v2::ReviewStartParams,
-        serialization: thread_id(params.thread_id),
+        serialization: chat_id(params.chat_id),
         response: v2::ReviewStartResponse,
     },
 
@@ -964,13 +964,13 @@ client_request_definitions! {
 
     McpResourceRead => "mcpServer/resource/read" {
         params: v2::McpResourceReadParams,
-        serialization: optional_thread_id(params.thread_id),
+        serialization: optional_thread_id(params.chat_id),
         response: v2::McpResourceReadResponse,
     },
 
     McpServerToolCall => "mcpServer/tool/call" {
         params: v2::McpServerToolCallParams,
-        serialization: thread_id(params.thread_id),
+        serialization: chat_id(params.chat_id),
         response: v2::McpServerToolCallResponse,
     },
 
@@ -1445,21 +1445,21 @@ impl TryFrom<JSONRPCRequest> for ServerRequest {
 server_request_definitions! {
     /// NEW APIs
     /// Sent when approval is requested for a specific command execution.
-    /// This request is used for Turns started via turn/start.
-    CommandExecutionRequestApproval => "item/commandExecution/requestApproval" {
+    /// This request is used for Turns started via interaction/start.
+    CommandExecutionRequestApproval => "message/commandExecution/requestApproval" {
         params: v2::CommandExecutionRequestApprovalParams,
         response: v2::CommandExecutionRequestApprovalResponse,
     },
 
     /// Sent when approval is requested for a specific file change.
-    /// This request is used for Turns started via turn/start.
-    FileChangeRequestApproval => "item/fileChange/requestApproval" {
+    /// This request is used for Turns started via interaction/start.
+    FileChangeRequestApproval => "message/fileChange/requestApproval" {
         params: v2::FileChangeRequestApprovalParams,
         response: v2::FileChangeRequestApprovalResponse,
     },
 
     /// EXPERIMENTAL - Request input from the user for a tool call.
-    ToolRequestUserInput => "item/tool/requestUserInput" {
+    ToolRequestUserInput => "message/tool/requestUserInput" {
         params: v2::ToolRequestUserInputParams,
         response: v2::ToolRequestUserInputResponse,
     },
@@ -1471,13 +1471,13 @@ server_request_definitions! {
     },
 
     /// Request approval for additional permissions from the user.
-    PermissionsRequestApproval => "item/permissions/requestApproval" {
+    PermissionsRequestApproval => "message/permissions/requestApproval" {
         params: v2::PermissionsRequestApprovalParams,
         response: v2::PermissionsRequestApprovalResponse,
     },
 
     /// Execute a dynamic tool call on the client.
-    DynamicToolCall => "item/tool/call" {
+    DynamicToolCall => "message/tool/call" {
         params: v2::DynamicToolCallParams,
         response: v2::DynamicToolCallResponse,
     },
@@ -1600,34 +1600,34 @@ pub struct FuzzyFileSearchSessionCompletedNotification {
 server_notification_definitions! {
     /// NEW NOTIFICATIONS
     Error => "error" (v2::ErrorNotification),
-    ThreadStarted => "thread/started" (v2::ThreadStartedNotification),
-    ThreadStatusChanged => "thread/status/changed" (v2::ThreadStatusChangedNotification),
-    ThreadArchived => "thread/archived" (v2::ThreadArchivedNotification),
-    ThreadDeleted => "thread/deleted" (v2::ThreadDeletedNotification),
-    ThreadUnarchived => "thread/unarchived" (v2::ThreadUnarchivedNotification),
-    ThreadClosed => "thread/closed" (v2::ThreadClosedNotification),
+    ChatStarted => "chat/started" (v2::ChatStartedNotification),
+    ChatStatusChanged => "chat/status/changed" (v2::ChatStatusChangedNotification),
+    ChatArchived => "chat/archived" (v2::ChatArchivedNotification),
+    ChatDeleted => "chat/deleted" (v2::ChatDeletedNotification),
+    ChatUnarchived => "chat/unarchived" (v2::ChatUnarchivedNotification),
+    ChatClosed => "chat/closed" (v2::ChatClosedNotification),
     SkillsChanged => "skills/changed" (v2::SkillsChangedNotification),
-    ThreadNameUpdated => "thread/name/updated" (v2::ThreadNameUpdatedNotification),
-    ThreadGoalUpdated => "thread/goal/updated" (v2::ThreadGoalUpdatedNotification),
-    ThreadGoalCleared => "thread/goal/cleared" (v2::ThreadGoalClearedNotification),
-    #[experimental("thread/settings/updated")]
-    ThreadSettingsUpdated => "thread/settings/updated" (v2::ThreadSettingsUpdatedNotification),
-    ThreadTokenUsageUpdated => "thread/tokenUsage/updated" (v2::ThreadTokenUsageUpdatedNotification),
-    TurnStarted => "turn/started" (v2::TurnStartedNotification),
+    ChatNameUpdated => "chat/name/updated" (v2::ChatNameUpdatedNotification),
+    ChatGoalUpdated => "chat/goal/updated" (v2::ChatGoalUpdatedNotification),
+    ChatGoalCleared => "chat/goal/cleared" (v2::ChatGoalClearedNotification),
+    #[experimental("chat/settings/updated")]
+    ChatSettingsUpdated => "chat/settings/updated" (v2::ChatSettingsUpdatedNotification),
+    ChatTokenUsageUpdated => "chat/tokenUsage/updated" (v2::ChatTokenUsageUpdatedNotification),
+    InteractionStarted => "interaction/started" (v2::InteractionStartedNotification),
     HookStarted => "hook/started" (v2::HookStartedNotification),
-    TurnCompleted => "turn/completed" (v2::TurnCompletedNotification),
+    InteractionCompleted => "interaction/completed" (v2::InteractionCompletedNotification),
     HookCompleted => "hook/completed" (v2::HookCompletedNotification),
-    TurnDiffUpdated => "turn/diff/updated" (v2::TurnDiffUpdatedNotification),
-    TurnPlanUpdated => "turn/plan/updated" (v2::TurnPlanUpdatedNotification),
-    ItemStarted => "item/started" (v2::ItemStartedNotification),
-    ItemGuardianApprovalReviewStarted => "item/autoApprovalReview/started" (v2::ItemGuardianApprovalReviewStartedNotification),
-    ItemGuardianApprovalReviewCompleted => "item/autoApprovalReview/completed" (v2::ItemGuardianApprovalReviewCompletedNotification),
-    ItemCompleted => "item/completed" (v2::ItemCompletedNotification),
+    InteractionDiffUpdated => "interaction/diff/updated" (v2::InteractionDiffUpdatedNotification),
+    InteractionPlanUpdated => "interaction/plan/updated" (v2::InteractionPlanUpdatedNotification),
+    MessageStarted => "message/started" (v2::MessageStartedNotification),
+    MessageGuardianApprovalReviewStarted => "message/autoApprovalReview/started" (v2::MessageGuardianApprovalReviewStartedNotification),
+    MessageGuardianApprovalReviewCompleted => "message/autoApprovalReview/completed" (v2::MessageGuardianApprovalReviewCompletedNotification),
+    MessageCompleted => "message/completed" (v2::MessageCompletedNotification),
     /// This event is internal-only. Used by Codex Cloud.
     RawResponseItemCompleted => "rawResponseItem/completed" (v2::RawResponseItemCompletedNotification),
-    AgentMessageDelta => "item/agentMessage/delta" (v2::AgentMessageDeltaNotification),
-    /// EXPERIMENTAL - proposed plan streaming deltas for plan items.
-    PlanDelta => "item/plan/delta" (v2::PlanDeltaNotification),
+    AgentMessageDelta => "message/agentMessage/delta" (v2::AgentMessageDeltaNotification),
+    /// EXPERIMENTAL - proposed plan streaming deltas for plan messages.
+    PlanDelta => "message/plan/delta" (v2::PlanDeltaNotification),
     /// Stream base64-encoded stdout/stderr chunks for a running `command/exec` session.
     CommandExecOutputDelta => "command/exec/outputDelta" (v2::CommandExecOutputDeltaNotification),
     /// Stream base64-encoded stdout/stderr chunks for a running `process/spawn` session.
@@ -1636,13 +1636,13 @@ server_notification_definitions! {
     /// Final exit notification for a `process/spawn` session.
     #[experimental("process/exited")]
     ProcessExited => "process/exited" (v2::ProcessExitedNotification),
-    CommandExecutionOutputDelta => "item/commandExecution/outputDelta" (v2::CommandExecutionOutputDeltaNotification),
-    TerminalInteraction => "item/commandExecution/terminalInteraction" (v2::TerminalInteractionNotification),
+    CommandExecutionOutputDelta => "message/commandExecution/outputDelta" (v2::CommandExecutionOutputDeltaNotification),
+    TerminalInteraction => "message/commandExecution/terminalInteraction" (v2::TerminalInteractionNotification),
     /// Deprecated legacy apply_patch output stream notification.
-    FileChangeOutputDelta => "item/fileChange/outputDelta" (v2::FileChangeOutputDeltaNotification),
-    FileChangePatchUpdated => "item/fileChange/patchUpdated" (v2::FileChangePatchUpdatedNotification),
+    FileChangeOutputDelta => "message/fileChange/outputDelta" (v2::FileChangeOutputDeltaNotification),
+    FileChangePatchUpdated => "message/fileChange/patchUpdated" (v2::FileChangePatchUpdatedNotification),
     ServerRequestResolved => "serverRequest/resolved" (v2::ServerRequestResolvedNotification),
-    McpToolCallProgress => "item/mcpToolCall/progress" (v2::McpToolCallProgressNotification),
+    McpToolCallProgress => "message/mcpToolCall/progress" (v2::McpToolCallProgressNotification),
     McpServerOauthLoginCompleted => "mcpServer/oauthLogin/completed" (v2::McpServerOauthLoginCompletedNotification),
     McpServerStatusUpdated => "mcpServer/startupStatus/updated" (v2::McpServerStatusUpdatedNotification),
     AccountUpdated => "account/updated" (v2::AccountUpdatedNotification),
@@ -1652,15 +1652,15 @@ server_notification_definitions! {
     ExternalAgentConfigImportProgress => "externalAgentConfig/import/progress" (v2::ExternalAgentConfigImportProgressNotification),
     ExternalAgentConfigImportCompleted => "externalAgentConfig/import/completed" (v2::ExternalAgentConfigImportCompletedNotification),
     FsChanged => "fs/changed" (v2::FsChangedNotification),
-    ReasoningSummaryTextDelta => "item/reasoning/summaryTextDelta" (v2::ReasoningSummaryTextDeltaNotification),
-    ReasoningSummaryPartAdded => "item/reasoning/summaryPartAdded" (v2::ReasoningSummaryPartAddedNotification),
-    ReasoningTextDelta => "item/reasoning/textDelta" (v2::ReasoningTextDeltaNotification),
+    ReasoningSummaryTextDelta => "message/reasoning/summaryTextDelta" (v2::ReasoningSummaryTextDeltaNotification),
+    ReasoningSummaryPartAdded => "message/reasoning/summaryPartAdded" (v2::ReasoningSummaryPartAddedNotification),
+    ReasoningTextDelta => "message/reasoning/textDelta" (v2::ReasoningTextDeltaNotification),
     /// Deprecated: Use `ContextCompaction` item type instead.
-    ContextCompacted => "thread/compacted" (v2::ContextCompactedNotification),
+    ContextCompacted => "chat/compacted" (v2::ContextCompactedNotification),
     ModelRerouted => "model/rerouted" (v2::ModelReroutedNotification),
     ModelVerification => "model/verification" (v2::ModelVerificationNotification),
-    #[experimental("turn/moderationMetadata")]
-    TurnModerationMetadata => "turn/moderationMetadata" (v2::TurnModerationMetadataNotification),
+    #[experimental("interaction/moderationMetadata")]
+    InteractionModerationMetadata => "interaction/moderationMetadata" (v2::InteractionModerationMetadataNotification),
     ModelSafetyBufferingUpdated => "model/safetyBuffering/updated" (v2::ModelSafetyBufferingUpdatedNotification),
     Warning => "warning" (v2::WarningNotification),
     GuardianWarning => "guardianWarning" (v2::GuardianWarningNotification),
@@ -1668,22 +1668,22 @@ server_notification_definitions! {
     ConfigWarning => "configWarning" (v2::ConfigWarningNotification),
     FuzzyFileSearchSessionUpdated => "fuzzyFileSearch/sessionUpdated" (FuzzyFileSearchSessionUpdatedNotification),
     FuzzyFileSearchSessionCompleted => "fuzzyFileSearch/sessionCompleted" (FuzzyFileSearchSessionCompletedNotification),
-    #[experimental("thread/realtime/started")]
-    ThreadRealtimeStarted => "thread/realtime/started" (v2::ThreadRealtimeStartedNotification),
-    #[experimental("thread/realtime/itemAdded")]
-    ThreadRealtimeItemAdded => "thread/realtime/itemAdded" (v2::ThreadRealtimeItemAddedNotification),
-    #[experimental("thread/realtime/transcript/delta")]
-    ThreadRealtimeTranscriptDelta => "thread/realtime/transcript/delta" (v2::ThreadRealtimeTranscriptDeltaNotification),
-    #[experimental("thread/realtime/transcript/done")]
-    ThreadRealtimeTranscriptDone => "thread/realtime/transcript/done" (v2::ThreadRealtimeTranscriptDoneNotification),
-    #[experimental("thread/realtime/outputAudio/delta")]
-    ThreadRealtimeOutputAudioDelta => "thread/realtime/outputAudio/delta" (v2::ThreadRealtimeOutputAudioDeltaNotification),
-    #[experimental("thread/realtime/sdp")]
-    ThreadRealtimeSdp => "thread/realtime/sdp" (v2::ThreadRealtimeSdpNotification),
-    #[experimental("thread/realtime/error")]
-    ThreadRealtimeError => "thread/realtime/error" (v2::ThreadRealtimeErrorNotification),
-    #[experimental("thread/realtime/closed")]
-    ThreadRealtimeClosed => "thread/realtime/closed" (v2::ThreadRealtimeClosedNotification),
+    #[experimental("chat/realtime/started")]
+    ChatRealtimeStarted => "chat/realtime/started" (v2::ChatRealtimeStartedNotification),
+    #[experimental("chat/realtime/messageAdded")]
+    ChatRealtimeMessageAdded => "chat/realtime/messageAdded" (v2::ChatRealtimeMessageAddedNotification),
+    #[experimental("chat/realtime/transcript/delta")]
+    ChatRealtimeTranscriptDelta => "chat/realtime/transcript/delta" (v2::ChatRealtimeTranscriptDeltaNotification),
+    #[experimental("chat/realtime/transcript/done")]
+    ChatRealtimeTranscriptDone => "chat/realtime/transcript/done" (v2::ChatRealtimeTranscriptDoneNotification),
+    #[experimental("chat/realtime/outputAudio/delta")]
+    ChatRealtimeOutputAudioDelta => "chat/realtime/outputAudio/delta" (v2::ChatRealtimeOutputAudioDeltaNotification),
+    #[experimental("chat/realtime/sdp")]
+    ChatRealtimeSdp => "chat/realtime/sdp" (v2::ChatRealtimeSdpNotification),
+    #[experimental("chat/realtime/error")]
+    ChatRealtimeError => "chat/realtime/error" (v2::ChatRealtimeErrorNotification),
+    #[experimental("chat/realtime/closed")]
+    ChatRealtimeClosed => "chat/realtime/closed" (v2::ChatRealtimeClosedNotification),
 
     /// Notifies the user of world-writable directories on Windows, which cannot be protected by the sandbox.
     WindowsWorldWritableWarning => "windows/worldWritableWarning" (v2::WindowsWorldWritableWarningNotification),
@@ -1737,47 +1737,47 @@ mod tests {
 
     #[test]
     fn client_request_serialization_scope_covers_keyed_families() {
-        let thread_id = "thread-1".to_string();
-        let thread_resume = ClientRequest::ThreadResume {
+        let chat_id = "thread-1".to_string();
+        let thread_resume = ClientRequest::ChatResume {
             request_id: request_id(),
-            params: v2::ThreadResumeParams {
-                thread_id: thread_id.clone(),
+            params: v2::ChatResumeParams {
+                chat_id: chat_id.clone(),
                 ..Default::default()
             },
         };
         assert_eq!(
             thread_resume.serialization_scope(),
-            Some(ClientRequestSerializationScope::Thread {
-                thread_id: thread_id.clone()
+            Some(ClientRequestSerializationScope::Chat {
+                chat_id: chat_id.clone()
             })
         );
 
-        let thread_resume_with_path = ClientRequest::ThreadResume {
+        let thread_resume_with_path = ClientRequest::ChatResume {
             request_id: request_id(),
-            params: v2::ThreadResumeParams {
-                thread_id: thread_id.clone(),
+            params: v2::ChatResumeParams {
+                chat_id: chat_id.clone(),
                 path: Some(PathBuf::from("/tmp/resume-thread.jsonl")),
                 ..Default::default()
             },
         };
         assert_eq!(
             thread_resume_with_path.serialization_scope(),
-            Some(ClientRequestSerializationScope::Thread {
-                thread_id: thread_id.clone()
+            Some(ClientRequestSerializationScope::Chat {
+                chat_id: chat_id.clone()
             })
         );
 
-        let thread_fork = ClientRequest::ThreadFork {
+        let thread_fork = ClientRequest::ChatFork {
             request_id: request_id(),
-            params: v2::ThreadForkParams {
-                thread_id: thread_id.clone(),
+            params: v2::ChatForkParams {
+                chat_id: chat_id.clone(),
                 path: Some(PathBuf::from("/tmp/source-thread.jsonl")),
                 ..Default::default()
             },
         };
         assert_eq!(
             thread_fork.serialization_scope(),
-            Some(ClientRequestSerializationScope::Thread { thread_id })
+            Some(ClientRequestSerializationScope::Chat { chat_id })
         );
 
         let command_exec = ClientRequest::OneOffCommandExec {
@@ -1927,15 +1927,15 @@ mod tests {
         let mcp_resource_read = ClientRequest::McpResourceRead {
             request_id: request_id(),
             params: v2::McpResourceReadParams {
-                thread_id: Some("thread-1".to_string()),
+                chat_id: Some("thread-1".to_string()),
                 server: "server-a".to_string(),
                 uri: "file:///tmp/resource".to_string(),
             },
         };
         assert_eq!(
             mcp_resource_read.serialization_scope(),
-            Some(ClientRequestSerializationScope::Thread {
-                thread_id: "thread-1".to_string()
+            Some(ClientRequestSerializationScope::Chat {
+                chat_id: "thread-1".to_string()
             })
         );
 
@@ -1962,10 +1962,10 @@ mod tests {
             Some(ClientRequestSerializationScope::Global("account-auth"))
         );
 
-        let thread_goal_set = ClientRequest::ThreadGoalSet {
+        let thread_goal_set = ClientRequest::ChatGoalSet {
             request_id: request_id(),
-            params: v2::ThreadGoalSetParams {
-                thread_id: "goal-thread".to_string(),
+            params: v2::ChatGoalSetParams {
+                chat_id: "goal-thread".to_string(),
                 objective: Some("ship it".to_string()),
                 status: None,
                 token_budget: None,
@@ -1973,22 +1973,22 @@ mod tests {
         };
         assert_eq!(
             thread_goal_set.serialization_scope(),
-            Some(ClientRequestSerializationScope::Thread {
-                thread_id: "goal-thread".to_string()
+            Some(ClientRequestSerializationScope::Chat {
+                chat_id: "goal-thread".to_string()
             })
         );
 
-        let guardian_approval = ClientRequest::ThreadApproveGuardianDeniedAction {
+        let guardian_approval = ClientRequest::ChatApproveGuardianDeniedAction {
             request_id: request_id(),
-            params: v2::ThreadApproveGuardianDeniedActionParams {
-                thread_id: "guardian-thread".to_string(),
+            params: v2::ChatApproveGuardianDeniedActionParams {
+                chat_id: "guardian-thread".to_string(),
                 event: json!({ "type": "guardian" }),
             },
         };
         assert_eq!(
             guardian_approval.serialization_scope(),
-            Some(ClientRequestSerializationScope::Thread {
-                thread_id: "guardian-thread".to_string()
+            Some(ClientRequestSerializationScope::Chat {
+                chat_id: "guardian-thread".to_string()
             })
         );
 
@@ -2043,9 +2043,9 @@ mod tests {
         };
         assert_eq!(initialize.serialization_scope(), None);
 
-        let thread_start = ClientRequest::ThreadStart {
+        let thread_start = ClientRequest::ChatStart {
             request_id: request_id(),
-            params: v2::ThreadStartParams::default(),
+            params: v2::ChatStartParams::default(),
         };
         assert_eq!(thread_start.serialization_scope(), None);
 
@@ -2078,23 +2078,23 @@ mod tests {
         };
         assert_eq!(fs_read.serialization_scope(), None);
 
-        let thread_turns_list = ClientRequest::ThreadTurnsList {
+        let thread_turns_list = ClientRequest::ChatInteractionsList {
             request_id: request_id(),
-            params: v2::ThreadTurnsListParams {
-                thread_id: "thread-1".to_string(),
+            params: v2::ChatInteractionsListParams {
+                chat_id: "thread-1".to_string(),
                 cursor: None,
                 limit: None,
                 sort_direction: None,
-                items_view: None,
+                messages_view: None,
             },
         };
         assert_eq!(thread_turns_list.serialization_scope(), None);
 
-        let thread_turns_items_list = ClientRequest::ThreadTurnsItemsList {
+        let thread_turns_items_list = ClientRequest::ChatInteractionsMessagesList {
             request_id: request_id(),
-            params: v2::ThreadTurnsItemsListParams {
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
+            params: v2::ChatInteractionsMessagesListParams {
+                chat_id: "thread-1".to_string(),
+                interaction_id: "turn-1".to_string(),
                 cursor: None,
                 limit: None,
                 sort_direction: None,
@@ -2105,7 +2105,7 @@ mod tests {
         let mcp_resource_read = ClientRequest::McpResourceRead {
             request_id: request_id(),
             params: v2::McpResourceReadParams {
-                thread_id: None,
+                chat_id: None,
                 server: "server-a".to_string(),
                 uri: "file:///tmp/resource".to_string(),
             },
@@ -2196,8 +2196,8 @@ mod tests {
                     request_attestation: true,
                     mcp_server_openai_form_elicitation: true,
                     opt_out_notification_methods: Some(vec![
-                        "thread/started".to_string(),
-                        "item/agentMessage/delta".to_string(),
+                        "chat/started".to_string(),
+                        "message/agentMessage/delta".to_string(),
                     ]),
                 }),
             },
@@ -2218,8 +2218,8 @@ mod tests {
                         "requestAttestation": true,
                         "mcpServerOpenaiFormElicitation": true,
                         "optOutNotificationMethods": [
-                            "thread/started",
-                            "item/agentMessage/delta"
+                            "chat/started",
+                            "message/agentMessage/delta"
                         ]
                     }
                 }
@@ -2245,8 +2245,8 @@ mod tests {
                     "requestAttestation": true,
                     "mcpServerOpenaiFormElicitation": true,
                     "optOutNotificationMethods": [
-                        "thread/started",
-                        "item/agentMessage/delta"
+                        "chat/started",
+                        "message/agentMessage/delta"
                     ]
                 }
             }
@@ -2267,8 +2267,8 @@ mod tests {
                         request_attestation: true,
                         mcp_server_openai_form_elicitation: true,
                         opt_out_notification_methods: Some(vec![
-                            "thread/started".to_string(),
-                            "item/agentMessage/delta".to_string(),
+                            "chat/started".to_string(),
+                            "message/agentMessage/delta".to_string(),
                         ]),
                     }),
                 },
@@ -2407,7 +2407,7 @@ mod tests {
     #[test]
     fn serialize_current_time_read_request() -> Result<()> {
         let params = v2::CurrentTimeReadParams {
-            thread_id: "thread-123".to_string(),
+            chat_id: "thread-123".to_string(),
         };
         let request = ServerRequest::CurrentTimeRead {
             request_id: RequestId::Integer(10),
@@ -2418,7 +2418,7 @@ mod tests {
                 "method": "currentTime/read",
                 "id": 10,
                 "params": {
-                    "threadId": "thread-123"
+                    "chatId": "thread-123"
                 }
             }),
             serde_json::to_value(&request)?,
@@ -2440,10 +2440,13 @@ mod tests {
         };
 
         assert_eq!(response.id(), &RequestId::Integer(8));
-        assert_eq!(response.method(), "item/commandExecution/requestApproval");
+        assert_eq!(
+            response.method(),
+            "message/commandExecution/requestApproval"
+        );
         assert_eq!(
             json!({
-                "method": "item/commandExecution/requestApproval",
+                "method": "message/commandExecution/requestApproval",
                 "id": 8,
                 "response": {
                     "decision": "acceptForSession"
@@ -2466,8 +2469,8 @@ mod tests {
             "required": ["confirmed"]
         }))?;
         let params = v2::McpServerElicitationRequestParams {
-            thread_id: "thr_123".to_string(),
-            turn_id: Some("turn_123".to_string()),
+            chat_id: "thr_123".to_string(),
+            interaction_id: Some("turn_123".to_string()),
             server_name: "codex_apps".to_string(),
             request: v2::McpServerElicitationRequest::Form {
                 meta: None,
@@ -2485,8 +2488,8 @@ mod tests {
                 "method": "mcpServer/elicitation/request",
                 "id": 9,
                 "params": {
-                    "threadId": "thr_123",
-                    "turnId": "turn_123",
+                    "chatId": "thr_123",
+                    "interactionId": "turn_123",
                     "serverName": "codex_apps",
                     "mode": "form",
                     "_meta": null,
@@ -2568,31 +2571,31 @@ mod tests {
     #[test]
     fn serialize_client_response() -> Result<()> {
         let cwd = absolute_path("/tmp");
-        let response = ClientResponse::ThreadStart {
+        let response = ClientResponse::ChatStart {
             request_id: RequestId::Integer(7),
-            response: v2::ThreadStartResponse {
-                thread: v2::Thread {
+            response: v2::ChatStartResponse {
+                thread: v2::Chat {
                     id: "67e55044-10b1-426f-9247-bb680e5fe0c8".to_string(),
                     session_id: "67e55044-10b1-426f-9247-bb680e5fe0c7".to_string(),
                     forked_from_id: None,
-                    parent_thread_id: None,
+                    parent_chat_id: None,
                     preview: "first prompt".to_string(),
                     ephemeral: true,
                     model_provider: "openai".to_string(),
                     created_at: 1,
                     updated_at: 2,
                     recency_at: Some(3),
-                    status: v2::ThreadStatus::Idle,
+                    status: v2::ChatStatus::Idle,
                     path: None,
                     cwd: cwd.clone(),
                     cli_version: "0.0.0".to_string(),
                     source: v2::SessionSource::Exec,
-                    thread_source: None,
+                    chat_source: None,
                     agent_nickname: None,
                     agent_role: None,
                     git_info: None,
                     name: None,
-                    turns: Vec::new(),
+                    interactions: Vec::new(),
                 },
                 model: "gpt-5".to_string(),
                 model_provider: "openai".to_string(),
@@ -2614,17 +2617,17 @@ mod tests {
         };
 
         assert_eq!(response.id(), &RequestId::Integer(7));
-        assert_eq!(response.method(), "thread/start");
+        assert_eq!(response.method(), "chat/start");
         assert_eq!(
             json!({
-                "method": "thread/start",
+                "method": "chat/start",
                 "id": 7,
                 "response": {
-                    "thread": {
+                    "chat": {
                         "id": "67e55044-10b1-426f-9247-bb680e5fe0c8",
                         "sessionId": "67e55044-10b1-426f-9247-bb680e5fe0c7",
                         "forkedFromId": null,
-                        "parentThreadId": null,
+                        "parentChatId": null,
                         "preview": "first prompt",
                         "ephemeral": true,
                         "modelProvider": "openai",
@@ -2638,12 +2641,12 @@ mod tests {
                         "cwd": absolute_path_string("tmp"),
                         "cliVersion": "0.0.0",
                         "source": "exec",
-                        "threadSource": null,
+                        "chatSource": null,
                         "agentNickname": null,
                         "agentRole": null,
                         "gitInfo": null,
                         "name": null,
-                        "turns": []
+                        "interactions": []
                     },
                     "model": "gpt-5",
                     "modelProvider": "openai",
@@ -2985,7 +2988,7 @@ mod tests {
                 "params": {
                     "cursor": null,
                     "limit": null,
-                    "threadId": null
+                    "chatId": null
                 }
             }),
             serde_json::to_value(&request)?,
@@ -3075,7 +3078,7 @@ mod tests {
                 "params": {
                     "cursor": null,
                     "limit": null,
-                    "threadId": null
+                    "chatId": null
                 }
             }),
             serde_json::to_value(&request)?,
@@ -3090,7 +3093,7 @@ mod tests {
             params: v2::ExperimentalFeatureListParams {
                 cursor: Some("3".to_string()),
                 limit: Some(2),
-                thread_id: Some("00000000-0000-4000-8000-000000000001".to_string()),
+                chat_id: Some("00000000-0000-4000-8000-000000000001".to_string()),
             },
         };
         assert_eq!(
@@ -3100,7 +3103,7 @@ mod tests {
                 "params": {
                     "cursor": "3",
                     "limit": 2,
-                    "threadId": "00000000-0000-4000-8000-000000000001"
+                    "chatId": "00000000-0000-4000-8000-000000000001"
                 }
             }),
             serde_json::to_value(&request)?,
@@ -3109,19 +3112,19 @@ mod tests {
     }
 
     #[test]
-    fn serialize_thread_background_terminals_clean() -> Result<()> {
-        let request = ClientRequest::ThreadBackgroundTerminalsClean {
+    fn serialize_chat_background_terminals_clean() -> Result<()> {
+        let request = ClientRequest::ChatBackgroundTerminalsClean {
             request_id: RequestId::Integer(8),
-            params: v2::ThreadBackgroundTerminalsCleanParams {
-                thread_id: "thr_123".to_string(),
+            params: v2::ChatBackgroundTerminalsCleanParams {
+                chat_id: "thr_123".to_string(),
             },
         };
         assert_eq!(
             json!({
-                "method": "thread/backgroundTerminals/clean",
+                "method": "chat/backgroundTerminals/clean",
                 "id": 8,
                 "params": {
-                    "threadId": "thr_123"
+                    "chatId": "thr_123"
                 }
             }),
             serde_json::to_value(&request)?,
@@ -3130,21 +3133,21 @@ mod tests {
     }
 
     #[test]
-    fn serialize_thread_background_terminals_list() -> Result<()> {
-        let request = ClientRequest::ThreadBackgroundTerminalsList {
+    fn serialize_chat_background_terminals_list() -> Result<()> {
+        let request = ClientRequest::ChatBackgroundTerminalsList {
             request_id: RequestId::Integer(8),
-            params: v2::ThreadBackgroundTerminalsListParams {
-                thread_id: "thr_123".to_string(),
+            params: v2::ChatBackgroundTerminalsListParams {
+                chat_id: "thr_123".to_string(),
                 cursor: None,
                 limit: None,
             },
         };
         assert_eq!(
             json!({
-                "method": "thread/backgroundTerminals/list",
+                "method": "chat/backgroundTerminals/list",
                 "id": 8,
                 "params": {
-                    "threadId": "thr_123",
+                    "chatId": "thr_123",
                     "cursor": null,
                     "limit": null
                 }
@@ -3155,20 +3158,20 @@ mod tests {
     }
 
     #[test]
-    fn serialize_thread_background_terminals_terminate() -> Result<()> {
-        let request = ClientRequest::ThreadBackgroundTerminalsTerminate {
+    fn serialize_chat_background_terminals_terminate() -> Result<()> {
+        let request = ClientRequest::ChatBackgroundTerminalsTerminate {
             request_id: RequestId::Integer(8),
-            params: v2::ThreadBackgroundTerminalsTerminateParams {
-                thread_id: "thr_123".to_string(),
+            params: v2::ChatBackgroundTerminalsTerminateParams {
+                chat_id: "thr_123".to_string(),
                 process_id: "42".to_string(),
             },
         };
         assert_eq!(
             json!({
-                "method": "thread/backgroundTerminals/terminate",
+                "method": "chat/backgroundTerminals/terminate",
                 "id": 8,
                 "params": {
-                    "threadId": "thr_123",
+                    "chatId": "thr_123",
                     "processId": "42"
                 }
             }),
@@ -3178,15 +3181,15 @@ mod tests {
     }
 
     #[test]
-    fn serialize_thread_realtime_start() -> Result<()> {
-        let request = ClientRequest::ThreadRealtimeStart {
+    fn serialize_chat_realtime_start() -> Result<()> {
+        let request = ClientRequest::ChatRealtimeStart {
             request_id: RequestId::Integer(9),
-            params: v2::ThreadRealtimeStartParams {
+            params: v2::ChatRealtimeStartParams {
                 client_managed_handoffs: Some(true),
-                codex_responses_as_items: None,
-                codex_response_item_prefix: None,
+                codex_responses_as_messages: None,
+                codex_response_message_prefix: None,
                 codex_response_handoff_prefix: Some("silent context".to_string()),
-                thread_id: "thr_123".to_string(),
+                chat_id: "thr_123".to_string(),
                 model: Some("realtime-treatment-model".to_string()),
                 output_modality: RealtimeOutputModality::Audio,
                 include_startup_context: Some(false),
@@ -3199,13 +3202,13 @@ mod tests {
         };
         assert_eq!(
             json!({
-                "method": "thread/realtime/start",
+                "method": "chat/realtime/start",
                 "id": 9,
                 "params": {
-                    "threadId": "thr_123",
+                    "chatId": "thr_123",
                     "clientManagedHandoffs": true,
-                    "codexResponsesAsItems": null,
-                    "codexResponseItemPrefix": null,
+                    "codexResponsesAsMessages": null,
+                    "codexResponseMessagePrefix": null,
                     "codexResponseHandoffPrefix": "silent context",
                     "model": "realtime-treatment-model",
                     "outputModality": "audio",
@@ -3223,15 +3226,15 @@ mod tests {
     }
 
     #[test]
-    fn serialize_thread_realtime_start_prompt_default_and_null() -> Result<()> {
-        let default_prompt_request = ClientRequest::ThreadRealtimeStart {
+    fn serialize_chat_realtime_start_prompt_default_and_null() -> Result<()> {
+        let default_prompt_request = ClientRequest::ChatRealtimeStart {
             request_id: RequestId::Integer(9),
-            params: v2::ThreadRealtimeStartParams {
+            params: v2::ChatRealtimeStartParams {
                 client_managed_handoffs: None,
-                codex_responses_as_items: None,
-                codex_response_item_prefix: None,
+                codex_responses_as_messages: None,
+                codex_response_message_prefix: None,
                 codex_response_handoff_prefix: None,
-                thread_id: "thr_123".to_string(),
+                chat_id: "thr_123".to_string(),
                 model: None,
                 output_modality: RealtimeOutputModality::Audio,
                 include_startup_context: None,
@@ -3244,13 +3247,13 @@ mod tests {
         };
         assert_eq!(
             json!({
-                "method": "thread/realtime/start",
+                "method": "chat/realtime/start",
                 "id": 9,
                 "params": {
-                    "threadId": "thr_123",
+                    "chatId": "thr_123",
                     "clientManagedHandoffs": null,
-                    "codexResponsesAsItems": null,
-                    "codexResponseItemPrefix": null,
+                    "codexResponsesAsMessages": null,
+                    "codexResponseMessagePrefix": null,
                     "codexResponseHandoffPrefix": null,
                     "model": null,
                     "outputModality": "audio",
@@ -3264,14 +3267,14 @@ mod tests {
             serde_json::to_value(&default_prompt_request)?,
         );
 
-        let null_prompt_request = ClientRequest::ThreadRealtimeStart {
+        let null_prompt_request = ClientRequest::ChatRealtimeStart {
             request_id: RequestId::Integer(9),
-            params: v2::ThreadRealtimeStartParams {
+            params: v2::ChatRealtimeStartParams {
                 client_managed_handoffs: None,
-                codex_responses_as_items: None,
-                codex_response_item_prefix: None,
+                codex_responses_as_messages: None,
+                codex_response_message_prefix: None,
                 codex_response_handoff_prefix: None,
-                thread_id: "thr_123".to_string(),
+                chat_id: "thr_123".to_string(),
                 model: None,
                 output_modality: RealtimeOutputModality::Audio,
                 include_startup_context: None,
@@ -3284,13 +3287,13 @@ mod tests {
         };
         assert_eq!(
             json!({
-                "method": "thread/realtime/start",
+                "method": "chat/realtime/start",
                 "id": 9,
                 "params": {
-                    "threadId": "thr_123",
+                    "chatId": "thr_123",
                     "clientManagedHandoffs": null,
-                    "codexResponsesAsItems": null,
-                    "codexResponseItemPrefix": null,
+                    "codexResponsesAsMessages": null,
+                    "codexResponseMessagePrefix": null,
                     "codexResponseHandoffPrefix": null,
                     "model": null,
                     "outputModality": "audio",
@@ -3306,10 +3309,10 @@ mod tests {
         );
 
         let default_prompt_value = json!({
-            "method": "thread/realtime/start",
+            "method": "chat/realtime/start",
             "id": 9,
             "params": {
-                "threadId": "thr_123",
+                "chatId": "thr_123",
                 "outputModality": "audio",
                 "realtimeSessionId": null,
                 "transport": null,
@@ -3322,10 +3325,10 @@ mod tests {
         );
 
         let null_prompt_value = json!({
-            "method": "thread/realtime/start",
+            "method": "chat/realtime/start",
             "id": 9,
             "params": {
-                "threadId": "thr_123",
+                "chatId": "thr_123",
                 "outputModality": "audio",
                 "prompt": null,
                 "realtimeSessionId": null,
@@ -3342,20 +3345,20 @@ mod tests {
     }
 
     #[test]
-    fn serialize_thread_realtime_append_speech() -> Result<()> {
-        let request = ClientRequest::ThreadRealtimeAppendSpeech {
+    fn serialize_chat_realtime_append_speech() -> Result<()> {
+        let request = ClientRequest::ChatRealtimeAppendSpeech {
             request_id: RequestId::Integer(10),
-            params: v2::ThreadRealtimeAppendSpeechParams {
-                thread_id: "thr_123".to_string(),
+            params: v2::ChatRealtimeAppendSpeechParams {
+                chat_id: "thr_123".to_string(),
                 text: "Short voice update".to_string(),
             },
         };
         assert_eq!(
             json!({
-                "method": "thread/realtime/appendSpeech",
+                "method": "chat/realtime/appendSpeech",
                 "id": 10,
                 "params": {
-                    "threadId": "thr_123",
+                    "chatId": "thr_123",
                     "text": "Short voice update"
                 }
             }),
@@ -3365,17 +3368,17 @@ mod tests {
     }
 
     #[test]
-    fn serialize_thread_status_changed_notification() -> Result<()> {
+    fn serialize_chat_status_changed_notification() -> Result<()> {
         let notification =
-            ServerNotification::ThreadStatusChanged(v2::ThreadStatusChangedNotification {
-                thread_id: "thr_123".to_string(),
-                status: v2::ThreadStatus::Idle,
+            ServerNotification::ChatStatusChanged(v2::ChatStatusChangedNotification {
+                chat_id: "thr_123".to_string(),
+                status: v2::ChatStatus::Idle,
             });
         assert_eq!(
             json!({
-                "method": "thread/status/changed",
+                "method": "chat/status/changed",
                 "params": {
-                    "threadId": "thr_123",
+                    "chatId": "thr_123",
                     "status": {
                         "type": "idle"
                     },
@@ -3390,8 +3393,8 @@ mod tests {
     fn serialize_model_safety_buffering_updated_notification() -> Result<()> {
         let notification = ServerNotification::ModelSafetyBufferingUpdated(
             v2::ModelSafetyBufferingUpdatedNotification {
-                thread_id: "thr_123".to_string(),
-                turn_id: "turn_123".to_string(),
+                chat_id: "thr_123".to_string(),
+                interaction_id: "turn_123".to_string(),
                 model: "current-model".to_string(),
                 use_cases: vec!["cyber".to_string()],
                 reasons: vec!["user_risk".to_string()],
@@ -3403,8 +3406,8 @@ mod tests {
             json!({
                 "method": "model/safetyBuffering/updated",
                 "params": {
-                    "threadId": "thr_123",
-                    "turnId": "turn_123",
+                    "chatId": "thr_123",
+                    "interactionId": "turn_123",
                     "model": "current-model",
                     "useCases": ["cyber"],
                     "reasons": ["user_risk"],
@@ -3418,30 +3421,30 @@ mod tests {
     }
 
     #[test]
-    fn serialize_thread_realtime_output_audio_delta_notification() -> Result<()> {
-        let notification = ServerNotification::ThreadRealtimeOutputAudioDelta(
-            v2::ThreadRealtimeOutputAudioDeltaNotification {
-                thread_id: "thr_123".to_string(),
-                audio: v2::ThreadRealtimeAudioChunk {
+    fn serialize_chat_realtime_output_audio_delta_notification() -> Result<()> {
+        let notification = ServerNotification::ChatRealtimeOutputAudioDelta(
+            v2::ChatRealtimeOutputAudioDeltaNotification {
+                chat_id: "thr_123".to_string(),
+                audio: v2::ChatRealtimeAudioChunk {
                     data: "AQID".to_string(),
                     sample_rate: 24_000,
                     num_channels: 1,
                     samples_per_channel: Some(512),
-                    item_id: None,
+                    message_id: None,
                 },
             },
         );
         assert_eq!(
             json!({
-                "method": "thread/realtime/outputAudio/delta",
+                "method": "chat/realtime/outputAudio/delta",
                 "params": {
-                    "threadId": "thr_123",
+                    "chatId": "thr_123",
                     "audio": {
                         "data": "AQID",
                         "sampleRate": 24000,
                         "numChannels": 1,
                         "samplesPerChannel": 512,
-                        "itemId": null
+                        "messageId": null
                     }
                 }
             }),
@@ -3502,14 +3505,14 @@ mod tests {
 
     #[test]
     fn thread_realtime_start_is_marked_experimental() {
-        let request = ClientRequest::ThreadRealtimeStart {
+        let request = ClientRequest::ChatRealtimeStart {
             request_id: RequestId::Integer(1),
-            params: v2::ThreadRealtimeStartParams {
+            params: v2::ChatRealtimeStartParams {
                 client_managed_handoffs: None,
-                codex_responses_as_items: None,
-                codex_response_item_prefix: None,
+                codex_responses_as_messages: None,
+                codex_response_message_prefix: None,
                 codex_response_handoff_prefix: None,
-                thread_id: "thr_123".to_string(),
+                chat_id: "thr_123".to_string(),
                 model: None,
                 output_modality: RealtimeOutputModality::Audio,
                 include_startup_context: None,
@@ -3521,30 +3524,30 @@ mod tests {
             },
         };
         let reason = crate::experimental_api::ExperimentalApi::experimental_reason(&request);
-        assert_eq!(reason, Some("thread/realtime/start"));
+        assert_eq!(reason, Some("chat/realtime/start"));
     }
 
     #[test]
     fn thread_goal_methods_are_not_marked_experimental() {
-        let set_request = ClientRequest::ThreadGoalSet {
+        let set_request = ClientRequest::ChatGoalSet {
             request_id: RequestId::Integer(1),
-            params: v2::ThreadGoalSetParams {
-                thread_id: "thr_123".to_string(),
+            params: v2::ChatGoalSetParams {
+                chat_id: "thr_123".to_string(),
                 objective: Some("ship goal mode".to_string()),
-                status: Some(v2::ThreadGoalStatus::Active),
+                status: Some(v2::ChatGoalStatus::Active),
                 token_budget: Some(Some(10_000)),
             },
         };
-        let get_request = ClientRequest::ThreadGoalGet {
+        let get_request = ClientRequest::ChatGoalGet {
             request_id: RequestId::Integer(2),
-            params: v2::ThreadGoalGetParams {
-                thread_id: "thr_123".to_string(),
+            params: v2::ChatGoalGetParams {
+                chat_id: "thr_123".to_string(),
             },
         };
-        let clear_request = ClientRequest::ThreadGoalClear {
+        let clear_request = ClientRequest::ChatGoalClear {
             request_id: RequestId::Integer(3),
-            params: v2::ThreadGoalClearParams {
-                thread_id: "thr_123".to_string(),
+            params: v2::ChatGoalClearParams {
+                chat_id: "thr_123".to_string(),
             },
         };
 
@@ -3564,23 +3567,23 @@ mod tests {
 
     #[test]
     fn thread_goal_notifications_are_not_marked_experimental() {
-        let goal = v2::ThreadGoal {
-            thread_id: "thr_123".to_string(),
+        let goal = v2::ChatGoal {
+            chat_id: "thr_123".to_string(),
             objective: "ship goal mode".to_string(),
-            status: v2::ThreadGoalStatus::Active,
+            status: v2::ChatGoalStatus::Active,
             token_budget: Some(10_000),
             tokens_used: 123,
             time_used_seconds: 45,
             created_at: 1_700_000_000,
             updated_at: 1_700_000_123,
         };
-        let updated = ServerNotification::ThreadGoalUpdated(v2::ThreadGoalUpdatedNotification {
-            thread_id: "thr_123".to_string(),
-            turn_id: None,
+        let updated = ServerNotification::ChatGoalUpdated(v2::ChatGoalUpdatedNotification {
+            chat_id: "thr_123".to_string(),
+            interaction_id: None,
             goal,
         });
-        let cleared = ServerNotification::ThreadGoalCleared(v2::ThreadGoalClearedNotification {
-            thread_id: "thr_123".to_string(),
+        let cleared = ServerNotification::ChatGoalCleared(v2::ChatGoalClearedNotification {
+            chat_id: "thr_123".to_string(),
         });
 
         assert_eq!(
@@ -3596,9 +3599,9 @@ mod tests {
     #[test]
     fn thread_settings_updated_notification_is_marked_experimental() {
         let notification =
-            ServerNotification::ThreadSettingsUpdated(v2::ThreadSettingsUpdatedNotification {
-                thread_id: "thr_123".to_string(),
-                thread_settings: v2::ThreadSettings {
+            ServerNotification::ChatSettingsUpdated(v2::ChatSettingsUpdatedNotification {
+                chat_id: "thr_123".to_string(),
+                thread_settings: v2::ChatSettings {
                     cwd: absolute_path("/tmp/repo"),
                     approval_policy: v2::AskForApproval::Never,
                     approvals_reviewer: v2::ApprovalsReviewer::User,
@@ -3624,61 +3627,62 @@ mod tests {
 
         assert_eq!(
             crate::experimental_api::ExperimentalApi::experimental_reason(&notification),
-            Some("thread/settings/updated")
+            Some("chat/settings/updated")
         );
     }
 
     #[test]
     fn turn_moderation_metadata_notification_is_marked_experimental() {
-        let notification =
-            ServerNotification::TurnModerationMetadata(v2::TurnModerationMetadataNotification {
-                thread_id: "thr_123".to_string(),
-                turn_id: "turn_123".to_string(),
+        let notification = ServerNotification::InteractionModerationMetadata(
+            v2::InteractionModerationMetadataNotification {
+                chat_id: "thr_123".to_string(),
+                interaction_id: "turn_123".to_string(),
                 metadata: json!({"presentation": "inline"}),
-            });
+            },
+        );
 
         assert_eq!(
             crate::experimental_api::ExperimentalApi::experimental_reason(&notification),
-            Some("turn/moderationMetadata")
+            Some("interaction/moderationMetadata")
         );
     }
 
     #[test]
     fn thread_realtime_started_notification_is_marked_experimental() {
         let notification =
-            ServerNotification::ThreadRealtimeStarted(v2::ThreadRealtimeStartedNotification {
-                thread_id: "thr_123".to_string(),
+            ServerNotification::ChatRealtimeStarted(v2::ChatRealtimeStartedNotification {
+                chat_id: "thr_123".to_string(),
                 realtime_session_id: Some("sess_456".to_string()),
                 version: RealtimeConversationVersion::V1,
             });
         let reason = crate::experimental_api::ExperimentalApi::experimental_reason(&notification);
-        assert_eq!(reason, Some("thread/realtime/started"));
+        assert_eq!(reason, Some("chat/realtime/started"));
     }
 
     #[test]
     fn thread_realtime_output_audio_delta_notification_is_marked_experimental() {
-        let notification = ServerNotification::ThreadRealtimeOutputAudioDelta(
-            v2::ThreadRealtimeOutputAudioDeltaNotification {
-                thread_id: "thr_123".to_string(),
-                audio: v2::ThreadRealtimeAudioChunk {
+        let notification = ServerNotification::ChatRealtimeOutputAudioDelta(
+            v2::ChatRealtimeOutputAudioDeltaNotification {
+                chat_id: "thr_123".to_string(),
+                audio: v2::ChatRealtimeAudioChunk {
                     data: "AQID".to_string(),
                     sample_rate: 24_000,
                     num_channels: 1,
                     samples_per_channel: Some(512),
-                    item_id: None,
+                    message_id: None,
                 },
             },
         );
         let reason = crate::experimental_api::ExperimentalApi::experimental_reason(&notification);
-        assert_eq!(reason, Some("thread/realtime/outputAudio/delta"));
+        assert_eq!(reason, Some("chat/realtime/outputAudio/delta"));
     }
 
     #[test]
     fn command_execution_request_approval_additional_permissions_is_marked_experimental() {
         let params = v2::CommandExecutionRequestApprovalParams {
-            thread_id: "thr_123".to_string(),
-            turn_id: "turn_123".to_string(),
-            item_id: "call_123".to_string(),
+            chat_id: "thr_123".to_string(),
+            interaction_id: "turn_123".to_string(),
+            message_id: "call_123".to_string(),
             started_at_ms: 0,
             approval_id: None,
             environment_id: None,
@@ -3703,7 +3707,7 @@ mod tests {
         let reason = crate::experimental_api::ExperimentalApi::experimental_reason(&params);
         assert_eq!(
             reason,
-            Some("item/commandExecution/requestApproval.additionalPermissions")
+            Some("message/commandExecution/requestApproval.additionalPermissions")
         );
     }
 }

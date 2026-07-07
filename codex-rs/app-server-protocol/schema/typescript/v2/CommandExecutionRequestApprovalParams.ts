@@ -7,7 +7,7 @@ import type { ExecPolicyAmendment } from "./ExecPolicyAmendment";
 import type { NetworkApprovalContext } from "./NetworkApprovalContext";
 import type { NetworkPolicyAmendment } from "./NetworkPolicyAmendment";
 
-export type CommandExecutionRequestApprovalParams = {threadId: string, turnId: string, itemId: string, /**
+export type CommandExecutionRequestApprovalParams = {chatId: string, interactionId: string, messageId: string, /**
  * Unix timestamp (in milliseconds) when this approval request started.
  */
 startedAtMs: number, /**
@@ -16,7 +16,7 @@ startedAtMs: number, /**
  * For regular shell/unified_exec approvals, this is null.
  *
  * For zsh-exec-bridge subcommand approvals, multiple callbacks can belong to
- * one parent `itemId`, so `approvalId` is a distinct opaque callback id
+ * one parent `messageId`, so `approvalId` is a distinct opaque callback id
  * (a UUID) used to disambiguate routing.
  */
 approvalId?: string | null, /**

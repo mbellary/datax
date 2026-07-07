@@ -12,17 +12,17 @@ use axum::Router;
 use core_test_support::responses;
 use datax_app_server::in_process;
 use datax_app_server::in_process::InProcessStartArgs;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::ClientInfo;
 use datax_app_server_protocol::ClientRequest;
 use datax_app_server_protocol::InitializeParams;
+use datax_app_server_protocol::InteractionStartParams;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::McpResourceContent;
 use datax_app_server_protocol::McpResourceReadParams;
 use datax_app_server_protocol::McpResourceReadResponse;
 use datax_app_server_protocol::RequestId;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
 use datax_app_server_protocol::UserInput;
 use datax_arg0::Arg0DispatchPaths;
 use datax_config::CloudConfigBundleLoader;
@@ -93,7 +93,7 @@ async fn mcp_resource_read_returns_resource_contents() -> Result<()> {
         start_resource_test_app_server(&apps_server_url, &responses_server_uri).await?;
 
     let thread_start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -103,11 +103,11 @@ async fn mcp_resource_read_returns_resource_contents() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
 
     let read_request_id = mcp
         .send_mcp_resource_read_request(McpResourceReadParams {
-            thread_id: Some(thread.id),
+            chat_id: Some(thread.id),
             server: "codex_apps".to_string(),
             uri: TEST_RESOURCE_URI.to_string(),
         })
@@ -137,7 +137,7 @@ async fn orchestrator_skill_can_read_referenced_resource_without_an_executor() -
         start_resource_test_app_server(&apps_server_url, &responses_server_uri).await?;
 
     let thread_start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             environments: Some(Vec::new()),
             ..Default::default()
@@ -148,7 +148,7 @@ async fn orchestrator_skill_can_read_referenced_resource_without_an_executor() -
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
 
     let response_mock = responses::mount_sse_sequence(
         &responses_server,
@@ -216,8 +216,8 @@ async fn orchestrator_skill_can_read_referenced_resource_without_an_executor() -
     )
     .await;
     let turn_start_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id.clone(),
             input: vec![UserInput::Text {
                 text: format!("Use ${SKILL_NAME}"),
                 text_elements: Vec::new(),
@@ -232,7 +232,7 @@ async fn orchestrator_skill_can_read_referenced_resource_without_an_executor() -
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -328,8 +328,8 @@ async fn orchestrator_skill_can_read_referenced_resource_without_an_executor() -
     .await??;
 
     let refreshed_turn_start_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id,
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id,
             input: vec![UserInput::Text {
                 text: format!("Use ${SKILL_NAME} after refreshing MCP"),
                 text_elements: Vec::new(),
@@ -344,7 +344,7 @@ async fn orchestrator_skill_can_read_referenced_resource_without_an_executor() -
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -373,7 +373,7 @@ async fn local_executor_does_not_expose_orchestrator_skills() -> Result<()> {
         start_resource_test_app_server(&apps_server_url, &responses_server_uri).await?;
 
     let thread_start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             ..Default::default()
         })
@@ -383,7 +383,7 @@ async fn local_executor_does_not_expose_orchestrator_skills() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
 
     let response_mock = responses::mount_sse_once(
         &responses_server,
@@ -395,8 +395,8 @@ async fn local_executor_does_not_expose_orchestrator_skills() -> Result<()> {
     )
     .await;
     let turn_start_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id,
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id,
             input: vec![UserInput::Text {
                 text: format!("Use ${SKILL_NAME}"),
                 text_elements: Vec::new(),
@@ -411,7 +411,7 @@ async fn local_executor_does_not_expose_orchestrator_skills() -> Result<()> {
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -453,7 +453,7 @@ enabled = false
     .await?;
 
     let thread_start_id = mcp
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             environments: Some(Vec::new()),
             ..Default::default()
@@ -464,7 +464,7 @@ enabled = false
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
 
     let response_mock = responses::mount_sse_once(
         &responses_server,
@@ -476,8 +476,8 @@ enabled = false
     )
     .await;
     let turn_start_id = mcp
-        .send_turn_start_request(TurnStartParams {
-            thread_id: thread.id,
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: thread.id,
             input: vec![UserInput::Text {
                 text: format!("Use ${SKILL_NAME}"),
                 text_elements: Vec::new(),
@@ -492,7 +492,7 @@ enabled = false
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_notification_message("turn/completed"),
+        mcp.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -557,7 +557,7 @@ apps = true
 
     let read_request_id = mcp
         .send_mcp_resource_read_request(McpResourceReadParams {
-            thread_id: None,
+            chat_id: None,
             server: "codex_apps".to_string(),
             uri: TEST_RESOURCE_URI.to_string(),
         })
@@ -621,7 +621,7 @@ async fn mcp_resource_read_returns_error_for_unknown_thread() -> Result<()> {
         .request(ClientRequest::McpResourceRead {
             request_id: RequestId::Integer(1),
             params: McpResourceReadParams {
-                thread_id: Some("00000000-0000-4000-8000-000000000000".to_string()),
+                chat_id: Some("00000000-0000-4000-8000-000000000000".to_string()),
                 server: "codex_apps".to_string(),
                 uri: TEST_RESOURCE_URI.to_string(),
             },

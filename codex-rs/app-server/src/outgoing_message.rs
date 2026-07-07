@@ -75,8 +75,8 @@ impl RequestContext {
         self.span.clone()
     }
 
-    fn record_turn_id(&self, turn_id: &str) {
-        self.span.record("turn.id", turn_id);
+    fn record_turn_id(&self, interaction_id: &str) {
+        self.span.record("turn.id", interaction_id);
     }
 }
 
@@ -108,12 +108,12 @@ pub(crate) struct OutgoingMessageSender {
 pub(crate) struct ThreadScopedOutgoingMessageSender {
     outgoing: Arc<OutgoingMessageSender>,
     connection_ids: Arc<Vec<ConnectionId>>,
-    thread_id: ThreadId,
+    chat_id: ThreadId,
 }
 
 struct PendingCallbackEntry {
     callback: oneshot::Sender<ClientRequestResult>,
-    thread_id: Option<ThreadId>,
+    chat_id: Option<ThreadId>,
     request: ServerRequest,
 }
 
@@ -121,12 +121,12 @@ impl ThreadScopedOutgoingMessageSender {
     pub(crate) fn new(
         outgoing: Arc<OutgoingMessageSender>,
         connection_ids: Vec<ConnectionId>,
-        thread_id: ThreadId,
+        chat_id: ThreadId,
     ) -> Self {
         Self {
             outgoing,
             connection_ids: Arc::new(connection_ids),
-            thread_id,
+            chat_id,
         }
     }
 
@@ -138,7 +138,7 @@ impl ThreadScopedOutgoingMessageSender {
             .send_request_to_connections(
                 Some(self.connection_ids.as_slice()),
                 payload,
-                Some(self.thread_id),
+                Some(self.chat_id),
             )
             .await
     }
@@ -176,7 +176,7 @@ impl ThreadScopedOutgoingMessageSender {
     pub(crate) async fn abort_pending_server_requests(&self) {
         self.outgoing
             .cancel_requests_for_thread(
-                self.thread_id,
+                self.chat_id,
                 Some({
                     let mut error = internal_error(
                         "client request resolved because the turn state was changed",
@@ -248,11 +248,11 @@ impl OutgoingMessageSender {
     pub(crate) async fn record_request_turn_id(
         &self,
         request_id: &ConnectionRequestId,
-        turn_id: &str,
+        interaction_id: &str,
     ) {
         let request_contexts = self.request_contexts.lock().await;
         if let Some(request_context) = request_contexts.get(request_id) {
-            request_context.record_turn_id(turn_id);
+            request_context.record_turn_id(interaction_id);
         }
     }
 
@@ -274,7 +274,7 @@ impl OutgoingMessageSender {
         request: ServerRequestPayload,
     ) -> (RequestId, oneshot::Receiver<ClientRequestResult>) {
         self.send_request_to_connections(
-            /*connection_ids*/ None, request, /*thread_id*/ None,
+            /*connection_ids*/ None, request, /*chat_id*/ None,
         )
         .await
     }
@@ -287,7 +287,7 @@ impl OutgoingMessageSender {
         &self,
         connection_ids: Option<&[ConnectionId]>,
         request: ServerRequestPayload,
-        thread_id: Option<ThreadId>,
+        chat_id: Option<ThreadId>,
     ) -> (RequestId, oneshot::Receiver<ClientRequestResult>) {
         let id = self.next_request_id();
         let outgoing_message_id = id.clone();
@@ -300,7 +300,7 @@ impl OutgoingMessageSender {
                 id,
                 PendingCallbackEntry {
                     callback: tx_approve,
-                    thread_id,
+                    chat_id,
                     request: request.clone(),
                 },
             );
@@ -352,9 +352,9 @@ impl OutgoingMessageSender {
     pub(crate) async fn replay_requests_to_connection_for_thread(
         &self,
         connection_id: ConnectionId,
-        thread_id: ThreadId,
+        chat_id: ThreadId,
     ) {
-        let requests = self.pending_requests_for_thread(thread_id).await;
+        let requests = self.pending_requests_for_thread(chat_id).await;
         for request in requests {
             if let Err(err) = self
                 .sender
@@ -452,14 +452,12 @@ impl OutgoingMessageSender {
 
     pub(crate) async fn pending_requests_for_thread(
         &self,
-        thread_id: ThreadId,
+        chat_id: ThreadId,
     ) -> Vec<ServerRequest> {
         let request_id_to_callback = self.request_id_to_callback.lock().await;
         let mut requests = request_id_to_callback
             .values()
-            .filter_map(|entry| {
-                (entry.thread_id == Some(thread_id)).then_some(entry.request.clone())
-            })
+            .filter_map(|entry| (entry.chat_id == Some(chat_id)).then_some(entry.request.clone()))
             .collect::<Vec<_>>();
         requests.sort_by(|left, right| left.id().cmp(right.id()));
         requests
@@ -467,7 +465,7 @@ impl OutgoingMessageSender {
 
     pub(crate) async fn cancel_requests_for_thread(
         &self,
-        thread_id: ThreadId,
+        chat_id: ThreadId,
         error: Option<JSONRPCErrorError>,
     ) {
         let entries = {
@@ -475,7 +473,7 @@ impl OutgoingMessageSender {
             let request_ids = request_id_to_callback
                 .iter()
                 .filter_map(|(request_id, entry)| {
-                    (entry.thread_id == Some(thread_id)).then_some(request_id.clone())
+                    (entry.chat_id == Some(chat_id)).then_some(request_id.clone())
                 })
                 .collect::<Vec<_>>();
 
@@ -707,6 +705,7 @@ mod tests {
     use datax_app_server_protocol::DynamicToolCallParams;
     use datax_app_server_protocol::FileChangeRequestApprovalParams;
     use datax_app_server_protocol::GuardianWarningNotification;
+    use datax_app_server_protocol::InteractionModerationMetadataNotification;
     use datax_app_server_protocol::ModelRerouteReason;
     use datax_app_server_protocol::ModelReroutedNotification;
     use datax_app_server_protocol::ModelVerification;
@@ -715,7 +714,6 @@ mod tests {
     use datax_app_server_protocol::RateLimitWindow;
     use datax_app_server_protocol::ServerResponse;
     use datax_app_server_protocol::ToolRequestUserInputParams;
-    use datax_app_server_protocol::TurnModerationMetadataNotification;
     use datax_protocol::ThreadId;
     use pretty_assertions::assert_eq;
     use serde_json::json;
@@ -871,7 +869,7 @@ mod tests {
     #[test]
     fn verify_guardian_warning_notification_serialization() {
         let notification = ServerNotification::GuardianWarning(GuardianWarningNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             message: "Automatic approval review denied the requested action.".to_string(),
         });
 
@@ -893,8 +891,8 @@ mod tests {
     #[test]
     fn verify_model_rerouted_notification_serialization() {
         let notification = ServerNotification::ModelRerouted(ModelReroutedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             from_model: "gpt-5.3-codex".to_string(),
             to_model: "gpt-5.2".to_string(),
             reason: ModelRerouteReason::HighRiskCyberActivity,
@@ -921,8 +919,8 @@ mod tests {
     #[test]
     fn verify_model_verification_notification_serialization() {
         let notification = ServerNotification::ModelVerification(ModelVerificationNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             verifications: vec![ModelVerification::TrustedAccessForCyber],
         });
 
@@ -944,17 +942,18 @@ mod tests {
 
     #[test]
     fn verify_turn_moderation_metadata_notification_serialization() {
-        let notification =
-            ServerNotification::TurnModerationMetadata(TurnModerationMetadataNotification {
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
+        let notification = ServerNotification::InteractionModerationMetadata(
+            InteractionModerationMetadataNotification {
+                chat_id: "thread-1".to_string(),
+                interaction_id: "turn-1".to_string(),
                 metadata: json!({"presentation": "inline"}),
-            });
+            },
+        );
 
         let jsonrpc_notification = OutgoingMessage::AppServerNotification(notification);
         assert_eq!(
             json!({
-                "method": "turn/moderationMetadata",
+                "method": "interaction/moderationMetadata",
                 "params": {
                     "threadId": "thread-1",
                     "turnId": "turn-1",
@@ -972,9 +971,9 @@ mod tests {
         let request = ServerRequest::CommandExecutionRequestApproval {
             request_id: RequestId::Integer(7),
             params: CommandExecutionRequestApprovalParams {
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
-                item_id: "item-1".to_string(),
+                chat_id: "thread-1".to_string(),
+                interaction_id: "turn-1".to_string(),
+                message_id: "item-1".to_string(),
                 started_at_ms: 0,
                 approval_id: None,
                 environment_id: None,
@@ -1022,8 +1021,8 @@ mod tests {
         outgoing
             .send_response(
                 request_id.clone(),
-                ClientResponsePayload::ThreadArchive(
-                    datax_app_server_protocol::ThreadArchiveResponse {},
+                datax_app_server_protocol::ClientResponsePayload::ChatArchive(
+                    datax_app_server_protocol::ChatArchiveResponse {},
                 ),
             )
             .await;
@@ -1063,7 +1062,7 @@ mod tests {
         outgoing
             .register_request_context(RequestContext::new(
                 request_id.clone(),
-                tracing::info_span!("app_server.request", rpc.method = "thread/start"),
+                tracing::info_span!("app_server.request", rpc.method = "chat/start"),
                 /*parent_trace*/ None,
             ))
             .await;
@@ -1072,8 +1071,8 @@ mod tests {
         outgoing
             .send_response(
                 request_id,
-                ClientResponsePayload::ThreadArchive(
-                    datax_app_server_protocol::ThreadArchiveResponse {},
+                datax_app_server_protocol::ClientResponsePayload::ChatArchive(
+                    datax_app_server_protocol::ChatArchiveResponse {},
                 ),
             )
             .await;
@@ -1126,8 +1125,8 @@ mod tests {
                 .send_server_notification_to_connection_and_wait(
                     ConnectionId(42),
                     ServerNotification::ModelRerouted(ModelReroutedNotification {
-                        thread_id: "thread-1".to_string(),
-                        turn_id: "turn-1".to_string(),
+                        chat_id: "thread-1".to_string(),
+                        interaction_id: "turn-1".to_string(),
                         from_model: "gpt-5.3-codex".to_string(),
                         to_model: "gpt-5.2".to_string(),
                         reason: ModelRerouteReason::HighRiskCyberActivity,
@@ -1178,14 +1177,14 @@ mod tests {
         outgoing
             .register_request_context(RequestContext::new(
                 closed_connection_request,
-                tracing::info_span!("app_server.request", rpc.method = "turn/interrupt"),
+                tracing::info_span!("app_server.request", rpc.method = "interaction/interrupt"),
                 /*parent_trace*/ None,
             ))
             .await;
         outgoing
             .register_request_context(RequestContext::new(
                 open_connection_request,
-                tracing::info_span!("app_server.request", rpc.method = "turn/start"),
+                tracing::info_span!("app_server.request", rpc.method = "interaction/start"),
                 /*parent_trace*/ None,
             ))
             .await;
@@ -1234,18 +1233,18 @@ mod tests {
             tx,
             datax_analytics::AnalyticsEventsClient::disabled(),
         ));
-        let thread_id = ThreadId::new();
+        let chat_id = ThreadId::new();
         let thread_outgoing = ThreadScopedOutgoingMessageSender::new(
             outgoing.clone(),
             vec![ConnectionId(1)],
-            thread_id,
+            chat_id,
         );
 
         let (dynamic_tool_request_id, _dynamic_tool_waiter) = thread_outgoing
             .send_request(ServerRequestPayload::DynamicToolCall(
                 DynamicToolCallParams {
-                    thread_id: thread_id.to_string(),
-                    turn_id: "turn-1".to_string(),
+                    chat_id: chat_id.to_string(),
+                    interaction_id: "turn-1".to_string(),
                     call_id: "call-0".to_string(),
                     namespace: None,
                     tool: "tool".to_string(),
@@ -1256,9 +1255,9 @@ mod tests {
         let (first_request_id, _first_waiter) = thread_outgoing
             .send_request(ServerRequestPayload::ToolRequestUserInput(
                 ToolRequestUserInputParams {
-                    thread_id: thread_id.to_string(),
-                    turn_id: "turn-1".to_string(),
-                    item_id: "call-1".to_string(),
+                    chat_id: chat_id.to_string(),
+                    interaction_id: "turn-1".to_string(),
+                    message_id: "call-1".to_string(),
                     questions: vec![],
                     auto_resolution_ms: None,
                 },
@@ -1267,16 +1266,16 @@ mod tests {
         let (second_request_id, _second_waiter) = thread_outgoing
             .send_request(ServerRequestPayload::FileChangeRequestApproval(
                 FileChangeRequestApprovalParams {
-                    thread_id: thread_id.to_string(),
-                    turn_id: "turn-1".to_string(),
-                    item_id: "call-2".to_string(),
+                    chat_id: chat_id.to_string(),
+                    interaction_id: "turn-1".to_string(),
+                    message_id: "call-2".to_string(),
                     started_at_ms: 0,
                     reason: None,
                     grant_root: None,
                 },
             ))
             .await;
-        let pending_requests = outgoing.pending_requests_for_thread(thread_id).await;
+        let pending_requests = outgoing.pending_requests_for_thread(chat_id).await;
         assert_eq!(
             pending_requests
                 .iter()
@@ -1297,18 +1296,18 @@ mod tests {
             tx,
             datax_analytics::AnalyticsEventsClient::disabled(),
         ));
-        let thread_id = ThreadId::new();
+        let chat_id = ThreadId::new();
         let thread_outgoing = ThreadScopedOutgoingMessageSender::new(
             outgoing.clone(),
             vec![ConnectionId(1)],
-            thread_id,
+            chat_id,
         );
 
         let (_dynamic_tool_request_id, dynamic_tool_waiter) = thread_outgoing
             .send_request(ServerRequestPayload::DynamicToolCall(
                 DynamicToolCallParams {
-                    thread_id: thread_id.to_string(),
-                    turn_id: "turn-1".to_string(),
+                    chat_id: chat_id.to_string(),
+                    interaction_id: "turn-1".to_string(),
                     call_id: "call-0".to_string(),
                     namespace: None,
                     tool: "tool".to_string(),
@@ -1319,9 +1318,9 @@ mod tests {
         let (_request_id, user_input_waiter) = thread_outgoing
             .send_request(ServerRequestPayload::ToolRequestUserInput(
                 ToolRequestUserInputParams {
-                    thread_id: thread_id.to_string(),
-                    turn_id: "turn-1".to_string(),
-                    item_id: "call-1".to_string(),
+                    chat_id: chat_id.to_string(),
+                    interaction_id: "turn-1".to_string(),
+                    message_id: "call-1".to_string(),
                     questions: vec![],
                     auto_resolution_ms: None,
                 },
@@ -1330,7 +1329,7 @@ mod tests {
         let error = internal_error("tracked request cancelled");
 
         outgoing
-            .cancel_requests_for_thread(thread_id, Some(error.clone()))
+            .cancel_requests_for_thread(chat_id, Some(error.clone()))
             .await;
 
         let dynamic_tool_result = timeout(Duration::from_secs(1), dynamic_tool_waiter)
@@ -1345,7 +1344,7 @@ mod tests {
         assert_eq!(user_input_result, Err(error));
         assert!(
             outgoing
-                .pending_requests_for_thread(thread_id)
+                .pending_requests_for_thread(chat_id)
                 .await
                 .is_empty()
         );

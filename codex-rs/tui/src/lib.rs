@@ -35,12 +35,12 @@ pub use datax_app_server_client::RemoteAppServerEndpoint;
 use datax_app_server_protocol::Account as AppServerAccount;
 use datax_app_server_protocol::AskForApproval;
 use datax_app_server_protocol::AuthMode as AppServerAuthMode;
+use datax_app_server_protocol::Chat as AppServerThread;
+use datax_app_server_protocol::ChatListCwdFilter;
+use datax_app_server_protocol::ChatListParams;
+use datax_app_server_protocol::ChatSortKey as AppServerThreadSortKey;
+use datax_app_server_protocol::ChatSourceKind;
 use datax_app_server_protocol::ConfigWarningNotification;
-use datax_app_server_protocol::Thread as AppServerThread;
-use datax_app_server_protocol::ThreadListCwdFilter;
-use datax_app_server_protocol::ThreadListParams;
-use datax_app_server_protocol::ThreadSortKey as AppServerThreadSortKey;
-use datax_app_server_protocol::ThreadSourceKind;
 use datax_cloud_config::cloud_config_bundle_loader_for_storage;
 use datax_config::CloudConfigBundleLoader;
 use datax_config::ConfigLoadError;
@@ -599,13 +599,13 @@ fn session_target_from_app_server_thread(
     }
 }
 
-pub(crate) fn resume_source_kinds(include_non_interactive: bool) -> Vec<ThreadSourceKind> {
-    let mut source_kinds = vec![ThreadSourceKind::Cli, ThreadSourceKind::VsCode];
+pub(crate) fn resume_source_kinds(include_non_interactive: bool) -> Vec<ChatSourceKind> {
+    let mut source_kinds = vec![ChatSourceKind::Cli, ChatSourceKind::VsCode];
     if include_non_interactive {
         // `thread/list` treats omitted and empty `sourceKinds` as interactive-only,
         // so include-non-interactive has to name the user-resumable non-interactive
         // sources explicitly until the API grows an unfiltered request.
-        source_kinds.extend([ThreadSourceKind::Exec, ThreadSourceKind::AppServer]);
+        source_kinds.extend([ChatSourceKind::Exec, ChatSourceKind::AppServer]);
     }
     source_kinds
 }
@@ -617,13 +617,13 @@ async fn lookup_session_target_by_name_with_app_server(
     let mut cursor = None;
     loop {
         let response = app_server
-            .thread_list(ThreadListParams {
+            .thread_list(ChatListParams {
                 cursor: cursor.clone(),
                 limit: Some(100),
                 sort_key: Some(AppServerThreadSortKey::UpdatedAt),
                 sort_direction: None,
                 model_providers: None,
-                source_kinds: Some(vec![ThreadSourceKind::Cli, ThreadSourceKind::VsCode]),
+                source_kinds: Some(vec![ChatSourceKind::Cli, ChatSourceKind::VsCode]),
                 archived: Some(false),
                 parent_thread_id: None,
                 cwd: None,
@@ -725,8 +725,8 @@ fn latest_session_lookup_params(
     cwd_filter: Option<&Path>,
     include_non_interactive: bool,
     lookup_mode: LatestSessionLookupMode,
-) -> ThreadListParams {
-    ThreadListParams {
+) -> ChatListParams {
+    ChatListParams {
         cursor: None,
         limit: Some(1),
         sort_key: Some(AppServerThreadSortKey::UpdatedAt),
@@ -739,7 +739,7 @@ fn latest_session_lookup_params(
         source_kinds: Some(resume_source_kinds(include_non_interactive)),
         archived: Some(false),
         parent_thread_id: None,
-        cwd: cwd_filter.map(|cwd| ThreadListCwdFilter::One(cwd.to_string_lossy().to_string())),
+        cwd: cwd_filter.map(|cwd| ChatListCwdFilter::One(cwd.to_string_lossy().to_string())),
         use_state_db_only: match lookup_mode {
             LatestSessionLookupMode::StateDbOnly => true,
             LatestSessionLookupMode::ScanAndRepair => false,
@@ -2011,10 +2011,10 @@ mod tests {
     use crate::legacy_core::config::ConfigBuilder;
     use crate::legacy_core::config::ConfigOverrides;
     use datax_app_server_protocol::AskForApproval;
+    use datax_app_server_protocol::ChatStartParams;
+    use datax_app_server_protocol::ChatStartResponse;
     use datax_app_server_protocol::ClientRequest;
     use datax_app_server_protocol::RequestId;
-    use datax_app_server_protocol::ThreadStartParams;
-    use datax_app_server_protocol::ThreadStartResponse;
     use datax_config::config_toml::ProjectConfig;
     use pretty_assertions::assert_eq;
     use serial_test::serial;
@@ -2404,7 +2404,7 @@ mod tests {
         );
         assert_eq!(
             params.cwd,
-            Some(ThreadListCwdFilter::One(cwd.to_string_lossy().to_string()))
+            Some(ChatListCwdFilter::One(cwd.to_string_lossy().to_string()))
         );
         assert!(params.use_state_db_only);
 
@@ -2442,7 +2442,7 @@ mod tests {
         assert_eq!(params.model_providers, Some(vec![config.model_provider_id]));
         assert_eq!(
             params.cwd,
-            Some(ThreadListCwdFilter::One(cwd.to_string_lossy().to_string()))
+            Some(ChatListCwdFilter::One(cwd.to_string_lossy().to_string()))
         );
         Ok(())
     }
@@ -2483,10 +2483,10 @@ mod tests {
         assert_eq!(
             params.source_kinds,
             Some(vec![
-                ThreadSourceKind::Cli,
-                ThreadSourceKind::VsCode,
-                ThreadSourceKind::Exec,
-                ThreadSourceKind::AppServer,
+                ChatSourceKind::Cli,
+                ChatSourceKind::VsCode,
+                ChatSourceKind::Exec,
+                ChatSourceKind::AppServer,
             ])
         );
         Ok(())
@@ -2510,7 +2510,7 @@ mod tests {
         assert_eq!(params.model_providers, None);
         assert_eq!(
             params.cwd,
-            Some(ThreadListCwdFilter::One(String::from("repo/on/server")))
+            Some(ChatListCwdFilter::One(String::from("repo/on/server")))
         );
         Ok(())
     }
@@ -2783,12 +2783,12 @@ mod tests {
         let temp_dir = TempDir::new()?;
         let config = build_config(&temp_dir).await?;
         let app_server = start_test_embedded_app_server(config).await?;
-        let response: ThreadStartResponse = app_server
-            .request_typed(ClientRequest::ThreadStart {
+        let response: ChatStartResponse = app_server
+            .request_typed(ClientRequest::ChatStart {
                 request_id: RequestId::Integer(1),
-                params: ThreadStartParams {
+                params: ChatStartParams {
                     ephemeral: Some(true),
-                    ..ThreadStartParams::default()
+                    ..ChatStartParams::default()
                 },
             })
             .await

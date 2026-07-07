@@ -6,7 +6,7 @@ export type WarningNotification = {
 /**
  * Optional thread target when the warning applies to a specific thread.
  */
-threadId: string | null,
+chatId: string | null,
 /**
  * Concise warning message for the user.
  */

@@ -1352,7 +1352,7 @@ name: thread-summarizer
 description: Summarize email threads
 ---
 
-# Thread Summarizer
+# Chat Summarizer
 "#,
     )?;
     std::fs::write(

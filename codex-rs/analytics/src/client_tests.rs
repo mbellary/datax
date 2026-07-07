@@ -15,24 +15,24 @@ use crate::facts::AnalyticsFact;
 use crate::facts::InvocationType;
 use datax_app_server_protocol::ApprovalsReviewer as AppServerApprovalsReviewer;
 use datax_app_server_protocol::AskForApproval as AppServerAskForApproval;
+use datax_app_server_protocol::Chat;
+use datax_app_server_protocol::ChatArchiveParams;
+use datax_app_server_protocol::ChatArchiveResponse;
+use datax_app_server_protocol::ChatForkResponse;
+use datax_app_server_protocol::ChatResumeResponse;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::ChatStatus as AppServerThreadStatus;
 use datax_app_server_protocol::ClientRequest;
 use datax_app_server_protocol::ClientResponsePayload;
+use datax_app_server_protocol::Interaction;
+use datax_app_server_protocol::InteractionStartParams;
+use datax_app_server_protocol::InteractionStartResponse;
+use datax_app_server_protocol::InteractionStatus as AppServerTurnStatus;
+use datax_app_server_protocol::InteractionSteerParams;
+use datax_app_server_protocol::InteractionSteerResponse;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::SandboxPolicy as AppServerSandboxPolicy;
 use datax_app_server_protocol::SessionSource as AppServerSessionSource;
-use datax_app_server_protocol::Thread;
-use datax_app_server_protocol::ThreadArchiveParams;
-use datax_app_server_protocol::ThreadArchiveResponse;
-use datax_app_server_protocol::ThreadForkResponse;
-use datax_app_server_protocol::ThreadResumeResponse;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::ThreadStatus as AppServerThreadStatus;
-use datax_app_server_protocol::Turn;
-use datax_app_server_protocol::TurnStartParams;
-use datax_app_server_protocol::TurnStartResponse;
-use datax_app_server_protocol::TurnStatus as AppServerTurnStatus;
-use datax_app_server_protocol::TurnSteerParams;
-use datax_app_server_protocol::TurnSteerResponse;
 use datax_utils_absolute_path::test_support::PathBufExt;
 use datax_utils_absolute_path::test_support::test_path_buf;
 use std::collections::HashSet;
@@ -240,9 +240,9 @@ fn capture_write_failure_still_consumes_delivery() {
 }
 
 fn sample_turn_start_request() -> ClientRequest {
-    ClientRequest::TurnStart {
+    ClientRequest::InteractionStart {
         request_id: RequestId::Integer(1),
-        params: TurnStartParams {
+        params: InteractionStartParams {
             thread_id: "thread-1".to_string(),
             client_user_message_id: None,
             input: Vec::new(),
@@ -252,9 +252,9 @@ fn sample_turn_start_request() -> ClientRequest {
 }
 
 fn sample_turn_steer_request() -> ClientRequest {
-    ClientRequest::TurnSteer {
+    ClientRequest::InteractionSteer {
         request_id: RequestId::Integer(2),
-        params: TurnSteerParams {
+        params: InteractionSteerParams {
             thread_id: "thread-1".to_string(),
             expected_turn_id: "turn-1".to_string(),
             client_user_message_id: None,
@@ -266,16 +266,16 @@ fn sample_turn_steer_request() -> ClientRequest {
 }
 
 fn sample_thread_archive_request() -> ClientRequest {
-    ClientRequest::ThreadArchive {
+    ClientRequest::ChatArchive {
         request_id: RequestId::Integer(3),
-        params: ThreadArchiveParams {
+        params: ChatArchiveParams {
             thread_id: "thread-1".to_string(),
         },
     }
 }
 
-fn sample_thread(thread_id: &str) -> Thread {
-    Thread {
+fn sample_thread(thread_id: &str) -> Chat {
+    Chat {
         id: thread_id.to_string(),
         session_id: format!("session-{thread_id}"),
         forked_from_id: None,
@@ -301,7 +301,7 @@ fn sample_thread(thread_id: &str) -> Thread {
 }
 
 fn sample_thread_start_response() -> ClientResponsePayload {
-    ClientResponsePayload::ThreadStart(ThreadStartResponse {
+    ClientResponsePayload::ChatStart(ChatStartResponse {
         thread: sample_thread("thread-1"),
         model: "gpt-5".to_string(),
         model_provider: "openai".to_string(),
@@ -319,7 +319,7 @@ fn sample_thread_start_response() -> ClientResponsePayload {
 }
 
 fn sample_thread_resume_response() -> ClientResponsePayload {
-    ClientResponsePayload::ThreadResume(ThreadResumeResponse {
+    ClientResponsePayload::ChatResume(ChatResumeResponse {
         thread: sample_thread("thread-2"),
         model: "gpt-5".to_string(),
         model_provider: "openai".to_string(),
@@ -338,7 +338,7 @@ fn sample_thread_resume_response() -> ClientResponsePayload {
 }
 
 fn sample_thread_fork_response() -> ClientResponsePayload {
-    ClientResponsePayload::ThreadFork(ThreadForkResponse {
+    ClientResponsePayload::ChatFork(ChatForkResponse {
         thread: sample_thread("thread-3"),
         model: "gpt-5".to_string(),
         model_provider: "openai".to_string(),
@@ -356,10 +356,10 @@ fn sample_thread_fork_response() -> ClientResponsePayload {
 }
 
 fn sample_turn_start_response() -> ClientResponsePayload {
-    ClientResponsePayload::TurnStart(TurnStartResponse {
-        turn: Turn {
+    ClientResponsePayload::InteractionStart(InteractionStartResponse {
+        turn: Interaction {
             id: "turn-1".to_string(),
-            items_view: datax_app_server_protocol::TurnItemsView::Full,
+            items_view: datax_app_server_protocol::InteractionMessagesView::Full,
             items: Vec::new(),
             status: AppServerTurnStatus::InProgress,
             error: None,
@@ -371,7 +371,7 @@ fn sample_turn_start_response() -> ClientResponsePayload {
 }
 
 fn sample_turn_steer_response() -> ClientResponsePayload {
-    ClientResponsePayload::TurnSteer(TurnSteerResponse {
+    ClientResponsePayload::InteractionSteer(InteractionSteerResponse {
         turn_id: "turn-2".to_string(),
     })
 }
@@ -421,7 +421,7 @@ fn track_response_only_enqueues_analytics_relevant_responses() {
     client.track_response(
         /*connection_id*/ 7,
         RequestId::Integer(6),
-        ClientResponsePayload::ThreadArchive(ThreadArchiveResponse {}),
+        ClientResponsePayload::ChatArchive(ChatArchiveResponse {}),
     );
     assert!(matches!(receiver.try_recv(), Err(TryRecvError::Empty)));
 }

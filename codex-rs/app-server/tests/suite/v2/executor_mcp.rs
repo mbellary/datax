@@ -5,15 +5,15 @@ use app_test_support::write_mock_responses_config_toml;
 use core_test_support::responses;
 use core_test_support::stdio_server_bin;
 use datax_app_server_protocol::CapabilityRootLocation;
+use datax_app_server_protocol::ChatStartParams;
+use datax_app_server_protocol::ChatStartResponse;
+use datax_app_server_protocol::InteractionStartParams;
 use datax_app_server_protocol::ListMcpServerStatusParams;
 use datax_app_server_protocol::ListMcpServerStatusResponse;
 use datax_app_server_protocol::McpServerToolCallParams;
 use datax_app_server_protocol::McpServerToolCallResponse;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::SelectedCapabilityRoot;
-use datax_app_server_protocol::ThreadStartParams;
-use datax_app_server_protocol::ThreadStartResponse;
-use datax_app_server_protocol::TurnStartParams;
 use datax_app_server_protocol::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::json;
@@ -146,8 +146,8 @@ startup_timeout_sec = 10
     )
     .await;
     let request_id = app_server
-        .send_turn_start_request(TurnStartParams {
-            thread_id: selected_thread.clone(),
+        .send_interaction_start_request(InteractionStartParams {
+            chat_id: selected_thread.clone(),
             input: vec![UserInput::Text {
                 text: "Call the executor MCP echo tool".to_string(),
                 text_elements: Vec::new(),
@@ -162,7 +162,7 @@ startup_timeout_sec = 10
     .await??;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        app_server.read_stream_until_notification_message("turn/completed"),
+        app_server.read_stream_until_notification_message("interaction/completed"),
     )
     .await??;
 
@@ -179,7 +179,7 @@ startup_timeout_sec = 10
 
     let request_id = app_server
         .send_mcp_server_tool_call_request(McpServerToolCallParams {
-            thread_id: selected_thread.clone(),
+            chat_id: selected_thread.clone(),
             server: REFRESH_PROBE_SERVER_NAME.to_string(),
             tool: "echo".to_string(),
             arguments: Some(json!({"message": "refresh applied"})),
@@ -218,16 +218,13 @@ startup_timeout_sec = 10
     Ok(())
 }
 
-async fn mcp_server_names(
-    app_server: &mut TestAppServer,
-    thread_id: String,
-) -> Result<Vec<String>> {
+async fn mcp_server_names(app_server: &mut TestAppServer, chat_id: String) -> Result<Vec<String>> {
     let request_id = app_server
         .send_list_mcp_server_status_request(ListMcpServerStatusParams {
             cursor: None,
             limit: None,
             detail: None,
-            thread_id: Some(thread_id),
+            chat_id: Some(chat_id),
         })
         .await?;
     let response = timeout(
@@ -248,7 +245,7 @@ async fn start_thread(
     selected_capability_roots: Option<Vec<SelectedCapabilityRoot>>,
 ) -> Result<String> {
     let request_id = app_server
-        .send_thread_start_request(ThreadStartParams {
+        .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),
             selected_capability_roots,
             ..Default::default()
@@ -259,6 +256,6 @@ async fn start_thread(
         app_server.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let ThreadStartResponse { thread, .. } = to_response(response)?;
+    let ChatStartResponse { thread, .. } = to_response(response)?;
     Ok(thread.id)
 }

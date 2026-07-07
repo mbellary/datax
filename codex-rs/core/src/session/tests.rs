@@ -2696,7 +2696,7 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
         .expect("rollout path");
 
     initial
-        .datax
+        .codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "fork seed".into(),
@@ -2713,7 +2713,7 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
     // before snapshotting from it.
     initial.codex.ensure_rollout_materialized().await;
     initial
-        .datax
+        .codex
         .flush_rollout()
         .await
         .expect("source rollout should flush before fork");

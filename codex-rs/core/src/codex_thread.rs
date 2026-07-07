@@ -208,7 +208,7 @@ impl CodexThread {
 
     pub(crate) async fn emit_thread_resume_lifecycle(&self) {
         for contributor in self
-            .datax
+            .codex
             .session
             .services
             .extensions
@@ -503,7 +503,7 @@ impl CodexThread {
         include_archived: bool,
     ) -> ThreadStoreResult<StoredThreadHistory> {
         let live_thread = self
-            .datax
+            .codex
             .session
             .live_thread_for_persistence("load history")
             .map_err(|err| ThreadStoreError::Internal {
@@ -518,7 +518,7 @@ impl CodexThread {
         include_history: bool,
     ) -> ThreadStoreResult<StoredThread> {
         let live_thread = self
-            .datax
+            .codex
             .session
             .live_thread_for_persistence("read thread")
             .map_err(|err| ThreadStoreError::Internal {
@@ -535,7 +535,7 @@ impl CodexThread {
         include_archived: bool,
     ) -> ThreadStoreResult<StoredThread> {
         let live_thread = self
-            .datax
+            .codex
             .session
             .live_thread_for_persistence("update thread metadata")
             .map_err(|err| ThreadStoreError::Internal {
@@ -547,7 +547,7 @@ impl CodexThread {
     /// Appends rollout items through the live thread so derived metadata stays in sync.
     pub async fn append_rollout_items(&self, items: &[RolloutItem]) -> ThreadStoreResult<()> {
         let live_thread = self
-            .datax
+            .codex
             .session
             .live_thread_for_persistence("append rollout items")
             .map_err(|err| ThreadStoreError::Internal {
@@ -608,7 +608,7 @@ impl CodexThread {
         uri: &str,
     ) -> anyhow::Result<serde_json::Value> {
         let result = self
-            .datax
+            .codex
             .session
             .read_resource(server, ReadResourceRequestParams::new(uri))
             .await?;

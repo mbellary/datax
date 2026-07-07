@@ -1549,7 +1549,7 @@ async fn multi_agent_v2_list_agents_returns_completed_status_without_encrypted_s
         .expect("child thread should exist");
     let child_turn = child_thread.codex.session.new_default_turn().await;
     child_thread
-        .datax
+        .codex
         .session
         .send_event(
             child_turn.as_ref(),
@@ -2000,7 +2000,7 @@ async fn multi_agent_v2_followup_task_completion_notifies_parent_on_every_turn()
 
     let first_turn = thread.codex.session.new_default_turn().await;
     thread
-        .datax
+        .codex
         .session
         .send_event(
             first_turn.as_ref(),
@@ -2041,7 +2041,7 @@ async fn multi_agent_v2_followup_task_completion_notifies_parent_on_every_turn()
 
     let second_turn = thread.codex.session.new_default_turn().await;
     thread
-        .datax
+        .codex
         .session
         .send_event(
             second_turn.as_ref(),
@@ -2203,7 +2203,7 @@ async fn multi_agent_v2_interrupted_turn_does_not_notify_parent() {
 
     let aborted_turn = thread.codex.session.new_default_turn().await;
     thread
-        .datax
+        .codex
         .session
         .send_event(
             aborted_turn.as_ref(),

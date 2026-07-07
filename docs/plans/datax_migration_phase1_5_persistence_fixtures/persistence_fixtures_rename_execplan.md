@@ -20,6 +20,7 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
 - [x] (2026-07-07 00:00Z) Renamed the Datax-owned home, config, state, and project-folder persistence sources.
 - [x] (2026-07-07 00:00Z) Updated generated config and app-server schema artifacts for Datax persistence descriptions without running generators.
 - [x] (2026-07-07 00:00Z) Updated owned fixtures and snapshots that encode the renamed persistence strings, excluding `.codex-plugin` manifest paths.
+- [x] (2026-07-07 00:00Z) Corrected accidental internal field/member rewrites reported by user build output, including `codex_linux_sandbox_exe` and `CodexThread.codex` member accesses.
 - [ ] Run allowed formatting/static checks, document deferred test/build commands, commit, and push.
 
 ## Surprises & Discoveries
@@ -36,6 +37,8 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
   Evidence: `rg -n "PROTECTED_METADATA_CODEX_PATH_NAME|append_default_read_only_project_root_subpath_if_no_explicit_rule" codex-rs/protocol/src/permissions.rs` shows `.codex` being added to the default protected project-root subpaths.
 - Observation: The broad fixture/snapshot pass must not rewrite Rust member access or Cargo metadata just because it contains a dotted `codex` segment.
   Evidence: Static checks found and corrected accidental internal member rewrites such as `codex_error_info`, `codex_home`, and the `datax-protocol` dependency alias before formatting.
+- Observation: User build output later exposed additional accidental internal member rewrites outside the first static-check set.
+  Evidence: `cargo build` reported missing `datax_linux_sandbox_exe` and missing `.datax` fields on `CodexThread` and `GuardianReviewSession`; those were restored to existing internal field names while retaining Datax filesystem path strings.
 
 ## Decision Log
 

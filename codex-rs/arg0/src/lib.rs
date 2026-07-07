@@ -272,7 +272,7 @@ fn linux_sandbox_exe_path(
     // re-exec through a path whose basename still triggers arg0 dispatch on
     // bubblewrap builds that do not support `--argv0`.
     path_entry_guard
-        .and_then(|path_entry| path_entry.paths().datax_linux_sandbox_exe.clone())
+        .and_then(|path_entry| path_entry.paths().codex_linux_sandbox_exe.clone())
         .or(current_exe)
 }
 
@@ -683,7 +683,7 @@ mod tests {
             Some(PathBuf::from("/usr/bin/codex")),
             |paths| async move {
                 let alias_path = paths
-                    .datax_linux_sandbox_exe
+                    .codex_linux_sandbox_exe
                     .or(paths.main_execve_wrapper_exe)
                     .expect("unix dispatch should create at least one alias path");
                 ensure!(

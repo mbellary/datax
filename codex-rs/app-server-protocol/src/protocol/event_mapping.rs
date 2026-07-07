@@ -67,7 +67,7 @@ pub fn item_event_to_server_notification(
             };
             ServerNotification::MessageCompleted(MessageCompletedNotification {
                 chat_id,
-                interaction_id: response.interaction_id,
+                interaction_id: response.turn_id,
                 item,
                 completed_at_ms: response.completed_at_ms,
             })
@@ -357,27 +357,26 @@ pub fn item_event_to_server_notification(
             })
         }
         EventMsg::AgentMessageContentDelta(event) => {
-            let datax_protocol::protocol::AgentMessageContentDeltaEvent {
-                message_id, delta, ..
-            } = event;
+            let datax_protocol::protocol::AgentMessageContentDeltaEvent { item_id, delta, .. } =
+                event;
             ServerNotification::AgentMessageDelta(AgentMessageDeltaNotification {
                 chat_id,
                 interaction_id,
-                message_id,
+                message_id: item_id,
                 delta,
             })
         }
         EventMsg::PlanDelta(event) => ServerNotification::PlanDelta(PlanDeltaNotification {
             chat_id,
             interaction_id,
-            message_id: event.message_id,
+            message_id: event.item_id,
             delta: event.delta,
         }),
         EventMsg::ReasoningContentDelta(event) => {
             ServerNotification::ReasoningSummaryTextDelta(ReasoningSummaryTextDeltaNotification {
                 chat_id,
                 interaction_id,
-                message_id: event.message_id,
+                message_id: event.item_id,
                 delta: event.delta,
                 summary_index: event.summary_index,
             })
@@ -386,7 +385,7 @@ pub fn item_event_to_server_notification(
             ServerNotification::ReasoningTextDelta(ReasoningTextDeltaNotification {
                 chat_id,
                 interaction_id,
-                message_id: event.message_id,
+                message_id: event.item_id,
                 delta: event.delta,
                 content_index: event.content_index,
             })
@@ -395,7 +394,7 @@ pub fn item_event_to_server_notification(
             ServerNotification::ReasoningSummaryPartAdded(ReasoningSummaryPartAddedNotification {
                 chat_id,
                 interaction_id,
-                message_id: event.message_id,
+                message_id: event.item_id,
                 summary_index: event.summary_index,
             })
         }

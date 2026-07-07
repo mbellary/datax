@@ -1,12 +1,12 @@
 use super::shared::v2_enum_from_core;
 use datax_protocol::approvals::ElicitationRequest as CoreElicitationRequest;
+use datax_protocol::items::McpToolCallError as CoreMcpToolCallError;
 use datax_protocol::mcp::CallToolResult as CoreMcpCallToolResult;
 use datax_protocol::mcp::McpServerInfo;
 use datax_protocol::mcp::Resource as McpResource;
 pub use datax_protocol::mcp::ResourceContent as McpResourceContent;
 use datax_protocol::mcp::ResourceTemplate as McpResourceTemplate;
 use datax_protocol::mcp::Tool as McpTool;
-use datax_protocol::messages::McpToolCallError as CoreMcpToolCallError;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;

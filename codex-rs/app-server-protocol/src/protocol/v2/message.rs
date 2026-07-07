@@ -13,11 +13,11 @@ use datax_experimental_api_macros::ExperimentalApi;
 use datax_protocol::approvals::GuardianAssessmentAction as CoreGuardianAssessmentAction;
 use datax_protocol::approvals::GuardianAssessmentDecisionSource as CoreGuardianAssessmentDecisionSource;
 use datax_protocol::approvals::GuardianCommandSource as CoreGuardianCommandSource;
+use datax_protocol::items::AgentMessageContent as CoreAgentMessageContent;
+use datax_protocol::items::McpToolCallStatus as CoreMcpToolCallStatus;
+use datax_protocol::items::TurnItem as CoreTurnItem;
 use datax_protocol::memory_citation::MemoryCitation as CoreMemoryCitation;
 use datax_protocol::memory_citation::MemoryCitationEntry as CoreMemoryCitationEntry;
-use datax_protocol::messages::AgentMessageContent as CoreAgentMessageContent;
-use datax_protocol::messages::McpToolCallStatus as CoreMcpToolCallStatus;
-use datax_protocol::messages::TurnItem as CoreTurnItem;
 use datax_protocol::models::MessagePhase;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::openai_models::ReasoningEffort;
@@ -907,8 +907,8 @@ impl From<CoreTurnItem> for Message {
     }
 }
 
-impl From<datax_protocol::messages::HookPromptFragment> for HookPromptFragment {
-    fn from(value: datax_protocol::messages::HookPromptFragment) -> Self {
+impl From<datax_protocol::items::HookPromptFragment> for HookPromptFragment {
+    fn from(value: datax_protocol::items::HookPromptFragment) -> Self {
         Self {
             text: value.text,
             hook_run_id: value.hook_run_id,

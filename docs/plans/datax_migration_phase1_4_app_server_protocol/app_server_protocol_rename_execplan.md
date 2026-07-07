@@ -25,6 +25,7 @@ This milestone deliberately targets the app-server public API boundary. Internal
 - [x] (2026-07-07T00:00:00Z) Cleaned up remaining public schema/docs leaks after schema generation: `numTurns` now advertises as `numInteractions`, rollback and non-steerable error schema values use chat/interaction naming, and generated TypeScript/JSON descriptions no longer expose old thread/turn names for Chat/Interaction API docs.
 - [x] (2026-07-07T00:00:00Z) Ran `just fmt` from `codex-rs` after code changes.
 - [x] (2026-07-07T00:00:00Z) Completed lightweight acceptance searches; targeted app-server tests remain staged/deferred per the migration execution model.
+- [x] (2026-07-07T00:00:00Z) Fixed deferred `just test -p datax-app-server` compile fallout in `datax-tools`, where the request-plugin-install helper still constructed `McpServerElicitationRequestParams` with obsolete `thread_id` and `turn_id` fields instead of `chat_id` and `interaction_id`.
 
 ## Surprises & Discoveries
 
@@ -42,6 +43,9 @@ This milestone deliberately targets the app-server public API boundary. Internal
 
 - Observation: Generated schemas still contained a few old public terms after the first successful schema generation.
   Evidence: Follow-up searches found generated `numTurns`, `threadRollbackFailed`, `activeTurnNotSteerable`, `turnKind`, and public Chat/Interaction descriptions using thread/turn wording. Source comments and generated artifacts were updated so the advertised schema now uses `numInteractions`, `chatRollbackFailed`, `activeInteractionNotSteerable`, `interactionKind`, and chat/interaction wording.
+
+- Observation: The `datax-tools` crate constructs app-server elicitation protocol payloads used by app-server tests and is part of the Phase 1.4 compile surface.
+  Evidence: The user-run `just test -p datax-app-server` reported `McpServerElicitationRequestParams` has no `thread_id` or `turn_id` fields in `codex-rs/tools/src/request_plugin_install.rs`; those fields are now `chat_id` and `interaction_id`.
 
 ## Decision Log
 
@@ -143,6 +147,8 @@ The table below tracks files and file sets that belong to Phase 1.4. Rows marked
 | `codex-rs/analytics/**` | `Completed` | Direct app-server protocol request/response/notification type usage was updated to the renamed public API types while analytics fact names remain internal. |
 | `codex-rs/exec/**` | `Completed` | Direct app-server protocol request/response/notification type usage was updated to the renamed public API types while exec event names remain internal. |
 | `codex-rs/external-agent-sessions/**` | `Completed` | Direct app-server protocol message type usage was updated to the renamed public API type. |
+| `codex-rs/tools/src/request_plugin_install.rs` | `Completed` | Downstream app-server elicitation protocol constructor updated from obsolete `thread_id` and `turn_id` fields to `chat_id` and `interaction_id`. |
+| `codex-rs/tools/src/request_plugin_install_tests.rs` | `Completed` | Focused unit expectations updated to match the renamed app-server elicitation protocol payload fields. |
 | `CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR` and `CODEX_SANDBOX_ENV_VAR` references | `Not Required` | Protected sandbox identifiers are excluded from all migration rename operations. |
 
 ## Rename Exception Register
@@ -209,7 +215,7 @@ After source edits, run formatter from `codex-rs`:
 | `just write-app-server-schema` | `codex-rs` | `Completed` | App-server schema and TypeScript artifacts regenerate with renamed public names. User ran this command and pushed commit `dd5fd69a44`. |
 | `just write-app-server-schema --experimental` | `codex-rs` | `Deferred` | Experimental app-server schema artifacts regenerate with renamed experimental method markers. |
 | `just test -p datax-app-server-protocol` | `codex-rs` | `Deferred` | Protocol schema and TypeScript fixture tests pass. |
-| `just test -p datax-app-server` | `codex-rs` | `Deferred` | App-server request processor and integration tests pass with renamed public methods. |
+| `just test -p datax-app-server` | `codex-rs` | `Deferred` | App-server request processor and integration tests pass with renamed public methods. User-run compile fallout in `datax-tools` was fixed; command awaits user rerun. |
 
 ## Validation and Acceptance
 

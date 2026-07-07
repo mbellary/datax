@@ -35,8 +35,8 @@ fn build_request_plugin_install_elicitation_request_uses_expected_shape() {
     assert_eq!(
         request,
         McpServerElicitationRequestParams {
-            thread_id: "thread-1".to_string(),
-            turn_id: Some("turn-1".to_string()),
+            chat_id: "thread-1".to_string(),
+            interaction_id: Some("turn-1".to_string()),
             server_name: "datax-apps".to_string(),
             request: McpServerElicitationRequest::Form {
                 meta: Some(json!(RequestPluginInstallMeta {
@@ -88,8 +88,8 @@ fn build_request_plugin_install_elicitation_request_injects_plugin_metadata() {
     assert_eq!(
         request,
         McpServerElicitationRequestParams {
-            thread_id: "thread-1".to_string(),
-            turn_id: Some("turn-1".to_string()),
+            chat_id: "thread-1".to_string(),
+            interaction_id: Some("turn-1".to_string()),
             server_name: "datax-apps".to_string(),
             request: McpServerElicitationRequest::Form {
                 meta: Some(json!(RequestPluginInstallMeta {

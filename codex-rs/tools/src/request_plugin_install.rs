@@ -63,8 +63,8 @@ pub fn build_request_plugin_install_elicitation_request(
     let message = suggest_reason.to_string();
 
     McpServerElicitationRequestParams {
-        thread_id,
-        turn_id: Some(turn_id),
+        chat_id: thread_id,
+        interaction_id: Some(turn_id),
         server_name: server_name.to_string(),
         request: McpServerElicitationRequest::Form {
             meta: Some(json!(build_request_plugin_install_meta(

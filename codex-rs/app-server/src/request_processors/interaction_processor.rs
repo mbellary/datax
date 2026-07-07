@@ -519,7 +519,7 @@ impl InteractionRequestProcessor {
 
         // Start the turn by submitting the user input. Return its submission id as interaction_id.
         let turn_op = Op::UserInput {
-            messages: mapped_items,
+            items: mapped_items,
             final_output_json_schema: params.output_schema,
             responsesapi_client_metadata: params.responsesapi_client_metadata,
             additional_context,
@@ -789,7 +789,7 @@ impl InteractionRequestProcessor {
             self.submit_core_op(
                 request_id,
                 thread.as_ref(),
-                Op::ChatSettings { thread_settings },
+                Op::ThreadSettings { thread_settings },
             )
             .await
             .map_err(|err| internal_error(format!("failed to update thread settings: {err}")))?;
@@ -1216,7 +1216,7 @@ impl InteractionRequestProcessor {
         }
 
         let NewThread {
-            chat_id,
+            thread_id: chat_id,
             thread: review_thread,
             ..
         } = self
@@ -1226,10 +1226,10 @@ impl InteractionRequestProcessor {
                 config.clone(),
                 InitialHistory::Resumed(ResumedHistory {
                     conversation_id: parent_chat_id,
-                    history: parent_history.messages,
+                    history: parent_history.items,
                     rollout_path: parent_thread.rollout_path(),
                 }),
-                /*chat_source*/ None,
+                /*thread_source*/ None,
                 self.request_trace_context(request_id).await,
                 /*supports_openai_form_elicitation*/ false,
             )

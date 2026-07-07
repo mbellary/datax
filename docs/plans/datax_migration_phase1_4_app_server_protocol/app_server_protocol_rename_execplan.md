@@ -28,6 +28,7 @@ This milestone deliberately targets the app-server public API boundary. Internal
 - [x] (2026-07-07T00:00:00Z) Fixed deferred `just test -p datax-app-server` compile fallout in `datax-tools`, where the request-plugin-install helper still constructed `McpServerElicitationRequestParams` with obsolete `thread_id` and `turn_id` fields instead of `chat_id` and `interaction_id`.
 - [x] (2026-07-07T00:00:00Z) Fixed deferred `just test -p datax-app-server` compile fallout in `datax-analytics`, where analytics ingestion still read old app-server public fields such as `thread_id`, `turn_id`, `item_id`, and `target_item_id` from renamed chat, interaction, and message protocol payloads.
 - [x] (2026-07-07T00:00:00Z) Fixed deferred `just test -p datax-app-server` compile fallout in core, app-server, analytics tests, and TUI where app-server protocol helper names and core permission scope variants still used the removed `ThreadHistoryBuilder`, `McpServerElicitationRequestParams.thread_id`, `McpServerElicitationRequestParams.turn_id`, and `PermissionGrantScope::Interaction` symbols.
+- [x] (2026-07-07T00:00:00Z) Fixed deferred `just test -p datax-app-server` compile fallout inside app-server implementation and test support where public chat/interaction/message protocol names had been mechanically applied to internal core, thread-store, state, and rollout adapters that still require `thread_id`, `turn_id`, `item_id`, `items`, and `thread_source`.
 
 ## Surprises & Discoveries
 
@@ -54,6 +55,9 @@ This milestone deliberately targets the app-server public API boundary. Internal
 
 - Observation: `just test -p datax-app-server` compiles broader downstream test and UI/support code than the app-server crate alone.
   Evidence: A user-run compile reported errors in `codex-rs/core/src/thread_manager.rs`, `codex-rs/core/src/session/mcp.rs`, `codex-rs/core/src/session/mod.rs`, and `codex-rs/core/src/mcp_tool_call.rs`; follow-up static searches also found stale core permission enum variants in app-server, analytics, and TUI test/support files.
+
+- Observation: App-server source is an adapter boundary, not a pure rename surface.
+  Evidence: A user-run compile reported 184 app-server errors where internal crates still expose `ThreadSortKey`, `ThreadGoal`, `ThreadGoalStatus`, `StoredThread.thread_id`, `StoredThreadHistory.items`, `ThreadStoreError::ThreadNotFound { thread_id }`, core event `turn_id`, and realtime `item_id`, while app-server v2 public payloads intentionally expose `chat_id`, `interaction_id`, `message_id`, and `chat_source`.
 
 ## Decision Log
 
@@ -137,6 +141,8 @@ The table below tracks files and file sets that belong to Phase 1.4. Rows marked
 | `codex-rs/app-server/src/request_processors/thread_lifecycle.rs` | `Completed` | Thread lifecycle helpers publish public notifications and must align with chat naming at the API boundary. |
 | `codex-rs/app-server/src/request_processors/thread_resume_redaction.rs` | `Completed` | Resume/read public payload helpers may expose thread/message names. |
 | `codex-rs/app-server/src/request_processors/thread_summary.rs` | `Completed` | Summary request helpers may expose public thread naming. |
+| `codex-rs/app-server/src/request_processors/external_agent_session_import.rs` | `Completed` | External-agent import writes through internal thread-store APIs, so store params use `thread_id`, `parent_thread_id`, `thread_source`, and `items` behind public app-server chat terminology. |
+| `codex-rs/app-server/src/request_processors/feedback_processor.rs` | `Completed` | Feedback snapshot uses internal `thread_id` while app-server request context keeps public chat naming. |
 | `codex-rs/app-server/src/request_processors/thread_processor_tests.rs` | `Completed` | Processor tests must use renamed public methods and types. |
 | `codex-rs/app-server/src/request_processors/thread_summary_tests.rs` | `Completed` | Summary tests must follow renamed public naming if touched by source changes. |
 | `codex-rs/app-server/src/thread_state.rs` | `Completed` | Runtime state currently stores public `Thread` and `Turn` values; rename only if required by app-server protocol type changes. |
@@ -144,7 +150,10 @@ The table below tracks files and file sets that belong to Phase 1.4. Rows marked
 | `codex-rs/app-server/src/in_process.rs` | `Completed` | In-process client tests and examples call public methods such as `thread/start`. |
 | `codex-rs/app-server/src/message_processor.rs` | `Completed` | Coordinates app-server events and may publish public thread/chat notifications. |
 | `codex-rs/app-server/src/request_serialization.rs` | `Completed` | Serialization scopes may expose thread naming. |
+| `codex-rs/app-server/src/attestation.rs` | `Completed` | Attestation context uses internal `thread_id`; app-server helper passes it through without public schema exposure. |
+| `codex-rs/app-server/src/extensions.rs` | `Completed` | Extension event sink adapts internal `ThreadGoalUpdatedEvent.thread_id` and `turn_id` into public chat goal notifications. |
 | `codex-rs/app-server/README.md` | `Completed` | API contract documentation and examples must use `chat`, `interaction`, and `message`. |
+| `codex-rs/app-server/tests/common/rollout.rs` | `Completed` | App-server test support constructs core `SessionMeta`, which still uses `parent_thread_id` and `thread_source` internally. |
 | `codex-rs/app-server/tests/suite/v2/thread_*.rs` | `Completed` | Integration tests for public thread methods must be renamed or updated to chat methods. |
 | `codex-rs/app-server/tests/suite/v2/turn_*.rs` | `Completed` | Integration tests for public turn methods must be renamed or updated to interaction methods. |
 | `codex-rs/app-server/tests/suite/v2/mod.rs` | `Completed` | Test module list must track any renamed test files. |
@@ -238,6 +247,7 @@ After source edits, run formatter from `codex-rs`:
 | `just write-app-server-schema --experimental` | `codex-rs` | `Deferred` | Experimental app-server schema artifacts regenerate with renamed experimental method markers. |
 | `just test -p datax-app-server-protocol` | `codex-rs` | `Deferred` | Protocol schema and TypeScript fixture tests pass. |
 | `just test -p datax-app-server` | `codex-rs` | `Deferred` | App-server request processor and integration tests pass with renamed public methods. User-run compile fallout in `datax-tools`, `datax-analytics`, `datax-core`, app-server support code, and TUI permission response construction was fixed; command awaits user rerun. |
+| `rg -n "ThreadNotFound \{\\s*chat_id|Store(Read|Archive|Delete).*Params \{\\s*chat_id|AppendThreadItemsParams \{\\s*chat_id|CreateThreadParams \{\\s*chat_id|GoalSetRequest \{\\s*chat_id|Op::ChatSettings|Op::UserInput \{\\s*messages|SessionMeta \{[\\s\\S]*chat_source|NewThread \{\\s*chat_id|ThreadGoalUpdatedEvent.*chat_id" codex-rs/app-server/src codex-rs/app-server/tests/common -g '*.rs'` | repository root | `Completed` | No stale internal constructor patterns remain in the app-server files affected by the latest user-run compile failure. |
 
 ## Validation and Acceptance
 

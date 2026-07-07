@@ -150,7 +150,7 @@ pub(super) fn with_thread_spawn_agent_metadata(
     match source {
         datax_protocol::protocol::SessionSource::SubAgent(
             datax_protocol::protocol::SubAgentSource::ThreadSpawn {
-                parent_chat_id,
+                parent_thread_id,
                 depth,
                 agent_path,
                 agent_nickname: existing_agent_nickname,
@@ -158,7 +158,7 @@ pub(super) fn with_thread_spawn_agent_metadata(
             },
         ) => datax_protocol::protocol::SessionSource::SubAgent(
             datax_protocol::protocol::SubAgentSource::ThreadSpawn {
-                parent_chat_id,
+                parent_thread_id,
                 depth,
                 agent_path,
                 agent_nickname: agent_nickname.or(existing_agent_nickname),

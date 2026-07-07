@@ -85,7 +85,7 @@ impl FeedbackRequestProcessor {
             tracing::info!(target: "feedback_tags", account_id);
         }
         let snapshot = self.feedback.snapshot(conversation_id);
-        let chat_id = snapshot.chat_id.clone();
+        let chat_id = snapshot.thread_id.clone();
         let (feedback_thread_ids, sqlite_feedback_logs, state_db_ctx) = if include_logs {
             if let Some(log_db) = self.log_db.as_ref() {
                 log_db.flush().await;

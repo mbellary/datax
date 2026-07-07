@@ -201,12 +201,12 @@ impl ExternalAgentSessionImporter {
         let now = Utc::now();
         let create_params = CreateThreadParams {
             session_id: chat_id.into(),
-            chat_id,
+            thread_id: chat_id,
             extra_config: None,
             forked_from_id: None,
-            parent_chat_id: None,
+            parent_thread_id: None,
             source: source.clone(),
-            chat_source: None,
+            thread_source: None,
             base_instructions: BaseInstructions {
                 text: config
                     .base_instructions
@@ -232,7 +232,6 @@ impl ExternalAgentSessionImporter {
             created_at: Some(now),
             updated_at: Some(now),
             source: Some(source.clone()),
-            chat_source: Some(None),
             agent_nickname: Some(source.get_nickname()),
             agent_role: Some(source.get_agent_role()),
             agent_path: Some(source.get_agent_path().map(Into::into)),
@@ -251,8 +250,8 @@ impl ExternalAgentSessionImporter {
             && let Err(err) = self
                 .thread_store
                 .append_items(AppendThreadItemsParams {
-                    chat_id,
-                    messages: rollout_items,
+                    thread_id: chat_id,
+                    items: rollout_items,
                 })
                 .await
         {
@@ -262,7 +261,7 @@ impl ExternalAgentSessionImporter {
 
         self.thread_store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                chat_id,
+                thread_id: chat_id,
                 patch: metadata,
                 include_archived: false,
             })

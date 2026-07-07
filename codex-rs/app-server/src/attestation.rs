@@ -51,7 +51,7 @@ impl AttestationProvider for AppServerAttestationProvider {
             request_attestation_header_value_with_timeout(
                 outgoing,
                 thread_state_manager,
-                context.chat_id,
+                context.thread_id,
                 ATTESTATION_GENERATE_TIMEOUT,
             )
             .await

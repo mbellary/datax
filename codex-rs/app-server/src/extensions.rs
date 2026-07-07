@@ -5,6 +5,7 @@ use datax_analytics::AnalyticsEventsClient;
 use datax_app_server_protocol::ChatGoal;
 use datax_app_server_protocol::ChatGoalUpdatedNotification;
 use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::ServerNotification::*;
 use datax_core::NewThread;
 use datax_core::StartThreadOptions;
 use datax_core::ThreadManager;
@@ -113,8 +114,8 @@ impl ExtensionEventSink for AppServerExtensionEventSink {
     fn emit(&self, event: Event) {
         match event.msg {
             EventMsg::ThreadGoalUpdated(thread_goal_event) => {
-                let chat_id = thread_goal_event.chat_id;
-                let interaction_id = thread_goal_event.interaction_id;
+                let chat_id = thread_goal_event.thread_id;
+                let interaction_id = thread_goal_event.turn_id;
                 let goal: ChatGoal = thread_goal_event.goal.into();
                 if let Some(listener_command_tx) = self
                     .thread_state_manager

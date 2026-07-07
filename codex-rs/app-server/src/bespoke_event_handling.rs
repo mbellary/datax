@@ -2,8 +2,8 @@ use crate::error_code::internal_error;
 use crate::error_code::invalid_request;
 use crate::outgoing_message::ClientRequestResult;
 use crate::outgoing_message::ThreadScopedOutgoingMessageSender;
+use crate::request_processors::chat_from_stored_thread;
 use crate::request_processors::populate_thread_turns_from_history;
-use crate::request_processors::thread_from_stored_thread;
 use crate::request_processors::thread_settings_from_core_snapshot;
 use crate::server_request_error::is_turn_transition_server_request_error;
 use crate::thread_state::ThreadState;
@@ -76,6 +76,7 @@ use datax_app_server_protocol::PermissionsRequestApprovalResponse;
 use datax_app_server_protocol::RawResponseItemCompletedNotification;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::ServerNotification::*;
 use datax_app_server_protocol::ServerRequestPayload;
 use datax_app_server_protocol::ToolRequestUserInputOption;
 use datax_app_server_protocol::ToolRequestUserInputParams;
@@ -90,7 +91,7 @@ use datax_core::ThreadManager;
 use datax_core::review_format::format_review_findings_block;
 use datax_core::review_prompts;
 use datax_protocol::ThreadId;
-use datax_protocol::messages::parse_hook_prompt_message;
+use datax_protocol::items::parse_hook_prompt_message;
 use datax_protocol::models::AdditionalPermissionProfile as CoreAdditionalPermissionProfile;
 use datax_protocol::plan_tool::UpdatePlanArgs;
 use datax_protocol::protocol::CodexErrorInfo as CoreCodexErrorInfo;
@@ -161,7 +162,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             let turn = {
                 let state = thread_state.lock().await;
                 let mut turn = state.active_turn_snapshot().unwrap_or_else(|| Interaction {
-                    id: payload.interaction_id.clone(),
+                    id: payload.turn_id.clone(),
                     messages: Vec::new(),
                     messages_view: InteractionMessagesView::NotLoaded,
                     error: None,
@@ -263,10 +264,10 @@ pub(crate) async fn apply_bespoke_event_handling(
                 )),
                 Some(_) | None => None,
             };
-            let assessment_turn_id = if assessment.interaction_id.is_empty() {
+            let assessment_turn_id = if assessment.turn_id.is_empty() {
                 event_turn_id.clone()
             } else {
-                assessment.interaction_id.clone()
+                assessment.turn_id.clone()
             };
             if assessment.status == datax_protocol::protocol::GuardianAssessmentStatus::InProgress
                 && let Some((target_message_id, completion_item)) =
@@ -397,11 +398,11 @@ pub(crate) async fn apply_bespoke_event_handling(
                     chat_id: conversation_id.to_string(),
                     item: serde_json::json!({
                         "type": "input_audio_buffer.speech_started",
-                        "message_id": event.message_id,
+                        "message_id": event.item_id,
                     }),
                 };
                 outgoing
-                    .send_server_notification(ServerNotification::ChatRealtimeItemAdded(
+                    .send_server_notification(ServerNotification::ChatRealtimeMessageAdded(
                         notification,
                     ))
                     .await;
@@ -475,7 +476,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                     }),
                 };
                 outgoing
-                    .send_server_notification(ServerNotification::ChatRealtimeItemAdded(
+                    .send_server_notification(ServerNotification::ChatRealtimeMessageAdded(
                         notification,
                     ))
                     .await;
@@ -487,7 +488,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                     item,
                 };
                 outgoing
-                    .send_server_notification(ServerNotification::ChatRealtimeItemAdded(
+                    .send_server_notification(ServerNotification::ChatRealtimeMessageAdded(
                         notification,
                     ))
                     .await;
@@ -499,13 +500,13 @@ pub(crate) async fn apply_bespoke_event_handling(
                     item: serde_json::json!({
                         "type": "handoff_request",
                         "handoff_id": handoff.handoff_id,
-                        "message_id": handoff.message_id,
+                        "message_id": handoff.item_id,
                         "input_transcript": handoff.input_transcript,
                         "active_transcript": handoff.active_transcript,
                     }),
                 };
                 outgoing
-                    .send_server_notification(ServerNotification::ChatRealtimeItemAdded(
+                    .send_server_notification(ServerNotification::ChatRealtimeMessageAdded(
                         notification,
                     ))
                     .await;
@@ -537,7 +538,7 @@ pub(crate) async fn apply_bespoke_event_handling(
 
             let params = FileChangeRequestApprovalParams {
                 chat_id: conversation_id.to_string(),
-                interaction_id: event.interaction_id.clone(),
+                interaction_id: event.turn_id.clone(),
                 message_id: message_id.clone(),
                 started_at_ms: event.started_at_ms,
                 reason: event.reason.clone(),
@@ -570,7 +571,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             let ExecApprovalRequestEvent {
                 call_id,
                 approval_id,
-                interaction_id,
+                turn_id: interaction_id,
                 environment_id,
                 started_at_ms,
                 command,
@@ -707,7 +708,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .collect();
             let params = ToolRequestUserInputParams {
                 chat_id: conversation_id.to_string(),
-                interaction_id: request.interaction_id,
+                interaction_id: request.turn_id,
                 message_id: request.call_id,
                 questions,
                 auto_resolution_ms: request.auto_resolution_ms,
@@ -731,7 +732,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             let permission_guard = thread_watch_manager
                 .note_permission_requested(&conversation_id.to_string())
                 .await;
-            let interaction_id = match request.interaction_id.clone() {
+            let interaction_id = match request.turn_id.clone() {
                 Some(interaction_id) => Some(interaction_id),
                 None => {
                     let state = thread_state.lock().await;
@@ -796,7 +797,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             };
             let params = PermissionsRequestApprovalParams {
                 chat_id: conversation_id.to_string(),
-                interaction_id: request.interaction_id.clone(),
+                interaction_id: request.turn_id.clone(),
                 message_id: request.call_id.clone(),
                 environment_id: request.environment_id.clone(),
                 started_at_ms: request.started_at_ms,
@@ -810,7 +811,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             let pending_response = PendingRequestPermissionsResponse {
                 call_id: request.call_id,
                 conversation_id,
-                interaction_id: request.interaction_id,
+                interaction_id: request.turn_id,
                 requested_permissions,
                 request_cwd,
                 pending_request_id,
@@ -824,7 +825,7 @@ pub(crate) async fn apply_bespoke_event_handling(
         }
         EventMsg::DynamicToolCallRequest(request) => {
             let call_id = request.call_id;
-            let interaction_id = request.interaction_id;
+            let interaction_id = request.turn_id;
             let namespace = request.namespace;
             let tool = request.tool;
             let arguments = request.arguments;
@@ -1041,7 +1042,7 @@ pub(crate) async fn apply_bespoke_event_handling(
         EventMsg::HookStarted(event) => {
             let notification = HookStartedNotification {
                 chat_id: conversation_id.to_string(),
-                interaction_id: event.interaction_id,
+                interaction_id: event.turn_id,
                 run: event.run.into(),
             };
             outgoing
@@ -1051,7 +1052,7 @@ pub(crate) async fn apply_bespoke_event_handling(
         EventMsg::HookCompleted(event) => {
             let notification = HookCompletedNotification {
                 chat_id: conversation_id.to_string(),
-                interaction_id: event.interaction_id,
+                interaction_id: event.turn_id,
                 run: event.run.into(),
             };
             outgoing
@@ -1249,8 +1250,8 @@ pub(crate) async fn apply_bespoke_event_handling(
         }
         EventMsg::ThreadGoalUpdated(thread_goal_event) => {
             let notification = ChatGoalUpdatedNotification {
-                chat_id: thread_goal_event.chat_id.to_string(),
-                interaction_id: thread_goal_event.interaction_id,
+                chat_id: thread_goal_event.thread_id.to_string(),
+                interaction_id: thread_goal_event.turn_id,
                 goal: thread_goal_event.goal.clone().into(),
             };
             outgoing
@@ -1596,16 +1597,16 @@ fn thread_rollback_response_from_stored_thread(
     fallback_cwd: &AbsolutePathBuf,
     loaded_status: ChatStatus,
 ) -> std::result::Result<ChatRollbackResponse, String> {
-    let chat_id = stored_thread.chat_id;
+    let chat_id = stored_thread.thread_id;
     let (mut thread, history) =
-        thread_from_stored_thread(stored_thread, fallback_model_provider, fallback_cwd);
+        chat_from_stored_thread(stored_thread, fallback_model_provider, fallback_cwd);
     thread.session_id = session_id;
     let Some(history) = history else {
         return Err(format!(
             "thread {chat_id} did not include persisted history after rollback"
         ));
     };
-    populate_thread_turns_from_history(&mut thread, &history.messages, /*active_turn*/ None);
+    populate_thread_turns_from_history(&mut thread, &history.items, /*active_turn*/ None);
     thread.status = loaded_status;
     Ok(ChatRollbackResponse { thread })
 }
@@ -2157,7 +2158,7 @@ async fn on_command_execution_request_approval_response(
     if let Err(err) = conversation
         .submit(Op::ExecApproval {
             id: approval_id.unwrap_or_else(|| message_id.clone()),
-            interaction_id: Some(event_turn_id),
+            turn_id: Some(event_turn_id),
             decision,
         })
         .await
@@ -2192,8 +2193,8 @@ mod tests {
     use datax_app_server_protocol::JSONRPCErrorError;
     use datax_login::CodexAuth;
     use datax_protocol::AgentPath;
-    use datax_protocol::messages::HookPromptFragment;
-    use datax_protocol::messages::build_hook_prompt_message;
+    use datax_protocol::items::HookPromptFragment;
+    use datax_protocol::items::build_hook_prompt_message;
     use datax_protocol::models::FileSystemPermissions as CoreFileSystemPermissions;
     use datax_protocol::models::NetworkPermissions as CoreNetworkPermissions;
     use datax_protocol::models::PermissionProfile;
@@ -2408,7 +2409,7 @@ mod tests {
 
     impl GuardianAssessmentTestContext {
         async fn apply_guardian_assessment_event(&self, assessment: GuardianAssessmentEvent) {
-            let event_turn_id = assessment.interaction_id.clone();
+            let event_turn_id = assessment.turn_id.clone();
             apply_bespoke_event_handling(
                 Event {
                     id: event_turn_id,

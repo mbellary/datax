@@ -68,7 +68,7 @@ impl ChatRequestProcessor {
             match self
                 .thread_store
                 .delete_thread(StoreDeleteThreadParams {
-                    chat_id: thread_id_to_delete,
+                    thread_id: thread_id_to_delete,
                 })
                 .await
             {
@@ -123,7 +123,7 @@ impl ChatRequestProcessor {
         match self
             .thread_store
             .read_thread(StoreReadThreadParams {
-                chat_id,
+                thread_id: chat_id,
                 include_archived: true,
                 include_history: false,
             })
@@ -136,7 +136,7 @@ impl ChatRequestProcessor {
                 }
                 let Some(state_db) = self.state_db.as_ref() else {
                     return Err(thread_store_delete_error(
-                        ThreadStoreError::ThreadNotFound { chat_id },
+                        ThreadStoreError::ThreadNotFound { thread_id: chat_id },
                     ));
                 };
                 if state_db
@@ -152,7 +152,7 @@ impl ChatRequestProcessor {
                     Ok(())
                 } else {
                     Err(thread_store_delete_error(
-                        ThreadStoreError::ThreadNotFound { chat_id },
+                        ThreadStoreError::ThreadNotFound { thread_id: chat_id },
                     ))
                 }
             }
@@ -170,7 +170,7 @@ impl ChatRequestProcessor {
 
 fn thread_store_delete_error(err: ThreadStoreError) -> JSONRPCErrorError {
     match err {
-        ThreadStoreError::ThreadNotFound { chat_id } => {
+        ThreadStoreError::ThreadNotFound { thread_id: chat_id } => {
             invalid_request(format!("thread not found: {chat_id}"))
         }
         ThreadStoreError::InvalidRequest { message } => invalid_request(message),

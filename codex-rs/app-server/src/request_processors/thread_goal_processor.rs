@@ -121,7 +121,7 @@ impl ThreadGoalRequestProcessor {
             .set_thread_goal(
                 &state_db,
                 GoalSetRequest {
-                    chat_id,
+                    thread_id: chat_id,
                     objective: objective
                         .map(GoalObjectiveUpdate::Set)
                         .unwrap_or(GoalObjectiveUpdate::Keep),
@@ -358,9 +358,9 @@ impl ThreadGoalRequestProcessor {
     }
 }
 
-pub(super) fn api_thread_goal_from_state(goal: datax_state::ChatGoal) -> ChatGoal {
+pub(super) fn api_thread_goal_from_state(goal: datax_state::ThreadGoal) -> ChatGoal {
     ChatGoal {
-        chat_id: goal.chat_id.to_string(),
+        chat_id: goal.thread_id.to_string(),
         objective: goal.objective,
         status: api_thread_goal_status_from_state(goal.status),
         token_budget: goal.token_budget,
@@ -371,14 +371,14 @@ pub(super) fn api_thread_goal_from_state(goal: datax_state::ChatGoal) -> ChatGoa
     }
 }
 
-fn api_thread_goal_status_from_state(status: datax_state::ChatGoalStatus) -> ChatGoalStatus {
+fn api_thread_goal_status_from_state(status: datax_state::ThreadGoalStatus) -> ChatGoalStatus {
     match status {
-        datax_state::ChatGoalStatus::Active => ChatGoalStatus::Active,
-        datax_state::ChatGoalStatus::Paused => ChatGoalStatus::Paused,
-        datax_state::ChatGoalStatus::Blocked => ChatGoalStatus::Blocked,
-        datax_state::ChatGoalStatus::UsageLimited => ChatGoalStatus::UsageLimited,
-        datax_state::ChatGoalStatus::BudgetLimited => ChatGoalStatus::BudgetLimited,
-        datax_state::ChatGoalStatus::Complete => ChatGoalStatus::Complete,
+        datax_state::ThreadGoalStatus::Active => ChatGoalStatus::Active,
+        datax_state::ThreadGoalStatus::Paused => ChatGoalStatus::Paused,
+        datax_state::ThreadGoalStatus::Blocked => ChatGoalStatus::Blocked,
+        datax_state::ThreadGoalStatus::UsageLimited => ChatGoalStatus::UsageLimited,
+        datax_state::ThreadGoalStatus::BudgetLimited => ChatGoalStatus::BudgetLimited,
+        datax_state::ThreadGoalStatus::Complete => ChatGoalStatus::Complete,
     }
 }
 

@@ -25,6 +25,8 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
 - [x] (2026-07-07 00:00Z) Corrected user-reported `cargo build` failures in `datax-tui` where TUI app-server client code still referenced pre-Phase-1.4 protocol fields such as `thread_id`, `turn_id`, `item_id`, `turns`, and `items`.
 - [x] (2026-07-07 00:00Z) Corrected remaining accidental `datax_linux_sandbox_exe` internal field rewrites in CLI, core, and exec-server test/debug call sites.
 - [x] (2026-07-07 00:00Z) Ran allowed formatting and static checks after the `datax-tui` build-log follow-up; expensive tests/builds remain deferred to the user.
+- [x] (2026-07-07 00:00Z) Corrected user-reported `cargo build` failures in `datax-exec` where app-server protocol call sites still used old thread/turn/item fields, and restored TUI-internal names that had been over-renamed during the previous protocol boundary pass.
+- [x] (2026-07-07 00:00Z) Ran `just fmt`, `git diff --check`, and targeted stale-symbol scans after the `datax-exec` build-log follow-up; expensive tests/builds remain deferred to the user.
 - [ ] Commit and push the latest follow-up fixes.
 
 ## Surprises & Discoveries
@@ -47,6 +49,10 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
   Evidence: `cargo build` reported missing `datax_self_exe`; the app-server, CLI, and exec-server references were restored to `codex_self_exe`.
 - Observation: Once `cargo build` reached the TUI crate, it exposed app-server protocol API names that had not been updated with the Phase 1.4 chat/interaction/message terminology.
   Evidence: The attached build log reported missing fields and variants in `datax-tui`, including `thread_id`, `turn_id`, `item_id`, `turns`, `items`, `ThreadSettings`, `ThreadStartSource`, and `ChatRealtimeItemAdded`; the TUI app-server client surfaces were aligned to `chat_id`, `interaction_id`, `message_id`, `interactions`, `messages`, `ChatSettings`, `ChatStartSource`, and `ChatRealtimeMessageAdded` while preserving TUI-internal `thread_id` and `turn_id` names.
+- Observation: Once `cargo build` reached `datax-exec`, it exposed another app-server protocol boundary that still used pre-Phase-1.4 field names.
+  Evidence: The attached build log reported missing `thread_id`, `turn_id`, `items`, `turns`, `thread_source`, and `parent_thread_id` fields in `exec`; the exec app-server request/notification code was aligned to `chat_id`, `interaction_id`, `messages`, `interactions`, `chat_source`, and `parent_chat_id`, while JSONL output structs and `SessionConfiguredEvent` kept their existing internal thread/turn terminology.
+- Observation: The previous TUI protocol pass accidentally renamed a few local TUI struct fields and local function parameters that were not app-server protocol fields.
+  Evidence: The attached build log reported missing local variables and fields such as `turn_id`, `item_id`, `AppExitInfo.thread_id`, `PlanModeNudgeScope::Chat`, and `resume_picker::Row.thread_id`; these were restored as TUI-internal names.
 
 ## Decision Log
 
@@ -178,6 +184,12 @@ Finally run formatting and static checks. Test/build commands remain deferred fo
 | `codex-rs/tui/src/chatwidget/tool_requests.rs` | `Completed` | Follow-up from user `cargo build`; app-server request params now read `chat_id`, `interaction_id`, and `message_id` while TUI approval requests keep internal field names. |
 | `codex-rs/tui/src/resume_picker.rs` | `Completed` | Follow-up from user `cargo build`; transcript preview reads `Chat.interactions`. |
 | `codex-rs/tui/src/thread_transcript.rs` | `Completed` | Follow-up from user `cargo build`; transcript rendering reads `Chat.interactions` and `Interaction.messages`. |
+| `codex-rs/exec/src/lib.rs` | `Completed` | Follow-up from user `cargo build`; in-process app-server requests and notifications now use current chat/interaction/message protocol fields while preserving exec-internal thread/turn output terms. |
+| `codex-rs/exec/src/event_processor_with_human_output.rs` | `Completed` | Follow-up from user `cargo build`; final-message recovery now reads `Interaction.messages`. |
+| `codex-rs/exec/src/event_processor_with_jsonl_output.rs` | `Completed` | Follow-up from user `cargo build`; JSONL processor now imports the correct local `ThreadItem` type and reads `Interaction.messages`. |
+| `codex-rs/exec/src/lib_tests.rs` | `Completed` | Follow-up fixture alignment for current app-server protocol field names. |
+| `codex-rs/exec/src/event_processor_with_human_output_tests.rs` | `Completed` | Follow-up fixture alignment for current app-server protocol field names while preserving `SessionConfiguredEvent` internal fields. |
+| `codex-rs/exec/src/event_processor_with_jsonl_output_tests.rs` | `Completed` | Follow-up fixture alignment for current app-server protocol field names. |
 | `codex-rs/cli/src/debug_sandbox.rs` | `Completed` | Corrected accidental internal `datax_linux_sandbox_exe` field rewrite back to `codex_linux_sandbox_exe`. |
 | `codex-rs/core/tests/common/lib.rs` | `Completed` | Corrected accidental internal `datax_linux_sandbox_exe` field rewrite back to `codex_linux_sandbox_exe`. |
 | `codex-rs/core/tests/suite/apply_patch_cli.rs` | `Completed` | Corrected accidental internal `datax_linux_sandbox_exe` field rewrite back to `codex_linux_sandbox_exe`. |

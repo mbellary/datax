@@ -305,7 +305,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                             .then(|| self.final_message.clone())
                             .flatten();
                         if let Some(final_message) =
-                            final_message_from_turn_items(notification.turn.items.as_slice())
+                            final_message_from_turn_items(notification.turn.messages.as_slice())
                         {
                             self.final_message_rendered =
                                 rendered_message.as_deref() == Some(final_message.as_str());

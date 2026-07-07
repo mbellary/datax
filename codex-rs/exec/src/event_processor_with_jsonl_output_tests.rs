@@ -19,8 +19,8 @@ fn failed_turn_does_not_overwrite_output_last_message_file() {
                 phase: None,
                 memory_citation: None,
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
         },
     ));
@@ -30,11 +30,11 @@ fn failed_turn_does_not_overwrite_output_last_message_file() {
 
     let status = processor.process_server_notification(ServerNotification::InteractionCompleted(
         datax_app_server_protocol::InteractionCompletedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: datax_app_server_protocol::Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: Vec::new(),
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: Vec::new(),
                 status: InteractionStatus::Failed,
                 error: Some(datax_app_server_protocol::InteractionError {
                     message: "turn failed".to_string(),
@@ -65,7 +65,7 @@ fn runtime_warning_emits_a_non_fatal_error_item() {
 
     let collected = processor.collect_thread_events(ServerNotification::Warning(
         datax_app_server_protocol::WarningNotification {
-            thread_id: Some("thread-1".to_string()),
+            chat_id: Some("thread-1".to_string()),
             message: "invalid global instructions".to_string(),
         },
     ));
@@ -109,8 +109,8 @@ fn mcp_tool_call_result_preserves_meta_in_jsonl_event() {
                 error: None,
                 duration_ms: Some(42),
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
         },
     ));

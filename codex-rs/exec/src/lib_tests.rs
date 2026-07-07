@@ -273,15 +273,15 @@ fn runtime_warnings_are_filtered_to_the_primary_thread() {
     let turn_id = "turn-1";
     let outcomes = [
         datax_app_server_protocol::WarningNotification {
-            thread_id: None,
+            chat_id: None,
             message: "global warning".to_string(),
         },
         datax_app_server_protocol::WarningNotification {
-            thread_id: Some(primary_thread_id.to_string()),
+            chat_id: Some(primary_thread_id.to_string()),
             message: "primary warning".to_string(),
         },
         datax_app_server_protocol::WarningNotification {
-            thread_id: Some("thread-2".to_string()),
+            chat_id: Some("thread-2".to_string()),
             message: "other warning".to_string(),
         },
     ]
@@ -336,7 +336,7 @@ fn turn_items_for_thread_returns_matching_turn_items() {
         id: "thread-1".to_string(),
         session_id: "thread-1".to_string(),
         forked_from_id: None,
-        parent_thread_id: None,
+        parent_chat_id: None,
         preview: String::new(),
         ephemeral: false,
         model_provider: "openai".to_string(),
@@ -348,16 +348,16 @@ fn turn_items_for_thread_returns_matching_turn_items() {
         cwd: test_path_buf("/tmp/project").abs(),
         cli_version: "0.0.0-test".to_string(),
         source: datax_app_server_protocol::SessionSource::Exec,
-        thread_source: None,
+        chat_source: None,
         agent_nickname: None,
         agent_role: None,
         git_info: None,
         name: None,
-        turns: vec![
+        interactions: vec![
             datax_app_server_protocol::Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: vec![AppServerThreadItem::AgentMessage {
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: vec![AppServerThreadItem::AgentMessage {
                     id: "msg-1".to_string(),
                     text: "hello".to_string(),
                     phase: None,
@@ -371,8 +371,8 @@ fn turn_items_for_thread_returns_matching_turn_items() {
             },
             datax_app_server_protocol::Interaction {
                 id: "turn-2".to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: vec![AppServerThreadItem::Plan {
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: vec![AppServerThreadItem::Plan {
                     id: "plan-1".to_string(),
                     text: "ship it".to_string(),
                 }],
@@ -401,11 +401,11 @@ fn turn_items_for_thread_returns_matching_turn_items() {
 fn should_backfill_turn_completed_items_skips_ephemeral_threads() {
     let notification = ServerNotification::InteractionCompleted(
         datax_app_server_protocol::InteractionCompletedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: datax_app_server_protocol::Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: Vec::new(),
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: Vec::new(),
                 status: datax_app_server_protocol::InteractionStatus::Completed,
                 error: None,
                 started_at: None,
@@ -590,7 +590,7 @@ async fn thread_start_params_include_user_thread_source() {
     let params = thread_start_params_from_config(&config);
 
     assert_eq!(
-        params.thread_source,
+        params.chat_source,
         Some(datax_app_server_protocol::ChatSource::User)
     );
 }
@@ -742,7 +742,7 @@ async fn session_configured_from_thread_response_preserves_parent_thread_id() {
         .expect("build config");
     let parent_thread_id = ThreadId::new();
     let mut response = sample_thread_start_response();
-    response.thread.parent_thread_id = Some(parent_thread_id.to_string());
+    response.thread.parent_chat_id = Some(parent_thread_id.to_string());
 
     let event = session_configured_from_thread_start_response(&response, &config)
         .expect("build bootstrap session configured event");
@@ -756,7 +756,7 @@ fn sample_thread_start_response() -> ChatStartResponse {
             id: "67e55044-10b1-426f-9247-bb680e5fe0c8".to_string(),
             session_id: "67e55044-10b1-426f-9247-bb680e5fe0c7".to_string(),
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             preview: String::new(),
             ephemeral: false,
             model_provider: "openai".to_string(),
@@ -768,12 +768,12 @@ fn sample_thread_start_response() -> ChatStartResponse {
             cwd: test_path_buf("/tmp").abs(),
             cli_version: "0.0.0".to_string(),
             source: datax_app_server_protocol::SessionSource::Cli,
-            thread_source: Some(datax_app_server_protocol::ChatSource::User),
+            chat_source: Some(datax_app_server_protocol::ChatSource::User),
             agent_nickname: None,
             agent_role: None,
             git_info: None,
             name: Some("thread".to_string()),
-            turns: vec![],
+            interactions: vec![],
         },
         model: "gpt-5.4".to_string(),
         model_provider: "openai".to_string(),

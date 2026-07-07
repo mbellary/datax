@@ -198,8 +198,8 @@ impl App {
     async fn thread_file_change_changes(
         &self,
         thread_id: ThreadId,
-        interaction_id: &str,
-        message_id: &str,
+        turn_id: &str,
+        item_id: &str,
     ) -> Option<Vec<datax_app_server_protocol::FileUpdateChange>> {
         let channel = self.thread_event_channels.get(&thread_id)?;
         let store = channel.store.lock().await;
@@ -1425,7 +1425,7 @@ impl App {
                 self.clear_active_thread().await;
             }
         }
-        self.handle_backtrack_rollback_succeeded(num_turns);
+        self.handle_backtrack_rollback_succeeded(num_interactions);
     }
 
     pub(super) fn handle_thread_event_now(&mut self, event: ThreadBufferedEvent) {

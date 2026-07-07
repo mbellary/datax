@@ -153,8 +153,8 @@ use datax_protocol::config_types::Personality;
 use datax_protocol::config_types::Settings;
 #[cfg(any(target_os = "windows", test))]
 use datax_protocol::config_types::WindowsSandboxLevel;
-use datax_protocol::messages::AgentMessageContent;
-use datax_protocol::messages::AgentMessageItem;
+use datax_protocol::items::AgentMessageContent;
+use datax_protocol::items::AgentMessageItem;
 use datax_protocol::models::MessagePhase;
 use datax_protocol::plan_tool::PlanItemArg as UpdatePlanItemArg;
 use datax_protocol::plan_tool::StepStatus as UpdatePlanItemStatus;

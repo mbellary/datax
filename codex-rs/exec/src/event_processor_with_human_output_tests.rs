@@ -307,11 +307,11 @@ fn turn_completed_recovers_final_message_from_turn_items() {
 
     let status = processor.process_server_notification(ServerNotification::InteractionCompleted(
         datax_app_server_protocol::InteractionCompletedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: vec![Message::AgentMessage {
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: vec![Message::AgentMessage {
                     id: "msg-1".to_string(),
                     text: "final answer".to_string(),
                     phase: None,
@@ -355,11 +355,11 @@ fn turn_completed_overwrites_stale_final_message_from_turn_items() {
 
     let status = processor.process_server_notification(ServerNotification::InteractionCompleted(
         datax_app_server_protocol::InteractionCompletedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: vec![Message::AgentMessage {
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: vec![Message::AgentMessage {
                     id: "msg-1".to_string(),
                     text: "final answer".to_string(),
                     phase: None,
@@ -404,11 +404,11 @@ fn turn_completed_preserves_streamed_final_message_when_turn_items_are_empty() {
 
     let status = processor.process_server_notification(ServerNotification::InteractionCompleted(
         datax_app_server_protocol::InteractionCompletedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: Vec::new(),
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: Vec::new(),
                 status: InteractionStatus::Completed,
                 error: None,
                 started_at: None,
@@ -448,11 +448,11 @@ fn turn_failed_clears_stale_final_message() {
 
     let status = processor.process_server_notification(ServerNotification::InteractionCompleted(
         datax_app_server_protocol::InteractionCompletedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: Vec::new(),
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: Vec::new(),
                 status: InteractionStatus::Failed,
                 error: None,
                 started_at: None,
@@ -493,11 +493,11 @@ fn turn_interrupted_clears_stale_final_message() {
 
     let status = processor.process_server_notification(ServerNotification::InteractionCompleted(
         datax_app_server_protocol::InteractionCompletedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: Interaction {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: Vec::new(),
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: Vec::new(),
                 status: InteractionStatus::Interrupted,
                 error: None,
                 started_at: None,

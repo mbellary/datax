@@ -1328,7 +1328,7 @@ async fn run_ratatui_app(
                     terminal_restore_guard.restore()?;
                     return Ok(AppExitInfo {
                         token_usage: crate::token_usage::TokenUsage::default(),
-                        chat_id: None,
+                        thread_id: None,
                         resume_hint: None,
                         update_action: Some(action),
                         exit_reason: ExitReason::UserRequested,
@@ -1421,7 +1421,7 @@ async fn run_ratatui_app(
             let _ = tui.terminal.clear();
             return Ok(AppExitInfo {
                 token_usage: crate::token_usage::TokenUsage::default(),
-                chat_id: None,
+                thread_id: None,
                 resume_hint: None,
                 update_action: None,
                 exit_reason: ExitReason::UserRequested,
@@ -1473,7 +1473,7 @@ async fn run_ratatui_app(
         let _ = tui.terminal.clear();
         Ok(AppExitInfo {
             token_usage: crate::token_usage::TokenUsage::default(),
-            chat_id: None,
+            thread_id: None,
             resume_hint: None,
             update_action: None,
             exit_reason: ExitReason::Fatal(format!(
@@ -1530,7 +1530,7 @@ async fn run_ratatui_app(
                     session_log::log_session_end();
                     return Ok(AppExitInfo {
                         token_usage: crate::token_usage::TokenUsage::default(),
-                        chat_id: None,
+                        thread_id: None,
                         resume_hint: None,
                         update_action: None,
                         exit_reason: ExitReason::UserRequested,
@@ -1591,7 +1591,7 @@ async fn run_ratatui_app(
                 session_log::log_session_end();
                 return Ok(AppExitInfo {
                     token_usage: crate::token_usage::TokenUsage::default(),
-                    chat_id: None,
+                    thread_id: None,
                     resume_hint: None,
                     update_action: None,
                     exit_reason: ExitReason::UserRequested,
@@ -1636,7 +1636,7 @@ async fn run_ratatui_app(
                         session_log::log_session_end();
                         return Ok(AppExitInfo {
                             token_usage: crate::token_usage::TokenUsage::default(),
-                            chat_id: None,
+                            thread_id: None,
                             resume_hint: None,
                             update_action: None,
                             exit_reason: ExitReason::UserRequested,

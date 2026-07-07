@@ -387,7 +387,7 @@ impl PendingInteractiveReplayState {
         !self.request_user_input_call_ids.is_empty()
     }
 
-    fn clear_request_user_input_turn(&mut self, interaction_id: &str) {
+    fn clear_request_user_input_turn(&mut self, turn_id: &str) {
         if let Some(call_ids) = self.request_user_input_call_ids_by_turn_id.remove(turn_id) {
             for call_id in call_ids {
                 self.request_user_input_call_ids.remove(&call_id);
@@ -400,7 +400,7 @@ impl PendingInteractiveReplayState {
         );
     }
 
-    fn clear_request_permissions_turn(&mut self, interaction_id: &str) {
+    fn clear_request_permissions_turn(&mut self, turn_id: &str) {
         if let Some(call_ids) = self.request_permissions_call_ids_by_turn_id.remove(turn_id) {
             for call_id in call_ids {
                 self.request_permissions_call_ids.remove(&call_id);
@@ -413,7 +413,7 @@ impl PendingInteractiveReplayState {
         );
     }
 
-    fn clear_exec_approval_turn(&mut self, interaction_id: &str) {
+    fn clear_exec_approval_turn(&mut self, turn_id: &str) {
         if let Some(call_ids) = self.exec_approval_call_ids_by_turn_id.remove(turn_id) {
             for call_id in call_ids {
                 self.exec_approval_call_ids.remove(&call_id);

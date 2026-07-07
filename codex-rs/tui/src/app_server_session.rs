@@ -1679,8 +1679,8 @@ async fn thread_session_state_from_thread_response(
     reasoning_effort: Option<datax_protocol::openai_models::ReasoningEffort>,
     config: &Config,
 ) -> Result<ThreadSessionState, String> {
-    let thread_id = ThreadId::from_string(thread_id)
-        .map_err(|err| format!("thread id `{thread_id}` is invalid: {err}"))?;
+    let thread_id = ThreadId::from_string(chat_id)
+        .map_err(|err| format!("thread id `{chat_id}` is invalid: {err}"))?;
     let forked_from_id = forked_from_id
         .as_deref()
         .map(ThreadId::from_string)

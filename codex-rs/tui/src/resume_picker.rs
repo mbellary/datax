@@ -1792,7 +1792,7 @@ fn row_from_app_server_thread(thread: Chat) -> Option<Row> {
         } else {
             preview.to_string()
         },
-        chat_id: Some(thread_id),
+        thread_id: Some(thread_id),
         thread_name: thread.name,
         created_at: chrono::DateTime::from_timestamp(thread.created_at, 0)
             .map(|dt| dt.with_timezone(&Utc)),
@@ -3241,7 +3241,7 @@ mod tests {
         Row {
             path: Some(PathBuf::from(path)),
             preview: preview.to_string(),
-            chat_id: None,
+            thread_id: None,
             thread_name: None,
             created_at: Some(timestamp),
             updated_at: Some(timestamp),
@@ -3287,7 +3287,7 @@ mod tests {
         let row = Row {
             path: Some(PathBuf::from("/tmp/a.jsonl")),
             preview: String::from("first message"),
-            chat_id: None,
+            thread_id: None,
             thread_name: Some(String::from("My session")),
             created_at: None,
             updated_at: None,
@@ -3327,7 +3327,7 @@ mod tests {
         let row = Row {
             path: Some(PathBuf::from("/tmp/a.jsonl")),
             preview: String::from("first message"),
-            chat_id: Some(thread_id),
+            thread_id: Some(thread_id),
             thread_name: Some(String::from("My session")),
             created_at: None,
             updated_at: None,
@@ -3387,7 +3387,7 @@ mod tests {
         let row = Row {
             path: Some(PathBuf::from("/tmp/a.jsonl")),
             preview: String::from("first message"),
-            chat_id: Some(thread_id),
+            thread_id: Some(thread_id),
             thread_name: Some(String::from("feat(tui): add raw scrollback mode")),
             created_at: parse_timestamp_str("2026-05-02T14:31:08Z"),
             updated_at: parse_timestamp_str("2026-05-02T14:48:19Z"),
@@ -3597,7 +3597,7 @@ mod tests {
         let row = Row {
             path: None,
             preview: String::from("remote session"),
-            chat_id: Some(ThreadId::new()),
+            thread_id: Some(ThreadId::new()),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -3622,7 +3622,7 @@ mod tests {
         let row = Row {
             path: None,
             preview: String::from("remote session"),
-            chat_id: Some(ThreadId::new()),
+            thread_id: Some(ThreadId::new()),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -3653,7 +3653,7 @@ mod tests {
             Row {
                 path: Some(PathBuf::from("/tmp/a.jsonl")),
                 preview: String::from("Fix resume picker timestamps"),
-                chat_id: None,
+                thread_id: None,
                 thread_name: None,
                 created_at: Some(now - Duration::minutes(16)),
                 updated_at: Some(now - Duration::seconds(42)),
@@ -3663,7 +3663,7 @@ mod tests {
             Row {
                 path: Some(PathBuf::from("/tmp/b.jsonl")),
                 preview: String::from("Investigate lazy pagination cap"),
-                chat_id: None,
+                thread_id: None,
                 thread_name: None,
                 created_at: Some(now - Duration::hours(1)),
                 updated_at: Some(now - Duration::minutes(35)),
@@ -3673,7 +3673,7 @@ mod tests {
             Row {
                 path: Some(PathBuf::from("/tmp/c.jsonl")),
                 preview: String::from("Explain the codebase"),
-                chat_id: None,
+                thread_id: None,
                 thread_name: None,
                 created_at: Some(now - Duration::hours(2)),
                 updated_at: Some(now - Duration::hours(2)),
@@ -4101,7 +4101,7 @@ mod tests {
         state.filtered_rows = vec![Row {
             path: None,
             preview: String::from("preview"),
-            chat_id: Some(thread_id),
+            thread_id: Some(thread_id),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -4139,7 +4139,7 @@ mod tests {
             Row {
                 path: None,
                 preview: String::from("one"),
-                chat_id: Some(ThreadId::new()),
+                thread_id: Some(ThreadId::new()),
                 thread_name: None,
                 created_at: None,
                 updated_at: None,
@@ -4149,7 +4149,7 @@ mod tests {
             Row {
                 path: None,
                 preview: String::from("two"),
-                chat_id: Some(ThreadId::new()),
+                thread_id: Some(ThreadId::new()),
                 thread_name: None,
                 created_at: None,
                 updated_at: None,
@@ -4218,7 +4218,7 @@ mod tests {
             Row {
                 path: None,
                 preview: String::from("Find pending threads and emails"),
-                chat_id: Some(thread_id),
+                thread_id: Some(thread_id),
                 thread_name: None,
                 created_at: None,
                 updated_at: None,
@@ -4228,7 +4228,7 @@ mod tests {
             Row {
                 path: None,
                 preview: String::from("Plan raw scrollback mode"),
-                chat_id: Some(ThreadId::new()),
+                thread_id: Some(ThreadId::new()),
                 thread_name: None,
                 created_at: None,
                 updated_at: None,
@@ -4283,7 +4283,7 @@ mod tests {
         state.filtered_rows = vec![Row {
             path: None,
             preview: String::from("preview"),
-            chat_id: Some(thread_id),
+            thread_id: Some(thread_id),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -4313,7 +4313,7 @@ mod tests {
         state.filtered_rows = vec![Row {
             path: Some(PathBuf::from("/tmp/a.jsonl")),
             preview: String::from("preview"),
-            chat_id: None,
+            thread_id: None,
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -4389,7 +4389,7 @@ mod tests {
         state.filtered_rows = vec![Row {
             path: None,
             preview: String::from("preview"),
-            chat_id: Some(thread_id),
+            thread_id: Some(thread_id),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -4553,7 +4553,7 @@ session_picker_view = "dense"
         state.filtered_rows = vec![Row {
             path: None,
             preview: String::from("preview"),
-            chat_id: Some(thread_id),
+            thread_id: Some(thread_id),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -4592,7 +4592,7 @@ session_picker_view = "dense"
         state.filtered_rows = vec![Row {
             path: None,
             preview: String::from("preview"),
-            chat_id: Some(thread_id),
+            thread_id: Some(thread_id),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -4666,7 +4666,7 @@ session_picker_view = "dense"
             preview: String::from(
                 "Propose session picker redesign with enough title text to exercise truncation",
             ),
-            chat_id: Some(
+            thread_id: Some(
                 ThreadId::from_string("019dabc1-0ef5-7431-b81c-03037f51f62c").expect("thread id"),
             ),
             thread_name: None,
@@ -4922,7 +4922,7 @@ session_picker_view = "dense"
         let row = Row {
             path: Some(PathBuf::from("/tmp/a.jsonl")),
             preview: String::from("Investigate picker expansion"),
-            chat_id: Some(thread_id),
+            thread_id: Some(thread_id),
             thread_name: None,
             created_at: parse_timestamp_str("2026-04-28T16:30:00Z"),
             updated_at: parse_timestamp_str("2026-04-28T17:45:00Z"),
@@ -4989,7 +4989,7 @@ session_picker_view = "dense"
         let row = Row {
             path: Some(PathBuf::from("/tmp/a.jsonl")),
             preview: String::from("Investigate picker expansion"),
-            chat_id: Some(
+            thread_id: Some(
                 ThreadId::from_string("019dabc1-0ef5-7431-b81c-03037f51f62c").expect("thread id"),
             ),
             thread_name: None,
@@ -5049,7 +5049,7 @@ session_picker_view = "dense"
             .map(|idx| Row {
                 path: Some(PathBuf::from(format!("/tmp/{idx}.jsonl"))),
                 preview: format!("item-{idx}"),
-                chat_id: None,
+                thread_id: None,
                 thread_name: None,
                 created_at: Some(now - Duration::hours(idx)),
                 updated_at: Some(now - Duration::minutes(idx * 5)),
@@ -5101,7 +5101,7 @@ session_picker_view = "dense"
             .map(|idx| Row {
                 path: Some(PathBuf::from(format!("/tmp/{idx}.jsonl"))),
                 preview: format!("item-{idx}"),
-                chat_id: None,
+                thread_id: None,
                 thread_name: None,
                 created_at: Some(now - Duration::hours(idx)),
                 updated_at: Some(now - Duration::minutes(idx * 5)),
@@ -5652,7 +5652,7 @@ session_picker_view = "dense"
         let row = Row {
             path: Some(PathBuf::from("/tmp/missing.jsonl")),
             preview: String::from("missing metadata"),
-            chat_id: None,
+            thread_id: None,
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -5691,7 +5691,7 @@ session_picker_view = "dense"
         let row = Row {
             path: None,
             preview: String::from("pathless thread"),
-            chat_id: Some(thread_id),
+            thread_id: Some(thread_id),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -5709,7 +5709,7 @@ session_picker_view = "dense"
         match selection {
             Some(SessionSelection::Resume(SessionTarget {
                 path: None,
-                chat_id: selected_thread_id,
+                thread_id: selected_thread_id,
             })) => assert_eq!(selected_thread_id, thread_id),
             other => panic!("unexpected selection: {other:?}"),
         }

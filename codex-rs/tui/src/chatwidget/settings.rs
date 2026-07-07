@@ -388,7 +388,7 @@ impl ChatWidget {
     /// Returns the dismissal scope that applies to the currently visible draft.
     fn plan_mode_nudge_scope(&self) -> PlanModeNudgeScope {
         self.thread_id
-            .map_or(PlanModeNudgeScope::NewThread, PlanModeNudgeScope::Thread)
+            .map_or(PlanModeNudgeScope::NewThread, PlanModeNudgeScope::Chat)
     }
 
     /// Returns whether the current draft should replace the normal footer with the Plan-mode nudge.

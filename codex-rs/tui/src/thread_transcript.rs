@@ -13,7 +13,7 @@ use crate::multi_agents::sub_agent_activity_summary;
 use datax_app_server_protocol::Chat;
 use datax_app_server_protocol::Message;
 use datax_protocol::ThreadId;
-use datax_protocol::messages::UserMessageItem;
+use datax_protocol::items::UserMessageItem;
 use ratatui::style::Stylize as _;
 use ratatui::text::Line;
 

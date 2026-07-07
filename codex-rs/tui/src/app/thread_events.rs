@@ -166,8 +166,8 @@ impl ThreadEventStore {
 
     pub(super) fn file_change_changes(
         &self,
-        interaction_id: &str,
-        message_id: &str,
+        turn_id: &str,
+        item_id: &str,
     ) -> Option<Vec<datax_app_server_protocol::FileUpdateChange>> {
         self.buffer
             .iter()
@@ -278,7 +278,7 @@ fn turn_id_matches(request_turn_id: &str, candidate_turn_id: &str) -> bool {
 
 fn file_change_item_changes(
     item: &Message,
-    message_id: &str,
+    item_id: &str,
 ) -> Option<Vec<datax_app_server_protocol::FileUpdateChange>> {
     match item {
         Message::FileChange { id, changes, .. } if id == item_id => Some(changes.clone()),

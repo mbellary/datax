@@ -39,12 +39,12 @@ use crate::exec_events::McpToolCallItem;
 use crate::exec_events::McpToolCallItemError;
 use crate::exec_events::McpToolCallItemResult;
 use crate::exec_events::McpToolCallStatus as ExecMcpToolCallStatus;
-use crate::exec_events::Message as ExecThreadItem;
 use crate::exec_events::PatchApplyStatus as ExecPatchApplyStatus;
 use crate::exec_events::PatchChangeKind as ExecPatchChangeKind;
 use crate::exec_events::ReasoningItem;
 use crate::exec_events::ThreadErrorEvent;
 use crate::exec_events::ThreadEvent;
+use crate::exec_events::ThreadItem as ExecThreadItem;
 use crate::exec_events::ThreadItemDetails;
 use crate::exec_events::ThreadStartedEvent;
 use crate::exec_events::TodoItem;
@@ -508,12 +508,12 @@ impl EventProcessorWithJsonOutput {
                         },
                     }));
                 }
-                events.extend(self.reconcile_unfinished_started_items(&notification.turn.items));
+                events.extend(self.reconcile_unfinished_started_items(&notification.turn.messages));
                 match notification.turn.status {
                     InteractionStatus::Completed => {
-                        if let Some(final_message) =
-                            Self::final_message_from_turn_items(notification.turn.items.as_slice())
-                        {
+                        if let Some(final_message) = Self::final_message_from_turn_items(
+                            notification.turn.messages.as_slice(),
+                        ) {
                             self.final_message = Some(final_message);
                         }
                         self.emit_final_message_on_shutdown = true;

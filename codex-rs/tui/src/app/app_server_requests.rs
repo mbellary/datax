@@ -366,7 +366,7 @@ impl PendingAppServerRequests {
 
     fn pop_user_input_request_for_turn(
         &mut self,
-        interaction_id: &str,
+        turn_id: &str,
     ) -> Option<PendingUserInputRequest> {
         let pending = self
             .user_inputs

@@ -30,8 +30,8 @@ fn prompt_for_answers_with(
 ) -> Result<ToolRequestUserInputResponse> {
     writeln!(
         output,
-        "\n[request_user_input for thread {}, turn {}]",
-        params.thread_id, params.turn_id
+        "\n[request_user_input for chat {}, interaction {}, message {}]",
+        params.chat_id, params.interaction_id, params.message_id
     )?;
     if let Some(auto_resolution_ms) = params.auto_resolution_ms {
         writeln!(

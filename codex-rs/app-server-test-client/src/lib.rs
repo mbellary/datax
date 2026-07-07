@@ -80,7 +80,7 @@ use serde_json::Value;
 use tracing::info_span;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tungstenite::Message;
+use tungstenite::Message as WebSocketMessage;
 use tungstenite::WebSocket;
 use tungstenite::connect;
 use tungstenite::stream::MaybeTlsStream;
@@ -825,7 +825,7 @@ async fn trigger_zsh_fork_multi_cmd_approval(
             client.last_turn_status = None;
 
             let mut turn_params = InteractionStartParams {
-                thread_id: thread_response.thread.id.clone(),
+                chat_id: thread_response.thread.id.clone(),
                 client_user_message_id: None,
                 input: vec![V2UserInput::Text {
                     text: message,
@@ -904,13 +904,13 @@ async fn resume_message_v2(
         println!("< initialize response: {initialize:?}");
 
         let resume_response = client.chat_resume(ChatResumeParams {
-            thread_id,
+            chat_id: thread_id,
             ..Default::default()
         })?;
         println!("< thread/resume response: {resume_response:?}");
 
         let turn_response = client.interaction_start(InteractionStartParams {
-            thread_id: resume_response.thread.id.clone(),
+            chat_id: resume_response.thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: user_message,
@@ -937,7 +937,7 @@ async fn thread_resume_follow(
         println!("< initialize response: {initialize:?}");
 
         let resume_response = client.chat_resume(ChatResumeParams {
-            thread_id,
+            chat_id: thread_id,
             ..Default::default()
         })?;
         println!("< thread/resume response: {resume_response:?}");
@@ -1052,7 +1052,7 @@ async fn send_message_v2_with_policies(
             })?;
             println!("< chat/start response: {thread_response:?}");
             let mut turn_params = InteractionStartParams {
-                thread_id: thread_response.thread.id.clone(),
+                chat_id: thread_response.thread.id.clone(),
                 client_user_message_id: None,
                 input: vec![V2UserInput::Text {
                     text: user_message,
@@ -1093,7 +1093,7 @@ async fn send_follow_up_v2(
         println!("< chat/start response: {thread_response:?}");
 
         let first_turn_params = InteractionStartParams {
-            thread_id: thread_response.thread.id.clone(),
+            chat_id: thread_response.thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: first_message,
@@ -1107,7 +1107,7 @@ async fn send_follow_up_v2(
         client.stream_turn(&thread_response.thread.id, &first_turn_response.turn.id)?;
 
         let follow_up_params = InteractionStartParams {
-            thread_id: thread_response.thread.id.clone(),
+            chat_id: thread_response.thread.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: follow_up_message,
@@ -1221,7 +1221,7 @@ async fn chat_list(endpoint: &Endpoint, config_overrides: &[String], limit: u32)
             model_providers: None,
             source_kinds: None,
             archived: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             cwd: None,
             use_state_db_only: false,
             search_term: None,
@@ -1263,7 +1263,7 @@ fn chat_increment_elicitation(url: &str, thread_id: String) -> Result<()> {
     println!("< initialize response: {initialize:?}");
 
     let response =
-        client.chat_increment_elicitation(ChatIncrementElicitationParams { thread_id })?;
+        client.chat_increment_elicitation(ChatIncrementElicitationParams { chat_id: thread_id })?;
     println!("< thread/increment_elicitation response: {response:?}");
 
     Ok(())
@@ -1277,7 +1277,7 @@ fn chat_decrement_elicitation(url: &str, thread_id: String) -> Result<()> {
     println!("< initialize response: {initialize:?}");
 
     let response =
-        client.chat_decrement_elicitation(ChatDecrementElicitationParams { thread_id })?;
+        client.chat_decrement_elicitation(ChatDecrementElicitationParams { chat_id: thread_id })?;
     println!("< thread/decrement_elicitation response: {response:?}");
 
     Ok(())
@@ -1352,7 +1352,7 @@ fn live_elicitation_timeout_pause(
 
     let started_at = Instant::now();
     let turn_response = client.interaction_start(InteractionStartParams {
-        thread_id: thread_id.clone(),
+        chat_id: thread_id.clone(),
         client_user_message_id: None,
         input: vec![V2UserInput::Text {
             text: prompt,
@@ -1420,7 +1420,7 @@ fn live_elicitation_timeout_pause(
     })();
 
     match client.chat_decrement_elicitation(ChatDecrementElicitationParams {
-        thread_id: thread_id.clone(),
+        chat_id: thread_id.clone(),
     }) {
         Ok(response) => {
             println!("[cleanup] thread/decrement_elicitation response after harness: {response:?}");
@@ -2065,9 +2065,9 @@ impl DataxClient {
         params: CommandExecutionRequestApprovalParams,
     ) -> Result<()> {
         let CommandExecutionRequestApprovalParams {
-            thread_id,
-            turn_id,
-            item_id,
+            chat_id,
+            interaction_id,
+            message_id,
             started_at_ms: _,
             approval_id,
             environment_id,
@@ -2083,11 +2083,11 @@ impl DataxClient {
         } = params;
 
         println!(
-            "\n< commandExecution approval requested for thread {thread_id}, turn {turn_id}, item {item_id}, approval {}",
+            "\n< commandExecution approval requested for chat {chat_id}, interaction {interaction_id}, message {message_id}, approval {}",
             approval_id.as_deref().unwrap_or("<none>")
         );
         self.command_approval_count += 1;
-        self.command_approval_item_ids.push(item_id.clone());
+        self.command_approval_item_ids.push(message_id.clone());
         if let Some(environment_id) = environment_id.as_deref() {
             println!("< environment: {environment_id}");
         }
@@ -2133,7 +2133,7 @@ impl DataxClient {
         };
         self.send_server_request_response(request_id, &response)?;
         println!(
-            "< commandExecution decision for approval #{} on item {item_id}: {:?}",
+            "< commandExecution decision for approval #{} on message {message_id}: {:?}",
             self.command_approval_count, decision
         );
         Ok(())
@@ -2145,16 +2145,16 @@ impl DataxClient {
         params: FileChangeRequestApprovalParams,
     ) -> Result<()> {
         let FileChangeRequestApprovalParams {
-            thread_id,
-            turn_id,
-            item_id,
+            chat_id,
+            interaction_id,
+            message_id,
             started_at_ms: _,
             reason,
             grant_root,
         } = params;
 
         println!(
-            "\n< fileChange approval requested for thread {thread_id}, turn {turn_id}, item {item_id}"
+            "\n< fileChange approval requested for chat {chat_id}, interaction {interaction_id}, message {message_id}"
         );
         if let Some(reason) = reason.as_deref() {
             println!("< reason: {reason}");
@@ -2167,7 +2167,7 @@ impl DataxClient {
             decision: FileChangeApprovalDecision::Accept,
         };
         self.send_server_request_response(request_id, &response)?;
-        println!("< approved fileChange request for item {item_id}");
+        println!("< approved fileChange request for message {message_id}");
         Ok(())
     }
 
@@ -2203,7 +2203,7 @@ impl DataxClient {
             }
             ClientTransport::WebSocket { socket, url } => {
                 socket
-                    .send(Message::Text(payload.to_string().into()))
+                    .send(WebSocketMessage::Text(payload.to_string().into()))
                     .with_context(|| format!("failed to write websocket message to `{url}`"))?;
                 Ok(())
             }
@@ -2227,12 +2227,14 @@ impl DataxClient {
                     .read()
                     .with_context(|| format!("failed to read websocket message from `{url}`"))?;
                 match frame {
-                    Message::Text(text) => return Ok(text.to_string()),
-                    Message::Binary(_) | Message::Ping(_) | Message::Pong(_) => continue,
-                    Message::Close(_) => {
+                    WebSocketMessage::Text(text) => return Ok(text.to_string()),
+                    WebSocketMessage::Binary(_)
+                    | WebSocketMessage::Ping(_)
+                    | WebSocketMessage::Pong(_) => continue,
+                    WebSocketMessage::Close(_) => {
                         bail!("websocket app-server at `{url}` closed the connection")
                     }
-                    Message::Frame(_) => continue,
+                    WebSocketMessage::Frame(_) => continue,
                 }
             },
         }

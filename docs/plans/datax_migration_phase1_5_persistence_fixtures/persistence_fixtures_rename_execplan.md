@@ -27,7 +27,9 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
 - [x] (2026-07-07 00:00Z) Ran allowed formatting and static checks after the `datax-tui` build-log follow-up; expensive tests/builds remain deferred to the user.
 - [x] (2026-07-07 00:00Z) Corrected user-reported `cargo build` failures in `datax-exec` where app-server protocol call sites still used old thread/turn/item fields, and restored TUI-internal names that had been over-renamed during the previous protocol boundary pass.
 - [x] (2026-07-07 00:00Z) Ran `just fmt`, `git diff --check`, and targeted stale-symbol scans after the `datax-exec` build-log follow-up; expensive tests/builds remain deferred to the user.
-- [ ] Commit and push the latest follow-up fixes.
+- [x] (2026-07-07 00:00Z) Updated validation ownership after user instruction: Codex will no longer run `just fmt`, build, check, test, or lint commands for this phase unless explicitly authorized for a specific command.
+- [x] (2026-07-07 00:00Z) Corrected user-reported `cargo build` failures in `datax-app-server-test-client` where app-server test-client code still used old protocol boundary names and collided websocket `Message` with protocol `Message`.
+- [x] (2026-07-07 00:00Z) Committed and pushed the latest app-server-test-client follow-up fixes.
 
 ## Surprises & Discoveries
 
@@ -53,6 +55,8 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
   Evidence: The attached build log reported missing `thread_id`, `turn_id`, `items`, `turns`, `thread_source`, and `parent_thread_id` fields in `exec`; the exec app-server request/notification code was aligned to `chat_id`, `interaction_id`, `messages`, `interactions`, `chat_source`, and `parent_chat_id`, while JSONL output structs and `SessionConfiguredEvent` kept their existing internal thread/turn terminology.
 - Observation: The previous TUI protocol pass accidentally renamed a few local TUI struct fields and local function parameters that were not app-server protocol fields.
   Evidence: The attached build log reported missing local variables and fields such as `turn_id`, `item_id`, `AppExitInfo.thread_id`, `PlanModeNudgeScope::Chat`, and `resume_picker::Row.thread_id`; these were restored as TUI-internal names.
+- Observation: Once `cargo build` reached `datax-app-server-test-client`, it exposed another client-facing app-server protocol surface that still used pre-Phase-1.4 names and had an import-name collision.
+  Evidence: The attached build log reported missing `thread_id`, `turn_id`, `item_id`, and `parent_thread_id` fields, missing `thread_start` and `turn_start` methods, and a duplicate `Message` import; the app-server test client now constructs/destructures current chat/interaction/message protocol fields and aliases `tungstenite::Message` as `WebSocketMessage`.
 
 ## Decision Log
 
@@ -64,6 +68,9 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
   Date/Author: 2026-07-07 / Codex.
 - Decision: Defer test/build execution to the user, but keep every command explicit in this plan.
   Rationale: The user requested that tests not be executed by Codex during migration phases because they are expensive and can destabilize WSL.
+  Date/Author: 2026-07-07 / Codex.
+- Decision: Also defer `just fmt` execution to the user for subsequent follow-up fixes in this phase.
+  Rationale: The user explicitly requested that Codex stop running `just fmt`; Codex will document the command and make targeted source edits only.
   Date/Author: 2026-07-07 / Codex.
 
 ## Outcomes & Retrospective
@@ -78,7 +85,7 @@ Expensive generation, build, lint, and test commands remain deferred to the user
 
 The milestone starts from `main` at merge commit `eef144315e Merge pull request #8 from mbellary/datax/migration-phase1-4-app-server-protocol`. Phase 1.4 app-server protocol tests passed according to the user before this phase began. The starting branch for this milestone is `datax/migration-phase1-5-persistence-fixtures`.
 
-Known constraint: Codex must not run the expensive test commands in this phase. Codex may run `just fmt`, `git diff --check`, and static `rg` checks. The user will run the documented build and test commands and report results.
+Known constraint: Codex must not run expensive build, check, lint, or test commands in this phase. After the 2026-07-07 user instruction, Codex must also not run `just fmt` unless the user explicitly authorizes that exact command. Codex may run `git diff --check` and static `rg` checks. The user will run the documented format, build, lint, and test commands and report results.
 
 ## Context and Orientation
 
@@ -190,6 +197,10 @@ Finally run formatting and static checks. Test/build commands remain deferred fo
 | `codex-rs/exec/src/lib_tests.rs` | `Completed` | Follow-up fixture alignment for current app-server protocol field names. |
 | `codex-rs/exec/src/event_processor_with_human_output_tests.rs` | `Completed` | Follow-up fixture alignment for current app-server protocol field names while preserving `SessionConfiguredEvent` internal fields. |
 | `codex-rs/exec/src/event_processor_with_jsonl_output_tests.rs` | `Completed` | Follow-up fixture alignment for current app-server protocol field names. |
+| `codex-rs/app-server-test-client/src/lib.rs` | `Completed` | Follow-up from user `cargo build`; app-server test-client request builders, approval handlers, and websocket transport now use current protocol boundary names and avoid the `Message` import collision. |
+| `codex-rs/app-server-test-client/src/plugin_analytics_smoke.rs` | `Completed` | Follow-up from user `cargo build`; plugin analytics smoke helper now calls current `chat_start` and `interaction_start` helpers with `chat_id`. |
+| `codex-rs/app-server-test-client/src/request_user_input.rs` | `Completed` | Follow-up from user `cargo build`; request-user-input prompt reads current `chat_id`, `interaction_id`, and `message_id` fields. |
+| `codex-rs/app-server-test-client/src/request_user_input_tests.rs` | `Completed` | Follow-up test fixture alignment for current request-user-input protocol field names. |
 | `codex-rs/cli/src/debug_sandbox.rs` | `Completed` | Corrected accidental internal `datax_linux_sandbox_exe` field rewrite back to `codex_linux_sandbox_exe`. |
 | `codex-rs/core/tests/common/lib.rs` | `Completed` | Corrected accidental internal `datax_linux_sandbox_exe` field rewrite back to `codex_linux_sandbox_exe`. |
 | `codex-rs/core/tests/suite/apply_patch_cli.rs` | `Completed` | Corrected accidental internal `datax_linux_sandbox_exe` field rewrite back to `codex_linux_sandbox_exe`. |
@@ -257,7 +268,8 @@ Expected result: formatting completes successfully.
 | Literal persistence string scan documented below | repository root | Completed | Only `.codex-plugin` manifest format exceptions remain. |
 | `just write-config-schema` | `codex-rs` | Deferred | Config schema regenerated if source descriptions changed. |
 | `just write-app-server-schema` | `codex-rs` | Deferred | App-server schema artifacts regenerated if generated descriptions changed. |
-| `just fmt` | `codex-rs` | Completed | Formatting completed successfully. |
+| `just fmt` | `codex-rs` | Deferred to user for latest follow-up | Formatting completes successfully. |
+| `cargo build` | `codex-rs` | Deferred | Workspace build reaches completion after the user-reported follow-up fixes. |
 | `just fix -p datax-utils-home-dir` | `codex-rs` | Deferred | Lints for home-dir changes pass or are fixed. |
 | `just fix -p datax-config` | `codex-rs` | Deferred | Lints for config changes pass or are fixed. |
 | `just fix -p datax-state` | `codex-rs` | Deferred | Lints for state changes pass or are fixed. |
@@ -295,6 +307,10 @@ From `codex-rs`, regenerate app-server schema artifacts when app-server generate
 From `codex-rs`, run the formatter and expect it to complete:
 
     just fmt
+
+From `codex-rs`, run the workspace build and expect it to complete:
+
+    cargo build
 
 From `codex-rs`, run lints for changed crates and expect them to pass:
 

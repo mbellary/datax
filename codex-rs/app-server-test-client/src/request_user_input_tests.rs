@@ -13,9 +13,9 @@ use super::prompt_for_answers_with;
 #[test]
 fn collects_option_and_free_form_answers() {
     let params = ToolRequestUserInputParams {
-        thread_id: "thread-1".to_string(),
-        turn_id: "turn-1".to_string(),
-        item_id: "item-1".to_string(),
+        chat_id: "chat-1".to_string(),
+        interaction_id: "interaction-1".to_string(),
+        message_id: "message-1".to_string(),
         questions: vec![
             ToolRequestUserInputQuestion {
                 id: "target".to_string(),
@@ -72,7 +72,7 @@ fn collects_option_and_free_form_answers() {
     assert_eq!(
         String::from_utf8(output).unwrap(),
         concat!(
-            "\n[request_user_input for thread thread-1, turn turn-1]\n",
+            "\n[request_user_input for chat chat-1, interaction interaction-1, message message-1]\n",
             "The app-server may auto-resolve this request after 60000 ms.\n",
             "\nTarget: Which target?\n",
             "  1. Core - Inspect core\n",
@@ -88,9 +88,9 @@ fn collects_option_and_free_form_answers() {
 #[test]
 fn retries_invalid_selection_and_collects_other_answer() {
     let params = ToolRequestUserInputParams {
-        thread_id: "thread-1".to_string(),
-        turn_id: "turn-1".to_string(),
-        item_id: "item-1".to_string(),
+        chat_id: "chat-1".to_string(),
+        interaction_id: "interaction-1".to_string(),
+        message_id: "message-1".to_string(),
         questions: vec![ToolRequestUserInputQuestion {
             id: "target".to_string(),
             header: "Target".to_string(),

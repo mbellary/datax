@@ -2289,7 +2289,7 @@ async fn permissions_reviews_emit_events_without_denormalizing_onto_tool_items()
                 request_id: RequestId::Integer(51),
                 response: Box::new(sample_effective_permissions_approval_response(
                     CoreRequestPermissionProfile::default(),
-                    CorePermissionGrantScope::Interaction,
+                    CorePermissionGrantScope::Turn,
                 )),
             },
             &mut events,

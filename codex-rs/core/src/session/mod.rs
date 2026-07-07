@@ -2220,7 +2220,7 @@ impl Session {
             AskForApproval::Never => {
                 return Some(RequestPermissionsResponse {
                     permissions: RequestPermissionProfile::default(),
-                    scope: PermissionGrantScope::Interaction,
+                    scope: PermissionGrantScope::Turn,
                     strict_auto_review: false,
                 });
             }
@@ -2229,7 +2229,7 @@ impl Session {
             {
                 return Some(RequestPermissionsResponse {
                     permissions: RequestPermissionProfile::default(),
-                    scope: PermissionGrantScope::Interaction,
+                    scope: PermissionGrantScope::Turn,
                     strict_auto_review: false,
                 });
             }
@@ -2248,7 +2248,7 @@ impl Session {
             );
             return Some(RequestPermissionsResponse {
                 permissions: RequestPermissionProfile::default(),
-                scope: PermissionGrantScope::Interaction,
+                scope: PermissionGrantScope::Turn,
                 strict_auto_review: false,
             });
         };
@@ -2285,7 +2285,7 @@ impl Session {
                 ReviewDecision::Approved | ReviewDecision::ApprovedExecpolicyAmendment { .. } => {
                     RequestPermissionsResponse {
                         permissions: requested_permissions.clone(),
-                        scope: PermissionGrantScope::Interaction,
+                        scope: PermissionGrantScope::Turn,
                         strict_auto_review: false,
                     }
                 }
@@ -2299,19 +2299,19 @@ impl Session {
                 } => match network_policy_amendment.action {
                     NetworkPolicyRuleAction::Allow => RequestPermissionsResponse {
                         permissions: requested_permissions.clone(),
-                        scope: PermissionGrantScope::Interaction,
+                        scope: PermissionGrantScope::Turn,
                         strict_auto_review: false,
                     },
                     NetworkPolicyRuleAction::Deny => RequestPermissionsResponse {
                         permissions: RequestPermissionProfile::default(),
-                        scope: PermissionGrantScope::Interaction,
+                        scope: PermissionGrantScope::Turn,
                         strict_auto_review: false,
                     },
                 },
                 ReviewDecision::Abort | ReviewDecision::Denied | ReviewDecision::TimedOut => {
                     RequestPermissionsResponse {
                         permissions: RequestPermissionProfile::default(),
-                        scope: PermissionGrantScope::Interaction,
+                        scope: PermissionGrantScope::Turn,
                         strict_auto_review: false,
                     }
                 }
@@ -2395,7 +2395,7 @@ impl Session {
         let Some(turn_environment) = turn_environment else {
             return Some(RequestPermissionsResponse {
                 permissions: RequestPermissionProfile::default(),
-                scope: PermissionGrantScope::Interaction,
+                scope: PermissionGrantScope::Turn,
                 strict_auto_review: false,
             });
         };
@@ -2518,7 +2518,7 @@ impl Session {
                         );
                         RequestPermissionsResponse {
                             permissions: RequestPermissionProfile::default(),
-                            scope: PermissionGrantScope::Interaction,
+                            scope: PermissionGrantScope::Turn,
                             strict_auto_review: false,
                         }
                     }
@@ -2545,7 +2545,7 @@ impl Session {
         if response.strict_auto_review && matches!(response.scope, PermissionGrantScope::Session) {
             return RequestPermissionsResponse {
                 permissions: RequestPermissionProfile::default(),
-                scope: PermissionGrantScope::Interaction,
+                scope: PermissionGrantScope::Turn,
                 strict_auto_review: false,
             };
         }
@@ -2576,7 +2576,7 @@ impl Session {
             return;
         }
         match response.scope {
-            PermissionGrantScope::Interaction => {
+            PermissionGrantScope::Turn => {
                 if let Some(turn_state) = originating_turn_state {
                     let mut ts = turn_state.lock().await;
                     let permissions: AdditionalPermissionProfile =

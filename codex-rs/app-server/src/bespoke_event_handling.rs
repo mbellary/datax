@@ -1914,7 +1914,7 @@ fn request_permissions_response_from_client_result(
             error!("request failed with client error: {err:?}");
             return Ok(Some(CoreRequestPermissionsResponse {
                 permissions: Default::default(),
-                scope: CorePermissionGrantScope::Interaction,
+                scope: CorePermissionGrantScope::Turn,
                 strict_auto_review: false,
             }));
         }
@@ -1922,7 +1922,7 @@ fn request_permissions_response_from_client_result(
             error!("request failed: {err:?}");
             return Ok(Some(CoreRequestPermissionsResponse {
                 permissions: Default::default(),
-                scope: CorePermissionGrantScope::Interaction,
+                scope: CorePermissionGrantScope::Turn,
                 strict_auto_review: false,
             }));
         }
@@ -1947,7 +1947,7 @@ fn request_permissions_response_from_client_result(
         error!("strict auto review is only supported for turn-scoped permission grants");
         return Ok(Some(CoreRequestPermissionsResponse {
             permissions: Default::default(),
-            scope: CorePermissionGrantScope::Interaction,
+            scope: CorePermissionGrantScope::Turn,
             strict_auto_review: false,
         }));
     }
@@ -3069,7 +3069,7 @@ mod tests {
                 response,
                 CoreRequestPermissionsResponse {
                     permissions: expected_permissions,
-                    scope: CorePermissionGrantScope::Interaction,
+                    scope: CorePermissionGrantScope::Turn,
                     strict_auto_review: false,
                 }
             );
@@ -3121,7 +3121,7 @@ mod tests {
             response,
             CoreRequestPermissionsResponse {
                 permissions: CoreRequestPermissionProfile::default(),
-                scope: CorePermissionGrantScope::Interaction,
+                scope: CorePermissionGrantScope::Turn,
                 strict_auto_review: false,
             }
         );
@@ -3149,7 +3149,7 @@ mod tests {
         .expect("paths should localize")
         .expect("response should be accepted");
 
-        assert_eq!(response.scope, CorePermissionGrantScope::Interaction);
+        assert_eq!(response.scope, CorePermissionGrantScope::Turn);
         assert!(response.strict_auto_review);
     }
 

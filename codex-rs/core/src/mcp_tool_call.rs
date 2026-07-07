@@ -675,8 +675,8 @@ async fn maybe_request_codex_apps_auth_elicitation(
 
     let request_id = rmcp::model::RequestId::String(plan.elicitation.elicitation_id.clone().into());
     let params = McpServerElicitationRequestParams {
-        thread_id: sess.thread_id.to_string(),
-        turn_id: Some(turn_context.sub_id.clone()),
+        chat_id: sess.thread_id.to_string(),
+        interaction_id: Some(turn_context.sub_id.clone()),
         server_name: CODEX_APPS_MCP_SERVER_NAME.to_string(),
         request: McpServerElicitationRequest::Url {
             meta: Some(plan.elicitation.meta),
@@ -1669,8 +1669,8 @@ fn build_mcp_tool_approval_elicitation_request(
         .unwrap_or_else(|| request.question.question.clone());
 
     McpServerElicitationRequestParams {
-        thread_id: sess.thread_id.to_string(),
-        turn_id: Some(turn_context.sub_id.clone()),
+        chat_id: sess.thread_id.to_string(),
+        interaction_id: Some(turn_context.sub_id.clone()),
         server_name: request.server.to_string(),
         request: McpServerElicitationRequest::Form {
             meta: build_mcp_tool_approval_elicitation_meta(

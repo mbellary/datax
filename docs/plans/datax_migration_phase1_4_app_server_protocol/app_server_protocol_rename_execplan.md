@@ -27,6 +27,7 @@ This milestone deliberately targets the app-server public API boundary. Internal
 - [x] (2026-07-07T00:00:00Z) Completed lightweight acceptance searches; targeted app-server tests remain staged/deferred per the migration execution model.
 - [x] (2026-07-07T00:00:00Z) Fixed deferred `just test -p datax-app-server` compile fallout in `datax-tools`, where the request-plugin-install helper still constructed `McpServerElicitationRequestParams` with obsolete `thread_id` and `turn_id` fields instead of `chat_id` and `interaction_id`.
 - [x] (2026-07-07T00:00:00Z) Fixed deferred `just test -p datax-app-server` compile fallout in `datax-analytics`, where analytics ingestion still read old app-server public fields such as `thread_id`, `turn_id`, `item_id`, and `target_item_id` from renamed chat, interaction, and message protocol payloads.
+- [x] (2026-07-07T00:00:00Z) Fixed deferred `just test -p datax-app-server` compile fallout in core, app-server, analytics tests, and TUI where app-server protocol helper names and core permission scope variants still used the removed `ThreadHistoryBuilder`, `McpServerElicitationRequestParams.thread_id`, `McpServerElicitationRequestParams.turn_id`, and `PermissionGrantScope::Interaction` symbols.
 
 ## Surprises & Discoveries
 
@@ -50,6 +51,9 @@ This milestone deliberately targets the app-server public API boundary. Internal
 
 - Observation: The `datax-analytics` crate consumes app-server v2 request, response, and notification types and maps them into the analytics event schema.
   Evidence: The user-run `just test -p datax-app-server` reported compile errors in `codex-rs/analytics/src/reducer.rs`, `codex-rs/analytics/src/events.rs`, `codex-rs/analytics/src/facts.rs`, and `codex-rs/analytics/src/lib.rs` for stale app-server fields and renamed state types.
+
+- Observation: `just test -p datax-app-server` compiles broader downstream test and UI/support code than the app-server crate alone.
+  Evidence: A user-run compile reported errors in `codex-rs/core/src/thread_manager.rs`, `codex-rs/core/src/session/mcp.rs`, `codex-rs/core/src/session/mod.rs`, and `codex-rs/core/src/mcp_tool_call.rs`; follow-up static searches also found stale core permission enum variants in app-server, analytics, and TUI test/support files.
 
 ## Decision Log
 
@@ -152,9 +156,19 @@ The table below tracks files and file sets that belong to Phase 1.4. Rows marked
 | `codex-rs/analytics/src/events.rs` | `Completed` | Goal event status type updated to the state crate's internal `ThreadGoalStatus`; analytics event field names remain unchanged. |
 | `codex-rs/analytics/src/facts.rs` | `Completed` | Goal fact status type updated to the state crate's internal `ThreadGoalStatus`; analytics fact field names remain unchanged. |
 | `codex-rs/analytics/src/lib.rs` | `Completed` | Public re-export updated from removed `TurnStatus` to existing `InteractionStatus`. |
+| `codex-rs/analytics/src/analytics_client_tests.rs` | `Completed` | Test expectations that construct core permission approval responses now use internal `PermissionGrantScope::Turn`; app-server public `Interaction` naming remains unchanged. |
 | `codex-rs/analytics/**` | `Completed` | Direct app-server protocol request/response/notification type usage was updated to the renamed public API types while analytics fact names remain internal. |
 | `codex-rs/exec/**` | `Completed` | Direct app-server protocol request/response/notification type usage was updated to the renamed public API types while exec event names remain internal. |
 | `codex-rs/external-agent-sessions/**` | `Completed` | Direct app-server protocol message type usage was updated to the renamed public API type. |
+| `codex-rs/app-server/src/bespoke_event_handling.rs` | `Completed` | App-server v2 permissions response handling now maps public `Interaction` scope to core `PermissionGrantScope::Turn`; core fallback/test expectations use the internal variant name. |
+| `codex-rs/core/src/thread_manager.rs` | `Completed` | Core snapshot helper imports the renamed app-server protocol `ChatHistoryBuilder`; internal thread manager naming remains deferred. |
+| `codex-rs/core/src/session/mcp.rs` | `Completed` | Converts app-server elicitation `interaction_id` into the internal `ElicitationRequestEvent.turn_id` field. |
+| `codex-rs/core/src/mcp_tool_call.rs` | `Completed` | App-server elicitation request constructors now use `chat_id` and `interaction_id`. |
+| `codex-rs/core/src/mcp_tool_call_tests.rs` | `Completed` | App-server elicitation request expectations now use `chat_id` and `interaction_id`. |
+| `codex-rs/core/src/session/mod.rs` | `Completed` | Core permission responses now use the internal `PermissionGrantScope::Turn` variant. |
+| `codex-rs/core/src/session/tests.rs` | `Completed` | Core tests updated for app-server elicitation fields and core permission scope variant rename. |
+| `codex-rs/core/src/session/tests/guardian_tests.rs` | `Completed` | Guardian permission response tests now use internal `PermissionGrantScope::Turn`. |
+| `codex-rs/tui/src/bottom_pane/approval_overlay.rs` | `Completed` | TUI permission approval responses submit the core `PermissionGrantScope::Turn` variant while UI behavior remains unchanged. |
 | `codex-rs/tools/src/request_plugin_install.rs` | `Completed` | Downstream app-server elicitation protocol constructor updated from obsolete `thread_id` and `turn_id` fields to `chat_id` and `interaction_id`. |
 | `codex-rs/tools/src/request_plugin_install_tests.rs` | `Completed` | Focused unit expectations updated to match the renamed app-server elicitation protocol payload fields. |
 | `CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR` and `CODEX_SANDBOX_ENV_VAR` references | `Not Required` | Protected sandbox identifiers are excluded from all migration rename operations. |
@@ -223,7 +237,7 @@ After source edits, run formatter from `codex-rs`:
 | `just write-app-server-schema` | `codex-rs` | `Completed` | App-server schema and TypeScript artifacts regenerate with renamed public names. User ran this command and pushed commit `dd5fd69a44`. |
 | `just write-app-server-schema --experimental` | `codex-rs` | `Deferred` | Experimental app-server schema artifacts regenerate with renamed experimental method markers. |
 | `just test -p datax-app-server-protocol` | `codex-rs` | `Deferred` | Protocol schema and TypeScript fixture tests pass. |
-| `just test -p datax-app-server` | `codex-rs` | `Deferred` | App-server request processor and integration tests pass with renamed public methods. User-run compile fallout in `datax-tools` and `datax-analytics` was fixed; command awaits user rerun. |
+| `just test -p datax-app-server` | `codex-rs` | `Deferred` | App-server request processor and integration tests pass with renamed public methods. User-run compile fallout in `datax-tools`, `datax-analytics`, `datax-core`, app-server support code, and TUI permission response construction was fixed; command awaits user rerun. |
 
 ## Validation and Acceptance
 

@@ -404,7 +404,7 @@ impl ApprovalOverlay {
         let scope = if matches!(decision, PermissionsDecision::GrantForSession) {
             PermissionGrantScope::Session
         } else {
-            PermissionGrantScope::Interaction
+            PermissionGrantScope::Turn
         };
         let strict_auto_review = matches!(
             decision,
@@ -1937,7 +1937,7 @@ mod tests {
             } = ev
             {
                 assert!(response.permissions.is_empty());
-                assert_eq!(response.scope, PermissionGrantScope::Interaction);
+                assert_eq!(response.scope, PermissionGrantScope::Turn);
                 assert!(!response.strict_auto_review);
                 saw_op = true;
                 break;
@@ -1964,7 +1964,7 @@ mod tests {
                 ..
             } = ev
             {
-                assert_eq!(response.scope, PermissionGrantScope::Interaction);
+                assert_eq!(response.scope, PermissionGrantScope::Turn);
                 assert!(response.strict_auto_review);
                 saw_op = true;
                 break;

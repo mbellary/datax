@@ -366,8 +366,8 @@ async fn request_mcp_server_elicitation_auto_accepts_when_auto_deny_is_enabled()
             turn_context.as_ref(),
             RequestId::String("request-1".into()),
             McpServerElicitationRequestParams {
-                thread_id: session.thread_id.to_string(),
-                turn_id: Some(turn_context.sub_id.clone()),
+                chat_id: session.thread_id.to_string(),
+                interaction_id: Some(turn_context.sub_id.clone()),
                 server_name: "codex_apps".to_string(),
                 request: McpServerElicitationRequest::Form {
                     meta: None,
@@ -5566,7 +5566,7 @@ async fn notify_request_permissions_response_ignores_unmatched_call_id() {
                     }),
                     ..RequestPermissionProfile::default()
                 },
-                scope: PermissionGrantScope::Interaction,
+                scope: PermissionGrantScope::Turn,
                 strict_auto_review: false,
             },
         )
@@ -5601,7 +5601,7 @@ async fn record_granted_request_permissions_for_turn_uses_originating_turn() {
         .record_granted_request_permissions_for_turn(
             &datax_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: requested_permissions.clone(),
-                scope: PermissionGrantScope::Interaction,
+                scope: PermissionGrantScope::Turn,
                 strict_auto_review: false,
             },
             datax_exec_server::LOCAL_ENVIRONMENT_ID,
@@ -5648,7 +5648,7 @@ async fn request_permission_grants_are_environment_keyed() {
         .record_granted_request_permissions_for_turn(
             &datax_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: requested_permissions.clone(),
-                scope: PermissionGrantScope::Interaction,
+                scope: PermissionGrantScope::Turn,
                 strict_auto_review: false,
             },
             "remote",
@@ -5701,7 +5701,7 @@ async fn enable_strict_auto_review_for_turn_uses_originating_turn() {
         .record_granted_request_permissions_for_turn(
             &datax_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: requested_permissions.clone(),
-                scope: PermissionGrantScope::Interaction,
+                scope: PermissionGrantScope::Turn,
                 strict_auto_review: true,
             },
             datax_exec_server::LOCAL_ENVIRONMENT_ID,
@@ -5740,7 +5740,7 @@ fn strict_auto_review_session_scope_grants_no_permissions() {
         response,
         datax_protocol::request_permissions::RequestPermissionsResponse {
             permissions: RequestPermissionProfile::default(),
-            scope: PermissionGrantScope::Interaction,
+            scope: PermissionGrantScope::Turn,
             strict_auto_review: false,
         }
     );
@@ -5772,7 +5772,7 @@ async fn request_permissions_emits_event_when_granular_policy_allows_requests() 
             }),
             ..RequestPermissionProfile::default()
         },
-        scope: PermissionGrantScope::Interaction,
+        scope: PermissionGrantScope::Turn,
         strict_auto_review: false,
     };
 
@@ -5932,7 +5932,7 @@ async fn request_permissions_tool_resolves_relative_paths_against_selected_envir
             &request.call_id,
             datax_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: request.permissions,
-                scope: PermissionGrantScope::Interaction,
+                scope: PermissionGrantScope::Turn,
                 strict_auto_review: false,
             },
         )
@@ -6134,7 +6134,7 @@ async fn request_permissions_is_auto_denied_when_granular_policy_blocks_tool_req
         Some(
             datax_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: RequestPermissionProfile::default(),
-                scope: PermissionGrantScope::Interaction,
+                scope: PermissionGrantScope::Turn,
                 strict_auto_review: false,
             }
         )

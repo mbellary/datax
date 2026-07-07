@@ -581,7 +581,7 @@ impl App {
         tokio::spawn(async move {
             let result = fetch_feedback_upload(request_handle, params)
                 .await
-                .map(|response| response.thread_id)
+                .map(|response| response.chat_id)
                 .map_err(|err| err.to_string());
             app_event_tx.send(AppEvent::FeedbackSubmitted {
                 origin_thread_id,
@@ -747,7 +747,7 @@ pub(super) async fn fetch_all_mcp_server_statuses(
                     cursor: cursor.clone(),
                     limit: Some(100),
                     detail: Some(detail),
-                    thread_id: thread_id.clone(),
+                    chat_id: thread_id.clone(),
                 },
             })
             .await
@@ -863,7 +863,7 @@ pub(super) async fn fetch_connectors_list(
             params: AppsListParams {
                 cursor: None,
                 limit: None,
-                thread_id,
+                chat_id: thread_id,
                 force_refetch,
             },
         })
@@ -1222,7 +1222,7 @@ pub(super) fn build_feedback_upload_params(
     FeedbackUploadParams {
         classification: crate::bottom_pane::feedback_classification(category).to_string(),
         reason,
-        thread_id: origin_thread_id.map(|thread_id| thread_id.to_string()),
+        chat_id: origin_thread_id.map(|thread_id| thread_id.to_string()),
         include_logs,
         extra_log_files,
         tags,
@@ -1525,7 +1525,7 @@ mod tests {
 
         assert_eq!(params.classification, "safety_check");
         assert_eq!(params.reason, Some("needs follow-up".to_string()));
-        assert_eq!(params.thread_id, Some(thread_id.to_string()));
+        assert_eq!(params.chat_id, Some(thread_id.to_string()));
         assert_eq!(
             params
                 .tags
@@ -1551,7 +1551,7 @@ mod tests {
 
         assert_eq!(params.classification, "good_result");
         assert_eq!(params.reason, None);
-        assert_eq!(params.thread_id, None);
+        assert_eq!(params.chat_id, None);
         assert_eq!(params.tags, None);
         assert_eq!(params.include_logs, false);
         assert_eq!(params.extra_log_files, None);

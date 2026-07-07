@@ -175,34 +175,35 @@ impl PendingInteractiveReplayState {
                 let approval_id = params
                     .approval_id
                     .clone()
-                    .unwrap_or_else(|| params.item_id.clone());
+                    .unwrap_or_else(|| params.message_id.clone());
                 self.exec_approval_call_ids.insert(approval_id.clone());
                 self.exec_approval_call_ids_by_turn_id
-                    .entry(params.turn_id.clone())
+                    .entry(params.interaction_id.clone())
                     .or_default()
                     .push(approval_id);
                 self.pending_requests_by_request_id.insert(
                     request_id.clone(),
                     PendingInteractiveRequest::ExecApproval {
-                        turn_id: params.turn_id.clone(),
+                        turn_id: params.interaction_id.clone(),
                         approval_id: params
                             .approval_id
                             .clone()
-                            .unwrap_or_else(|| params.item_id.clone()),
+                            .unwrap_or_else(|| params.message_id.clone()),
                     },
                 );
             }
             ServerRequest::FileChangeRequestApproval { request_id, params } => {
-                self.patch_approval_call_ids.insert(params.item_id.clone());
+                self.patch_approval_call_ids
+                    .insert(params.message_id.clone());
                 self.patch_approval_call_ids_by_turn_id
-                    .entry(params.turn_id.clone())
+                    .entry(params.interaction_id.clone())
                     .or_default()
-                    .push(params.item_id.clone());
+                    .push(params.message_id.clone());
                 self.pending_requests_by_request_id.insert(
                     request_id.clone(),
                     PendingInteractiveRequest::PatchApproval {
-                        turn_id: params.turn_id.clone(),
-                        item_id: params.item_id.clone(),
+                        turn_id: params.interaction_id.clone(),
+                        item_id: params.message_id.clone(),
                     },
                 );
             }
@@ -217,31 +218,31 @@ impl PendingInteractiveReplayState {
             }
             ServerRequest::ToolRequestUserInput { request_id, params } => {
                 self.request_user_input_call_ids
-                    .insert(params.item_id.clone());
+                    .insert(params.message_id.clone());
                 self.request_user_input_call_ids_by_turn_id
-                    .entry(params.turn_id.clone())
+                    .entry(params.interaction_id.clone())
                     .or_default()
-                    .push(params.item_id.clone());
+                    .push(params.message_id.clone());
                 self.pending_requests_by_request_id.insert(
                     request_id.clone(),
                     PendingInteractiveRequest::RequestUserInput {
-                        turn_id: params.turn_id.clone(),
-                        item_id: params.item_id.clone(),
+                        turn_id: params.interaction_id.clone(),
+                        item_id: params.message_id.clone(),
                     },
                 );
             }
             ServerRequest::PermissionsRequestApproval { request_id, params } => {
                 self.request_permissions_call_ids
-                    .insert(params.item_id.clone());
+                    .insert(params.message_id.clone());
                 self.request_permissions_call_ids_by_turn_id
-                    .entry(params.turn_id.clone())
+                    .entry(params.interaction_id.clone())
                     .or_default()
-                    .push(params.item_id.clone());
+                    .push(params.message_id.clone());
                 self.pending_requests_by_request_id.insert(
                     request_id.clone(),
                     PendingInteractiveRequest::RequestPermissions {
-                        turn_id: params.turn_id.clone(),
-                        item_id: params.item_id.clone(),
+                        turn_id: params.interaction_id.clone(),
+                        item_id: params.message_id.clone(),
                     },
                 );
             }
@@ -288,20 +289,20 @@ impl PendingInteractiveReplayState {
                 let approval_id = params
                     .approval_id
                     .clone()
-                    .unwrap_or_else(|| params.item_id.clone());
+                    .unwrap_or_else(|| params.message_id.clone());
                 self.exec_approval_call_ids.remove(&approval_id);
                 Self::remove_call_id_from_turn_map_entry(
                     &mut self.exec_approval_call_ids_by_turn_id,
-                    &params.turn_id,
+                    &params.interaction_id,
                     &approval_id,
                 );
             }
             ServerRequest::FileChangeRequestApproval { params, .. } => {
-                self.patch_approval_call_ids.remove(&params.item_id);
+                self.patch_approval_call_ids.remove(&params.message_id);
                 Self::remove_call_id_from_turn_map_entry(
                     &mut self.patch_approval_call_ids_by_turn_id,
-                    &params.turn_id,
-                    &params.item_id,
+                    &params.interaction_id,
+                    &params.message_id,
                 );
             }
             ServerRequest::McpServerElicitationRequest { request_id, params } => {
@@ -312,37 +313,37 @@ impl PendingInteractiveReplayState {
                     ));
             }
             ServerRequest::ToolRequestUserInput { params, .. } => {
-                self.request_user_input_call_ids.remove(&params.item_id);
+                self.request_user_input_call_ids.remove(&params.message_id);
                 let mut remove_turn_entry = false;
                 if let Some(call_ids) = self
                     .request_user_input_call_ids_by_turn_id
-                    .get_mut(&params.turn_id)
+                    .get_mut(&params.interaction_id)
                 {
-                    call_ids.retain(|call_id| call_id != &params.item_id);
+                    call_ids.retain(|call_id| call_id != &params.message_id);
                     if call_ids.is_empty() {
                         remove_turn_entry = true;
                     }
                 }
                 if remove_turn_entry {
                     self.request_user_input_call_ids_by_turn_id
-                        .remove(&params.turn_id);
+                        .remove(&params.interaction_id);
                 }
             }
             ServerRequest::PermissionsRequestApproval { params, .. } => {
-                self.request_permissions_call_ids.remove(&params.item_id);
+                self.request_permissions_call_ids.remove(&params.message_id);
                 let mut remove_turn_entry = false;
                 if let Some(call_ids) = self
                     .request_permissions_call_ids_by_turn_id
-                    .get_mut(&params.turn_id)
+                    .get_mut(&params.interaction_id)
                 {
-                    call_ids.retain(|call_id| call_id != &params.item_id);
+                    call_ids.retain(|call_id| call_id != &params.message_id);
                     if call_ids.is_empty() {
                         remove_turn_entry = true;
                     }
                 }
                 if remove_turn_entry {
                     self.request_permissions_call_ids_by_turn_id
-                        .remove(&params.turn_id);
+                        .remove(&params.interaction_id);
                 }
             }
             _ => {}
@@ -355,9 +356,9 @@ impl PendingInteractiveReplayState {
         match request {
             ServerRequest::CommandExecutionRequestApproval { params, .. } => self
                 .exec_approval_call_ids
-                .contains(params.approval_id.as_ref().unwrap_or(&params.item_id)),
+                .contains(params.approval_id.as_ref().unwrap_or(&params.message_id)),
             ServerRequest::FileChangeRequestApproval { params, .. } => {
-                self.patch_approval_call_ids.contains(&params.item_id)
+                self.patch_approval_call_ids.contains(&params.message_id)
             }
             ServerRequest::McpServerElicitationRequest { request_id, params } => self
                 .elicitation_requests
@@ -365,12 +366,12 @@ impl PendingInteractiveReplayState {
                     params.server_name.clone(),
                     request_id.clone(),
                 )),
-            ServerRequest::ToolRequestUserInput { params, .. } => {
-                self.request_user_input_call_ids.contains(&params.item_id)
-            }
-            ServerRequest::PermissionsRequestApproval { params, .. } => {
-                self.request_permissions_call_ids.contains(&params.item_id)
-            }
+            ServerRequest::ToolRequestUserInput { params, .. } => self
+                .request_user_input_call_ids
+                .contains(&params.message_id),
+            ServerRequest::PermissionsRequestApproval { params, .. } => self
+                .request_permissions_call_ids
+                .contains(&params.message_id),
             _ => true,
         }
     }
@@ -386,7 +387,7 @@ impl PendingInteractiveReplayState {
         !self.request_user_input_call_ids.is_empty()
     }
 
-    fn clear_request_user_input_turn(&mut self, turn_id: &str) {
+    fn clear_request_user_input_turn(&mut self, interaction_id: &str) {
         if let Some(call_ids) = self.request_user_input_call_ids_by_turn_id.remove(turn_id) {
             for call_id in call_ids {
                 self.request_user_input_call_ids.remove(&call_id);
@@ -399,7 +400,7 @@ impl PendingInteractiveReplayState {
         );
     }
 
-    fn clear_request_permissions_turn(&mut self, turn_id: &str) {
+    fn clear_request_permissions_turn(&mut self, interaction_id: &str) {
         if let Some(call_ids) = self.request_permissions_call_ids_by_turn_id.remove(turn_id) {
             for call_id in call_ids {
                 self.request_permissions_call_ids.remove(&call_id);
@@ -412,7 +413,7 @@ impl PendingInteractiveReplayState {
         );
     }
 
-    fn clear_exec_approval_turn(&mut self, turn_id: &str) {
+    fn clear_exec_approval_turn(&mut self, interaction_id: &str) {
         if let Some(call_ids) = self.exec_approval_call_ids_by_turn_id.remove(turn_id) {
             for call_id in call_ids {
                 self.exec_approval_call_ids.remove(&call_id);
@@ -536,13 +537,13 @@ impl PendingInteractiveReplayState {
                 },
                 ServerRequest::CommandExecutionRequestApproval { params, .. },
             ) => {
-                turn_id == &params.turn_id
-                    && approval_id == params.approval_id.as_ref().unwrap_or(&params.item_id)
+                turn_id == &params.interaction_id
+                    && approval_id == params.approval_id.as_ref().unwrap_or(&params.message_id)
             }
             (
                 PendingInteractiveRequest::PatchApproval { turn_id, item_id },
                 ServerRequest::FileChangeRequestApproval { params, .. },
-            ) => turn_id == &params.turn_id && item_id == &params.item_id,
+            ) => turn_id == &params.interaction_id && item_id == &params.message_id,
             (
                 PendingInteractiveRequest::Elicitation(key),
                 ServerRequest::McpServerElicitationRequest { request_id, params },
@@ -550,11 +551,11 @@ impl PendingInteractiveReplayState {
             (
                 PendingInteractiveRequest::RequestPermissions { turn_id, item_id },
                 ServerRequest::PermissionsRequestApproval { params, .. },
-            ) => turn_id == &params.turn_id && item_id == &params.item_id,
+            ) => turn_id == &params.interaction_id && item_id == &params.message_id,
             (
                 PendingInteractiveRequest::RequestUserInput { turn_id, item_id },
                 ServerRequest::ToolRequestUserInput { params, .. },
-            ) => turn_id == &params.turn_id && item_id == &params.item_id,
+            ) => turn_id == &params.interaction_id && item_id == &params.message_id,
             _ => false,
         }
     }
@@ -589,13 +590,13 @@ mod tests {
     use std::collections::BTreeMap;
     use std::collections::HashMap;
 
-    fn request_user_input_request(call_id: &str, turn_id: &str) -> ServerRequest {
+    fn request_user_input_request(call_id: &str, interaction_id: &str) -> ServerRequest {
         ServerRequest::ToolRequestUserInput {
             request_id: AppServerRequestId::Integer(1),
             params: ToolRequestUserInputParams {
-                thread_id: "thread-1".to_string(),
-                turn_id: turn_id.to_string(),
-                item_id: call_id.to_string(),
+                chat_id: "thread-1".to_string(),
+                interaction_id: turn_id.to_string(),
+                message_id: call_id.to_string(),
                 questions: Vec::new(),
                 auto_resolution_ms: None,
             },
@@ -605,14 +606,14 @@ mod tests {
     fn exec_approval_request(
         call_id: &str,
         approval_id: Option<&str>,
-        turn_id: &str,
+        interaction_id: &str,
     ) -> ServerRequest {
         ServerRequest::CommandExecutionRequestApproval {
             request_id: AppServerRequestId::Integer(2),
             params: CommandExecutionRequestApprovalParams {
-                thread_id: "thread-1".to_string(),
-                turn_id: turn_id.to_string(),
-                item_id: call_id.to_string(),
+                chat_id: "thread-1".to_string(),
+                interaction_id: turn_id.to_string(),
+                message_id: call_id.to_string(),
                 started_at_ms: 0,
                 approval_id: approval_id.map(str::to_string),
                 environment_id: None,
@@ -629,13 +630,13 @@ mod tests {
         }
     }
 
-    fn patch_approval_request(call_id: &str, turn_id: &str) -> ServerRequest {
+    fn patch_approval_request(call_id: &str, interaction_id: &str) -> ServerRequest {
         ServerRequest::FileChangeRequestApproval {
             request_id: AppServerRequestId::Integer(3),
             params: FileChangeRequestApprovalParams {
-                thread_id: "thread-1".to_string(),
-                turn_id: turn_id.to_string(),
-                item_id: call_id.to_string(),
+                chat_id: "thread-1".to_string(),
+                interaction_id: turn_id.to_string(),
+                message_id: call_id.to_string(),
                 started_at_ms: 0,
                 reason: None,
                 grant_root: None,
@@ -643,12 +644,16 @@ mod tests {
         }
     }
 
-    fn elicitation_request(server_name: &str, request_id: &str, turn_id: &str) -> ServerRequest {
+    fn elicitation_request(
+        server_name: &str,
+        request_id: &str,
+        interaction_id: &str,
+    ) -> ServerRequest {
         ServerRequest::McpServerElicitationRequest {
             request_id: AppServerRequestId::String(request_id.to_string()),
             params: McpServerElicitationRequestParams {
-                thread_id: "thread-1".to_string(),
-                turn_id: Some(turn_id.to_string()),
+                chat_id: "thread-1".to_string(),
+                interaction_id: Some(turn_id.to_string()),
                 server_name: server_name.to_string(),
                 request: McpServerElicitationRequest::Form {
                     meta: None,
@@ -664,13 +669,13 @@ mod tests {
         }
     }
 
-    fn turn_completed(turn_id: &str) -> ServerNotification {
+    fn turn_completed(interaction_id: &str) -> ServerNotification {
         ServerNotification::InteractionCompleted(InteractionCompletedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: Interaction {
-                id: turn_id.to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: Vec::new(),
+                id: interaction_id.to_string(),
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: Vec::new(),
                 status: InteractionStatus::Completed,
                 error: None,
                 started_at: None,
@@ -682,13 +687,13 @@ mod tests {
 
     fn thread_closed() -> ServerNotification {
         ServerNotification::ChatClosed(ChatClosedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
         })
     }
 
     fn request_resolved(request_id: AppServerRequestId) -> ServerNotification {
         ServerNotification::ServerRequestResolved(ServerRequestResolvedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             request_id,
         })
     }
@@ -705,7 +710,7 @@ mod tests {
         assert!(matches!(
             snapshot.events.first(),
             Some(ThreadBufferedEvent::Request(ServerRequest::ToolRequestUserInput { params, .. }))
-                if params.item_id == "call-1"
+                if params.message_id == "call-1"
         ));
     }
 
@@ -758,7 +763,7 @@ mod tests {
 
         store.note_outbound_op(&Op::ExecApproval {
             id: "approval-1".to_string(),
-            turn_id: Some("turn-1".to_string()),
+            interaction_id: Some("turn-1".to_string()),
             decision: CommandExecutionApprovalDecision::Accept,
         });
 
@@ -813,7 +818,7 @@ mod tests {
         assert!(matches!(
             snapshot.events.first(),
             Some(ThreadBufferedEvent::Request(ServerRequest::ToolRequestUserInput { params, .. }))
-                if params.item_id == "call-2"
+                if params.message_id == "call-2"
         ));
     }
 
@@ -835,7 +840,7 @@ mod tests {
         assert!(matches!(
             snapshot.events.first(),
             Some(ThreadBufferedEvent::Request(ServerRequest::ToolRequestUserInput { params, .. }))
-                if params.item_id == "call-2"
+                if params.message_id == "call-2"
         ));
     }
 
@@ -911,7 +916,7 @@ mod tests {
 
         store.note_outbound_op(&Op::ExecApproval {
             id: "call-1".to_string(),
-            turn_id: Some("turn-1".to_string()),
+            interaction_id: Some("turn-1".to_string()),
             decision: CommandExecutionApprovalDecision::Accept,
         });
 

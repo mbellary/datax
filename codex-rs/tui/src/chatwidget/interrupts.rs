@@ -128,7 +128,7 @@ impl QueuedInterrupt {
             }
             QueuedInterrupt::RequestUserInput(ev) => {
                 matches!(request, ResolvedAppServerRequest::UserInput { call_id }
-                    if ev.item_id == call_id.as_str())
+                    if ev.message_id == call_id.as_str())
             }
             QueuedInterrupt::ItemStarted(_) | QueuedInterrupt::ItemCompleted(_) => false,
         }
@@ -146,11 +146,11 @@ mod tests {
 
     use super::*;
 
-    fn user_input(call_id: &str, turn_id: &str) -> ToolRequestUserInputParams {
+    fn user_input(call_id: &str, interaction_id: &str) -> ToolRequestUserInputParams {
         ToolRequestUserInputParams {
-            thread_id: "thread-1".to_string(),
-            item_id: call_id.to_string(),
-            turn_id: turn_id.to_string(),
+            chat_id: "thread-1".to_string(),
+            message_id: call_id.to_string(),
+            interaction_id: turn_id.to_string(),
             questions: Vec::new(),
             auto_resolution_ms: None,
         }
@@ -160,7 +160,7 @@ mod tests {
         ExecApprovalRequestEvent {
             call_id: call_id.to_string(),
             approval_id: approval_id.map(str::to_string),
-            turn_id: "turn".to_string(),
+            interaction_id: "turn".to_string(),
             environment_id: None,
             command: vec!["true".to_string()],
             cwd: AbsolutePathBuf::current_dir().expect("current dir"),

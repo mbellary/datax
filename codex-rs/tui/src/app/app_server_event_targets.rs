@@ -7,25 +7,25 @@ use datax_protocol::ThreadId;
 pub(super) fn server_request_thread_id(request: &ServerRequest) -> Option<ThreadId> {
     match request {
         ServerRequest::CommandExecutionRequestApproval { params, .. } => {
-            ThreadId::from_string(&params.thread_id).ok()
+            ThreadId::from_string(&params.chat_id).ok()
         }
         ServerRequest::FileChangeRequestApproval { params, .. } => {
-            ThreadId::from_string(&params.thread_id).ok()
+            ThreadId::from_string(&params.chat_id).ok()
         }
         ServerRequest::ToolRequestUserInput { params, .. } => {
-            ThreadId::from_string(&params.thread_id).ok()
+            ThreadId::from_string(&params.chat_id).ok()
         }
         ServerRequest::McpServerElicitationRequest { params, .. } => {
-            ThreadId::from_string(&params.thread_id).ok()
+            ThreadId::from_string(&params.chat_id).ok()
         }
         ServerRequest::PermissionsRequestApproval { params, .. } => {
-            ThreadId::from_string(&params.thread_id).ok()
+            ThreadId::from_string(&params.chat_id).ok()
         }
         ServerRequest::DynamicToolCall { params, .. } => {
-            ThreadId::from_string(&params.thread_id).ok()
+            ThreadId::from_string(&params.chat_id).ok()
         }
         ServerRequest::CurrentTimeRead { params, .. } => {
-            ThreadId::from_string(&params.thread_id).ok()
+            ThreadId::from_string(&params.chat_id).ok()
         }
         ServerRequest::ChatgptAuthTokensRefresh { .. }
         | ServerRequest::AttestationGenerate { .. }
@@ -46,117 +46,103 @@ pub(super) fn server_notification_thread_target(
     notification: &ServerNotification,
 ) -> ServerNotificationThreadTarget {
     let thread_id = match notification {
-        ServerNotification::Error(notification) => Some(notification.thread_id.as_str()),
+        ServerNotification::Error(notification) => Some(notification.chat_id.as_str()),
         ServerNotification::ChatStarted(notification) => Some(notification.thread.id.as_str()),
-        ServerNotification::ChatStatusChanged(notification) => {
-            Some(notification.thread_id.as_str())
-        }
-        ServerNotification::ChatArchived(notification) => Some(notification.thread_id.as_str()),
-        ServerNotification::ChatDeleted(notification) => Some(notification.thread_id.as_str()),
-        ServerNotification::ChatUnarchived(notification) => Some(notification.thread_id.as_str()),
-        ServerNotification::ChatClosed(notification) => Some(notification.thread_id.as_str()),
-        ServerNotification::ChatNameUpdated(notification) => Some(notification.thread_id.as_str()),
+        ServerNotification::ChatStatusChanged(notification) => Some(notification.chat_id.as_str()),
+        ServerNotification::ChatArchived(notification) => Some(notification.chat_id.as_str()),
+        ServerNotification::ChatDeleted(notification) => Some(notification.chat_id.as_str()),
+        ServerNotification::ChatUnarchived(notification) => Some(notification.chat_id.as_str()),
+        ServerNotification::ChatClosed(notification) => Some(notification.chat_id.as_str()),
+        ServerNotification::ChatNameUpdated(notification) => Some(notification.chat_id.as_str()),
         ServerNotification::ChatTokenUsageUpdated(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
-        ServerNotification::ChatGoalUpdated(notification) => Some(notification.thread_id.as_str()),
-        ServerNotification::ChatGoalCleared(notification) => Some(notification.thread_id.as_str()),
+        ServerNotification::ChatGoalUpdated(notification) => Some(notification.chat_id.as_str()),
+        ServerNotification::ChatGoalCleared(notification) => Some(notification.chat_id.as_str()),
         ServerNotification::ChatSettingsUpdated(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
-        ServerNotification::InteractionStarted(notification) => {
-            Some(notification.thread_id.as_str())
-        }
-        ServerNotification::HookStarted(notification) => Some(notification.thread_id.as_str()),
+        ServerNotification::InteractionStarted(notification) => Some(notification.chat_id.as_str()),
+        ServerNotification::HookStarted(notification) => Some(notification.chat_id.as_str()),
         ServerNotification::InteractionCompleted(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
-        ServerNotification::HookCompleted(notification) => Some(notification.thread_id.as_str()),
+        ServerNotification::HookCompleted(notification) => Some(notification.chat_id.as_str()),
         ServerNotification::InteractionDiffUpdated(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
         ServerNotification::InteractionPlanUpdated(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
-        ServerNotification::MessageStarted(notification) => Some(notification.thread_id.as_str()),
+        ServerNotification::MessageStarted(notification) => Some(notification.chat_id.as_str()),
         ServerNotification::MessageGuardianApprovalReviewStarted(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
         ServerNotification::MessageGuardianApprovalReviewCompleted(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
-        ServerNotification::MessageCompleted(notification) => Some(notification.thread_id.as_str()),
+        ServerNotification::MessageCompleted(notification) => Some(notification.chat_id.as_str()),
         ServerNotification::RawResponseItemCompleted(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
-        ServerNotification::AgentMessageDelta(notification) => {
-            Some(notification.thread_id.as_str())
-        }
-        ServerNotification::PlanDelta(notification) => Some(notification.thread_id.as_str()),
+        ServerNotification::AgentMessageDelta(notification) => Some(notification.chat_id.as_str()),
+        ServerNotification::PlanDelta(notification) => Some(notification.chat_id.as_str()),
         ServerNotification::CommandExecutionOutputDelta(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
         ServerNotification::TerminalInteraction(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
         ServerNotification::FileChangeOutputDelta(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
         ServerNotification::FileChangePatchUpdated(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
         ServerNotification::ServerRequestResolved(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
         ServerNotification::McpToolCallProgress(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
         ServerNotification::ReasoningSummaryTextDelta(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
         ServerNotification::ReasoningSummaryPartAdded(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
-        ServerNotification::ReasoningTextDelta(notification) => {
-            Some(notification.thread_id.as_str())
-        }
-        ServerNotification::ContextCompacted(notification) => Some(notification.thread_id.as_str()),
-        ServerNotification::ModelRerouted(notification) => Some(notification.thread_id.as_str()),
-        ServerNotification::ModelVerification(notification) => {
-            Some(notification.thread_id.as_str())
-        }
+        ServerNotification::ReasoningTextDelta(notification) => Some(notification.chat_id.as_str()),
+        ServerNotification::ContextCompacted(notification) => Some(notification.chat_id.as_str()),
+        ServerNotification::ModelRerouted(notification) => Some(notification.chat_id.as_str()),
+        ServerNotification::ModelVerification(notification) => Some(notification.chat_id.as_str()),
         ServerNotification::ModelSafetyBufferingUpdated(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
         ServerNotification::InteractionModerationMetadata(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
         ServerNotification::ChatRealtimeStarted(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
-        ServerNotification::ChatRealtimeItemAdded(notification) => {
-            Some(notification.thread_id.as_str())
+        ServerNotification::ChatRealtimeMessageAdded(notification) => {
+            Some(notification.chat_id.as_str())
         }
         ServerNotification::ChatRealtimeTranscriptDelta(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
         ServerNotification::ChatRealtimeTranscriptDone(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
         ServerNotification::ChatRealtimeOutputAudioDelta(notification) => {
-            Some(notification.thread_id.as_str())
+            Some(notification.chat_id.as_str())
         }
-        ServerNotification::ChatRealtimeSdp(notification) => Some(notification.thread_id.as_str()),
-        ServerNotification::ChatRealtimeError(notification) => {
-            Some(notification.thread_id.as_str())
-        }
-        ServerNotification::ChatRealtimeClosed(notification) => {
-            Some(notification.thread_id.as_str())
-        }
-        ServerNotification::Warning(notification) => notification.thread_id.as_deref(),
-        ServerNotification::GuardianWarning(notification) => Some(notification.thread_id.as_str()),
+        ServerNotification::ChatRealtimeSdp(notification) => Some(notification.chat_id.as_str()),
+        ServerNotification::ChatRealtimeError(notification) => Some(notification.chat_id.as_str()),
+        ServerNotification::ChatRealtimeClosed(notification) => Some(notification.chat_id.as_str()),
+        ServerNotification::Warning(notification) => notification.chat_id.as_deref(),
+        ServerNotification::GuardianWarning(notification) => Some(notification.chat_id.as_str()),
         ServerNotification::McpServerStatusUpdated(notification) => {
-            match notification.thread_id.as_deref() {
+            match notification.chat_id.as_deref() {
                 Some(thread_id) => Some(thread_id),
                 None => return ServerNotificationThreadTarget::AppScoped,
             }
@@ -241,7 +227,7 @@ mod tests {
     #[test]
     fn warning_notifications_without_threads_are_global() {
         let notification = ServerNotification::Warning(WarningNotification {
-            thread_id: None,
+            chat_id: None,
             message: "warning".to_string(),
         });
 
@@ -254,7 +240,7 @@ mod tests {
     fn warning_notifications_route_to_threads_when_thread_id_is_present() {
         let thread_id = ThreadId::new();
         let notification = ServerNotification::Warning(WarningNotification {
-            thread_id: Some(thread_id.to_string()),
+            chat_id: Some(thread_id.to_string()),
             message: "warning".to_string(),
         });
 
@@ -267,7 +253,7 @@ mod tests {
     fn guardian_warning_notifications_route_to_threads() {
         let thread_id = ThreadId::new();
         let notification = ServerNotification::GuardianWarning(GuardianWarningNotification {
-            thread_id: thread_id.to_string(),
+            chat_id: thread_id.to_string(),
             message: "warning".to_string(),
         });
 
@@ -281,7 +267,7 @@ mod tests {
         let thread_id = ThreadId::new();
         let notification =
             ServerNotification::McpServerStatusUpdated(McpServerStatusUpdatedNotification {
-                thread_id: Some(thread_id.to_string()),
+                chat_id: Some(thread_id.to_string()),
                 name: "sentry".to_string(),
                 status: McpServerStartupState::Failed,
                 error: Some("sentry is not logged in".to_string()),
@@ -296,7 +282,7 @@ mod tests {
     fn mcp_startup_notifications_without_threads_are_app_scoped() {
         let notification =
             ServerNotification::McpServerStatusUpdated(McpServerStatusUpdatedNotification {
-                thread_id: None,
+                chat_id: None,
                 name: "sentry".to_string(),
                 status: McpServerStartupState::Failed,
                 error: Some("sentry is not logged in".to_string()),
@@ -312,7 +298,7 @@ mod tests {
         let thread_id = ThreadId::new();
         let notification =
             ServerNotification::ChatSettingsUpdated(ChatSettingsUpdatedNotification {
-                thread_id: thread_id.to_string(),
+                chat_id: thread_id.to_string(),
                 thread_settings: test_thread_settings(),
             });
 

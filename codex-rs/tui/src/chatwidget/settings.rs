@@ -356,11 +356,11 @@ impl ChatWidget {
 
     pub(crate) fn on_thread_settings_updated(
         &mut self,
-        notification: ThreadSettingsUpdatedNotification,
+        notification: ChatSettingsUpdatedNotification,
     ) {
-        let Ok(thread_id) = ThreadId::from_string(&notification.thread_id) else {
+        let Ok(thread_id) = ThreadId::from_string(&notification.chat_id) else {
             tracing::warn!(
-                thread_id = notification.thread_id,
+                thread_id = notification.chat_id,
                 "ignoring app-server ThreadSettingsUpdated with invalid thread_id"
             );
             return;
@@ -489,7 +489,7 @@ impl ChatWidget {
         self.refresh_status_line();
     }
 
-    fn apply_thread_settings(&mut self, mut settings: ThreadSettings) {
+    fn apply_thread_settings(&mut self, mut settings: ChatSettings) {
         let cwd_changed = self.config.cwd != settings.cwd;
         self.apply_thread_settings_cwd(settings.cwd.clone());
         self.config.model_provider_id = settings.model_provider.clone();
@@ -644,7 +644,7 @@ impl ChatWidget {
 
     pub(super) fn on_thread_goal_updated(&mut self, goal: AppThreadGoal, turn_id: Option<String>) {
         if let Some(active_thread_id) = self.thread_id
-            && active_thread_id.to_string() != goal.thread_id
+            && active_thread_id.to_string() != goal.chat_id
         {
             return;
         }

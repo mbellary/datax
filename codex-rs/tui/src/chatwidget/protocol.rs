@@ -9,7 +9,7 @@ impl ChatWidget {
         // Reject misrouted child updates before shared notification handling mutates parent state.
         if let ServerNotification::McpServerStatusUpdated(notification) = &notification
             && let (Some(notification_thread_id), Some(thread_id)) =
-                (notification.thread_id.as_deref(), self.thread_id())
+                (notification.chat_id.as_deref(), self.thread_id())
             && notification_thread_id != thread_id.to_string()
         {
             return;
@@ -35,13 +35,13 @@ impl ChatWidget {
                 )));
             }
             ServerNotification::ChatNameUpdated(notification) => {
-                match ThreadId::from_string(&notification.thread_id) {
+                match ThreadId::from_string(&notification.chat_id) {
                     Ok(thread_id) => {
                         self.on_thread_name_updated(thread_id, notification.thread_name)
                     }
                     Err(err) => {
                         tracing::warn!(
-                            thread_id = notification.thread_id,
+                            thread_id = notification.chat_id,
                             error = %err,
                             "ignoring app-server ThreadNameUpdated with invalid thread_id"
                         );
@@ -49,10 +49,10 @@ impl ChatWidget {
                 }
             }
             ServerNotification::ChatGoalUpdated(notification) => {
-                self.on_thread_goal_updated(notification.goal, notification.turn_id);
+                self.on_thread_goal_updated(notification.goal, notification.interaction_id);
             }
             ServerNotification::ChatGoalCleared(notification) => {
-                self.on_thread_goal_cleared(notification.thread_id.as_str());
+                self.on_thread_goal_cleared(notification.chat_id.as_str());
             }
             ServerNotification::ChatSettingsUpdated(notification) => {
                 self.on_thread_settings_updated(notification);
@@ -90,10 +90,10 @@ impl ChatWidget {
                 self.on_terminal_interaction(notification.process_id, notification.stdin)
             }
             ServerNotification::CommandExecutionOutputDelta(notification) => {
-                self.on_exec_command_output_delta(&notification.item_id, &notification.delta);
+                self.on_exec_command_output_delta(&notification.message_id, &notification.delta);
             }
             ServerNotification::FileChangeOutputDelta(notification) => {
-                self.on_patch_apply_output_delta(notification.item_id, notification.delta);
+                self.on_patch_apply_output_delta(notification.message_id, notification.delta);
             }
             ServerNotification::InteractionDiffUpdated(notification) => {
                 self.on_turn_diff(notification.diff)
@@ -135,7 +135,7 @@ impl ChatWidget {
                     }
                 } else {
                     self.last_non_retry_error = Some((
-                        notification.turn_id.clone(),
+                        notification.interaction_id.clone(),
                         notification.error.message.clone(),
                     ));
                     self.handle_non_retry_error(
@@ -170,7 +170,7 @@ impl ChatWidget {
             ServerNotification::MessageGuardianApprovalReviewStarted(notification) => {
                 self.on_guardian_review_notification(
                     notification.review_id,
-                    notification.turn_id,
+                    notification.interaction_id,
                     notification.started_at_ms,
                     notification.review,
                     /*completion*/ None,
@@ -180,7 +180,7 @@ impl ChatWidget {
             ServerNotification::MessageGuardianApprovalReviewCompleted(notification) => {
                 self.on_guardian_review_notification(
                     notification.review_id,
-                    notification.turn_id,
+                    notification.interaction_id,
                     notification.started_at_ms,
                     notification.review,
                     Some((notification.completed_at_ms, notification.decision_source)),
@@ -217,7 +217,7 @@ impl ChatWidget {
             | ServerNotification::FuzzyFileSearchSessionUpdated(_)
             | ServerNotification::FuzzyFileSearchSessionCompleted(_)
             | ServerNotification::ChatRealtimeStarted(_)
-            | ServerNotification::ChatRealtimeItemAdded(_)
+            | ServerNotification::ChatRealtimeMessageAdded(_)
             | ServerNotification::ChatRealtimeOutputAudioDelta(_)
             | ServerNotification::ChatRealtimeError(_)
             | ServerNotification::ChatRealtimeClosed(_)
@@ -334,7 +334,7 @@ impl ChatWidget {
     ) {
         self.handle_thread_item(
             notification.item,
-            notification.turn_id,
+            notification.interaction_id,
             replay_kind.map_or(ThreadItemRenderSource::Live, ThreadItemRenderSource::Replay),
         );
     }

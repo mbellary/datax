@@ -911,7 +911,7 @@ impl RequestUserInputOverlay {
             );
         }
         self.app_event_tx.user_input_answer(
-            self.request.turn_id.clone(),
+            self.request.interaction_id.clone(),
             ToolRequestUserInputResponse {
                 answers: answers.clone(),
             },
@@ -930,7 +930,7 @@ impl RequestUserInputOverlay {
         self.confirm_unanswered = None;
         let answers: HashMap<String, ToolRequestUserInputAnswer> = HashMap::new();
         self.app_event_tx.user_input_answer(
-            self.request.turn_id.clone(),
+            self.request.interaction_id.clone(),
             ToolRequestUserInputResponse {
                 answers: answers.clone(),
             },
@@ -952,8 +952,8 @@ impl RequestUserInputOverlay {
 
         let queue_len = self.queue.len();
         self.queue
-            .retain(|queued_request| queued_request.item_id != *call_id);
-        if self.request.item_id == *call_id {
+            .retain(|queued_request| queued_request.message_id != *call_id);
+        if self.request.message_id == *call_id {
             self.advance_queue_or_complete_at(Instant::now());
             return true;
         }
@@ -1686,20 +1686,20 @@ mod tests {
     }
 
     fn request_event(
-        turn_id: &str,
+        interaction_id: &str,
         questions: Vec<ToolRequestUserInputQuestion>,
     ) -> ToolRequestUserInputParams {
         ToolRequestUserInputParams {
-            thread_id: "thread-1".to_string(),
-            item_id: "call-1".to_string(),
-            turn_id: turn_id.to_string(),
+            chat_id: "thread-1".to_string(),
+            message_id: "call-1".to_string(),
+            interaction_id: turn_id.to_string(),
             questions,
             auto_resolution_ms: None,
         }
     }
 
     fn request_event_with_auto_resolution(
-        turn_id: &str,
+        interaction_id: &str,
         questions: Vec<ToolRequestUserInputQuestion>,
     ) -> ToolRequestUserInputParams {
         let mut request = request_event(turn_id, questions);
@@ -1766,16 +1766,16 @@ mod tests {
             /*disable_paste_burst*/ false,
         );
         overlay.try_consume_user_input_request(ToolRequestUserInputParams {
-            thread_id: "thread-1".to_string(),
-            item_id: "call-2".to_string(),
-            turn_id: "turn-2".to_string(),
+            chat_id: "thread-1".to_string(),
+            message_id: "call-2".to_string(),
+            interaction_id: "turn-2".to_string(),
             questions: vec![question_with_options("q2", "Second")],
             auto_resolution_ms: None,
         });
         overlay.try_consume_user_input_request(ToolRequestUserInputParams {
-            thread_id: "thread-1".to_string(),
-            item_id: "call-3".to_string(),
-            turn_id: "turn-3".to_string(),
+            chat_id: "thread-1".to_string(),
+            message_id: "call-3".to_string(),
+            interaction_id: "turn-3".to_string(),
             questions: vec![question_with_options("q3", "Third")],
             auto_resolution_ms: None,
         });
@@ -2031,9 +2031,9 @@ mod tests {
         let (tx, mut rx) = test_sender();
         let mut overlay = RequestUserInputOverlay::new(
             ToolRequestUserInputParams {
-                thread_id: "thread-1".to_string(),
-                item_id: "call-1".to_string(),
-                turn_id: "turn-1".to_string(),
+                chat_id: "thread-1".to_string(),
+                message_id: "call-1".to_string(),
+                interaction_id: "turn-1".to_string(),
                 questions: vec![question_with_options("q1", "First")],
                 auto_resolution_ms: None,
             },
@@ -2060,9 +2060,9 @@ mod tests {
         let (tx, mut rx) = test_sender();
         let mut overlay = RequestUserInputOverlay::new(
             ToolRequestUserInputParams {
-                thread_id: "thread-1".to_string(),
-                item_id: "call-1".to_string(),
-                turn_id: "turn-1".to_string(),
+                chat_id: "thread-1".to_string(),
+                message_id: "call-1".to_string(),
+                interaction_id: "turn-1".to_string(),
                 questions: vec![question_with_options("q1", "First")],
                 auto_resolution_ms: None,
             },
@@ -2072,9 +2072,9 @@ mod tests {
             /*disable_paste_burst*/ false,
         );
         overlay.try_consume_user_input_request(ToolRequestUserInputParams {
-            thread_id: "thread-1".to_string(),
-            item_id: "call-2".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            message_id: "call-2".to_string(),
+            interaction_id: "turn-1".to_string(),
             questions: vec![question_with_options("q2", "Second")],
             auto_resolution_ms: None,
         });
@@ -2100,9 +2100,9 @@ mod tests {
         let (tx, mut rx) = test_sender();
         let mut overlay = RequestUserInputOverlay::new(
             ToolRequestUserInputParams {
-                thread_id: "thread-1".to_string(),
-                item_id: "call-1".to_string(),
-                turn_id: "turn-1".to_string(),
+                chat_id: "thread-1".to_string(),
+                message_id: "call-1".to_string(),
+                interaction_id: "turn-1".to_string(),
                 questions: vec![question_with_options("q1", "First")],
                 auto_resolution_ms: None,
             },
@@ -2112,16 +2112,16 @@ mod tests {
             /*disable_paste_burst*/ false,
         );
         overlay.try_consume_user_input_request(ToolRequestUserInputParams {
-            thread_id: "thread-1".to_string(),
-            item_id: "call-2".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            message_id: "call-2".to_string(),
+            interaction_id: "turn-1".to_string(),
             questions: vec![question_with_options("q2", "Second")],
             auto_resolution_ms: None,
         });
         overlay.try_consume_user_input_request(ToolRequestUserInputParams {
-            thread_id: "thread-1".to_string(),
-            item_id: "call-3".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            message_id: "call-3".to_string(),
+            interaction_id: "turn-1".to_string(),
             questions: vec![question_with_options("q3", "Third")],
             auto_resolution_ms: None,
         });

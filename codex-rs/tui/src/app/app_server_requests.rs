@@ -94,13 +94,13 @@ impl PendingAppServerRequests {
                 let approval_id = params
                     .approval_id
                     .clone()
-                    .unwrap_or_else(|| params.item_id.clone());
+                    .unwrap_or_else(|| params.message_id.clone());
                 self.exec_approvals.insert(approval_id, request_id.clone());
                 None
             }
             ServerRequest::FileChangeRequestApproval { request_id, params } => {
                 self.file_change_approvals
-                    .insert(params.item_id.clone(), request_id.clone());
+                    .insert(params.message_id.clone(), request_id.clone());
                 None
             }
             ServerRequest::PermissionsRequestApproval { request_id, params } => {
@@ -117,15 +117,15 @@ impl PendingAppServerRequests {
                     });
                 }
                 self.permissions_approvals
-                    .insert(params.item_id.clone(), request_id.clone());
+                    .insert(params.message_id.clone(), request_id.clone());
                 None
             }
             ServerRequest::ToolRequestUserInput { request_id, params } => {
                 self.user_inputs
-                    .entry(params.turn_id.clone())
+                    .entry(params.interaction_id.clone())
                     .or_default()
                     .push_back(PendingUserInputRequest {
-                        item_id: params.item_id.clone(),
+                        item_id: params.message_id.clone(),
                         request_id: request_id.clone(),
                     });
                 None
@@ -366,7 +366,7 @@ impl PendingAppServerRequests {
 
     fn pop_user_input_request_for_turn(
         &mut self,
-        turn_id: &str,
+        interaction_id: &str,
     ) -> Option<PendingUserInputRequest> {
         let pending = self
             .user_inputs
@@ -454,9 +454,9 @@ mod tests {
         let request = ServerRequest::CommandExecutionRequestApproval {
             request_id: AppServerRequestId::Integer(41),
             params: CommandExecutionRequestApprovalParams {
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
-                item_id: "call-1".to_string(),
+                chat_id: "thread-1".to_string(),
+                interaction_id: "turn-1".to_string(),
+                message_id: "call-1".to_string(),
                 started_at_ms: 0,
                 approval_id: Some("approval-1".to_string()),
                 environment_id: None,
@@ -477,7 +477,7 @@ mod tests {
         let resolution = pending
             .take_resolution(&Op::ExecApproval {
                 id: "approval-1".to_string(),
-                turn_id: None,
+                interaction_id: None,
                 decision: CommandExecutionApprovalDecision::Accept,
             })
             .expect("resolution should serialize")
@@ -516,9 +516,9 @@ mod tests {
             pending.note_server_request(&ServerRequest::PermissionsRequestApproval {
                 request_id: request_id.clone(),
                 params: PermissionsRequestApprovalParams {
-                    thread_id: "thread-1".to_string(),
-                    turn_id: "turn-1".to_string(),
-                    item_id: "perm-1".to_string(),
+                    chat_id: "thread-1".to_string(),
+                    interaction_id: "turn-1".to_string(),
+                    message_id: "perm-1".to_string(),
                     environment_id: None,
                     started_at_ms: 0,
                     cwd,
@@ -556,9 +556,9 @@ mod tests {
             pending.note_server_request(&ServerRequest::PermissionsRequestApproval {
                 request_id: AppServerRequestId::Integer(7),
                 params: PermissionsRequestApprovalParams {
-                    thread_id: "thread-1".to_string(),
-                    turn_id: "turn-1".to_string(),
-                    item_id: "perm-1".to_string(),
+                    chat_id: "thread-1".to_string(),
+                    interaction_id: "turn-1".to_string(),
+                    message_id: "perm-1".to_string(),
                     environment_id: None,
                     started_at_ms: 0,
                     cwd: absolute_path(if cfg!(windows) { r"C:\tmp" } else { "/tmp" }),
@@ -575,9 +575,9 @@ mod tests {
             pending.note_server_request(&ServerRequest::ToolRequestUserInput {
                 request_id: AppServerRequestId::Integer(8),
                 params: ToolRequestUserInputParams {
-                    thread_id: "thread-1".to_string(),
-                    turn_id: "turn-2".to_string(),
-                    item_id: "tool-1".to_string(),
+                    chat_id: "thread-1".to_string(),
+                    interaction_id: "turn-2".to_string(),
+                    message_id: "tool-1".to_string(),
                     questions: Vec::new(),
                     auto_resolution_ms: None,
                 },
@@ -677,8 +677,8 @@ mod tests {
             pending.note_server_request(&ServerRequest::McpServerElicitationRequest {
                 request_id: AppServerRequestId::Integer(12),
                 params: McpServerElicitationRequestParams {
-                    thread_id: "thread-1".to_string(),
-                    turn_id: Some("turn-1".to_string()),
+                    chat_id: "thread-1".to_string(),
+                    interaction_id: Some("turn-1".to_string()),
                     server_name: "example".to_string(),
                     request: McpServerElicitationRequest::Form {
                         meta: None,
@@ -724,8 +724,8 @@ mod tests {
             .note_server_request(&ServerRequest::DynamicToolCall {
                 request_id: AppServerRequestId::Integer(99),
                 params: datax_app_server_protocol::DynamicToolCallParams {
-                    thread_id: "thread-1".to_string(),
-                    turn_id: "turn-1".to_string(),
+                    chat_id: "thread-1".to_string(),
+                    interaction_id: "turn-1".to_string(),
                     call_id: "tool-1".to_string(),
                     namespace: None,
                     tool: "tool".to_string(),
@@ -764,9 +764,9 @@ mod tests {
             pending.note_server_request(&ServerRequest::FileChangeRequestApproval {
                 request_id: AppServerRequestId::Integer(13),
                 params: FileChangeRequestApprovalParams {
-                    thread_id: "thread-1".to_string(),
-                    turn_id: "turn-1".to_string(),
-                    item_id: "patch-1".to_string(),
+                    chat_id: "thread-1".to_string(),
+                    interaction_id: "turn-1".to_string(),
+                    message_id: "patch-1".to_string(),
                     started_at_ms: 0,
                     reason: None,
                     grant_root: None,
@@ -794,9 +794,9 @@ mod tests {
             pending.note_server_request(&ServerRequest::CommandExecutionRequestApproval {
                 request_id: AppServerRequestId::Integer(41),
                 params: CommandExecutionRequestApprovalParams {
-                    thread_id: "thread-1".to_string(),
-                    turn_id: "turn-1".to_string(),
-                    item_id: "call-1".to_string(),
+                    chat_id: "thread-1".to_string(),
+                    interaction_id: "turn-1".to_string(),
+                    message_id: "call-1".to_string(),
                     started_at_ms: 0,
                     approval_id: Some("approval-1".to_string()),
                     environment_id: None,
@@ -833,8 +833,8 @@ mod tests {
             pending.note_server_request(&ServerRequest::McpServerElicitationRequest {
                 request_id: AppServerRequestId::Integer(12),
                 params: McpServerElicitationRequestParams {
-                    thread_id: "thread-1".to_string(),
-                    turn_id: Some("turn-1".to_string()),
+                    chat_id: "thread-1".to_string(),
+                    interaction_id: Some("turn-1".to_string()),
                     server_name: "example".to_string(),
                     request: McpServerElicitationRequest::Form {
                         meta: None,
@@ -866,9 +866,9 @@ mod tests {
         pending.note_server_request(&ServerRequest::ToolRequestUserInput {
             request_id: AppServerRequestId::Integer(8),
             params: ToolRequestUserInputParams {
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
-                item_id: "tool-1".to_string(),
+                chat_id: "thread-1".to_string(),
+                interaction_id: "turn-1".to_string(),
+                message_id: "tool-1".to_string(),
                 questions: Vec::new(),
                 auto_resolution_ms: None,
             },
@@ -889,9 +889,9 @@ mod tests {
             pending.note_server_request(&ServerRequest::ToolRequestUserInput {
                 request_id: AppServerRequestId::Integer(request_id),
                 params: ToolRequestUserInputParams {
-                    thread_id: "thread-1".to_string(),
-                    turn_id: "turn-1".to_string(),
-                    item_id: item_id.to_string(),
+                    chat_id: "thread-1".to_string(),
+                    interaction_id: "turn-1".to_string(),
+                    message_id: item_id.to_string(),
                     questions: Vec::new(),
                     auto_resolution_ms: None,
                 },

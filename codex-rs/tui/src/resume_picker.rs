@@ -769,14 +769,14 @@ async fn load_transcript_preview(
     const MAX_PREVIEW_LINES: usize = 6;
 
     let thread = app_server
-        .thread_read(thread_id, /*include_turns*/ true)
+        .thread_read(thread_id, /*include_interactions*/ true)
         .await
         .map_err(std::io::Error::other)?;
     let cwd = thread.cwd.as_path();
     let mut lines = thread
-        .turns
+        .interactions
         .iter()
-        .flat_map(|turn| turn.items.iter())
+        .flat_map(|turn| turn.messages.iter())
         .filter_map(|item| match item {
             Message::UserMessage { content, .. } => Some(TranscriptPreviewLine {
                 speaker: TranscriptPreviewSpeaker::User,
@@ -1792,7 +1792,7 @@ fn row_from_app_server_thread(thread: Chat) -> Option<Row> {
         } else {
             preview.to_string()
         },
-        thread_id: Some(thread_id),
+        chat_id: Some(thread_id),
         thread_name: thread.name,
         created_at: chrono::DateTime::from_timestamp(thread.created_at, 0)
             .map(|dt| dt.with_timezone(&Utc)),
@@ -1821,7 +1821,7 @@ fn thread_list_params(
         },
         source_kinds: Some(crate::resume_source_kinds(include_non_interactive)),
         archived: Some(false),
-        parent_thread_id: None,
+        parent_chat_id: None,
         cwd: cwd_filter.map(|cwd| ChatListCwdFilter::One(cwd.to_string_lossy().into_owned())),
         use_state_db_only: false,
         search_term: None,
@@ -3241,7 +3241,7 @@ mod tests {
         Row {
             path: Some(PathBuf::from(path)),
             preview: preview.to_string(),
-            thread_id: None,
+            chat_id: None,
             thread_name: None,
             created_at: Some(timestamp),
             updated_at: Some(timestamp),
@@ -3287,7 +3287,7 @@ mod tests {
         let row = Row {
             path: Some(PathBuf::from("/tmp/a.jsonl")),
             preview: String::from("first message"),
-            thread_id: None,
+            chat_id: None,
             thread_name: Some(String::from("My session")),
             created_at: None,
             updated_at: None,
@@ -3327,7 +3327,7 @@ mod tests {
         let row = Row {
             path: Some(PathBuf::from("/tmp/a.jsonl")),
             preview: String::from("first message"),
-            thread_id: Some(thread_id),
+            chat_id: Some(thread_id),
             thread_name: Some(String::from("My session")),
             created_at: None,
             updated_at: None,
@@ -3387,7 +3387,7 @@ mod tests {
         let row = Row {
             path: Some(PathBuf::from("/tmp/a.jsonl")),
             preview: String::from("first message"),
-            thread_id: Some(thread_id),
+            chat_id: Some(thread_id),
             thread_name: Some(String::from("feat(tui): add raw scrollback mode")),
             created_at: parse_timestamp_str("2026-05-02T14:31:08Z"),
             updated_at: parse_timestamp_str("2026-05-02T14:48:19Z"),
@@ -3597,7 +3597,7 @@ mod tests {
         let row = Row {
             path: None,
             preview: String::from("remote session"),
-            thread_id: Some(ThreadId::new()),
+            chat_id: Some(ThreadId::new()),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -3622,7 +3622,7 @@ mod tests {
         let row = Row {
             path: None,
             preview: String::from("remote session"),
-            thread_id: Some(ThreadId::new()),
+            chat_id: Some(ThreadId::new()),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -3653,7 +3653,7 @@ mod tests {
             Row {
                 path: Some(PathBuf::from("/tmp/a.jsonl")),
                 preview: String::from("Fix resume picker timestamps"),
-                thread_id: None,
+                chat_id: None,
                 thread_name: None,
                 created_at: Some(now - Duration::minutes(16)),
                 updated_at: Some(now - Duration::seconds(42)),
@@ -3663,7 +3663,7 @@ mod tests {
             Row {
                 path: Some(PathBuf::from("/tmp/b.jsonl")),
                 preview: String::from("Investigate lazy pagination cap"),
-                thread_id: None,
+                chat_id: None,
                 thread_name: None,
                 created_at: Some(now - Duration::hours(1)),
                 updated_at: Some(now - Duration::minutes(35)),
@@ -3673,7 +3673,7 @@ mod tests {
             Row {
                 path: Some(PathBuf::from("/tmp/c.jsonl")),
                 preview: String::from("Explain the codebase"),
-                thread_id: None,
+                chat_id: None,
                 thread_name: None,
                 created_at: Some(now - Duration::hours(2)),
                 updated_at: Some(now - Duration::hours(2)),
@@ -4101,7 +4101,7 @@ mod tests {
         state.filtered_rows = vec![Row {
             path: None,
             preview: String::from("preview"),
-            thread_id: Some(thread_id),
+            chat_id: Some(thread_id),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -4139,7 +4139,7 @@ mod tests {
             Row {
                 path: None,
                 preview: String::from("one"),
-                thread_id: Some(ThreadId::new()),
+                chat_id: Some(ThreadId::new()),
                 thread_name: None,
                 created_at: None,
                 updated_at: None,
@@ -4149,7 +4149,7 @@ mod tests {
             Row {
                 path: None,
                 preview: String::from("two"),
-                thread_id: Some(ThreadId::new()),
+                chat_id: Some(ThreadId::new()),
                 thread_name: None,
                 created_at: None,
                 updated_at: None,
@@ -4218,7 +4218,7 @@ mod tests {
             Row {
                 path: None,
                 preview: String::from("Find pending threads and emails"),
-                thread_id: Some(thread_id),
+                chat_id: Some(thread_id),
                 thread_name: None,
                 created_at: None,
                 updated_at: None,
@@ -4228,7 +4228,7 @@ mod tests {
             Row {
                 path: None,
                 preview: String::from("Plan raw scrollback mode"),
-                thread_id: Some(ThreadId::new()),
+                chat_id: Some(ThreadId::new()),
                 thread_name: None,
                 created_at: None,
                 updated_at: None,
@@ -4283,7 +4283,7 @@ mod tests {
         state.filtered_rows = vec![Row {
             path: None,
             preview: String::from("preview"),
-            thread_id: Some(thread_id),
+            chat_id: Some(thread_id),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -4313,7 +4313,7 @@ mod tests {
         state.filtered_rows = vec![Row {
             path: Some(PathBuf::from("/tmp/a.jsonl")),
             preview: String::from("preview"),
-            thread_id: None,
+            chat_id: None,
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -4389,7 +4389,7 @@ mod tests {
         state.filtered_rows = vec![Row {
             path: None,
             preview: String::from("preview"),
-            thread_id: Some(thread_id),
+            chat_id: Some(thread_id),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -4553,7 +4553,7 @@ session_picker_view = "dense"
         state.filtered_rows = vec![Row {
             path: None,
             preview: String::from("preview"),
-            thread_id: Some(thread_id),
+            chat_id: Some(thread_id),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -4592,7 +4592,7 @@ session_picker_view = "dense"
         state.filtered_rows = vec![Row {
             path: None,
             preview: String::from("preview"),
-            thread_id: Some(thread_id),
+            chat_id: Some(thread_id),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -4666,7 +4666,7 @@ session_picker_view = "dense"
             preview: String::from(
                 "Propose session picker redesign with enough title text to exercise truncation",
             ),
-            thread_id: Some(
+            chat_id: Some(
                 ThreadId::from_string("019dabc1-0ef5-7431-b81c-03037f51f62c").expect("thread id"),
             ),
             thread_name: None,
@@ -4922,7 +4922,7 @@ session_picker_view = "dense"
         let row = Row {
             path: Some(PathBuf::from("/tmp/a.jsonl")),
             preview: String::from("Investigate picker expansion"),
-            thread_id: Some(thread_id),
+            chat_id: Some(thread_id),
             thread_name: None,
             created_at: parse_timestamp_str("2026-04-28T16:30:00Z"),
             updated_at: parse_timestamp_str("2026-04-28T17:45:00Z"),
@@ -4989,7 +4989,7 @@ session_picker_view = "dense"
         let row = Row {
             path: Some(PathBuf::from("/tmp/a.jsonl")),
             preview: String::from("Investigate picker expansion"),
-            thread_id: Some(
+            chat_id: Some(
                 ThreadId::from_string("019dabc1-0ef5-7431-b81c-03037f51f62c").expect("thread id"),
             ),
             thread_name: None,
@@ -5049,7 +5049,7 @@ session_picker_view = "dense"
             .map(|idx| Row {
                 path: Some(PathBuf::from(format!("/tmp/{idx}.jsonl"))),
                 preview: format!("item-{idx}"),
-                thread_id: None,
+                chat_id: None,
                 thread_name: None,
                 created_at: Some(now - Duration::hours(idx)),
                 updated_at: Some(now - Duration::minutes(idx * 5)),
@@ -5101,7 +5101,7 @@ session_picker_view = "dense"
             .map(|idx| Row {
                 path: Some(PathBuf::from(format!("/tmp/{idx}.jsonl"))),
                 preview: format!("item-{idx}"),
-                thread_id: None,
+                chat_id: None,
                 thread_name: None,
                 created_at: Some(now - Duration::hours(idx)),
                 updated_at: Some(now - Duration::minutes(idx * 5)),
@@ -5652,7 +5652,7 @@ session_picker_view = "dense"
         let row = Row {
             path: Some(PathBuf::from("/tmp/missing.jsonl")),
             preview: String::from("missing metadata"),
-            thread_id: None,
+            chat_id: None,
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -5691,7 +5691,7 @@ session_picker_view = "dense"
         let row = Row {
             path: None,
             preview: String::from("pathless thread"),
-            thread_id: Some(thread_id),
+            chat_id: Some(thread_id),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -5709,7 +5709,7 @@ session_picker_view = "dense"
         match selection {
             Some(SessionSelection::Resume(SessionTarget {
                 path: None,
-                thread_id: selected_thread_id,
+                chat_id: selected_thread_id,
             })) => assert_eq!(selected_thread_id, thread_id),
             other => panic!("unexpected selection: {other:?}"),
         }
@@ -5722,7 +5722,7 @@ session_picker_view = "dense"
             id: thread_id.to_string(),
             session_id: thread_id.to_string(),
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             preview: String::from("remote thread"),
             ephemeral: false,
             model_provider: String::from("openai"),
@@ -5734,7 +5734,7 @@ session_picker_view = "dense"
             cwd: test_path_buf("/tmp").abs(),
             cli_version: String::from("0.0.0"),
             source: datax_app_server_protocol::SessionSource::Cli,
-            thread_source: None,
+            session_start_source: None,
             agent_nickname: None,
             agent_role: None,
             git_info: None,
@@ -5758,7 +5758,7 @@ session_picker_view = "dense"
             id: thread_id.to_string(),
             session_id: thread_id.to_string(),
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             preview: String::from("preview"),
             ephemeral: false,
             model_provider: String::from("openai"),
@@ -5770,15 +5770,15 @@ session_picker_view = "dense"
             cwd: test_path_buf("/tmp").abs(),
             cli_version: String::from("0.0.0"),
             source: datax_app_server_protocol::SessionSource::Cli,
-            thread_source: None,
+            session_start_source: None,
             agent_nickname: None,
             agent_role: None,
             git_info: None,
             name: None,
             turns: vec![datax_app_server_protocol::Interaction {
                 id: String::from("turn-1"),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: vec![
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: vec![
                     Message::UserMessage {
                         id: String::from("user-1"),
                         client_id: None,
@@ -5828,7 +5828,7 @@ session_picker_view = "dense"
             id: thread_id.to_string(),
             session_id: thread_id.to_string(),
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             preview: String::from("preview"),
             ephemeral: false,
             model_provider: String::from("openai"),
@@ -5840,15 +5840,15 @@ session_picker_view = "dense"
             cwd: test_path_buf("/tmp").abs(),
             cli_version: String::from("0.0.0"),
             source: datax_app_server_protocol::SessionSource::Cli,
-            thread_source: None,
+            session_start_source: None,
             agent_nickname: None,
             agent_role: None,
             git_info: None,
             name: None,
             turns: vec![datax_app_server_protocol::Interaction {
                 id: String::from("turn-1"),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: vec![Message::Reasoning {
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: vec![Message::Reasoning {
                     id: String::from("reasoning-1"),
                     summary: Vec::new(),
                     content: vec![String::from("private raw chain of thought")],
@@ -5887,7 +5887,7 @@ session_picker_view = "dense"
             id: thread_id.to_string(),
             session_id: thread_id.to_string(),
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             preview: String::from("preview"),
             ephemeral: false,
             model_provider: String::from("openai"),
@@ -5899,15 +5899,15 @@ session_picker_view = "dense"
             cwd: test_path_buf("/tmp").abs(),
             cli_version: String::from("0.0.0"),
             source: datax_app_server_protocol::SessionSource::Cli,
-            thread_source: None,
+            session_start_source: None,
             agent_nickname: None,
             agent_role: None,
             git_info: None,
             name: None,
             turns: vec![datax_app_server_protocol::Interaction {
                 id: String::from("turn-1"),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: vec![Message::Reasoning {
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: vec![Message::Reasoning {
                     id: String::from("reasoning-1"),
                     summary: vec![String::from("public summary")],
                     content: vec![String::from("raw reasoning content")],

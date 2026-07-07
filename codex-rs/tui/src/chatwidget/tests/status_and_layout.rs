@@ -1526,12 +1526,12 @@ fn update_thread_goal(chat: &mut ChatWidget, thread_id: ThreadId, status: AppThr
         /*tokens_used*/ 40_000,
     );
     let thread_id = thread_id.to_string();
-    goal.thread_id = thread_id.clone();
+    goal.chat_id = thread_id.clone();
     chat.handle_server_notification(
         ServerNotification::ChatGoalUpdated(
             datax_app_server_protocol::ChatGoalUpdatedNotification {
-                thread_id,
-                turn_id: None,
+                chat_id: thread_id,
+                interaction_id: None,
                 goal,
             },
         ),
@@ -2931,13 +2931,13 @@ async fn thread_goal_update_for_other_thread_is_ignored() {
         /*token_budget*/ Some(50_000),
         /*tokens_used*/ 50_000,
     );
-    goal.thread_id = other_thread_id.clone();
+    goal.chat_id = other_thread_id.clone();
 
     chat.handle_server_notification(
         ServerNotification::ChatGoalUpdated(
             datax_app_server_protocol::ChatGoalUpdatedNotification {
-                thread_id: other_thread_id,
-                turn_id: Some("turn-other".to_string()),
+                chat_id: other_thread_id,
+                interaction_id: Some("turn-other".to_string()),
                 goal,
             },
         ),

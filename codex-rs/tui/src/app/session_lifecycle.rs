@@ -284,7 +284,7 @@ impl App {
                     .await
                 {
                     Ok(thread) => {
-                        let turns = thread.turns.clone();
+                        let turns = thread.interactions.clone();
                         (thread, turns)
                     }
                     Err(err) if Self::can_fallback_from_include_turns_error(&err) => {

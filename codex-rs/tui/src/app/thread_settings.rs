@@ -29,7 +29,7 @@ impl App {
     ) -> Option<ChatSettingsUpdateParams> {
         let thread_id = self.active_thread_id?;
         Some(ChatSettingsUpdateParams {
-            thread_id: thread_id.to_string(),
+            chat_id: thread_id.to_string(),
             model: Some(model),
             collaboration_mode: Some(self.chat_widget.effective_collaboration_mode()),
             ..ChatSettingsUpdateParams::default()
@@ -53,7 +53,7 @@ impl App {
     ) -> Option<ChatSettingsUpdateParams> {
         let thread_id = self.active_thread_id?;
         Some(ChatSettingsUpdateParams {
-            thread_id: thread_id.to_string(),
+            chat_id: thread_id.to_string(),
             effort,
             collaboration_mode: Some(self.chat_widget.current_collaboration_mode().clone()),
             ..ChatSettingsUpdateParams::default()
@@ -68,7 +68,7 @@ impl App {
             return;
         };
         let params = ChatSettingsUpdateParams {
-            thread_id: thread_id.to_string(),
+            chat_id: thread_id.to_string(),
             collaboration_mode: Some(self.chat_widget.effective_collaboration_mode()),
             ..ChatSettingsUpdateParams::default()
         };
@@ -84,7 +84,7 @@ impl App {
             return;
         };
         let params = ChatSettingsUpdateParams {
-            thread_id: thread_id.to_string(),
+            chat_id: thread_id.to_string(),
             personality: Some(personality),
             ..ChatSettingsUpdateParams::default()
         };
@@ -116,7 +116,7 @@ impl App {
         };
 
         let params = ChatSettingsUpdateParams {
-            thread_id: thread_id.to_string(),
+            chat_id: thread_id.to_string(),
             cwd: cwd.clone(),
             approval_policy: *approval_policy,
             approvals_reviewer: approvals_reviewer.map(AppServerApprovalsReviewer::from),

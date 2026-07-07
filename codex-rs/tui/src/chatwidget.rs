@@ -153,8 +153,8 @@ use datax_protocol::config_types::Personality;
 use datax_protocol::config_types::Settings;
 #[cfg(any(target_os = "windows", test))]
 use datax_protocol::config_types::WindowsSandboxLevel;
-use datax_protocol::items::AgentMessageContent;
-use datax_protocol::items::AgentMessageItem;
+use datax_protocol::messages::AgentMessageContent;
+use datax_protocol::messages::AgentMessageItem;
 use datax_protocol::models::MessagePhase;
 use datax_protocol::plan_tool::PlanItemArg as UpdatePlanItemArg;
 use datax_protocol::plan_tool::StepStatus as UpdatePlanItemStatus;
@@ -859,7 +859,7 @@ fn exec_approval_request_from_params(
         .and_then(|cwd| cwd.to_inferred_abs_path())
         .unwrap_or_else(|| fallback_cwd.clone());
     ExecApprovalRequestEvent {
-        call_id: params.item_id,
+        call_id: params.message_id,
         command: params
             .command
             .as_deref()
@@ -869,7 +869,7 @@ fn exec_approval_request_from_params(
         reason: params.reason,
         network_approval_context: params.network_approval_context,
         additional_permissions: params.additional_permissions,
-        turn_id: params.turn_id,
+        turn_id: params.interaction_id,
         approval_id: params.approval_id,
         environment_id: params.environment_id,
         proposed_execpolicy_amendment: params.proposed_execpolicy_amendment,
@@ -882,8 +882,8 @@ fn patch_approval_request_from_params(
     params: FileChangeRequestApprovalParams,
 ) -> ApplyPatchApprovalRequestEvent {
     ApplyPatchApprovalRequestEvent {
-        call_id: params.item_id,
-        turn_id: params.turn_id,
+        call_id: params.message_id,
+        turn_id: params.interaction_id,
         changes: HashMap::new(),
         reason: params.reason,
         grant_root: params.grant_root,
@@ -894,8 +894,8 @@ fn request_permissions_from_params(
     params: datax_app_server_protocol::PermissionsRequestApprovalParams,
 ) -> std::io::Result<RequestPermissionsEvent> {
     Ok(RequestPermissionsEvent {
-        turn_id: params.turn_id,
-        call_id: params.item_id,
+        turn_id: params.interaction_id,
+        call_id: params.message_id,
         environment_id: params.environment_id,
         started_at_ms: params.started_at_ms,
         reason: params.reason,

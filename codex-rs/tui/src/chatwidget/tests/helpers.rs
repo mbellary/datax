@@ -969,8 +969,8 @@ pub(super) fn app_server_turn(
 ) -> AppServerTurn {
     AppServerTurn {
         id: turn_id.to_string(),
-        items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-        items: Vec::new(),
+        messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+        messages: Vec::new(),
         status,
         error,
         started_at: None,

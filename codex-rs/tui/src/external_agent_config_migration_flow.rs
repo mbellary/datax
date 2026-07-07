@@ -63,7 +63,7 @@ pub(crate) async fn handle_external_agent_config_migration_prompt(
         })
         .await
     {
-        Ok(response) => response.items,
+        Ok(response) => response.messages,
         Err(err) => {
             tracing::warn!(
                 error = %err,

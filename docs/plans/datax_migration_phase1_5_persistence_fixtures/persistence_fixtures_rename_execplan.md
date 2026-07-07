@@ -22,7 +22,10 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
 - [x] (2026-07-07 00:00Z) Updated owned fixtures and snapshots that encode the renamed persistence strings, excluding `.codex-plugin` manifest paths.
 - [x] (2026-07-07 00:00Z) Corrected accidental internal field/member rewrites reported by user build output, including `codex_linux_sandbox_exe` and `CodexThread.codex` member accesses.
 - [x] (2026-07-07 00:00Z) Corrected additional accidental `Config.codex_self_exe` member rewrites reported by user build output.
-- [ ] Run allowed formatting/static checks, document deferred test/build commands, commit, and push.
+- [x] (2026-07-07 00:00Z) Corrected user-reported `cargo build` failures in `datax-tui` where TUI app-server client code still referenced pre-Phase-1.4 protocol fields such as `thread_id`, `turn_id`, `item_id`, `turns`, and `items`.
+- [x] (2026-07-07 00:00Z) Corrected remaining accidental `datax_linux_sandbox_exe` internal field rewrites in CLI, core, and exec-server test/debug call sites.
+- [x] (2026-07-07 00:00Z) Ran allowed formatting and static checks after the `datax-tui` build-log follow-up; expensive tests/builds remain deferred to the user.
+- [ ] Commit and push the latest follow-up fixes.
 
 ## Surprises & Discoveries
 
@@ -42,6 +45,8 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
   Evidence: `cargo build` reported missing `datax_linux_sandbox_exe` and missing `.datax` fields on `CodexThread` and `GuardianReviewSession`; those were restored to existing internal field names while retaining Datax filesystem path strings.
 - Observation: User build output exposed the same issue for the executable path field on `Config`.
   Evidence: `cargo build` reported missing `datax_self_exe`; the app-server, CLI, and exec-server references were restored to `codex_self_exe`.
+- Observation: Once `cargo build` reached the TUI crate, it exposed app-server protocol API names that had not been updated with the Phase 1.4 chat/interaction/message terminology.
+  Evidence: The attached build log reported missing fields and variants in `datax-tui`, including `thread_id`, `turn_id`, `item_id`, `turns`, `items`, `ThreadSettings`, `ThreadStartSource`, and `ChatRealtimeItemAdded`; the TUI app-server client surfaces were aligned to `chat_id`, `interaction_id`, `message_id`, `interactions`, `messages`, `ChatSettings`, `ChatStartSource`, and `ChatRealtimeMessageAdded` while preserving TUI-internal `thread_id` and `turn_id` names.
 
 ## Decision Log
 
@@ -161,6 +166,22 @@ Finally run formatting and static checks. Test/build commands remain deferred fo
 | `codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__hooks_browser_view__tests__hooks_browser_events.snap` | `Completed` | Snapshot text includes "Codex ends its turn"; likely owned UI snapshot rename. |
 | `codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__hooks_browser_view__tests__hooks_browser_events_with_issues.snap` | `Completed` | Snapshot text includes "Codex ends its turn"; likely owned UI snapshot rename. |
 | `codex-rs/tui/src/snapshots/codex_tui__model_migration__tests__model_migration_prompt.snap` | `Completed` | Snapshot contains model migration product text; inspect whether belongs to fixture/snapshot rename. |
+| `codex-rs/tui/src/app_server_session.rs` | `Completed` | Follow-up from user `cargo build`; app-server request builders now use current chat/interaction/message protocol fields. |
+| `codex-rs/tui/src/app/app_server_event_targets.rs` | `Completed` | Follow-up from user `cargo build`; notification/request routing now reads current chat-scoped protocol fields. |
+| `codex-rs/tui/src/app/app_server_requests.rs` | `Completed` | Follow-up from user `cargo build`; pending app-server request tracking now reads current message ids while preserving internal item ids. |
+| `codex-rs/tui/src/app/background_requests.rs` | `Completed` | Follow-up from user `cargo build`; feedback, MCP inventory, and apps-list requests now use current app-server protocol fields. |
+| `codex-rs/tui/src/app/thread_events.rs` | `Completed` | Follow-up from user `cargo build`; thread event replay reads current interaction/message fields. |
+| `codex-rs/tui/src/app/thread_settings.rs` | `Completed` | Follow-up from user `cargo build`; settings update params now use `chat_id`. |
+| `codex-rs/tui/src/chatwidget.rs` | `Completed` | Follow-up from user `cargo build`; approval conversion helpers map protocol ids into existing TUI event shapes. |
+| `codex-rs/tui/src/chatwidget/protocol.rs` | `Completed` | Follow-up from user `cargo build`; notification handling now uses current protocol field names and realtime notification variant. |
+| `codex-rs/tui/src/chatwidget/replay.rs` | `Completed` | Follow-up from user `cargo build`; replay now consumes `Interaction.messages` and emits `InteractionCompletedNotification.chat_id`. |
+| `codex-rs/tui/src/chatwidget/tool_requests.rs` | `Completed` | Follow-up from user `cargo build`; app-server request params now read `chat_id`, `interaction_id`, and `message_id` while TUI approval requests keep internal field names. |
+| `codex-rs/tui/src/resume_picker.rs` | `Completed` | Follow-up from user `cargo build`; transcript preview reads `Chat.interactions`. |
+| `codex-rs/tui/src/thread_transcript.rs` | `Completed` | Follow-up from user `cargo build`; transcript rendering reads `Chat.interactions` and `Interaction.messages`. |
+| `codex-rs/cli/src/debug_sandbox.rs` | `Completed` | Corrected accidental internal `datax_linux_sandbox_exe` field rewrite back to `codex_linux_sandbox_exe`. |
+| `codex-rs/core/tests/common/lib.rs` | `Completed` | Corrected accidental internal `datax_linux_sandbox_exe` field rewrite back to `codex_linux_sandbox_exe`. |
+| `codex-rs/core/tests/suite/apply_patch_cli.rs` | `Completed` | Corrected accidental internal `datax_linux_sandbox_exe` field rewrite back to `codex_linux_sandbox_exe`. |
+| `codex-rs/exec-server/tests/common/mod.rs` | `Completed` | Corrected accidental internal `datax_linux_sandbox_exe` field rewrite back to `codex_linux_sandbox_exe`. |
 | `codex-rs/tui/tests/fixtures/oss-story.jsonl` | `Not Required` | Large recorded story fixture contains incidental words such as "returned" and `codex_event`; this is not Datax persistence behavior for Phase 1.5. |
 | `codex-rs/tools/tests/fixtures/json_schema_policy/*.json` | `Not Required` | Third-party tool schemas use generic JSON Schema words such as `items` or vendor fields like `thread_ts`; not Datax product persistence. |
 | `codex-rs/vendor/bubblewrap/**` | `Not Required` | Third-party vendor files; not Datax product-owned text. |

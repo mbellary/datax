@@ -136,7 +136,7 @@ async fn next_thread_settings_updated(
         if let datax_app_server_client::AppServerEvent::ServerNotification(
             ServerNotification::ChatSettingsUpdated(notification),
         ) = event
-            && notification.thread_id == thread_id.to_string()
+            && notification.chat_id == thread_id.to_string()
         {
             return notification;
         }
@@ -227,7 +227,7 @@ async fn enqueue_primary_thread_session_replays_buffered_approval_after_attach()
         ThreadBufferedEvent::Request(ServerRequest::CommandExecutionRequestApproval {
             params,
             ..
-        }) if params.turn_id == "turn-1"
+        }) if params.interaction_id == "turn-1"
     ));
 
     app.handle_thread_event_now(event);
@@ -236,7 +236,7 @@ async fn enqueue_primary_thread_session_replays_buffered_approval_after_attach()
 
     while let Ok(app_event) = app_event_rx.try_recv() {
         if let AppEvent::SubmitThreadOp {
-            thread_id: op_thread_id,
+            chat_id: op_thread_id,
             ..
         } = app_event
         {
@@ -291,7 +291,7 @@ async fn resolved_buffered_approval_does_not_become_actionable_after_drain() -> 
         ThreadBufferedEvent::Request(ServerRequest::CommandExecutionRequestApproval {
             params,
             ..
-        }) if params.turn_id == "turn-1"
+        }) if params.interaction_id == "turn-1"
     ));
 
     app.handle_thread_event_now(event);
@@ -367,7 +367,7 @@ async fn enqueue_primary_thread_session_replays_turns_before_initial_prompt_subm
                 saw_replayed_answer |= transcript.contains("earlier prompt");
             }
             AppEvent::SubmitThreadOp {
-                thread_id: op_thread_id,
+                chat_id: op_thread_id,
                 op: Op::UserTurn { items, .. },
             } => {
                 assert_eq!(op_thread_id, thread_id);
@@ -443,7 +443,7 @@ async fn history_lookup_response_is_routed_to_requesting_thread() -> Result<()> 
         .expect("app event channel should stay open");
 
     let AppEvent::ThreadHistoryEntryResponse {
-        thread_id: routed_thread_id,
+        chat_id: routed_thread_id,
         event,
     } = app_event
     else {
@@ -1164,7 +1164,7 @@ async fn collab_receiver_notification_caches_thread_without_app_server_read() {
     app.handle_thread_event_now(ThreadBufferedEvent::Notification(
         ServerNotification::MessageStarted(MessageStartedNotification {
             thread_id: ThreadId::new().to_string(),
-            turn_id: "turn-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             started_at_ms: 0,
             item: Message::CollabAgentToolCall {
                 id: "wait-1".to_string(),
@@ -1202,7 +1202,7 @@ async fn collab_receiver_notification_does_not_cache_not_found_thread() {
         ServerNotification::MessageCompleted(
             datax_app_server_protocol::MessageCompletedNotification {
                 thread_id: ThreadId::new().to_string(),
-                turn_id: "turn-1".to_string(),
+                interaction_id: "turn-1".to_string(),
                 completed_at_ms: 0,
                 item: Message::CollabAgentToolCall {
                     id: "send-1".to_string(),
@@ -2361,7 +2361,7 @@ async fn replay_snapshot_with_pending_request_suppresses_replay_notices() {
             events: vec![
                 ThreadBufferedEvent::Notification(ServerNotification::Warning(
                     WarningNotification {
-                        thread_id: Some(thread_id.to_string()),
+                        chat_id: Some(thread_id.to_string()),
                         message: stale_warning.to_string(),
                     },
                 )),
@@ -2580,8 +2580,8 @@ async fn inactive_thread_file_change_approval_recovers_buffered_changes() {
     app.enqueue_thread_notification(
         thread_id,
         ServerNotification::MessageStarted(MessageStartedNotification {
-            thread_id: thread_id.to_string(),
-            turn_id: "turn-approval".to_string(),
+            chat_id: thread_id.to_string(),
+            interaction_id: "turn-approval".to_string(),
             started_at_ms: 0,
             item: Message::FileChange {
                 id: "patch-approval".to_string(),
@@ -2600,9 +2600,9 @@ async fn inactive_thread_file_change_approval_recovers_buffered_changes() {
     let request = ServerRequest::FileChangeRequestApproval {
         request_id: AppServerRequestId::Integer(9),
         params: FileChangeRequestApprovalParams {
-            thread_id: thread_id.to_string(),
-            turn_id: "turn-approval".to_string(),
-            item_id: "patch-approval".to_string(),
+            chat_id: thread_id.to_string(),
+            interaction_id: "turn-approval".to_string(),
+            message_id: "patch-approval".to_string(),
             started_at_ms: 0,
             reason: Some("command failed; retry without sandbox?".to_string()),
             grant_root: None,
@@ -2652,9 +2652,9 @@ async fn inactive_thread_permissions_approval_preserves_file_system_permissions(
     let request = ServerRequest::PermissionsRequestApproval {
         request_id: AppServerRequestId::Integer(7),
         params: PermissionsRequestApprovalParams {
-            thread_id: thread_id.to_string(),
-            turn_id: "turn-approval".to_string(),
-            item_id: "call-approval".to_string(),
+            chat_id: thread_id.to_string(),
+            interaction_id: "turn-approval".to_string(),
+            message_id: "call-approval".to_string(),
             environment_id: Some("remote".to_string()),
             started_at_ms: 0,
             cwd: test_absolute_path("/tmp"),
@@ -2707,8 +2707,8 @@ async fn inactive_thread_url_elicitation_routes_to_app_link() {
     let request = ServerRequest::McpServerElicitationRequest {
         request_id: AppServerRequestId::Integer(9),
         params: McpServerElicitationRequestParams {
-            thread_id: thread_id.to_string(),
-            turn_id: Some("turn-auth".to_string()),
+            chat_id: thread_id.to_string(),
+            interaction_id: Some("turn-auth".to_string()),
             server_name: "payments".to_string(),
             request: McpServerElicitationRequest::Url {
                 meta: None,
@@ -2747,8 +2747,8 @@ async fn inactive_thread_invalid_url_elicitation_is_declined() {
     let request = ServerRequest::McpServerElicitationRequest {
         request_id: AppServerRequestId::Integer(10),
         params: McpServerElicitationRequestParams {
-            thread_id: thread_id.to_string(),
-            turn_id: Some("turn-auth".to_string()),
+            chat_id: thread_id.to_string(),
+            interaction_id: Some("turn-auth".to_string()),
             server_name: "payments".to_string(),
             request: McpServerElicitationRequest::Url {
                 meta: None,
@@ -2768,7 +2768,7 @@ async fn inactive_thread_invalid_url_elicitation_is_declined() {
     assert_matches!(
         app_event_rx.try_recv(),
         Ok(AppEvent::SubmitThreadOp {
-            thread_id: op_thread_id,
+            chat_id: op_thread_id,
             op: Op::ResolveElicitation {
                 server_name,
                 request_id: AppServerRequestId::Integer(10),
@@ -2894,7 +2894,7 @@ async fn inactive_thread_started_notification_initializes_replay_session() -> Re
                 id: agent_thread_id.to_string(),
                 session_id: agent_thread_id.to_string(),
                 forked_from_id: None,
-                parent_thread_id: None,
+                parent_chat_id: None,
                 preview: "agent thread".to_string(),
                 ephemeral: false,
                 model_provider: "agent-provider".to_string(),
@@ -2906,7 +2906,7 @@ async fn inactive_thread_started_notification_initializes_replay_session() -> Re
                 cwd: test_path_buf("/tmp/agent").abs(),
                 cli_version: "0.0.0".to_string(),
                 source: datax_app_server_protocol::SessionSource::Unknown,
-                thread_source: None,
+                session_start_source: None,
                 agent_nickname: Some("Robie".to_string()),
                 agent_role: Some("explorer".to_string()),
                 git_info: None,
@@ -2987,7 +2987,7 @@ async fn inactive_thread_started_notification_preserves_primary_model_when_path_
                 id: agent_thread_id.to_string(),
                 session_id: agent_thread_id.to_string(),
                 forked_from_id: None,
-                parent_thread_id: None,
+                parent_chat_id: None,
                 preview: "agent thread".to_string(),
                 ephemeral: false,
                 model_provider: "agent-provider".to_string(),
@@ -2999,7 +2999,7 @@ async fn inactive_thread_started_notification_preserves_primary_model_when_path_
                 cwd: test_path_buf("/tmp/agent").abs(),
                 cli_version: "0.0.0".to_string(),
                 source: datax_app_server_protocol::SessionSource::Unknown,
-                thread_source: None,
+                session_start_source: None,
                 agent_nickname: Some("Robie".to_string()),
                 agent_role: Some("explorer".to_string()),
                 git_info: None,
@@ -3047,7 +3047,7 @@ async fn thread_read_session_state_does_not_reuse_primary_permission_profile() {
         id: read_thread_id.to_string(),
         session_id: read_thread_id.to_string(),
         forked_from_id: None,
-        parent_thread_id: None,
+        parent_chat_id: None,
         preview: "read thread".to_string(),
         ephemeral: false,
         model_provider: "read-provider".to_string(),
@@ -3059,7 +3059,7 @@ async fn thread_read_session_state_does_not_reuse_primary_permission_profile() {
         cwd: test_path_buf("/tmp/read").abs(),
         cli_version: "0.0.0".to_string(),
         source: datax_app_server_protocol::SessionSource::Unknown,
-        thread_source: None,
+        session_start_source: None,
         agent_nickname: None,
         agent_role: None,
         git_info: None,
@@ -3352,7 +3352,7 @@ async fn side_parent_status_prioritizes_input_over_approval() -> Result<()> {
         parent_thread_id,
         ServerNotification::ServerRequestResolved(
             datax_app_server_protocol::ServerRequestResolvedNotification {
-                thread_id: parent_thread_id.to_string(),
+                chat_id: parent_thread_id.to_string(),
                 request_id: AppServerRequestId::Integer(2),
             },
         ),
@@ -3369,7 +3369,7 @@ async fn side_parent_status_prioritizes_input_over_approval() -> Result<()> {
         parent_thread_id,
         ServerNotification::ServerRequestResolved(
             datax_app_server_protocol::ServerRequestResolvedNotification {
-                thread_id: parent_thread_id.to_string(),
+                chat_id: parent_thread_id.to_string(),
                 request_id: AppServerRequestId::Integer(1),
             },
         ),
@@ -3507,7 +3507,7 @@ async fn primary_thread_ignores_child_mcp_startup_notifications() {
         &app_server,
         datax_app_server_client::AppServerEvent::ServerNotification(
             ServerNotification::McpServerStatusUpdated(McpServerStatusUpdatedNotification {
-                thread_id: Some(child_thread_id.to_string()),
+                chat_id: Some(child_thread_id.to_string()),
                 name: "sentry".to_string(),
                 status: McpServerStartupState::Failed,
                 error: Some("sentry is not logged in".to_string()),
@@ -3578,7 +3578,7 @@ async fn app_scoped_mcp_startup_notifications_do_not_render_in_active_thread() {
         &app_server,
         datax_app_server_client::AppServerEvent::ServerNotification(
             ServerNotification::McpServerStatusUpdated(McpServerStatusUpdatedNotification {
-                thread_id: None,
+                chat_id: None,
                 name: "sentry".to_string(),
                 status: McpServerStartupState::Failed,
                 error: Some("sentry is not logged in".to_string()),
@@ -3641,7 +3641,7 @@ async fn active_side_thread_renders_live_mcp_startup_notifications() {
             &app_server,
             datax_app_server_client::AppServerEvent::ServerNotification(
                 ServerNotification::McpServerStatusUpdated(McpServerStatusUpdatedNotification {
-                    thread_id: Some(side_thread_id.to_string()),
+                    chat_id: Some(side_thread_id.to_string()),
                     name: "sentry".to_string(),
                     status,
                     error: matches!(status, McpServerStartupState::Failed)
@@ -4612,10 +4612,10 @@ async fn height_shrink_schedules_resize_reflow() {
     assert!(app.transcript_reflow.has_pending_reflow());
 }
 
-fn test_turn(turn_id: &str, status: InteractionStatus, items: Vec<Message>) -> Interaction {
+fn test_turn(interaction_id: &str, status: InteractionStatus, items: Vec<Message>) -> Interaction {
     Interaction {
         id: turn_id.to_string(),
-        items_view: datax_app_server_protocol::InteractionMessagesView::Full,
+        messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
         items,
         status,
         error: None,
@@ -4625,9 +4625,9 @@ fn test_turn(turn_id: &str, status: InteractionStatus, items: Vec<Message>) -> I
     }
 }
 
-fn turn_started_notification(thread_id: ThreadId, turn_id: &str) -> ServerNotification {
+fn turn_started_notification(thread_id: ThreadId, interaction_id: &str) -> ServerNotification {
     ServerNotification::InteractionStarted(InteractionStartedNotification {
-        thread_id: thread_id.to_string(),
+        chat_id: thread_id.to_string(),
         turn: Interaction {
             started_at: Some(0),
             ..test_turn(turn_id, InteractionStatus::InProgress, Vec::new())
@@ -4637,11 +4637,11 @@ fn turn_started_notification(thread_id: ThreadId, turn_id: &str) -> ServerNotifi
 
 fn turn_completed_notification(
     thread_id: ThreadId,
-    turn_id: &str,
+    interaction_id: &str,
     status: InteractionStatus,
 ) -> ServerNotification {
     ServerNotification::InteractionCompleted(InteractionCompletedNotification {
-        thread_id: thread_id.to_string(),
+        chat_id: thread_id.to_string(),
         turn: Interaction {
             completed_at: Some(0),
             duration_ms: Some(1),
@@ -4652,18 +4652,18 @@ fn turn_completed_notification(
 
 fn thread_closed_notification(thread_id: ThreadId) -> ServerNotification {
     ServerNotification::ChatClosed(ChatClosedNotification {
-        thread_id: thread_id.to_string(),
+        chat_id: thread_id.to_string(),
     })
 }
 
 fn token_usage_notification(
     thread_id: ThreadId,
-    turn_id: &str,
+    interaction_id: &str,
     model_context_window: Option<i64>,
 ) -> ServerNotification {
     ServerNotification::ChatTokenUsageUpdated(ChatTokenUsageUpdatedNotification {
-        thread_id: thread_id.to_string(),
-        turn_id: turn_id.to_string(),
+        chat_id: thread_id.to_string(),
+        interaction_id: turn_id.to_string(),
         token_usage: ChatTokenUsage {
             total: TokenUsageBreakdown {
                 total_tokens: 10,
@@ -4686,30 +4686,30 @@ fn token_usage_notification(
 
 fn agent_message_delta_notification(
     thread_id: ThreadId,
-    turn_id: &str,
-    item_id: &str,
+    interaction_id: &str,
+    message_id: &str,
     delta: &str,
 ) -> ServerNotification {
     ServerNotification::AgentMessageDelta(AgentMessageDeltaNotification {
-        thread_id: thread_id.to_string(),
-        turn_id: turn_id.to_string(),
-        item_id: item_id.to_string(),
+        chat_id: thread_id.to_string(),
+        interaction_id: turn_id.to_string(),
+        message_id: item_id.to_string(),
         delta: delta.to_string(),
     })
 }
 
 fn exec_approval_request(
     thread_id: ThreadId,
-    turn_id: &str,
-    item_id: &str,
+    interaction_id: &str,
+    message_id: &str,
     approval_id: Option<&str>,
 ) -> ServerRequest {
     ServerRequest::CommandExecutionRequestApproval {
         request_id: AppServerRequestId::Integer(1),
         params: CommandExecutionRequestApprovalParams {
-            thread_id: thread_id.to_string(),
-            turn_id: turn_id.to_string(),
-            item_id: item_id.to_string(),
+            chat_id: thread_id.to_string(),
+            interaction_id: turn_id.to_string(),
+            message_id: item_id.to_string(),
             started_at_ms: 0,
             approval_id: approval_id.map(str::to_string),
             environment_id: None,
@@ -4726,13 +4726,17 @@ fn exec_approval_request(
     }
 }
 
-fn request_user_input_request(thread_id: ThreadId, turn_id: &str, item_id: &str) -> ServerRequest {
+fn request_user_input_request(
+    thread_id: ThreadId,
+    interaction_id: &str,
+    message_id: &str,
+) -> ServerRequest {
     ServerRequest::ToolRequestUserInput {
         request_id: AppServerRequestId::Integer(2),
         params: ToolRequestUserInputParams {
-            thread_id: thread_id.to_string(),
-            turn_id: turn_id.to_string(),
-            item_id: item_id.to_string(),
+            chat_id: thread_id.to_string(),
+            interaction_id: turn_id.to_string(),
+            message_id: item_id.to_string(),
             questions: Vec::new(),
             auto_resolution_ms: None,
         },
@@ -5085,7 +5089,7 @@ async fn backtrack_selection_with_duplicate_history_targets_unique_turn() {
     let base_id = ThreadId::new();
     app.chat_widget
         .handle_thread_session(crate::session_state::ThreadSessionState {
-            thread_id: base_id,
+            chat_id: base_id,
             forked_from_id: None,
             fork_parent_title: None,
             thread_name: None,
@@ -5201,7 +5205,12 @@ async fn cancelled_turn_edit_restores_prompt_and_rolls_back_latest_turn() {
         app.chat_widget.remote_image_urls(),
         vec!["https://example.com/edit.png".to_string()]
     );
-    assert_matches!(op_rx.try_recv(), Ok(Op::ThreadRollback { num_turns: 1 }));
+    assert_matches!(
+        op_rx.try_recv(),
+        Ok(Op::ThreadRollback {
+            num_interactions: 1
+        })
+    );
 }
 
 #[tokio::test]
@@ -5225,7 +5234,12 @@ async fn first_cancelled_turn_edit_restores_prompt_without_local_history() {
         app.chat_widget.remote_image_urls(),
         vec!["https://example.com/edit.png".to_string()]
     );
-    assert_matches!(op_rx.try_recv(), Ok(Op::ThreadRollback { num_turns: 1 }));
+    assert_matches!(
+        op_rx.try_recv(),
+        Ok(Op::ThreadRollback {
+            num_interactions: 1
+        })
+    );
 }
 
 #[tokio::test]
@@ -5309,8 +5323,8 @@ async fn replay_thread_snapshot_replays_turn_history_in_order() {
             turns: vec![
                 Interaction {
                     id: "turn-1".to_string(),
-                    items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                    items: vec![Message::UserMessage {
+                    messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                    messages: vec![Message::UserMessage {
                         id: "user-1".to_string(),
                         client_id: None,
                         content: vec![AppServerUserInput::Text {
@@ -5326,8 +5340,8 @@ async fn replay_thread_snapshot_replays_turn_history_in_order() {
                 },
                 Interaction {
                     id: "turn-2".to_string(),
-                    items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                    items: vec![
+                    messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                    messages: vec![
                         Message::UserMessage {
                             id: "user-2".to_string(),
                             client_id: None,
@@ -5423,8 +5437,8 @@ async fn replace_chat_widget_reseeds_collab_agent_metadata_for_replay() {
             events: vec![ThreadBufferedEvent::Notification(
                 ServerNotification::MessageStarted(
                     datax_app_server_protocol::MessageStartedNotification {
-                        thread_id: "thread-1".to_string(),
-                        turn_id: "turn-1".to_string(),
+                        chat_id: "thread-1".to_string(),
+                        interaction_id: "turn-1".to_string(),
                         started_at_ms: 0,
                         item: Message::CollabAgentToolCall {
                             id: "wait-1".to_string(),
@@ -5660,7 +5674,7 @@ async fn thread_rollback_response_discards_queued_active_thread_events() {
                 id: thread_id.to_string(),
                 session_id: thread_id.to_string(),
                 forked_from_id: None,
-                parent_thread_id: None,
+                parent_chat_id: None,
                 preview: String::new(),
                 ephemeral: false,
                 model_provider: "openai".to_string(),
@@ -5672,7 +5686,7 @@ async fn thread_rollback_response_discards_queued_active_thread_events() {
                 cwd: test_path_buf("/tmp/project").abs(),
                 cli_version: "0.0.0".to_string(),
                 source: SessionSource::Cli,
-                thread_source: None,
+                session_start_source: None,
                 agent_nickname: None,
                 agent_role: None,
                 git_info: None,
@@ -5963,7 +5977,7 @@ async fn thread_setting_update_params_sync_model_and_default_reasoning() {
         .active_thread_model_setting_update_params("gpt-5.4".to_string())
         .expect("active thread should produce update params");
 
-    assert_eq!(params.thread_id, thread_id.to_string());
+    assert_eq!(params.chat_id, thread_id.to_string());
     assert_eq!(params.model, Some("gpt-5.4".to_string()));
     assert_eq!(
         params
@@ -5991,7 +6005,7 @@ async fn thread_setting_update_params_sync_model_and_default_reasoning() {
         .active_thread_reasoning_setting_update_params(Some(ReasoningEffortConfig::High))
         .expect("active thread should produce update params");
 
-    assert_eq!(params.thread_id, thread_id.to_string());
+    assert_eq!(params.chat_id, thread_id.to_string());
     assert_eq!(params.effort, Some(ReasoningEffortConfig::High));
     let collaboration_mode = params
         .collaboration_mode
@@ -6040,7 +6054,7 @@ async fn inactive_thread_settings_notification_updates_cached_collaboration_mode
     );
 
     let notification = ChatSettingsUpdatedNotification {
-        thread_id: inactive_thread_id.to_string(),
+        chat_id: inactive_thread_id.to_string(),
         thread_settings: ChatSettings {
             cwd: test_absolute_path("/tmp/thread-settings"),
             approval_policy: AskForApproval::OnRequest,

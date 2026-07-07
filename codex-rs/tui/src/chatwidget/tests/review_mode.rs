@@ -1218,8 +1218,8 @@ async fn interrupted_turn_after_goal_budget_limited_uses_budget_message_snapshot
                 thread_id: "thread-1".to_string(),
                 turn: datax_app_server_protocol::Interaction {
                     id: "turn-1".to_string(),
-                    items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                    items: Vec::new(),
+                    messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                    messages: Vec::new(),
                     status: datax_app_server_protocol::InteractionStatus::InProgress,
                     error: None,
                     started_at: None,
@@ -1255,8 +1255,8 @@ async fn interrupted_turn_after_goal_budget_limited_uses_budget_message_snapshot
                 thread_id: "thread-1".to_string(),
                 turn: datax_app_server_protocol::Interaction {
                     id: "turn-1".to_string(),
-                    items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                    items: Vec::new(),
+                    messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                    messages: Vec::new(),
                     status: datax_app_server_protocol::InteractionStatus::Interrupted,
                     error: None,
                     started_at: None,

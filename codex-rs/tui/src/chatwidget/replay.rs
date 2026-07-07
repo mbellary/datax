@@ -15,8 +15,8 @@ impl ChatWidget {
         for turn in turns {
             let Interaction {
                 id: turn_id,
-                items_view: _,
-                items,
+                messages_view: _,
+                messages,
                 status,
                 error,
                 started_at,
@@ -27,7 +27,7 @@ impl ChatWidget {
                 self.last_non_retry_error = None;
                 self.on_task_started();
             }
-            for item in items {
+            for item in messages {
                 self.replay_thread_item(item, turn_id.clone(), replay_kind);
             }
             if matches!(
@@ -38,12 +38,12 @@ impl ChatWidget {
             ) {
                 self.handle_turn_completed_notification(
                     InteractionCompletedNotification {
-                        thread_id: self.thread_id.map(|id| id.to_string()).unwrap_or_default(),
+                        chat_id: self.thread_id.map(|id| id.to_string()).unwrap_or_default(),
                         turn: Interaction {
                             id: turn_id,
-                            items_view:
+                            messages_view:
                                 datax_app_server_protocol::InteractionMessagesView::NotLoaded,
-                            items: Vec::new(),
+                            messages: Vec::new(),
                             status,
                             error,
                             started_at,
@@ -103,7 +103,7 @@ impl ChatWidget {
                                         }
                                     })
                                     .collect(),
-                                rollout_ids: citation.thread_ids,
+                                rollout_ids: citation.chat_ids,
                             }
                         }),
                     },

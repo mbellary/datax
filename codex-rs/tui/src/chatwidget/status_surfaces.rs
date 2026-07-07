@@ -812,7 +812,7 @@ impl ChatWidget {
             )),
             TerminalTitleItem::Spinner => self.terminal_title_spinner_text_at(now),
             TerminalTitleItem::Status => Some(self.run_state_status_text()),
-            TerminalTitleItem::Chat => self
+            TerminalTitleItem::Thread => self
                 .status_line_value_for_item(StatusLineItem::ThreadTitle)
                 .map(|value| Self::truncate_terminal_title_part(value, /*max_chars*/ 48)),
             TerminalTitleItem::GitBranch => self.status_line_branch.as_ref().map(|branch| {

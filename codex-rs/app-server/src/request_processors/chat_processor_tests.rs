@@ -466,11 +466,11 @@ mod thread_processor_behavior_tests {
         let chat_id =
             ThreadId::from_string("00000000-0000-0000-0000-000000000123").expect("valid thread");
         let stored_thread = StoredThread {
-            chat_id,
+            thread_id: chat_id,
             extra_config: None,
             rollout_path: Some(PathBuf::from("/tmp/thread.jsonl")),
             forked_from_id: None,
-            parent_chat_id: None,
+            parent_thread_id: None,
             preview: "preview".to_string(),
             name: None,
             model_provider: "openai".to_string(),
@@ -483,7 +483,7 @@ mod thread_processor_behavior_tests {
             cwd: PathBuf::from("/tmp"),
             cli_version: "0.0.0".to_string(),
             source: SessionSource::Cli,
-            chat_source: Some(datax_protocol::protocol::ThreadSource::User),
+            thread_source: Some(datax_protocol::protocol::ThreadSource::User),
             agent_nickname: None,
             agent_role: None,
             agent_path: None,
@@ -777,9 +777,9 @@ mod thread_processor_behavior_tests {
                 },
             },
             session_source: SessionSource::Cli,
-            forked_from_chat_id: None,
-            parent_chat_id: None,
-            chat_source: None,
+            forked_from_thread_id: None,
+            parent_thread_id: None,
+            thread_source: None,
         };
 
         assert_eq!(
@@ -1064,13 +1064,13 @@ mod thread_processor_behavior_tests {
             id: conversation_id,
             timestamp: timestamp.clone(),
             source: SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-                parent_chat_id,
+                parent_thread_id: parent_chat_id,
                 depth: 1,
                 agent_path: None,
                 agent_nickname: None,
                 agent_role: None,
             }),
-            chat_source: Some(datax_protocol::protocol::ThreadSource::Subagent),
+            thread_source: Some(datax_protocol::protocol::ThreadSource::Subagent),
             agent_nickname: Some("atlas".to_string()),
             agent_role: Some("explorer".to_string()),
             model_provider: Some("test-provider".to_string()),
@@ -1201,7 +1201,7 @@ mod thread_processor_behavior_tests {
         let conversation_id = ThreadId::from_string("bfd12a78-5900-467b-9bc5-d3d35df08191")?;
         let source =
             serde_json::to_string(&SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-                parent_chat_id: ThreadId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?,
+                parent_thread_id: ThreadId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?,
                 depth: 1,
                 agent_path: None,
                 agent_nickname: None,
@@ -1258,7 +1258,7 @@ mod thread_processor_behavior_tests {
             state.track_current_turn_event(
                 "turn-1",
                 &EventMsg::TurnStarted(datax_protocol::protocol::TurnStartedEvent {
-                    interaction_id: "turn-1".to_string(),
+                    turn_id: "turn-1".to_string(),
                     trace_id: None,
                     started_at: None,
                     model_context_window: None,

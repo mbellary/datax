@@ -4,7 +4,6 @@ use std::sync::Weak;
 use datax_analytics::AnalyticsEventsClient;
 use datax_app_server_protocol::ChatGoal;
 use datax_app_server_protocol::ChatGoalUpdatedNotification;
-use datax_app_server_protocol::ServerNotification;
 use datax_app_server_protocol::ServerNotification::*;
 use datax_core::NewThread;
 use datax_core::StartThreadOptions;
@@ -234,12 +233,12 @@ mod tests {
         Event {
             id: interaction_id.to_string(),
             msg: EventMsg::ThreadGoalUpdated(ThreadGoalUpdatedEvent {
-                chat_id,
-                interaction_id: Some(interaction_id.to_string()),
+                thread_id: chat_id,
+                turn_id: Some(interaction_id.to_string()),
                 goal: CoreThreadGoal {
-                    chat_id,
+                    thread_id: chat_id,
                     objective: "wire extension events".to_string(),
-                    status: ChatGoalStatus::Active,
+                    status: ThreadGoalStatus::Active,
                     token_budget: Some(123),
                     tokens_used: 45,
                     time_used_seconds: 6,

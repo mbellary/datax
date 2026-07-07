@@ -7,7 +7,6 @@ use datax_app_server_protocol::Chat;
 use datax_app_server_protocol::ChatActiveFlag;
 use datax_app_server_protocol::ChatStatus;
 use datax_app_server_protocol::ChatStatusChangedNotification;
-use datax_app_server_protocol::ServerNotification;
 use datax_app_server_protocol::ServerNotification::*;
 use datax_protocol::ThreadId;
 use std::collections::HashMap;

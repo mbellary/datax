@@ -3636,7 +3636,7 @@ impl ChatRequestProcessor {
                     archived,
                     search_term: search_term.clone(),
                     use_state_db_only,
-                    parent_chat_id,
+                    parent_thread_id: parent_chat_id,
                 })
                 .await
                 .map_err(thread_store_list_error)?;

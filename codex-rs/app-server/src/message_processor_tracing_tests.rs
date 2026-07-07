@@ -21,6 +21,7 @@ use datax_app_server_protocol::InteractionStartParams;
 use datax_app_server_protocol::InteractionStartResponse;
 use datax_app_server_protocol::JSONRPCRequest;
 use datax_app_server_protocol::RequestId;
+use datax_app_server_protocol::ServerNotification;
 use datax_app_server_protocol::UserInput;
 use datax_arg0::Arg0DispatchPaths;
 use datax_config::CloudConfigBundleLoader;
@@ -194,7 +195,7 @@ impl TracingHarness {
     ) -> ChatStartResponse {
         let response = self
             .request(
-                ChatStart {
+                ClientRequest::ChatStart {
                     request_id: RequestId::Integer(request_id),
                     params: ChatStartParams {
                         ephemeral: Some(true),
@@ -476,7 +477,7 @@ async fn read_thread_started_notification(
                 else {
                     continue;
                 };
-                if matches!(notification, datax_app_server_protocol::ChatStarted(_)) {
+                if matches!(notification, ServerNotification::ChatStarted(_)) {
                     return;
                 }
             }
@@ -486,7 +487,7 @@ async fn read_thread_started_notification(
                 else {
                     continue;
                 };
-                if matches!(notification, datax_app_server_protocol::ChatStarted(_)) {
+                if matches!(notification, ServerNotification::ChatStarted(_)) {
                     return;
                 }
             }
@@ -642,7 +643,7 @@ async fn turn_start_jsonrpc_span_parents_core_turn_spans() -> Result<()> {
     } = RemoteTrace::new("00000000000000000000000000000077", "0000000000000088");
     let turn_start_response: InteractionStartResponse = harness
         .request(
-            InteractionStart {
+            ClientRequest::InteractionStart {
                 request_id: RequestId::Integer(3),
                 params: InteractionStartParams {
                     environments: None,

@@ -17,7 +17,7 @@ use datax_app_server_protocol::ChatTokenUsage;
 use datax_app_server_protocol::ChatTokenUsageUpdatedNotification;
 use datax_app_server_protocol::Interaction;
 use datax_app_server_protocol::InteractionStatus;
-use datax_app_server_protocol::ServerNotification;
+use datax_app_server_protocol::ServerNotification::*;
 use datax_core::CodexThread;
 use datax_protocol::ThreadId;
 use datax_protocol::protocol::EventMsg;

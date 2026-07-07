@@ -2269,11 +2269,11 @@ mod tests {
             })),
         ];
         let stored_thread = StoredThread {
-            chat_id,
+            thread_id: chat_id,
             extra_config: None,
             rollout_path: None,
             forked_from_id: None,
-            parent_chat_id: None,
+            parent_thread_id: None,
             preview: "fallback preview".to_string(),
             name: Some("Rollback thread".to_string()),
             model_provider: "openai".to_string(),
@@ -2286,7 +2286,7 @@ mod tests {
             cwd: test_path_buf("/tmp").abs().into(),
             cli_version: "0.0.0".to_string(),
             source: SessionSource::Cli,
-            chat_source: None,
+            thread_source: None,
             agent_nickname: None,
             agent_role: None,
             agent_path: None,
@@ -2296,8 +2296,8 @@ mod tests {
             token_usage: None,
             first_user_message: Some("before rollback".to_string()),
             history: Some(StoredThreadHistory {
-                chat_id,
-                messages: history_items,
+                thread_id: chat_id,
+                items: history_items,
             }),
         };
         let fallback_cwd = test_path_buf("/tmp").abs();
@@ -2323,7 +2323,7 @@ mod tests {
 
     fn turn_complete_event(interaction_id: &str) -> TurnCompleteEvent {
         TurnCompleteEvent {
-            interaction_id: interaction_id.to_string(),
+            turn_id: interaction_id.to_string(),
             last_agent_message: None,
             completed_at: Some(TEST_TURN_COMPLETED_AT),
             duration_ms: Some(TEST_TURN_DURATION_MS),
@@ -2333,7 +2333,7 @@ mod tests {
 
     fn turn_aborted_event(interaction_id: &str) -> TurnAbortedEvent {
         TurnAbortedEvent {
-            interaction_id: Some(interaction_id.to_string()),
+            turn_id: Some(interaction_id.to_string()),
             reason: datax_protocol::protocol::TurnAbortReason::Interrupted,
             completed_at: Some(TEST_TURN_COMPLETED_AT),
             duration_ms: Some(TEST_TURN_DURATION_MS),
@@ -2374,8 +2374,8 @@ mod tests {
         };
         GuardianAssessmentEvent {
             id: format!("review-{id}"),
-            target_message_id: Some(id.to_string()),
-            interaction_id: interaction_id.to_string(),
+            target_item_id: Some(id.to_string()),
+            turn_id: interaction_id.to_string(),
             started_at_ms: 1_000,
             completed_at_ms: (!matches!(status, GuardianAssessmentStatus::InProgress))
                 .then_some(1_042),
@@ -2441,8 +2441,8 @@ mod tests {
             "turn-from-event",
             &GuardianAssessmentEvent {
                 id: "review-1".to_string(),
-                target_message_id: Some("item-1".to_string()),
-                interaction_id: String::new(),
+                target_item_id: Some("item-1".to_string()),
+                turn_id: String::new(),
                 started_at_ms: 1_000,
                 completed_at_ms: None,
                 status: datax_protocol::protocol::GuardianAssessmentStatus::InProgress,
@@ -2487,8 +2487,8 @@ mod tests {
             "turn-from-event",
             &GuardianAssessmentEvent {
                 id: "review-2".to_string(),
-                target_message_id: Some("item-2".to_string()),
-                interaction_id: "turn-from-assessment".to_string(),
+                target_item_id: Some("item-2".to_string()),
+                turn_id: "turn-from-assessment".to_string(),
                 started_at_ms: 1_000,
                 completed_at_ms: Some(1_042),
                 status: datax_protocol::protocol::GuardianAssessmentStatus::Denied,
@@ -2541,8 +2541,8 @@ mod tests {
             "turn-from-event",
             &GuardianAssessmentEvent {
                 id: "review-3".to_string(),
-                target_message_id: None,
-                interaction_id: "turn-from-assessment".to_string(),
+                target_item_id: None,
+                turn_id: "turn-from-assessment".to_string(),
                 started_at_ms: 1_000,
                 completed_at_ms: Some(1_042),
                 status: datax_protocol::protocol::GuardianAssessmentStatus::Aborted,
@@ -2736,7 +2736,7 @@ mod tests {
             ),
         );
         let datax_core::NewThread {
-            chat_id: conversation_id,
+            thread_id: conversation_id,
             thread: conversation,
             ..
         } = thread_manager.start_thread(config.clone()).await?;
@@ -2904,7 +2904,7 @@ mod tests {
             "turn-guardian-missing-target",
             GuardianAssessmentStatus::InProgress,
         );
-        missing_target.target_message_id = None;
+        missing_target.target_item_id = None;
         guardian_context
             .apply_guardian_assessment_event(missing_target)
             .await;
@@ -3322,7 +3322,7 @@ mod tests {
             ),
         );
         let datax_core::NewThread {
-            chat_id: conversation_id,
+            thread_id: conversation_id,
             thread: conversation,
             ..
         } = thread_manager.start_thread(config.clone()).await?;
@@ -3332,7 +3332,7 @@ mod tests {
             state.track_current_turn_event(
                 "turn-1",
                 &EventMsg::TurnStarted(datax_protocol::protocol::TurnStartedEvent {
-                    interaction_id: "turn-1".to_string(),
+                    turn_id: "turn-1".to_string(),
                     trace_id: None,
                     started_at: Some(42),
                     model_context_window: None,
@@ -3367,7 +3367,7 @@ mod tests {
             Event {
                 id: "turn-1".to_string(),
                 msg: EventMsg::TurnStarted(datax_protocol::protocol::TurnStartedEvent {
-                    interaction_id: "turn-1".to_string(),
+                    turn_id: "turn-1".to_string(),
                     trace_id: None,
                     started_at: Some(42),
                     model_context_window: None,
@@ -3410,7 +3410,7 @@ mod tests {
             ),
         );
         let datax_core::NewThread {
-            chat_id: conversation_id,
+            thread_id: conversation_id,
             thread: conversation,
             ..
         } = thread_manager.start_thread(config).await?;
@@ -3503,7 +3503,7 @@ mod tests {
             state.track_current_turn_event(
                 &event_turn_id,
                 &EventMsg::TurnStarted(datax_protocol::protocol::TurnStartedEvent {
-                    interaction_id: event_turn_id.clone(),
+                    turn_id: event_turn_id.clone(),
                     trace_id: None,
                     started_at: Some(42),
                     model_context_window: None,

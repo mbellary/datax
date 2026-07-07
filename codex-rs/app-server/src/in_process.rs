@@ -833,7 +833,7 @@ mod tests {
         ] {
             let client = start_test_client(requested_source).await;
             let response = client
-                .request(ChatStart {
+                .request(ClientRequest::ChatStart {
                     request_id: RequestId::Integer(2),
                     params: ChatStartParams {
                         ephemeral: Some(true),

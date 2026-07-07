@@ -29,6 +29,7 @@ This milestone deliberately targets the app-server public API boundary. Internal
 - [x] (2026-07-07T00:00:00Z) Fixed deferred `just test -p datax-app-server` compile fallout in `datax-analytics`, where analytics ingestion still read old app-server public fields such as `thread_id`, `turn_id`, `item_id`, and `target_item_id` from renamed chat, interaction, and message protocol payloads.
 - [x] (2026-07-07T00:00:00Z) Fixed deferred `just test -p datax-app-server` compile fallout in core, app-server, analytics tests, and TUI where app-server protocol helper names and core permission scope variants still used the removed `ThreadHistoryBuilder`, `McpServerElicitationRequestParams.thread_id`, `McpServerElicitationRequestParams.turn_id`, and `PermissionGrantScope::Interaction` symbols.
 - [x] (2026-07-07T00:00:00Z) Fixed deferred `just test -p datax-app-server` compile fallout inside app-server implementation and test support where public chat/interaction/message protocol names had been mechanically applied to internal core, thread-store, state, and rollout adapters that still require `thread_id`, `turn_id`, `item_id`, `items`, and `thread_source`.
+- [x] (2026-07-07T00:00:00Z) Fixed the next deferred `just test -p datax-app-server` compile batch in app-server test modules, response routing tests, filters, token usage replay, and extension test fixtures where enum variants needed explicit namespaces or internal test fixtures still used public chat/interaction/message field names.
 
 ## Surprises & Discoveries
 
@@ -58,6 +59,9 @@ This milestone deliberately targets the app-server public API boundary. Internal
 
 - Observation: App-server source is an adapter boundary, not a pure rename surface.
   Evidence: A user-run compile reported 184 app-server errors where internal crates still expose `ThreadSortKey`, `ThreadGoal`, `ThreadGoalStatus`, `StoredThread.thread_id`, `StoredThreadHistory.items`, `ThreadStoreError::ThreadNotFound { thread_id }`, core event `turn_id`, and realtime `item_id`, while app-server v2 public payloads intentionally expose `chat_id`, `interaction_id`, `message_id`, and `chat_source`.
+
+- Observation: App-server unit tests instantiate both public protocol payloads and internal core/store fixtures in the same files.
+  Evidence: The follow-up user-run compile reported stale internal fields in `codex-rs/app-server/src/bespoke_event_handling.rs` and `codex-rs/app-server/src/request_processors/chat_processor_tests.rs`, while adjacent assertions still correctly reference public app-server fields such as `target_message_id`, `interaction_id`, and `chat_source`.
 
 ## Decision Log
 
@@ -143,15 +147,20 @@ The table below tracks files and file sets that belong to Phase 1.4. Rows marked
 | `codex-rs/app-server/src/request_processors/thread_summary.rs` | `Completed` | Summary request helpers may expose public thread naming. |
 | `codex-rs/app-server/src/request_processors/external_agent_session_import.rs` | `Completed` | External-agent import writes through internal thread-store APIs, so store params use `thread_id`, `parent_thread_id`, `thread_source`, and `items` behind public app-server chat terminology. |
 | `codex-rs/app-server/src/request_processors/feedback_processor.rs` | `Completed` | Feedback snapshot uses internal `thread_id` while app-server request context keeps public chat naming. |
+| `codex-rs/app-server/src/request_processors/token_usage_replay.rs` | `Completed` | Token usage replay emits public chat token usage notifications and imports the generated notification enum variant explicitly. |
 | `codex-rs/app-server/src/request_processors/thread_processor_tests.rs` | `Completed` | Processor tests must use renamed public methods and types. |
+| `codex-rs/app-server/src/request_processors/chat_processor_tests.rs` | `Completed` | Chat processor tests construct internal `StoredThread`, `SessionMeta`, `ThreadConfigSnapshot`, and `TurnStartedEvent` fixtures that still use internal field names. |
 | `codex-rs/app-server/src/request_processors/thread_summary_tests.rs` | `Completed` | Summary tests must follow renamed public naming if touched by source changes. |
 | `codex-rs/app-server/src/thread_state.rs` | `Completed` | Runtime state currently stores public `Thread` and `Turn` values; rename only if required by app-server protocol type changes. |
 | `codex-rs/app-server/src/thread_status.rs` | `Completed` | Status notifications are public app-server surface and likely become chat status notifications. |
 | `codex-rs/app-server/src/in_process.rs` | `Completed` | In-process client tests and examples call public methods such as `thread/start`. |
 | `codex-rs/app-server/src/message_processor.rs` | `Completed` | Coordinates app-server events and may publish public thread/chat notifications. |
+| `codex-rs/app-server/src/message_processor_tracing_tests.rs` | `Completed` | Tracing tests construct `ClientRequest` and match `ServerNotification` variants, so renamed variants are now explicitly namespaced. |
+| `codex-rs/app-server/src/outgoing_message.rs` | `Completed` | Response routing tests construct generated `ClientResponsePayload` variants explicitly. |
 | `codex-rs/app-server/src/request_serialization.rs` | `Completed` | Serialization scopes may expose thread naming. |
 | `codex-rs/app-server/src/attestation.rs` | `Completed` | Attestation context uses internal `thread_id`; app-server helper passes it through without public schema exposure. |
 | `codex-rs/app-server/src/extensions.rs` | `Completed` | Extension event sink adapts internal `ThreadGoalUpdatedEvent.thread_id` and `turn_id` into public chat goal notifications. |
+| `codex-rs/app-server/src/filters.rs` | `Completed` | Filter tests construct internal `SubAgentSource::ThreadSpawn` fixtures with `parent_thread_id`. |
 | `codex-rs/app-server/README.md` | `Completed` | API contract documentation and examples must use `chat`, `interaction`, and `message`. |
 | `codex-rs/app-server/tests/common/rollout.rs` | `Completed` | App-server test support constructs core `SessionMeta`, which still uses `parent_thread_id` and `thread_source` internally. |
 | `codex-rs/app-server/tests/suite/v2/thread_*.rs` | `Completed` | Integration tests for public thread methods must be renamed or updated to chat methods. |

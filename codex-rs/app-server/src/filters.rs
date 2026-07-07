@@ -131,7 +131,7 @@ mod tests {
             ThreadId::from_string(&Uuid::new_v4().to_string()).expect("valid thread id");
         let review = CoreSessionSource::SubAgent(CoreSubAgentSource::Review);
         let spawn = CoreSessionSource::SubAgent(CoreSubAgentSource::ThreadSpawn {
-            parent_chat_id,
+            parent_thread_id: parent_chat_id,
             depth: 1,
             agent_path: None,
             agent_nickname: None,

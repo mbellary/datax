@@ -1021,7 +1021,9 @@ mod tests {
         outgoing
             .send_response(
                 request_id.clone(),
-                ChatArchive(datax_app_server_protocol::ChatArchiveResponse {}),
+                datax_app_server_protocol::ClientResponsePayload::ChatArchive(
+                    datax_app_server_protocol::ChatArchiveResponse {},
+                ),
             )
             .await;
 
@@ -1069,7 +1071,9 @@ mod tests {
         outgoing
             .send_response(
                 request_id,
-                ChatArchive(datax_app_server_protocol::ChatArchiveResponse {}),
+                datax_app_server_protocol::ClientResponsePayload::ChatArchive(
+                    datax_app_server_protocol::ChatArchiveResponse {},
+                ),
             )
             .await;
 

@@ -1681,7 +1681,7 @@ async fn run_exec_server_command(
     strict_config: bool,
 ) -> anyhow::Result<()> {
     let codex_self_exe = arg0_paths
-        .datax_self_exe
+        .codex_self_exe
         .clone()
         .ok_or_else(|| anyhow::anyhow!("Codex executable path is not configured"))?;
     let runtime_paths = datax_exec_server::ExecServerRuntimePaths::new(

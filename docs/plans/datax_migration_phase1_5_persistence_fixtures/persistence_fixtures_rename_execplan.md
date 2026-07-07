@@ -21,6 +21,7 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
 - [x] (2026-07-07 00:00Z) Updated generated config and app-server schema artifacts for Datax persistence descriptions without running generators.
 - [x] (2026-07-07 00:00Z) Updated owned fixtures and snapshots that encode the renamed persistence strings, excluding `.codex-plugin` manifest paths.
 - [x] (2026-07-07 00:00Z) Corrected accidental internal field/member rewrites reported by user build output, including `codex_linux_sandbox_exe` and `CodexThread.codex` member accesses.
+- [x] (2026-07-07 00:00Z) Corrected additional accidental `Config.codex_self_exe` member rewrites reported by user build output.
 - [ ] Run allowed formatting/static checks, document deferred test/build commands, commit, and push.
 
 ## Surprises & Discoveries
@@ -39,6 +40,8 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
   Evidence: Static checks found and corrected accidental internal member rewrites such as `codex_error_info`, `codex_home`, and the `datax-protocol` dependency alias before formatting.
 - Observation: User build output later exposed additional accidental internal member rewrites outside the first static-check set.
   Evidence: `cargo build` reported missing `datax_linux_sandbox_exe` and missing `.datax` fields on `CodexThread` and `GuardianReviewSession`; those were restored to existing internal field names while retaining Datax filesystem path strings.
+- Observation: User build output exposed the same issue for the executable path field on `Config`.
+  Evidence: `cargo build` reported missing `datax_self_exe`; the app-server, CLI, and exec-server references were restored to `codex_self_exe`.
 
 ## Decision Log
 

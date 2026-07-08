@@ -20,7 +20,7 @@ The user-visible outcome is a concrete freeze checklist plus a cleanup of active
 - [x] (2026-07-08 00:00Z) Fixed active PR template, CLA workflow document URL, and contributor guide wording that still pointed contributors at upstream Codex identity.
 - [x] (2026-07-08 00:00Z) Ran lightweight static validation; `git diff --check` passed and focused stale package metadata search now returns only the pending `codex-sdk` classification.
 - [x] (2026-07-08 00:00Z) Created GitHub issue #13 for Phase 1.7.
-- [ ] Create the draft pull request for Phase 1.7.
+- [x] (2026-07-08 00:00Z) Created draft PR #14 for Phase 1.7.
 - [x] Run allowed static validation only; build, format, generation, fix, and test commands remain user-run.
 - [ ] Record final validation evidence from the user and close out the freeze report.
 
@@ -52,7 +52,7 @@ The user-visible outcome is a concrete freeze checklist plus a cleanup of active
 
 ## Outcomes & Retrospective
 
-In progress. The active metadata cleanup has been implemented locally and Phase 1.7 issue #13 has been created. Final outcomes will be recorded after the draft PR, static validation evidence, and user-run freeze checklist evidence are complete.
+In progress. The active metadata cleanup has been implemented, Phase 1.7 issue #13 has been created, and draft PR #14 has been opened. Final outcomes will be recorded after user-run freeze checklist evidence is complete.
 
 ## Context and Orientation
 
@@ -63,6 +63,8 @@ Phase 1.7 starts after Phase 1.6 has been merged into `main`. The user confirmed
 The concrete freeze checklist lives at `docs/plans/datax_migration_phase1_7_freeze_report/phase1_migration_freeze_checklist.md`. That checklist is runner-facing: it lists exact commands for the user to execute and output to paste back into the thread.
 
 The milestone GitHub issue is #13: `https://github.com/mbellary/datax/issues/13`.
+
+The milestone draft pull request is #14: `https://github.com/mbellary/datax/pull/14`.
 
 ## Rename Exception Register
 

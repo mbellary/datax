@@ -1,0 +1,6 @@
+---
+source: tui/src/resume_picker.rs
+assertion_line: 3743
+expression: snapshot
+---
+Failed to read session metadata from /tmp/missing.jsonl

@@ -6,7 +6,7 @@ export type ChatRollbackParams = { chatId: string,
 /**
  * The number of interactions to drop from the end of the chat. Must be >= 1.
  *
- * This only modifies the chat.s history and does not revert local file changes
+ * This only modifies the chat's history and does not revert local file changes
  * that have been made by the agent. Clients are responsible for reverting these changes.
  */
 numInteractions: number, };

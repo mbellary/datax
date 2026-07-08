@@ -9,7 +9,7 @@
       "type": "string"
     }
   },
-  "description": "EXPERIMENTAL - emitted when chat realtime startup is accepted.",
+  "description": "EXPERIMENTAL - emitted when thread realtime startup is accepted.",
   "properties": {
     "chatId": {
       "type": "string"

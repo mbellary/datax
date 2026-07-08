@@ -1,0 +1,13 @@
+---
+source: tui/src/debug_config.rs
+assertion_line: 940
+expression: rendered.as_str()
+---
+/debug-config
+
+Config layer stack (lowest precedence first):
+  <none>
+
+Requirements:
+  - allowed_sandbox_modes: read-only, workspace-write (source: /etc/datax/requirements.toml)
+  - permissions.filesystem.deny_read: /home/alice/.gitconfig (source: /etc/datax/requirements.toml)

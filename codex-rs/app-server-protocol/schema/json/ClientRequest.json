@@ -452,7 +452,7 @@
           "type": "string"
         },
         "messages": {
-          "description": "Raw Responses API messages to append to the chat.s model-visible history.",
+          "description": "Raw Responses API messages to append to the chat's model-visible history.",
           "items": true,
           "type": "array"
         }
@@ -479,7 +479,7 @@
     "ChatListParams": {
       "properties": {
         "archived": {
-          "description": "Optional archived filter; when set to true, only archived threads are returned. If false or null, only non-archived threads are returned.",
+          "description": "Optional archived filter; when set to true, only archived chats are returned. If false or null, only non-archived chats are returned.",
           "type": [
             "boolean",
             "null"
@@ -501,7 +501,7 @@
               "type": "null"
             }
           ],
-          "description": "Optional cwd filter or filters; when set, only threads whose session cwd exactly matches one of these paths are returned."
+          "description": "Optional cwd filter or filters; when set, only chats whose session cwd exactly matches one of these paths are returned."
         },
         "limit": {
           "description": "Optional page size; defaults to a reasonable server-side value.",
@@ -660,7 +660,7 @@
       "type": "object"
     },
     "ChatRealtimeAudioChunk": {
-      "description": "EXPERIMENTAL - chat realtime audio chunk.",
+      "description": "EXPERIMENTAL - thread realtime audio chunk.",
       "properties": {
         "data": {
           "type": "string"
@@ -698,7 +698,7 @@
       "type": "object"
     },
     "ChatRealtimeStartTransport": {
-      "description": "EXPERIMENTAL - transport used by chat realtime.",
+      "description": "EXPERIMENTAL - transport used by thread realtime.",
       "oneOf": [
         {
           "properties": {
@@ -889,7 +889,7 @@
           "type": "string"
         },
         "numInteractions": {
-          "description": "The number of interactions to drop from the end of the chat. Must be >= 1.\n\nThis only modifies the chat.s history and does not revert local file changes that have been made by the agent. Clients are responsible for reverting these changes.",
+          "description": "The number of interactions to drop from the end of the chat. Must be >= 1.\n\nThis only modifies the chat's history and does not revert local file changes that have been made by the agent. Clients are responsible for reverting these changes.",
           "format": "uint32",
           "minimum": 0.0,
           "type": "integer"
@@ -922,7 +922,7 @@
           "type": "string"
         },
         "command": {
-          "description": "Shell command string evaluated by the chat configured shell. Unlike `command/exec`, this intentionally preserves shell syntax such as pipes, redirects, and quoting. This runs unsandboxed with full access rather than inheriting the chat sandbox policy.",
+          "description": "Shell command string evaluated by the chat's configured shell. Unlike `command/exec`, this intentionally preserves shell syntax such as pipes, redirects, and quoting. This runs unsandboxed with full access rather than inheriting the chat sandbox policy.",
           "type": "string"
         }
       },
@@ -2227,21 +2227,21 @@
     "InteractionMessagesView": {
       "oneOf": [
         {
-          "description": "`messages` was not loaded for this interaction. The field is intentionally empty.",
+          "description": "`messages` was not loaded for this turn. The field is intentionally empty.",
           "enum": [
             "notLoaded"
           ],
           "type": "string"
         },
         {
-          "description": "`messages` contains only a display summary for this interaction.",
+          "description": "`messages` contains only a display summary for this turn.",
           "enum": [
             "summary"
           ],
           "type": "string"
         },
         {
-          "description": "`messages` contains every Message available from persisted app-server history for this interaction.",
+          "description": "`messages` contains every Message available from persisted app-server history for this turn.",
           "enum": [
             "full"
           ],
@@ -2567,7 +2567,7 @@
           "type": "object"
         },
         {
-          "description": "[UNSTABLE] FOR OPENAI INTERNAL USE ONLY - DO NOT USE. The access token must contain the same scopes that Datax-managed ChatGPT auth tokens have.",
+          "description": "[UNSTABLE] FOR OPENAI INTERNAL USE ONLY - DO NOT USE. The access token must contain the same scopes that Codex-managed ChatGPT auth tokens have.",
           "properties": {
             "accessToken": {
               "description": "Access token (JWT) supplied by the client. This token is used for backend API requests and email extraction.",

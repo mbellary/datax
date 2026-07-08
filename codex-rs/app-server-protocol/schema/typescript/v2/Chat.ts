@@ -22,7 +22,7 @@ forkedFromId: string | null,
  */
 parentChatId: string | null,
 /**
- * Usually the first user message in the chat, if available.
+ * Usually the first user message in the thread, if available.
  */
 preview: string,
 /**
@@ -30,7 +30,7 @@ preview: string,
  */
 ephemeral: boolean,
 /**
- * Model provider used for this chat (for example, 'openai').
+ * Model provider used for this thread (for example, 'openai').
  */
 modelProvider: string,
 /**
@@ -46,7 +46,7 @@ updatedAt: number,
  */
 recencyAt: number | null,
 /**
- * Current runtime status for the chat.
+ * Current runtime status for the thread.
  */
 status: ChatStatus,
 /**
@@ -54,19 +54,19 @@ status: ChatStatus,
  */
 path: string | null,
 /**
- * Working directory captured for the chat.
+ * Working directory captured for the thread.
  */
 cwd: AbsolutePathBuf,
 /**
- * Version of the CLI that created the chat.
+ * Version of the CLI that created the thread.
  */
 cliVersion: string,
 /**
- * Origin of the chat (CLI, VSCode, codex exec, codex app-server, etc.).
+ * Origin of the thread (CLI, VSCode, codex exec, codex app-server, etc.).
  */
 source: SessionSource,
 /**
- * Optional analytics source classification for this chat.
+ * Optional analytics source classification for this thread.
  */
 chatSource: ChatSource | null,
 /**

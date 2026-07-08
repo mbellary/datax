@@ -318,21 +318,21 @@
     "InteractionMessagesView": {
       "oneOf": [
         {
-          "description": "`messages` was not loaded for this interaction. The field is intentionally empty.",
+          "description": "`messages` was not loaded for this turn. The field is intentionally empty.",
           "enum": [
             "notLoaded"
           ],
           "type": "string"
         },
         {
-          "description": "`messages` contains only a display summary for this interaction.",
+          "description": "`messages` contains only a display summary for this turn.",
           "enum": [
             "summary"
           ],
           "type": "string"
         },
         {
-          "description": "`messages` contains every Message available from persisted app-server history for this interaction.",
+          "description": "`messages` contains every Message available from persisted app-server history for this turn.",
           "enum": [
             "full"
           ],

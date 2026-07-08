@@ -1373,6 +1373,20 @@
         "null"
       ]
     },
+    "excludeInteractions": {
+      "description": "When true, return only chat metadata and live-resume state without populating `chat.interactions`. This is useful when the client plans to call `chat/interactions/list` immediately after resuming.",
+      "type": "boolean"
+    },
+    "history": {
+      "description": "[UNSTABLE] FOR CODEX CLOUD - DO NOT USE. If specified, the chat will be resumed with the provided history instead of loaded from disk.",
+      "items": {
+        "$ref": "#/definitions/ResponseItem"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    },
     "initialInteractionsPage": {
       "anyOf": [
         {
@@ -1397,6 +1411,21 @@
         "null"
       ]
     },
+    "path": {
+      "default": null,
+      "description": "[UNSTABLE] Specify the rollout path to resume from. If specified for a non-running chat, the chat_id param will be ignored. If chat_id identifies a running chat, the path must match the active rollout path.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "permissions": {
+      "description": "Named profile id for the resumed chat. Cannot be combined with `sandbox`.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "personality": {
       "anyOf": [
         {
@@ -1405,6 +1434,16 @@
         {
           "type": "null"
         }
+      ]
+    },
+    "runtimeWorkspaceRoots": {
+      "description": "Replace the chat's runtime workspace roots. Paths must be absolute.",
+      "items": {
+        "$ref": "#/definitions/AbsolutePathBuf"
+      },
+      "type": [
+        "array",
+        "null"
       ]
     },
     "sandbox": {

@@ -325,9 +325,40 @@
         "null"
       ]
     },
+    "dynamicTools": {
+      "default": null,
+      "items": {
+        "$ref": "#/definitions/DynamicToolSpec"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "environments": {
+      "description": "Optional sticky environments for this chat.\n\nOmitted selects the default environment when environment access is enabled. Empty disables environment access for interactions that do not provide an interaction override. Non-empty selects the first environment as the current interaction environment.",
+      "items": {
+        "$ref": "#/definitions/InteractionEnvironmentParams"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    },
     "ephemeral": {
       "type": [
         "boolean",
+        "null"
+      ]
+    },
+    "experimentalRawEvents": {
+      "description": "If true, opt into emitting raw Responses API messages on the event stream. This is for internal use only (e.g. Codex Cloud).",
+      "type": "boolean"
+    },
+    "mockExperimentalField": {
+      "description": "Test-only experimental field used to validate experimental gating and schema filtering behavior in a stable way.",
+      "type": [
+        "string",
         "null"
       ]
     },
@@ -343,6 +374,24 @@
         "null"
       ]
     },
+    "multiAgentMode": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/MultiAgentMode"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "@deprecated Ignored. Use Ultra reasoning effort for proactive multi-agent behavior."
+    },
+    "permissions": {
+      "description": "Named profile id for this chat. Cannot be combined with `sandbox`.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "personality": {
       "anyOf": [
         {
@@ -353,6 +402,16 @@
         }
       ]
     },
+    "runtimeWorkspaceRoots": {
+      "description": "Replace the chat's runtime workspace roots. Paths must be absolute.",
+      "items": {
+        "$ref": "#/definitions/AbsolutePathBuf"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
+    },
     "sandbox": {
       "anyOf": [
         {
@@ -361,6 +420,16 @@
         {
           "type": "null"
         }
+      ]
+    },
+    "selectedCapabilityRoots": {
+      "description": "Capability roots selected for this chat by the hosting platform.",
+      "items": {
+        "$ref": "#/definitions/SelectedCapabilityRoot"
+      },
+      "type": [
+        "array",
+        "null"
       ]
     },
     "serviceName": {

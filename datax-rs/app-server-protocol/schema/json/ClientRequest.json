@@ -256,9 +256,75 @@
       ],
       "type": "object"
     },
+    "ChatBackgroundTerminalsCleanParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "chatId"
+      ],
+      "type": "object"
+    },
+    "ChatBackgroundTerminalsListParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        },
+        "cursor": {
+          "description": "Opaque pagination cursor returned by a previous call.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "limit": {
+          "description": "Optional page size.",
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "chatId"
+      ],
+      "type": "object"
+    },
+    "ChatBackgroundTerminalsTerminateParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        },
+        "processId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "chatId",
+        "processId"
+      ],
+      "type": "object"
+    },
     "ChatCompactStartParams": {
       "properties": {
         "chatId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "chatId"
+      ],
+      "type": "object"
+    },
+    "ChatDecrementElicitationParams": {
+      "description": "Parameters for `chat/decrement_elicitation`.",
+      "properties": {
+        "chatId": {
+          "description": "Chat whose out-of-band elicitation counter should be decremented.",
           "type": "string"
         }
       },
@@ -344,6 +410,10 @@
         "ephemeral": {
           "type": "boolean"
         },
+        "excludeInteractions": {
+          "description": "When true, return only chat metadata and live fork state without populating `chat.interactions`. This is useful when the client plans to call `chat/interactions/list` immediately after forking.",
+          "type": "boolean"
+        },
         "model": {
           "description": "Configuration overrides for the forked chat, if any.",
           "type": [
@@ -354,6 +424,31 @@
         "modelProvider": {
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "path": {
+          "default": null,
+          "description": "[UNSTABLE] Specify the rollout path to fork from. If specified, the chat_id param will be ignored.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "permissions": {
+          "description": "Named profile id for the forked chat. Cannot be combined with `sandbox`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "runtimeWorkspaceRoots": {
+          "description": "Replace the chat's runtime workspace roots. Paths must be absolute.",
+          "items": {
+            "$ref": "#/definitions/AbsolutePathBuf"
+          },
+          "type": [
+            "array",
             "null"
           ]
         },
@@ -446,6 +541,19 @@
       ],
       "type": "string"
     },
+    "ChatIncrementElicitationParams": {
+      "description": "Parameters for `chat/increment_elicitation`.",
+      "properties": {
+        "chatId": {
+          "description": "Chat whose out-of-band elicitation counter should be incremented.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "chatId"
+      ],
+      "type": "object"
+    },
     "ChatInjectMessagesParams": {
       "properties": {
         "chatId": {
@@ -460,6 +568,97 @@
       "required": [
         "chatId",
         "messages"
+      ],
+      "type": "object"
+    },
+    "ChatInteractionsListParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        },
+        "cursor": {
+          "description": "Opaque cursor to pass to the next call to continue after the last interaction.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "limit": {
+          "description": "Optional interaction page size.",
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "messagesView": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/InteractionMessagesView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "How much message detail to include for each returned interaction; defaults to summary."
+        },
+        "sortDirection": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SortDirection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional interaction pagination direction; defaults to descending."
+        }
+      },
+      "required": [
+        "chatId"
+      ],
+      "type": "object"
+    },
+    "ChatInteractionsMessagesListParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        },
+        "cursor": {
+          "description": "Opaque cursor to pass to the next call to continue after the last item.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "interactionId": {
+          "type": "string"
+        },
+        "limit": {
+          "description": "Optional item page size.",
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "sortDirection": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SortDirection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional item pagination direction; defaults to ascending."
+        }
+      },
+      "required": [
+        "chatId",
+        "interactionId"
       ],
       "type": "object"
     },
@@ -519,6 +718,13 @@
           },
           "type": [
             "array",
+            "null"
+          ]
+        },
+        "parentChatId": {
+          "description": "Optional direct parent chat filter.",
+          "type": [
+            "string",
             "null"
           ]
         },
@@ -596,6 +802,21 @@
       ],
       "type": "string"
     },
+    "ChatMemoryModeSetParams": {
+      "properties": {
+        "chatId": {
+          "type": "string"
+        },
+        "mode": {
+          "$ref": "#/definitions/ChatMemoryMode"
+        }
+      },
+      "required": [
+        "chatId",
+        "mode"
+      ],
+      "type": "object"
+    },
     "ChatMetadataGitInfoUpdateParams": {
       "properties": {
         "branch": {
@@ -659,6 +880,62 @@
       ],
       "type": "object"
     },
+    "ChatRealtimeAppendAudioParams": {
+      "description": "EXPERIMENTAL - append audio input to thread realtime.",
+      "properties": {
+        "audio": {
+          "$ref": "#/definitions/ChatRealtimeAudioChunk"
+        },
+        "chatId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "audio",
+        "chatId"
+      ],
+      "type": "object"
+    },
+    "ChatRealtimeAppendSpeechParams": {
+      "description": "EXPERIMENTAL - append speakable text to thread realtime.",
+      "properties": {
+        "chatId": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "chatId",
+        "text"
+      ],
+      "type": "object"
+    },
+    "ChatRealtimeAppendTextParams": {
+      "description": "EXPERIMENTAL - append text input to thread realtime.",
+      "properties": {
+        "chatId": {
+          "type": "string"
+        },
+        "role": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ConversationTextRole"
+            }
+          ],
+          "default": "user"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "chatId",
+        "text"
+      ],
+      "type": "object"
+    },
     "ChatRealtimeAudioChunk": {
       "description": "EXPERIMENTAL - thread realtime audio chunk.",
       "properties": {
@@ -694,6 +971,116 @@
         "data",
         "numChannels",
         "sampleRate"
+      ],
+      "type": "object"
+    },
+    "ChatRealtimeListVoicesParams": {
+      "description": "EXPERIMENTAL - list voices supported by thread realtime.",
+      "type": "object"
+    },
+    "ChatRealtimeStartParams": {
+      "description": "EXPERIMENTAL - start a thread-scoped realtime session.",
+      "properties": {
+        "chatId": {
+          "type": "string"
+        },
+        "clientManagedHandoffs": {
+          "description": "Leaves Codex response handoffs to the client's explicit append calls instead of forwarding them automatically. Defaults to false.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "codexResponseHandoffPrefix": {
+          "description": "Optional prefix added to automatic V1 Codex commentary sent with `conversation.handoff.append` when `codexResponsesAsMessages` is not true. Final answers are sent without the prefix.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "codexResponseMessagePrefix": {
+          "description": "Optional prefix added to automatic Codex response messages when `codexResponsesAsMessages` is true.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "codexResponsesAsMessages": {
+          "description": "Sends automatic Codex responses as realtime conversation messages instead of handoff appends.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "includeStartupContext": {
+          "description": "Set to false to start without Codex's startup context. Omitted or null includes it.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "model": {
+          "description": "Overrides the configured realtime model for this session only.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "outputModality": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/RealtimeOutputModality"
+            }
+          ],
+          "description": "Selects text or audio output for the realtime session. Transport and voice stay independent so clients can choose how they connect separately from what the model emits."
+        },
+        "prompt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "realtimeSessionId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "transport": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ChatRealtimeStartTransport"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "version": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RealtimeConversationVersion"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Overrides the configured realtime protocol version for this session only."
+        },
+        "voice": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RealtimeVoice"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "chatId",
+        "outputModality"
       ],
       "type": "object"
     },
@@ -738,6 +1125,18 @@
           "type": "object"
         }
       ]
+    },
+    "ChatRealtimeStopParams": {
+      "description": "EXPERIMENTAL - stop thread realtime.",
+      "properties": {
+        "chatId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "chatId"
+      ],
+      "type": "object"
     },
     "ChatResumeInitialInteractionsPageParams": {
       "properties": {
@@ -827,6 +1226,20 @@
             "null"
           ]
         },
+        "excludeInteractions": {
+          "description": "When true, return only chat metadata and live-resume state without populating `chat.interactions`. This is useful when the client plans to call `chat/interactions/list` immediately after resuming.",
+          "type": "boolean"
+        },
+        "history": {
+          "description": "[UNSTABLE] FOR CODEX CLOUD - DO NOT USE. If specified, the chat will be resumed with the provided history instead of loaded from disk.",
+          "items": {
+            "$ref": "#/definitions/ResponseItem"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
         "initialInteractionsPage": {
           "anyOf": [
             {
@@ -851,6 +1264,21 @@
             "null"
           ]
         },
+        "path": {
+          "default": null,
+          "description": "[UNSTABLE] Specify the rollout path to resume from. If specified for a non-running chat, the chat_id param will be ignored. If chat_id identifies a running chat, the path must match the active rollout path.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "permissions": {
+          "description": "Named profile id for the resumed chat. Cannot be combined with `sandbox`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "personality": {
           "anyOf": [
             {
@@ -859,6 +1287,16 @@
             {
               "type": "null"
             }
+          ]
+        },
+        "runtimeWorkspaceRoots": {
+          "description": "Replace the chat's runtime workspace roots. Paths must be absolute.",
+          "items": {
+            "$ref": "#/definitions/AbsolutePathBuf"
+          },
+          "type": [
+            "array",
+            "null"
           ]
         },
         "sandbox": {
@@ -901,6 +1339,73 @@
       ],
       "type": "object"
     },
+    "ChatSearchParams": {
+      "properties": {
+        "archived": {
+          "description": "Optional archived filter; when set to true, only archived chats are returned. If false or null, only non-archived chats are returned.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "cursor": {
+          "description": "Opaque pagination cursor returned by a previous call.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "limit": {
+          "description": "Optional page size; defaults to a reasonable server-side value.",
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "searchTerm": {
+          "description": "Required substring/full-text query for chat search.",
+          "type": "string"
+        },
+        "sortDirection": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SortDirection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional sort direction; defaults to descending (newest first)."
+        },
+        "sortKey": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ChatSortKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional sort key; defaults to created_at."
+        },
+        "sourceKinds": {
+          "description": "Optional source filter; when set, only sessions from these source kinds are returned. When omitted or empty, defaults to interactive sources.",
+          "items": {
+            "$ref": "#/definitions/ChatSourceKind"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "searchTerm"
+      ],
+      "type": "object"
+    },
     "ChatSetNameParams": {
       "properties": {
         "chatId": {
@@ -913,6 +1418,133 @@
       "required": [
         "chatId",
         "name"
+      ],
+      "type": "object"
+    },
+    "ChatSettingsUpdateParams": {
+      "properties": {
+        "approvalPolicy": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AskForApproval"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Override the approval policy for subsequent interactions."
+        },
+        "approvalsReviewer": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ApprovalsReviewer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Override where approval requests are routed for subsequent interactions."
+        },
+        "chatId": {
+          "type": "string"
+        },
+        "collaborationMode": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CollaborationMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "EXPERIMENTAL - Set a pre-set collaboration mode for subsequent interactions.\n\nFor `collaboration_mode.settings.developer_instructions`, `null` means \"use the built-in instructions for the selected mode\"."
+        },
+        "cwd": {
+          "description": "Override the working directory for subsequent interactions.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "effort": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ReasoningEffort"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Override the reasoning effort for subsequent interactions."
+        },
+        "model": {
+          "description": "Override the model for subsequent interactions.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "multiAgentMode": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/MultiAgentMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "@deprecated Ignored. Use `effort: \"ultra\"` for proactive multi-agent behavior."
+        },
+        "permissions": {
+          "description": "Select a named permissions profile id for subsequent interactions. Cannot be combined with `sandboxPolicy`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "personality": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Personality"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Override the personality for subsequent interactions."
+        },
+        "sandboxPolicy": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SandboxPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Override the sandbox policy for subsequent interactions."
+        },
+        "serviceTier": {
+          "description": "Override the service tier for subsequent interactions. `null` clears the current service tier; omission leaves it unchanged.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ReasoningSummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Override the reasoning summary for subsequent interactions."
+        }
+      },
+      "required": [
+        "chatId"
       ],
       "type": "object"
     },
@@ -1017,9 +1649,40 @@
             "null"
           ]
         },
+        "dynamicTools": {
+          "default": null,
+          "items": {
+            "$ref": "#/definitions/DynamicToolSpec"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "environments": {
+          "description": "Optional sticky environments for this chat.\n\nOmitted selects the default environment when environment access is enabled. Empty disables environment access for interactions that do not provide an interaction override. Non-empty selects the first environment as the current interaction environment.",
+          "items": {
+            "$ref": "#/definitions/InteractionEnvironmentParams"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
         "ephemeral": {
           "type": [
             "boolean",
+            "null"
+          ]
+        },
+        "experimentalRawEvents": {
+          "description": "If true, opt into emitting raw Responses API messages on the event stream. This is for internal use only (e.g. Codex Cloud).",
+          "type": "boolean"
+        },
+        "mockExperimentalField": {
+          "description": "Test-only experimental field used to validate experimental gating and schema filtering behavior in a stable way.",
+          "type": [
+            "string",
             "null"
           ]
         },
@@ -1035,6 +1698,24 @@
             "null"
           ]
         },
+        "multiAgentMode": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/MultiAgentMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "@deprecated Ignored. Use Ultra reasoning effort for proactive multi-agent behavior."
+        },
+        "permissions": {
+          "description": "Named profile id for this chat. Cannot be combined with `sandbox`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "personality": {
           "anyOf": [
             {
@@ -1045,6 +1726,16 @@
             }
           ]
         },
+        "runtimeWorkspaceRoots": {
+          "description": "Replace the chat's runtime workspace roots. Paths must be absolute.",
+          "items": {
+            "$ref": "#/definitions/AbsolutePathBuf"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
         "sandbox": {
           "anyOf": [
             {
@@ -1053,6 +1744,16 @@
             {
               "type": "null"
             }
+          ]
+        },
+        "selectedCapabilityRoots": {
+          "description": "Capability roots selected for this chat by the hosting platform.",
+          "items": {
+            "$ref": "#/definitions/SelectedCapabilityRoot"
+          },
+          "type": [
+            "array",
+            "null"
           ]
         },
         "serviceName": {
@@ -1146,6 +1847,10 @@
       ],
       "type": "object"
     },
+    "CollaborationModeListParams": {
+      "description": "EXPERIMENTAL - list collaboration mode presets.",
+      "type": "object"
+    },
     "CommandExecParams": {
       "description": "Run a standalone command (argv vector) in the server sandbox without creating a thread or turn.\n\nThe final `command/exec` response is deferred until the process exits and is sent only after all `command/exec/outputDelta` notifications for that connection have been emitted.",
       "properties": {
@@ -1190,6 +1895,13 @@
           "minimum": 0.0,
           "type": [
             "integer",
+            "null"
+          ]
+        },
+        "permissionProfile": {
+          "description": "Optional active permissions profile id for this command.\n\nDefaults to the user's configured permissions when omitted. Cannot be combined with `sandboxPolicy`.",
+          "type": [
+            "string",
             "null"
           ]
         },
@@ -1623,6 +2335,30 @@
           "type": "object"
         }
       ]
+    },
+    "EnvironmentAddParams": {
+      "properties": {
+        "connectTimeoutMs": {
+          "description": "Optional WebSocket connection timeout. The server default applies when omitted.",
+          "format": "uint64",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "environmentId": {
+          "type": "string"
+        },
+        "execServerUrl": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "environmentId",
+        "execServerUrl"
+      ],
+      "type": "object"
     },
     "ExperimentalFeatureEnablementSetParams": {
       "properties": {
@@ -2102,6 +2838,50 @@
       ],
       "type": "object"
     },
+    "FuzzyFileSearchSessionStartParams": {
+      "properties": {
+        "roots": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "sessionId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "roots",
+        "sessionId"
+      ],
+      "type": "object"
+    },
+    "FuzzyFileSearchSessionStopParams": {
+      "properties": {
+        "sessionId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "sessionId"
+      ],
+      "type": "object"
+    },
+    "FuzzyFileSearchSessionUpdateParams": {
+      "properties": {
+        "query": {
+          "type": "string"
+        },
+        "sessionId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "query",
+        "sessionId"
+      ],
+      "type": "object"
+    },
     "GetAccountParams": {
       "properties": {
         "refreshToken": {
@@ -2251,6 +3031,16 @@
     },
     "InteractionStartParams": {
       "properties": {
+        "additionalContext": {
+          "additionalProperties": {
+            "$ref": "#/definitions/AdditionalContextEntry"
+          },
+          "description": "Optional client-provided context fragments keyed by an opaque source identifier.",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
         "approvalPolicy": {
           "anyOf": [
             {
@@ -2282,6 +3072,17 @@
             "null"
           ]
         },
+        "collaborationMode": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CollaborationMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "EXPERIMENTAL - Set a pre-set collaboration mode. Takes precedence over model, reasoning_effort, and developer instructions if set.\n\nFor `collaboration_mode.settings.developer_instructions`, `null` means \"use the built-in instructions for the selected mode\"."
+        },
         "cwd": {
           "description": "Override the working directory for this interaction and subsequent interactions.",
           "type": [
@@ -2300,6 +3101,16 @@
           ],
           "description": "Override the reasoning effort for this interaction and subsequent interactions."
         },
+        "environments": {
+          "description": "Optional environments for this interaction and subsequent interactions.\n\nOmitted uses the chat sticky environments. Empty disables environment access for this interaction. Non-empty selects the first environment as the current interaction environment for this interaction.",
+          "items": {
+            "$ref": "#/definitions/InteractionEnvironmentParams"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
         "input": {
           "items": {
             "$ref": "#/definitions/UserInput"
@@ -2313,8 +3124,26 @@
             "null"
           ]
         },
+        "multiAgentMode": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/MultiAgentMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "@deprecated Ignored. Use `effort: \"ultra\"` for proactive multi-agent behavior."
+        },
         "outputSchema": {
           "description": "Optional JSON Schema used to constrain the final assistant message for this interaction."
+        },
+        "permissions": {
+          "description": "Select a named permissions profile id for this interaction and subsequent interactions. Cannot be combined with `sandboxPolicy`.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "personality": {
           "anyOf": [
@@ -2326,6 +3155,26 @@
             }
           ],
           "description": "Override the personality for this interaction and subsequent interactions."
+        },
+        "responsesapiClientMetadata": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Optional metadata to enrich Codex's ResponsesAPI interaction metadata.\n\nEntries are flattened into the JSON string sent as `client_metadata[\"x-codex-turn-metadata\"]` on ResponsesAPI HTTP and websocket requests.\n\nThey are not sent as top-level ResponsesAPI `client_metadata` keys, and reserved keys such as `session_id`, `chat_id`, `interaction_id`, and `window_id` cannot be overridden.",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "runtimeWorkspaceRoots": {
+          "description": "Replace the chat's runtime workspace roots for this interaction and subsequent interactions. Paths must be absolute.",
+          "items": {
+            "$ref": "#/definitions/AbsolutePathBuf"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
         },
         "sandboxPolicy": {
           "anyOf": [
@@ -2365,6 +3214,16 @@
     },
     "InteractionSteerParams": {
       "properties": {
+        "additionalContext": {
+          "additionalProperties": {
+            "$ref": "#/definitions/AdditionalContextEntry"
+          },
+          "description": "Optional client-provided context fragments keyed by an opaque source identifier.",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
         "chatId": {
           "type": "string"
         },
@@ -2383,6 +3242,16 @@
             "$ref": "#/definitions/UserInput"
           },
           "type": "array"
+        },
+        "responsesapiClientMetadata": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Optional metadata to enrich Codex's ResponsesAPI interaction metadata.\n\nEntries are flattened into the JSON string sent as `client_metadata[\"x-codex-turn-metadata\"]` on ResponsesAPI HTTP and websocket requests.\n\nThey are not sent as top-level ResponsesAPI `client_metadata` keys, and reserved keys such as `session_id`, `chat_id`, `interaction_id`, and `window_id` cannot be overridden.",
+          "type": [
+            "object",
+            "null"
+          ]
         }
       },
       "required": [
@@ -2810,6 +3679,18 @@
       },
       "type": "object"
     },
+    "MockExperimentalMethodParams": {
+      "properties": {
+        "value": {
+          "description": "Test-only payload field.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
     "ModeKind": {
       "description": "Initial collaboration mode to use when the TUI starts.",
       "enum": [
@@ -3195,6 +4076,124 @@
       ],
       "type": "object"
     },
+    "ProcessKillParams": {
+      "description": "Terminate a running `process/spawn` session.",
+      "properties": {
+        "processHandle": {
+          "description": "Client-supplied, connection-scoped `processHandle` from `process/spawn`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "processHandle"
+      ],
+      "type": "object"
+    },
+    "ProcessResizePtyParams": {
+      "description": "Resize a running PTY-backed `process/spawn` session.",
+      "properties": {
+        "processHandle": {
+          "description": "Client-supplied, connection-scoped `processHandle` from `process/spawn`.",
+          "type": "string"
+        },
+        "size": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ProcessTerminalSize"
+            }
+          ],
+          "description": "New PTY size in character cells."
+        }
+      },
+      "required": [
+        "processHandle",
+        "size"
+      ],
+      "type": "object"
+    },
+    "ProcessSpawnParams": {
+      "description": "Spawn a standalone process (argv vector) without a Codex sandbox on the host where the app server is running.\n\n`process/spawn` returns after the process has started and the connection-scoped `processHandle` has been registered. Process output and exit are reported via `process/outputDelta` and `process/exited` notifications.",
+      "properties": {
+        "command": {
+          "description": "Command argv vector. Empty arrays are rejected.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "cwd": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/AbsolutePathBuf"
+            }
+          ],
+          "description": "Absolute working directory for the process."
+        },
+        "env": {
+          "additionalProperties": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": "Optional environment overrides merged into the app-server process environment.\n\nMatching names override inherited values. Set a key to `null` to unset an inherited variable.",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "outputBytesCap": {
+          "description": "Optional per-stream stdout/stderr capture cap in bytes.\n\nWhen omitted, the server default applies. Set to `null` to disable the cap.",
+          "format": "uint",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "processHandle": {
+          "description": "Client-supplied, connection-scoped process handle.\n\nDuplicate active handles are rejected on the same connection. The same handle can be reused after the prior process exits.",
+          "type": "string"
+        },
+        "size": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProcessTerminalSize"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional initial PTY size in character cells. Only valid when `tty` is true."
+        },
+        "streamStdin": {
+          "description": "Allow follow-up `process/writeStdin` requests to write stdin bytes.",
+          "type": "boolean"
+        },
+        "streamStdoutStderr": {
+          "description": "Stream stdout/stderr via `process/outputDelta` notifications.\n\nStreamed bytes are not duplicated into the `process/exited` notification.",
+          "type": "boolean"
+        },
+        "timeoutMs": {
+          "description": "Optional timeout in milliseconds.\n\nWhen omitted, the server default applies. Set to `null` to disable the timeout.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "tty": {
+          "description": "Enable PTY mode.\n\nThis implies `streamStdin` and `streamStdoutStderr`.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "command",
+        "cwd",
+        "processHandle"
+      ],
+      "type": "object"
+    },
     "ProcessTerminalSize": {
       "description": "PTY size in character cells for `process/spawn` PTY sessions.",
       "properties": {
@@ -3214,6 +4213,30 @@
       "required": [
         "cols",
         "rows"
+      ],
+      "type": "object"
+    },
+    "ProcessWriteStdinParams": {
+      "description": "Write stdin bytes to a running `process/spawn` session, close stdin, or both.",
+      "properties": {
+        "closeStdin": {
+          "description": "Close stdin after writing `deltaBase64`, if present.",
+          "type": "boolean"
+        },
+        "deltaBase64": {
+          "description": "Optional base64-encoded stdin bytes to write.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "processHandle": {
+          "description": "Client-supplied, connection-scoped `processHandle` from `process/spawn`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "processHandle"
       ],
       "type": "object"
     },
@@ -3348,6 +4371,63 @@
         }
       ]
     },
+    "RemoteControlClientsListOrder": {
+      "enum": [
+        "asc",
+        "desc"
+      ],
+      "type": "string"
+    },
+    "RemoteControlClientsListParams": {
+      "properties": {
+        "cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "environmentId": {
+          "type": "string"
+        },
+        "limit": {
+          "format": "uint32",
+          "minimum": 0.0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "order": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RemoteControlClientsListOrder"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "environmentId"
+      ],
+      "type": "object"
+    },
+    "RemoteControlClientsRevokeParams": {
+      "properties": {
+        "clientId": {
+          "type": "string"
+        },
+        "environmentId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "clientId",
+        "environmentId"
+      ],
+      "type": "object"
+    },
     "RemoteControlDisableParams": {
       "properties": {
         "ephemeral": {
@@ -3360,6 +4440,31 @@
       "properties": {
         "ephemeral": {
           "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "RemoteControlPairingStartParams": {
+      "properties": {
+        "manualCode": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "RemoteControlPairingStatusParams": {
+      "properties": {
+        "manualPairingCode": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pairingCode": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "type": "object"
@@ -4927,6 +6032,56 @@
       "type": "object"
     },
     {
+      "description": "Increment the thread-local out-of-band elicitation counter.\n\nThis is used by external helpers to pause timeout accounting while a user approval or other elicitation is pending outside the app-server request flow.",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "chat/increment_elicitation"
+          ],
+          "title": "Chat/incrementElicitationRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ChatIncrementElicitationParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Chat/incrementElicitationRequest",
+      "type": "object"
+    },
+    {
+      "description": "Decrement the thread-local out-of-band elicitation counter.\n\nWhen the count reaches zero, timeout accounting resumes for the thread.",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "chat/decrement_elicitation"
+          ],
+          "title": "Chat/decrementElicitationRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ChatDecrementElicitationParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Chat/decrementElicitationRequest",
+      "type": "object"
+    },
+    {
       "properties": {
         "id": {
           "$ref": "#/definitions/RequestId"
@@ -5053,6 +6208,77 @@
         },
         "method": {
           "enum": [
+            "chat/settings/update"
+          ],
+          "title": "Chat/settings/updateRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ChatSettingsUpdateParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Chat/settings/updateRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "chat/memoryMode/set"
+          ],
+          "title": "Chat/memoryMode/setRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ChatMemoryModeSetParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Chat/memoryMode/setRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "memory/reset"
+          ],
+          "title": "Memory/resetRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "type": "null"
+        }
+      },
+      "required": [
+        "id",
+        "method"
+      ],
+      "title": "Memory/resetRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
             "chat/unarchive"
           ],
           "title": "Chat/unarchiveRequestMethod",
@@ -5149,6 +6375,78 @@
         },
         "method": {
           "enum": [
+            "chat/backgroundTerminals/clean"
+          ],
+          "title": "Chat/backgroundTerminals/cleanRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ChatBackgroundTerminalsCleanParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Chat/backgroundTerminals/cleanRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "chat/backgroundTerminals/list"
+          ],
+          "title": "Chat/backgroundTerminals/listRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ChatBackgroundTerminalsListParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Chat/backgroundTerminals/listRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "chat/backgroundTerminals/terminate"
+          ],
+          "title": "Chat/backgroundTerminals/terminateRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ChatBackgroundTerminalsTerminateParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Chat/backgroundTerminals/terminateRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
             "chat/rollback"
           ],
           "title": "Chat/rollbackRequestMethod",
@@ -5197,6 +6495,30 @@
         },
         "method": {
           "enum": [
+            "chat/search"
+          ],
+          "title": "Chat/searchRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ChatSearchParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Chat/searchRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
             "chat/loaded/list"
           ],
           "title": "Chat/loaded/listRequestMethod",
@@ -5236,6 +6558,54 @@
         "params"
       ],
       "title": "Chat/readRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "chat/interactions/list"
+          ],
+          "title": "Chat/interactions/listRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ChatInteractionsListParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Chat/interactions/listRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "chat/interactions/messages/list"
+          ],
+          "title": "Chat/interactions/messages/listRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ChatInteractionsMessagesListParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Chat/interactions/messages/listRequest",
       "type": "object"
     },
     {
@@ -6014,6 +7384,150 @@
         },
         "method": {
           "enum": [
+            "chat/realtime/start"
+          ],
+          "title": "Chat/realtime/startRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ChatRealtimeStartParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Chat/realtime/startRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "chat/realtime/appendAudio"
+          ],
+          "title": "Chat/realtime/appendAudioRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ChatRealtimeAppendAudioParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Chat/realtime/appendAudioRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "chat/realtime/appendText"
+          ],
+          "title": "Chat/realtime/appendTextRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ChatRealtimeAppendTextParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Chat/realtime/appendTextRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "chat/realtime/appendSpeech"
+          ],
+          "title": "Chat/realtime/appendSpeechRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ChatRealtimeAppendSpeechParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Chat/realtime/appendSpeechRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "chat/realtime/stop"
+          ],
+          "title": "Chat/realtime/stopRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ChatRealtimeStopParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Chat/realtime/stopRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "chat/realtime/listVoices"
+          ],
+          "title": "Chat/realtime/listVoicesRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ChatRealtimeListVoicesParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Chat/realtime/listVoicesRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
             "review/start"
           ],
           "title": "Review/startRequestMethod",
@@ -6149,6 +7663,260 @@
         "params"
       ],
       "title": "ExperimentalFeature/enablement/setRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "remoteControl/enable"
+          ],
+          "title": "RemoteControl/enableRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RemoteControlEnableParams"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "method"
+      ],
+      "title": "RemoteControl/enableRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "remoteControl/disable"
+          ],
+          "title": "RemoteControl/disableRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RemoteControlDisableParams"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "method"
+      ],
+      "title": "RemoteControl/disableRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "remoteControl/status/read"
+          ],
+          "title": "RemoteControl/status/readRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "type": "null"
+        }
+      },
+      "required": [
+        "id",
+        "method"
+      ],
+      "title": "RemoteControl/status/readRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "remoteControl/pairing/start"
+          ],
+          "title": "RemoteControl/pairing/startRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/RemoteControlPairingStartParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "RemoteControl/pairing/startRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "remoteControl/pairing/status"
+          ],
+          "title": "RemoteControl/pairing/statusRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/RemoteControlPairingStatusParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "RemoteControl/pairing/statusRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "remoteControl/client/list"
+          ],
+          "title": "RemoteControl/client/listRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/RemoteControlClientsListParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "RemoteControl/client/listRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "remoteControl/client/revoke"
+          ],
+          "title": "RemoteControl/client/revokeRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/RemoteControlClientsRevokeParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "RemoteControl/client/revokeRequest",
+      "type": "object"
+    },
+    {
+      "description": "Lists collaboration mode presets.",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "collaborationMode/list"
+          ],
+          "title": "CollaborationMode/listRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/CollaborationModeListParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "CollaborationMode/listRequest",
+      "type": "object"
+    },
+    {
+      "description": "Test-only method used to validate experimental gating.",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "mock/experimentalMethod"
+          ],
+          "title": "Mock/experimentalMethodRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/MockExperimentalMethodParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Mock/experimentalMethodRequest",
+      "type": "object"
+    },
+    {
+      "description": "Adds or replaces a remote environment by id for later selection.",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "environment/add"
+          ],
+          "title": "Environment/addRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/EnvironmentAddParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Environment/addRequest",
       "type": "object"
     },
     {
@@ -6630,6 +8398,106 @@
       "type": "object"
     },
     {
+      "description": "Spawn a standalone process (argv vector) without a Codex sandbox.",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "process/spawn"
+          ],
+          "title": "Process/spawnRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ProcessSpawnParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Process/spawnRequest",
+      "type": "object"
+    },
+    {
+      "description": "Write stdin bytes to a running `process/spawn` session or close stdin.",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "process/writeStdin"
+          ],
+          "title": "Process/writeStdinRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ProcessWriteStdinParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Process/writeStdinRequest",
+      "type": "object"
+    },
+    {
+      "description": "Terminate a running `process/spawn` session by client-supplied `processHandle`.",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "process/kill"
+          ],
+          "title": "Process/killRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ProcessKillParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Process/killRequest",
+      "type": "object"
+    },
+    {
+      "description": "Resize a running PTY-backed `process/spawn` session by client-supplied `processHandle`.",
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "process/resizePty"
+          ],
+          "title": "Process/resizePtyRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/ProcessResizePtyParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "Process/resizePtyRequest",
+      "type": "object"
+    },
+    {
       "properties": {
         "id": {
           "$ref": "#/definitions/RequestId"
@@ -6841,6 +8709,78 @@
         "params"
       ],
       "title": "FuzzyFileSearchRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "fuzzyFileSearch/sessionStart"
+          ],
+          "title": "FuzzyFileSearch/sessionStartRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/FuzzyFileSearchSessionStartParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "FuzzyFileSearch/sessionStartRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "fuzzyFileSearch/sessionUpdate"
+          ],
+          "title": "FuzzyFileSearch/sessionUpdateRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/FuzzyFileSearchSessionUpdateParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "FuzzyFileSearch/sessionUpdateRequest",
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        },
+        "method": {
+          "enum": [
+            "fuzzyFileSearch/sessionStop"
+          ],
+          "title": "FuzzyFileSearch/sessionStopRequestMethod",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/definitions/FuzzyFileSearchSessionStopParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "title": "FuzzyFileSearch/sessionStopRequest",
       "type": "object"
     }
   ],

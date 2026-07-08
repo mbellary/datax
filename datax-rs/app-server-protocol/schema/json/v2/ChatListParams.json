@@ -90,6 +90,13 @@
         "null"
       ]
     },
+    "parentChatId": {
+      "description": "Optional direct parent chat filter.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "searchTerm": {
       "description": "Optional substring filter for the extracted chat title.",
       "type": [

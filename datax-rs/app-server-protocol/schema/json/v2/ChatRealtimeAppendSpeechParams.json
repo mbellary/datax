@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "EXPERIMENTAL - append speakable text to thread realtime.",
+  "properties": {
+    "chatId": {
+      "type": "string"
+    },
+    "text": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "chatId",
+    "text"
+  ],
+  "title": "ChatRealtimeAppendSpeechParams",
+  "type": "object"
+}

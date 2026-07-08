@@ -5205,12 +5205,7 @@ async fn cancelled_turn_edit_restores_prompt_and_rolls_back_latest_turn() {
         app.chat_widget.remote_image_urls(),
         vec!["https://example.com/edit.png".to_string()]
     );
-    assert_matches!(
-        op_rx.try_recv(),
-        Ok(Op::ThreadRollback {
-            num_turns: 1
-        })
-    );
+    assert_matches!(op_rx.try_recv(), Ok(Op::ThreadRollback { num_turns: 1 }));
 }
 
 #[tokio::test]
@@ -5234,12 +5229,7 @@ async fn first_cancelled_turn_edit_restores_prompt_without_local_history() {
         app.chat_widget.remote_image_urls(),
         vec!["https://example.com/edit.png".to_string()]
     );
-    assert_matches!(
-        op_rx.try_recv(),
-        Ok(Op::ThreadRollback {
-            num_turns: 1
-        })
-    );
+    assert_matches!(op_rx.try_recv(), Ok(Op::ThreadRollback { num_turns: 1 }));
 }
 
 #[tokio::test]

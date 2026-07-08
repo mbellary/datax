@@ -581,12 +581,9 @@ fn spawn_app_server_page_loader(
                     let _ = bg_tx.send(BackgroundEvent::Preview { chat_id, preview });
                 }
                 PickerLoadRequest::Transcript { chat_id } => {
-                    let transcript = load_session_transcript(
-                        &mut app_server,
-                        chat_id,
-                        raw_reasoning_visibility,
-                    )
-                    .await;
+                    let transcript =
+                        load_session_transcript(&mut app_server, chat_id, raw_reasoning_visibility)
+                            .await;
                     let _ = bg_tx.send(BackgroundEvent::Transcript {
                         chat_id,
                         transcript,
@@ -1708,9 +1705,8 @@ impl PickerState {
             .map(|(offset, row)| {
                 let row_idx = start + offset;
                 let is_selected = row_idx == self.selected;
-                let is_expanded = is_selected
-                    && row.chat_id.is_some()
-                    && self.expanded_thread_id == row.chat_id;
+                let is_expanded =
+                    is_selected && row.chat_id.is_some() && self.expanded_thread_id == row.chat_id;
                 render_session_lines(
                     row,
                     self,

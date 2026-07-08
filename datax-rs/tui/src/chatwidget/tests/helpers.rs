@@ -1029,7 +1029,8 @@ pub(super) fn handle_turn_interrupted(chat: &mut ChatWidget, interaction_id: &st
 }
 
 pub(super) fn handle_budget_limited_turn(chat: &mut ChatWidget, interaction_id: &str) {
-    chat.turn_lifecycle.mark_budget_limited(interaction_id.to_string());
+    chat.turn_lifecycle
+        .mark_budget_limited(interaction_id.to_string());
     handle_turn_interrupted(chat, interaction_id);
 }
 

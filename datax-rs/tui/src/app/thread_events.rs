@@ -401,9 +401,9 @@ mod tests {
     fn turn_started_notification(thread_id: ThreadId, interaction_id: &str) -> ServerNotification {
         ServerNotification::InteractionStarted(InteractionStartedNotification {
             chat_id: thread_id.to_string(),
-        turn: Interaction {
-            started_at: Some(0),
-            ..test_turn(interaction_id, InteractionStatus::InProgress, Vec::new())
+            turn: Interaction {
+                started_at: Some(0),
+                ..test_turn(interaction_id, InteractionStatus::InProgress, Vec::new())
             },
         })
     }
@@ -415,10 +415,10 @@ mod tests {
     ) -> ServerNotification {
         ServerNotification::InteractionCompleted(InteractionCompletedNotification {
             chat_id: thread_id.to_string(),
-        turn: Interaction {
-            completed_at: Some(0),
-            duration_ms: Some(1),
-            ..test_turn(interaction_id, status, Vec::new())
+            turn: Interaction {
+                completed_at: Some(0),
+                duration_ms: Some(1),
+                ..test_turn(interaction_id, status, Vec::new())
             },
         })
     }

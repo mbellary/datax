@@ -141,6 +141,10 @@
     "ephemeral": {
       "type": "boolean"
     },
+    "excludeInteractions": {
+      "description": "When true, return only chat metadata and live fork state without populating `chat.interactions`. This is useful when the client plans to call `chat/interactions/list` immediately after forking.",
+      "type": "boolean"
+    },
     "model": {
       "description": "Configuration overrides for the forked chat, if any.",
       "type": [
@@ -151,6 +155,31 @@
     "modelProvider": {
       "type": [
         "string",
+        "null"
+      ]
+    },
+    "path": {
+      "default": null,
+      "description": "[UNSTABLE] Specify the rollout path to fork from. If specified, the chat_id param will be ignored.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "permissions": {
+      "description": "Named profile id for the forked chat. Cannot be combined with `sandbox`.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "runtimeWorkspaceRoots": {
+      "description": "Replace the chat's runtime workspace roots. Paths must be absolute.",
+      "items": {
+        "$ref": "#/definitions/AbsolutePathBuf"
+      },
+      "type": [
+        "array",
         "null"
       ]
     },

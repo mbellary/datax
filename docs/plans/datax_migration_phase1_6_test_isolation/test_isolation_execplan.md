@@ -23,6 +23,7 @@ After this milestone, a contributor should be able to run the documented validat
 - [x] (2026-07-08 06:20Z) Updated this ExecPlan with final PR link and closeout notes.
 - [x] (2026-07-08 07:25Z) Fixed user-reported `just test -p datax-tui` snapshot fixture failures by renaming tracked TUI Insta snapshots from `codex_tui__*.snap` to `datax_tui__*.snap` and accepting generated `datax_tui__*.snap.new` content for the failing cases.
 - [x] (2026-07-08 07:33Z) Trimmed hook-browser snapshot helper output to avoid newly modified snapshots carrying right-padding that fails `git diff --check`.
+- [x] (2026-07-08 07:48Z) User confirmed all tests passed after the TUI snapshot fixture fix.
 
 ## Surprises & Discoveries
 
@@ -50,7 +51,7 @@ After this milestone, a contributor should be able to run the documented validat
 
 Implementation aligned active validation-facing files with Datax naming: CI helper binary environment variables, Cargo package command examples, app-server-over-MCP documentation, test helper binary lookups, and snapshots or fixtures that render validation commands. No behavior changes or product features were added.
 
-Codex ran static validation only. Expensive format, build, lint, generation, and test commands remain deferred to the user per migration instructions and are listed explicitly below.
+Codex ran static validation only. Expensive format, build, lint, generation, and test commands remained deferred to the user per migration instructions and are listed explicitly below. The user later confirmed the deferred test validation passed after the TUI snapshot fixture fix.
 
 The milestone issue is #11 and the draft pull request is #12.
 
@@ -238,7 +239,7 @@ If inspection shows that a candidate file only contains internal compatibility n
 | `just test -p datax-config` | `codex-rs` | If config generator changes | `Deferred` | User-run. |
 | `just test -p datax-linux-sandbox` | `codex-rs` | If linux sandbox files change | `Deferred` | User-run. |
 | `just test -p datax-stdio-to-uds` | `codex-rs` | If stdio-to-uds files change | `Deferred` | User-run. |
-| `just test -p datax-tui` | `codex-rs` | If TUI boundary verifier or docs require it | `Deferred` | User-run only if needed. |
+| `just test -p datax-tui` | `codex-rs` | If TUI boundary verifier or docs require it | `Completed` | User confirmed all tests passed after the TUI snapshot fixture fix. |
 | `just test` | `codex-rs` | Final Phase 1 stabilization check | `Deferred` | User-run full suite. |
 
 ## Validation and Acceptance

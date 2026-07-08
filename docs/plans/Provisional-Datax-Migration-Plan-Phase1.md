@@ -166,6 +166,10 @@ Compatibility policy for Phase 1:
 ## Test Plan
 Required validation sequence:
 
+The concrete Phase 1.7 freeze checklist, including exact commands and expected
+evidence, is maintained in
+`docs/plans/datax_migration_phase1_7_freeze_report/phase1_migration_freeze_checklist.md`.
+
 1. Static search checks
    - No product-owned `codex`, `Codex`, or `CODEX` references remain except documented exceptions.
    - No public protocol `Thread`, `Turn`, or `Item` names remain.

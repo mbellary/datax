@@ -449,14 +449,14 @@ impl Drop for TmuxSession {
 }
 
 fn codex_binary(repo_root: &Path) -> Result<PathBuf> {
-    if let Ok(path) = datax_utils_cargo_bin::cargo_bin("codex") {
+    if let Ok(path) = datax_utils_cargo_bin::cargo_bin("datax") {
         return Ok(path);
     }
 
     let fallback = repo_root.join("codex-rs/target/debug/codex");
     anyhow::ensure!(
         fallback.is_file(),
-        "codex binary is unavailable; run `cargo build -p codex-cli` first"
+        "codex binary is unavailable; run `cargo build -p datax-cli` first"
     );
     Ok(fallback)
 }

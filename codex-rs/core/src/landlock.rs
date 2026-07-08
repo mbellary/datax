@@ -12,7 +12,7 @@ use std::path::Path;
 use tokio::process::Child;
 
 /// Spawn a shell tool command under the Linux sandbox helper
-/// (codex-linux-sandbox), which defaults to bubblewrap for filesystem
+/// (datax-linux-sandbox), which defaults to bubblewrap for filesystem
 /// isolation plus seccomp for network restrictions.
 ///
 /// Unlike macOS Seatbelt where we directly embed the policy text, the Linux

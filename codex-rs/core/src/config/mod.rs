@@ -911,19 +911,19 @@ pub struct Config {
     /// output will be hyperlinked using the specified URI scheme.
     pub file_opener: UriBasedFileOpener,
 
-    /// Path to the current Codex executable. This cannot be set in the config
+    /// Path to the current Datax executable. This cannot be set in the config
     /// file: it must be set in code via [`ConfigOverrides`].
     pub codex_self_exe: Option<PathBuf>,
 
-    /// Path to the `codex-linux-sandbox` executable. This must be set if
+    /// Path to the `datax-linux-sandbox` executable. This must be set if
     /// [`datax_sandboxing::SandboxType::LinuxSeccomp`] is used. Note that this
     /// cannot be set in the config file: it must be set in code via
     /// [`ConfigOverrides`].
     ///
-    /// When this program is invoked, arg0 will be set to `codex-linux-sandbox`.
+    /// When this program is invoked, arg0 will be set to `datax-linux-sandbox`.
     pub codex_linux_sandbox_exe: Option<PathBuf>,
 
-    /// Path to the `codex-execve-wrapper` executable used for shell
+    /// Path to the `datax-execve-wrapper` executable used for shell
     /// escalation. This cannot be set in the config file: it must be set in
     /// code via [`ConfigOverrides`].
     pub main_execve_wrapper_exe: Option<PathBuf>,

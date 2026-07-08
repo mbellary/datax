@@ -1747,7 +1747,7 @@ fn coalesced_reads_dedupe_names() {
 #[test]
 fn multiline_command_wraps_with_extra_indent_on_subsequent_lines() {
     // Create a completed exec cell with a multiline command
-    let cmd = "set -o pipefail\ncargo test -p codex-tui --quiet".to_string();
+    let cmd = "set -o pipefail\ncargo test -p datax-tui --quiet".to_string();
     let call_id = "c1".to_string();
     let mut cell = ExecCell::new(
         ExecCall {

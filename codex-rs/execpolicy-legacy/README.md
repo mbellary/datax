@@ -1,7 +1,7 @@
-# codex-execpolicy-legacy
+# datax-execpolicy-legacy
 
 This crate hosts the original execpolicy implementation. The newer prefix-rule
-engine lives in `codex-execpolicy`.
+engine lives in `datax-execpolicy`.
 
 The goal of this library is to classify a proposed [`execv(3)`](https://linux.die.net/man/3/execv) command into one of the following states:
 
@@ -16,7 +16,7 @@ To that end, rather than returning a boolean, the validator returns a structured
 For example, to check the command `ls -l foo`, the checker would be invoked as follows:
 
 ```shell
-cargo run -p codex-execpolicy-legacy -- check ls -l foo | jq
+cargo run -p datax-execpolicy-legacy -- check ls -l foo | jq
 ```
 
 It will exit with `0` and print the following to stdout:
@@ -96,7 +96,7 @@ Further, the CLI supports a `--policy` option to specify a custom `.policy` file
 Going back to the `cp` example, because the rule matches an `ARG_WFILE`, it will return `match` instead of `safe`:
 
 ```shell
-cargo run -p codex-execpolicy-legacy -- check cp src1 src2 dest | jq
+cargo run -p datax-execpolicy-legacy -- check cp src1 src2 dest | jq
 ```
 
 If the caller wants to consider allowing this command, it should parse the JSON to pick out the `WriteableFile` arguments and decide whether they are safe to write:
@@ -153,7 +153,7 @@ define_program(
 Note that for a rule to be forbidden, the `forbidden` keyword arg must be specified as the reason the command is forbidden. This will be included in the output:
 
 ```shell
-cargo run -p codex-execpolicy-legacy -- check applied deploy | jq
+cargo run -p datax-execpolicy-legacy -- check applied deploy | jq
 ```
 
 ```json

@@ -7,15 +7,15 @@ Run from `<reporoot>/codex-rs`.
 
 ```bash
 # 1) Build debug codex binary
-cargo build -p codex-cli --bin datax
+cargo build -p datax-cli --bin datax
 
 # 2) Start websocket app-server in background
-cargo run -p codex-app-server-test-client -- \
+cargo run -p datax-app-server-test-client -- \
   --datax-bin ./target/debug/codex \
   serve --listen ws://127.0.0.1:4222 --kill
 
 # 3) Call app-server (defaults to ws://127.0.0.1:4222)
-cargo run -p codex-app-server-test-client -- model-list
+cargo run -p datax-app-server-test-client -- model-list
 ```
 
 `send-message` and `send-message-v2` handle `request_user_input` server requests interactively.
@@ -36,9 +36,9 @@ retries ephemeral turns while the installed remote bundle finishes syncing.
 
 ```bash
 # Build a debug Codex binary; analytics capture is unavailable in release builds.
-cargo build -p codex-cli --bin datax
+cargo build -p datax-cli --bin datax
 
-cargo run -p codex-app-server-test-client -- \
+cargo run -p datax-app-server-test-client -- \
   --datax-bin ./target/debug/codex \
   plugin-analytics-smoke \
   --plugin-id linear@openai-curated-remote
@@ -71,7 +71,7 @@ not yet an analytics assertion.
 local `<plugin>@<marketplace>` ID.
 
 ```bash
-cargo run -p codex-app-server-test-client -- \
+cargo run -p datax-app-server-test-client -- \
   --datax-bin ./target/debug/codex \
   plugin-analytics-mutation-smoke \
   --remote-plugin-id <REMOTE_PLUGIN_ID> \
@@ -94,7 +94,7 @@ command prints one of these final states:
 For a dirty or uncertain result, retry cleanup with:
 
 ```bash
-cargo run -p codex-app-server-test-client -- \
+cargo run -p datax-app-server-test-client -- \
   --datax-bin ./target/debug/codex \
   plugin-remote-uninstall \
   --remote-plugin-id <REMOTE_PLUGIN_ID> \
@@ -111,7 +111,7 @@ Initialize a connection, then print every inbound JSON-RPC message until you sto
 `Ctrl+C`:
 
 ```bash
-cargo run -p codex-app-server-test-client -- watch
+cargo run -p datax-app-server-test-client -- watch
 ```
 
 ## Testing Thread Rejoin Behavior
@@ -123,8 +123,8 @@ Build and start an app server using commands above. The app-server log is writte
 Create at least one thread, then list threads:
 
 ```bash
-cargo run -p codex-app-server-test-client -- send-message-v2 "seed thread for rejoin test"
-cargo run -p codex-app-server-test-client -- thread-list --limit 5
+cargo run -p datax-app-server-test-client -- send-message-v2 "seed thread for rejoin test"
+cargo run -p datax-app-server-test-client -- thread-list --limit 5
 ```
 
 Copy a thread id from the `thread-list` output.

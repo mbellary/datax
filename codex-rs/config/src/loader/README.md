@@ -1,4 +1,4 @@
-# `codex-config` loader
+# `datax-config` loader
 
 This module is the canonical place to **load and describe Datax configuration layers** (user config, CLI/session overrides, cloud-managed config, managed config, and MDM-managed preferences) and to produce:
 

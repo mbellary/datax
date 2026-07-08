@@ -225,7 +225,7 @@ allow_local_binding = true
 fn default_test_overrides() -> ConfigOverrides {
     ConfigOverrides {
         codex_linux_sandbox_exe: Some(
-            find_codex_linux_sandbox_exe().expect("should find binary for codex-linux-sandbox"),
+            find_codex_linux_sandbox_exe().expect("should find binary for datax-linux-sandbox"),
         ),
         ..ConfigOverrides::default()
     }

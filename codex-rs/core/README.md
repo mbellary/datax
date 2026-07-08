@@ -1,6 +1,6 @@
-# codex-core
+# datax-core
 
-This crate implements the business logic for Codex. It is designed to be used by the various Codex UIs written in Rust.
+This crate implements the business logic for Datax. It is designed to be used by the various Datax UIs written in Rust.
 
 ## Wine-exec integration tests
 
@@ -10,7 +10,7 @@ source-local `skip_if_wine_exec!` call and reason.
 
 ## Dependencies
 
-Note that `codex-core` makes some assumptions about certain helper utilities being available in the environment. Currently, this support matrix is:
+Note that `datax-core` makes some assumptions about certain helper utilities being available in the environment. Currently, this support matrix is:
 
 ### macOS
 
@@ -28,7 +28,7 @@ Seatbelt also keeps the legacy default preferences read access
 
 ### Linux
 
-Expects the binary containing `codex-core` to run the equivalent of `codex sandbox` when `arg0` is `codex-linux-sandbox`. See the `codex-arg0` crate for details.
+Expects the binary containing `datax-core` to run the equivalent of `datax sandbox` when `arg0` is `datax-linux-sandbox`. See the `datax-arg0` crate for details.
 
 Legacy `SandboxPolicy` / `sandbox_mode` configs are still supported on Linux.
 They can continue to use the legacy Landlock path when the split filesystem
@@ -85,6 +85,6 @@ instead of running with weaker enforcement.
 
 ### All Platforms
 
-Expects the binary containing `codex-core` to simulate the virtual
+Expects the binary containing `datax-core` to simulate the virtual
 `apply_patch` CLI when `arg1` is `--codex-run-as-apply-patch`. See the
-`codex-arg0` crate for details.
+`datax-arg0` crate for details.

@@ -2182,5 +2182,5 @@ For server-initiated request payloads, annotate the field the same way so schema
 5. Verify the protocol crate:
 
    ```bash
-   just test -p codex-app-server-protocol
+   just test -p datax-app-server-protocol
    ```

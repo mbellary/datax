@@ -1,14 +1,14 @@
-//! Entry-point for the `codex-exec` binary.
+//! Entry-point for the `datax-exec` binary.
 //!
-//! When this CLI is invoked normally, it parses the standard `codex-exec` CLI
-//! options and launches the non-interactive Codex agent. However, if it is
-//! invoked with arg0 as `codex-linux-sandbox`, we instead treat the invocation
-//! as a request to run the logic for the standalone `codex-linux-sandbox`
+//! When this CLI is invoked normally, it parses the standard `datax-exec` CLI
+//! options and launches the non-interactive Datax agent. However, if it is
+//! invoked with arg0 as `datax-linux-sandbox`, we instead treat the invocation
+//! as a request to run the logic for the standalone `datax-linux-sandbox`
 //! executable (i.e., parse any -s args and then run a *sandboxed* command under
 //! Landlock + seccomp.
 //!
 //! This allows us to ship a completely separate set of functionality as part
-//! of the `codex-exec` binary.
+//! of the `datax-exec` binary.
 use clap::Parser;
 use datax_arg0::Arg0DispatchPaths;
 use datax_arg0::arg0_dispatch_or_else;

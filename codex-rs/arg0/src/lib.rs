@@ -181,21 +181,21 @@ fn prepare_path_env_var_with_aliases(
     }
 }
 
-/// While we want to deploy the Codex CLI as a single executable for simplicity,
+/// While we want to deploy the Datax CLI as a single executable for simplicity,
 /// we also want to expose some of its functionality as distinct CLIs, so we use
 /// the "arg0 trick" to determine which CLI to dispatch. This effectively allows
 /// us to simulate deploying multiple executables as a single binary on Mac and
 /// Linux (but not Windows).
 ///
 /// When the current executable is invoked through the hard-link or alias named
-/// `codex-linux-sandbox` we *directly* execute
+/// `datax-linux-sandbox` we *directly* execute
 /// [`datax_linux_sandbox::run_main`] (which never returns). Otherwise we:
 ///
 /// 1.  Load `.env` values from `~/.datax/.env` before creating any threads.
 /// 2.  Spawn a main runtime thread with a controlled stack size.
 /// 3.  Construct a Tokio multi-thread runtime.
 /// 4.  Capture the current executable path and derive the
-///     `codex-linux-sandbox` helper path (falling back to the current
+///     `datax-linux-sandbox` helper path (falling back to the current
 ///     executable if needed) so children can re-invoke the sandbox when running
 ///     on Linux.
 /// 5.  Execute the provided async `main_fn` inside that runtime, forwarding any
@@ -268,7 +268,7 @@ fn linux_sandbox_exe_path(
     path_entry_guard: Option<&Arg0PathEntryGuard>,
     current_exe: Option<PathBuf>,
 ) -> Option<PathBuf> {
-    // Prefer the `codex-linux-sandbox` alias when available so callers can
+    // Prefer the `datax-linux-sandbox` alias when available so callers can
     // re-exec through a path whose basename still triggers arg0 dispatch on
     // bubblewrap builds that do not support `--argv0`.
     path_entry_guard

@@ -66,7 +66,7 @@ pub fn zsh_fork_runtime(test_name: &str) -> Result<Option<ZshForkRuntime>> {
     }
     let Ok(main_execve_wrapper_exe) = datax_utils_cargo_bin::cargo_bin("datax-execve-wrapper")
     else {
-        eprintln!("skipping {test_name}: unable to resolve `codex-execve-wrapper` binary");
+        eprintln!("skipping {test_name}: unable to resolve `datax-execve-wrapper` binary");
         return Ok(None);
     };
 

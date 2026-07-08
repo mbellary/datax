@@ -38,6 +38,7 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
 - [x] (2026-07-08 03:48Z) Corrected follow-up `datax-tui` compile failure where `begin_transcript_loading` accepted `chat_id` but still assigned a removed local `thread_id`.
 - [x] (2026-07-08 04:08Z) Corrected follow-up `datax-tui` lib-test compile failures in TUI test fixtures where app-server protocol DTOs, TUI-local events, guardian core events, and selection-view/test-session structs required different field names.
 - [x] (2026-07-08 04:27Z) Corrected follow-up `datax-tui` lib-test compile failures where two helper bodies still referenced removed local `thread_id` variables after accepting `chat_id` parameters.
+- [x] (2026-07-08 05:00Z) User confirmed all Phase 1.5 validation commands passed and merged PR #10 into `main` at merge commit `236b706022`.
 
 ## Surprises & Discoveries
 
@@ -103,7 +104,7 @@ Implementation updated the Datax-owned persistence defaults and fixtures so fres
 
 The `.codex-plugin` manifest directory remains unchanged as a plugin format exception. Internal Rust identifiers such as `codex_home` also remain when they are implementation API names rather than persisted path strings. During the broad pass, static scans caught and corrected accidental internal rewrites before formatting.
 
-Expensive generation, build, lint, and test commands remain deferred to the user per migration instructions. The exact commands are listed in the validation sections below.
+Expensive generation, build, lint, and test commands were executed by the user per migration instructions and passed before PR #10 was merged into `main`.
 
 ## Baseline
 
@@ -315,21 +316,21 @@ Expected result: formatting completes successfully.
 | `git diff --check` | repository root | Completed | No whitespace errors. |
 | `rg -n 'Data[X]' docs codex-rs --glob '!vendor/**'` | repository root | Completed | No forbidden mixed-case product spelling. |
 | Literal persistence string scan documented below | repository root | Completed | Only `.codex-plugin` manifest format exceptions remain. |
-| `just write-config-schema` | `codex-rs` | Deferred | Config schema regenerated if source descriptions changed. |
-| `just write-app-server-schema` | `codex-rs` | Deferred | App-server schema artifacts regenerated if generated descriptions changed. |
-| `just fmt` | `codex-rs` | Deferred to user for latest follow-up | Formatting completes successfully. |
-| `cargo build` | `codex-rs` | Deferred | Workspace build reaches completion after the user-reported follow-up fixes. |
-| `just fix -p datax-utils-home-dir` | `codex-rs` | Deferred | Lints for home-dir changes pass or are fixed. |
-| `just fix -p datax-config` | `codex-rs` | Deferred | Lints for config changes pass or are fixed. |
-| `just fix -p datax-state` | `codex-rs` | Deferred | Lints for state changes pass or are fixed. |
-| `just fix -p datax-linux-sandbox` | `codex-rs` | Deferred | Lints for linux sandbox changes pass or are fixed. |
-| `just test -p datax-utils-home-dir` | `codex-rs` | Deferred | Home-dir tests pass. |
-| `just test -p datax-config` | `codex-rs` | Deferred | Config tests pass. |
-| `just test -p datax-core` | `codex-rs` | Deferred | Core tests pass. |
-| `just test -p datax-state` | `codex-rs` | Deferred | State tests pass. |
-| `just test -p datax-linux-sandbox` | `codex-rs` | Deferred | Linux sandbox tests pass. |
-| `just test -p datax-app-server-protocol` | `codex-rs` | Deferred | Protocol schema fixture tests pass if generated artifacts changed. |
-| `just test -p datax-tui` | `codex-rs` | Deferred | TUI snapshot tests pass if snapshots changed. |
+| `just write-config-schema` | `codex-rs` | Completed by user | Config schema regenerated if source descriptions changed. |
+| `just write-app-server-schema` | `codex-rs` | Completed by user | App-server schema artifacts regenerated if generated descriptions changed. |
+| `just fmt` | `codex-rs` | Completed by user | Formatting completes successfully. |
+| `cargo build` | `codex-rs` | Completed by user | Workspace build reaches completion after the user-reported follow-up fixes. |
+| `just fix -p datax-utils-home-dir` | `codex-rs` | Completed by user | Lints for home-dir changes pass or are fixed. |
+| `just fix -p datax-config` | `codex-rs` | Completed by user | Lints for config changes pass or are fixed. |
+| `just fix -p datax-state` | `codex-rs` | Completed by user | Lints for state changes pass or are fixed. |
+| `just fix -p datax-linux-sandbox` | `codex-rs` | Completed by user | Lints for linux sandbox changes pass or are fixed. |
+| `just test -p datax-utils-home-dir` | `codex-rs` | Completed by user | Home-dir tests pass. |
+| `just test -p datax-config` | `codex-rs` | Completed by user | Config tests pass. |
+| `just test -p datax-core` | `codex-rs` | Completed by user | Core tests pass. |
+| `just test -p datax-state` | `codex-rs` | Completed by user | State tests pass. |
+| `just test -p datax-linux-sandbox` | `codex-rs` | Completed by user | Linux sandbox tests pass. |
+| `just test -p datax-app-server-protocol` | `codex-rs` | Completed by user | Protocol schema fixture tests pass if generated artifacts changed. |
+| `just test -p datax-tui` | `codex-rs` | Completed by user | TUI snapshot tests pass if snapshots changed. |
 
 ## Validation and Acceptance
 

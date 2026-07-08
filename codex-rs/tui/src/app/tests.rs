@@ -4905,7 +4905,7 @@ fn session_start_error_surfaces_archived_guidance_without_rollout_path() {
         path: Some(std::path::PathBuf::from(
             "/Users/me/.datax/archived_sessions/rollout.jsonl",
         )),
-        thread_id,
+        chat_id: thread_id,
     };
     let expected = format!(
         "session {thread_id} is archived. Run `codex unarchive {thread_id}` to unarchive it first."

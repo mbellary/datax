@@ -4355,7 +4355,7 @@ mod tests {
 
         state
             .handle_background_event(BackgroundEvent::Transcript {
-                thread_id,
+                chat_id: thread_id,
                 transcript: Ok(cells),
             })
             .await

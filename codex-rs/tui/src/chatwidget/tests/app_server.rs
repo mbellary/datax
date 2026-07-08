@@ -6,7 +6,7 @@ fn thread_settings_for_test(
     chat_id: ThreadId,
 ) -> datax_app_server_protocol::ChatSettingsUpdatedNotification {
     datax_app_server_protocol::ChatSettingsUpdatedNotification {
-        chat_id: thread_id.to_string(),
+        chat_id: chat_id.to_string(),
         thread_settings: datax_app_server_protocol::ChatSettings {
             cwd: test_path_buf("/tmp/thread-settings").abs(),
             approval_policy: AskForApproval::OnRequest,

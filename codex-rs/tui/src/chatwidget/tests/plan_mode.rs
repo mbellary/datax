@@ -49,7 +49,7 @@ async fn plan_mode_nudge_hides_while_task_or_modal_is_active() {
         /*last_agent_message*/ None, /*duration_ms*/ None, /*from_replay*/ false,
     );
     chat.show_selection_view(SelectionViewParams {
-        messages: vec![SelectionItem {
+        items: vec![SelectionItem {
             name: "Keep planning".to_string(),
             ..Default::default()
         }],
@@ -1397,7 +1397,7 @@ async fn plan_slash_command_with_args_submits_prompt_in_plan_mode() {
     chat.set_feature_enabled(Feature::CollaborationModes, /*enabled*/ true);
 
     let configured = crate::session_state::ThreadSessionState {
-        chat_id: ThreadId::new(),
+        thread_id: ThreadId::new(),
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,

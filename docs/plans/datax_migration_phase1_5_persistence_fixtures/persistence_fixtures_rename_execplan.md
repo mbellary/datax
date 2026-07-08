@@ -36,6 +36,7 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
 - [x] (2026-07-08 00:00Z) Corrected user-reported `just test -p datax-tui` compile failures where TUI tests and fixtures still mixed old app-server protocol field names with TUI-internal thread/turn names.
 - [x] (2026-07-08 03:39Z) Corrected follow-up `datax-tui` compile failures where TUI resume-picker structs had already moved to `chat_id` but callers and tests still referenced `thread_id` fields.
 - [x] (2026-07-08 03:48Z) Corrected follow-up `datax-tui` compile failure where `begin_transcript_loading` accepted `chat_id` but still assigned a removed local `thread_id`.
+- [x] (2026-07-08 04:08Z) Corrected follow-up `datax-tui` lib-test compile failures in TUI test fixtures where app-server protocol DTOs, TUI-local events, guardian core events, and selection-view/test-session structs required different field names.
 
 ## Surprises & Discoveries
 
@@ -75,6 +76,8 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
   Evidence: The user-reported `datax-tui` test output failed on `SessionTarget.thread_id`, `Row.thread_id`, `PickerLoadRequest::{Preview,Transcript} { thread_id }`, and `BackgroundEvent::{Preview,Transcript} { thread_id }`; the fix aligned field names to `chat_id` while preserving local `ThreadId` variables where they feed internal routing or legacy rollout resolution.
 - Observation: Local variable drift can remain even after field-shape scans when a function parameter was renamed but a body assignment still references the old name.
   Evidence: The user-reported `datax-tui` test output failed on `begin_transcript_loading` assigning `Some(thread_id)` even though the parameter is `chat_id`; the assignment now uses `chat_id`.
+- Observation: TUI test fixtures need a stricter ownership split than source fixtures because the same tests often construct app-server protocol DTOs, core guardian events, and TUI-local events side by side.
+  Evidence: The user-reported `datax-tui` lib-test output failed on protocol-facing `SessionTarget.chat_id` and `SelectionViewParams.items`, core/local fields such as `GuardianAssessmentEvent.target_item_id`, `GuardianAssessmentEvent.turn_id`, `ExecApprovalRequestEvent.turn_id`, `ThreadSessionState.thread_id`, and AppEvent `thread_id` match arms, plus helper bodies that still referenced removed locals such as `item_id`, `turn_id`, and `messages`.
 
 ## Decision Log
 
@@ -203,6 +206,7 @@ Finally run formatting and static checks. Test/build commands remain deferred fo
 | `codex-rs/tui/src/app/app_server_requests.rs` | `Completed` | Follow-up from user `cargo build`; pending app-server request tracking now reads current message ids while preserving internal item ids. |
 | `codex-rs/tui/src/app/background_requests.rs` | `Completed` | Follow-up from user `cargo build`; feedback, MCP inventory, and apps-list requests now use current app-server protocol fields. |
 | `codex-rs/tui/src/app/session_lifecycle.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; resume flow now reads `SessionTarget.chat_id` while continuing to pass `ThreadId` values through existing internal session lifecycle APIs. |
+| `codex-rs/tui/src/app/tests/startup.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; startup tests now construct `SessionTarget.chat_id` while leaving map keys and internal thread ids unchanged. |
 | `codex-rs/tui/src/app/thread_events.rs` | `Completed` | Follow-up from user `cargo build`; thread event replay reads current interaction/message fields. |
 | `codex-rs/tui/src/app/thread_routing.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; same-thread resume guard now reads `SessionTarget.chat_id`. |
 | `codex-rs/tui/src/app/thread_settings.rs` | `Completed` | Follow-up from user `cargo build`; settings update params now use `chat_id`. |
@@ -221,17 +225,17 @@ Finally run formatting and static checks. Test/build commands remain deferred fo
 | `codex-rs/tui/src/chatwidget/interrupts.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; protocol request params use interaction/message ids while TUI approval events keep `turn_id`. |
 | `codex-rs/tui/src/chatwidget/tests.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; shared test re-export now uses `NonSteerableInteractionKind`. |
 | `codex-rs/tui/src/chatwidget/tests/app_server.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; app-server protocol fixtures use chat/interaction names while `AppEvent` patterns keep internal thread/turn fields. |
-| `codex-rs/tui/src/chatwidget/tests/approval_requests.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; approval request fixtures now use `chat_id`, `interaction_id`, and `message_id`. |
-| `codex-rs/tui/src/chatwidget/tests/exec_flow.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; command execution approval fixtures now use current protocol field names. |
-| `codex-rs/tui/src/chatwidget/tests/goal_menu.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; chat goal fixture now uses `chat_id`. |
-| `codex-rs/tui/src/chatwidget/tests/goal_validation.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; chat goal event patterns preserve TUI-internal thread ids. |
-| `codex-rs/tui/src/chatwidget/tests/guardian.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; guardian approval review protocol fixtures now use chat/interaction/message field names. |
-| `codex-rs/tui/src/chatwidget/tests/helpers.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; shared notification helpers now construct current app-server protocol DTOs. |
-| `codex-rs/tui/src/chatwidget/tests/mcp_startup.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; MCP server status protocol fixtures now use `chat_id`. |
-| `codex-rs/tui/src/chatwidget/tests/plan_mode.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; plan-mode protocol fixtures now use interaction/message fields and `NonSteerableInteractionKind`. |
+| `codex-rs/tui/src/chatwidget/tests/approval_requests.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; app-server protocol fixtures use chat/interaction/message fields, while TUI approval request events keep internal `turn_id`. |
+| `codex-rs/tui/src/chatwidget/tests/exec_flow.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; command execution protocol fixtures use current protocol field names, while approval event fixtures keep internal `turn_id`. |
+| `codex-rs/tui/src/chatwidget/tests/goal_menu.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; chat goal protocol fixtures use `chat_id`, while local goal menu event patterns and call sites keep `thread_id`. |
+| `codex-rs/tui/src/chatwidget/tests/goal_validation.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; helper parameters now use `interaction_id` consistently and AppEvent patterns preserve TUI-internal thread ids. |
+| `codex-rs/tui/src/chatwidget/tests/guardian.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; app-server guardian review DTOs keep chat/interaction/message fields, while core guardian events keep `turn_id` and `target_item_id`. |
+| `codex-rs/tui/src/chatwidget/tests/helpers.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; shared notification helpers now construct current app-server protocol DTOs and reference renamed helper parameters consistently. |
+| `codex-rs/tui/src/chatwidget/tests/mcp_startup.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; MCP server status protocol fixtures use `chat_id`, while core guardian event fixtures keep `turn_id` and `target_item_id`. |
+| `codex-rs/tui/src/chatwidget/tests/plan_mode.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; plan-mode protocol fixtures use interaction/message fields and `NonSteerableInteractionKind`, while selection-view params keep `items`. |
 | `codex-rs/tui/src/chatwidget/tests/review_mode.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; review-mode protocol fixtures now use current chat/interaction fields and error kind names. |
-| `codex-rs/tui/src/chatwidget/tests/slash_commands.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; slash-command protocol notification fixtures now use current chat/interaction fields. |
-| `codex-rs/tui/src/chatwidget/tests/status_and_layout.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; status/layout protocol fixtures now use current chat/interaction/message fields. |
+| `codex-rs/tui/src/chatwidget/tests/slash_commands.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; slash-command protocol notification fixtures use current chat/interaction fields, while local AppEvent patterns keep thread ids. |
+| `codex-rs/tui/src/chatwidget/tests/status_and_layout.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; status/layout protocol fixtures use current chat/interaction/message fields, while TUI approval/session event structs keep internal names. |
 | `codex-rs/tui/src/goal_display.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; chat goal fixture now uses `chat_id`. |
 | `codex-rs/exec/src/lib.rs` | `Completed` | Follow-up from user `cargo build`; in-process app-server requests and notifications now use current chat/interaction/message protocol fields while preserving exec-internal thread/turn output terms. |
 | `codex-rs/exec/src/event_processor_with_human_output.rs` | `Completed` | Follow-up from user `cargo build`; final-message recovery now reads `Interaction.messages`. |

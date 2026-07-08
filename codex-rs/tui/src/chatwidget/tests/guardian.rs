@@ -4,8 +4,8 @@ use pretty_assertions::assert_eq;
 fn auto_review_denial_event() -> GuardianAssessmentEvent {
     GuardianAssessmentEvent {
         id: "auto-review-recent-1".into(),
-        target_message_id: Some("target-auto-review-recent-1".into()),
-        interaction_id: "turn-recent-1".into(),
+        target_item_id: Some("target-auto-review-recent-1".into()),
+        turn_id: "turn-recent-1".into(),
         started_at_ms: 0,
         completed_at_ms: Some(1),
         status: GuardianAssessmentStatus::Denied,
@@ -47,7 +47,7 @@ async fn approving_recent_denial_emits_structured_core_op_once() {
     assert_matches!(
         rx.try_recv(),
         Ok(AppEvent::SubmitThreadOp {
-            chat_id: submitted_thread_id,
+            thread_id: submitted_thread_id,
             op: Op::ApproveGuardianDeniedAction { event }
         }) if submitted_thread_id == thread_id
                 && event.id == "auto-review-recent-1"
@@ -73,8 +73,8 @@ async fn guardian_denied_exec_renders_warning_and_denied_request() {
 
     chat.on_guardian_assessment(GuardianAssessmentEvent {
         id: "guardian-1".into(),
-        target_message_id: Some("guardian-target-1".into()),
-        interaction_id: "turn-1".into(),
+        target_item_id: Some("guardian-target-1".into()),
+        turn_id: "turn-1".into(),
         started_at_ms: 0,
         completed_at_ms: None,
         status: GuardianAssessmentStatus::InProgress,
@@ -87,8 +87,8 @@ async fn guardian_denied_exec_renders_warning_and_denied_request() {
     chat.on_warning("Automatic approval review denied (risk: high): The planned action would transmit the full contents of a workspace source file (`core/src/codex.rs`) to `https://example.com`, which is an external and untrusted endpoint.");
     chat.on_guardian_assessment(GuardianAssessmentEvent {
         id: "guardian-1".into(),
-        target_message_id: Some("guardian-target-1".into()),
-        interaction_id: "turn-1".into(),
+        target_item_id: Some("guardian-target-1".into()),
+        turn_id: "turn-1".into(),
         started_at_ms: 0,
         completed_at_ms: Some(1),
         status: GuardianAssessmentStatus::Denied,
@@ -131,8 +131,8 @@ async fn guardian_approved_exec_renders_approved_request() {
 
     chat.on_guardian_assessment(GuardianAssessmentEvent {
         id: "thread:child-thread:guardian-1".into(),
-        target_message_id: Some("guardian-approved-target".into()),
-        interaction_id: "turn-1".into(),
+        target_item_id: Some("guardian-approved-target".into()),
+        turn_id: "turn-1".into(),
         started_at_ms: 0,
         completed_at_ms: Some(1),
         status: GuardianAssessmentStatus::Approved,
@@ -189,8 +189,8 @@ async fn guardian_approved_request_permissions_renders_request_summary() {
 
     chat.on_guardian_assessment(GuardianAssessmentEvent {
         id: "guardian-request-permissions".into(),
-        target_message_id: None,
-        interaction_id: "turn-1".into(),
+        target_item_id: None,
+        turn_id: "turn-1".into(),
         started_at_ms: 0,
         completed_at_ms: None,
         status: GuardianAssessmentStatus::InProgress,
@@ -213,8 +213,8 @@ async fn guardian_approved_request_permissions_renders_request_summary() {
 
     chat.on_guardian_assessment(GuardianAssessmentEvent {
         id: "guardian-request-permissions".into(),
-        target_message_id: None,
-        interaction_id: "turn-1".into(),
+        target_item_id: None,
+        turn_id: "turn-1".into(),
         started_at_ms: 0,
         completed_at_ms: Some(1),
         status: GuardianAssessmentStatus::Approved,
@@ -263,8 +263,8 @@ async fn guardian_timed_out_exec_renders_warning_and_timed_out_request() {
 
     chat.on_guardian_assessment(GuardianAssessmentEvent {
         id: "guardian-1".into(),
-        target_message_id: Some("guardian-target-1".into()),
-        interaction_id: "turn-1".into(),
+        target_item_id: Some("guardian-target-1".into()),
+        turn_id: "turn-1".into(),
         started_at_ms: 0,
         completed_at_ms: None,
         status: GuardianAssessmentStatus::InProgress,
@@ -277,8 +277,8 @@ async fn guardian_timed_out_exec_renders_warning_and_timed_out_request() {
     chat.on_warning("Automatic approval review timed out while evaluating the requested approval.");
     chat.on_guardian_assessment(GuardianAssessmentEvent {
         id: "guardian-1".into(),
-        target_message_id: Some("guardian-target-1".into()),
-        interaction_id: "turn-1".into(),
+        target_item_id: Some("guardian-target-1".into()),
+        turn_id: "turn-1".into(),
         started_at_ms: 0,
         completed_at_ms: Some(1),
         status: GuardianAssessmentStatus::TimedOut,
@@ -527,8 +527,8 @@ async fn guardian_parallel_reviews_render_aggregate_status_snapshot() {
     ] {
         chat.on_guardian_assessment(GuardianAssessmentEvent {
             id: id.to_string(),
-            target_message_id: Some(format!("{id}-target")),
-            interaction_id: "turn-1".to_string(),
+            target_item_id: Some(format!("{id}-target")),
+            turn_id: "turn-1".to_string(),
             started_at_ms: 0,
             completed_at_ms: None,
             status: GuardianAssessmentStatus::InProgress,
@@ -558,8 +558,8 @@ async fn guardian_parallel_reviews_keep_remaining_review_visible_after_denial() 
 
     chat.on_guardian_assessment(GuardianAssessmentEvent {
         id: "guardian-1".to_string(),
-        target_message_id: Some("guardian-1-target".to_string()),
-        interaction_id: "turn-1".to_string(),
+        target_item_id: Some("guardian-1-target".to_string()),
+        turn_id: "turn-1".to_string(),
         started_at_ms: 0,
         completed_at_ms: None,
         status: GuardianAssessmentStatus::InProgress,
@@ -575,8 +575,8 @@ async fn guardian_parallel_reviews_keep_remaining_review_visible_after_denial() 
     });
     chat.on_guardian_assessment(GuardianAssessmentEvent {
         id: "guardian-2".to_string(),
-        target_message_id: Some("guardian-2-target".to_string()),
-        interaction_id: "turn-1".to_string(),
+        target_item_id: Some("guardian-2-target".to_string()),
+        turn_id: "turn-1".to_string(),
         started_at_ms: 0,
         completed_at_ms: None,
         status: GuardianAssessmentStatus::InProgress,
@@ -592,8 +592,8 @@ async fn guardian_parallel_reviews_keep_remaining_review_visible_after_denial() 
     });
     chat.on_guardian_assessment(GuardianAssessmentEvent {
         id: "guardian-1".to_string(),
-        target_message_id: Some("guardian-1-target".to_string()),
-        interaction_id: "turn-1".to_string(),
+        target_item_id: Some("guardian-1-target".to_string()),
+        turn_id: "turn-1".to_string(),
         started_at_ms: 0,
         completed_at_ms: Some(1),
         status: GuardianAssessmentStatus::Denied,

@@ -727,7 +727,7 @@ pub(super) fn replay_user_message_inputs(
 ) {
     chat.replay_thread_item(
         AppServerThreadItem::UserMessage {
-            id: item_id.to_string(),
+            id: message_id.to_string(),
             client_id: None,
             content,
         },
@@ -744,7 +744,7 @@ pub(super) fn replay_user_message_text(
 ) {
     replay_user_message_inputs(
         chat,
-        item_id,
+        message_id,
         vec![AppServerUserInput::Text {
             text: text.into(),
             text_elements: Vec::new(),
@@ -761,7 +761,7 @@ pub(super) fn replay_agent_message(
 ) {
     chat.replay_thread_item(
         AppServerThreadItem::AgentMessage {
-            id: item_id.to_string(),
+            id: message_id.to_string(),
             text: text.into(),
             phase: Some(MessagePhase::FinalAnswer),
             memory_citation: None,
@@ -909,7 +909,7 @@ pub(super) fn complete_assistant_message(
             interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
             item: AppServerThreadItem::AgentMessage {
-                id: item_id.to_string(),
+                id: message_id.to_string(),
                 text: text.to_string(),
                 phase,
                 memory_citation: None,
@@ -933,7 +933,7 @@ pub(super) fn pending_steer(text: &str) -> PendingSteer {
 pub(super) fn complete_user_message(chat: &mut ChatWidget, message_id: &str, text: &str) {
     complete_user_message_for_inputs(
         chat,
-        item_id,
+        message_id,
         vec![UserInput::Text {
             text: text.to_string(),
             text_elements: Vec::new(),
@@ -952,7 +952,7 @@ pub(super) fn complete_user_message_for_inputs(
             interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
             item: AppServerThreadItem::UserMessage {
-                id: item_id.to_string(),
+                id: message_id.to_string(),
                 client_id: None,
                 content,
             },
@@ -984,7 +984,7 @@ pub(super) fn handle_turn_started(chat: &mut ChatWidget, interaction_id: &str) {
         ServerNotification::InteractionStarted(InteractionStartedNotification {
             chat_id: chat.thread_id.map(|id| id.to_string()).unwrap_or_default(),
             turn: app_server_turn(
-                turn_id,
+                interaction_id,
                 AppServerTurnStatus::InProgress,
                 /*duration_ms*/ None,
                 /*error*/ None,
@@ -1003,7 +1003,7 @@ pub(super) fn handle_turn_completed(
         ServerNotification::InteractionCompleted(InteractionCompletedNotification {
             chat_id: chat.thread_id.map(|id| id.to_string()).unwrap_or_default(),
             turn: app_server_turn(
-                turn_id,
+                interaction_id,
                 AppServerTurnStatus::Completed,
                 duration_ms,
                 /*error*/ None,
@@ -1018,7 +1018,7 @@ pub(super) fn handle_turn_interrupted(chat: &mut ChatWidget, interaction_id: &st
         ServerNotification::InteractionCompleted(InteractionCompletedNotification {
             chat_id: chat.thread_id.map(|id| id.to_string()).unwrap_or_default(),
             turn: app_server_turn(
-                turn_id,
+                interaction_id,
                 AppServerTurnStatus::Interrupted,
                 /*duration_ms*/ None,
                 /*error*/ None,
@@ -1029,8 +1029,8 @@ pub(super) fn handle_turn_interrupted(chat: &mut ChatWidget, interaction_id: &st
 }
 
 pub(super) fn handle_budget_limited_turn(chat: &mut ChatWidget, interaction_id: &str) {
-    chat.turn_lifecycle.mark_budget_limited(turn_id.to_string());
-    handle_turn_interrupted(chat, turn_id);
+    chat.turn_lifecycle.mark_budget_limited(interaction_id.to_string());
+    handle_turn_interrupted(chat, interaction_id);
 }
 
 pub(super) fn begin_exec(

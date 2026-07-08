@@ -6,12 +6,12 @@ fn complete_turn_with_message(chat: &mut ChatWidget, interaction_id: &str, messa
     if let Some(message) = message {
         complete_assistant_message(
             chat,
-            &format!("{turn_id}-message"),
+            &format!("{interaction_id}-message"),
             message,
             Some(MessagePhase::FinalAnswer),
         );
     }
-    handle_turn_completed(chat, turn_id, /*duration_ms*/ None);
+    handle_turn_completed(chat, interaction_id, /*duration_ms*/ None);
 }
 
 fn submit_composer_text(chat: &mut ChatWidget, text: &str) {
@@ -61,7 +61,7 @@ async fn goal_slash_command_accepts_objective_at_limit() {
 
     let event = rx.try_recv().expect("expected goal objective event");
     let AppEvent::SetThreadGoalDraft {
-        chat_id: actual_thread_id,
+        thread_id: actual_thread_id,
         draft,
         ..
     } = event
@@ -85,7 +85,7 @@ async fn goal_slash_command_accepts_multiline_objective_after_blank_first_line()
 
     let event = rx.try_recv().expect("expected goal objective event");
     let AppEvent::SetThreadGoalDraft {
-        chat_id: actual_thread_id,
+        thread_id: actual_thread_id,
         draft,
         ..
     } = event

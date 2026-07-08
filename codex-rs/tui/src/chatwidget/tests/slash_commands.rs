@@ -39,12 +39,12 @@ fn complete_turn_with_message(chat: &mut ChatWidget, interaction_id: &str, messa
     if let Some(message) = message {
         complete_assistant_message(
             chat,
-            &format!("{turn_id}-message"),
+            &format!("{interaction_id}-message"),
             message,
             Some(MessagePhase::FinalAnswer),
         );
     }
-    handle_turn_completed(chat, turn_id, /*duration_ms*/ None);
+    handle_turn_completed(chat, interaction_id, /*duration_ms*/ None);
 }
 
 fn submit_composer_text(chat: &mut ChatWidget, text: &str) {
@@ -671,7 +671,7 @@ async fn goal_slash_command_with_extra_os_emits_set_goal_event() {
 
     let event = rx.try_recv().expect("expected goal draft event");
     let AppEvent::SetThreadGoalDraft {
-        chat_id: actual_thread_id,
+        thread_id: actual_thread_id,
         draft,
         mode,
     } = event
@@ -765,7 +765,7 @@ async fn bare_goal_slash_command_drains_pending_submission_state() {
 
     assert_matches!(
         rx.try_recv(),
-        Ok(AppEvent::OpenThreadGoalMenu { chat_id: opened }) if opened == thread_id
+        Ok(AppEvent::OpenThreadGoalMenu { thread_id: opened }) if opened == thread_id
     );
     assert!(chat.remote_image_urls().is_empty());
     assert!(chat.bottom_pane.composer_local_image_paths().is_empty());
@@ -791,7 +791,7 @@ async fn goal_control_slash_commands_emit_goal_events() {
             Some(status) => {
                 let event = rx.try_recv().expect("expected goal status event");
                 let AppEvent::SetThreadGoalStatus {
-                    chat_id: actual_thread_id,
+                    thread_id: actual_thread_id,
                     status: actual_status,
                 } = event
                 else {
@@ -803,7 +803,7 @@ async fn goal_control_slash_commands_emit_goal_events() {
             None => {
                 let event = rx.try_recv().expect("expected clear goal event");
                 let AppEvent::ClearThreadGoal {
-                    chat_id: actual_thread_id,
+                    thread_id: actual_thread_id,
                 } = event
                 else {
                     panic!("expected ClearThreadGoal, got {event:?}");
@@ -840,7 +840,7 @@ async fn goal_edit_slash_command_opens_goal_editor() {
 
         let event = rx.try_recv().expect("expected goal editor event");
         let AppEvent::OpenThreadGoalEditor {
-            chat_id: actual_thread_id,
+            thread_id: actual_thread_id,
         } = event
         else {
             panic!("expected OpenThreadGoalEditor, got {event:?}");
@@ -1138,7 +1138,7 @@ async fn interrupted_merged_message_history_encodes_mentions_once() {
                 },
             ] = items.as_slice()
             else {
-                panic!("expected text item, got {messages:?}");
+                panic!("expected text item, got {items:?}");
             };
             assert_eq!(submitted, text);
         }
@@ -1159,7 +1159,7 @@ async fn interrupted_merged_message_history_encodes_mentions_once() {
                 },
             ] = items.as_slice()
             else {
-                panic!("expected resubmitted text item, got {messages:?}");
+                panic!("expected resubmitted text item, got {items:?}");
             };
             assert_eq!(submitted, text);
         }
@@ -2252,7 +2252,7 @@ async fn slash_mcp_requests_inventory_via_app_server() {
         rx.try_recv(),
         Ok(AppEvent::FetchMcpInventory {
             detail: McpServerStatusDetail::ToolsAndAuthOnly,
-            chat_id: Some(actual_thread_id)
+            thread_id: Some(actual_thread_id)
         }) if actual_thread_id == thread_id
     );
     assert!(op_rx.try_recv().is_err(), "expected no core op to be sent");
@@ -2271,7 +2271,7 @@ async fn slash_mcp_verbose_requests_full_inventory_via_app_server() {
         rx.try_recv(),
         Ok(AppEvent::FetchMcpInventory {
             detail: McpServerStatusDetail::Full,
-            chat_id: Some(actual_thread_id)
+            thread_id: Some(actual_thread_id)
         }) if actual_thread_id == thread_id
     );
     assert!(op_rx.try_recv().is_err(), "expected no core op to be sent");
@@ -2566,7 +2566,7 @@ async fn slash_app_requests_desktop_handoff() {
     assert_matches!(
         rx.try_recv(),
         Ok(AppEvent::OpenDesktopThread {
-            chat_id: actual_thread_id,
+            thread_id: actual_thread_id,
         }) if actual_thread_id == thread_id
     );
 }

@@ -1546,7 +1546,7 @@ fn assert_goal_paused_event(
     assert_matches!(
         rx.try_recv(),
         Ok(AppEvent::SetThreadGoalStatus {
-            chat_id: event_thread_id,
+            thread_id: event_thread_id,
             status: AppThreadGoalStatus::Paused,
         }) if event_thread_id == thread_id
     );
@@ -1969,7 +1969,7 @@ async fn status_widget_and_approval_modal_snapshot() {
     let ev = ExecApprovalRequestEvent {
         call_id: "call-approve-exec".into(),
         approval_id: Some("call-approve-exec".into()),
-        interaction_id: "turn-approve-exec".into(),
+        turn_id: "turn-approve-exec".into(),
         environment_id: None,
         command: vec!["echo".into(), "hello world".into()],
         cwd: test_path_buf("/tmp").abs(),
@@ -2894,7 +2894,7 @@ async fn session_configured_clears_goal_status_footer() {
 
     let rollout_file = NamedTempFile::new().unwrap();
     chat.handle_thread_session(crate::session_state::ThreadSessionState {
-        chat_id: ThreadId::new(),
+        thread_id: ThreadId::new(),
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,

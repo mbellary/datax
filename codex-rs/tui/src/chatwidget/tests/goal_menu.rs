@@ -124,7 +124,7 @@ async fn goal_edit_prompt_submits_preserved_status_and_budget() {
 
     match rx.try_recv() {
         Ok(AppEvent::SetThreadGoalDraft {
-            chat_id: event_thread_id,
+            thread_id: event_thread_id,
             draft,
             mode:
                 crate::app_event::ThreadGoalSetMode::UpdateExisting {
@@ -229,7 +229,7 @@ async fn resume_paused_goal_prompt_default_resumes_goal() {
 
     match rx.try_recv() {
         Ok(AppEvent::SetThreadGoalStatus {
-            chat_id: event_thread_id,
+            thread_id: event_thread_id,
             status,
         }) => {
             assert_eq!(event_thread_id, thread_id);
@@ -259,7 +259,7 @@ fn test_goal(
     token_budget: Option<i64>,
 ) -> AppThreadGoal {
     AppThreadGoal {
-        chat_id: thread_id.to_string(),
+        chat_id: chat_id.to_string(),
         objective: "Keep improving the bare goal command until it feels calm and useful."
             .to_string(),
         status,

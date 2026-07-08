@@ -1,0 +1,12 @@
+---
+source: tui/src/history_cell/tests.rs
+assertion_line: 1560
+expression: rendered
+---
+╭───────────────────────────────────────╮
+│ >_ OpenAI Codex (vtest)               │
+│                                       │
+│ model:       gpt-5   /model to change │
+│ directory:   /tmp/project             │
+│ permissions: YOLO mode                │
+╰───────────────────────────────────────╯

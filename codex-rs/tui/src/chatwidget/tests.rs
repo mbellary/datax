@@ -182,7 +182,7 @@ pub(super) use toml::Value as TomlValue;
 
 pub(super) fn chatwidget_snapshot_dir() -> PathBuf {
     let snapshot_file = datax_utils_cargo_bin::find_resource!(
-        "src/chatwidget/snapshots/codex_tui__chatwidget__tests__chatwidget_tall.snap"
+        "src/chatwidget/snapshots/datax_tui__chatwidget__tests__chatwidget_tall.snap"
     )
     .expect("snapshot file");
     snapshot_file
@@ -197,7 +197,7 @@ macro_rules! assert_chatwidget_snapshot {
         settings.set_prepend_module_to_snapshot(false);
         settings.set_snapshot_path(crate::chatwidget::tests::chatwidget_snapshot_dir());
         settings.bind(|| {
-            insta::assert_snapshot!(format!("codex_tui__chatwidget__tests__{}", $name), $value);
+            insta::assert_snapshot!(format!("datax_tui__chatwidget__tests__{}", $name), $value);
         });
     }};
     ($name:expr, $value:expr, @$snapshot:literal $(,)?) => {{
@@ -206,7 +206,7 @@ macro_rules! assert_chatwidget_snapshot {
         settings.set_snapshot_path(crate::chatwidget::tests::chatwidget_snapshot_dir());
         settings.bind(|| {
             insta::assert_snapshot!(
-                format!("codex_tui__chatwidget__tests__{}", $name),
+                format!("datax_tui__chatwidget__tests__{}", $name),
                 &($value),
                 @$snapshot
             );

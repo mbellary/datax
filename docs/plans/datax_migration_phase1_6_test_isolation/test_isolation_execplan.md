@@ -21,6 +21,8 @@ After this milestone, a contributor should be able to run the documented validat
 - [x] (2026-07-08 06:16Z) Ran allowed static validation only; deferred expensive build, format, lint, generation, and tests to the user.
 - [x] (2026-07-08 06:20Z) Created draft PR #12 for this milestone.
 - [x] (2026-07-08 06:20Z) Updated this ExecPlan with final PR link and closeout notes.
+- [x] (2026-07-08 07:25Z) Fixed user-reported `just test -p datax-tui` snapshot fixture failures by renaming tracked TUI Insta snapshots from `codex_tui__*.snap` to `datax_tui__*.snap` and accepting generated `datax_tui__*.snap.new` content for the failing cases.
+- [x] (2026-07-08 07:33Z) Trimmed hook-browser snapshot helper output to avoid newly modified snapshots carrying right-padding that fails `git diff --check`.
 
 ## Surprises & Discoveries
 
@@ -32,6 +34,8 @@ After this milestone, a contributor should be able to run the documented validat
   Evidence: `codex-rs/docs/codex_mcp_interface.md` lists `thread/start`, `thread/resume`, `turn/start`, and `turn/interrupt` even though Phase 1.4 changed public app-server methods to `chat/*` and `interaction/*`.
 - Observation: Some remaining Codex strings are intentionally not Phase 1.6 work.
   Evidence: `CODEX_SANDBOX_*` identifiers are protected; `.codex-plugin` is a plugin manifest format exception; ChatGPT backend `/backend-api/codex/` paths and model slugs such as `gpt-5-codex` are external service/provenance names; core-internal `thread_id` and `turn_id` names still compile and are not app-server protocol field names.
+- Observation: Renaming the TUI crate/package changes Insta's snapshot file identity from `codex_tui__...snap` to `datax_tui__...snap`.
+  Evidence: The user-run `just test -p datax-tui` generated `datax_tui__*.snap.new` files and failed because tracked fixtures still existed under `codex_tui__*.snap`.
 
 ## Decision Log
 
@@ -186,12 +190,15 @@ Finally, run static checks only. Expensive format, build, lint, generation, and 
 | `codex-rs/thread-manager-sample/README.md` | `Completed` | Phase 1.6 test-isolation rename/update; active validation surface aligned to Datax naming. |
 | `codex-rs/tui/src/app/agent_status_feed_tests.rs` | `Completed` | Phase 1.6 test-isolation rename/update; active validation surface aligned to Datax naming. |
 | `codex-rs/tui/src/bottom_pane/chat_composer_history.rs` | `Completed` | Phase 1.6 test-isolation rename/update; active validation surface aligned to Datax naming. |
-| `codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__binary_size_ideal_response.snap` | `Completed` | Phase 1.6 test-isolation rename/update; active validation surface aligned to Datax naming. |
-| `codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__unified_exec_wait_after_final_agent_message.snap` | `Completed` | Phase 1.6 test-isolation rename/update; active validation surface aligned to Datax naming. |
-| `codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__unified_exec_wait_before_streamed_agent_message.snap` | `Completed` | Phase 1.6 test-isolation rename/update; active validation surface aligned to Datax naming. |
-| `codex-rs/tui/src/chatwidget/snapshots/codex_tui__chatwidget__tests__unified_exec_wait_status_renders_command_in_single_details_row.snap` | `Completed` | Phase 1.6 test-isolation rename/update; active validation surface aligned to Datax naming. |
+| `codex-rs/tui/src/bottom_pane/hooks_browser_view.rs` | `Completed` | Test helper trims captured snapshot lines after accepting generated TUI snapshot output; runtime rendering is unchanged. |
+| `codex-rs/tui/**/snapshots/datax_tui__*.snap` | `Completed` | Mechanical TUI Insta fixture rename from `codex_tui__*.snap`; generated `.snap.new` output from user-run `just test -p datax-tui` was accepted for failing snapshots. |
+| `codex-rs/tui/src/chatwidget/snapshots/datax_tui__chatwidget__tests__binary_size_ideal_response.snap` | `Completed` | Phase 1.6 test-isolation rename/update; active validation surface aligned to Datax naming. |
+| `codex-rs/tui/src/chatwidget/snapshots/datax_tui__chatwidget__tests__unified_exec_wait_after_final_agent_message.snap` | `Completed` | Phase 1.6 test-isolation rename/update; active validation surface aligned to Datax naming. |
+| `codex-rs/tui/src/chatwidget/snapshots/datax_tui__chatwidget__tests__unified_exec_wait_before_streamed_agent_message.snap` | `Completed` | Phase 1.6 test-isolation rename/update; active validation surface aligned to Datax naming. |
+| `codex-rs/tui/src/chatwidget/snapshots/datax_tui__chatwidget__tests__unified_exec_wait_status_renders_command_in_single_details_row.snap` | `Completed` | Phase 1.6 test-isolation rename/update; active validation surface aligned to Datax naming. |
+| `codex-rs/tui/src/chatwidget/tests.rs` | `Completed` | Test-only explicit snapshot helper names now point to `datax_tui__*.snap` fixtures. |
 | `codex-rs/tui/src/chatwidget/tests/exec_flow.rs` | `Completed` | Phase 1.6 test-isolation rename/update; active validation surface aligned to Datax naming. |
-| `codex-rs/tui/src/history_cell/snapshots/codex_tui__history_cell__tests__multiline_command_wraps_with_extra_indent_on_subsequent_lines.snap` | `Completed` | Phase 1.6 test-isolation rename/update; active validation surface aligned to Datax naming. |
+| `codex-rs/tui/src/history_cell/snapshots/datax_tui__history_cell__tests__multiline_command_wraps_with_extra_indent_on_subsequent_lines.snap` | `Completed` | Phase 1.6 test-isolation rename/update; active validation surface aligned to Datax naming. |
 | `codex-rs/tui/src/history_cell/tests.rs` | `Completed` | Phase 1.6 test-isolation rename/update; active validation surface aligned to Datax naming. |
 | `codex-rs/tui/src/markdown_render_tests.rs` | `Completed` | Phase 1.6 test-isolation rename/update; active validation surface aligned to Datax naming. |
 | `codex-rs/tui/src/status_indicator_widget.rs` | `Completed` | Phase 1.6 test-isolation rename/update; active validation surface aligned to Datax naming. |
@@ -222,6 +229,7 @@ If inspection shows that a candidate file only contains internal compatibility n
 | `rg -n "CARGO_BIN_EXE_codex_(linux_sandbox|windows_sandbox_setup|command_runner)" .github codex-rs` | repository root | Yes | `Completed` | Returned no matches. |
 | `rg -n "cargo_bin\\(\\\"codex|should find binary for codex|codex-(linux-sandbox|mcp-server|execve-wrapper|exec-server|exec\\b)|cargo test -p codex|cargo insta pending-snapshots -p codex|just test -p codex|cargo run -p codex|cargo build -p codex" codex-rs .github docs scripts --glob '!target/**' --glob '!Cargo.lock' --glob '!*.snap.new'` | repository root | Yes | `Completed` | Returned only historical ExecPlan references after active validation surfaces were updated. |
 | `rg -n "thread/start|thread/read|thread/list|thread/resume|thread/fork|turn/start|turn/interrupt|item/" codex-rs/docs/codex_mcp_interface.md codex-rs/app-server/README.md codex-rs/app-server-protocol/src codex-rs/app-server/src` | repository root | Yes | `Completed` | Returned no matches. |
+| `find codex-rs/tui -path '*/snapshots/codex_tui__*.snap' -print` | repository root | Yes | `Completed` | Returned no tracked fixture files after TUI snapshot rename. |
 | `just fmt` | `codex-rs` | Yes | `Deferred` | User-run per instruction. |
 | `cargo build` | `codex-rs` | Yes | `Deferred` | User-run full build because this phase targets validation readiness. |
 | `just fix -p datax-config` | `codex-rs` | If script/doc comments touch config crate | `Deferred` | User-run if this milestone changes config generator or config crate code. |
@@ -250,6 +258,10 @@ From the repository root, confirm active developer/test command examples do not 
 From the repository root, confirm active public app-server documentation does not advertise old method names:
 
     rg -n "thread/start|thread/read|thread/list|thread/resume|thread/fork|turn/start|turn/interrupt|item/" codex-rs/docs/codex_mcp_interface.md codex-rs/app-server/README.md codex-rs/app-server-protocol/src codex-rs/app-server/src
+
+From the repository root, confirm no tracked TUI snapshot fixtures retain the old crate prefix:
+
+    find codex-rs/tui -path '*/snapshots/codex_tui__*.snap' -print
 
 From `codex-rs`, run the formatter and expect it to complete successfully:
 

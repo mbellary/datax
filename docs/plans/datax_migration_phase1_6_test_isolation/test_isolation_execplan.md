@@ -19,8 +19,8 @@ After this milestone, a contributor should be able to run the documented validat
 - [x] (2026-07-08 06:13Z) Created GitHub issue #11 for this milestone.
 - [x] (2026-07-08 06:15Z) Updated stale test-isolation files identified in the inventory.
 - [x] (2026-07-08 06:16Z) Ran allowed static validation only; deferred expensive build, format, lint, generation, and tests to the user.
-- [ ] Create draft pull request for this milestone.
-- [ ] Update this ExecPlan with final PR link and closeout notes.
+- [x] (2026-07-08 06:20Z) Created draft PR #12 for this milestone.
+- [x] (2026-07-08 06:20Z) Updated this ExecPlan with final PR link and closeout notes.
 
 ## Surprises & Discoveries
 
@@ -44,7 +44,11 @@ After this milestone, a contributor should be able to run the documented validat
 
 ## Outcomes & Retrospective
 
-Pending. This section will summarize the concrete files changed, user-run validation results, remaining exceptions, and merge status before the milestone is closed.
+Implementation aligned active validation-facing files with Datax naming: CI helper binary environment variables, Cargo package command examples, app-server-over-MCP documentation, test helper binary lookups, and snapshots or fixtures that render validation commands. No behavior changes or product features were added.
+
+Codex ran static validation only. Expensive format, build, lint, generation, and test commands remain deferred to the user per migration instructions and are listed explicitly below.
+
+The milestone issue is #11 and the draft pull request is #12.
 
 ## Baseline
 
@@ -197,7 +201,7 @@ Finally, run static checks only. Expensive format, build, lint, generation, and 
 | `codex-rs/windows-sandbox-rs/sandbox_smoketests.py` | `Completed` | Phase 1.6 test-isolation rename/update; active validation surface aligned to Datax naming. |
 | `docs/contributing.md` | `Completed` | Phase 1.6 test-isolation rename/update; active validation surface aligned to Datax naming. |
 | `docs/plans/datax_migration_phase1_6_test_isolation/github_issue.md` | `Completed` | Records milestone issue #11. |
-| `docs/plans/datax_migration_phase1_6_test_isolation/pull_request.md` | `Completed` | Records the draft pull request once created. |
+| `docs/plans/datax_migration_phase1_6_test_isolation/pull_request.md` | `Completed` | Records draft PR #12. |
 | `docs/plans/datax_migration_phase1_6_test_isolation/test_isolation_execplan.md` | `Completed` | Living ExecPlan for this milestone. |
 
 ## Plan of Work
@@ -280,7 +284,7 @@ If a validation command fails because of a stale name in a file not listed above
 
 ## Artifacts and Notes
 
-GitHub issue and draft pull request links will be recorded in `github_issue.md` and `pull_request.md` after creation.
+GitHub issue #11 is recorded in `github_issue.md`. Draft PR #12 is recorded in `pull_request.md`.
 
 ## Interfaces and Dependencies
 

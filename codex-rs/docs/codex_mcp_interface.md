@@ -1,20 +1,20 @@
-# Codex MCP Server Interface [experimental]
+# Datax MCP Server Interface [experimental]
 
-This document describes Codex's experimental MCP server interface: a JSON-RPC API that runs over the Model Context Protocol (MCP) transport to control a local Codex engine.
+This document describes Datax's experimental MCP server interface: a JSON-RPC API that runs over the Model Context Protocol (MCP) transport to control a local Datax engine.
 
 - Status: experimental and subject to change without notice
-- Server binary: `codex mcp-server` (or `codex-mcp-server`)
+- Server binary: `datax mcp-server` (or `datax-mcp-server`)
 - Transport: standard MCP over stdio (JSON-RPC 2.0, line-delimited)
 
 ## Overview
 
-Codex exposes MCP-compatible methods to manage threads, turns, accounts, config, and approvals. The types live in `app-server-protocol/src/protocol/{common,v1,v2}.rs` and are consumed by the app server implementation in `app-server/`.
+Datax exposes MCP-compatible methods to manage chats, interactions, accounts, config, and approvals. The types live in `app-server-protocol/src/protocol/{common,v1,v2}.rs` and are consumed by the app server implementation in `app-server/`.
 
 At a glance:
 
 - Primary v2 RPCs
-  - `thread/start`, `thread/resume`, `thread/fork`, `thread/read`, `thread/list`
-  - `turn/start`, `turn/steer`, `turn/interrupt`
+  - `chat/start`, `chat/resume`, `chat/fork`, `chat/read`, `chat/list`
+  - `interaction/start`, `interaction/steer`, `interaction/interrupt`
   - `account/read`, `account/login/start`, `account/login/cancel`, `account/logout`, `account/rateLimits/read`
   - `config/read`, `config/value/write`, `config/batchWrite`
   - `model/list`, `app/list`, `collaborationMode/list`
@@ -24,8 +24,8 @@ At a glance:
   - `gitDiffToRemote`
   - `fuzzyFileSearch`, `fuzzyFileSearch/sessionStart`, `fuzzyFileSearch/sessionUpdate`, `fuzzyFileSearch/sessionStop`
 - Notifications
-  - v2 typed notifications such as `thread/started`, `turn/completed`, `account/login/completed`
-  - `codex/event/*` stream notifications for live agent events
+  - v2 typed notifications such as `chat/started`, `interaction/completed`, `account/login/completed`
+  - `datax/event/*` stream notifications for live agent events
   - `fuzzyFileSearch/sessionUpdated`, `fuzzyFileSearch/sessionCompleted`
 - Approvals (server -> client requests)
   - `applyPatchApproval`, `execCommandApproval`
@@ -34,23 +34,23 @@ See code for full type definitions and exact shapes: `app-server-protocol/src/pr
 
 ## Starting the server
 
-Run Codex as an MCP server and connect an MCP client:
+Run Datax as an MCP server and connect an MCP client:
 
 ```bash
-codex mcp-server | your_mcp_client
+datax mcp-server | your_mcp_client
 ```
 
 For a simple inspection UI, you can also try:
 
 ```bash
-npx @modelcontextprotocol/inspector codex mcp-server
+npx @modelcontextprotocol/inspector datax mcp-server
 ```
 
-Use the separate `codex mcp` subcommand to manage configured MCP server launchers in `config.toml`.
+Use the separate `datax mcp` subcommand to manage configured MCP server launchers in `config.toml`.
 
-## Threads and turns
+## Chats and interactions
 
-Use the v2 thread and turn APIs for all new integrations. `thread/start` creates a thread, `turn/start` submits user input, `turn/interrupt` stops an in-flight turn, and `thread/list` / `thread/read` expose persisted history.
+Use the v2 chat and interaction APIs for all new integrations. `chat/start` creates a chat, `interaction/start` submits user input, `interaction/interrupt` stops an in-flight interaction, and `chat/list` / `chat/read` expose persisted history.
 
 `getConversationSummary` remains as a compatibility helper for clients that still need a summary lookup by `conversationId` or `rolloutPath`. Lookups by `conversationId` are preferred; lookups by `rolloutPath` won't work with non-local thread stores.
 
@@ -58,7 +58,7 @@ For complete request and response shapes, see the app-server README and the prot
 
 ## Models
 
-Fetch the catalog of models available in the current Codex build with `model/list`. The request accepts optional pagination inputs:
+Fetch the catalog of models available in the current Datax build with `model/list`. The request accepts optional pagination inputs:
 
 - `limit` - number of models to return (defaults to a server-selected value)
 - `cursor` - opaque string from the previous response's `nextCursor`
@@ -90,36 +90,36 @@ Fetch the built-in collaboration mode presets with `collaborationMode/list`. Thi
   - For tri-state fields like `reasoning_effort` and `developer_instructions`, omit the field to keep the current value, set it to `null` to clear it, or set a concrete value to update it.
   - Built-in presets do not set `model`. The Plan preset sets `reasoning_effort` to medium; clients keep or override model separately.
 
-When sending `turn/start` with `collaborationMode`, `settings.developer_instructions: null` means "use built-in instructions for the selected mode".
+When sending `interaction/start` with `collaborationMode`, `settings.developer_instructions: null` means "use built-in instructions for the selected mode".
 
 ## Event stream
 
 While a conversation runs, the server sends notifications:
 
-- `codex/event` with the serialized Codex event payload. The shape matches `core/src/protocol.rs`'s `Event` and `EventMsg` types. Some notifications include a `_meta.requestId` to correlate with the originating request.
+- `datax/event` with the serialized Datax event payload. The shape matches `core/src/protocol.rs`'s `Event` and `EventMsg` types. Some notifications include a `_meta.requestId` to correlate with the originating request.
 - `fuzzyFileSearch/sessionUpdated` and `fuzzyFileSearch/sessionCompleted` for the legacy fuzzy search flow.
 
 Clients should render events and, when present, surface approval requests (see next section).
 
 ## Tool responses
 
-The `codex` and `codex-reply` tools return standard MCP `CallToolResult` payloads. For compatibility with MCP clients that prefer `structuredContent`, Codex mirrors the content blocks inside `structuredContent` alongside the `threadId`.
+The `datax` and `datax-reply` tools return standard MCP `CallToolResult` payloads. For compatibility with MCP clients that prefer `structuredContent`, Datax mirrors the content blocks inside `structuredContent` alongside the `chatId`.
 
 Example:
 
 ```json
 {
-  "content": [{ "type": "text", "text": "Hello from Codex" }],
+  "content": [{ "type": "text", "text": "Hello from Datax" }],
   "structuredContent": {
-    "threadId": "019bbed6-1e9e-7f31-984c-a05b65045719",
-    "content": "Hello from Codex"
+    "chatId": "019bbed6-1e9e-7f31-984c-a05b65045719",
+    "content": "Hello from Datax"
   }
 }
 ```
 
 ## Approvals (server -> client)
 
-When Codex needs approval to apply changes or run commands, the server issues JSON-RPC requests to the client:
+When Datax needs approval to apply changes or run commands, the server issues JSON-RPC requests to the client:
 
 - `applyPatchApproval { conversationId, callId, fileChanges, reason?, grantRoot? }`
 - `execCommandApproval { conversationId, callId, approvalId?, command, cwd, reason? }`

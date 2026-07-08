@@ -77,7 +77,7 @@ strip_request_headers = ["authorization"]
 ### 2) Run the proxy
 
 ```bash
-cargo run -p codex-network-proxy --
+cargo run -p datax-network-proxy --
 ```
 
 ### 3) Point a client at it

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""Verify codex-tui does not depend on or import codex-core directly."""
+"""Verify datax-tui does not depend on or import datax-core directly."""
 
 from __future__ import annotations
 
@@ -13,11 +13,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 TUI_ROOT = ROOT / "codex-rs" / "tui"
 TUI_MANIFEST = TUI_ROOT / "Cargo.toml"
-FORBIDDEN_PACKAGE = "codex-core"
+FORBIDDEN_PACKAGE = "datax-core"
 FORBIDDEN_SOURCE_PATTERNS = (
-    re.compile(r"\bcodex_core::"),
-    re.compile(r"\buse\s+codex_core\b"),
-    re.compile(r"\bextern\s+crate\s+codex_core\b"),
+    re.compile(r"\bdatax_core::"),
+    re.compile(r"\buse\s+datax_core\b"),
+    re.compile(r"\bextern\s+crate\s+datax_core\b"),
 )
 
 
@@ -29,7 +29,7 @@ def main() -> int:
     if not failures:
         return 0
 
-    print("codex-tui must not depend on or import codex-core directly.")
+    print("datax-tui must not depend on or import datax-core directly.")
     print(
         "Use the app-server protocol/client boundary instead; temporary embedded "
         "startup gaps belong behind codex_app_server_client::legacy_core."

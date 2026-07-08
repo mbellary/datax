@@ -12,7 +12,7 @@ impl TestCodexExecBuilder {
     pub fn cmd(&self) -> assert_cmd::Command {
         let mut cmd = assert_cmd::Command::new(
             datax_utils_cargo_bin::cargo_bin("datax-exec")
-                .expect("should find binary for codex-exec"),
+                .expect("should find binary for datax-exec"),
         );
         cmd.current_dir(self.cwd.path())
             .env("DATAX_HOME", self.home.path())

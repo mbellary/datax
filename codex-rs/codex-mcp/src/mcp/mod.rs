@@ -126,7 +126,7 @@ pub struct McpConfig {
     pub skill_mcp_dependency_install_enabled: bool,
     /// Approval policy used for MCP tool calls and MCP elicitation requests.
     pub approval_policy: Constrained<AskForApproval>,
-    /// Optional path to `codex-linux-sandbox` for sandboxed MCP tool execution.
+    /// Optional path to `datax-linux-sandbox` for sandboxed MCP tool execution.
     pub codex_linux_sandbox_exe: Option<PathBuf>,
     /// Whether to use legacy Landlock behavior in the MCP sandbox state.
     pub use_legacy_landlock: bool,

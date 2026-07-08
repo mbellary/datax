@@ -78,7 +78,7 @@ async fn pipes_stdin_and_stdout_through_socket() -> anyhow::Result<()> {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .context("failed to spawn codex-stdio-to-uds")?;
+            .context("failed to spawn datax-stdio-to-uds")?;
 
         let mut child_stdout = child.stdout.take().context("missing child stdout")?;
         let mut child_stderr = child.stderr.take().context("missing child stderr")?;

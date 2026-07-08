@@ -23,7 +23,7 @@ updates:
     cooldown:
       default-days: 7
   - package-ecosystem: docker
-    directory: codex-cli
+    directory: datax-cli
     schedule:
       interval: weekly
     cooldown:

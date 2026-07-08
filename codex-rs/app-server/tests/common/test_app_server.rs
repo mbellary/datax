@@ -206,7 +206,7 @@ impl TestAppServer {
         args: &[&str],
     ) -> anyhow::Result<Self> {
         let program = datax_utils_cargo_bin::cargo_bin("datax-app-server")
-            .context("should find binary for codex-app-server")?;
+            .context("should find binary for datax-app-server")?;
         Self::new_with_program_env_and_args(codex_home, &program, env_overrides, args).await
     }
 

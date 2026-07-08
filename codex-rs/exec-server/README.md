@@ -1,22 +1,22 @@
-# codex-exec-server
+# datax-exec-server
 
-`codex-exec-server` is the library backing `codex exec-server`, a small
+`datax-exec-server` is the library backing `datax exec-server`, a small
 JSON-RPC server for spawning and controlling subprocesses through
-`codex-utils-pty`.
+`datax-utils-pty`.
 
 It provides:
 
-- a CLI entrypoint: `codex exec-server`
+- a CLI entrypoint: `datax exec-server`
 - a Rust client: `ExecServerClient`
 - a small protocol module with shared request/response types
 
 This crate owns the transport, protocol, and filesystem/process handlers. The
-top-level `codex` binary owns hidden helper dispatch for sandboxed
-filesystem operations and `codex-linux-sandbox`.
+top-level `datax` binary owns hidden helper dispatch for sandboxed
+filesystem operations and `datax-linux-sandbox`.
 
 ## Transport
 
-The server speaks the shared `codex-app-server-protocol` message envelope on
+The server speaks the shared `datax-app-server-protocol` message envelope on
 the wire.
 
 The CLI entrypoint supports:

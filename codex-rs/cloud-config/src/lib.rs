@@ -1,7 +1,7 @@
-//! Cloud-hosted configuration data for Codex.
+//! Cloud-hosted configuration data for Datax.
 //!
 //! This crate owns transport, caching, and refresh behavior for cloud-delivered
-//! config data. Parsing and composition remain in `codex-config`.
+//! config data. Parsing and composition remain in `datax-config`.
 
 mod backend;
 mod bundle_loader;

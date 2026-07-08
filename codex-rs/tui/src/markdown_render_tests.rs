@@ -994,7 +994,7 @@ fn unordered_list_local_file_link_soft_break_before_colon_stays_inline() {
 #[test]
 fn consecutive_unordered_list_local_file_links_do_not_detach_paths() {
     let text = render_markdown_text_with_width_and_cwd(
-        "- [binary](/Users/example/code/codex/codex-rs/README.md:93)\n  : cli is the top-level multitool binary.\n- [expectations](/Users/example/code/codex/codex-rs/core/README.md:1)\n  : codex-core owns the real runtime behavior.",
+        "- [binary](/Users/example/code/datax/codex-rs/README.md:93)\n  : cli is the top-level multitool binary.\n- [expectations](/Users/example/code/datax/codex-rs/core/README.md:1)\n  : datax-core owns the real runtime behavior.",
         Some(72),
         Some(Path::new("/Users/example/code/codex")),
     );
@@ -1012,7 +1012,7 @@ fn consecutive_unordered_list_local_file_links_do_not_detach_paths() {
         rendered,
         vec![
             "- codex-rs/README.md:93: cli is the top-level multitool binary.",
-            "- codex-rs/core/README.md:1: codex-core owns the real runtime behavior.",
+            "- codex-rs/core/README.md:1: datax-core owns the real runtime behavior.",
         ]
     );
 }

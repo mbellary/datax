@@ -22,7 +22,7 @@ fn marketplace_list_row(marketplace_name: &str, root: &Path) -> String {
 }
 
 fn codex_command(codex_home: &Path) -> Result<assert_cmd::Command> {
-    let mut cmd = assert_cmd::Command::new(datax_utils_cargo_bin::cargo_bin("codex")?);
+    let mut cmd = assert_cmd::Command::new(datax_utils_cargo_bin::cargo_bin("datax")?);
     cmd.env("DATAX_HOME", codex_home);
     cmd.env("HOME", codex_home);
     Ok(cmd)

@@ -13,7 +13,7 @@ use std::process::Command;
 use tempfile::tempdir;
 
 /// While we may add an `apply-patch` subcommand to the `codex` CLI multitool
-/// at some point, we must ensure that the smaller `codex-exec` CLI can still
+/// at some point, we must ensure that the smaller `datax-exec` CLI can still
 /// emulate the `apply_patch` CLI.
 #[test]
 fn test_standalone_exec_cli_can_use_apply_patch() -> anyhow::Result<()> {

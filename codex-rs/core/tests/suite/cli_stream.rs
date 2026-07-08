@@ -68,7 +68,7 @@ async fn mount_personal_access_token_startup(server: &MockServer) {
 
 #[expect(clippy::unwrap_used)]
 fn personal_access_token_exec_command(server: &MockServer, home: &TempDir) -> Command {
-    let bin = datax_utils_cargo_bin::cargo_bin("codex").unwrap();
+    let bin = datax_utils_cargo_bin::cargo_bin("datax").unwrap();
     let mut cmd = Command::new(bin);
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
@@ -227,7 +227,7 @@ async fn responses_mode_stream_cli() {
         "model_providers.mock={{ name = \"mock\", base_url = \"{}/v1\", env_key = \"PATH\", wire_api = \"responses\" }}",
         server.uri()
     );
-    let bin = datax_utils_cargo_bin::cargo_bin("codex").unwrap();
+    let bin = datax_utils_cargo_bin::cargo_bin("datax").unwrap();
     let mut cmd = Command::new(bin);
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
@@ -269,7 +269,7 @@ async fn responses_mode_stream_cli_supports_openai_base_url_config_override() {
     let resp_mock = responses::mount_sse_once(&server, sse).await;
 
     let home = TempDir::new().unwrap();
-    let bin = datax_utils_cargo_bin::cargo_bin("codex").unwrap();
+    let bin = datax_utils_cargo_bin::cargo_bin("datax").unwrap();
     let mut cmd = Command::new(bin);
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
@@ -321,7 +321,7 @@ async fn exec_cli_applies_model_instructions_file() {
 
     let home = TempDir::new().unwrap();
     let repo_root = repo_root();
-    let bin = datax_utils_cargo_bin::cargo_bin("codex").unwrap();
+    let bin = datax_utils_cargo_bin::cargo_bin("datax").unwrap();
     let mut cmd = Command::new(bin);
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
@@ -391,7 +391,7 @@ async fn exec_cli_profile_applies_model_instructions_file() {
     .unwrap();
 
     let repo_root = repo_root();
-    let bin = datax_utils_cargo_bin::cargo_bin("codex").unwrap();
+    let bin = datax_utils_cargo_bin::cargo_bin("datax").unwrap();
     let mut cmd = Command::new(bin);
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
@@ -436,7 +436,7 @@ async fn responses_api_stream_cli() {
     let repo_root = repo_root();
 
     let home = TempDir::new().unwrap();
-    let bin = datax_utils_cargo_bin::cargo_bin("codex").unwrap();
+    let bin = datax_utils_cargo_bin::cargo_bin("datax").unwrap();
     let mut cmd = Command::new(bin);
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
@@ -477,7 +477,7 @@ async fn integration_creates_and_checks_session_file() -> anyhow::Result<()> {
     let repo_root = repo_root();
 
     // 4. Run the codex CLI and invoke `exec`, which is what records a session.
-    let bin = datax_utils_cargo_bin::cargo_bin("codex").unwrap();
+    let bin = datax_utils_cargo_bin::cargo_bin("datax").unwrap();
     let mut cmd = Command::new(bin);
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
@@ -593,7 +593,7 @@ async fn integration_creates_and_checks_session_file() -> anyhow::Result<()> {
     // Second run: resume should update the existing file.
     let marker2 = format!("integration-resume-{}", Uuid::new_v4());
     let prompt2 = format!("echo {marker2}");
-    let bin2 = datax_utils_cargo_bin::cargo_bin("codex").unwrap();
+    let bin2 = datax_utils_cargo_bin::cargo_bin("datax").unwrap();
     let mut cmd2 = Command::new(bin2);
     cmd2.arg("exec")
         .arg("--skip-git-repo-check")
@@ -608,7 +608,7 @@ async fn integration_creates_and_checks_session_file() -> anyhow::Result<()> {
         .env("OPENAI_API_KEY", "dummy");
 
     let output2 = run_cli_command(&mut cmd2).unwrap();
-    assert!(output2.status.success(), "resume codex-cli run failed");
+    assert!(output2.status.success(), "resume datax-cli run failed");
     assert_eq!(resp_mock.requests().len(), 2);
 
     // Find the new session file containing the resumed marker.

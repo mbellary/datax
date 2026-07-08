@@ -405,7 +405,6 @@ jobs:
             test_command=(
               env
               "CARGO_BIN_EXE_datax-linux-sandbox=${sandbox_helper}"
-              "CARGO_BIN_EXE_codex_linux_sandbox=${sandbox_helper}"
               cargo nextest "${nextest_args[@]}"
             )
           elif [[ "${RUNNER_OS}" == "Windows" ]]; then
@@ -413,8 +412,8 @@ jobs:
             command_runner="$(cygpath -w "${helper_target_dir}/datax-command-runner.exe")"
             test_command=(
               env
-              "CARGO_BIN_EXE_codex_windows_sandbox_setup=${setup_helper}"
-              "CARGO_BIN_EXE_codex_command_runner=${command_runner}"
+              "CARGO_BIN_EXE_datax-windows-sandbox-setup=${setup_helper}"
+              "CARGO_BIN_EXE_datax-command-runner=${command_runner}"
               cargo nextest "${nextest_args[@]}"
             )
           fi

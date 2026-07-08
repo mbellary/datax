@@ -57,7 +57,7 @@ args = ["exec-server", "--listen", "stdio"]
 {EXECUTOR_ENV_NAME} = "{EXECUTOR_ENV_VALUE}"
 "#,
             toml::Value::String(
-                datax_utils_cargo_bin::cargo_bin("codex")?
+                datax_utils_cargo_bin::cargo_bin("datax")?
                     .to_string_lossy()
                     .into_owned()
             )

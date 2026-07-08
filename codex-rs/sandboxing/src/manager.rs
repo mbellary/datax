@@ -232,7 +232,7 @@ impl std::fmt::Display for SandboxTransformError {
                 "sandbox policy cwd URI `{cwd}` is not valid on this host: {source}"
             ),
             Self::MissingLinuxSandboxExecutable => {
-                write!(f, "missing codex-linux-sandbox executable path")
+                write!(f, "missing datax-linux-sandbox executable path")
             }
             Self::EnvironmentNetworkProxy(err) => {
                 write!(f, "failed to prepare environment network proxy: {err}")

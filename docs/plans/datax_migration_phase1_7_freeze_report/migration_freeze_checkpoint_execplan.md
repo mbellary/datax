@@ -29,7 +29,7 @@ The user-visible outcome is a concrete freeze checklist plus a cleanup of active
 - [x] (2026-07-08 00:00Z) Implemented Track A by moving `codex-rs/` to `datax-rs/` with `git mv`.
 - [x] (2026-07-08 00:00Z) Updated active writable repository path references from `codex-rs` to `datax-rs`.
 - [x] (2026-07-08 00:00Z) Confirmed no writable-tree `codex-rs` path references remain outside `.codex/` local metadata.
-- [ ] Inventory internal Codex-era names and split them into public/wire/generated rename blockers versus internal-only classification entries.
+- [x] (2026-07-08 00:00Z) Inventoried internal Codex-era names and split them into public/wire/generated/persistence/snapshot identity debt versus internal-only classification entries.
 - [ ] Inventory downstream Codex artifacts discovered during the Phase 1.7 scans for Phase 2 adapter/runtime planning.
 - [ ] Record final validation evidence from the user and close out the freeze report.
 
@@ -49,6 +49,14 @@ The user-visible outcome is a concrete freeze checklist plus a cleanup of active
   Evidence: `rg -l --hidden "codex-rs" . --glob '!.git/**' --glob '!target/**' --glob '!codex-rs/target/**' --glob '!**/*.snap.new' | wc -l` reported 142 files. The largest groups are `codex-rs` itself, `.github`, `docs`, `scripts`, `tools`, and `sdk`.
 - Observation: Internal Codex-era names are too broad for a blanket rewrite.
   Evidence: `rg -l --hidden "\b(thread_id|turn_id|ThreadId|TurnId|codex_thread|codex_turn|codex_turns)\b" . --glob '!.git/**' --glob '!target/**' --glob '!datax-rs/target/**' --glob '!**/*.snap.new' | wc -l` reported 557 files, mostly under `datax-rs` plus SDK and docs.
+- Observation: Track B internal-name inventory remains broad after Track A and crosses source, generated artifacts, persisted schema, SDKs, and tests.
+  Evidence: The Track B file inventory reported 527 files under `datax-rs`, 25 under `sdk`, and 6 under `docs`. The largest `datax-rs` groups were `core` (144 files), `tui` (87), `app-server` (39), `app-server-protocol` (34), `rollout-trace` (27), `hooks` (26), `state` (25), `ext` (25), and `thread-store` (19).
+- Observation: The narrow `codex_thread` / `codex_turn` inventory is concentrated enough to classify, but not safe for a same-track mechanical rename.
+  Evidence: Matches appear in `datax-rs/core/src/codex_thread.rs`, `datax-rs/core/src/lib.rs`, `datax-rs/core/src/thread_manager.rs`, core session/task/agent modules, rollout-trace reducers and model code, `datax-rs/app-server/src/request_processors/chat_processor.rs`, and historical migration plans.
+- Observation: `ThreadId`, `thread_id`, and `turn_id` are not just local variable names.
+  Evidence: Matches include `datax-rs/protocol/src/thread_id.rs`, app-server v1 protocol structs, generated TypeScript and JSON schemas, Python SDK generated types, SQLite migration files, rollout trace reducers, thread-store state, app-server test fixtures, and TUI state.
+- Observation: Snapshot identity debt exists, but it is not a single category.
+  Evidence: Existing snapshot files include generated identity names such as `codex_core__...` and `codex__doctor__...`; pending `.snap.new` files include many `codex_tui__...` paths. Separate snapshots named `datax_tui__model_migration__tests__model_migration_prompt_gpt5_codex*.snap` are model-slug references and are not Datax product identity debt.
 - Observation: Downstream Codex artifact discovery should be recorded for Phase 2 rather than implemented in Phase 1.
   Evidence: A focused artifact-candidate search across app-server, SDK, scripts, and GitHub metadata reported 184 files. These need classification before Phase 2, not adapter wiring during Phase 1.
 
@@ -68,6 +76,12 @@ The user-visible outcome is a concrete freeze checklist plus a cleanup of active
   Date/Author: 2026-07-08 / Codex.
 - Decision: Inventory and classify internal Codex-era identifiers in Phase 1.7.
   Rationale: Names such as `thread_id`, `turn_id`, `codex_thread`, and `codex_turns` may be internal implementation details, but Phase 1 should not close with unknown identity debt. Public, wire, generated, CLI-visible, fixture, or documentation occurrences must be renamed. Internal-only occurrences may remain only when explicitly classified.
+  Date/Author: 2026-07-08 / Codex.
+- Decision: Treat Track B as a freeze audit/classification gate, not as permission for a source-wide internal rename.
+  Rationale: The inventory crosses public protocol compatibility, generated schemas, SDKs, persisted SQLite migrations, rollout traces, and TUI/app-server internals. A broad rename would risk breaking compatibility and would obscure which names are owned by downstream Codex compatibility versus Datax-owned implementation.
+  Date/Author: 2026-07-08 / Codex.
+- Decision: Defer actual `ThreadId` / `thread_id` / `turn_id` / `codex_thread` / `codex_turn` source renames into dependency-specific follow-up slices.
+  Rationale: These names represent different concepts at different layers: app-server chat/interaction wire vocabulary, persisted thread-store schema, rollout trace model identity, TUI local state, core session orchestration, and future downstream Codex compatibility. Each slice needs its own owner, schema plan, and test plan.
   Date/Author: 2026-07-08 / Codex.
 - Decision: Record downstream Codex artifacts discovered during Phase 1 scans for Phase 2.
   Rationale: Phase 1 scanning will expose artifacts that may belong to the future downstream Codex app-server adapter/runtime boundary. Capturing them now helps Phase 2 without adding adapter implementation or runtime coupling during Phase 1.
@@ -192,9 +206,18 @@ These rows describe the implementation tracks now in Phase 1.7 scope. Each track
 | `flake.nix` | `Completed` | Track A: Nix path references now point at `datax-rs`. |
 | `bazel/` | `Completed` | Track A: Bazel support path reference now points at `//datax-rs`. |
 | `third_party/` | `Completed` | Track A: V8 documentation source-path references now point at `datax-rs/Cargo.lock`. |
-| `datax-rs/**/*.rs` | `Pending` | Track B: internal Codex-era name audit. Static inventory found most of the 557 files under `datax-rs`; expand per sub-crate before implementation. |
-| `sdk/**/*` | `Pending` | Track B: internal-name audit found 25 SDK files. Classify public SDK/API surface versus generated or test-only names before editing. |
-| `docs/**/*` | `Pending` | Track B: internal-name audit found 6 docs files. Classify as active documentation, historical migration plan, or no-change historical record before editing. |
+| `datax-rs/**/*.rs` | `Completed` | Track B audit: 527 files contain internal Codex-era names. Classified as dependency-specific migration debt, not a mechanical rename. Major groups are `core`, `tui`, `app-server`, `app-server-protocol`, `rollout-trace`, `hooks`, `state`, `ext`, and `thread-store`. |
+| `sdk/**/*` | `Completed` | Track B audit: 25 files contain internal-name matches. Classified as SDK/API and generated-client debt; do not edit until the SDK/package track is approved. |
+| `docs/**/*` | `Completed` | Track B audit: 6 files contain matches. Current matches are planning/history records and the Phase 1 policy itself. No product documentation rewrite in this track. |
+| `datax-rs/protocol/src/thread_id.rs` | `Deferred` | Track B classification: source owner for `ThreadId`. This is a core protocol type and must be renamed only with downstream protocol, app-server, SDK, persistence, and generated schema review. |
+| `datax-rs/app-server-protocol/src/protocol/v1.rs` | `Deferred` | Track B classification: v1 compatibility surface still exposes `ThreadId` / `conversation_id`. Do not alter in Track B; v1 compatibility requires a separate decision. |
+| `datax-rs/app-server-protocol/src/protocol/thread_history.rs` | `Deferred` | Track B classification: maps raw response and history events that still carry `turn_id` internally. Requires app-server protocol and replay compatibility review before renaming. |
+| `datax-rs/app-server-protocol/schema/**/*` | `Deferred` | Track B classification: generated schema/type artifacts still include `ThreadId` and historical compatibility names. Must be regenerated from source only after an approved protocol rename slice. |
+| `datax-rs/state/migrations/**/*` | `Deferred` | Track B classification: persisted SQLite schema and migration names still use `thread_id`. Do not rewrite historical migrations for cosmetic identity cleanup. |
+| `datax-rs/rollout-trace/**/*` | `Deferred` | Track B classification: rollout trace model/reducer names include `codex_turn` / `codex_turns`; defer to a trace-schema migration slice. |
+| `datax-rs/core/src/codex_thread.rs` and related `datax-rs/core/src/session/**/*` / `datax-rs/core/src/tasks/**/*` files | `Deferred` | Track B classification: internal core execution/session owner names. Rename only after app-server, TUI, rollout, and downstream Codex compatibility boundaries are mapped. |
+| `datax-rs/tui/**/*` | `Deferred` | Track B classification: TUI local state still uses `thread_id` / `turn_id` because it bridges app-server chat/interaction payloads to inherited local session structures. Rename only with focused TUI state tests and snapshot review. |
+| `datax-rs/**/snapshots/*codex*.snap` and `datax-rs/**/snapshots/*codex*.snap.new` | `Completed` | Track B audit: existing generated snapshot identity debt found in `core`, `cli`, and pending `tui` snapshots. `datax_tui__...gpt5_codex...` snapshots are model-slug references and are excluded from product identity cleanup. |
 | `.github/workflows/rust-release.yml` | `Pending` | Isolated `codex-sdk` track. Do not fix until user approves the SDK/package track. |
 | `datax-cli/scripts/build_npm_package.py` | `Pending` | Isolated `codex-sdk` track. Do not fix until user approves the SDK/package track. |
 | `sdk/typescript/package.json` | `Pending` | Isolated `codex-sdk` track. Do not fix until user approves the SDK/package track. |
@@ -338,9 +361,91 @@ After the implementation edit is complete, the user runs these commands and prov
 
     git diff --check -- . ':(exclude)**/*.snap'
 
+## Track B: Internal-Name and Snapshot Identity Audit
+
+Track B is an audit and classification track. It does not rename source symbols, generated schema names, SDK names, persisted database columns, or snapshot filenames. The purpose is to prevent Phase 1 from closing with unknown Codex-era internal-name debt while also avoiding a risky mechanical rewrite across protocol, persistence, SDK, TUI, app-server, rollout, and core session boundaries.
+
+The Track B audit concluded:
+
+- `ThreadId`, `thread_id`, and `turn_id` are cross-cutting compatibility and persistence terms, not just local implementation names.
+- `codex_thread`, `codex_turn`, and `codex_turns` are concentrated in core execution/session and rollout trace code, but they still cross module and schema boundaries.
+- Existing and pending snapshot filenames with `codex_core__...`, `codex_tui__...`, or `codex__doctor__...` are generated from crate/module/test identity and should be handled with the specific crate/module rename that produces them.
+- Snapshot names containing `gpt5_codex` or `gpt5_codex_mini` are model-slug references and are accepted exceptions, not Datax product identity debt.
+
+### Track B Inventory Commands
+
+These commands were used to define the Track B scope. They are retained as provenance and can be rerun by the user after this commit to confirm the audit baseline.
+
+    cd /home/mbellary/wsl/projects/datax
+    git status --short --branch
+
+    rg -l --hidden "\b(thread_id|turn_id|ThreadId|TurnId|codex_thread|codex_turn|codex_turns)\b" . \
+      --glob '!.git/**' \
+      --glob '!target/**' \
+      --glob '!datax-rs/target/**' \
+      --glob '!**/*.snap.new' \
+      | awk -F/ '{ if ($1 == ".") print $2; else print $1 }' \
+      | sort \
+      | uniq -c \
+      | sort -nr
+
+    rg -l --hidden "\b(thread_id|turn_id|ThreadId|TurnId|codex_thread|codex_turn|codex_turns)\b" datax-rs \
+      --glob '!datax-rs/target/**' \
+      --glob '!**/*.snap.new' \
+      | awk -F/ '{ print $2 }' \
+      | sort \
+      | uniq -c \
+      | sort -nr
+
+    rg -l --hidden "\b(codex_thread|codex_turn|codex_turns)\b" datax-rs sdk docs \
+      --glob '!**/*.snap.new'
+
+    rg -l --hidden "\bThreadId\b" \
+      datax-rs/app-server-protocol/schema \
+      datax-rs/app-server-protocol/src \
+      datax-rs/protocol/src \
+      sdk \
+      --glob '!**/*.snap.new'
+
+    find datax-rs -path '*/snapshots/*codex*.snap' -print
+    find datax-rs -path '*/snapshots/*codex*.snap.new' -print
+
+### Track B Post-Change Status Commands
+
+After this Track B audit commit is pulled, the user runs these commands and provides the output. These are static status commands only; they do not build, format, fix, generate schemas, or run tests.
+
+    cd /home/mbellary/wsl/projects/datax
+    git status --short --branch
+
+    rg -l --hidden "\b(thread_id|turn_id|ThreadId|TurnId|codex_thread|codex_turn|codex_turns)\b" . \
+      --glob '!.git/**' \
+      --glob '!target/**' \
+      --glob '!datax-rs/target/**' \
+      --glob '!**/*.snap.new' \
+      | awk -F/ '{ if ($1 == ".") print $2; else print $1 }' \
+      | sort \
+      | uniq -c \
+      | sort -nr
+
+    rg -l --hidden "\b(thread_id|turn_id|ThreadId|TurnId|codex_thread|codex_turn|codex_turns)\b" datax-rs \
+      --glob '!datax-rs/target/**' \
+      --glob '!**/*.snap.new' \
+      | awk -F/ '{ print $2 }' \
+      | sort \
+      | uniq -c \
+      | sort -nr
+
+    rg -l --hidden "\b(codex_thread|codex_turn|codex_turns)\b" datax-rs sdk docs \
+      --glob '!**/*.snap.new'
+
+    find datax-rs -path '*/snapshots/*codex*.snap' -print
+    find datax-rs -path '*/snapshots/*codex*.snap.new' -print
+
+Expected result: output is allowed. Any output should match the classified Track B categories above. New public, wire, generated, CLI-visible, fixture, documentation, or snapshot identity matches outside these categories must be added to this ExecPlan before Phase 1 freeze is accepted.
+
 ## Plan of Work
 
-The implementation started as metadata-only, but Phase 1.7 now also owns remaining Datax-owned identity cleanup. Inventory every `codex-rs` path reference before modifying files, then rename the top-level Rust source directory to `datax-rs` and update build, CI, package, schema, Bazel, docs, and helper-script references in the same checkpoint. Inventory internal Codex-era identifiers before modifying files; rename public, wire, generated, CLI-visible, fixture, and documentation occurrences, and classify any internal-only names that remain. Record downstream Codex artifacts discovered during these scans for Phase 2 adapter/runtime planning, but do not implement the adapter or wire Datax to a downstream Codex app-server in Phase 1. Do not use this as permission to move unrelated Datax-owned crates or redesign the repository layout. Do not run format, build, generation, fix, or test commands unless the user asks for that exact command.
+The implementation started as metadata-only, but Phase 1.7 now also owns remaining Datax-owned identity cleanup. Inventory every `codex-rs` path reference before modifying files, then rename the top-level Rust source directory to `datax-rs` and update build, CI, package, schema, Bazel, docs, and helper-script references in the same checkpoint. Inventory internal Codex-era identifiers before modifying files; rename public, wire, generated, CLI-visible, fixture, snapshot identity, and documentation occurrences, and classify any internal-only names that remain. Snapshot IDs and pending snapshot filenames such as `codex_tui__...` and `codex_core__...` belong to Track B because they are generated from crate/module/test identity, not from the Track A Rust workspace path. Record downstream Codex artifacts discovered during these scans for Phase 2 adapter/runtime planning, but do not implement the adapter or wire Datax to a downstream Codex app-server in Phase 1. Do not use this as permission to move unrelated Datax-owned crates or redesign the repository layout. Do not run format, build, generation, fix, or test commands unless the user asks for that exact command.
 
 The final freeze report will use the concrete checklist as the command source. This ExecPlan tracks implementation of the checklist and the pre-freeze metadata cleanup.
 

@@ -123,7 +123,7 @@ async fn build_codex(server: &StreamingSseServer) -> Arc<CodexThread> {
         .build_with_streaming_server(server)
         .await
         .expect("build streaming Codex test session")
-        .datax
+        .codex
 }
 
 async fn submit_user_input(codex: &CodexThread, text: &str) {
@@ -313,7 +313,7 @@ async fn steer_interrupts_wait_agent_and_is_sent_in_follow_up_request() {
         .build_with_streaming_server(&server)
         .await
         .expect("build Codex test session")
-        .datax;
+        .codex;
 
     submit_user_input(&codex, INITIAL_PROMPT).await;
     wait_for_event(&codex, |event| {
@@ -391,7 +391,7 @@ async fn any_new_input_interrupts_sleep() {
         .build_with_streaming_server(&server)
         .await
         .expect("build Codex test session")
-        .datax;
+        .codex;
 
     submit_user_input(&codex, INITIAL_PROMPT).await;
     wait_for_sleep_item_started(&codex, FIRST_SLEEP_CALL_ID, SLEEP_DURATION_MS).await;
@@ -530,7 +530,7 @@ async fn injected_user_input_triggers_follow_up_request_with_deltas() {
         .build_with_streaming_server(&server)
         .await
         .unwrap()
-        .datax;
+        .codex;
 
     codex
         .submit(Op::UserInput {
@@ -805,7 +805,7 @@ async fn steered_user_input_waits_for_model_continuation_after_mid_turn_compact(
         .build_with_streaming_server(&server)
         .await
         .expect("build streaming Codex test session")
-        .datax;
+        .codex;
 
     submit_user_input(&codex, "first prompt").await;
     submit_user_input(&codex, "second prompt").await;
@@ -890,7 +890,7 @@ async fn steered_user_input_follows_compact_when_only_the_steer_needs_follow_up(
         .build_with_streaming_server(&server)
         .await
         .expect("build streaming Codex test session")
-        .datax;
+        .codex;
 
     submit_user_input(&codex, "first prompt").await;
     wait_for_agent_message(&codex, "first answer").await;

@@ -700,7 +700,7 @@ async fn resume_replays_collaboration_instructions() -> Result<()> {
     .await?;
 
     initial
-        .datax
+        .codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
@@ -716,7 +716,7 @@ async fn resume_replays_collaboration_instructions() -> Result<()> {
 
     let resumed = builder.resume(&server, home, rollout_path).await?;
     resumed
-        .datax
+        .codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "after resume".into(),

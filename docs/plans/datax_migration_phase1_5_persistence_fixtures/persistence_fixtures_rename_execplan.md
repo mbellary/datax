@@ -31,6 +31,7 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
 - [x] (2026-07-07 00:00Z) Corrected user-reported `cargo build` failures in `datax-app-server-test-client` where app-server test-client code still used old protocol boundary names and collided websocket `Message` with protocol `Message`.
 - [x] (2026-07-07 00:00Z) Committed and pushed the latest app-server-test-client follow-up fixes.
 - [x] (2026-07-08 00:00Z) Corrected user-reported `just fix -p datax-linux-sandbox` failures where linux-sandbox integration tests still requested Cargo's old `codex-linux-sandbox` binary env var.
+- [x] (2026-07-08 00:00Z) Corrected user-reported `just test -p datax-core` compile failures where core suite tests accidentally referenced a non-existent `TestCodex.datax` internal field.
 
 ## Surprises & Discoveries
 
@@ -60,6 +61,8 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
   Evidence: The attached build log reported missing `thread_id`, `turn_id`, `item_id`, and `parent_thread_id` fields, missing `thread_start` and `turn_start` methods, and a duplicate `Message` import; the app-server test client now constructs/destructures current chat/interaction/message protocol fields and aliases `tungstenite::Message` as `WebSocketMessage`.
 - Observation: `just fix -p datax-linux-sandbox` compiles linux-sandbox integration tests and therefore catches stale Cargo binary env var names.
   Evidence: The user-reported fix output failed because `CARGO_BIN_EXE_codex-linux-sandbox` was not defined; the tests now use `CARGO_BIN_EXE_datax-linux-sandbox`, matching the renamed package binary.
+- Observation: The core integration test harness still intentionally exposes the running core handle through `TestCodex.codex`.
+  Evidence: The user-reported `datax-core` test output failed across core suite files with `no field datax on type TestCodex`; those test harness field accesses were restored to `.codex` as internal test API names, not persistence strings.
 
 ## Decision Log
 

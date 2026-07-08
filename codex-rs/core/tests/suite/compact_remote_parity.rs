@@ -303,7 +303,7 @@ async fn run_manual_session(
 
     let harness = build_harness(mode, settings, /*hooks*/ false).await?;
     let rollout_path = rollout_path(&harness);
-    let codex = harness.test().datax.clone();
+    let codex = harness.test().codex.clone();
 
     let responses_mock = responses::mount_sse_sequence(harness.server(), response_bodies).await;
     let compact_mock = mount_legacy_compact_if_needed(&harness, mode).await;
@@ -361,7 +361,7 @@ async fn run_pre_turn_auto_session(mode: Mode) -> Result<Capture> {
     };
     let harness = build_auto_harness(mode).await?;
     let rollout_path = rollout_path(&harness);
-    let codex = harness.test().datax.clone();
+    let codex = harness.test().codex.clone();
     let responses_mock = responses::mount_sse_sequence(harness.server(), response_bodies).await;
     let compact_mock = mount_legacy_compact_if_needed(&harness, mode).await;
 
@@ -419,7 +419,7 @@ async fn run_mid_turn_auto_session(mode: Mode) -> Result<Capture> {
     };
     let harness = build_auto_harness(mode).await?;
     let rollout_path = rollout_path(&harness);
-    let codex = harness.test().datax.clone();
+    let codex = harness.test().codex.clone();
     let responses_mock = responses::mount_sse_sequence(harness.server(), response_bodies).await;
     let compact_mock = mount_legacy_compact_if_needed(&harness, mode).await;
 
@@ -458,7 +458,7 @@ async fn run_manual_hook_session(mode: Mode) -> Result<Value> {
         ],
     };
     let harness = build_harness(mode, RunSettings::default(), /*hooks*/ true).await?;
-    let codex = harness.test().datax.clone();
+    let codex = harness.test().codex.clone();
     responses::mount_sse_sequence(harness.server(), response_bodies).await;
     let compact_mock = mount_legacy_compact_if_needed(&harness, mode).await;
 

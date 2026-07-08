@@ -41,7 +41,7 @@ async fn interrupt_long_running_tool_emits_turn_aborted() {
         .build(&server)
         .await
         .unwrap()
-        .datax;
+        .codex;
 
     // Kick off a turn that triggers the function call.
     codex

@@ -879,7 +879,7 @@ async fn manual_compact_uses_custom_prompt() {
         .build(&server)
         .await
         .expect("create conversation")
-        .datax;
+        .codex;
 
     codex
         .submit(Op::UserInput {
@@ -967,7 +967,7 @@ async fn manual_compact_emits_api_and_local_token_usage_events() {
         config.model_provider = model_provider;
         set_test_compact_prompt(config);
     });
-    let codex = builder.build(&server).await.unwrap().datax;
+    let codex = builder.build(&server).await.unwrap().codex;
 
     // Trigger manual compact and collect TokenCount events for the compact turn.
     codex.submit(Op::Compact).await.unwrap();
@@ -1026,7 +1026,7 @@ async fn manual_compact_emits_context_compaction_items() {
         config.model_provider = model_provider;
         set_test_compact_prompt(config);
     });
-    let codex = builder.build(&server).await.unwrap().datax;
+    let codex = builder.build(&server).await.unwrap().codex;
 
     codex
         .submit(Op::UserInput {
@@ -1096,7 +1096,7 @@ async fn multiple_auto_compact_per_task_runs_after_token_limit_hit() {
         .build(&server)
         .await
         .expect("build codex")
-        .datax;
+        .codex;
 
     // user message
     let user_message = "create an app";
@@ -1664,7 +1664,7 @@ async fn auto_compact_runs_after_token_limit_hit() {
         set_test_compact_prompt(config);
         config.model_auto_compact_token_limit = Some(200_000);
     });
-    let codex = builder.build(&server).await.unwrap().datax;
+    let codex = builder.build(&server).await.unwrap().codex;
 
     codex
         .submit(Op::UserInput {
@@ -1862,7 +1862,7 @@ async fn auto_compact_emits_context_compaction_items() {
         set_test_compact_prompt(config);
         config.model_auto_compact_token_limit = Some(200_000);
     });
-    let codex = builder.build(&server).await.unwrap().datax;
+    let codex = builder.build(&server).await.unwrap().codex;
 
     let mut started_item = None;
     let mut completed_item = None;
@@ -1948,7 +1948,7 @@ async fn auto_compact_starts_after_turn_started() {
         set_test_compact_prompt(config);
         config.model_auto_compact_token_limit = Some(200_000);
     });
-    let codex = builder.build(&server).await.unwrap().datax;
+    let codex = builder.build(&server).await.unwrap().codex;
 
     codex
         .submit(Op::UserInput {
@@ -2100,7 +2100,7 @@ async fn auto_compact_runs_after_resume_when_token_usage_is_over_limit() {
     mount_sse_once_match(&server, follow_up_matcher, sse_follow_up).await;
 
     resumed
-        .datax
+        .codex
         .submit(disabled_permission_user_turn(
             follow_up_user,
             resumed.cwd.path().to_path_buf(),
@@ -2669,7 +2669,7 @@ async fn pre_sampling_compact_runs_after_resume_and_switch_to_smaller_model() {
         .expect("rollout path");
 
     initial
-        .datax
+        .codex
         .submit(disabled_permission_user_turn(
             "before resume",
             initial.cwd.path().to_path_buf(),
@@ -2683,7 +2683,7 @@ async fn pre_sampling_compact_runs_after_resume_and_switch_to_smaller_model() {
     .await;
 
     initial
-        .datax
+        .codex
         .submit(Op::Shutdown)
         .await
         .expect("shutdown initial session");
@@ -2706,7 +2706,7 @@ async fn pre_sampling_compact_runs_after_resume_and_switch_to_smaller_model() {
         .expect("resume codex");
 
     resumed
-        .datax
+        .codex
         .submit(disabled_permission_user_turn(
             "after resume",
             resumed.cwd.path().to_path_buf(),
@@ -2790,7 +2790,7 @@ async fn pre_sampling_compact_recovers_comp_hash_after_resume() {
         .expect("rollout path");
 
     initial
-        .datax
+        .codex
         .submit(disabled_permission_user_turn(
             "before resume",
             initial.cwd.path().to_path_buf(),
@@ -2804,7 +2804,7 @@ async fn pre_sampling_compact_recovers_comp_hash_after_resume() {
     .await;
 
     initial
-        .datax
+        .codex
         .submit(Op::Shutdown)
         .await
         .expect("shutdown initial session");
@@ -2837,7 +2837,7 @@ async fn pre_sampling_compact_recovers_comp_hash_after_resume() {
         .expect("resume codex");
 
     resumed
-        .datax
+        .codex
         .submit(disabled_permission_user_turn(
             "after resume",
             resumed.cwd.path().to_path_buf(),
@@ -2917,7 +2917,7 @@ async fn pre_sampling_compact_skips_missing_comp_hash_after_resume() {
         .expect("rollout path");
 
     initial
-        .datax
+        .codex
         .submit(disabled_permission_user_turn(
             "before resume",
             initial.cwd.path().to_path_buf(),
@@ -2931,7 +2931,7 @@ async fn pre_sampling_compact_skips_missing_comp_hash_after_resume() {
     .await;
 
     initial
-        .datax
+        .codex
         .submit(Op::Shutdown)
         .await
         .expect("shutdown initial session");
@@ -2962,7 +2962,7 @@ async fn pre_sampling_compact_skips_missing_comp_hash_after_resume() {
         .expect("resume codex");
 
     resumed
-        .datax
+        .codex
         .submit(disabled_permission_user_turn(
             "after resume",
             resumed.cwd.path().to_path_buf(),
@@ -3169,7 +3169,7 @@ async fn manual_compact_retries_after_context_window_error() {
         set_test_compact_prompt(config);
         config.model_auto_compact_token_limit = Some(200_000);
     });
-    let codex = builder.build(&server).await.unwrap().datax;
+    let codex = builder.build(&server).await.unwrap().codex;
 
     codex
         .submit(Op::UserInput {
@@ -3273,7 +3273,7 @@ async fn manual_compact_non_context_failure_retries_then_emits_task_error() {
         .build(&server)
         .await
         .expect("build codex")
-        .datax;
+        .codex;
 
     codex
         .submit(Op::UserInput {
@@ -3368,7 +3368,7 @@ async fn manual_compact_twice_preserves_latest_user_messages() {
         config.model_provider = model_provider;
         set_test_compact_prompt(config);
     });
-    let codex = builder.build(&server).await.unwrap().datax;
+    let codex = builder.build(&server).await.unwrap().codex;
 
     codex
         .submit(Op::UserInput {
@@ -3609,7 +3609,7 @@ async fn auto_compact_allows_multiple_attempts_when_interleaved_with_other_turn_
         set_test_compact_prompt(config);
         config.model_auto_compact_token_limit = Some(200);
     });
-    let codex = builder.build(&server).await.unwrap().datax;
+    let codex = builder.build(&server).await.unwrap().codex;
 
     let mut auto_compact_lifecycle_events = Vec::new();
     for user in [MULTI_AUTO_MSG, follow_up_user, final_user] {
@@ -3716,7 +3716,7 @@ async fn snapshot_request_shape_mid_turn_continuation_compaction() {
         config.model_context_window = Some(context_window);
         config.model_auto_compact_token_limit = Some(limit);
     });
-    let codex = builder.build(&server).await.unwrap().datax;
+    let codex = builder.build(&server).await.unwrap().codex;
 
     codex
         .submit(Op::UserInput {
@@ -4186,7 +4186,7 @@ async fn auto_compact_counts_encrypted_reasoning_before_last_user() {
         .build(&server)
         .await
         .expect("build codex")
-        .datax;
+        .codex;
 
     for (idx, user) in [first_user, second_user, third_user]
         .into_iter()
@@ -4312,7 +4312,7 @@ async fn auto_compact_runs_when_reasoning_header_clears_between_turns() {
         .build(&server)
         .await
         .expect("build codex")
-        .datax;
+        .codex;
 
     for user in [first_user, second_user, third_user] {
         codex
@@ -4374,7 +4374,7 @@ async fn snapshot_request_shape_pre_turn_compaction_including_incoming_user_mess
         .build(&server)
         .await
         .expect("build codex")
-        .datax;
+        .codex;
 
     for user in ["USER_ONE", "USER_TWO"] {
         codex
@@ -4598,7 +4598,7 @@ async fn snapshot_request_shape_pre_turn_compaction_context_window_exceeded() {
         .build(&server)
         .await
         .expect("build codex")
-        .datax;
+        .codex;
 
     codex
         .submit(Op::UserInput {
@@ -4721,7 +4721,7 @@ async fn snapshot_request_shape_manual_compact_without_previous_user_messages() 
         .build(&server)
         .await
         .expect("build codex")
-        .datax;
+        .codex;
 
     codex.submit(Op::Compact).await.expect("run /compact");
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;

@@ -300,7 +300,7 @@ async fn resume_replays_permissions_messages() -> Result<()> {
     let home = initial.home.clone();
 
     initial
-        .datax
+        .codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -324,7 +324,7 @@ async fn resume_replays_permissions_messages() -> Result<()> {
     .await?;
 
     initial
-        .datax
+        .codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -340,7 +340,7 @@ async fn resume_replays_permissions_messages() -> Result<()> {
 
     let resumed = builder.resume(&server, home, rollout_path).await?;
     resumed
-        .datax
+        .codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "after resume".into(),
@@ -400,7 +400,7 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
     let home = initial.home.clone();
 
     initial
-        .datax
+        .codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 1".into(),
@@ -424,7 +424,7 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
     .await?;
 
     initial
-        .datax
+        .codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello 2".into(),
@@ -446,7 +446,7 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
     });
     let resumed = builder.resume(&server, home, rollout_path.clone()).await?;
     resumed
-        .datax
+        .codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "after resume".into(),

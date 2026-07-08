@@ -655,7 +655,7 @@ async fn shell_snapshot_deleted_after_shutdown_with_skills() -> Result<()> {
     let harness = TestCodexHarness::with_builder(builder).await?;
     let home = harness.test().home.clone();
     let codex_home = home.path().to_path_buf();
-    let codex = harness.test().datax.clone();
+    let codex = harness.test().codex.clone();
 
     let snapshot_path = wait_for_snapshot(&codex_home).await?;
     assert!(snapshot_path.exists());

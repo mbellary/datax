@@ -6303,7 +6303,7 @@ fn op_kind_for_input_and_context_ops() {
         "user_input"
     );
     assert_eq!(
-        Op::ChatSettings {
+        Op::ThreadSettings {
             thread_settings: ThreadSettingsOverrides::default(),
         }
         .kind(),

@@ -32,6 +32,7 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
 - [x] (2026-07-07 00:00Z) Committed and pushed the latest app-server-test-client follow-up fixes.
 - [x] (2026-07-08 00:00Z) Corrected user-reported `just fix -p datax-linux-sandbox` failures where linux-sandbox integration tests still requested Cargo's old `codex-linux-sandbox` binary env var.
 - [x] (2026-07-08 00:00Z) Corrected user-reported `just test -p datax-core` compile failures where core suite tests accidentally referenced a non-existent `TestCodex.datax` internal field.
+- [x] (2026-07-08 00:00Z) Corrected follow-up `datax-core` lib-test compile failures where core unit tests accidentally used non-existent `Interaction` and `ChatSettings` internal test/protocol names.
 
 ## Surprises & Discoveries
 
@@ -63,6 +64,8 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
   Evidence: The user-reported fix output failed because `CARGO_BIN_EXE_codex-linux-sandbox` was not defined; the tests now use `CARGO_BIN_EXE_datax-linux-sandbox`, matching the renamed package binary.
 - Observation: The core integration test harness still intentionally exposes the running core handle through `TestCodex.codex`.
   Evidence: The user-reported `datax-core` test output failed across core suite files with `no field datax on type TestCodex`; those test harness field accesses were restored to `.codex` as internal test API names, not persistence strings.
+- Observation: Some core-only protocol and test-support names intentionally remain thread/turn-based after Phase 1.4 app-server terminology changes.
+  Evidence: The user-reported `datax-core` lib-test output failed on `TestCodexResponsesRequestKind::Interaction` and `Op::ChatSettings`; these were restored to `TestCodexResponsesRequestKind::Turn` and `Op::ThreadSettings`, matching the existing core enums.
 
 ## Decision Log
 

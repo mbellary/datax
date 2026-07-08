@@ -86,7 +86,7 @@ mod tests {
 
     fn test_thread_goal(token_budget: Option<i64>, tokens_used: i64) -> ChatGoal {
         ChatGoal {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             objective: "Complete the task described in ../gameboy-long-running-prompt5.txt"
                 .to_string(),
             status: ChatGoalStatus::BudgetLimited,

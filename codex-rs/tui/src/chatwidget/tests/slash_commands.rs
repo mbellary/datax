@@ -35,7 +35,7 @@ fn fast_tier_command() -> ServiceTierCommand {
     }
 }
 
-fn complete_turn_with_message(chat: &mut ChatWidget, turn_id: &str, message: Option<&str>) {
+fn complete_turn_with_message(chat: &mut ChatWidget, interaction_id: &str, message: Option<&str>) {
     if let Some(message) = message {
         complete_assistant_message(
             chat,
@@ -477,7 +477,7 @@ async fn queued_bare_rename_drains_next_input_after_name_update() {
     chat.handle_server_notification(
         ServerNotification::ChatNameUpdated(
             datax_app_server_protocol::ChatNameUpdatedNotification {
-                thread_id: thread_id.to_string(),
+                chat_id: thread_id.to_string(),
                 thread_name: Some("Queued rename".to_string()),
             },
         ),
@@ -551,7 +551,7 @@ async fn queued_inline_rename_does_not_drain_again_before_turn_started() {
     chat.handle_server_notification(
         ServerNotification::ChatNameUpdated(
             datax_app_server_protocol::ChatNameUpdatedNotification {
-                thread_id: thread_id.to_string(),
+                chat_id: thread_id.to_string(),
                 thread_name: Some("Queued rename".to_string()),
             },
         ),
@@ -671,7 +671,7 @@ async fn goal_slash_command_with_extra_os_emits_set_goal_event() {
 
     let event = rx.try_recv().expect("expected goal draft event");
     let AppEvent::SetThreadGoalDraft {
-        thread_id: actual_thread_id,
+        chat_id: actual_thread_id,
         draft,
         mode,
     } = event
@@ -765,7 +765,7 @@ async fn bare_goal_slash_command_drains_pending_submission_state() {
 
     assert_matches!(
         rx.try_recv(),
-        Ok(AppEvent::OpenThreadGoalMenu { thread_id: opened }) if opened == thread_id
+        Ok(AppEvent::OpenThreadGoalMenu { chat_id: opened }) if opened == thread_id
     );
     assert!(chat.remote_image_urls().is_empty());
     assert!(chat.bottom_pane.composer_local_image_paths().is_empty());
@@ -791,7 +791,7 @@ async fn goal_control_slash_commands_emit_goal_events() {
             Some(status) => {
                 let event = rx.try_recv().expect("expected goal status event");
                 let AppEvent::SetThreadGoalStatus {
-                    thread_id: actual_thread_id,
+                    chat_id: actual_thread_id,
                     status: actual_status,
                 } = event
                 else {
@@ -803,7 +803,7 @@ async fn goal_control_slash_commands_emit_goal_events() {
             None => {
                 let event = rx.try_recv().expect("expected clear goal event");
                 let AppEvent::ClearThreadGoal {
-                    thread_id: actual_thread_id,
+                    chat_id: actual_thread_id,
                 } = event
                 else {
                     panic!("expected ClearThreadGoal, got {event:?}");
@@ -840,7 +840,7 @@ async fn goal_edit_slash_command_opens_goal_editor() {
 
         let event = rx.try_recv().expect("expected goal editor event");
         let AppEvent::OpenThreadGoalEditor {
-            thread_id: actual_thread_id,
+            chat_id: actual_thread_id,
         } = event
         else {
             panic!("expected OpenThreadGoalEditor, got {event:?}");
@@ -1138,7 +1138,7 @@ async fn interrupted_merged_message_history_encodes_mentions_once() {
                 },
             ] = items.as_slice()
             else {
-                panic!("expected text item, got {items:?}");
+                panic!("expected text item, got {messages:?}");
             };
             assert_eq!(submitted, text);
         }
@@ -1159,7 +1159,7 @@ async fn interrupted_merged_message_history_encodes_mentions_once() {
                 },
             ] = items.as_slice()
             else {
-                panic!("expected resubmitted text item, got {items:?}");
+                panic!("expected resubmitted text item, got {messages:?}");
             };
             assert_eq!(submitted, text);
         }
@@ -1703,8 +1703,8 @@ async fn slash_copy_state_tracks_plan_item_completion() {
 
     chat.handle_server_notification(
         ServerNotification::MessageCompleted(MessageCompletedNotification {
-            thread_id: String::new(),
-            turn_id: "turn-1".to_string(),
+            chat_id: String::new(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
             item: AppServerThreadItem::Plan {
                 id: "plan-1".to_string(),
@@ -2003,10 +2003,10 @@ async fn active_goal_without_follow_up_suppresses_agent_turn_complete_notificati
     chat.handle_server_notification(
         ServerNotification::ChatGoalUpdated(
             datax_app_server_protocol::ChatGoalUpdatedNotification {
-                thread_id: "thread-1".to_string(),
-                turn_id: None,
+                chat_id: "thread-1".to_string(),
+                interaction_id: None,
                 goal: datax_app_server_protocol::ChatGoal {
-                    thread_id: "thread-1".to_string(),
+                    chat_id: "thread-1".to_string(),
                     objective: "finish the benchmark".to_string(),
                     status: datax_app_server_protocol::ChatGoalStatus::Active,
                     token_budget: None,
@@ -2252,7 +2252,7 @@ async fn slash_mcp_requests_inventory_via_app_server() {
         rx.try_recv(),
         Ok(AppEvent::FetchMcpInventory {
             detail: McpServerStatusDetail::ToolsAndAuthOnly,
-            thread_id: Some(actual_thread_id)
+            chat_id: Some(actual_thread_id)
         }) if actual_thread_id == thread_id
     );
     assert!(op_rx.try_recv().is_err(), "expected no core op to be sent");
@@ -2271,7 +2271,7 @@ async fn slash_mcp_verbose_requests_full_inventory_via_app_server() {
         rx.try_recv(),
         Ok(AppEvent::FetchMcpInventory {
             detail: McpServerStatusDetail::Full,
-            thread_id: Some(actual_thread_id)
+            chat_id: Some(actual_thread_id)
         }) if actual_thread_id == thread_id
     );
     assert!(op_rx.try_recv().is_err(), "expected no core op to be sent");
@@ -2566,7 +2566,7 @@ async fn slash_app_requests_desktop_handoff() {
     assert_matches!(
         rx.try_recv(),
         Ok(AppEvent::OpenDesktopThread {
-            thread_id: actual_thread_id,
+            chat_id: actual_thread_id,
         }) if actual_thread_id == thread_id
     );
 }
@@ -2921,7 +2921,7 @@ async fn compact_queues_user_messages_snapshot() {
         &mut chat,
         "cannot steer a compact turn",
         Some(CodexErrorInfo::ActiveTurnNotSteerable {
-            turn_kind: NonSteerableTurnKind::Compact,
+            interaction_kind: NonSteerableInteractionKind::Compact,
         }),
     );
 

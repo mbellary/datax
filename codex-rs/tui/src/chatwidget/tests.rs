@@ -89,7 +89,7 @@ pub(super) use datax_app_server_protocol::MessageGuardianApprovalReviewStartedNo
 pub(super) use datax_app_server_protocol::MessageStartedNotification;
 pub(super) use datax_app_server_protocol::ModelVerification as AppServerModelVerification;
 pub(super) use datax_app_server_protocol::ModelVerificationNotification;
-pub(super) use datax_app_server_protocol::NonSteerableTurnKind;
+pub(super) use datax_app_server_protocol::NonSteerableInteractionKind;
 pub(super) use datax_app_server_protocol::PatchApplyStatus as AppServerPatchApplyStatus;
 pub(super) use datax_app_server_protocol::PatchChangeKind;
 pub(super) use datax_app_server_protocol::PermissionsRequestApprovalParams as AppServerPermissionsRequestApprovalParams;

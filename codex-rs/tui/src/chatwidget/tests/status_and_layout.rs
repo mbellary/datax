@@ -1496,9 +1496,9 @@ async fn request_user_input_interrupt_pauses_active_goal_turn() {
         let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
         let thread_id = start_active_goal_turn(&mut chat);
         chat.handle_request_user_input_now(ToolRequestUserInputParams {
-            thread_id: thread_id.to_string(),
-            item_id: "call-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: thread_id.to_string(),
+            message_id: "call-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             questions: Vec::new(),
             auto_resolution_ms: None,
         });
@@ -1519,7 +1519,7 @@ fn start_active_goal_turn(chat: &mut ChatWidget) -> ThreadId {
     thread_id
 }
 
-fn update_thread_goal(chat: &mut ChatWidget, thread_id: ThreadId, status: AppThreadGoalStatus) {
+fn update_thread_goal(chat: &mut ChatWidget, chat_id: ThreadId, status: AppThreadGoalStatus) {
     let mut goal = test_thread_goal(
         status,
         /*token_budget*/ Some(50_000),
@@ -1541,12 +1541,12 @@ fn update_thread_goal(chat: &mut ChatWidget, thread_id: ThreadId, status: AppThr
 
 fn assert_goal_paused_event(
     rx: &mut tokio::sync::mpsc::UnboundedReceiver<AppEvent>,
-    thread_id: ThreadId,
+    chat_id: ThreadId,
 ) {
     assert_matches!(
         rx.try_recv(),
         Ok(AppEvent::SetThreadGoalStatus {
-            thread_id: event_thread_id,
+            chat_id: event_thread_id,
             status: AppThreadGoalStatus::Paused,
         }) if event_thread_id == thread_id
     );
@@ -1969,7 +1969,7 @@ async fn status_widget_and_approval_modal_snapshot() {
     let ev = ExecApprovalRequestEvent {
         call_id: "call-approve-exec".into(),
         approval_id: Some("call-approve-exec".into()),
-        turn_id: "turn-approve-exec".into(),
+        interaction_id: "turn-approve-exec".into(),
         environment_id: None,
         command: vec!["echo".into(), "hello world".into()],
         cwd: test_path_buf("/tmp").abs(),
@@ -2701,7 +2701,7 @@ async fn renamed_thread_footer_title_snapshot() {
     chat.handle_server_notification(
         ServerNotification::ChatNameUpdated(
             datax_app_server_protocol::ChatNameUpdatedNotification {
-                thread_id: thread_id.to_string(),
+                chat_id: thread_id.to_string(),
                 thread_name: Some("Roadmap cleanup".to_string()),
             },
         ),
@@ -2801,8 +2801,8 @@ async fn status_line_goal_active_token_budget_footer_snapshot() {
     chat.handle_server_notification(
         ServerNotification::ChatGoalUpdated(
             datax_app_server_protocol::ChatGoalUpdatedNotification {
-                thread_id: "thread-1".to_string(),
-                turn_id: None,
+                chat_id: "thread-1".to_string(),
+                interaction_id: None,
                 goal: test_thread_goal(
                     datax_app_server_protocol::ChatGoalStatus::Active,
                     /*token_budget*/ Some(50_000),
@@ -2844,8 +2844,8 @@ async fn status_line_goal_complete_elapsed_footer_snapshot() {
     chat.handle_server_notification(
         ServerNotification::ChatGoalUpdated(
             datax_app_server_protocol::ChatGoalUpdatedNotification {
-                thread_id: "thread-1".to_string(),
-                turn_id: None,
+                chat_id: "thread-1".to_string(),
+                interaction_id: None,
                 goal,
             },
         ),
@@ -2871,8 +2871,8 @@ async fn session_configured_clears_goal_status_footer() {
     chat.handle_server_notification(
         ServerNotification::ChatGoalUpdated(
             datax_app_server_protocol::ChatGoalUpdatedNotification {
-                thread_id: "thread-1".to_string(),
-                turn_id: None,
+                chat_id: "thread-1".to_string(),
+                interaction_id: None,
                 goal: test_thread_goal(
                     datax_app_server_protocol::ChatGoalStatus::Active,
                     /*token_budget*/ Some(50_000),
@@ -2894,7 +2894,7 @@ async fn session_configured_clears_goal_status_footer() {
 
     let rollout_file = NamedTempFile::new().unwrap();
     chat.handle_thread_session(crate::session_state::ThreadSessionState {
-        thread_id: ThreadId::new(),
+        chat_id: ThreadId::new(),
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -3072,7 +3072,7 @@ fn test_thread_goal(
     tokens_used: i64,
 ) -> datax_app_server_protocol::ChatGoal {
     datax_app_server_protocol::ChatGoal {
-        thread_id: "thread-1".to_string(),
+        chat_id: "thread-1".to_string(),
         objective: "Keep improving the benchmark".to_string(),
         status,
         token_budget,
@@ -3233,8 +3233,8 @@ async fn user_prompt_submit_app_server_hook_notifications_render_snapshot() {
 
     chat.handle_server_notification(
         ServerNotification::HookStarted(AppServerHookStartedNotification {
-            thread_id: ThreadId::new().to_string(),
-            turn_id: Some("turn-1".to_string()),
+            chat_id: ThreadId::new().to_string(),
+            interaction_id: Some("turn-1".to_string()),
             run: AppServerHookRunSummary {
                 id: "user-prompt-submit:0:/tmp/hooks.json".to_string(),
                 event_name: AppServerHookEventName::UserPromptSubmit,
@@ -3256,8 +3256,8 @@ async fn user_prompt_submit_app_server_hook_notifications_render_snapshot() {
     );
     chat.handle_server_notification(
         ServerNotification::HookCompleted(AppServerHookCompletedNotification {
-            thread_id: ThreadId::new().to_string(),
-            turn_id: Some("turn-1".to_string()),
+            chat_id: ThreadId::new().to_string(),
+            interaction_id: Some("turn-1".to_string()),
             run: AppServerHookRunSummary {
                 id: "user-prompt-submit:0:/tmp/hooks.json".to_string(),
                 event_name: AppServerHookEventName::UserPromptSubmit,

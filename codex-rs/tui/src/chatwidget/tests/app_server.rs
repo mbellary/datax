@@ -3,7 +3,7 @@ use pretty_assertions::assert_eq;
 
 fn thread_settings_for_test(
     model: &str,
-    thread_id: ThreadId,
+    chat_id: ThreadId,
 ) -> datax_app_server_protocol::ChatSettingsUpdatedNotification {
     datax_app_server_protocol::ChatSettingsUpdatedNotification {
         chat_id: thread_id.to_string(),
@@ -36,7 +36,7 @@ fn thread_settings_for_test(
     }
 }
 
-fn configured_thread_session(thread_id: ThreadId) -> crate::session_state::ThreadSessionState {
+fn configured_thread_session(chat_id: ThreadId) -> crate::session_state::ThreadSessionState {
     crate::session_state::ThreadSessionState {
         thread_id,
         forked_from_id: None,
@@ -86,7 +86,7 @@ async fn invalid_url_elicitation_is_declined() {
     assert_matches!(
         rx.try_recv(),
         Ok(AppEvent::SubmitThreadOp {
-            chat_id: op_thread_id,
+            thread_id: op_thread_id,
             op: Op::ResolveElicitation {
                 server_name,
                 request_id: datax_app_server_protocol::RequestId::Integer(9),
@@ -398,7 +398,7 @@ async fn live_app_server_turn_started_sets_feedback_turn_id() {
         Ok(AppEvent::SubmitFeedback {
             category: crate::app_event::FeedbackCategory::Bug,
             reason: None,
-            interaction_id: Some(turn_id),
+            turn_id: Some(turn_id),
             include_logs: false,
         }) if turn_id == "turn-1"
     );

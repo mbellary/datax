@@ -68,7 +68,7 @@ use datax_app_server_protocol::NetworkApprovalContext as AppServerNetworkApprova
 use datax_app_server_protocol::NetworkApprovalProtocol as AppServerNetworkApprovalProtocol;
 use datax_app_server_protocol::NetworkPolicyAmendment as AppServerNetworkPolicyAmendment;
 use datax_app_server_protocol::NetworkPolicyRuleAction as AppServerNetworkPolicyRuleAction;
-use datax_app_server_protocol::NonSteerableTurnKind as AppServerNonSteerableTurnKind;
+use datax_app_server_protocol::NonSteerableInteractionKind as AppServerNonSteerableInteractionKind;
 use datax_app_server_protocol::PatchChangeKind;
 use datax_app_server_protocol::PermissionsRequestApprovalParams;
 use datax_app_server_protocol::RequestId as AppServerRequestId;
@@ -236,7 +236,7 @@ async fn enqueue_primary_thread_session_replays_buffered_approval_after_attach()
 
     while let Ok(app_event) = app_event_rx.try_recv() {
         if let AppEvent::SubmitThreadOp {
-            chat_id: op_thread_id,
+            thread_id: op_thread_id,
             ..
         } = app_event
         {
@@ -367,7 +367,7 @@ async fn enqueue_primary_thread_session_replays_turns_before_initial_prompt_subm
                 saw_replayed_answer |= transcript.contains("earlier prompt");
             }
             AppEvent::SubmitThreadOp {
-                chat_id: op_thread_id,
+                thread_id: op_thread_id,
                 op: Op::UserTurn { items, .. },
             } => {
                 assert_eq!(op_thread_id, thread_id);
@@ -443,7 +443,7 @@ async fn history_lookup_response_is_routed_to_requesting_thread() -> Result<()> 
         .expect("app event channel should stay open");
 
     let AppEvent::ThreadHistoryEntryResponse {
-        chat_id: routed_thread_id,
+        thread_id: routed_thread_id,
         event,
     } = app_event
     else {
@@ -1163,7 +1163,7 @@ async fn collab_receiver_notification_caches_thread_without_app_server_read() {
 
     app.handle_thread_event_now(ThreadBufferedEvent::Notification(
         ServerNotification::MessageStarted(MessageStartedNotification {
-            thread_id: ThreadId::new().to_string(),
+            chat_id: ThreadId::new().to_string(),
             interaction_id: "turn-1".to_string(),
             started_at_ms: 0,
             item: Message::CollabAgentToolCall {
@@ -1201,7 +1201,7 @@ async fn collab_receiver_notification_does_not_cache_not_found_thread() {
     app.handle_thread_event_now(ThreadBufferedEvent::Notification(
         ServerNotification::MessageCompleted(
             datax_app_server_protocol::MessageCompletedNotification {
-                thread_id: ThreadId::new().to_string(),
+                chat_id: ThreadId::new().to_string(),
                 interaction_id: "turn-1".to_string(),
                 completed_at_ms: 0,
                 item: Message::CollabAgentToolCall {
@@ -2768,7 +2768,7 @@ async fn inactive_thread_invalid_url_elicitation_is_declined() {
     assert_matches!(
         app_event_rx.try_recv(),
         Ok(AppEvent::SubmitThreadOp {
-            chat_id: op_thread_id,
+            thread_id: op_thread_id,
             op: Op::ResolveElicitation {
                 server_name,
                 request_id: AppServerRequestId::Integer(10),
@@ -2906,12 +2906,12 @@ async fn inactive_thread_started_notification_initializes_replay_session() -> Re
                 cwd: test_path_buf("/tmp/agent").abs(),
                 cli_version: "0.0.0".to_string(),
                 source: datax_app_server_protocol::SessionSource::Unknown,
-                session_start_source: None,
+                chat_source: None,
                 agent_nickname: Some("Robie".to_string()),
                 agent_role: Some("explorer".to_string()),
                 git_info: None,
                 name: Some("agent thread".to_string()),
-                turns: Vec::new(),
+                interactions: Vec::new(),
             },
         }),
     )
@@ -2999,12 +2999,12 @@ async fn inactive_thread_started_notification_preserves_primary_model_when_path_
                 cwd: test_path_buf("/tmp/agent").abs(),
                 cli_version: "0.0.0".to_string(),
                 source: datax_app_server_protocol::SessionSource::Unknown,
-                session_start_source: None,
+                chat_source: None,
                 agent_nickname: Some("Robie".to_string()),
                 agent_role: Some("explorer".to_string()),
                 git_info: None,
                 name: Some("agent thread".to_string()),
-                turns: Vec::new(),
+                interactions: Vec::new(),
             },
         }),
     )
@@ -3059,12 +3059,12 @@ async fn thread_read_session_state_does_not_reuse_primary_permission_profile() {
         cwd: test_path_buf("/tmp/read").abs(),
         cli_version: "0.0.0".to_string(),
         source: datax_app_server_protocol::SessionSource::Unknown,
-        session_start_source: None,
+        chat_source: None,
         agent_nickname: None,
         agent_role: None,
         git_info: None,
         name: Some("read thread".to_string()),
-        turns: Vec::new(),
+        interactions: Vec::new(),
     };
 
     let session = app
@@ -4614,9 +4614,9 @@ async fn height_shrink_schedules_resize_reflow() {
 
 fn test_turn(interaction_id: &str, status: InteractionStatus, items: Vec<Message>) -> Interaction {
     Interaction {
-        id: turn_id.to_string(),
+        id: interaction_id.to_string(),
         messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
-        items,
+        messages: items,
         status,
         error: None,
         started_at: None,
@@ -4630,7 +4630,7 @@ fn turn_started_notification(thread_id: ThreadId, interaction_id: &str) -> Serve
         chat_id: thread_id.to_string(),
         turn: Interaction {
             started_at: Some(0),
-            ..test_turn(turn_id, InteractionStatus::InProgress, Vec::new())
+            ..test_turn(interaction_id, InteractionStatus::InProgress, Vec::new())
         },
     })
 }
@@ -4645,7 +4645,7 @@ fn turn_completed_notification(
         turn: Interaction {
             completed_at: Some(0),
             duration_ms: Some(1),
-            ..test_turn(turn_id, status, Vec::new())
+            ..test_turn(interaction_id, status, Vec::new())
         },
     })
 }
@@ -4663,7 +4663,7 @@ fn token_usage_notification(
 ) -> ServerNotification {
     ServerNotification::ChatTokenUsageUpdated(ChatTokenUsageUpdatedNotification {
         chat_id: thread_id.to_string(),
-        interaction_id: turn_id.to_string(),
+        interaction_id: interaction_id.to_string(),
         token_usage: ChatTokenUsage {
             total: TokenUsageBreakdown {
                 total_tokens: 10,
@@ -4692,8 +4692,8 @@ fn agent_message_delta_notification(
 ) -> ServerNotification {
     ServerNotification::AgentMessageDelta(AgentMessageDeltaNotification {
         chat_id: thread_id.to_string(),
-        interaction_id: turn_id.to_string(),
-        message_id: item_id.to_string(),
+        interaction_id: interaction_id.to_string(),
+        message_id: message_id.to_string(),
         delta: delta.to_string(),
     })
 }
@@ -4708,8 +4708,8 @@ fn exec_approval_request(
         request_id: AppServerRequestId::Integer(1),
         params: CommandExecutionRequestApprovalParams {
             chat_id: thread_id.to_string(),
-            interaction_id: turn_id.to_string(),
-            message_id: item_id.to_string(),
+            interaction_id: interaction_id.to_string(),
+            message_id: message_id.to_string(),
             started_at_ms: 0,
             approval_id: approval_id.map(str::to_string),
             environment_id: None,
@@ -4735,8 +4735,8 @@ fn request_user_input_request(
         request_id: AppServerRequestId::Integer(2),
         params: ToolRequestUserInputParams {
             chat_id: thread_id.to_string(),
-            interaction_id: turn_id.to_string(),
-            message_id: item_id.to_string(),
+            interaction_id: interaction_id.to_string(),
+            message_id: message_id.to_string(),
             questions: Vec::new(),
             auto_resolution_ms: None,
         },
@@ -4878,7 +4878,7 @@ fn active_turn_not_steerable_turn_error_extracts_structured_server_error() {
     let turn_error = AppServerTurnError {
         message: "cannot steer a review turn".to_string(),
         codex_error_info: Some(AppServerCodexErrorInfo::ActiveTurnNotSteerable {
-            turn_kind: AppServerNonSteerableTurnKind::Review,
+            interaction_kind: AppServerNonSteerableInteractionKind::Review,
         }),
         additional_details: None,
     };
@@ -5089,7 +5089,7 @@ async fn backtrack_selection_with_duplicate_history_targets_unique_turn() {
     let base_id = ThreadId::new();
     app.chat_widget
         .handle_thread_session(crate::session_state::ThreadSessionState {
-            chat_id: base_id,
+            thread_id: base_id,
             forked_from_id: None,
             fork_parent_title: None,
             thread_name: None,
@@ -5208,7 +5208,7 @@ async fn cancelled_turn_edit_restores_prompt_and_rolls_back_latest_turn() {
     assert_matches!(
         op_rx.try_recv(),
         Ok(Op::ThreadRollback {
-            num_interactions: 1
+            num_turns: 1
         })
     );
 }
@@ -5237,7 +5237,7 @@ async fn first_cancelled_turn_edit_restores_prompt_without_local_history() {
     assert_matches!(
         op_rx.try_recv(),
         Ok(Op::ThreadRollback {
-            num_interactions: 1
+            num_turns: 1
         })
     );
 }
@@ -5686,12 +5686,12 @@ async fn thread_rollback_response_discards_queued_active_thread_events() {
                 cwd: test_path_buf("/tmp/project").abs(),
                 cli_version: "0.0.0".to_string(),
                 source: SessionSource::Cli,
-                session_start_source: None,
+                chat_source: None,
                 agent_nickname: None,
                 agent_role: None,
                 git_info: None,
                 name: None,
-                turns: Vec::new(),
+                interactions: Vec::new(),
             },
         },
     )

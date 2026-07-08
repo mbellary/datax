@@ -23,8 +23,8 @@ fn agent_status_uses_bounded_buffered_activity() {
                 exit_code: Some(0),
                 duration_ms: Some(42),
             },
-            thread_id: "thread-child".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-child".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 1,
         },
     ));
@@ -36,8 +36,8 @@ fn agent_status_uses_bounded_buffered_activity() {
                 phase: None,
                 memory_citation: None,
             },
-            thread_id: "thread-child".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-child".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 2,
         },
     ));
@@ -72,8 +72,8 @@ fn agent_status_uses_reasoning_summaries_only() {
                 summary: vec!["safe summary".to_string()],
                 content: vec!["hidden raw reasoning".to_string()],
             },
-            thread_id: "thread-child".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-child".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 1,
         },
     ));
@@ -84,8 +84,8 @@ fn agent_status_uses_reasoning_summaries_only() {
                 summary: Vec::new(),
                 content: vec!["raw-only reasoning".to_string()],
             },
-            thread_id: "thread-child".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-child".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 2,
         },
     ));

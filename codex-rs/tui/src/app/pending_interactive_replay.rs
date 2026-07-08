@@ -595,7 +595,7 @@ mod tests {
             request_id: AppServerRequestId::Integer(1),
             params: ToolRequestUserInputParams {
                 chat_id: "thread-1".to_string(),
-                interaction_id: turn_id.to_string(),
+                interaction_id: interaction_id.to_string(),
                 message_id: call_id.to_string(),
                 questions: Vec::new(),
                 auto_resolution_ms: None,
@@ -612,7 +612,7 @@ mod tests {
             request_id: AppServerRequestId::Integer(2),
             params: CommandExecutionRequestApprovalParams {
                 chat_id: "thread-1".to_string(),
-                interaction_id: turn_id.to_string(),
+                interaction_id: interaction_id.to_string(),
                 message_id: call_id.to_string(),
                 started_at_ms: 0,
                 approval_id: approval_id.map(str::to_string),
@@ -635,7 +635,7 @@ mod tests {
             request_id: AppServerRequestId::Integer(3),
             params: FileChangeRequestApprovalParams {
                 chat_id: "thread-1".to_string(),
-                interaction_id: turn_id.to_string(),
+                interaction_id: interaction_id.to_string(),
                 message_id: call_id.to_string(),
                 started_at_ms: 0,
                 reason: None,
@@ -653,7 +653,7 @@ mod tests {
             request_id: AppServerRequestId::String(request_id.to_string()),
             params: McpServerElicitationRequestParams {
                 chat_id: "thread-1".to_string(),
-                interaction_id: Some(turn_id.to_string()),
+                interaction_id: Some(interaction_id.to_string()),
                 server_name: server_name.to_string(),
                 request: McpServerElicitationRequest::Form {
                     meta: None,
@@ -763,7 +763,7 @@ mod tests {
 
         store.note_outbound_op(&Op::ExecApproval {
             id: "approval-1".to_string(),
-            interaction_id: Some("turn-1".to_string()),
+            turn_id: Some("turn-1".to_string()),
             decision: CommandExecutionApprovalDecision::Accept,
         });
 
@@ -916,7 +916,7 @@ mod tests {
 
         store.note_outbound_op(&Op::ExecApproval {
             id: "call-1".to_string(),
-            interaction_id: Some("turn-1".to_string()),
+            turn_id: Some("turn-1".to_string()),
             decision: CommandExecutionApprovalDecision::Accept,
         });
 

@@ -477,7 +477,7 @@ mod tests {
         let resolution = pending
             .take_resolution(&Op::ExecApproval {
                 id: "approval-1".to_string(),
-                interaction_id: None,
+                turn_id: None,
                 decision: CommandExecutionApprovalDecision::Accept,
             })
             .expect("resolution should serialize")

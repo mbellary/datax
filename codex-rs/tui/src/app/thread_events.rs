@@ -387,9 +387,9 @@ mod tests {
         items: Vec<Message>,
     ) -> Interaction {
         Interaction {
-            id: turn_id.to_string(),
+            id: interaction_id.to_string(),
             messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
-            items,
+            messages: items,
             status,
             error: None,
             started_at: None,
@@ -401,9 +401,9 @@ mod tests {
     fn turn_started_notification(thread_id: ThreadId, interaction_id: &str) -> ServerNotification {
         ServerNotification::InteractionStarted(InteractionStartedNotification {
             chat_id: thread_id.to_string(),
-            turn: Interaction {
-                started_at: Some(0),
-                ..test_turn(turn_id, InteractionStatus::InProgress, Vec::new())
+        turn: Interaction {
+            started_at: Some(0),
+            ..test_turn(interaction_id, InteractionStatus::InProgress, Vec::new())
             },
         })
     }
@@ -415,10 +415,10 @@ mod tests {
     ) -> ServerNotification {
         ServerNotification::InteractionCompleted(InteractionCompletedNotification {
             chat_id: thread_id.to_string(),
-            turn: Interaction {
-                completed_at: Some(0),
-                duration_ms: Some(1),
-                ..test_turn(turn_id, status, Vec::new())
+        turn: Interaction {
+            completed_at: Some(0),
+            duration_ms: Some(1),
+            ..test_turn(interaction_id, status, Vec::new())
             },
         })
     }
@@ -426,7 +426,7 @@ mod tests {
     fn hook_started_notification(thread_id: ThreadId, interaction_id: &str) -> ServerNotification {
         ServerNotification::HookStarted(HookStartedNotification {
             chat_id: thread_id.to_string(),
-            interaction_id: Some(turn_id.to_string()),
+            interaction_id: Some(interaction_id.to_string()),
             run: AppServerHookRunSummary {
                 id: "user-prompt-submit:0:/tmp/hooks.json".to_string(),
                 event_name: AppServerHookEventName::UserPromptSubmit,
@@ -452,7 +452,7 @@ mod tests {
     ) -> ServerNotification {
         ServerNotification::HookCompleted(HookCompletedNotification {
             chat_id: thread_id.to_string(),
-            interaction_id: Some(turn_id.to_string()),
+            interaction_id: Some(interaction_id.to_string()),
             run: AppServerHookRunSummary {
                 id: "user-prompt-submit:0:/tmp/hooks.json".to_string(),
                 event_name: AppServerHookEventName::UserPromptSubmit,
@@ -491,8 +491,8 @@ mod tests {
             request_id: AppServerRequestId::Integer(1),
             params: CommandExecutionRequestApprovalParams {
                 chat_id: thread_id.to_string(),
-                interaction_id: turn_id.to_string(),
-                message_id: item_id.to_string(),
+                interaction_id: interaction_id.to_string(),
+                message_id: message_id.to_string(),
                 started_at_ms: 0,
                 approval_id: approval_id.map(str::to_string),
                 environment_id: None,

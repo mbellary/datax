@@ -1692,7 +1692,7 @@ mod tests {
         ToolRequestUserInputParams {
             chat_id: "thread-1".to_string(),
             message_id: "call-1".to_string(),
-            interaction_id: turn_id.to_string(),
+            interaction_id: interaction_id.to_string(),
             questions,
             auto_resolution_ms: None,
         }
@@ -1702,7 +1702,7 @@ mod tests {
         interaction_id: &str,
         questions: Vec<ToolRequestUserInputQuestion>,
     ) -> ToolRequestUserInputParams {
-        let mut request = request_event(turn_id, questions);
+        let mut request = request_event(interaction_id, questions);
         request.auto_resolution_ms = Some(60_000);
         request
     }
@@ -1749,10 +1749,10 @@ mod tests {
         ));
 
         overlay.submit_answers();
-        assert_eq!(overlay.request.turn_id, "turn-2");
+        assert_eq!(overlay.request.interaction_id, "turn-2");
 
         overlay.submit_answers();
-        assert_eq!(overlay.request.turn_id, "turn-3");
+        assert_eq!(overlay.request.interaction_id, "turn-3");
     }
 
     #[test]
@@ -2014,7 +2014,7 @@ mod tests {
 
         assert!(overlay.pre_draw_tick(now));
 
-        assert_eq!(overlay.request.turn_id, "turn-2");
+        assert_eq!(overlay.request.interaction_id, "turn-2");
         assert!(!overlay.auto_resolution_snoozed);
         assert_eq!(
             overlay.auto_resolution_timing_at(now),
@@ -2086,8 +2086,8 @@ mod tests {
         );
 
         assert!(!overlay.done, "newer same-turn prompt should stay pending");
-        assert_eq!(overlay.request.item_id, "call-2");
-        assert_eq!(overlay.request.turn_id, "turn-1");
+        assert_eq!(overlay.request.message_id, "call-2");
+        assert_eq!(overlay.request.interaction_id, "turn-1");
         assert_eq!(overlay.request.questions[0].id, "q2");
         assert!(
             rx.try_recv().is_err(),
@@ -2132,13 +2132,13 @@ mod tests {
             })
         );
 
-        assert_eq!(overlay.request.item_id, "call-1");
+        assert_eq!(overlay.request.message_id, "call-1");
         assert!(
             rx.try_recv().is_err(),
             "dismissing a stale queued request should not emit an event"
         );
         overlay.submit_answers();
-        assert_eq!(overlay.request.item_id, "call-3");
+        assert_eq!(overlay.request.message_id, "call-3");
         assert_eq!(overlay.request.questions[0].id, "q3");
         assert!(
             rx.try_recv().is_ok(),

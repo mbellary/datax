@@ -2,7 +2,7 @@ use super::*;
 use datax_protocol::protocol::MAX_THREAD_GOAL_OBJECTIVE_CHARS;
 use pretty_assertions::assert_eq;
 
-fn complete_turn_with_message(chat: &mut ChatWidget, turn_id: &str, message: Option<&str>) {
+fn complete_turn_with_message(chat: &mut ChatWidget, interaction_id: &str, message: Option<&str>) {
     if let Some(message) = message {
         complete_assistant_message(
             chat,
@@ -61,7 +61,7 @@ async fn goal_slash_command_accepts_objective_at_limit() {
 
     let event = rx.try_recv().expect("expected goal objective event");
     let AppEvent::SetThreadGoalDraft {
-        thread_id: actual_thread_id,
+        chat_id: actual_thread_id,
         draft,
         ..
     } = event
@@ -85,7 +85,7 @@ async fn goal_slash_command_accepts_multiline_objective_after_blank_first_line()
 
     let event = rx.try_recv().expect("expected goal objective event");
     let AppEvent::SetThreadGoalDraft {
-        thread_id: actual_thread_id,
+        chat_id: actual_thread_id,
         draft,
         ..
     } = event

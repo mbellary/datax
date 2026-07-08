@@ -4,7 +4,7 @@ use pretty_assertions::assert_eq;
 fn notify_mcp_status(chat: &mut ChatWidget, name: &str, status: McpServerStartupState) {
     chat.handle_server_notification(
         ServerNotification::McpServerStatusUpdated(McpServerStatusUpdatedNotification {
-            thread_id: Some("thread-1".to_string()),
+            chat_id: Some("thread-1".to_string()),
             name: name.to_string(),
             status,
             error: None,
@@ -16,7 +16,7 @@ fn notify_mcp_status(chat: &mut ChatWidget, name: &str, status: McpServerStartup
 fn notify_mcp_status_error(chat: &mut ChatWidget, name: &str, error: &str) {
     chat.handle_server_notification(
         ServerNotification::McpServerStatusUpdated(McpServerStatusUpdatedNotification {
-            thread_id: Some("thread-1".to_string()),
+            chat_id: Some("thread-1".to_string()),
             name: name.to_string(),
             status: McpServerStartupState::Failed,
             error: Some(error.to_string()),
@@ -46,7 +46,7 @@ async fn mcp_startup_ignores_status_for_other_thread() {
     ] {
         chat.handle_server_notification(
             ServerNotification::McpServerStatusUpdated(McpServerStatusUpdatedNotification {
-                thread_id: Some(child_thread_id.to_string()),
+                chat_id: Some(child_thread_id.to_string()),
                 name: "sentry".to_string(),
                 status,
                 error: matches!(status, McpServerStartupState::Failed)
@@ -295,8 +295,8 @@ async fn mcp_startup_complete_preserves_review_status() {
 
     chat.on_guardian_assessment(GuardianAssessmentEvent {
         id: "guardian-1".to_string(),
-        target_item_id: Some("guardian-target-1".to_string()),
-        turn_id: "turn-1".to_string(),
+        target_message_id: Some("guardian-target-1".to_string()),
+        interaction_id: "turn-1".to_string(),
         started_at_ms: 0,
         completed_at_ms: None,
         status: GuardianAssessmentStatus::InProgress,

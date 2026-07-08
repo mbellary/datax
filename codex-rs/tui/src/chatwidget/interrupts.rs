@@ -150,7 +150,7 @@ mod tests {
         ToolRequestUserInputParams {
             chat_id: "thread-1".to_string(),
             message_id: call_id.to_string(),
-            interaction_id: turn_id.to_string(),
+            interaction_id: interaction_id.to_string(),
             questions: Vec::new(),
             auto_resolution_ms: None,
         }
@@ -160,7 +160,7 @@ mod tests {
         ExecApprovalRequestEvent {
             call_id: call_id.to_string(),
             approval_id: approval_id.map(str::to_string),
-            interaction_id: "turn".to_string(),
+            turn_id: "turn".to_string(),
             environment_id: None,
             command: vec!["true".to_string()],
             cwd: AbsolutePathBuf::current_dir().expect("current dir"),
@@ -204,7 +204,7 @@ mod tests {
         let Some(QueuedInterrupt::RequestUserInput(remaining)) = manager.queue.front() else {
             panic!("expected remaining queued user input");
         };
-        assert_eq!(remaining.item_id, "call-a");
+        assert_eq!(remaining.message_id, "call-a");
     }
 
     #[test]

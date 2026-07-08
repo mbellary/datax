@@ -378,7 +378,7 @@ async fn session_configured_syncs_widget_config_permissions_and_cwd() {
         .expect("permission profile should project to legacy sandbox policy");
     let expected_sandbox = SandboxPolicy::from(expected_core_sandbox);
     let configured = crate::session_state::ThreadSessionState {
-        thread_id: ThreadId::new(),
+        chat_id: ThreadId::new(),
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -451,7 +451,7 @@ async fn session_configured_preserves_profile_workspace_roots() {
     let session_permission_profile = PermissionProfile::workspace_write()
         .materialize_project_roots_with_workspace_roots(&session_effective_workspace_roots);
     let configured = crate::session_state::ThreadSessionState {
-        thread_id: ThreadId::new(),
+        chat_id: ThreadId::new(),
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -498,7 +498,7 @@ async fn session_configured_external_sandbox_keeps_external_runtime_policy() {
         network_access: NetworkAccess::Restricted,
     };
     let configured = crate::session_state::ThreadSessionState {
-        thread_id: ThreadId::new(),
+        chat_id: ThreadId::new(),
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -812,7 +812,7 @@ async fn replayed_retryable_app_server_error_keeps_turn_running() {
 
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
                 messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
@@ -836,8 +836,8 @@ async fn replayed_retryable_app_server_error_keeps_turn_running() {
                 additional_details: Some("Idle timeout waiting for SSE".to_string()),
             },
             will_retry: true,
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
         }),
         Some(ReplayKind::ThreadSnapshot),
     );
@@ -858,7 +858,7 @@ async fn replayed_thread_closed_notification_does_not_exit_tui() {
 
     chat.handle_server_notification(
         ServerNotification::ChatClosed(ChatClosedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
         }),
         Some(ReplayKind::ThreadSnapshot),
     );
@@ -871,7 +871,7 @@ async fn replayed_reasoning_item_hides_raw_reasoning_when_disabled() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.config.show_raw_agent_reasoning = false;
     chat.handle_thread_session(crate::session_state::ThreadSessionState {
-        thread_id: ThreadId::new(),
+        chat_id: ThreadId::new(),
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -919,7 +919,7 @@ async fn replayed_reasoning_item_shows_raw_reasoning_when_enabled() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.config.show_raw_agent_reasoning = true;
     chat.handle_thread_session(crate::session_state::ThreadSessionState {
-        thread_id: ThreadId::new(),
+        chat_id: ThreadId::new(),
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -997,7 +997,7 @@ async fn live_reasoning_summary_is_not_rendered_twice_when_item_completes() {
 
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
                 messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
@@ -1015,9 +1015,9 @@ async fn live_reasoning_summary_is_not_rendered_twice_when_item_completes() {
 
     chat.handle_server_notification(
         ServerNotification::ReasoningSummaryTextDelta(ReasoningSummaryTextDeltaNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
-            item_id: "reasoning-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
+            message_id: "reasoning-1".to_string(),
             delta: "Summary only".to_string(),
             summary_index: 0,
         }),
@@ -1026,8 +1026,8 @@ async fn live_reasoning_summary_is_not_rendered_twice_when_item_completes() {
 
     chat.handle_server_notification(
         ServerNotification::MessageCompleted(MessageCompletedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
             item: AppServerThreadItem::Reasoning {
                 id: "reasoning-1".to_string(),

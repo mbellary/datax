@@ -1877,7 +1877,7 @@ mod tests {
                 .map(permission_profile_id_from_active_profile)
         );
         assert_eq!(params.model_provider, Some(config.model_provider_id));
-        assert_eq!(params.thread_source, Some(ChatSource::User));
+        assert_eq!(params.chat_source, Some(ChatSource::User));
     }
 
     #[tokio::test]
@@ -2029,8 +2029,8 @@ mod tests {
         assert_eq!(start.permissions, None);
         assert_eq!(resume.permissions, None);
         assert_eq!(fork.permissions, None);
-        assert_eq!(start.thread_source, Some(ChatSource::User));
-        assert_eq!(fork.thread_source, Some(ChatSource::User));
+        assert_eq!(start.chat_source, Some(ChatSource::User));
+        assert_eq!(fork.chat_source, Some(ChatSource::User));
     }
 
     #[test]
@@ -2134,8 +2134,8 @@ mod tests {
         assert_eq!(start.permissions, None);
         assert_eq!(resume.permissions, None);
         assert_eq!(fork.permissions, None);
-        assert_eq!(start.thread_source, Some(ChatSource::User));
-        assert_eq!(fork.thread_source, Some(ChatSource::User));
+        assert_eq!(start.chat_source, Some(ChatSource::User));
+        assert_eq!(fork.chat_source, Some(ChatSource::User));
     }
 
     #[tokio::test]
@@ -2331,12 +2331,12 @@ mod tests {
                 cwd: test_path_buf("/tmp/project").abs(),
                 cli_version: "0.0.0".to_string(),
                 source: datax_app_server_protocol::SessionSource::Cli,
-                session_start_source: None,
+                chat_source: None,
                 agent_nickname: None,
                 agent_role: None,
                 git_info: None,
                 name: None,
-                turns: vec![Interaction {
+                interactions: vec![Interaction {
                     id: "turn-1".to_string(),
                     messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
                     messages: vec![

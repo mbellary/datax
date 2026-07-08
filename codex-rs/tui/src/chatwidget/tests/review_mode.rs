@@ -153,8 +153,8 @@ async fn live_app_server_review_prompt_item_is_not_rendered() {
     };
     chat.handle_server_notification(
         ServerNotification::MessageStarted(MessageStartedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             started_at_ms: 0,
             item: review_mode_item.clone(),
         }),
@@ -166,8 +166,8 @@ async fn live_app_server_review_prompt_item_is_not_rendered() {
 
     chat.handle_server_notification(
         ServerNotification::MessageCompleted(MessageCompletedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
             item: review_mode_item,
         }),
@@ -177,8 +177,8 @@ async fn live_app_server_review_prompt_item_is_not_rendered() {
 
     chat.handle_server_notification(
         ServerNotification::MessageCompleted(MessageCompletedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
             item: AppServerThreadItem::UserMessage {
                 id: "review-prompt".to_string(),
@@ -235,14 +235,14 @@ async fn steer_rejection_queues_review_follow_up_before_existing_queued_messages
         &mut chat,
         "cannot steer a review turn",
         Some(CodexErrorInfo::ActiveTurnNotSteerable {
-            turn_kind: NonSteerableTurnKind::Review,
+            interaction_kind: NonSteerableInteractionKind::Review,
         }),
     );
     handle_error(
         &mut chat,
         "cannot steer a review turn",
         Some(CodexErrorInfo::ActiveTurnNotSteerable {
-            turn_kind: NonSteerableTurnKind::Review,
+            interaction_kind: NonSteerableInteractionKind::Review,
         }),
     );
 
@@ -1215,7 +1215,7 @@ async fn interrupted_turn_after_goal_budget_limited_uses_budget_message_snapshot
     chat.handle_server_notification(
         datax_app_server_protocol::ServerNotification::InteractionStarted(
             datax_app_server_protocol::InteractionStartedNotification {
-                thread_id: "thread-1".to_string(),
+                chat_id: "thread-1".to_string(),
                 turn: datax_app_server_protocol::Interaction {
                     id: "turn-1".to_string(),
                     messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
@@ -1233,10 +1233,10 @@ async fn interrupted_turn_after_goal_budget_limited_uses_budget_message_snapshot
     chat.handle_server_notification(
         datax_app_server_protocol::ServerNotification::ChatGoalUpdated(
             datax_app_server_protocol::ChatGoalUpdatedNotification {
-                thread_id: "thread-1".to_string(),
-                turn_id: Some("turn-1".to_string()),
+                chat_id: "thread-1".to_string(),
+                interaction_id: Some("turn-1".to_string()),
                 goal: datax_app_server_protocol::ChatGoal {
-                    thread_id: "thread-1".to_string(),
+                    chat_id: "thread-1".to_string(),
                     objective: "Run until the token budget is limited".to_string(),
                     status: datax_app_server_protocol::ChatGoalStatus::BudgetLimited,
                     token_budget: Some(10_000),
@@ -1252,7 +1252,7 @@ async fn interrupted_turn_after_goal_budget_limited_uses_budget_message_snapshot
     chat.handle_server_notification(
         datax_app_server_protocol::ServerNotification::InteractionCompleted(
             datax_app_server_protocol::InteractionCompletedNotification {
-                thread_id: "thread-1".to_string(),
+                chat_id: "thread-1".to_string(),
                 turn: datax_app_server_protocol::Interaction {
                     id: "turn-1".to_string(),
                     messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
@@ -1456,7 +1456,7 @@ async fn review_queues_user_messages_snapshot() {
         &mut chat,
         "cannot steer a review turn",
         Some(CodexErrorInfo::ActiveTurnNotSteerable {
-            turn_kind: NonSteerableTurnKind::Review,
+            interaction_kind: NonSteerableInteractionKind::Review,
         }),
     );
 

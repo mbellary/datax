@@ -18,7 +18,8 @@ The user-visible outcome is a concrete freeze checklist plus a cleanup of active
 - [x] (2026-07-08 00:00Z) Reviewed user-provided static-search output and identified active Datax-owned metadata still using Codex naming.
 - [x] (2026-07-08 00:00Z) Fixed active root tooling, issue templates, CODEOWNERS, and CI labels/package arguments that still used Codex-owned names.
 - [x] (2026-07-08 00:00Z) Fixed active PR template, CLA workflow document URL, and contributor guide wording that still pointed contributors at upstream Codex identity.
-- [x] (2026-07-08 00:00Z) Ran lightweight static validation; `git diff --check` passed and focused stale package metadata search now returns only the pending `codex-sdk` classification.
+- [x] (2026-07-08 00:00Z) Ran lightweight static validation; `git diff --check` passed and focused stale package metadata search now returns only `codex-sdk`.
+- [x] (2026-07-08 00:00Z) Inspected the `codex-sdk` match and found it is an active SDK/package surface, not a safe freeze exception.
 - [x] (2026-07-08 00:00Z) Created GitHub issue #13 for Phase 1.7.
 - [x] (2026-07-08 00:00Z) Created draft PR #14 for Phase 1.7.
 - [x] Run allowed static validation only; build, format, generation, fix, and test commands remain user-run.
@@ -34,6 +35,8 @@ The user-visible outcome is a concrete freeze checklist plus a cleanup of active
   Evidence: root `justfile`, GitHub workflows, scripts, and generated paths refer to `codex-rs`; earlier milestones documented filesystem directory rename as deferred.
 - Observation: The focused package metadata check is now narrowed to `codex-sdk`.
   Evidence: `rg -n "codex-hooks|codex_package|--package codex|CODEX_VERSION|Test Codex package builder|Codex package|codex-cli/README" package.json .gitignore .github scripts datax-cli justfile` returns only `.github/workflows/rust-release.yml:1200: --package codex-sdk`.
+- Observation: `codex-sdk` is not only a release workflow spelling; it is backed by an active TypeScript SDK package.
+  Evidence: `datax-cli/scripts/build_npm_package.py` has a `codex-sdk` package branch that stages `sdk/typescript`; `sdk/typescript/package.json` names the package `@openai/codex-sdk`; SDK samples import `Codex` from `@openai/codex-sdk`; and `sdk/typescript/src/exec.ts` still resolves `@openai/codex` platform packages.
 
 ## Decision Log
 
@@ -49,10 +52,13 @@ The user-visible outcome is a concrete freeze checklist plus a cleanup of active
 - Decision: Keep `codex-rs` path references as explicit migration exceptions for Phase 1.7.
   Rationale: The directory rename is deferred, and changing it would affect Cargo, Bazel, scripts, workflows, and many validation commands beyond freeze metadata cleanup.
   Date/Author: 2026-07-08 / Codex.
+- Decision: Do not classify `codex-sdk` as an accepted freeze exception without a dedicated decision.
+  Rationale: It is an active public package and SDK surface, not merely historical text. Renaming it touches TypeScript SDK package metadata, imports, tests, release packaging, and possibly Python SDK references. That is too broad to silently include in metadata cleanup, but it is also too active to accept as a harmless exception.
+  Date/Author: 2026-07-08 / Codex.
 
 ## Outcomes & Retrospective
 
-In progress. The active metadata cleanup has been implemented, Phase 1.7 issue #13 has been created, and draft PR #14 has been opened. Final outcomes will be recorded after user-run freeze checklist evidence is complete.
+In progress. The active metadata cleanup has been implemented, Phase 1.7 issue #13 has been created, and draft PR #14 has been opened. The focused package metadata gate now exposes `codex-sdk` as a remaining active SDK/package rename question, so Phase 1 freeze is not accepted yet. Final outcomes will be recorded after that question is resolved and user-run freeze checklist evidence is complete.
 
 ## Context and Orientation
 
@@ -76,7 +82,7 @@ The following Codex-shaped references may remain after this milestone if they ar
 - External model slugs such as `gpt-5-codex` when used as model examples.
 - Upstream artifact sources such as OpenAI Codex release URLs when still required to fetch externally built artifacts.
 - Historical migration plans that discuss Codex-to-Datax migration decisions.
-- `codex-sdk` package names if classified as an external/upstream SDK artifact in the final freeze report.
+- `codex-sdk` package names are not accepted as a freeze exception yet. They remain an unresolved active SDK/package surface until a dedicated rename or explicit deferral decision is recorded.
 
 ## Public Surface Checklist
 
@@ -112,8 +118,11 @@ Finally, run only lightweight static checks. The user runs the build, generation
 | `.github/workflows/cla.yml` | `Completed` | CLA workflow now points to the Datax repository CLA document path. |
 | `.github/workflows/ci.yml` | `Completed` | Active CI labels, package-builder path, variable name, and package staging argument now use Datax names. |
 | `.github/workflows/rust-release-windows.yml` | `Completed` | Active release step label now says Datax package archives. |
-| `.github/workflows/rust-release.yml` | `Not Required` | Inspected because `codex-sdk` remains. This needs final exception classification as external/upstream SDK or a later dedicated package rename. |
-| `datax-cli/scripts/build_npm_package.py` | `Not Required` | Inspected because `codex-sdk` remains. This needs final exception classification as external/upstream SDK or a later dedicated package rename. |
+| `.github/workflows/rust-release.yml` | `Pending` | Active release workflow still stages `--package codex-sdk`; this is an unresolved SDK/package surface before freeze. |
+| `datax-cli/scripts/build_npm_package.py` | `Pending` | Active package builder still has a `codex-sdk` package branch. Requires dedicated rename or explicit deferral decision. |
+| `sdk/typescript/package.json` | `Pending` | Active TypeScript SDK package name remains `@openai/codex-sdk`. Requires dedicated rename or explicit deferral decision. |
+| `sdk/typescript/src/exec.ts` | `Pending` | Active TypeScript SDK runtime still resolves `@openai/codex` platform packages. Requires dedicated rename or explicit deferral decision. |
+| `sdk/typescript/samples/*.ts` | `Pending` | SDK samples still import `Codex` from `@openai/codex-sdk`. Requires dedicated rename or explicit deferral decision. |
 | `docs/plans/Provisional-Datax-Migration-Plan-Phase1.md` | `Completed` | Links the high-level Test Plan to the concrete freeze checklist. |
 | `docs/plans/datax_migration_phase1_7_freeze_report/phase1_migration_freeze_checklist.md` | `Completed` | Concrete Phase 1.7 runner-facing freeze checklist. |
 | `docs/plans/datax_migration_phase1_7_freeze_report/github_issue.md` | `Completed` | Records the GitHub issue body for issue #13. |
@@ -133,7 +142,7 @@ The final freeze report will use the concrete checklist as the command source. T
 | Command | Working Directory | Required Before Merge | Status | Notes |
 | --- | --- | --- | --- | --- |
 | `git diff --check` | repository root | Yes | `Completed` | Static whitespace check returned no output. |
-| `rg -n "codex-hooks|codex_package|--package codex|CODEX_VERSION|Test Codex package builder|Codex package|codex-cli/README" package.json .gitignore .github scripts datax-cli justfile` | repository root | Yes | `Completed` | Returned only `--package codex-sdk`, which remains pending final exception classification. |
+| `rg -n "codex-hooks|codex_package|--package codex|CODEX_VERSION|Test Codex package builder|Codex package|codex-cli/README" package.json .gitignore .github scripts datax-cli justfile` | repository root | Yes | `Failed` | Returned `.github/workflows/rust-release.yml:1200: --package codex-sdk`; inspection showed this is an active SDK/package rename gap, not an accepted exception. |
 | `rg -n "Codex App|Codex Web|Codex team|openai/codex|codex/discussions|codex-action|codex-label|codex-deduplicate" .github/ISSUE_TEMPLATE .github/workflows .github/actions .github/pull_request_template.md .github/CODEOWNERS` | repository root | Yes | `Completed` | Active issue template and CODEOWNERS matches are removed; remaining matches are upstream-only workflow guards, external action references, or artifact sources requiring freeze exception classification. |
 | `rg -n "\b(Codex|codex|CODEX)\b" README.md docs datax-cli package.json .github --glob '!docs/plans/datax_migration_phase1_*_*/**'` | repository root | Yes | `Completed` | Broad inventory still returns documented/deferred categories, including `codex-rs`, external docs links, upstream-only workflows, and `codex-sdk`. |
 | `just fmt` | repository root | Yes | `Deferred` | User-run only. |

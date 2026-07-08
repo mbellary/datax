@@ -13,7 +13,7 @@ Validation is staged per the migration execution model. Exact commands are recor
 Current status:
 
 - Completed: `just write-app-server-schema` was run by the user and the generated schema artifacts were committed.
-- Completed: `just fmt` from `codex-rs`.
+- Completed: `just fmt` from `datax-rs`.
 - Completed: lightweight acceptance searches recorded in the ExecPlan.
 - Deferred: targeted app-server protocol/app-server test commands remain staged for the post-implementation validation pass.
 

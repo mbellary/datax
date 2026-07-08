@@ -15,14 +15,14 @@ Create the Phase 1 migration freeze checkpoint for Datax. This milestone records
   - CODEOWNERS,
   - active CI labels and package staging arguments,
   - contributor-facing docs.
-- Preserve documented exceptions such as protected sandbox identifiers, `codex-rs` paths, external artifact sources, and historical migration plans.
+- Preserve documented exceptions such as protected sandbox identifiers, `datax-rs` paths, external artifact sources, and historical migration plans.
 
 ## Out of Scope
 
 - No Rust runtime behavior changes.
 - No app-server protocol changes.
 - No generated schema changes unless user-run freeze commands produce drift.
-- No filesystem rename of `codex-rs`.
+- No filesystem rename of `datax-rs`.
 - No build, format, fix, generation, or test execution by Codex unless explicitly requested.
 
 ## Acceptance Criteria

@@ -36,20 +36,20 @@ class RunBazelWithBuildBuddyTest(unittest.TestCase):
     def test_keyless_invocation_drops_remote_ci_configuration(self) -> None:
         self.assertIsNone(
             run_bazel_with_buildbuddy.remote_config(
-                ["build", "--config=ci-linux", "//codex-rs/cli:datax"],
+                ["build", "--config=ci-linux", "//datax-rs/cli:datax"],
                 {},
             )
         )
         self.assertEqual(
             run_bazel_with_buildbuddy.bazel_args_with_remote_config(
-                ["build", "--config=ci-linux", "--", "//codex-rs/cli:datax"],
+                ["build", "--config=ci-linux", "--", "//datax-rs/cli:datax"],
                 {},
             ),
-            ["build", "--", "//codex-rs/cli:datax"],
+            ["build", "--", "//datax-rs/cli:datax"],
         )
 
     def test_program_arguments_after_separator_do_not_select_or_lose_rbe(self) -> None:
-        args = ["run", "//codex-rs/cli:datax", "--", "--config=remote"]
+        args = ["run", "//datax-rs/cli:datax", "--", "--config=remote"]
 
         self.assertEqual(
             run_bazel_with_buildbuddy.bazel_args_with_remote_config(args, {}),
@@ -68,7 +68,7 @@ class RunBazelWithBuildBuddyTest(unittest.TestCase):
 
             self.assertEqual(
                 run_bazel_with_buildbuddy.bazel_args_with_remote_config(
-                    ["build", "--config=ci-linux", "--", "//codex-rs/cli:datax"],
+                    ["build", "--config=ci-linux", "--", "//datax-rs/cli:datax"],
                     env,
                 ),
                 [
@@ -77,7 +77,7 @@ class RunBazelWithBuildBuddyTest(unittest.TestCase):
                     "--remote_header=x-buildbuddy-api-key=token",
                     "--config=ci-linux",
                     "--",
-                    "//codex-rs/cli:datax",
+                    "//datax-rs/cli:datax",
                 ],
             )
 
@@ -86,7 +86,7 @@ class RunBazelWithBuildBuddyTest(unittest.TestCase):
 
         self.assertEqual(
             run_bazel_with_buildbuddy.bazel_args_with_remote_config(
-                ["build", "--config=ci-windows-cross", "//codex-rs/cli:datax"],
+                ["build", "--config=ci-windows-cross", "//datax-rs/cli:datax"],
                 env,
             ),
             [
@@ -94,12 +94,12 @@ class RunBazelWithBuildBuddyTest(unittest.TestCase):
                 "--config=buildbuddy-generic-rbe",
                 "--remote_header=x-buildbuddy-api-key=fork-token",
                 "--config=ci-windows-cross",
-                "//codex-rs/cli:datax",
+                "//datax-rs/cli:datax",
             ],
         )
 
     def test_query_remote_configuration_is_inserted_before_expression(self) -> None:
-        expression = 'kind("rust_library rule", //codex-rs/...)'
+        expression = 'kind("rust_library rule", //datax-rs/...)'
         env = {"BUILDBUDDY_API_KEY": "fork-token"}
 
         for command in ("query", "cquery", "aquery"):
@@ -189,20 +189,20 @@ class RunBazelWithBuildBuddyTest(unittest.TestCase):
         }
 
         self.assertEqual(
-            run_bazel_with_buildbuddy.bazel_command("build", "//codex-rs/...", env=env),
+            run_bazel_with_buildbuddy.bazel_command("build", "//datax-rs/...", env=env),
             [
                 "bazel",
                 "--output_user_root=/tmp/bazel-output",
                 "--noexperimental_remote_repo_contents_cache",
                 "build",
-                "//codex-rs/...",
+                "//datax-rs/...",
             ],
         )
         self.assertEqual(
             run_bazel_with_buildbuddy.bazel_command(
                 "--experimental_remote_repo_contents_cache",
                 "build",
-                "//codex-rs/...",
+                "//datax-rs/...",
                 env=env,
             ),
             [
@@ -210,7 +210,7 @@ class RunBazelWithBuildBuddyTest(unittest.TestCase):
                 "--output_user_root=/tmp/bazel-output",
                 "--experimental_remote_repo_contents_cache",
                 "build",
-                "//codex-rs/...",
+                "//datax-rs/...",
             ],
         )
 

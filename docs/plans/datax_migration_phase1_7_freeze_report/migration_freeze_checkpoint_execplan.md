@@ -23,6 +23,14 @@ The user-visible outcome is a concrete freeze checklist plus a cleanup of active
 - [x] (2026-07-08 00:00Z) Created GitHub issue #13 for Phase 1.7.
 - [x] (2026-07-08 00:00Z) Created draft PR #14 for Phase 1.7.
 - [x] Run allowed static validation only; build, format, generation, fix, and test commands remain user-run.
+- [x] (2026-07-08 00:00Z) Took stock after expanding Phase 1.7 scope to include `codex-rs` path cleanup, internal-name inventory, and downstream Codex artifact notes.
+- [x] (2026-07-08 00:00Z) Updated the Phase 1.7 file inventory with track-level stocktake rows. The `codex-sdk` surface is isolated and remains pending for a later track.
+- [x] (2026-07-08 00:00Z) Added Track A runner commands for the `codex-rs` to `datax-rs` path rename inventory and validation.
+- [x] (2026-07-08 00:00Z) Implemented Track A by moving `codex-rs/` to `datax-rs/` with `git mv`.
+- [x] (2026-07-08 00:00Z) Updated active writable repository path references from `codex-rs` to `datax-rs`.
+- [x] (2026-07-08 00:00Z) Confirmed no writable-tree `codex-rs` path references remain outside `.codex/` local metadata.
+- [ ] Inventory internal Codex-era names and split them into public/wire/generated rename blockers versus internal-only classification entries.
+- [ ] Inventory downstream Codex artifacts discovered during the Phase 1.7 scans for Phase 2 adapter/runtime planning.
 - [ ] Record final validation evidence from the user and close out the freeze report.
 
 ## Surprises & Discoveries
@@ -31,17 +39,23 @@ The user-visible outcome is a concrete freeze checklist plus a cleanup of active
   Evidence: The user-run inventory command reported `9081 /tmp/datax_phase1_remaining_codex_refs.txt`.
 - Observation: The broad inventory also exposed active metadata that is not safe to leave as a generic exception.
   Evidence: `package.json` still used `-p codex-hooks`; `.github/ISSUE_TEMPLATE/*` still presented Codex issue templates; `.github/CODEOWNERS` still assigned OpenAI Codex owners; and `.github/workflows/ci.yml` still referenced the removed `scripts/codex_package` path.
-- Observation: The repository still uses `codex-rs` as the Rust workspace directory.
-  Evidence: root `justfile`, GitHub workflows, scripts, and generated paths refer to `codex-rs`; earlier milestones documented filesystem directory rename as deferred.
+- Observation: Before Track A, the repository still used `codex-rs` as the Rust workspace directory.
+  Evidence: root `justfile`, GitHub workflows, scripts, and generated paths referred to `codex-rs`; earlier milestones documented filesystem directory rename as deferred.
 - Observation: The focused package metadata check is now narrowed to `codex-sdk`.
   Evidence: `rg -n "codex-hooks|codex_package|--package codex|CODEX_VERSION|Test Codex package builder|Codex package|codex-cli/README" package.json .gitignore .github scripts datax-cli justfile` returns only `.github/workflows/rust-release.yml:1200: --package codex-sdk`.
 - Observation: `codex-sdk` is not only a release workflow spelling; it is backed by an active TypeScript SDK package.
   Evidence: `datax-cli/scripts/build_npm_package.py` has a `codex-sdk` package branch that stages `sdk/typescript`; `sdk/typescript/package.json` names the package `@openai/codex-sdk`; SDK samples import `Codex` from `@openai/codex-sdk`; and `sdk/typescript/src/exec.ts` still resolves `@openai/codex` platform packages.
+- Observation: The top-level `codex-rs` rename has high blast radius and must be a dedicated implementation slice.
+  Evidence: `rg -l --hidden "codex-rs" . --glob '!.git/**' --glob '!target/**' --glob '!codex-rs/target/**' --glob '!**/*.snap.new' | wc -l` reported 142 files. The largest groups are `codex-rs` itself, `.github`, `docs`, `scripts`, `tools`, and `sdk`.
+- Observation: Internal Codex-era names are too broad for a blanket rewrite.
+  Evidence: `rg -l --hidden "\b(thread_id|turn_id|ThreadId|TurnId|codex_thread|codex_turn|codex_turns)\b" . --glob '!.git/**' --glob '!target/**' --glob '!datax-rs/target/**' --glob '!**/*.snap.new' | wc -l` reported 557 files, mostly under `datax-rs` plus SDK and docs.
+- Observation: Downstream Codex artifact discovery should be recorded for Phase 2 rather than implemented in Phase 1.
+  Evidence: A focused artifact-candidate search across app-server, SDK, scripts, and GitHub metadata reported 184 files. These need classification before Phase 2, not adapter wiring during Phase 1.
 
 ## Decision Log
 
-- Decision: Treat Phase 1.7 as a freeze checkpoint plus active metadata cleanup, not as a broad Rust or filesystem rename.
-  Rationale: Previous phases intentionally deferred internal implementation names and the `codex-rs` directory. Reopening those changes during freeze would increase risk and invalidate already-passed tests.
+- Decision: Treat Phase 1.7 as a freeze checkpoint plus active identity cleanup.
+  Rationale: Phase 1 must close with a coherent Datax baseline. Public and serialized Codex-era names are blockers; internal-only inherited names must be inventoried and either renamed or classified before freeze.
   Date/Author: 2026-07-08 / Codex.
 - Decision: Do not run `just fmt`, `cargo build`, `cargo check`, `just fix`, `just test`, schema generation, or full smoke commands unless the user explicitly authorizes that exact command.
   Rationale: The user will run expensive commands and paste output. The freeze checklist records exact commands and evidence expectations.
@@ -49,8 +63,14 @@ The user-visible outcome is a concrete freeze checklist plus a cleanup of active
 - Decision: Remove OpenAI Codex CODEOWNERS assignments rather than inventing replacement owners.
   Rationale: Datax repository-local owners are not known in this thread. An empty CODEOWNERS file with a Datax migration note is more accurate than retaining OpenAI Codex team ownership.
   Date/Author: 2026-07-08 / Codex.
-- Decision: Keep `codex-rs` path references as explicit migration exceptions for Phase 1.7.
-  Rationale: The directory rename is deferred, and changing it would affect Cargo, Bazel, scripts, workflows, and many validation commands beyond freeze metadata cleanup.
+- Decision: Treat `codex-rs` path references as Phase 1.7 cleanup scope, not accepted freeze exceptions.
+  Rationale: `codex-rs` is a Datax-owned source path, not a downstream Codex runtime boundary. It must be inventoried first, then renamed to `datax-rs` with build, CI, package, schema, Bazel, and docs references updated in the same checkpoint.
+  Date/Author: 2026-07-08 / Codex.
+- Decision: Inventory and classify internal Codex-era identifiers in Phase 1.7.
+  Rationale: Names such as `thread_id`, `turn_id`, `codex_thread`, and `codex_turns` may be internal implementation details, but Phase 1 should not close with unknown identity debt. Public, wire, generated, CLI-visible, fixture, or documentation occurrences must be renamed. Internal-only occurrences may remain only when explicitly classified.
+  Date/Author: 2026-07-08 / Codex.
+- Decision: Record downstream Codex artifacts discovered during Phase 1 scans for Phase 2.
+  Rationale: Phase 1 scanning will expose artifacts that may belong to the future downstream Codex app-server adapter/runtime boundary. Capturing them now helps Phase 2 without adding adapter implementation or runtime coupling during Phase 1.
   Date/Author: 2026-07-08 / Codex.
 - Decision: Do not classify `codex-sdk` as an accepted freeze exception without a dedicated decision.
   Rationale: It is an active public package and SDK surface, not merely historical text. Renaming it touches TypeScript SDK package metadata, imports, tests, release packaging, and possibly Python SDK references. That is too broad to silently include in metadata cleanup, but it is also too active to accept as a harmless exception.
@@ -62,7 +82,7 @@ In progress. The active metadata cleanup has been implemented, Phase 1.7 issue #
 
 ## Context and Orientation
 
-The repository root is `/home/mbellary/wsl/projects/datax`. Rust code still lives under `codex-rs`; that path is a documented migration exception. The product identity is Datax, and active user-facing repository surfaces should not instruct users to file Codex issues, run Codex packages, or rely on OpenAI Codex ownership metadata.
+The repository root is `/home/mbellary/wsl/projects/datax`. Rust code now lives under `datax-rs`; before Track A it lived under `codex-rs`. The product identity is Datax, and active user-facing repository surfaces should not instruct users to file Codex issues, run Codex packages, or rely on OpenAI Codex ownership metadata.
 
 Phase 1.7 starts after Phase 1.6 has been merged into `main`. The user confirmed Phase 1.6 tests passed and updated local `main`. The work in this plan happens on branch `datax/migration-phase1-7-freeze-report`.
 
@@ -77,18 +97,31 @@ The milestone draft pull request is #14: `https://github.com/mbellary/datax/pull
 The following Codex-shaped references may remain after this milestone if they are recorded in the final freeze report:
 
 - `CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR`, `CODEX_SANDBOX_ENV_VAR`, `CODEX_SANDBOX_NETWORK_DISABLED`, and `CODEX_SANDBOX`. These are protected sandbox identifiers.
-- The `codex-rs` directory path and Bazel labels under `//codex-rs/...`. Filesystem rename is deferred.
 - External service paths such as `https://chatgpt.com/backend-api/codex`.
 - External model slugs such as `gpt-5-codex` when used as model examples.
 - Upstream artifact sources such as OpenAI Codex release URLs when still required to fetch externally built artifacts.
 - Historical migration plans that discuss Codex-to-Datax migration decisions.
 - `codex-sdk` package names are not accepted as a freeze exception yet. They remain an unresolved active SDK/package surface until a dedicated rename or explicit deferral decision is recorded.
 
+The following references are Phase 1.7 cleanup or classification scope, not accepted exceptions:
+
+- The old `codex-rs` directory path and Bazel labels under `//codex-rs/...`.
+- Internal Codex-era identifiers such as `thread_id`, `turn_id`, `ThreadId`, `TurnId`, `codex_thread`, `codex_turn`, and `codex_turns`.
+
+The following artifacts should be recorded for Phase 2 if discovered during Phase 1 scans, but should not be implemented in Phase 1:
+
+- App-server process launch points.
+- JSON-RPC transport code and protocol client/server types.
+- Schema generation outputs that define downstream Codex compatibility surfaces.
+- SDK/package surfaces that still refer to Codex runtime packages.
+- External service URLs and upstream release artifact URLs.
+- Runtime process-management scripts and compatibility shims.
+
 ## Public Surface Checklist
 
 This milestone touches active GitHub issue templates, root package scripts, active CI labels and package staging arguments, CODEOWNERS metadata, and Phase 1 test-plan documentation.
 
-This milestone does not touch Rust runtime behavior, app-server protocol source, generated schemas, persistence formats, CLI arguments, npm launcher runtime code, or snapshots.
+This milestone does not touch Rust runtime behavior, app-server protocol source, generated schemas, persistence formats, CLI arguments, or npm launcher runtime code. Track A updates path strings in tests and snapshots when those strings point at the Rust workspace directory.
 
 ## Dependency Order
 
@@ -118,12 +151,12 @@ Finally, run only lightweight static checks. The user runs the build, generation
 | `.github/workflows/cla.yml` | `Completed` | CLA workflow now points to the Datax repository CLA document path. |
 | `.github/workflows/ci.yml` | `Completed` | Active CI labels, package-builder path, variable name, and package staging argument now use Datax names. |
 | `.github/workflows/rust-release-windows.yml` | `Completed` | Active release step label now says Datax package archives. |
-| `.github/workflows/rust-release.yml` | `Pending` | Active release workflow still stages `--package codex-sdk`; this is an unresolved SDK/package surface before freeze. |
-| `datax-cli/scripts/build_npm_package.py` | `Pending` | Active package builder still has a `codex-sdk` package branch. Requires dedicated rename or explicit deferral decision. |
-| `sdk/typescript/package.json` | `Pending` | Active TypeScript SDK package name remains `@openai/codex-sdk`. Requires dedicated rename or explicit deferral decision. |
-| `sdk/typescript/src/exec.ts` | `Pending` | Active TypeScript SDK runtime still resolves `@openai/codex` platform packages. Requires dedicated rename or explicit deferral decision. |
-| `sdk/typescript/samples/*.ts` | `Pending` | SDK samples still import `Codex` from `@openai/codex-sdk`. Requires dedicated rename or explicit deferral decision. |
-| `docs/plans/Provisional-Datax-Migration-Plan-Phase1.md` | `Completed` | Links the high-level Test Plan to the concrete freeze checklist. |
+| `.github/workflows/rust-release.yml` | `Pending` | Isolated `codex-sdk` track. Active release workflow still stages `--package codex-sdk`; fix later after user approval for the SDK/package track. |
+| `datax-cli/scripts/build_npm_package.py` | `Pending` | Isolated `codex-sdk` track. Active package builder still has a `codex-sdk` package branch; fix later after user approval for the SDK/package track. |
+| `sdk/typescript/package.json` | `Pending` | Isolated `codex-sdk` track. Active TypeScript SDK package name remains `@openai/codex-sdk`; fix later after user approval for the SDK/package track. |
+| `sdk/typescript/src/exec.ts` | `Pending` | Isolated `codex-sdk` track. Active TypeScript SDK runtime still resolves `@openai/codex` platform packages; fix later after user approval for the SDK/package track. |
+| `sdk/typescript/samples/*.ts` | `Pending` | Isolated `codex-sdk` track. SDK samples still import `Codex` from `@openai/codex-sdk`; fix later after user approval for the SDK/package track. |
+| `docs/plans/Provisional-Datax-Migration-Plan-Phase1.md` | `Completed` | Updated high-level Phase 1 plan with Phase 1.7 identity cleanup, `datax-rs`, internal-name audit, and downstream artifact note. |
 | `docs/plans/datax_migration_phase1_7_freeze_report/phase1_migration_freeze_checklist.md` | `Completed` | Concrete Phase 1.7 runner-facing freeze checklist. |
 | `docs/plans/datax_migration_phase1_7_freeze_report/github_issue.md` | `Completed` | Records the GitHub issue body for issue #13. |
 | `docs/plans/datax_migration_phase1_7_freeze_report/migration_freeze_checkpoint_execplan.md` | `Completed` | This living ExecPlan. |
@@ -131,9 +164,183 @@ Finally, run only lightweight static checks. The user runs the build, generation
 | `docs/contributing.md` | `Completed` | Contributor guidance now uses Datax maintainer and Datax CLI wording. |
 | `package.json` | `Completed` | Root hook-schema script now targets `datax-hooks`. |
 
+### Phase 1.7 Track Inventory
+
+These rows describe the implementation tracks now in Phase 1.7 scope. Each track must be expanded into a per-file implementation inventory before files in that track are modified. The `codex-sdk` track is intentionally isolated and will be fixed later after user approval.
+
+| Filename | Modified | Remarks Notes |
+| --- | --- | --- |
+| `datax-rs/` | `Completed` | Track A: moved from `codex-rs/` to `datax-rs/` with `git mv`; in-tree path references now point at `datax-rs`. |
+| `.github/` | `Completed` | Track A: CI/workflow/action references to the Rust workspace path now point at `datax-rs`. |
+| `docs/` | `Completed` | Track A: active and historical plan path references were updated to the new source path where they describe repository layout. |
+| `scripts/` | `Completed` | Track A: helper and packaging script references to the Rust workspace path now point at `datax-rs`. |
+| `tools/` | `Completed` | Track A: tooling references to the Rust workspace path now point at `datax-rs`. |
+| `sdk/` | `Completed` | Track A: SDK test/helper source-path references now point at `datax-rs`; `codex-sdk` package names remain untouched for the later isolated track. |
+| `.codex/` | `No Change Required` | Local Codex app skill/environment metadata remains read-only in this sandbox. It is excluded from Track A implementation and is not active repository source. |
+| `.devcontainer/` | `Completed` | Track A: development container references to the Rust workspace path now point at `datax-rs`. |
+| `MODULE.bazel` | `Completed` | Track A: Bazel workspace path reference now points at `//datax-rs`. |
+| `defs.bzl` | `Completed` | Track A: Bazel helper path references now point at `datax-rs` / `//datax-rs`. |
+| `.bazelrc` | `Completed` | Track A: Bazel configuration path references now point at `datax-rs` / `//datax-rs`. |
+| `.bazelignore` | `Completed` | Track A: Bazel ignore path now points at `datax-rs/target`. |
+| `.gitattributes` | `Completed` | Track A: repository path metadata now points at `datax-rs`. |
+| `AGENTS.md` | `Completed` | Track A path references now point at `datax-rs`. Stale non-path Codex-era instruction wording remains a separate migration-policy concern. |
+| `justfile` | `Completed` | Track A: root task working directory and Bazel labels now point at `datax-rs`. |
+| `package.json` | `Completed` | Track A: root script manifest path now points at `datax-rs/Cargo.toml`. |
+| `datax-cli/` | `Completed` | Track A: package-building path reference now points at `datax-rs`. |
+| `pnpm-workspace.yaml` | `Completed` | Track A: workspace path reference now points at `datax-rs/responses-api-proxy/npm`. |
+| `pnpm-lock.yaml` | `Completed` | Track A: checked-in pnpm workspace path metadata now points at `datax-rs/responses-api-proxy/npm`. |
+| `flake.nix` | `Completed` | Track A: Nix path references now point at `datax-rs`. |
+| `bazel/` | `Completed` | Track A: Bazel support path reference now points at `//datax-rs`. |
+| `third_party/` | `Completed` | Track A: V8 documentation source-path references now point at `datax-rs/Cargo.lock`. |
+| `datax-rs/**/*.rs` | `Pending` | Track B: internal Codex-era name audit. Static inventory found most of the 557 files under `datax-rs`; expand per sub-crate before implementation. |
+| `sdk/**/*` | `Pending` | Track B: internal-name audit found 25 SDK files. Classify public SDK/API surface versus generated or test-only names before editing. |
+| `docs/**/*` | `Pending` | Track B: internal-name audit found 6 docs files. Classify as active documentation, historical migration plan, or no-change historical record before editing. |
+| `.github/workflows/rust-release.yml` | `Pending` | Isolated `codex-sdk` track. Do not fix until user approves the SDK/package track. |
+| `datax-cli/scripts/build_npm_package.py` | `Pending` | Isolated `codex-sdk` track. Do not fix until user approves the SDK/package track. |
+| `sdk/typescript/package.json` | `Pending` | Isolated `codex-sdk` track. Do not fix until user approves the SDK/package track. |
+| `sdk/typescript/src/exec.ts` | `Pending` | Isolated `codex-sdk` track. Do not fix until user approves the SDK/package track. |
+| `sdk/typescript/samples/*.ts` | `Pending` | Isolated `codex-sdk` track. Do not fix until user approves the SDK/package track. |
+| `datax-rs/app-server*/**/*` | `Pending` | Track C: downstream Codex artifact note. Candidate app-server launch, protocol, transport, schema, and test-client artifacts to record for Phase 2; do not implement adapter/runtime wiring in Phase 1. |
+| `datax-rs/rmcp-client/**/*` | `Pending` | Track C: downstream/runtime transport candidate. Record for Phase 2 if relevant; no Phase 1 adapter implementation. |
+| `datax-rs/backend-client/**/*` | `Pending` | Track C: downstream/client candidate. Record for Phase 2 if relevant; no Phase 1 adapter implementation. |
+| `scripts/**/*` | `Pending` | Track C: process-management and helper script candidates. Record for Phase 2 when related to downstream Codex runtime; otherwise handle under Track A. |
+
+## Track A: `codex-rs` to `datax-rs` Path Rename
+
+Track A is limited to the Rust workspace directory path and references that point at that path. It does not rename internal Rust modules, user-facing protocol fields, SDK package names, downstream Codex runtime artifacts, or protected sandbox identifiers. The goal is to remove the Datax-owned `codex-rs` source path from active repository tooling while preserving behavior.
+
+Track A proceeded in this order:
+
+1. Inventory `codex-rs` path references and classify the affected groups.
+2. Update this file inventory with the Track A classification.
+3. Move the Rust workspace path with `git mv`.
+4. Update writable repository references from `codex-rs` to `datax-rs`.
+5. Leave `.codex/` local metadata unmodified because it is read-only in this workspace and not active project source.
+6. User runs the validation commands below and provides the output.
+
+### Track A Inventory Commands
+
+These commands were used to define the Track A scope before implementation. They are retained as provenance for the implementation; do not rerun them as the post-change validation.
+
+    cd /home/mbellary/wsl/projects/datax
+    git status --short --branch
+
+    test -d codex-rs && echo "codex-rs exists" || echo "codex-rs missing"
+    test -d datax-rs && echo "datax-rs exists" || echo "datax-rs missing"
+
+    rg -l --hidden "codex-rs" . \
+      --glob '!.git/**' \
+      --glob '!target/**' \
+      --glob '!codex-rs/target/**' \
+      --glob '!**/*.snap.new' \
+      | sort > /tmp/datax_phase1_7_track_a_codex_rs_files.txt
+
+    wc -l /tmp/datax_phase1_7_track_a_codex_rs_files.txt
+    sed -n '1,260p' /tmp/datax_phase1_7_track_a_codex_rs_files.txt
+
+    awk -F/ '
+      {
+        if ($1 == ".") {
+          key = $2
+        } else {
+          key = $1
+        }
+        counts[key]++
+      }
+      END {
+        for (key in counts) {
+          print counts[key], key
+        }
+      }
+    ' /tmp/datax_phase1_7_track_a_codex_rs_files.txt | sort -nr
+
+    rg -n --hidden "codex-rs|//codex-rs|\\./codex-rs|/codex-rs" \
+      AGENTS.md \
+      justfile \
+      package.json \
+      pnpm-workspace.yaml \
+      pnpm-lock.yaml \
+      MODULE.bazel \
+      defs.bzl \
+      flake.nix \
+      .bazelrc \
+      .bazelignore \
+      .gitattributes \
+      .devcontainer \
+      .github \
+      bazel \
+      datax-cli \
+      docs \
+      scripts \
+      sdk \
+      third_party \
+      tools \
+      --glob '!.git/**' \
+      --glob '!target/**' \
+      --glob '!codex-rs/target/**' \
+      --glob '!**/*.snap.new'
+
+### Track A Implementation Commands
+
+These implementation commands have been executed in this milestone.
+
+The directory move must use Git so history follows the source tree:
+
+    cd /home/mbellary/wsl/projects/datax
+    git mv codex-rs datax-rs
+
+After the directory move, Codex updated active path references from `codex-rs` to `datax-rs` in writable repository files. This update did not touch `codex-sdk` package names, downstream Codex app-server compatibility names, or protected sandbox identifiers.
+
+### Track A Post-Change Validation Commands
+
+After the implementation edit is complete, the user runs these commands and provides the output. These commands are intended to catch path drift before any expensive build or test command is attempted.
+
+    cd /home/mbellary/wsl/projects/datax
+    git status --short --branch
+
+    test -d codex-rs && echo "codex-rs exists" || echo "codex-rs missing"
+    test -d datax-rs && echo "datax-rs exists" || echo "datax-rs missing"
+
+    rg -n --hidden "codex-rs|//codex-rs|\\./codex-rs|/codex-rs" . \
+      --glob '!.git/**' \
+      --glob '!.codex/**' \
+      --glob '!target/**' \
+      --glob '!datax-rs/target/**' \
+      --glob '!**/*.snap.new' \
+      > /tmp/datax_phase1_7_track_a_remaining_codex_rs_refs.txt
+
+    wc -l /tmp/datax_phase1_7_track_a_remaining_codex_rs_refs.txt
+    sed -n '1,260p' /tmp/datax_phase1_7_track_a_remaining_codex_rs_refs.txt
+
+    rg -n --hidden "datax-rs" \
+      AGENTS.md \
+      justfile \
+      package.json \
+      pnpm-workspace.yaml \
+      MODULE.bazel \
+      defs.bzl \
+      flake.nix \
+      .bazelrc \
+      .bazelignore \
+      .gitattributes \
+      .devcontainer \
+      .github \
+      bazel \
+      datax-cli \
+      scripts \
+      sdk \
+      third_party \
+      tools \
+      --glob '!.git/**' \
+      --glob '!target/**' \
+      --glob '!datax-rs/target/**' \
+      --glob '!**/*.snap.new'
+
+    git diff --check -- . ':(exclude)**/*.snap'
+
 ## Plan of Work
 
-The implementation is intentionally metadata-only. Update the files listed as `Completed` in the inventory and leave runtime Rust code untouched. After edits, rerun focused static searches to confirm the active metadata cleanup removed the previously reported stale names. Do not run format, build, generation, fix, or test commands unless the user asks for that exact command.
+The implementation started as metadata-only, but Phase 1.7 now also owns remaining Datax-owned identity cleanup. Inventory every `codex-rs` path reference before modifying files, then rename the top-level Rust source directory to `datax-rs` and update build, CI, package, schema, Bazel, docs, and helper-script references in the same checkpoint. Inventory internal Codex-era identifiers before modifying files; rename public, wire, generated, CLI-visible, fixture, and documentation occurrences, and classify any internal-only names that remain. Record downstream Codex artifacts discovered during these scans for Phase 2 adapter/runtime planning, but do not implement the adapter or wire Datax to a downstream Codex app-server in Phase 1. Do not use this as permission to move unrelated Datax-owned crates or redesign the repository layout. Do not run format, build, generation, fix, or test commands unless the user asks for that exact command.
 
 The final freeze report will use the concrete checklist as the command source. This ExecPlan tracks implementation of the checklist and the pre-freeze metadata cleanup.
 
@@ -141,10 +348,10 @@ The final freeze report will use the concrete checklist as the command source. T
 
 | Command | Working Directory | Required Before Merge | Status | Notes |
 | --- | --- | --- | --- | --- |
-| `git diff --check` | repository root | Yes | `Completed` | Static whitespace check returned no output. |
+| `git diff --check -- . ':(exclude)**/*.snap'` | repository root | Yes | `Completed` | Static whitespace check returned no output when terminal snapshot fixtures are excluded. Plain `git diff --check` flags intentional trailing spaces on changed terminal snapshot lines. |
 | `rg -n "codex-hooks|codex_package|--package codex|CODEX_VERSION|Test Codex package builder|Codex package|codex-cli/README" package.json .gitignore .github scripts datax-cli justfile` | repository root | Yes | `Failed` | Returned `.github/workflows/rust-release.yml:1200: --package codex-sdk`; inspection showed this is an active SDK/package rename gap, not an accepted exception. |
 | `rg -n "Codex App|Codex Web|Codex team|openai/codex|codex/discussions|codex-action|codex-label|codex-deduplicate" .github/ISSUE_TEMPLATE .github/workflows .github/actions .github/pull_request_template.md .github/CODEOWNERS` | repository root | Yes | `Completed` | Active issue template and CODEOWNERS matches are removed; remaining matches are upstream-only workflow guards, external action references, or artifact sources requiring freeze exception classification. |
-| `rg -n "\b(Codex|codex|CODEX)\b" README.md docs datax-cli package.json .github --glob '!docs/plans/datax_migration_phase1_*_*/**'` | repository root | Yes | `Completed` | Broad inventory still returns documented/deferred categories, including `codex-rs`, external docs links, upstream-only workflows, and `codex-sdk`. |
+| `rg -n "\b(Codex|codex|CODEX)\b" README.md docs datax-cli package.json .github --glob '!docs/plans/datax_migration_phase1_*_*/**'` | repository root | Yes | `Completed` | Broad inventory still returns documented/deferred categories, including `datax-rs`, external docs links, upstream-only workflows, and `codex-sdk`. |
 | `just fmt` | repository root | Yes | `Deferred` | User-run only. |
 | `just write-config-schema` | repository root | Yes | `Deferred` | User-run only. |
 | `just write-app-server-schema` | repository root | Yes | `Deferred` | User-run only. |
@@ -159,7 +366,7 @@ The final freeze report will use the concrete checklist as the command source. T
 From the repository root, run the whitespace check and expect no output:
 
     cd /home/mbellary/wsl/projects/datax
-    git diff --check
+    git diff --check -- . ':(exclude)**/*.snap'
 
 From the repository root, rerun the focused package metadata search:
 
@@ -194,12 +401,12 @@ Do not delete historical plans or protected identifiers to make a search count s
 
 The user-provided focused search showed these active stale matches before cleanup:
 
-    package.json:8: "write-hooks-schema": "cargo run --manifest-path ./codex-rs/Cargo.toml -p codex-hooks --bin write_hooks_schema_fixtures"
+    package.json:8: "write-hooks-schema": "cargo run --manifest-path ./datax-rs/Cargo.toml -p codex-hooks --bin write_hooks_schema_fixtures"
     .github/ISSUE_TEMPLATE/1-codex-app.yml:1:name: Codex App Bug
     .github/ISSUE_TEMPLATE/4-bug-report.yml:2:description: Report an issue in Codex Web, integrations, or other Codex components
     .github/ISSUE_TEMPLATE/5-feature-request.yml:2:description: Propose a new feature for Codex
     .github/ISSUE_TEMPLATE/6-docs-issue.yml:8:Thank you for submitting a documentation request. It helps make Codex better.
-    .github/CODEOWNERS:2:/codex-rs/core/ @openai/codex-core-agent-team
+    .github/CODEOWNERS:2:/datax-rs/core/ @openai/codex-core-agent-team
     .github/workflows/ci.yml:29:Test Codex package builder
 
 These are Datax-owned active metadata references and were fixed in this milestone.

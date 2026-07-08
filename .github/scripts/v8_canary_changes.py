@@ -49,7 +49,7 @@ def git_output(*args: str, root: Path = ROOT) -> bytes:
 
 def v8_version_at_revision(revision: str, *, root: Path = ROOT) -> str:
     return resolved_v8_version(
-        git_output("show", f"{revision}:codex-rs/Cargo.lock", root=root)
+        git_output("show", f"{revision}:datax-rs/Cargo.lock", root=root)
     )
 
 

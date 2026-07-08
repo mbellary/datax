@@ -99,7 +99,7 @@ cd /home/mbellary/wsl/projects/datax
 rg -n --hidden "DataX" . \
   --glob '!.git/**' \
   --glob '!target/**' \
-  --glob '!codex-rs/target/**'
+  --glob '!datax-rs/target/**'
 ```
 
 Expected result:
@@ -113,7 +113,7 @@ cd /home/mbellary/wsl/projects/datax
 rg -n --hidden "\b(Codex|codex|CODEX)\b" . \
   --glob '!.git/**' \
   --glob '!target/**' \
-  --glob '!codex-rs/target/**' \
+  --glob '!datax-rs/target/**' \
   --glob '!**/*.snap.new' \
   > /tmp/datax_phase1_remaining_codex_refs.txt
 wc -l /tmp/datax_phase1_remaining_codex_refs.txt
@@ -127,7 +127,7 @@ Expected result:
   - protected sandbox identifier,
   - external service contract,
   - upstream provenance or license text,
-  - deferred filesystem path such as `codex-rs`,
+  - deferred filesystem path such as `datax-rs`,
   - internal implementation name explicitly deferred,
   - stale migration reference that must be fixed before freeze.
 
@@ -135,7 +135,7 @@ From the repository root, prove protected sandbox identifiers still exist:
 
 ```bash
 cd /home/mbellary/wsl/projects/datax
-rg -n "CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR|CODEX_SANDBOX_ENV_VAR|CODEX_SANDBOX_NETWORK_DISABLED|CODEX_SANDBOX" codex-rs
+rg -n "CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR|CODEX_SANDBOX_ENV_VAR|CODEX_SANDBOX_NETWORK_DISABLED|CODEX_SANDBOX" datax-rs
 ```
 
 Expected result:
@@ -149,11 +149,11 @@ the old resource names:
 ```bash
 cd /home/mbellary/wsl/projects/datax
 rg -n "\"(thread/(start|read|list|resume|fork)|turn/(start|interrupt)|item/)" \
-  codex-rs/app-server \
-  codex-rs/app-server-client \
-  codex-rs/app-server-protocol \
-  codex-rs/app-server-test-client \
-  codex-rs/docs/codex_mcp_interface.md \
+  datax-rs/app-server \
+  datax-rs/app-server-client \
+  datax-rs/app-server-protocol \
+  datax-rs/app-server-test-client \
+  datax-rs/docs/codex_mcp_interface.md \
   --glob '!target/**' \
   --glob '!**/*.snap.new'
 ```
@@ -168,10 +168,10 @@ app-server-facing documents and generated v2 artifacts:
 ```bash
 cd /home/mbellary/wsl/projects/datax
 rg -n "\b(Thread|thread|Turn|turn|Item|item)\b" \
-  codex-rs/app-server/README.md \
-  codex-rs/docs/codex_mcp_interface.md \
-  codex-rs/app-server-protocol/schema/json/v2 \
-  codex-rs/app-server-protocol/schema/typescript/v2 \
+  datax-rs/app-server/README.md \
+  datax-rs/docs/codex_mcp_interface.md \
+  datax-rs/app-server-protocol/schema/json/v2 \
+  datax-rs/app-server-protocol/schema/typescript/v2 \
   --glob '!target/**'
 ```
 
@@ -194,9 +194,9 @@ rg -n "just (test|fix) -p codex|cargo (run|build|test|nextest).*codex-|--bin cod
   justfile \
   scripts \
   datax-cli \
-  codex-rs \
+  datax-rs \
   --glob '!target/**' \
-  --glob '!codex-rs/target/**' \
+  --glob '!datax-rs/target/**' \
   --glob '!docs/plans/datax_migration_phase1_*_*/**' \
   --glob '!**/*.snap.new'
 ```
@@ -331,7 +331,7 @@ cargo build -p datax-cli --bin datax
 Expected result:
 
 - Build succeeds.
-- `codex-rs/target/debug/datax` exists.
+- `datax-rs/target/debug/datax` exists.
 
 From the repository root, run the npm launcher staging smoke test:
 
@@ -387,9 +387,9 @@ From the repository root, run CLI identity smoke checks:
 
 ```bash
 cd /home/mbellary/wsl/projects/datax
-./codex-rs/target/debug/datax --help
-./codex-rs/target/debug/datax --version
-./codex-rs/target/debug/datax app-server --help
+./datax-rs/target/debug/datax --help
+./datax-rs/target/debug/datax --version
+./datax-rs/target/debug/datax app-server --help
 ```
 
 Expected result:
@@ -459,7 +459,7 @@ From the repository root, prove old TUI snapshot fixture names are absent:
 
 ```bash
 cd /home/mbellary/wsl/projects/datax
-find codex-rs/tui -path '*/snapshots/codex_tui__*.snap' -print
+find datax-rs/tui -path '*/snapshots/codex_tui__*.snap' -print
 ```
 
 Expected result:
@@ -470,7 +470,7 @@ From the repository root, inventory ignored generated snapshot files:
 
 ```bash
 cd /home/mbellary/wsl/projects/datax
-find codex-rs -name '*.snap.new' -print
+find datax-rs -name '*.snap.new' -print
 ```
 
 Expected result:

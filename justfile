@@ -1,4 +1,4 @@
-set working-directory := "codex-rs"
+set working-directory := "datax-rs"
 set positional-arguments
 export JUST_SHELL := justfile_directory() / "scripts/just-shell.py"
 set shell := ["python3", "-c", 'import os, runpy; runpy.run_path(os.environ["JUST_SHELL"], run_name="__main__")']
@@ -101,11 +101,11 @@ bench-smoke:
 [no-cd]
 [unix]
 bazel-datax *args:
-    bazel run //codex-rs/cli:datax --run_under="cd $PWD &&" -- "$@"
+    bazel run //datax-rs/cli:datax --run_under="cd $PWD &&" -- "$@"
 
 [windows]
 bazel-datax *args:
-    bazel run //codex-rs/cli:datax --run_under='cd /d "{{ invocation_directory_native() }}" &&' -- @($args | Select-Object -Skip 1)
+    bazel run //datax-rs/cli:datax --run_under='cd /d "{{ invocation_directory_native() }}" &&' -- @($args | Select-Object -Skip 1)
 
 [no-cd]
 bazel-lock-update:
@@ -134,7 +134,7 @@ bazel-argument-comment-lint:
     bazel build --config=argument-comment-lint -- $({{ justfile_directory() }}/tools/argument-comment-lint/list-bazel-targets.sh)
 
 build-for-release:
-    bazel build //codex-rs/cli:release_binaries
+    bazel build //datax-rs/cli:release_binaries
 
 # Run the MCP server
 mcp-server-run *args:
@@ -150,9 +150,9 @@ write-app-server-schema *args:
 
 [no-cd]
 write-hooks-schema:
-    cargo run --manifest-path {{ justfile_directory() }}/codex-rs/Cargo.toml -p datax-hooks --bin write_hooks_schema_fixtures
+    cargo run --manifest-path {{ justfile_directory() }}/datax-rs/Cargo.toml -p datax-hooks --bin write_hooks_schema_fixtures
 
-# Run the argument-comment Dylint checks across codex-rs.
+# Run the argument-comment Dylint checks across datax-rs.
 [no-cd]
 [unix]
 argument-comment-lint *args:

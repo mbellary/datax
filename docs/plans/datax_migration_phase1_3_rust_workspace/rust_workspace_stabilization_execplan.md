@@ -17,13 +17,13 @@ Phase 1.3 makes the Rust workspace internally consistent with the Datax product 
 - [x] (2026-07-06T12:32:24Z) Created GitHub issue #5 and draft PR #6 for Phase 1.3.
 - [x] (2026-07-06T12:40:22Z) Renamed Rust package names and workspace dependency keys from `codex-*` to `datax-*`.
 - [x] (2026-07-06T12:40:22Z) Renamed Rust crate identifiers from `codex_*` to `datax_*` where they refer to renamed workspace crates.
-- [x] (2026-07-06T12:40:22Z) Updated Bazel crate target names and `crate_name` attributes to match Datax naming while preserving `codex-rs` filesystem paths.
-- [x] (2026-07-06T12:40:22Z) Refreshed `codex-rs/Cargo.lock` with `cargo generate-lockfile`; first sandboxed attempt failed on network DNS, escalated retry succeeded.
-- [x] (2026-07-06T12:40:22Z) Ran `just fmt` from `codex-rs` successfully after fixing manifest path drift.
+- [x] (2026-07-06T12:40:22Z) Updated Bazel crate target names and `crate_name` attributes to match Datax naming while preserving `datax-rs` filesystem paths.
+- [x] (2026-07-06T12:40:22Z) Refreshed `datax-rs/Cargo.lock` with `cargo generate-lockfile`; first sandboxed attempt failed on network DNS, escalated retry succeeded.
+- [x] (2026-07-06T12:40:22Z) Ran `just fmt` from `datax-rs` successfully after fixing manifest path drift.
 - [x] (2026-07-06T12:40:22Z) Ran lightweight static checks and Python syntax checks; build/test commands remain deferred.
 - [x] (2026-07-06T12:40:22Z) Updated this ExecPlan with final inventory status, decisions, validation command status, and outcome notes.
-- [x] (2026-07-06T13:20:00Z) Fixed `codex-rs/.config/nextest.toml` package filters after user validation showed `just test -p datax-cli` failed during nextest config parsing.
-- [x] (2026-07-06T13:35:00Z) Corrected `codex-rs/Cargo.lock` Rama helper packages from `0.3.0-rc1` to `0.3.0-alpha.4` after user validation showed Rust 1.95 rejected the rc packages.
+- [x] (2026-07-06T13:20:00Z) Fixed `datax-rs/.config/nextest.toml` package filters after user validation showed `just test -p datax-cli` failed during nextest config parsing.
+- [x] (2026-07-06T13:35:00Z) Corrected `datax-rs/Cargo.lock` Rama helper packages from `0.3.0-rc1` to `0.3.0-alpha.4` after user validation showed Rust 1.95 rejected the rc packages.
 - [x] (2026-07-06T13:45:00Z) Fixed `datax-rmcp-client` initialization compile error by cloning the `InitializeResult` inside RMCP's `Arc`.
 - [x] (2026-07-06T13:55:00Z) Fixed `datax-mcp` compile error caused by a mechanical rewrite from local module `codex_apps` to nonexistent crate `datax_apps`.
 - [x] (2026-07-06T14:05:00Z) Fixed remaining stale external crate aliases such as `codex_utils_path`, `codex_file_search`, `codex_backend_client`, `codex_prompts`, and `codex_cli`.
@@ -32,28 +32,28 @@ Phase 1.3 makes the Rust workspace internally consistent with the Datax product 
 ## Surprises & Discoveries
 
 - Observation: The Rust crate rename cannot be limited to `Cargo.toml` files because source imports use generated crate identifiers such as `codex_core`, `codex_protocol`, and `codex_utils_*`.
-  Evidence: `rg -l 'codex[_-][A-Za-z0-9_-]+' codex-rs --glob '*.rs' --glob 'Cargo.toml' --glob 'Cargo.lock' --glob 'BUILD.bazel' --glob '*.bzl' | wc -l` returned `2008`.
+  Evidence: `rg -l 'codex[_-][A-Za-z0-9_-]+' datax-rs --glob '*.rs' --glob 'Cargo.toml' --glob 'Cargo.lock' --glob 'BUILD.bazel' --glob '*.bzl' | wc -l` returned `2008`.
 
 - Observation: The repository instructions still describe existing upstream crate names as `codex-*`, but the approved migration plan explicitly requires `datax-*` crate package names in Phase 1.3.
   Evidence: `docs/plans/Provisional-Datax-Migration-Plan-Phase1.md` says “Rename crate packages from `codex-*` to `datax-*`.”
 
 - Observation: Mechanical package-name replacement can corrupt filesystem paths for crates whose directories still begin with `codex-`.
-  Evidence: `just fmt` initially failed because Cargo looked for `codex-rs/datax-experimental-api-macros/Cargo.toml`; fixing the path fields restored manifest loading.
+  Evidence: `just fmt` initially failed because Cargo looked for `datax-rs/datax-experimental-api-macros/Cargo.toml`; fixing the path fields restored manifest loading.
 
 - Observation: Bazel was not installed in the environment, but a temporary Bazelisk install in `/tmp` was sufficient to run the required lock commands without modifying the repository.
   Evidence: The first `just bazel-lock-update` failed with `bazel: not found`; after downloading Bazelisk to `/tmp/datax-bazel-bin/bazel`, `PATH=/tmp/datax-bazel-bin:$PATH just bazel-lock-update` and `PATH=/tmp/datax-bazel-bin:$PATH just bazel-lock-check` both completed.
 
-- Observation: `codex-rs/.config/nextest.toml` is part of the Rust package rename dependency surface because nextest validates package filters before running even a targeted crate test.
+- Observation: `datax-rs/.config/nextest.toml` is part of the Rust package rename dependency surface because nextest validates package filters before running even a targeted crate test.
   Evidence: User-run `just test -p datax-cli` failed with `operator didn't match any packages` for filters referencing `codex-app-server-protocol`, `codex-app-server`, `codex-core`, and `codex-windows-sandbox`.
 
-- Observation: Refreshing `codex-rs/Cargo.lock` selected `rama-error`, `rama-macros`, and `rama-utils` `0.3.0-rc1`, but the repository toolchain is Rust 1.95 and those rc packages require Rust 1.96.
-  Evidence: User-run validation failed with `rustc 1.95.0 is not supported by the following packages`; the direct Rama dependencies in `codex-rs/network-proxy/Cargo.toml` are pinned to `=0.3.0-alpha.4`, so the helper packages were locked back to `0.3.0-alpha.4` with `cargo update -p ... --precise 0.3.0-alpha.4`.
+- Observation: Refreshing `datax-rs/Cargo.lock` selected `rama-error`, `rama-macros`, and `rama-utils` `0.3.0-rc1`, but the repository toolchain is Rust 1.95 and those rc packages require Rust 1.96.
+  Evidence: User-run validation failed with `rustc 1.95.0 is not supported by the following packages`; the direct Rama dependencies in `datax-rs/network-proxy/Cargo.toml` are pinned to `=0.3.0-alpha.4`, so the helper packages were locked back to `0.3.0-alpha.4` with `cargo update -p ... --precise 0.3.0-alpha.4`.
 
 - Observation: RMCP's `peer_info()` returns an `Arc<InitializeResult>` with the locked dependency graph, while `McpClient::initialize` returns an owned `InitializeResult`.
   Evidence: User-run validation failed compiling `datax-rmcp-client` with `expected InitializeResult, found Arc<InitializeResult>` at `rmcp-client/src/rmcp_client.rs:485`.
 
 - Observation: The `codex_apps` module in `datax-mcp` is an internal module, not an external crate import, so it must remain referenced as `codex_apps`.
-  Evidence: User-run validation failed compiling `datax-mcp` with unresolved import `datax_apps` in `codex-mcp/src/lib.rs`; the symbols are defined in `codex-rs/codex-mcp/src/codex_apps.rs`.
+  Evidence: User-run validation failed compiling `datax-mcp` with unresolved import `datax_apps` in `codex-mcp/src/lib.rs`; the symbols are defined in `datax-rs/codex-mcp/src/codex_apps.rs`.
 
 - Observation: Rust alias imports such as `use codex_utils_path as path_utils;` are external crate identifiers and must follow renamed library crate names.
   Evidence: User-run validation failed compiling `datax-rollout` with unresolved imports for `codex_utils_path` and `codex_file_search`; static search found the same external alias pattern in rollout, cloud tasks, TUI, app-server, core, and TUI tests.
@@ -70,7 +70,7 @@ Phase 1.3 makes the Rust workspace internally consistent with the Datax product 
   Rationale: The milestone is intended to remove rename drift after Phase 1.2 while preserving behavior. Semantic concepts such as Thread, Turn, and Item remain in later phases.
   Date/Author: 2026-07-06 / Codex
 
-- Decision: Preserve the top-level `codex-rs` directory name in this milestone.
+- Decision: Preserve the top-level `datax-rs` directory name in this milestone.
   Rationale: The current migration plan names Rust crate packages, imports, lockfiles, and Bazel metadata as Phase 1.3 scope, while filesystem/persistence paths are handled later. Renaming the root Rust directory would require broad script and documentation churn outside the compile stabilization surface.
   Date/Author: 2026-07-06 / Codex
 
@@ -92,11 +92,11 @@ Implemented outcome: Rust workspace metadata, source-level external crate refere
 
 ## Context and Orientation
 
-The Rust workspace lives under `codex-rs/`. Its root manifest, `codex-rs/Cargo.toml`, declares workspace members and central dependency keys. Each crate has a `Cargo.toml` package name, and many crates also define a Rust library or binary name with a `name = "codex_..."` or `name = "codex-..."` entry. Rust source files import crates by their library names, so changing `codex-core` to `datax-core` also requires source imports such as `codex_core::Config` to become `datax_core::Config` when the library crate is renamed.
+The Rust workspace lives under `datax-rs/`. Its root manifest, `datax-rs/Cargo.toml`, declares workspace members and central dependency keys. Each crate has a `Cargo.toml` package name, and many crates also define a Rust library or binary name with a `name = "codex_..."` or `name = "codex-..."` entry. Rust source files import crates by their library names, so changing `codex-core` to `datax-core` also requires source imports such as `codex_core::Config` to become `datax_core::Config` when the library crate is renamed.
 
 Bazel metadata appears in `BUILD.bazel` files and uses the repository helper rule `codex_rust_crate`. The helper rule name itself is build infrastructure and can remain for now; the crate targets and `crate_name` values inside those rules must match the renamed Rust crates.
 
-`codex-rs/Cargo.lock` records resolved package names. It must be refreshed or mechanically updated after manifest names change so Cargo no longer records internal packages as `codex-*`.
+`datax-rs/Cargo.lock` records resolved package names. It must be refreshed or mechanically updated after manifest names change so Cargo no longer records internal packages as `codex-*`.
 
 This phase does not rename app-server public concepts from Thread/Turn/Item to Chat/Interaction/Message. That is Phase 1.4. It also does not rename persisted local state, fixtures, or snapshots unless a crate rename directly requires an update; those are Phase 1.5.
 
@@ -117,32 +117,32 @@ The table below tracks files and file sets that belong to Phase 1.3. Rows marked
 | Filename | Modified | Remarks Notes |
 | --- | --- | --- |
 | `docs/plans/datax_migration_phase1_3_rust_workspace/rust_workspace_stabilization_execplan.md` | `Completed` | Living ExecPlan updated with implementation decisions, validation status, and outcome notes. |
-| `codex-rs/Cargo.toml` | `Completed` | Root workspace package/dependency keys renamed to `datax-*`; existing `codex-*` directory paths preserved where those directories still exist. |
-| `codex-rs/Cargo.lock` | `Completed` | Refreshed with `cargo generate-lockfile`; internal package names now use `datax-*`; Rama helper packages are locked to Rust 1.95-compatible `0.3.0-alpha.4`. |
-| `codex-rs/.config/nextest.toml` | `Completed` | Updated nextest package filters from old package names to `datax-*` so targeted tests can parse the config. |
-| `codex-rs/**/Cargo.toml` | `Completed` | Rust crate package names, dependency keys, library names, and binary names renamed where they represent internal Datax crates and binaries. |
-| `codex-rs/**/BUILD.bazel` | `Completed` | Bazel crate target names and `crate_name` values renamed; `codex_rust_crate` and `codex-rs` path references remain documented exceptions. |
-| `codex-rs/**/*.rs` | `Completed` | External workspace crate paths changed from `codex_*::` to `datax_*::`; internal modules such as `crate::codex_thread` are not crate imports and are deferred exceptions. |
-| `codex-rs/core/src/lib.rs` | `Completed` | Restored re-exports to the local `codex_thread` module, updated review prompt crate re-export to `datax_prompts`, and added the Rust 1.95-compatible recursion limit requested by rustc. |
-| `codex-rs/codex-mcp/src/lib.rs` | `Completed` | Restored public re-exports for `CodexAppsToolsCacheKey` and `codex_apps_tools_cache_key` to the local `codex_apps` module. |
-| `codex-rs/rollout/src/list.rs` | `Completed` | Updated stale external crate aliases to `datax_utils_path` and `datax_file_search`. |
-| `codex-rs/rollout/src/recorder.rs` | `Completed` | Updated stale external crate alias to `datax_utils_path`. |
-| `codex-rs/cloud-tasks-client/src/http.rs` | `Completed` | Updated stale external crate alias to `datax_backend_client`. |
-| `codex-rs/tui/src/file_search.rs` | `Completed` | Updated stale external crate alias to `datax_file_search`. |
-| `codex-rs/tui/src/session_resume.rs` | `Completed` | Updated stale external crate alias to `datax_utils_path`. |
-| `codex-rs/tui/src/resume_picker.rs` | `Completed` | Updated stale external crate alias to `datax_utils_path`. |
-| `codex-rs/app-server/src/fuzzy_file_search.rs` | `Completed` | Updated stale external crate alias to `datax_file_search`. |
-| `codex-rs/tui/tests/all.rs` | `Completed` | Updated cargo-shear dev-dependency import to `datax_cli`. |
-| `codex-rs/rmcp-client/src/rmcp_client.rs` | `Completed` | Adjusted RMCP initialize result handling to return an owned `InitializeResult` after `peer_info()` returns an `Arc`. |
-| `codex-rs/**/*.bzl` | `Not Required` | Inspected for Phase 1.3. Existing `codex-rs` path handling and `codex_rust_crate` helper infrastructure are retained exceptions. |
-| `MODULE.bazel` | `Not Required` | Inspected; it references the `codex-rs` workspace path, not internal Rust package names requiring Phase 1.3 modification. |
+| `datax-rs/Cargo.toml` | `Completed` | Root workspace package/dependency keys renamed to `datax-*`; existing `codex-*` directory paths preserved where those directories still exist. |
+| `datax-rs/Cargo.lock` | `Completed` | Refreshed with `cargo generate-lockfile`; internal package names now use `datax-*`; Rama helper packages are locked to Rust 1.95-compatible `0.3.0-alpha.4`. |
+| `datax-rs/.config/nextest.toml` | `Completed` | Updated nextest package filters from old package names to `datax-*` so targeted tests can parse the config. |
+| `datax-rs/**/Cargo.toml` | `Completed` | Rust crate package names, dependency keys, library names, and binary names renamed where they represent internal Datax crates and binaries. |
+| `datax-rs/**/BUILD.bazel` | `Completed` | Bazel crate target names and `crate_name` values renamed; `codex_rust_crate` and `datax-rs` path references remain documented exceptions. |
+| `datax-rs/**/*.rs` | `Completed` | External workspace crate paths changed from `codex_*::` to `datax_*::`; internal modules such as `crate::codex_thread` are not crate imports and are deferred exceptions. |
+| `datax-rs/core/src/lib.rs` | `Completed` | Restored re-exports to the local `codex_thread` module, updated review prompt crate re-export to `datax_prompts`, and added the Rust 1.95-compatible recursion limit requested by rustc. |
+| `datax-rs/codex-mcp/src/lib.rs` | `Completed` | Restored public re-exports for `CodexAppsToolsCacheKey` and `codex_apps_tools_cache_key` to the local `codex_apps` module. |
+| `datax-rs/rollout/src/list.rs` | `Completed` | Updated stale external crate aliases to `datax_utils_path` and `datax_file_search`. |
+| `datax-rs/rollout/src/recorder.rs` | `Completed` | Updated stale external crate alias to `datax_utils_path`. |
+| `datax-rs/cloud-tasks-client/src/http.rs` | `Completed` | Updated stale external crate alias to `datax_backend_client`. |
+| `datax-rs/tui/src/file_search.rs` | `Completed` | Updated stale external crate alias to `datax_file_search`. |
+| `datax-rs/tui/src/session_resume.rs` | `Completed` | Updated stale external crate alias to `datax_utils_path`. |
+| `datax-rs/tui/src/resume_picker.rs` | `Completed` | Updated stale external crate alias to `datax_utils_path`. |
+| `datax-rs/app-server/src/fuzzy_file_search.rs` | `Completed` | Updated stale external crate alias to `datax_file_search`. |
+| `datax-rs/tui/tests/all.rs` | `Completed` | Updated cargo-shear dev-dependency import to `datax_cli`. |
+| `datax-rs/rmcp-client/src/rmcp_client.rs` | `Completed` | Adjusted RMCP initialize result handling to return an owned `InitializeResult` after `peer_info()` returns an `Arc`. |
+| `datax-rs/**/*.bzl` | `Not Required` | Inspected for Phase 1.3. Existing `datax-rs` path handling and `codex_rust_crate` helper infrastructure are retained exceptions. |
+| `MODULE.bazel` | `Not Required` | Inspected; it references the `datax-rs` workspace path, not internal Rust package names requiring Phase 1.3 modification. |
 | `MODULE.bazel.lock` | `Completed` | Refreshed with `PATH=/tmp/datax-bazel-bin:$PATH just bazel-lock-update` after installing temporary Bazelisk outside the repo. |
-| `defs.bzl` | `Not Required` | Inspected; helper-rule names and `codex-rs` path handling are retained build-infrastructure exceptions. |
+| `defs.bzl` | `Not Required` | Inspected; helper-rule names and `datax-rs` path handling are retained build-infrastructure exceptions. |
 | `datax-cli/package.json` | `Not Required` | Inspected; no Rust package rename change required in this file. |
 | `README.md` | `Not Required` | Inspected for Rust workspace command references; no Phase 1.3 edit required. |
 | `docs/install.md` | `Completed` | Updated staged test command examples from old Rust package names to Datax package names. |
 | `justfile` | `Completed` | Updated Cargo package/bin command references to Datax names. |
-| `scripts/**` | `Completed` | Updated Rust package/binary references in packaging and helper scripts; preserved `codex-rs` workspace path references. |
+| `scripts/**` | `Completed` | Updated Rust package/binary references in packaging and helper scripts; preserved `datax-rs` workspace path references. |
 | `.github/**` | `Completed` | Updated Rust release, DotSlash, code-signing, and Cargo workspace helper references tied to renamed Rust package/binary outputs. |
 | `CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR` and `CODEX_SANDBOX_ENV_VAR` references | `Not Required` | Protected sandbox identifiers are intentionally excluded from all Phase 1 rename operations. |
 | `Thread`, `Turn`, and `Item` protocol types | `Not Required` | App-server model rename is Phase 1.4 and must not be mixed into this branch. |
@@ -153,7 +153,7 @@ The table below tracks files and file sets that belong to Phase 1.3. Rows marked
 The following Codex/codex references may remain after Phase 1.3:
 
 - `CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR` and `CODEX_SANDBOX_ENV_VAR`, because they are protected sandbox contracts.
-- The top-level `codex-rs/` directory path, because this milestone stabilizes Rust workspace metadata and imports without moving the Rust workspace root.
+- The top-level `datax-rs/` directory path, because this milestone stabilizes Rust workspace metadata and imports without moving the Rust workspace root.
 - Crate directories still named `codex-api`, `codex-client`, `codex-home`, `codex-mcp`, `codex-backend-openapi-models`, and `codex-experimental-api-macros`; their package names are Datax, but paths stay unchanged in this milestone.
 - The Bazel helper rule name `codex_rust_crate`, if changing it would be broad build-infrastructure churn not required for package or crate identity correctness.
 - Internal Rust modules such as `crate::codex_thread`, `crate::codex_delegate`, and MCP tool modules; these are not external crate identifiers and will be handled with conceptual/persistence renames in later milestones if still product-owned.
@@ -166,7 +166,7 @@ This milestone touches package and crate names, Rust source imports, Bazel label
 
 ## Dependency Order
 
-First, update package names and dependency keys in `Cargo.toml` files so Cargo has a single source of truth for internal package identity. Second, update Rust library and binary crate identifiers so source imports have valid targets. Third, mechanically update Rust source imports and path references from `codex_*` to `datax_*` where the referenced crate was renamed. Fourth, update Bazel `name` and `crate_name` values to match the Cargo metadata. Fifth, refresh `codex-rs/Cargo.lock` and any Bazel lock metadata. Last, run static searches to identify intentional exceptions and update this plan.
+First, update package names and dependency keys in `Cargo.toml` files so Cargo has a single source of truth for internal package identity. Second, update Rust library and binary crate identifiers so source imports have valid targets. Third, mechanically update Rust source imports and path references from `codex_*` to `datax_*` where the referenced crate was renamed. Fourth, update Bazel `name` and `crate_name` values to match the Cargo metadata. Fifth, refresh `datax-rs/Cargo.lock` and any Bazel lock metadata. Last, run static searches to identify intentional exceptions and update this plan.
 
 ## Plan of Work
 
@@ -174,7 +174,7 @@ Create the GitHub issue and draft PR immediately after the initial ExecPlan comm
 
 Use mechanical transformations for package and crate identity strings. Review the resulting diff in bands: manifests first, source imports second, Bazel metadata third, lockfiles last. Do not manually rename the protected sandbox identifiers. Do not convert Thread/Turn/Item protocol types in this milestone.
 
-After edits, run `just fmt` from `codex-rs`. Per the staged validation policy, do not run long build or test commands unless the user explicitly requests them. Record all commands in the Validation Matrix and Validation and Acceptance sections with status `Deferred`.
+After edits, run `just fmt` from `datax-rs`. Per the staged validation policy, do not run long build or test commands unless the user explicitly requests them. Record all commands in the Validation Matrix and Validation and Acceptance sections with status `Deferred`.
 
 ## Concrete Steps
 
@@ -189,13 +189,13 @@ Create the GitHub issue and draft PR after committing this ExecPlan:
 
 Use `rg` to inventory all files that still contain crate-style Codex names:
 
-    rg -l 'codex[_-][A-Za-z0-9_-]+' codex-rs --glob '*.rs' --glob 'Cargo.toml' --glob 'Cargo.lock' --glob 'BUILD.bazel' --glob '*.bzl'
+    rg -l 'codex[_-][A-Za-z0-9_-]+' datax-rs --glob '*.rs' --glob 'Cargo.toml' --glob 'Cargo.lock' --glob 'BUILD.bazel' --glob '*.bzl'
 
 Use `rg` to inventory manifests that have package or dependency names to update:
 
-    rg -l '^name = "codex-|^codex-[a-z0-9_-]+ = \{|package = "codex-' codex-rs/Cargo.toml codex-rs/*/Cargo.toml codex-rs/*/*/Cargo.toml codex-rs/*/*/*/Cargo.toml
+    rg -l '^name = "codex-|^codex-[a-z0-9_-]+ = \{|package = "codex-' datax-rs/Cargo.toml datax-rs/*/Cargo.toml datax-rs/*/*/Cargo.toml datax-rs/*/*/*/Cargo.toml
 
-After implementation, run formatter from `codex-rs`:
+After implementation, run formatter from `datax-rs`:
 
     just fmt
 
@@ -205,23 +205,23 @@ After implementation, run formatter from `codex-rs`:
 | --- | --- | --- | --- |
 | `git diff --check` | repository root | `Completed` | No whitespace errors. |
 | `rg -n 'Data[X]' .` | repository root | `Completed` | No forbidden mixed-case spelling. |
-| `rg -n 'name = "codex-|package = "codex-|^codex-[a-z0-9_-]+ = \{' codex-rs --glob 'Cargo.toml'` | repository root | `Completed` | No internal Rust package/dependency names remain except documented external/provenance exceptions. |
-| `rg --pcre2 -n '(?<!crate::)(?<!super::)\bcodex_[A-Za-z0-9_]+::' codex-rs --glob '*.rs'` | repository root | `Completed` | No old external crate-path references remain. |
-| `rg -n 'crate_name = "codex_' codex-rs --glob 'BUILD.bazel'` | repository root | `Completed` | No old Bazel `crate_name` values remain. |
-| `rg -n 'package\(codex-' codex-rs/.config/nextest.toml` | repository root | `Completed` | No old nextest package filters remain. |
+| `rg -n 'name = "codex-|package = "codex-|^codex-[a-z0-9_-]+ = \{' datax-rs --glob 'Cargo.toml'` | repository root | `Completed` | No internal Rust package/dependency names remain except documented external/provenance exceptions. |
+| `rg --pcre2 -n '(?<!crate::)(?<!super::)\bcodex_[A-Za-z0-9_]+::' datax-rs --glob '*.rs'` | repository root | `Completed` | No old external crate-path references remain. |
+| `rg -n 'crate_name = "codex_' datax-rs --glob 'BUILD.bazel'` | repository root | `Completed` | No old Bazel `crate_name` values remain. |
+| `rg -n 'package\(codex-' datax-rs/.config/nextest.toml` | repository root | `Completed` | No old nextest package filters remain. |
 | `python3 -m py_compile scripts/datax_package/*.py datax-cli/scripts/build_npm_package.py scripts/stage_npm_packages.py` | repository root | `Completed` | Touched Python package scripts compile. |
-| `just fmt` | `codex-rs` | `Completed` | Rust formatting completed successfully. |
-| `cargo generate-lockfile` | `codex-rs` | `Completed` | `codex-rs/Cargo.lock` refreshed with renamed internal package names after escalated network retry. |
-| `cargo update -p rama-error --precise 0.3.0-alpha.4` | `codex-rs` | `Completed` | `rama-error` lock entry is compatible with Rust 1.95. |
-| `cargo update -p rama-utils --precise 0.3.0-alpha.4` | `codex-rs` | `Completed` | `rama-utils` lock entry is compatible with Rust 1.95. |
-| `cargo update -p rama-macros --precise 0.3.0-alpha.4` | `codex-rs` | `Completed` | `rama-macros` lock entry is compatible with Rust 1.95. |
-| `rg -n '0\.3\.0-rc1' codex-rs/Cargo.lock` | repository root | `Completed` | No Rama rc package versions remain in the lockfile. |
+| `just fmt` | `datax-rs` | `Completed` | Rust formatting completed successfully. |
+| `cargo generate-lockfile` | `datax-rs` | `Completed` | `datax-rs/Cargo.lock` refreshed with renamed internal package names after escalated network retry. |
+| `cargo update -p rama-error --precise 0.3.0-alpha.4` | `datax-rs` | `Completed` | `rama-error` lock entry is compatible with Rust 1.95. |
+| `cargo update -p rama-utils --precise 0.3.0-alpha.4` | `datax-rs` | `Completed` | `rama-utils` lock entry is compatible with Rust 1.95. |
+| `cargo update -p rama-macros --precise 0.3.0-alpha.4` | `datax-rs` | `Completed` | `rama-macros` lock entry is compatible with Rust 1.95. |
+| `rg -n '0\.3\.0-rc1' datax-rs/Cargo.lock` | repository root | `Completed` | No Rama rc package versions remain in the lockfile. |
 | `PATH=/tmp/datax-bazel-bin:$PATH just bazel-lock-update` | repository root | `Completed` | Bazel lock metadata refreshed using temporary Bazelisk. |
 | `PATH=/tmp/datax-bazel-bin:$PATH just bazel-lock-check` | repository root | `Completed` | Bazel lock metadata has no drift. |
-| `just test -p datax-cli` | `codex-rs` | `Deferred` | CLI crate tests pass after rename. |
-| `just test -p datax-core` | `codex-rs` | `Deferred` | Core crate tests pass after rename. |
-| `just test -p datax-protocol` | `codex-rs` | `Deferred` | Protocol crate tests pass after rename. |
-| `just test -p datax-app-server-protocol` | `codex-rs` | `Deferred` | App-server protocol crate tests pass after rename; protocol concept rename remains Phase 1.4. |
+| `just test -p datax-cli` | `datax-rs` | `Deferred` | CLI crate tests pass after rename. |
+| `just test -p datax-core` | `datax-rs` | `Deferred` | Core crate tests pass after rename. |
+| `just test -p datax-protocol` | `datax-rs` | `Deferred` | Protocol crate tests pass after rename. |
+| `just test -p datax-app-server-protocol` | `datax-rs` | `Deferred` | App-server protocol crate tests pass after rename; protocol concept rename remains Phase 1.4. |
 
 ## Validation and Acceptance
 
@@ -237,18 +237,18 @@ From the repository root, check the forbidden mixed-case spelling and expect no 
 
 From the repository root, check Rust manifests and expect no internal package/dependency names with the old prefix except documented external or provenance exceptions:
 
-    rg -n 'name = "codex-|package = "codex-|^codex-[a-z0-9_-]+ = \{' codex-rs --glob 'Cargo.toml'
+    rg -n 'name = "codex-|package = "codex-|^codex-[a-z0-9_-]+ = \{' datax-rs --glob 'Cargo.toml'
 
 From the repository root, check Rust crate identifiers and Bazel crate names and expect no renamed crate identifiers with the old prefix except documented protected or infrastructure exceptions:
 
-    rg --pcre2 -n '(?<!crate::)(?<!super::)\bcodex_[A-Za-z0-9_]+::' codex-rs --glob '*.rs'
-    rg -n 'crate_name = "codex_' codex-rs --glob 'BUILD.bazel'
+    rg --pcre2 -n '(?<!crate::)(?<!super::)\bcodex_[A-Za-z0-9_]+::' datax-rs --glob '*.rs'
+    rg -n 'crate_name = "codex_' datax-rs --glob 'BUILD.bazel'
 
-From `codex-rs`, run formatting and expect it to complete successfully:
+From `datax-rs`, run formatting and expect it to complete successfully:
 
     just fmt
 
-From `codex-rs`, refresh the Cargo lockfile and expect `codex-rs/Cargo.lock` to contain renamed internal package names:
+From `datax-rs`, refresh the Cargo lockfile and expect `datax-rs/Cargo.lock` to contain renamed internal package names:
 
     cargo generate-lockfile
 
@@ -259,7 +259,7 @@ From the repository root, refresh and verify Bazel lock metadata if it changes:
 
 The commands above were run with a temporary Bazelisk binary installed at `/tmp/datax-bazel-bin/bazel` because `bazel` was not installed globally.
 
-From `codex-rs`, run targeted crate tests and expect them to pass:
+From `datax-rs`, run targeted crate tests and expect them to pass:
 
     just test -p datax-cli
     just test -p datax-core
@@ -270,7 +270,7 @@ Acceptance for this milestone is met when Rust package names, crate identifiers,
 
 ## Idempotence and Recovery
 
-The rename operations are safe to repeat if they are implemented as deterministic mechanical replacements and followed by `rg` searches. If a mechanical rewrite touches protected sandbox identifiers or Phase 1.4 protocol concepts, recover by reverting only those hunks and recording the reason in this plan. If lockfile generation produces unrelated dependency churn, inspect `git diff codex-rs/Cargo.lock` and keep only changes caused by renamed internal package names.
+The rename operations are safe to repeat if they are implemented as deterministic mechanical replacements and followed by `rg` searches. If a mechanical rewrite touches protected sandbox identifiers or Phase 1.4 protocol concepts, recover by reverting only those hunks and recording the reason in this plan. If lockfile generation produces unrelated dependency churn, inspect `git diff datax-rs/Cargo.lock` and keep only changes caused by renamed internal package names.
 
 Rollback for the milestone branch is a normal git branch rollback. No database migrations or destructive local-state changes are part of this phase.
 
@@ -282,10 +282,10 @@ Draft pull request: https://github.com/mbellary/datax/pull/6
 
 Initial discovery transcript:
 
-    rg -l 'codex[_-][A-Za-z0-9_-]+' codex-rs --glob '*.rs' --glob 'Cargo.toml' --glob 'Cargo.lock' --glob 'BUILD.bazel' --glob '*.bzl' | wc -l
+    rg -l 'codex[_-][A-Za-z0-9_-]+' datax-rs --glob '*.rs' --glob 'Cargo.toml' --glob 'Cargo.lock' --glob 'BUILD.bazel' --glob '*.bzl' | wc -l
     2008
 
-    rg -l '^name = "codex-|^codex-[a-z0-9_-]+ = \{|package = "codex-' codex-rs/Cargo.toml codex-rs/*/Cargo.toml codex-rs/*/*/Cargo.toml codex-rs/*/*/*/Cargo.toml | wc -l
+    rg -l '^name = "codex-|^codex-[a-z0-9_-]+ = \{|package = "codex-' datax-rs/Cargo.toml datax-rs/*/Cargo.toml datax-rs/*/*/Cargo.toml datax-rs/*/*/*/Cargo.toml | wc -l
     132
 
 Formatter and generation transcript:
@@ -296,7 +296,7 @@ Formatter and generation transcript:
 
     cargo generate-lockfile
     # First sandboxed run failed resolving index.crates.io.
-    # Escalated retry completed and refreshed codex-rs/Cargo.lock.
+    # Escalated retry completed and refreshed datax-rs/Cargo.lock.
 
     PATH=/tmp/datax-bazel-bin:$PATH just bazel-lock-update
     # Completed after temporary Bazelisk installation.

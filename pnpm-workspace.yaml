@@ -1,6 +1,6 @@
 packages:
   - datax-cli
-  - codex-rs/responses-api-proxy/npm
+  - datax-rs/responses-api-proxy/npm
   - sdk/typescript
 
 ignoredBuiltDependencies:

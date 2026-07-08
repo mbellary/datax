@@ -8161,7 +8161,7 @@
                 "$ref": "#/definitions/v2/SessionSource"
               }
             ],
-            "description": "Origin of the thread (CLI, VSCode, codex exec, codex app-server, etc.)."
+            "description": "Origin of the chat (CLI, VSCode, datax exec, datax app-server, etc.)."
           },
           "status": {
             "allOf": [
@@ -18793,7 +18793,7 @@
             "type": "string"
           },
           {
-            "description": "Plugin-service currently sends `\"ENABLED\"` for available remote plugins. Codex app-server exposes `\"AVAILABLE\"` in its API; the alias keeps decoding compatible with that upstream response.",
+            "description": "Plugin-service currently sends `\"ENABLED\"` for available remote plugins. Upstream Codex app-server exposes `\"AVAILABLE\"` in its API; the alias keeps decoding compatible with that upstream response.",
             "enum": [
               "AVAILABLE"
             ],

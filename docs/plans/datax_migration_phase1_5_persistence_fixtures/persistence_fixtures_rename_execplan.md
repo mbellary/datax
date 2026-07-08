@@ -30,6 +30,7 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
 - [x] (2026-07-07 00:00Z) Updated validation ownership after user instruction: Codex will no longer run `just fmt`, build, check, test, or lint commands for this phase unless explicitly authorized for a specific command.
 - [x] (2026-07-07 00:00Z) Corrected user-reported `cargo build` failures in `datax-app-server-test-client` where app-server test-client code still used old protocol boundary names and collided websocket `Message` with protocol `Message`.
 - [x] (2026-07-07 00:00Z) Committed and pushed the latest app-server-test-client follow-up fixes.
+- [x] (2026-07-08 00:00Z) Corrected user-reported `just fix -p datax-linux-sandbox` failures where linux-sandbox integration tests still requested Cargo's old `codex-linux-sandbox` binary env var.
 
 ## Surprises & Discoveries
 
@@ -57,6 +58,8 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
   Evidence: The attached build log reported missing local variables and fields such as `turn_id`, `item_id`, `AppExitInfo.thread_id`, `PlanModeNudgeScope::Chat`, and `resume_picker::Row.thread_id`; these were restored as TUI-internal names.
 - Observation: Once `cargo build` reached `datax-app-server-test-client`, it exposed another client-facing app-server protocol surface that still used pre-Phase-1.4 names and had an import-name collision.
   Evidence: The attached build log reported missing `thread_id`, `turn_id`, `item_id`, and `parent_thread_id` fields, missing `thread_start` and `turn_start` methods, and a duplicate `Message` import; the app-server test client now constructs/destructures current chat/interaction/message protocol fields and aliases `tungstenite::Message` as `WebSocketMessage`.
+- Observation: `just fix -p datax-linux-sandbox` compiles linux-sandbox integration tests and therefore catches stale Cargo binary env var names.
+  Evidence: The user-reported fix output failed because `CARGO_BIN_EXE_codex-linux-sandbox` was not defined; the tests now use `CARGO_BIN_EXE_datax-linux-sandbox`, matching the renamed package binary.
 
 ## Decision Log
 
@@ -168,7 +171,8 @@ Finally run formatting and static checks. Test/build commands remain deferred fo
 | `codex-rs/protocol/src/protocol.rs` | `Completed` | Sandbox policy docs and tests mention `.codex`; inspect for Datax-owned project metadata protection. |
 | `codex-rs/protocol/src/permissions.rs` | `Completed` | Source of default protected project metadata path; should protect `.datax` instead of `.codex` for Datax project config. |
 | `codex-rs/linux-sandbox/src/bwrap.rs` | `Completed` | Sandbox hidden-project folder protection currently includes `.codex`; Datax project folder should be protected. |
-| `codex-rs/linux-sandbox/tests/suite/landlock.rs` | `Completed` | Landlock tests create and assert `.codex` protection. |
+| `codex-rs/linux-sandbox/tests/suite/landlock.rs` | `Completed` | Landlock tests create and assert `.datax` protection and now resolve the renamed `datax-linux-sandbox` Cargo binary. |
+| `codex-rs/linux-sandbox/tests/suite/managed_proxy.rs` | `Completed` | Managed-proxy test now resolves the renamed `datax-linux-sandbox` Cargo binary. |
 | `codex-rs/linux-sandbox/README.md` | `Completed` | README documents `.codex` protection and may need `.datax`. |
 | `codex-rs/linux-sandbox/src/proxy_routing.rs` | `Completed` | Reads `CODEX_HOME` for temp proxy path; should follow the Datax home env if this is product-owned runtime behavior. |
 | `codex-rs/network-proxy/src/certs.rs` | `Completed` | Error text says `CODEX_HOME`; inspect and update if using Datax home resolver. |
@@ -540,6 +544,7 @@ Generated from the current branch change set after implementation. The primary i
 | `codex-rs/linux-sandbox/src/bwrap.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
 | `codex-rs/linux-sandbox/src/proxy_routing.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
 | `codex-rs/linux-sandbox/tests/suite/landlock.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
+| `codex-rs/linux-sandbox/tests/suite/managed_proxy.rs` | `Completed` | Follow-up from user `just fix`; Cargo binary env var now matches the renamed `datax-linux-sandbox` binary. |
 | `codex-rs/login/src/assets/success.html` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
 | `codex-rs/login/src/auth/storage.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |
 | `codex-rs/login/src/auth/storage_tests.rs` | `Completed` | Phase 1.5 persistence, fixture, schema, or snapshot update. |

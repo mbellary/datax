@@ -30,6 +30,7 @@ The user-visible outcome is a concrete freeze checklist plus a cleanup of active
 - [x] (2026-07-08 00:00Z) Updated active writable repository path references from `codex-rs` to `datax-rs`.
 - [x] (2026-07-08 00:00Z) Confirmed no writable-tree `codex-rs` path references remain outside `.codex/` local metadata.
 - [x] (2026-07-08 00:00Z) Inventoried internal Codex-era names and split them into public/wire/generated/persistence/snapshot identity debt versus internal-only classification entries.
+- [x] (2026-07-08 00:00Z) Ran Track B post-change static status commands and confirmed the output matches the classified audit baseline.
 - [ ] Inventory downstream Codex artifacts discovered during the Phase 1.7 scans for Phase 2 adapter/runtime planning.
 - [ ] Record final validation evidence from the user and close out the freeze report.
 
@@ -57,6 +58,8 @@ The user-visible outcome is a concrete freeze checklist plus a cleanup of active
   Evidence: Matches include `datax-rs/protocol/src/thread_id.rs`, app-server v1 protocol structs, generated TypeScript and JSON schemas, Python SDK generated types, SQLite migration files, rollout trace reducers, thread-store state, app-server test fixtures, and TUI state.
 - Observation: Snapshot identity debt exists, but it is not a single category.
   Evidence: Existing snapshot files include generated identity names such as `codex_core__...` and `codex__doctor__...`; pending `.snap.new` files include many `codex_tui__...` paths. Separate snapshots named `datax_tui__model_migration__tests__model_migration_prompt_gpt5_codex*.snap` are model-slug references and are not Datax product identity debt.
+- Observation: Track B post-change static status commands matched the recorded baseline.
+  Evidence: The root grouping returned 527 `datax-rs`, 25 `sdk`, and 6 `docs` files. The `datax-rs` grouping returned the same largest groups recorded in this plan: `core` (144), `tui` (87), `app-server` (39), `app-server-protocol` (34), `rollout-trace` (27), `hooks` (26), `state` (25), `ext` (25), and `thread-store` (19). The `codex_thread` / `codex_turn` file list and snapshot file list also matched the classified Track B categories.
 - Observation: Downstream Codex artifact discovery should be recorded for Phase 2 rather than implemented in Phase 1.
   Evidence: A focused artifact-candidate search across app-server, SDK, scripts, and GitHub metadata reported 184 files. These need classification before Phase 2, not adapter wiring during Phase 1.
 
@@ -457,6 +460,11 @@ The final freeze report will use the concrete checklist as the command source. T
 | `rg -n "codex-hooks|codex_package|--package codex|CODEX_VERSION|Test Codex package builder|Codex package|codex-cli/README" package.json .gitignore .github scripts datax-cli justfile` | repository root | Yes | `Failed` | Returned `.github/workflows/rust-release.yml:1200: --package codex-sdk`; inspection showed this is an active SDK/package rename gap, not an accepted exception. |
 | `rg -n "Codex App|Codex Web|Codex team|openai/codex|codex/discussions|codex-action|codex-label|codex-deduplicate" .github/ISSUE_TEMPLATE .github/workflows .github/actions .github/pull_request_template.md .github/CODEOWNERS` | repository root | Yes | `Completed` | Active issue template and CODEOWNERS matches are removed; remaining matches are upstream-only workflow guards, external action references, or artifact sources requiring freeze exception classification. |
 | `rg -n "\b(Codex|codex|CODEX)\b" README.md docs datax-cli package.json .github --glob '!docs/plans/datax_migration_phase1_*_*/**'` | repository root | Yes | `Completed` | Broad inventory still returns documented/deferred categories, including `datax-rs`, external docs links, upstream-only workflows, and `codex-sdk`. |
+| `rg -l --hidden "\b(thread_id\|turn_id\|ThreadId\|TurnId\|codex_thread\|codex_turn\|codex_turns)\b" . ...` | repository root | Yes | `Completed` | Track B post-change root grouping returned 527 `datax-rs`, 25 `sdk`, and 6 `docs` files, matching the classified baseline. |
+| `rg -l --hidden "\b(thread_id\|turn_id\|ThreadId\|TurnId\|codex_thread\|codex_turn\|codex_turns)\b" datax-rs ...` | repository root | Yes | `Completed` | Track B post-change `datax-rs` grouping matched the classified crate/module baseline. |
+| `rg -l --hidden "\b(codex_thread\|codex_turn\|codex_turns)\b" datax-rs sdk docs ...` | repository root | Yes | `Completed` | Track B post-change narrow Codex-era internal-name list matched the deferred core, rollout-trace, app-server, and historical-plan categories. |
+| `find datax-rs -path '*/snapshots/*codex*.snap' -print` | repository root | Yes | `Completed` | Existing snapshot identity output matched the classified baseline. Model-slug snapshots containing `gpt5_codex` are accepted exceptions. |
+| `find datax-rs -path '*/snapshots/*codex*.snap.new' -print` | repository root | Yes | `Completed` | Pending snapshot identity output matched the classified baseline. These files remain unaccepted pending a crate/module identity rename track. |
 | `just fmt` | repository root | Yes | `Deferred` | User-run only. |
 | `just write-config-schema` | repository root | Yes | `Deferred` | User-run only. |
 | `just write-app-server-schema` | repository root | Yes | `Deferred` | User-run only. |

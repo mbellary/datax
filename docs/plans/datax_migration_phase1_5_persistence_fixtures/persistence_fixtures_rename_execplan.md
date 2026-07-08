@@ -37,6 +37,7 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
 - [x] (2026-07-08 03:39Z) Corrected follow-up `datax-tui` compile failures where TUI resume-picker structs had already moved to `chat_id` but callers and tests still referenced `thread_id` fields.
 - [x] (2026-07-08 03:48Z) Corrected follow-up `datax-tui` compile failure where `begin_transcript_loading` accepted `chat_id` but still assigned a removed local `thread_id`.
 - [x] (2026-07-08 04:08Z) Corrected follow-up `datax-tui` lib-test compile failures in TUI test fixtures where app-server protocol DTOs, TUI-local events, guardian core events, and selection-view/test-session structs required different field names.
+- [x] (2026-07-08 04:27Z) Corrected follow-up `datax-tui` lib-test compile failures where two helper bodies still referenced removed local `thread_id` variables after accepting `chat_id` parameters.
 
 ## Surprises & Discoveries
 
@@ -78,6 +79,8 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
   Evidence: The user-reported `datax-tui` test output failed on `begin_transcript_loading` assigning `Some(thread_id)` even though the parameter is `chat_id`; the assignment now uses `chat_id`.
 - Observation: TUI test fixtures need a stricter ownership split than source fixtures because the same tests often construct app-server protocol DTOs, core guardian events, and TUI-local events side by side.
   Evidence: The user-reported `datax-tui` lib-test output failed on protocol-facing `SessionTarget.chat_id` and `SelectionViewParams.items`, core/local fields such as `GuardianAssessmentEvent.target_item_id`, `GuardianAssessmentEvent.turn_id`, `ExecApprovalRequestEvent.turn_id`, `ThreadSessionState.thread_id`, and AppEvent `thread_id` match arms, plus helper bodies that still referenced removed locals such as `item_id`, `turn_id`, and `messages`.
+- Observation: Parameter renames in helper functions require body-level checks even when field names are otherwise correct.
+  Evidence: The follow-up `datax-tui` lib-test output failed in `configured_thread_session` and `update_thread_goal` because both accepted `chat_id` but still referenced a non-existent local `thread_id`.
 
 ## Decision Log
 

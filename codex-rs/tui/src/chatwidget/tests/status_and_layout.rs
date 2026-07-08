@@ -1525,7 +1525,7 @@ fn update_thread_goal(chat: &mut ChatWidget, chat_id: ThreadId, status: AppThrea
         /*token_budget*/ Some(50_000),
         /*tokens_used*/ 40_000,
     );
-    let thread_id = thread_id.to_string();
+    let thread_id = chat_id.to_string();
     goal.chat_id = thread_id.clone();
     chat.handle_server_notification(
         ServerNotification::ChatGoalUpdated(
@@ -1548,7 +1548,7 @@ fn assert_goal_paused_event(
         Ok(AppEvent::SetThreadGoalStatus {
             thread_id: event_thread_id,
             status: AppThreadGoalStatus::Paused,
-        }) if event_thread_id == thread_id
+        }) if event_thread_id == chat_id
     );
 }
 

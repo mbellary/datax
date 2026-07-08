@@ -123,12 +123,12 @@ pub use exec_events::McpToolCallItem;
 pub use exec_events::McpToolCallItemError;
 pub use exec_events::McpToolCallItemResult;
 pub use exec_events::McpToolCallStatus;
-pub use exec_events::Message as ExecThreadItem;
 pub use exec_events::PatchApplyStatus;
 pub use exec_events::PatchChangeKind;
 pub use exec_events::ReasoningItem;
 pub use exec_events::ThreadErrorEvent;
 pub use exec_events::ThreadEvent;
+pub use exec_events::ThreadItem as ExecThreadItem;
 pub use exec_events::ThreadItemDetails;
 pub use exec_events::ThreadStartedEvent;
 pub use exec_events::TodoItem;
@@ -884,7 +884,7 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
                 ClientRequest::InteractionStart {
                     request_id: request_ids.next(),
                     params: InteractionStartParams {
-                        thread_id: primary_thread_id_for_span.clone(),
+                        chat_id: primary_thread_id_for_span.clone(),
                         client_user_message_id: None,
                         input: items.into_iter().map(Into::into).collect(),
                         responsesapi_client_metadata: None,
@@ -920,7 +920,7 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
                 ClientRequest::ReviewStart {
                     request_id: request_ids.next(),
                     params: ReviewStartParams {
-                        thread_id: primary_thread_id_for_span.clone(),
+                        chat_id: primary_thread_id_for_span.clone(),
                         target: review_target_to_api(review_request.target),
                         delivery: None,
                     },
@@ -931,7 +931,7 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
             .map_err(anyhow::Error::msg)?;
             let _ = event_processor.process_server_notification(
                 ServerNotification::InteractionStarted(InteractionStartedNotification {
-                    thread_id: response.review_thread_id.clone(),
+                    chat_id: response.review_thread_id.clone(),
                     turn: response.turn.clone(),
                 }),
             );
@@ -960,8 +960,8 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
                     ClientRequest::InteractionInterrupt {
                         request_id: request_ids.next(),
                         params: InteractionInterruptParams {
-                            thread_id: primary_thread_id_for_requests.clone(),
-                            turn_id: task_id.clone(),
+                            chat_id: primary_thread_id_for_requests.clone(),
+                            interaction_id: task_id.clone(),
                         },
                     },
                     "turn/interrupt",
@@ -985,14 +985,14 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
             }
             InProcessServerEvent::ServerNotification(mut notification) => {
                 if let ServerNotification::Error(payload) = &notification {
-                    if payload.thread_id == primary_thread_id_for_requests
-                        && payload.turn_id == task_id
+                    if payload.chat_id == primary_thread_id_for_requests
+                        && payload.interaction_id == task_id
                         && !payload.will_retry
                     {
                         error_seen = true;
                     }
                 } else if let ServerNotification::InteractionCompleted(payload) = &notification
-                    && payload.thread_id == primary_thread_id_for_requests
+                    && payload.chat_id == primary_thread_id_for_requests
                     && payload.turn.id == task_id
                     && matches!(
                         payload.turn.status,
@@ -1071,7 +1071,7 @@ fn thread_start_params_from_config(config: &Config) -> ChatStartParams {
         permissions,
         config: thread_config_overrides_from_config(config),
         ephemeral: Some(config.ephemeral),
-        thread_source: Some(ChatSource::User),
+        chat_source: Some(ChatSource::User),
         ..ChatStartParams::default()
     }
 }
@@ -1085,7 +1085,7 @@ fn thread_resume_params_from_config(config: &Config, thread_id: String) -> ChatR
         )
     });
     ChatResumeParams {
-        thread_id,
+        chat_id: thread_id,
         model: config.model.clone(),
         model_provider: Some(config.model_provider_id.clone()),
         cwd: Some(config.cwd.to_string_lossy().to_string()),
@@ -1171,8 +1171,8 @@ fn session_configured_from_thread_start_response(
     session_configured_from_thread_response(
         &response.thread.session_id,
         &response.thread.id,
-        response.thread.parent_thread_id.as_deref(),
-        response.thread.thread_source.clone().map(Into::into),
+        response.thread.parent_chat_id.as_deref(),
+        response.thread.chat_source.clone().map(Into::into),
         response.thread.name.clone(),
         response.thread.path.clone(),
         response.model.clone(),
@@ -1194,8 +1194,8 @@ fn session_configured_from_thread_resume_response(
     session_configured_from_thread_response(
         &response.thread.session_id,
         &response.thread.id,
-        response.thread.parent_thread_id.as_deref(),
-        response.thread.thread_source.clone().map(Into::into),
+        response.thread.parent_chat_id.as_deref(),
+        response.thread.chat_source.clone().map(Into::into),
         response.thread.name.clone(),
         response.thread.path.clone(),
         response.model.clone(),
@@ -1284,52 +1284,52 @@ fn should_process_notification(
         ServerNotification::ConfigWarning(_) | ServerNotification::DeprecationNotice(_) => true,
         // TODO(anp) resolve duplicate startup warnings
         ServerNotification::Warning(notification) => notification
-            .thread_id
+            .chat_id
             .as_deref()
             .is_none_or(|candidate| candidate == thread_id),
         ServerNotification::Error(notification) => {
-            notification.thread_id == thread_id && notification.turn_id == turn_id
+            notification.chat_id == thread_id && notification.interaction_id == turn_id
         }
         ServerNotification::HookCompleted(notification) => {
-            notification.thread_id == thread_id
+            notification.chat_id == thread_id
                 && notification
-                    .turn_id
+                    .interaction_id
                     .as_deref()
                     .is_none_or(|candidate| candidate == turn_id)
         }
         ServerNotification::HookStarted(notification) => {
-            notification.thread_id == thread_id
+            notification.chat_id == thread_id
                 && notification
-                    .turn_id
+                    .interaction_id
                     .as_deref()
                     .is_none_or(|candidate| candidate == turn_id)
         }
         ServerNotification::MessageCompleted(notification) => {
-            notification.thread_id == thread_id && notification.turn_id == turn_id
+            notification.chat_id == thread_id && notification.interaction_id == turn_id
         }
         ServerNotification::MessageStarted(notification) => {
-            notification.thread_id == thread_id && notification.turn_id == turn_id
+            notification.chat_id == thread_id && notification.interaction_id == turn_id
         }
         ServerNotification::ModelRerouted(notification) => {
-            notification.thread_id == thread_id && notification.turn_id == turn_id
+            notification.chat_id == thread_id && notification.interaction_id == turn_id
         }
         ServerNotification::ModelVerification(notification) => {
-            notification.thread_id == thread_id && notification.turn_id == turn_id
+            notification.chat_id == thread_id && notification.interaction_id == turn_id
         }
         ServerNotification::ChatTokenUsageUpdated(notification) => {
-            notification.thread_id == thread_id && notification.turn_id == turn_id
+            notification.chat_id == thread_id && notification.interaction_id == turn_id
         }
         ServerNotification::InteractionCompleted(notification) => {
-            notification.thread_id == thread_id && notification.turn.id == turn_id
+            notification.chat_id == thread_id && notification.turn.id == turn_id
         }
         ServerNotification::InteractionDiffUpdated(notification) => {
-            notification.thread_id == thread_id && notification.turn_id == turn_id
+            notification.chat_id == thread_id && notification.interaction_id == turn_id
         }
         ServerNotification::InteractionPlanUpdated(notification) => {
-            notification.thread_id == thread_id && notification.turn_id == turn_id
+            notification.chat_id == thread_id && notification.interaction_id == turn_id
         }
         ServerNotification::InteractionStarted(notification) => {
-            notification.thread_id == thread_id && notification.turn.id == turn_id
+            notification.chat_id == thread_id && notification.turn.id == turn_id
         }
         _ => false,
     }
@@ -1343,7 +1343,7 @@ async fn maybe_backfill_turn_completed_items(
 ) {
     // In-process delivery may drop non-terminal item notifications under backpressure while still
     // guaranteeing `turn/completed`. Because app-server currently emits that completion with an
-    // empty `turn.items`, exec does one last `thread/read` here so human/json output can recover
+    // empty `turn.messages`, exec does one last `thread/read` here so human/json output can recover
     // the final message and reconcile any still-running items before shutdown.
     if !should_backfill_turn_completed_items(thread_ephemeral, notification) {
         return;
@@ -1358,8 +1358,8 @@ async fn maybe_backfill_turn_completed_items(
         ClientRequest::ChatRead {
             request_id: request_ids.next(),
             params: ChatReadParams {
-                thread_id: payload.thread_id.clone(),
-                include_turns: true,
+                chat_id: payload.chat_id.clone(),
+                include_interactions: true,
             },
         },
         "thread/read",
@@ -1368,8 +1368,8 @@ async fn maybe_backfill_turn_completed_items(
 
     match response {
         Ok(response) => {
-            if let Some(items) = turn_items_for_thread(&response.thread, &payload.turn.id) {
-                payload.turn.items = items;
+            if let Some(messages) = turn_items_for_thread(&response.thread, &payload.turn.id) {
+                payload.turn.messages = messages;
             }
         }
         Err(err) => {
@@ -1388,7 +1388,7 @@ fn should_backfill_turn_completed_items(
         return false;
     };
 
-    !thread_ephemeral && payload.turn.items.is_empty()
+    !thread_ephemeral && payload.turn.messages.is_empty()
 }
 
 fn turn_items_for_thread(
@@ -1396,10 +1396,10 @@ fn turn_items_for_thread(
     turn_id: &str,
 ) -> Option<Vec<AppServerThreadItem>> {
     thread
-        .turns
+        .interactions
         .iter()
         .find(|turn| turn.id == turn_id)
-        .map(|turn| turn.items.clone())
+        .map(|turn| turn.messages.clone())
 }
 
 fn all_thread_source_kinds() -> Vec<ChatSourceKind> {
@@ -1470,7 +1470,7 @@ async fn resolve_resume_thread_id(
                         model_providers: model_providers.clone(),
                         source_kinds: Some(all_thread_source_kinds()),
                         archived: Some(false),
-                        parent_thread_id: None,
+                        parent_chat_id: None,
                         cwd: None,
                         use_state_db_only: false,
                         search_term: None,
@@ -1536,7 +1536,7 @@ async fn resolve_resume_thread_id(
                     model_providers: model_providers.clone(),
                     source_kinds: Some(all_thread_source_kinds()),
                     archived: Some(false),
-                    parent_thread_id: None,
+                    parent_chat_id: None,
                     cwd: None,
                     use_state_db_only: false,
                     search_term: Some(session_id.to_string()),
@@ -1590,7 +1590,7 @@ async fn request_shutdown(
     let request = ClientRequest::ChatUnsubscribe {
         request_id: request_ids.next(),
         params: ChatUnsubscribeParams {
-            thread_id: thread_id.to_string(),
+            chat_id: thread_id.to_string(),
         },
     };
     send_request_with_response::<ChatUnsubscribeResponse>(client, request, "thread/unsubscribe")
@@ -1672,7 +1672,7 @@ async fn handle_server_request(
                 &method,
                 format!(
                     "command execution approval is not supported in exec mode for thread `{}`",
-                    params.thread_id
+                    params.chat_id
                 ),
             )
             .await
@@ -1684,7 +1684,7 @@ async fn handle_server_request(
                 &method,
                 format!(
                     "file change approval is not supported in exec mode for thread `{}`",
-                    params.thread_id
+                    params.chat_id
                 ),
             )
             .await
@@ -1696,7 +1696,7 @@ async fn handle_server_request(
                 &method,
                 format!(
                     "request_user_input is not supported in exec mode for thread `{}`",
-                    params.thread_id
+                    params.chat_id
                 ),
             )
             .await
@@ -1708,7 +1708,7 @@ async fn handle_server_request(
                 &method,
                 format!(
                     "dynamic tool calls are not supported in exec mode for thread `{}`",
-                    params.thread_id
+                    params.chat_id
                 ),
             )
             .await
@@ -1771,7 +1771,7 @@ async fn handle_server_request(
                 &method,
                 format!(
                     "permissions approval is not supported in exec mode for thread `{}`",
-                    params.thread_id
+                    params.chat_id
                 ),
             )
             .await

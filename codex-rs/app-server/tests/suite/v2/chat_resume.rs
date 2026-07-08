@@ -488,7 +488,7 @@ async fn goal_first_live_thread_appears_in_state_db_thread_list() -> Result<()> 
         .expect("test codex home should be utf-8");
     let mut mcp = TestAppServer::new_without_managed_config_with_env(
         &codex_home_path,
-        &[("CODEX_SQLITE_HOME", Some(sqlite_home))],
+        &[("DATAX_SQLITE_HOME", Some(sqlite_home))],
     )
     .await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;

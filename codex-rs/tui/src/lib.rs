@@ -346,7 +346,7 @@ fn websocket_url_supports_auth_token(parsed: &Url) -> bool {
 pub fn resolve_remote_addr(addr: &str) -> color_eyre::Result<RemoteAppServerEndpoint> {
     if let Some(socket_path) = addr.strip_prefix("unix://") {
         let socket_path = if socket_path.is_empty() {
-            let codex_home = find_codex_home().wrap_err("failed to resolve CODEX_HOME")?;
+            let codex_home = find_codex_home().wrap_err("failed to resolve DATAX_HOME")?;
             datax_app_server_client::app_server_control_socket_path(&codex_home)
                 .map_err(color_eyre::Report::new)?
         } else {
@@ -586,7 +586,7 @@ fn session_target_from_app_server_thread(
     match ThreadId::from_string(&thread.id) {
         Ok(thread_id) => Some(resume_picker::SessionTarget {
             path: thread.path,
-            thread_id,
+            chat_id: thread_id,
         }),
         Err(err) => {
             warn!(
@@ -625,7 +625,7 @@ async fn lookup_session_target_by_name_with_app_server(
                 model_providers: None,
                 source_kinds: Some(vec![ChatSourceKind::Cli, ChatSourceKind::VsCode]),
                 archived: Some(false),
-                parent_thread_id: None,
+                parent_chat_id: None,
                 cwd: None,
                 use_state_db_only: false,
                 search_term: Some(name.to_string()),
@@ -738,7 +738,7 @@ fn latest_session_lookup_params(
         },
         source_kinds: Some(resume_source_kinds(include_non_interactive)),
         archived: Some(false),
-        parent_thread_id: None,
+        parent_chat_id: None,
         cwd: cwd_filter.map(|cwd| ChatListCwdFilter::One(cwd.to_string_lossy().to_string())),
         use_state_db_only: match lookup_mode {
             LatestSessionLookupMode::StateDbOnly => true,
@@ -1623,7 +1623,7 @@ async fn run_ratatui_app(
                     &mut tui,
                     state_db.as_deref(),
                     &current_cwd,
-                    target_session.thread_id,
+                    target_session.chat_id,
                     target_session.path.as_deref(),
                     action,
                     allow_prompt,
@@ -2166,7 +2166,7 @@ mod tests {
         let thread_id = ThreadId::new();
         let target = crate::resume_picker::SessionTarget {
             path: None,
-            thread_id,
+            chat_id: thread_id,
         };
 
         assert_eq!(target.display_label(), format!("thread {thread_id}"));
@@ -2196,7 +2196,7 @@ mod tests {
 
     #[test]
     fn resolve_remote_addr_accepts_default_socket() -> color_eyre::Result<()> {
-        let codex_home = find_codex_home().wrap_err("failed to resolve CODEX_HOME")?;
+        let codex_home = find_codex_home().wrap_err("failed to resolve DATAX_HOME")?;
         assert_eq!(
             resolve_remote_addr("unix://")?,
             RemoteAppServerEndpoint::UnixSocket {
@@ -2608,8 +2608,8 @@ mod tests {
         .expect("expected global fork --last target");
         app_server.shutdown().await?;
 
-        assert_eq!(scoped_target.thread_id, project_thread_id);
-        assert_eq!(show_all_target.thread_id, other_thread_id);
+        assert_eq!(scoped_target.chat_id, project_thread_id);
+        assert_eq!(show_all_target.chat_id, other_thread_id);
         Ok(())
     }
 
@@ -2654,7 +2654,7 @@ mod tests {
         .expect("expected scan-and-repair fallback to find the rollout");
         app_server.shutdown().await?;
 
-        assert_eq!(target.thread_id, thread_id);
+        assert_eq!(target.chat_id, thread_id);
         Ok(())
     }
 
@@ -2856,7 +2856,7 @@ mod tests {
                     .await?;
             let target = target.expect("name lookup should find the saved thread");
             assert_eq!(target.path, Some(rollout_path));
-            assert_eq!(target.thread_id, thread_id);
+            assert_eq!(target.chat_id, thread_id);
 
             app_server.shutdown().await?;
             Ok(())

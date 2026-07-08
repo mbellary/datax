@@ -213,7 +213,7 @@ mod tests {
     fn active_goal_state(observed_at: Instant, time_used_seconds: i64) -> GoalStatusState {
         GoalStatusState::new(
             AppThreadGoal {
-                thread_id: "thread".to_string(),
+                chat_id: "thread".to_string(),
                 objective: "do the thing".to_string(),
                 status: AppThreadGoalStatus::Active,
                 token_budget: None,

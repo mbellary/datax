@@ -5,6 +5,6 @@ import type { JsonValue } from "../serde_json/JsonValue";
 
 export type ChatInjectMessagesParams = { chatId: string,
 /**
- * Raw Responses API messages to append to the chat.s model-visible history.
+ * Raw Responses API messages to append to the chat's model-visible history.
  */
 messages: Array<JsonValue>, };

@@ -131,10 +131,10 @@
               "type": "null"
             }
           ],
-          "description": "Optional analytics source classification for this chat."
+          "description": "Optional analytics source classification for this thread."
         },
         "cliVersion": {
-          "description": "Version of the CLI that created the chat.",
+          "description": "Version of the CLI that created the thread.",
           "type": "string"
         },
         "createdAt": {
@@ -148,7 +148,7 @@
               "$ref": "#/definitions/AbsolutePathBuf"
             }
           ],
-          "description": "Working directory captured for the chat."
+          "description": "Working directory captured for the thread."
         },
         "ephemeral": {
           "description": "Whether the chat is ephemeral and should not be materialized on disk.",
@@ -183,7 +183,7 @@
           "type": "array"
         },
         "modelProvider": {
-          "description": "Model provider used for this chat (for example, 'openai').",
+          "description": "Model provider used for this thread (for example, 'openai').",
           "type": "string"
         },
         "name": {
@@ -208,7 +208,7 @@
           ]
         },
         "preview": {
-          "description": "Usually the first user message in the chat, if available.",
+          "description": "Usually the first user message in the thread, if available.",
           "type": "string"
         },
         "recencyAt": {
@@ -229,7 +229,7 @@
               "$ref": "#/definitions/SessionSource"
             }
           ],
-          "description": "Origin of the chat (CLI, VSCode, codex exec, codex app-server, etc.)."
+          "description": "Origin of the thread (CLI, VSCode, codex exec, codex app-server, etc.)."
         },
         "status": {
           "allOf": [
@@ -237,7 +237,7 @@
               "$ref": "#/definitions/ChatStatus"
             }
           ],
-          "description": "Current runtime status for the chat."
+          "description": "Current runtime status for the thread."
         },
         "updatedAt": {
           "description": "Unix timestamp (in seconds) when the chat was last updated.",
@@ -779,7 +779,7 @@
     "Interaction": {
       "properties": {
         "completedAt": {
-          "description": "Unix timestamp (in seconds) when the interaction completed.",
+          "description": "Unix timestamp (in seconds) when the turn completed.",
           "format": "int64",
           "type": [
             "integer",
@@ -787,7 +787,7 @@
           ]
         },
         "durationMs": {
-          "description": "Duration between interaction start and completion in milliseconds, if known.",
+          "description": "Duration between turn start and completion in milliseconds, if known.",
           "format": "int64",
           "type": [
             "integer",
@@ -809,7 +809,7 @@
           "type": "string"
         },
         "messages": {
-          "description": "Chat messages currently included in this interaction payload.",
+          "description": "Chat messages currently included in this turn payload.",
           "items": {
             "$ref": "#/definitions/Message"
           },
@@ -822,10 +822,10 @@
             }
           ],
           "default": "full",
-          "description": "Describes how much of `messages` has been loaded for this interaction."
+          "description": "Describes how much of `messages` has been loaded for this turn."
         },
         "startedAt": {
-          "description": "Unix timestamp (in seconds) when the interaction started.",
+          "description": "Unix timestamp (in seconds) when the turn started.",
           "format": "int64",
           "type": [
             "integer",
@@ -874,21 +874,21 @@
     "InteractionMessagesView": {
       "oneOf": [
         {
-          "description": "`messages` was not loaded for this interaction. The field is intentionally empty.",
+          "description": "`messages` was not loaded for this turn. The field is intentionally empty.",
           "enum": [
             "notLoaded"
           ],
           "type": "string"
         },
         {
-          "description": "`messages` contains only a display summary for this interaction.",
+          "description": "`messages` contains only a display summary for this turn.",
           "enum": [
             "summary"
           ],
           "type": "string"
         },
         {
-          "description": "`messages` contains every Message available from persisted app-server history for this interaction.",
+          "description": "`messages` contains every Message available from persisted app-server history for this turn.",
           "enum": [
             "full"
           ],

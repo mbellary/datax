@@ -387,8 +387,8 @@ pub(super) fn handle_token_count(chat: &mut ChatWidget, info: Option<TokenUsageI
             chat.handle_server_notification(
                 ServerNotification::ChatTokenUsageUpdated(
                     datax_app_server_protocol::ChatTokenUsageUpdatedNotification {
-                        thread_id: thread_id(chat),
-                        turn_id: chat
+                        chat_id: thread_id(chat),
+                        interaction_id: chat
                             .turn_lifecycle
                             .last_turn_id
                             .clone()
@@ -420,8 +420,8 @@ pub(super) fn handle_error(
                 additional_details: None,
             },
             will_retry: false,
-            thread_id: thread_id(chat),
-            turn_id: chat
+            chat_id: thread_id(chat),
+            interaction_id: chat
                 .turn_lifecycle
                 .last_turn_id
                 .clone()
@@ -453,8 +453,8 @@ pub(super) fn handle_stream_error_with_replay(
                 additional_details,
             },
             will_retry: true,
-            thread_id: thread_id(chat),
-            turn_id: chat
+            chat_id: thread_id(chat),
+            interaction_id: chat
                 .turn_lifecycle
                 .last_turn_id
                 .clone()
@@ -467,7 +467,7 @@ pub(super) fn handle_stream_error_with_replay(
 pub(super) fn handle_warning(chat: &mut ChatWidget, message: impl Into<String>) {
     chat.handle_server_notification(
         ServerNotification::Warning(WarningNotification {
-            thread_id: Some(thread_id(chat)),
+            chat_id: Some(thread_id(chat)),
             message: message.into(),
         }),
         /*replay_kind*/ None,
@@ -480,8 +480,8 @@ pub(super) fn handle_model_verification(
 ) {
     chat.handle_server_notification(
         ServerNotification::ModelVerification(ModelVerificationNotification {
-            thread_id: thread_id(chat),
-            turn_id: chat
+            chat_id: thread_id(chat),
+            interaction_id: chat
                 .turn_lifecycle
                 .last_turn_id
                 .clone()
@@ -496,13 +496,13 @@ pub(super) fn handle_agent_message_delta(chat: &mut ChatWidget, delta: impl Into
     chat.handle_server_notification(
         ServerNotification::AgentMessageDelta(
             datax_app_server_protocol::AgentMessageDeltaNotification {
-                thread_id: thread_id(chat),
-                turn_id: chat
+                chat_id: thread_id(chat),
+                interaction_id: chat
                     .turn_lifecycle
                     .last_turn_id
                     .clone()
                     .unwrap_or_else(|| "turn-1".to_string()),
-                item_id: "msg-1".to_string(),
+                message_id: "msg-1".to_string(),
                 delta: delta.into(),
             },
         ),
@@ -513,13 +513,13 @@ pub(super) fn handle_agent_message_delta(chat: &mut ChatWidget, delta: impl Into
 pub(super) fn handle_agent_reasoning_delta(chat: &mut ChatWidget, delta: impl Into<String>) {
     chat.handle_server_notification(
         ServerNotification::ReasoningSummaryTextDelta(ReasoningSummaryTextDeltaNotification {
-            thread_id: thread_id(chat),
-            turn_id: chat
+            chat_id: thread_id(chat),
+            interaction_id: chat
                 .turn_lifecycle
                 .last_turn_id
                 .clone()
                 .unwrap_or_else(|| "turn-1".to_string()),
-            item_id: "reasoning-1".to_string(),
+            message_id: "reasoning-1".to_string(),
             delta: delta.into(),
             summary_index: 0,
         }),
@@ -530,8 +530,8 @@ pub(super) fn handle_agent_reasoning_delta(chat: &mut ChatWidget, delta: impl In
 pub(super) fn handle_agent_reasoning_final(chat: &mut ChatWidget) {
     chat.handle_server_notification(
         ServerNotification::MessageCompleted(MessageCompletedNotification {
-            thread_id: thread_id(chat),
-            turn_id: chat
+            chat_id: thread_id(chat),
+            interaction_id: chat
                 .turn_lifecycle
                 .last_turn_id
                 .clone()
@@ -550,8 +550,8 @@ pub(super) fn handle_agent_reasoning_final(chat: &mut ChatWidget) {
 pub(super) fn handle_entered_review_mode(chat: &mut ChatWidget, review: impl Into<String>) {
     chat.handle_server_notification(
         ServerNotification::MessageStarted(MessageStartedNotification {
-            thread_id: thread_id(chat),
-            turn_id: chat
+            chat_id: thread_id(chat),
+            interaction_id: chat
                 .turn_lifecycle
                 .last_turn_id
                 .clone()
@@ -580,8 +580,8 @@ pub(super) fn replay_entered_review_mode(chat: &mut ChatWidget, review: impl Int
 pub(super) fn handle_exited_review_mode(chat: &mut ChatWidget) {
     chat.handle_server_notification(
         ServerNotification::MessageCompleted(MessageCompletedNotification {
-            thread_id: thread_id(chat),
-            turn_id: chat
+            chat_id: thread_id(chat),
+            interaction_id: chat
                 .turn_lifecycle
                 .last_turn_id
                 .clone()
@@ -636,13 +636,13 @@ fn file_update_changes_from_tui(changes: HashMap<PathBuf, FileChange>) -> Vec<Fi
 pub(super) fn handle_patch_apply_begin(
     chat: &mut ChatWidget,
     call_id: impl Into<String>,
-    turn_id: impl Into<String>,
+    interaction_id: impl Into<String>,
     changes: HashMap<PathBuf, FileChange>,
 ) {
     chat.handle_server_notification(
         ServerNotification::MessageStarted(MessageStartedNotification {
-            thread_id: thread_id(chat),
-            turn_id: turn_id.into(),
+            chat_id: thread_id(chat),
+            interaction_id: interaction_id.into(),
             started_at_ms: 0,
             item: AppServerThreadItem::FileChange {
                 id: call_id.into(),
@@ -657,14 +657,14 @@ pub(super) fn handle_patch_apply_begin(
 pub(super) fn handle_patch_apply_end(
     chat: &mut ChatWidget,
     call_id: impl Into<String>,
-    turn_id: impl Into<String>,
+    interaction_id: impl Into<String>,
     changes: HashMap<PathBuf, FileChange>,
     status: AppServerPatchApplyStatus,
 ) {
     chat.handle_server_notification(
         ServerNotification::MessageCompleted(MessageCompletedNotification {
-            thread_id: thread_id(chat),
-            turn_id: turn_id.into(),
+            chat_id: thread_id(chat),
+            interaction_id: interaction_id.into(),
             completed_at_ms: 0,
             item: AppServerThreadItem::FileChange {
                 id: call_id.into(),
@@ -683,8 +683,8 @@ pub(super) fn handle_view_image_tool_call(
 ) {
     chat.handle_server_notification(
         ServerNotification::MessageCompleted(MessageCompletedNotification {
-            thread_id: thread_id(chat),
-            turn_id: "turn-1".to_string(),
+            chat_id: thread_id(chat),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
             item: AppServerThreadItem::ImageView {
                 id: call_id.into(),
@@ -704,8 +704,8 @@ pub(super) fn handle_image_generation_end(
 ) {
     chat.handle_server_notification(
         ServerNotification::MessageCompleted(MessageCompletedNotification {
-            thread_id: thread_id(chat),
-            turn_id: "turn-1".to_string(),
+            chat_id: thread_id(chat),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
             item: AppServerThreadItem::ImageGeneration {
                 id: call_id.into(),
@@ -721,13 +721,13 @@ pub(super) fn handle_image_generation_end(
 
 pub(super) fn replay_user_message_inputs(
     chat: &mut ChatWidget,
-    item_id: &str,
+    message_id: &str,
     content: Vec<AppServerUserInput>,
     replay_kind: ReplayKind,
 ) {
     chat.replay_thread_item(
         AppServerThreadItem::UserMessage {
-            id: item_id.to_string(),
+            id: message_id.to_string(),
             client_id: None,
             content,
         },
@@ -738,13 +738,13 @@ pub(super) fn replay_user_message_inputs(
 
 pub(super) fn replay_user_message_text(
     chat: &mut ChatWidget,
-    item_id: &str,
+    message_id: &str,
     text: impl Into<String>,
     replay_kind: ReplayKind,
 ) {
     replay_user_message_inputs(
         chat,
-        item_id,
+        message_id,
         vec![AppServerUserInput::Text {
             text: text.into(),
             text_elements: Vec::new(),
@@ -755,13 +755,13 @@ pub(super) fn replay_user_message_text(
 
 pub(super) fn replay_agent_message(
     chat: &mut ChatWidget,
-    item_id: &str,
+    message_id: &str,
     text: impl Into<String>,
     replay_kind: ReplayKind,
 ) {
     chat.replay_thread_item(
         AppServerThreadItem::AgentMessage {
-            id: item_id.to_string(),
+            id: message_id.to_string(),
             text: text.into(),
             phase: Some(MessagePhase::FinalAnswer),
             memory_citation: None,
@@ -774,7 +774,7 @@ pub(super) fn replay_agent_message(
 pub(super) fn replay_turn_started(chat: &mut ChatWidget, replay_kind: ReplayKind) {
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
-            thread_id: thread_id(chat),
+            chat_id: thread_id(chat),
             turn: app_server_turn(
                 "turn-1",
                 AppServerTurnStatus::InProgress,
@@ -794,9 +794,9 @@ pub(super) fn replay_agent_message_delta(
     chat.handle_server_notification(
         ServerNotification::AgentMessageDelta(
             datax_app_server_protocol::AgentMessageDeltaNotification {
-                thread_id: thread_id(chat),
-                turn_id: "turn-1".to_string(),
-                item_id: "msg-1".to_string(),
+                chat_id: thread_id(chat),
+                interaction_id: "turn-1".to_string(),
+                message_id: "msg-1".to_string(),
                 delta: delta.into(),
             },
         ),
@@ -860,8 +860,8 @@ pub(super) fn begin_unified_exec_startup(
 pub(super) fn handle_exec_begin(chat: &mut ChatWidget, item: AppServerThreadItem) {
     chat.handle_server_notification(
         ServerNotification::MessageStarted(MessageStartedNotification {
-            thread_id: thread_id(chat),
-            turn_id: chat
+            chat_id: thread_id(chat),
+            interaction_id: chat
                 .turn_lifecycle
                 .last_turn_id
                 .clone()
@@ -882,13 +882,13 @@ pub(super) fn terminal_interaction(
     chat.handle_server_notification(
         ServerNotification::TerminalInteraction(
             datax_app_server_protocol::TerminalInteractionNotification {
-                thread_id: thread_id(chat),
-                turn_id: chat
+                chat_id: thread_id(chat),
+                interaction_id: chat
                     .turn_lifecycle
                     .last_turn_id
                     .clone()
                     .unwrap_or_else(|| "turn-1".to_string()),
-                item_id: call_id.to_string(),
+                message_id: call_id.to_string(),
                 process_id: process_id.to_string(),
                 stdin: stdin.to_string(),
             },
@@ -899,17 +899,17 @@ pub(super) fn terminal_interaction(
 
 pub(super) fn complete_assistant_message(
     chat: &mut ChatWidget,
-    item_id: &str,
+    message_id: &str,
     text: &str,
     phase: Option<MessagePhase>,
 ) {
     chat.handle_server_notification(
         ServerNotification::MessageCompleted(MessageCompletedNotification {
-            thread_id: chat.thread_id.map(|id| id.to_string()).unwrap_or_default(),
-            turn_id: "turn-1".to_string(),
+            chat_id: chat.thread_id.map(|id| id.to_string()).unwrap_or_default(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
             item: AppServerThreadItem::AgentMessage {
-                id: item_id.to_string(),
+                id: message_id.to_string(),
                 text: text.to_string(),
                 phase,
                 memory_citation: None,
@@ -930,10 +930,10 @@ pub(super) fn pending_steer(text: &str) -> PendingSteer {
     }
 }
 
-pub(super) fn complete_user_message(chat: &mut ChatWidget, item_id: &str, text: &str) {
+pub(super) fn complete_user_message(chat: &mut ChatWidget, message_id: &str, text: &str) {
     complete_user_message_for_inputs(
         chat,
-        item_id,
+        message_id,
         vec![UserInput::Text {
             text: text.to_string(),
             text_elements: Vec::new(),
@@ -943,16 +943,16 @@ pub(super) fn complete_user_message(chat: &mut ChatWidget, item_id: &str, text: 
 
 pub(super) fn complete_user_message_for_inputs(
     chat: &mut ChatWidget,
-    item_id: &str,
+    message_id: &str,
     content: Vec<UserInput>,
 ) {
     chat.handle_server_notification(
         ServerNotification::MessageCompleted(MessageCompletedNotification {
-            thread_id: chat.thread_id.map(|id| id.to_string()).unwrap_or_default(),
-            turn_id: "turn-1".to_string(),
+            chat_id: chat.thread_id.map(|id| id.to_string()).unwrap_or_default(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
             item: AppServerThreadItem::UserMessage {
-                id: item_id.to_string(),
+                id: message_id.to_string(),
                 client_id: None,
                 content,
             },
@@ -962,15 +962,15 @@ pub(super) fn complete_user_message_for_inputs(
 }
 
 pub(super) fn app_server_turn(
-    turn_id: &str,
+    interaction_id: &str,
     status: AppServerTurnStatus,
     duration_ms: Option<i64>,
     error: Option<AppServerTurnError>,
 ) -> AppServerTurn {
     AppServerTurn {
-        id: turn_id.to_string(),
-        items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-        items: Vec::new(),
+        id: interaction_id.to_string(),
+        messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+        messages: Vec::new(),
         status,
         error,
         started_at: None,
@@ -979,12 +979,12 @@ pub(super) fn app_server_turn(
     }
 }
 
-pub(super) fn handle_turn_started(chat: &mut ChatWidget, turn_id: &str) {
+pub(super) fn handle_turn_started(chat: &mut ChatWidget, interaction_id: &str) {
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
-            thread_id: chat.thread_id.map(|id| id.to_string()).unwrap_or_default(),
+            chat_id: chat.thread_id.map(|id| id.to_string()).unwrap_or_default(),
             turn: app_server_turn(
-                turn_id,
+                interaction_id,
                 AppServerTurnStatus::InProgress,
                 /*duration_ms*/ None,
                 /*error*/ None,
@@ -996,14 +996,14 @@ pub(super) fn handle_turn_started(chat: &mut ChatWidget, turn_id: &str) {
 
 pub(super) fn handle_turn_completed(
     chat: &mut ChatWidget,
-    turn_id: &str,
+    interaction_id: &str,
     duration_ms: Option<i64>,
 ) {
     chat.handle_server_notification(
         ServerNotification::InteractionCompleted(InteractionCompletedNotification {
-            thread_id: chat.thread_id.map(|id| id.to_string()).unwrap_or_default(),
+            chat_id: chat.thread_id.map(|id| id.to_string()).unwrap_or_default(),
             turn: app_server_turn(
-                turn_id,
+                interaction_id,
                 AppServerTurnStatus::Completed,
                 duration_ms,
                 /*error*/ None,
@@ -1013,12 +1013,12 @@ pub(super) fn handle_turn_completed(
     );
 }
 
-pub(super) fn handle_turn_interrupted(chat: &mut ChatWidget, turn_id: &str) {
+pub(super) fn handle_turn_interrupted(chat: &mut ChatWidget, interaction_id: &str) {
     chat.handle_server_notification(
         ServerNotification::InteractionCompleted(InteractionCompletedNotification {
-            thread_id: chat.thread_id.map(|id| id.to_string()).unwrap_or_default(),
+            chat_id: chat.thread_id.map(|id| id.to_string()).unwrap_or_default(),
             turn: app_server_turn(
-                turn_id,
+                interaction_id,
                 AppServerTurnStatus::Interrupted,
                 /*duration_ms*/ None,
                 /*error*/ None,
@@ -1028,9 +1028,9 @@ pub(super) fn handle_turn_interrupted(chat: &mut ChatWidget, turn_id: &str) {
     );
 }
 
-pub(super) fn handle_budget_limited_turn(chat: &mut ChatWidget, turn_id: &str) {
-    chat.turn_lifecycle.mark_budget_limited(turn_id.to_string());
-    handle_turn_interrupted(chat, turn_id);
+pub(super) fn handle_budget_limited_turn(chat: &mut ChatWidget, interaction_id: &str) {
+    chat.turn_lifecycle.mark_budget_limited(interaction_id.to_string());
+    handle_turn_interrupted(chat, interaction_id);
 }
 
 pub(super) fn begin_exec(
@@ -1089,8 +1089,8 @@ pub(super) fn end_exec(
 pub(super) fn handle_exec_end(chat: &mut ChatWidget, item: AppServerThreadItem) {
     chat.handle_server_notification(
         ServerNotification::MessageCompleted(MessageCompletedNotification {
-            thread_id: thread_id(chat),
-            turn_id: chat
+            chat_id: thread_id(chat),
+            interaction_id: chat
                 .turn_lifecycle
                 .last_turn_id
                 .clone()
@@ -1555,8 +1555,8 @@ pub(super) fn type_plugins_search_query(chat: &mut ChatWidget, query: &str) {
 pub(super) fn handle_hook_started(chat: &mut ChatWidget, run: AppServerHookRunSummary) {
     chat.handle_server_notification(
         ServerNotification::HookStarted(AppServerHookStartedNotification {
-            thread_id: thread_id(chat),
-            turn_id: None,
+            chat_id: thread_id(chat),
+            interaction_id: None,
             run,
         }),
         /*replay_kind*/ None,
@@ -1566,8 +1566,8 @@ pub(super) fn handle_hook_started(chat: &mut ChatWidget, run: AppServerHookRunSu
 pub(super) fn handle_hook_completed(chat: &mut ChatWidget, run: AppServerHookRunSummary) {
     chat.handle_server_notification(
         ServerNotification::HookCompleted(AppServerHookCompletedNotification {
-            thread_id: thread_id(chat),
-            turn_id: None,
+            chat_id: thread_id(chat),
+            interaction_id: None,
             run,
         }),
         /*replay_kind*/ None,

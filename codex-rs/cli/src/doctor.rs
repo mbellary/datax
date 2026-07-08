@@ -1071,7 +1071,7 @@ where
 
 fn config_check(config: &Config) -> DoctorCheck {
     let mut details = Vec::new();
-    details.push(format!("CODEX_HOME: {}", config.codex_home.display()));
+    details.push(format!("DATAX_HOME: {}", config.codex_home.display()));
     details.push(format!("cwd: {}", config.cwd.display()));
     details.push(format!(
         "model: {}",
@@ -2147,7 +2147,7 @@ fn non_empty_trimmed(value: String) -> Option<String> {
 
 async fn state_check(config: &Config) -> DoctorCheck {
     let mut details = Vec::new();
-    path_readiness(&mut details, "CODEX_HOME", &config.codex_home);
+    path_readiness(&mut details, "DATAX_HOME", &config.codex_home);
     path_readiness(&mut details, "log dir", &config.log_dir);
     path_readiness(&mut details, "sqlite home", &config.sqlite_home);
     let mut integrity_failures = Vec::new();
@@ -2504,14 +2504,14 @@ fn fallback_state_check() -> DoctorCheck {
             "state.paths",
             "state",
             CheckStatus::Ok,
-            "CODEX_HOME was resolved without config",
+            "DATAX_HOME was resolved without config",
         )
-        .detail(format!("CODEX_HOME: {}", path.display())),
+        .detail(format!("DATAX_HOME: {}", path.display())),
         Err(err) => DoctorCheck::new(
             "state.paths",
             "state",
             CheckStatus::Warning,
-            "CODEX_HOME could not be resolved",
+            "DATAX_HOME could not be resolved",
         )
         .detail(err.to_string()),
     }
@@ -3202,7 +3202,7 @@ mod tests {
     fn startup_warning_counts_group_known_sources() {
         let warnings = vec![
             "Skipped loading 2 skill(s) due to invalid SKILL.md files.".to_string(),
-            "[features].codex_hooks is deprecated. Use [features].hooks instead.".to_string(),
+            "[features].datax_hooks is deprecated. Use [features].hooks instead.".to_string(),
             "plugin example failed to load".to_string(),
             "MCP server example failed to start".to_string(),
         ];

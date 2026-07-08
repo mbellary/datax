@@ -1754,8 +1754,8 @@ mod tests {
         meta: Option<Value>,
     ) -> McpServerElicitationRequestParams {
         McpServerElicitationRequestParams {
-            thread_id: "thread-1".to_string(),
-            turn_id: Some("turn-1".to_string()),
+            chat_id: "thread-1".to_string(),
+            interaction_id: Some("turn-1".to_string()),
             server_name: "server-1".to_string(),
             request: McpServerElicitationRequest::Form {
                 meta,
@@ -2497,8 +2497,8 @@ mod tests {
                 thread_id,
                 request_id("request-2"),
                 McpServerElicitationRequestParams {
-                    thread_id: "thread-1".to_string(),
-                    turn_id: Some("turn-2".to_string()),
+                    chat_id: "thread-1".to_string(),
+                    interaction_id: Some("turn-2".to_string()),
                     server_name: "server-1".to_string(),
                     request: McpServerElicitationRequest::Form {
                         meta: None,

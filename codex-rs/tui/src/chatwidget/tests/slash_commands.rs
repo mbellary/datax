@@ -35,16 +35,16 @@ fn fast_tier_command() -> ServiceTierCommand {
     }
 }
 
-fn complete_turn_with_message(chat: &mut ChatWidget, turn_id: &str, message: Option<&str>) {
+fn complete_turn_with_message(chat: &mut ChatWidget, interaction_id: &str, message: Option<&str>) {
     if let Some(message) = message {
         complete_assistant_message(
             chat,
-            &format!("{turn_id}-message"),
+            &format!("{interaction_id}-message"),
             message,
             Some(MessagePhase::FinalAnswer),
         );
     }
-    handle_turn_completed(chat, turn_id, /*duration_ms*/ None);
+    handle_turn_completed(chat, interaction_id, /*duration_ms*/ None);
 }
 
 fn submit_composer_text(chat: &mut ChatWidget, text: &str) {
@@ -477,7 +477,7 @@ async fn queued_bare_rename_drains_next_input_after_name_update() {
     chat.handle_server_notification(
         ServerNotification::ChatNameUpdated(
             datax_app_server_protocol::ChatNameUpdatedNotification {
-                thread_id: thread_id.to_string(),
+                chat_id: thread_id.to_string(),
                 thread_name: Some("Queued rename".to_string()),
             },
         ),
@@ -551,7 +551,7 @@ async fn queued_inline_rename_does_not_drain_again_before_turn_started() {
     chat.handle_server_notification(
         ServerNotification::ChatNameUpdated(
             datax_app_server_protocol::ChatNameUpdatedNotification {
-                thread_id: thread_id.to_string(),
+                chat_id: thread_id.to_string(),
                 thread_name: Some("Queued rename".to_string()),
             },
         ),
@@ -1703,8 +1703,8 @@ async fn slash_copy_state_tracks_plan_item_completion() {
 
     chat.handle_server_notification(
         ServerNotification::MessageCompleted(MessageCompletedNotification {
-            thread_id: String::new(),
-            turn_id: "turn-1".to_string(),
+            chat_id: String::new(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
             item: AppServerThreadItem::Plan {
                 id: "plan-1".to_string(),
@@ -2003,10 +2003,10 @@ async fn active_goal_without_follow_up_suppresses_agent_turn_complete_notificati
     chat.handle_server_notification(
         ServerNotification::ChatGoalUpdated(
             datax_app_server_protocol::ChatGoalUpdatedNotification {
-                thread_id: "thread-1".to_string(),
-                turn_id: None,
+                chat_id: "thread-1".to_string(),
+                interaction_id: None,
                 goal: datax_app_server_protocol::ChatGoal {
-                    thread_id: "thread-1".to_string(),
+                    chat_id: "thread-1".to_string(),
                     objective: "finish the benchmark".to_string(),
                     status: datax_app_server_protocol::ChatGoalStatus::Active,
                     token_budget: None,
@@ -2921,7 +2921,7 @@ async fn compact_queues_user_messages_snapshot() {
         &mut chat,
         "cannot steer a compact turn",
         Some(CodexErrorInfo::ActiveTurnNotSteerable {
-            turn_kind: NonSteerableTurnKind::Compact,
+            interaction_kind: NonSteerableInteractionKind::Compact,
         }),
     );
 

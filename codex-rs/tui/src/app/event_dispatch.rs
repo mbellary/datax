@@ -38,7 +38,7 @@ impl App {
                 self.start_fresh_session_with_summary_hint(
                     tui,
                     app_server,
-                    Some(ThreadStartSource::Clear),
+                    Some(ChatStartSource::Clear),
                     /*initial_user_message*/ None,
                 )
                 .await;
@@ -53,7 +53,7 @@ impl App {
                 self.start_fresh_session_with_summary_hint(
                     tui,
                     app_server,
-                    Some(ThreadStartSource::Clear),
+                    Some(ChatStartSource::Clear),
                     crate::chatwidget::create_initial_user_message(
                         Some(text),
                         Vec::new(),
@@ -2088,7 +2088,7 @@ impl App {
                         tracing::error!(error = %err, "failed to persist terminal title items; keeping previous selection");
                         self.chat_widget.revert_terminal_title_setup_preview();
                         self.chat_widget.add_error_message(format!(
-                            "Failed to save terminal title items: {err}"
+                            "Failed to save terminal title messages: {err}"
                         ));
                     }
                 }

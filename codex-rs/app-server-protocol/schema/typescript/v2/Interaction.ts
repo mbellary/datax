@@ -8,11 +8,11 @@ import type { Message } from "./Message";
 
 export type Interaction = { id: string,
 /**
- * Chat messages currently included in this interaction payload.
+ * Chat messages currently included in this turn payload.
  */
 messages: Array<Message>,
 /**
- * Describes how much of `messages` has been loaded for this interaction.
+ * Describes how much of `messages` has been loaded for this turn.
  */
 messagesView: InteractionMessagesView, status: InteractionStatus,
 /**
@@ -20,14 +20,14 @@ messagesView: InteractionMessagesView, status: InteractionStatus,
  */
 error: InteractionError | null,
 /**
- * Unix timestamp (in seconds) when the interaction started.
+ * Unix timestamp (in seconds) when the turn started.
  */
 startedAt: number | null,
 /**
- * Unix timestamp (in seconds) when the interaction completed.
+ * Unix timestamp (in seconds) when the turn completed.
  */
 completedAt: number | null,
 /**
- * Duration between interaction start and completion in milliseconds, if known.
+ * Duration between turn start and completion in milliseconds, if known.
  */
 durationMs: number | null, };

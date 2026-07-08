@@ -95,7 +95,7 @@ pub(super) fn run(
 }
 
 fn run_plugin_turn(client: &mut DataxClient, expected: &ExpectedPlugin) -> Result<String> {
-    let thread = client.thread_start(ChatStartParams {
+    let thread = client.chat_start(ChatStartParams {
         model: Some(MOCK_MODEL_SLUG.to_string()),
         model_provider: Some(MOCK_PROVIDER_ID.to_string()),
         base_instructions: Some(String::new()),
@@ -103,8 +103,8 @@ fn run_plugin_turn(client: &mut DataxClient, expected: &ExpectedPlugin) -> Resul
         ephemeral: Some(true),
         ..Default::default()
     })?;
-    let turn = client.turn_start(InteractionStartParams {
-        thread_id: thread.thread.id.clone(),
+    let turn = client.interaction_start(InteractionStartParams {
+        chat_id: thread.thread.id.clone(),
         client_user_message_id: None,
         input: vec![UserInput::Mention {
             name: expected.plugin_name.clone(),

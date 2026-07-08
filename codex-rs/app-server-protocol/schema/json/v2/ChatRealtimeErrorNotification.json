@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "description": "EXPERIMENTAL - emitted when chat realtime encounters an error.",
+  "description": "EXPERIMENTAL - emitted when thread realtime encounters an error.",
   "properties": {
     "chatId": {
       "type": "string"

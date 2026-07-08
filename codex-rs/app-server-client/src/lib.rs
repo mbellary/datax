@@ -163,9 +163,9 @@ fn event_requires_delivery(event: &InProcessServerEvent) -> bool {
 pub(crate) fn server_notification_requires_delivery(notification: &ServerNotification) -> bool {
     matches!(
         notification,
-        InteractionCompleted(_)
-            | ChatSettingsUpdated(_)
-            | MessageCompleted(_)
+        ServerNotification::InteractionCompleted(_)
+            | ServerNotification::ChatSettingsUpdated(_)
+            | ServerNotification::MessageCompleted(_)
             | ServerNotification::ExternalAgentConfigImportCompleted(_)
             | ServerNotification::AgentMessageDelta(_)
             | ServerNotification::PlanDelta(_)
@@ -1126,7 +1126,7 @@ mod tests {
                 id: request.id,
                 result: serde_json::json!({
                     "userAgent": "codex_cli_rs/9.8.7-test (Test OS; x86_64) rust",
-                    "codexHome": "/server/.codex",
+                    "codexHome": "/server/.datax",
                 }),
             }),
         )
@@ -1477,7 +1477,7 @@ mod tests {
             .expect("remote client should connect");
 
         assert_eq!(client.server_version(), Some("9.8.7-test"));
-        assert_eq!(client.codex_home(), Some("/server/.codex"));
+        assert_eq!(client.codex_home(), Some("/server/.datax"));
         let response: GetAccountResponse = client
             .request_typed(ClientRequest::GetAccount {
                 request_id: RequestId::Integer(1),

@@ -434,7 +434,7 @@
     "Interaction": {
       "properties": {
         "completedAt": {
-          "description": "Unix timestamp (in seconds) when the interaction completed.",
+          "description": "Unix timestamp (in seconds) when the turn completed.",
           "format": "int64",
           "type": [
             "integer",
@@ -442,7 +442,7 @@
           ]
         },
         "durationMs": {
-          "description": "Duration between interaction start and completion in milliseconds, if known.",
+          "description": "Duration between turn start and completion in milliseconds, if known.",
           "format": "int64",
           "type": [
             "integer",
@@ -464,7 +464,7 @@
           "type": "string"
         },
         "messages": {
-          "description": "Chat messages currently included in this interaction payload.",
+          "description": "Chat messages currently included in this turn payload.",
           "items": {
             "$ref": "#/definitions/Message"
           },
@@ -477,10 +477,10 @@
             }
           ],
           "default": "full",
-          "description": "Describes how much of `messages` has been loaded for this interaction."
+          "description": "Describes how much of `messages` has been loaded for this turn."
         },
         "startedAt": {
-          "description": "Unix timestamp (in seconds) when the interaction started.",
+          "description": "Unix timestamp (in seconds) when the turn started.",
           "format": "int64",
           "type": [
             "integer",
@@ -529,21 +529,21 @@
     "InteractionMessagesView": {
       "oneOf": [
         {
-          "description": "`messages` was not loaded for this interaction. The field is intentionally empty.",
+          "description": "`messages` was not loaded for this turn. The field is intentionally empty.",
           "enum": [
             "notLoaded"
           ],
           "type": "string"
         },
         {
-          "description": "`messages` contains only a display summary for this interaction.",
+          "description": "`messages` contains only a display summary for this turn.",
           "enum": [
             "summary"
           ],
           "type": "string"
         },
         {
-          "description": "`messages` contains every Message available from persisted app-server history for this interaction.",
+          "description": "`messages` contains every Message available from persisted app-server history for this turn.",
           "enum": [
             "full"
           ],

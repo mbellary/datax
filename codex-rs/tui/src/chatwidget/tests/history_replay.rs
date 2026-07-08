@@ -740,7 +740,7 @@ async fn app_server_forked_thread_history_line_uses_app_server_title_snapshot() 
     assert!(combined.contains("app-server-parent-thread"));
     assert!(
         !combined.contains("stale-local-thread"),
-        "app-server fork title lookup should not read local CODEX_HOME"
+        "app-server fork title lookup should not read local DATAX_HOME"
     );
     assert_chatwidget_snapshot!("app_server_forked_thread_history_line", combined);
 }
@@ -779,7 +779,7 @@ async fn app_server_forked_thread_history_line_without_app_server_name_ignores_l
 
     assert!(
         !combined.contains("stale-local-thread"),
-        "app-server fork title lookup should not read local CODEX_HOME"
+        "app-server fork title lookup should not read local DATAX_HOME"
     );
     assert_chatwidget_snapshot!(
         "app_server_forked_thread_history_line_without_app_server_name",
@@ -812,11 +812,11 @@ async fn replayed_retryable_app_server_error_keeps_turn_running() {
 
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: Vec::new(),
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
                 started_at: Some(0),
@@ -836,8 +836,8 @@ async fn replayed_retryable_app_server_error_keeps_turn_running() {
                 additional_details: Some("Idle timeout waiting for SSE".to_string()),
             },
             will_retry: true,
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
         }),
         Some(ReplayKind::ThreadSnapshot),
     );
@@ -858,7 +858,7 @@ async fn replayed_thread_closed_notification_does_not_exit_tui() {
 
     chat.handle_server_notification(
         ServerNotification::ChatClosed(ChatClosedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
         }),
         Some(ReplayKind::ThreadSnapshot),
     );
@@ -997,11 +997,11 @@ async fn live_reasoning_summary_is_not_rendered_twice_when_item_completes() {
 
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: Vec::new(),
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
                 started_at: Some(0),
@@ -1015,9 +1015,9 @@ async fn live_reasoning_summary_is_not_rendered_twice_when_item_completes() {
 
     chat.handle_server_notification(
         ServerNotification::ReasoningSummaryTextDelta(ReasoningSummaryTextDeltaNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
-            item_id: "reasoning-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
+            message_id: "reasoning-1".to_string(),
             delta: "Summary only".to_string(),
             summary_index: 0,
         }),
@@ -1026,8 +1026,8 @@ async fn live_reasoning_summary_is_not_rendered_twice_when_item_completes() {
 
     chat.handle_server_notification(
         ServerNotification::MessageCompleted(MessageCompletedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
             item: AppServerThreadItem::Reasoning {
                 id: "reasoning-1".to_string(),
@@ -1069,8 +1069,8 @@ async fn replayed_in_progress_turn_marks_task_running() {
     chat.replay_thread_turns(
         vec![AppServerTurn {
             id: "turn-1".to_string(),
-            items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-            items: Vec::new(),
+            messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+            messages: Vec::new(),
             status: AppServerTurnStatus::InProgress,
             error: None,
             started_at: None,

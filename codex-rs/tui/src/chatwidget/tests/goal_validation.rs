@@ -2,16 +2,16 @@ use super::*;
 use datax_protocol::protocol::MAX_THREAD_GOAL_OBJECTIVE_CHARS;
 use pretty_assertions::assert_eq;
 
-fn complete_turn_with_message(chat: &mut ChatWidget, turn_id: &str, message: Option<&str>) {
+fn complete_turn_with_message(chat: &mut ChatWidget, interaction_id: &str, message: Option<&str>) {
     if let Some(message) = message {
         complete_assistant_message(
             chat,
-            &format!("{turn_id}-message"),
+            &format!("{interaction_id}-message"),
             message,
             Some(MessagePhase::FinalAnswer),
         );
     }
-    handle_turn_completed(chat, turn_id, /*duration_ms*/ None);
+    handle_turn_completed(chat, interaction_id, /*duration_ms*/ None);
 }
 
 fn submit_composer_text(chat: &mut ChatWidget, text: &str) {

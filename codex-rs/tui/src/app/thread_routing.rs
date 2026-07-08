@@ -164,7 +164,7 @@ impl App {
         &mut self,
         target_session: &crate::resume_picker::SessionTarget,
     ) -> bool {
-        if self.active_thread_id != Some(target_session.thread_id) {
+        if self.active_thread_id != Some(target_session.chat_id) {
             return false;
         };
 
@@ -225,7 +225,7 @@ impl App {
                     id: params
                         .approval_id
                         .clone()
-                        .unwrap_or_else(|| params.item_id.clone()),
+                        .unwrap_or_else(|| params.message_id.clone()),
                     environment_id: params.environment_id.clone(),
                     command: params
                         .command
@@ -249,14 +249,18 @@ impl App {
                 ThreadInteractiveRequest::Approval(ApprovalRequest::ApplyPatch {
                     thread_id,
                     thread_label,
-                    id: params.item_id.clone(),
+                    id: params.message_id.clone(),
                     reason: params.reason.clone(),
                     cwd: self
                         .thread_cwd(thread_id)
                         .await
                         .unwrap_or_else(|| self.config.cwd.clone()),
                     changes: self
-                        .thread_file_change_changes(thread_id, &params.turn_id, &params.item_id)
+                        .thread_file_change_changes(
+                            thread_id,
+                            &params.interaction_id,
+                            &params.message_id,
+                        )
                         .await
                         .map(crate::app_server_approval_conversions::file_update_changes_to_display)
                         .unwrap_or_default(),
@@ -322,7 +326,7 @@ impl App {
                     ApprovalRequest::Permissions {
                         thread_id,
                         thread_label,
-                        call_id: params.item_id.clone(),
+                        call_id: params.message_id.clone(),
                         environment_id: params.environment_id.clone(),
                         reason: params.reason.clone(),
                         permissions,
@@ -1393,7 +1397,7 @@ impl App {
     pub(super) async fn handle_thread_rollback_response(
         &mut self,
         thread_id: ThreadId,
-        num_turns: u32,
+        num_interactions: u32,
         response: &ChatRollbackResponse,
     ) {
         if let Some(channel) = self.thread_event_channels.get(&thread_id) {
@@ -1421,7 +1425,7 @@ impl App {
                 self.clear_active_thread().await;
             }
         }
-        self.handle_backtrack_rollback_succeeded(num_turns);
+        self.handle_backtrack_rollback_succeeded(num_interactions);
     }
 
     pub(super) fn handle_thread_event_now(&mut self, event: ThreadBufferedEvent) {

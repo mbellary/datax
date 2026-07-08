@@ -5,7 +5,7 @@
       "type": "string"
     },
     "numInteractions": {
-      "description": "The number of interactions to drop from the end of the chat. Must be >= 1.\n\nThis only modifies the chat.s history and does not revert local file changes that have been made by the agent. Clients are responsible for reverting these changes.",
+      "description": "The number of interactions to drop from the end of the chat. Must be >= 1.\n\nThis only modifies the chat's history and does not revert local file changes that have been made by the agent. Clients are responsible for reverting these changes.",
       "format": "uint32",
       "minimum": 0.0,
       "type": "integer"

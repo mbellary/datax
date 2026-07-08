@@ -31,7 +31,7 @@ pub(crate) async fn load_session_transcript(
     raw_reasoning_visibility: RawReasoningVisibility,
 ) -> std::io::Result<TranscriptCells> {
     let thread = app_server
-        .thread_read(thread_id, /*include_turns*/ true)
+        .thread_read(thread_id, /*include_interactions*/ true)
         .await
         .map_err(std::io::Error::other)?;
     Ok(thread_to_transcript_cells(
@@ -46,7 +46,11 @@ pub(crate) fn thread_to_transcript_cells(
 ) -> TranscriptCells {
     let cwd = thread.cwd.as_path();
     let mut cells: TranscriptCells = Vec::new();
-    for item in thread.turns.iter().flat_map(|turn| turn.items.iter()) {
+    for item in thread
+        .interactions
+        .iter()
+        .flat_map(|turn| turn.messages.iter())
+    {
         match item {
             Message::UserMessage {
                 id,

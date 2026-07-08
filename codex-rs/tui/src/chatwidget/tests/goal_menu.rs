@@ -254,12 +254,12 @@ async fn resume_paused_goal_prompt_can_leave_goal_paused() {
 }
 
 fn test_goal(
-    thread_id: ThreadId,
+    chat_id: ThreadId,
     status: AppThreadGoalStatus,
     token_budget: Option<i64>,
 ) -> AppThreadGoal {
     AppThreadGoal {
-        thread_id: thread_id.to_string(),
+        chat_id: chat_id.to_string(),
         objective: "Keep improving the bare goal command until it feels calm and useful."
             .to_string(),
         status,

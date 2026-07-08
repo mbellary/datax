@@ -583,9 +583,9 @@ async fn request_user_input_notification_overrides_pending_agent_turn_complete_n
         response: "done".to_string(),
     });
     chat.handle_request_user_input_now(ToolRequestUserInputParams {
-        thread_id: "thread-1".to_string(),
-        item_id: "call-1".to_string(),
-        turn_id: "turn-1".to_string(),
+        chat_id: "thread-1".to_string(),
+        message_id: "call-1".to_string(),
+        interaction_id: "turn-1".to_string(),
         questions: vec![ToolRequestUserInputQuestion {
             id: "reasoning_scope".to_string(),
             header: "Reasoning scope".to_string(),
@@ -613,9 +613,9 @@ async fn handle_request_user_input_sets_pending_notification() {
         Notifications::Custom(vec!["plan-mode-prompt".to_string()]);
 
     chat.handle_request_user_input_now(ToolRequestUserInputParams {
-        thread_id: "thread-1".to_string(),
-        item_id: "call-1".to_string(),
-        turn_id: "turn-1".to_string(),
+        chat_id: "thread-1".to_string(),
+        message_id: "call-1".to_string(),
+        interaction_id: "turn-1".to_string(),
         questions: vec![ToolRequestUserInputQuestion {
             id: "reasoning_scope".to_string(),
             header: "Reasoning scope".to_string(),
@@ -809,8 +809,8 @@ async fn plan_implementation_popup_skips_replayed_turn_complete() {
     chat.replay_thread_turns(
         vec![AppServerTurn {
             id: "turn-1".to_string(),
-            items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-            items: vec![AppServerThreadItem::AgentMessage {
+            messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+            messages: vec![AppServerThreadItem::AgentMessage {
                 id: "msg-plan".to_string(),
                 text: "Plan details".to_string(),
                 phase: Some(MessagePhase::FinalAnswer),
@@ -847,8 +847,8 @@ async fn plan_implementation_popup_shows_once_when_replay_precedes_live_turn_com
     chat.replay_thread_turns(
         vec![AppServerTurn {
             id: "turn-1".to_string(),
-            items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-            items: vec![AppServerThreadItem::AgentMessage {
+            messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+            messages: vec![AppServerThreadItem::AgentMessage {
                 id: "msg-plan-replay".to_string(),
                 text: "Plan details".to_string(),
                 phase: Some(MessagePhase::FinalAnswer),
@@ -1129,11 +1129,11 @@ async fn submit_user_message_queues_while_compaction_turn_is_running() {
     chat.thread_id = Some(thread_id);
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
-            thread_id: thread_id.to_string(),
+            chat_id: thread_id.to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: Vec::new(),
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
                 started_at: Some(0),
@@ -1162,7 +1162,7 @@ async fn submit_user_message_queues_while_compaction_turn_is_running() {
         &mut chat,
         "cannot steer a compact turn",
         Some(CodexErrorInfo::ActiveTurnNotSteerable {
-            turn_kind: NonSteerableTurnKind::Compact,
+            interaction_kind: NonSteerableInteractionKind::Compact,
         }),
     );
 
@@ -1174,11 +1174,11 @@ async fn submit_user_message_queues_while_compaction_turn_is_running() {
 
     chat.handle_server_notification(
         ServerNotification::InteractionCompleted(InteractionCompletedNotification {
-            thread_id: thread_id.to_string(),
+            chat_id: thread_id.to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: Vec::new(),
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: Vec::new(),
                 status: AppServerTurnStatus::Completed,
                 error: None,
                 started_at: None,

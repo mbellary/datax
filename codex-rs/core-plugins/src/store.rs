@@ -19,7 +19,7 @@ use std::path::PathBuf;
 pub const DEFAULT_PLUGIN_VERSION: &str = "local";
 pub const PLUGINS_CACHE_DIR: &str = "plugins/cache";
 pub const PLUGINS_DATA_DIR: &str = "plugins/data";
-const REMOTE_PLUGIN_INSTALL_METADATA_FILE: &str = ".codex-remote-plugin-install.json";
+const REMOTE_PLUGIN_INSTALL_METADATA_FILE: &str = ".datax-remote-plugin-install.json";
 const REMOTE_PLUGIN_INSTALL_METADATA_SCHEMA_VERSION: u8 = 1;
 
 #[derive(Debug, Deserialize, Serialize)]

@@ -451,7 +451,7 @@ mod tests {
 
     fn test_goal(status: ChatGoalStatus) -> ChatGoal {
         ChatGoal {
-            thread_id: ThreadId::new().to_string(),
+            chat_id: ThreadId::new().to_string(),
             objective: "Finish the thing.".to_string(),
             status,
             token_budget: None,

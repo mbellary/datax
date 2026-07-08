@@ -179,7 +179,7 @@ async fn lookup_session_by_exact_name(
                         /*include_non_interactive*/ false,
                     )),
                     archived: Some(archived),
-                    parent_thread_id: None,
+                    parent_chat_id: None,
                     cwd: None,
                     use_state_db_only: false,
                     search_term: search_term.map(str::to_string),

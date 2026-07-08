@@ -329,11 +329,11 @@ async fn app_server_guardian_review_started_sets_review_status() {
     chat.handle_server_notification(
         ServerNotification::MessageGuardianApprovalReviewStarted(
             MessageGuardianApprovalReviewStartedNotification {
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
+                chat_id: "thread-1".to_string(),
+                interaction_id: "turn-1".to_string(),
                 started_at_ms: 0,
                 review_id: "guardian-1".to_string(),
-                target_item_id: Some("guardian-target-1".to_string()),
+                target_message_id: Some("guardian-target-1".to_string()),
                 review: GuardianApprovalReview {
                     status: GuardianApprovalReviewStatus::InProgress,
                     risk_level: None,
@@ -371,11 +371,11 @@ async fn app_server_guardian_review_denied_renders_denied_request_snapshot() {
     chat.handle_server_notification(
         ServerNotification::MessageGuardianApprovalReviewStarted(
             MessageGuardianApprovalReviewStartedNotification {
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
+                chat_id: "thread-1".to_string(),
+                interaction_id: "turn-1".to_string(),
                 started_at_ms: 0,
                 review_id: "guardian-1".to_string(),
-                target_item_id: Some("guardian-target-1".to_string()),
+                target_message_id: Some("guardian-target-1".to_string()),
                 review: GuardianApprovalReview {
                     status: GuardianApprovalReviewStatus::InProgress,
                     risk_level: None,
@@ -391,12 +391,12 @@ async fn app_server_guardian_review_denied_renders_denied_request_snapshot() {
     chat.handle_server_notification(
         ServerNotification::MessageGuardianApprovalReviewCompleted(
             MessageGuardianApprovalReviewCompletedNotification {
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
+                chat_id: "thread-1".to_string(),
+                interaction_id: "turn-1".to_string(),
                 started_at_ms: 0,
                 completed_at_ms: 1,
                 review_id: "guardian-1".to_string(),
-                target_item_id: Some("guardian-target-1".to_string()),
+                target_message_id: Some("guardian-target-1".to_string()),
                 decision_source: AppServerGuardianApprovalReviewDecisionSource::Agent,
                 review: GuardianApprovalReview {
                     status: GuardianApprovalReviewStatus::Denied,
@@ -449,11 +449,11 @@ async fn app_server_guardian_review_timed_out_renders_timed_out_request_snapshot
     chat.handle_server_notification(
         ServerNotification::MessageGuardianApprovalReviewStarted(
             MessageGuardianApprovalReviewStartedNotification {
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
+                chat_id: "thread-1".to_string(),
+                interaction_id: "turn-1".to_string(),
                 started_at_ms: 0,
                 review_id: "guardian-1".to_string(),
-                target_item_id: Some("guardian-target-1".to_string()),
+                target_message_id: Some("guardian-target-1".to_string()),
                 review: GuardianApprovalReview {
                     status: GuardianApprovalReviewStatus::InProgress,
                     risk_level: None,
@@ -469,12 +469,12 @@ async fn app_server_guardian_review_timed_out_renders_timed_out_request_snapshot
     chat.handle_server_notification(
         ServerNotification::MessageGuardianApprovalReviewCompleted(
             MessageGuardianApprovalReviewCompletedNotification {
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
+                chat_id: "thread-1".to_string(),
+                interaction_id: "turn-1".to_string(),
                 started_at_ms: 0,
                 completed_at_ms: 1,
                 review_id: "guardian-1".to_string(),
-                target_item_id: Some("guardian-target-1".to_string()),
+                target_message_id: Some("guardian-target-1".to_string()),
                 decision_source: AppServerGuardianApprovalReviewDecisionSource::Agent,
                 review: GuardianApprovalReview {
                     status: GuardianApprovalReviewStatus::TimedOut,

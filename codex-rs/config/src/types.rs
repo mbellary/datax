@@ -1,4 +1,4 @@
-//! Types used to define loaded and effective Codex configuration values.
+//! Types used to define loaded and effective Datax configuration values.
 
 // Note this file should generally be restricted to simple struct/enum
 // definitions that do not contain business logic.
@@ -83,31 +83,31 @@ impl fmt::Display for SessionPickerViewMode {
     }
 }
 
-/// Determine where Codex should store CLI auth credentials.
+/// Determine where Datax should store CLI auth credentials.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum AuthCredentialsStoreMode {
     #[default]
-    /// Persist credentials in CODEX_HOME/auth.json.
+    /// Persist credentials in DATAX_HOME/auth.json.
     File,
     /// Persist credentials in the keyring. Fail if unavailable.
     Keyring,
-    /// Use keyring when available; otherwise, fall back to a file in CODEX_HOME.
+    /// Use keyring when available; otherwise, fall back to a file in DATAX_HOME.
     Auto,
     /// Store credentials in memory only for the current process.
     Ephemeral,
 }
 
-/// Determine where Codex should store and read MCP credentials.
+/// Determine where Datax should store and read MCP credentials.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum OAuthCredentialsStoreMode {
     /// `Keyring` when available; otherwise, `File`.
-    /// Credentials stored in the keyring will only be readable by Codex unless the user explicitly grants access via OS-level keyring access.
+    /// Credentials stored in the keyring will only be readable by Datax unless the user explicitly grants access via OS-level keyring access.
     #[default]
     Auto,
-    /// CODEX_HOME/.credentials.json
-    /// This file will be readable to Codex and other applications running as the same user.
+    /// DATAX_HOME/.credentials.json
+    /// This file will be readable to Datax and other applications running as the same user.
     File,
     /// Keyring when available, otherwise fail.
     Keyring,
@@ -180,7 +180,7 @@ impl UriBasedFileOpener {
     }
 }
 
-/// Settings that govern if and what will be written to `~/.codex/history.jsonl`.
+/// Settings that govern if and what will be written to `~/.datax/history.jsonl`.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 #[serde(default)]
 #[schemars(deny_unknown_fields)]
@@ -209,14 +209,14 @@ pub enum HistoryPersistence {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 #[schemars(deny_unknown_fields)]
 pub struct AnalyticsConfigToml {
-    /// When `false`, disables analytics across Codex product surfaces in this profile.
+    /// When `false`, disables analytics across Datax product surfaces in this profile.
     pub enabled: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
 #[schemars(deny_unknown_fields)]
 pub struct FeedbackConfigToml {
-    /// When `false`, disables the feedback flow across Codex product surfaces.
+    /// When `false`, disables the feedback flow across Datax product surfaces.
     pub enabled: Option<bool>,
 }
 
@@ -737,13 +737,13 @@ pub struct Tui {
     /// Syntax highlighting theme name (kebab-case).
     ///
     /// When set, overrides automatic light/dark theme detection.
-    /// Use `/theme` in the TUI or see `$CODEX_HOME/themes` for custom themes.
+    /// Use `/theme` in the TUI or see `$DATAX_HOME/themes` for custom themes.
     #[serde(default)]
     pub theme: Option<String>,
 
     /// Pet id to preselect in the terminal pet picker.
     ///
-    /// Custom pet ids resolve against CODEX_HOME/pets/<pet-id>/pet.json.
+    /// Custom pet ids resolve against DATAX_HOME/pets/<pet-id>/pet.json.
     #[serde(default)]
     pub pet: Option<String>,
 

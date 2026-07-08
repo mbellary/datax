@@ -4,6 +4,6 @@
 import type { ChatRealtimeAudioChunk } from "./ChatRealtimeAudioChunk";
 
 /**
- * EXPERIMENTAL - streamed output audio emitted by chat realtime.
+ * EXPERIMENTAL - streamed output audio emitted by thread realtime.
  */
 export type ChatRealtimeOutputAudioDeltaNotification = { chatId: string, audio: ChatRealtimeAudioChunk, };

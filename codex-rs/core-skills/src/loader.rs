@@ -286,7 +286,7 @@ fn skill_roots_from_layer_stack_inner(
                 }
             }
             ConfigLayerSource::User { .. } => {
-                // Deprecated user skills location (`$CODEX_HOME/skills`), kept for backward
+                // Deprecated user skills location (`$DATAX_HOME/skills`), kept for backward
                 // compatibility.
                 roots.push(SkillRoot {
                     path: config_folder.join(SKILLS_DIR_NAME),
@@ -309,7 +309,7 @@ fn skill_roots_from_layer_stack_inner(
                     });
                 }
 
-                // Embedded system skills are cached under `$CODEX_HOME/skills/.system` and are a
+                // Embedded system skills are cached under `$DATAX_HOME/skills/.system` and are a
                 // special case (not a config layer).
                 roots.push(SkillRoot {
                     path: system_cache_root_dir(&config_folder),
@@ -321,8 +321,8 @@ fn skill_roots_from_layer_stack_inner(
                 });
             }
             ConfigLayerSource::System { .. } => {
-                // The system config layer lives under `/etc/codex/` on Unix, so treat
-                // `/etc/codex/skills` as admin-scoped skills.
+                // The system config layer lives under `/etc/datax/` on Unix, so treat
+                // `/etc/datax/skills` as admin-scoped skills.
                 roots.push(SkillRoot {
                     path: config_folder.join(SKILLS_DIR_NAME),
                     scope: SkillScope::Admin,

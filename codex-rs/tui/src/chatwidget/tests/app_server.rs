@@ -3,10 +3,10 @@ use pretty_assertions::assert_eq;
 
 fn thread_settings_for_test(
     model: &str,
-    thread_id: ThreadId,
+    chat_id: ThreadId,
 ) -> datax_app_server_protocol::ChatSettingsUpdatedNotification {
     datax_app_server_protocol::ChatSettingsUpdatedNotification {
-        thread_id: thread_id.to_string(),
+        chat_id: chat_id.to_string(),
         thread_settings: datax_app_server_protocol::ChatSettings {
             cwd: test_path_buf("/tmp/thread-settings").abs(),
             approval_policy: AskForApproval::OnRequest,
@@ -36,9 +36,9 @@ fn thread_settings_for_test(
     }
 }
 
-fn configured_thread_session(thread_id: ThreadId) -> crate::session_state::ThreadSessionState {
+fn configured_thread_session(chat_id: ThreadId) -> crate::session_state::ThreadSessionState {
     crate::session_state::ThreadSessionState {
-        thread_id,
+        thread_id: chat_id,
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -71,8 +71,8 @@ async fn invalid_url_elicitation_is_declined() {
     chat.handle_elicitation_request_now(
         datax_app_server_protocol::RequestId::Integer(9),
         datax_app_server_protocol::McpServerElicitationRequestParams {
-            thread_id: request_thread_id.to_string(),
-            turn_id: Some("turn-auth".to_string()),
+            chat_id: request_thread_id.to_string(),
+            interaction_id: Some("turn-auth".to_string()),
             server_name: "payments".to_string(),
             request: datax_app_server_protocol::McpServerElicitationRequest::Url {
                 meta: None,
@@ -203,8 +203,8 @@ async fn collab_spawn_end_shows_requested_model_and_effort() {
 
     chat.handle_server_notification(
         ServerNotification::MessageStarted(MessageStartedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             started_at_ms: 0,
             item: AppServerThreadItem::CollabAgentToolCall {
                 id: "call-spawn".to_string(),
@@ -222,8 +222,8 @@ async fn collab_spawn_end_shows_requested_model_and_effort() {
     );
     chat.handle_server_notification(
         ServerNotification::MessageCompleted(MessageCompletedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
             item: AppServerThreadItem::CollabAgentToolCall {
                 id: "call-spawn".to_string(),
@@ -279,8 +279,8 @@ async fn live_app_server_user_message_item_completed_does_not_duplicate_rendered
 
     chat.handle_server_notification(
         ServerNotification::MessageCompleted(MessageCompletedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
             item: AppServerThreadItem::UserMessage {
                 id: "user-1".to_string(),
@@ -303,11 +303,11 @@ async fn live_app_server_turn_completed_clears_working_status_after_answer_item(
 
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: Vec::new(),
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
                 started_at: Some(0),
@@ -327,8 +327,8 @@ async fn live_app_server_turn_completed_clears_working_status_after_answer_item(
 
     chat.handle_server_notification(
         ServerNotification::MessageCompleted(MessageCompletedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
             item: AppServerThreadItem::AgentMessage {
                 id: "msg-1".to_string(),
@@ -347,11 +347,11 @@ async fn live_app_server_turn_completed_clears_working_status_after_answer_item(
 
     chat.handle_server_notification(
         ServerNotification::InteractionCompleted(InteractionCompletedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: Vec::new(),
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: Vec::new(),
                 status: AppServerTurnStatus::Completed,
                 error: None,
                 started_at: None,
@@ -372,11 +372,11 @@ async fn live_app_server_turn_started_sets_feedback_turn_id() {
 
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: Vec::new(),
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
                 started_at: Some(0),
@@ -410,7 +410,7 @@ async fn live_app_server_warning_notification_renders_message() {
 
     chat.handle_server_notification(
         ServerNotification::Warning(WarningNotification {
-            thread_id: None,
+            chat_id: None,
             message: "Exceeded skills context budget of 2%. All skill descriptions were removed and 2 additional skills were not included in the model-visible skills list.".to_string(),
         }),
         /*replay_kind*/ None,
@@ -438,7 +438,7 @@ async fn live_app_server_guardian_warning_notification_renders_message() {
 
     chat.handle_server_notification(
         ServerNotification::GuardianWarning(GuardianWarningNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             message: "Automatic approval review denied the requested action.".to_string(),
         }),
         /*replay_kind*/ None,
@@ -482,8 +482,8 @@ async fn live_app_server_file_change_item_started_preserves_changes() {
 
     chat.handle_server_notification(
         ServerNotification::MessageStarted(MessageStartedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             started_at_ms: 0,
             item: AppServerThreadItem::FileChange {
                 id: "patch-1".to_string(),
@@ -516,8 +516,8 @@ async fn live_app_server_command_execution_strips_shell_wrapper() {
 
     chat.handle_server_notification(
         ServerNotification::MessageStarted(MessageStartedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             started_at_ms: 0,
             item: AppServerThreadItem::CommandExecution {
                 id: "cmd-1".to_string(),
@@ -538,8 +538,8 @@ async fn live_app_server_command_execution_strips_shell_wrapper() {
     );
     chat.handle_server_notification(
         ServerNotification::MessageCompleted(MessageCompletedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
             item: AppServerThreadItem::CommandExecution {
                 id: "cmd-1".to_string(),
@@ -594,8 +594,8 @@ async fn live_app_server_collab_wait_items_render_history() {
 
     chat.handle_server_notification(
         ServerNotification::MessageStarted(MessageStartedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             started_at_ms: 0,
             item: AppServerThreadItem::CollabAgentToolCall {
                 id: "wait-1".to_string(),
@@ -617,8 +617,8 @@ async fn live_app_server_collab_wait_items_render_history() {
 
     chat.handle_server_notification(
         ServerNotification::MessageCompleted(MessageCompletedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
             item: AppServerThreadItem::CollabAgentToolCall {
                 id: "wait-1".to_string(),
@@ -671,8 +671,8 @@ async fn live_app_server_collab_spawn_completed_renders_requested_model_and_effo
 
     chat.handle_server_notification(
         ServerNotification::MessageStarted(MessageStartedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             started_at_ms: 0,
             item: AppServerThreadItem::CollabAgentToolCall {
                 id: "spawn-1".to_string(),
@@ -691,8 +691,8 @@ async fn live_app_server_collab_spawn_completed_renders_requested_model_and_effo
 
     chat.handle_server_notification(
         ServerNotification::MessageCompleted(MessageCompletedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
             item: AppServerThreadItem::CollabAgentToolCall {
                 id: "spawn-1".to_string(),
@@ -732,11 +732,11 @@ async fn live_app_server_failed_turn_does_not_duplicate_error_history() {
 
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: Vec::new(),
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
                 started_at: Some(0),
@@ -755,8 +755,8 @@ async fn live_app_server_failed_turn_does_not_duplicate_error_history() {
                 additional_details: None,
             },
             will_retry: false,
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
         }),
         /*replay_kind*/ None,
     );
@@ -767,11 +767,11 @@ async fn live_app_server_failed_turn_does_not_duplicate_error_history() {
 
     chat.handle_server_notification(
         ServerNotification::InteractionCompleted(InteractionCompletedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: Vec::new(),
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: Vec::new(),
                 status: AppServerTurnStatus::Failed,
                 error: Some(AppServerTurnError {
                     message: "permission denied".to_string(),
@@ -830,11 +830,11 @@ async fn live_app_server_stream_recovery_restores_previous_status_header() {
 
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: Vec::new(),
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
                 started_at: Some(0),
@@ -854,8 +854,8 @@ async fn live_app_server_stream_recovery_restores_previous_status_header() {
                 additional_details: None,
             },
             will_retry: true,
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
         }),
         /*replay_kind*/ None,
     );
@@ -864,9 +864,9 @@ async fn live_app_server_stream_recovery_restores_previous_status_header() {
     chat.handle_server_notification(
         ServerNotification::AgentMessageDelta(
             datax_app_server_protocol::AgentMessageDeltaNotification {
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
-                item_id: "item-1".to_string(),
+                chat_id: "thread-1".to_string(),
+                interaction_id: "turn-1".to_string(),
+                message_id: "item-1".to_string(),
                 delta: "hello".to_string(),
             },
         ),
@@ -888,11 +888,11 @@ async fn live_app_server_server_overloaded_error_renders_warning() {
 
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: Vec::new(),
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
                 started_at: Some(0),
@@ -912,8 +912,8 @@ async fn live_app_server_server_overloaded_error_renders_warning() {
                 additional_details: None,
             },
             will_retry: false,
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
         }),
         /*replay_kind*/ None,
     );
@@ -930,11 +930,11 @@ async fn live_app_server_cyber_policy_error_renders_dedicated_notice() {
 
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: AppServerTurn {
                 id: "turn-1".to_string(),
-                items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                items: Vec::new(),
+                messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                messages: Vec::new(),
                 status: AppServerTurnStatus::InProgress,
                 error: None,
                 started_at: Some(0),
@@ -954,8 +954,8 @@ async fn live_app_server_cyber_policy_error_renders_dedicated_notice() {
                 additional_details: None,
             },
             will_retry: false,
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
         }),
         /*replay_kind*/ None,
     );
@@ -975,8 +975,8 @@ async fn live_app_server_model_verification_renders_warning() {
 
     chat.handle_server_notification(
         ServerNotification::ModelVerification(ModelVerificationNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             verifications: vec![AppServerModelVerification::TrustedAccessForCyber],
         }),
         /*replay_kind*/ None,
@@ -1001,7 +1001,7 @@ async fn live_app_server_invalid_thread_name_update_is_ignored() {
     chat.handle_server_notification(
         ServerNotification::ChatNameUpdated(
             datax_app_server_protocol::ChatNameUpdatedNotification {
-                thread_id: "not-a-thread-id".to_string(),
+                chat_id: "not-a-thread-id".to_string(),
                 thread_name: Some("bad update".to_string()),
             },
         ),
@@ -1022,7 +1022,7 @@ async fn live_app_server_thread_name_update_shows_resume_hint() {
     chat.handle_server_notification(
         ServerNotification::ChatNameUpdated(
             datax_app_server_protocol::ChatNameUpdatedNotification {
-                thread_id: thread_id.to_string(),
+                chat_id: thread_id.to_string(),
                 thread_name: Some("review-fix".to_string()),
             },
         ),
@@ -1042,7 +1042,7 @@ async fn live_app_server_thread_closed_requests_immediate_exit() {
 
     chat.handle_server_notification(
         ServerNotification::ChatClosed(ChatClosedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
         }),
         /*replay_kind*/ None,
     );

@@ -602,7 +602,7 @@ impl AppServerSession {
     pub(crate) async fn thread_read(
         &mut self,
         thread_id: ThreadId,
-        include_turns: bool,
+        include_interactions: bool,
     ) -> Result<Chat> {
         let request_id = self.next_request_id();
         let response: ChatReadResponse = self
@@ -610,8 +610,8 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatRead {
                 request_id,
                 params: ChatReadParams {
-                    thread_id: thread_id.to_string(),
-                    include_turns,
+                    chat_id: thread_id.to_string(),
+                    include_interactions,
                 },
             })
             .await
@@ -626,7 +626,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatArchive {
                 request_id,
                 params: ChatArchiveParams {
-                    thread_id: thread_id.to_string(),
+                    chat_id: thread_id.to_string(),
                 },
             })
             .await
@@ -641,7 +641,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatDelete {
                 request_id,
                 params: ChatDeleteParams {
-                    thread_id: thread_id.to_string(),
+                    chat_id: thread_id.to_string(),
                 },
             })
             .await
@@ -656,7 +656,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatUnarchive {
                 request_id,
                 params: ChatUnarchiveParams {
-                    thread_id: thread_id.to_string(),
+                    chat_id: thread_id.to_string(),
                 },
             })
             .await
@@ -674,7 +674,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatMetadataUpdate {
                 request_id,
                 params: ChatMetadataUpdateParams {
-                    thread_id: thread_id.to_string(),
+                    chat_id: thread_id.to_string(),
                     git_info: Some(ChatMetadataGitInfoUpdateParams {
                         sha: None,
                         branch: Some(Some(branch)),
@@ -724,18 +724,18 @@ impl AppServerSession {
         thread_id: ThreadId,
         items: Vec<ResponseItem>,
     ) -> Result<ChatInjectMessagesResponse> {
-        let items = items
+        let messages = items
             .into_iter()
             .map(serde_json::to_value)
             .collect::<std::result::Result<Vec<_>, _>>()
             .wrap_err("failed to encode thread/inject_items payload")?;
         let request_id = self.next_request_id();
         self.client
-            .request_typed(ClientRequest::ChatInjectItems {
+            .request_typed(ClientRequest::ChatInjectMessages {
                 request_id,
                 params: ChatInjectMessagesParams {
-                    thread_id: thread_id.to_string(),
-                    items,
+                    chat_id: thread_id.to_string(),
+                    messages,
                 },
             })
             .await
@@ -767,7 +767,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::InteractionStart {
                 request_id,
                 params: InteractionStartParams {
-                    thread_id: thread_id.to_string(),
+                    chat_id: thread_id.to_string(),
                     client_user_message_id: None,
                     input: items,
                     responsesapi_client_metadata: None,
@@ -804,8 +804,8 @@ impl AppServerSession {
             .request_typed(ClientRequest::InteractionInterrupt {
                 request_id,
                 params: InteractionInterruptParams {
-                    thread_id: thread_id.to_string(),
-                    turn_id,
+                    chat_id: thread_id.to_string(),
+                    interaction_id: turn_id,
                 },
             })
             .await?;
@@ -830,7 +830,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::InteractionSteer {
                 request_id,
                 params: InteractionSteerParams {
-                    thread_id: thread_id.to_string(),
+                    chat_id: thread_id.to_string(),
                     client_user_message_id: None,
                     input: items,
                     responsesapi_client_metadata: None,
@@ -852,7 +852,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatSetName {
                 request_id,
                 params: ChatSetNameParams {
-                    thread_id: thread_id.to_string(),
+                    chat_id: thread_id.to_string(),
                     name,
                 },
             })
@@ -872,7 +872,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatMemoryModeSet {
                 request_id,
                 params: ChatMemoryModeSetParams {
-                    thread_id: thread_id.to_string(),
+                    chat_id: thread_id.to_string(),
                     mode,
                 },
             })
@@ -903,7 +903,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatGoalGet {
                 request_id,
                 params: ChatGoalGetParams {
-                    thread_id: thread_id.to_string(),
+                    chat_id: thread_id.to_string(),
                 },
             })
             .await
@@ -922,7 +922,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatGoalSet {
                 request_id,
                 params: ChatGoalSetParams {
-                    thread_id: thread_id.to_string(),
+                    chat_id: thread_id.to_string(),
                     objective,
                     status,
                     token_budget,
@@ -941,7 +941,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatGoalClear {
                 request_id,
                 params: ChatGoalClearParams {
-                    thread_id: thread_id.to_string(),
+                    chat_id: thread_id.to_string(),
                 },
             })
             .await
@@ -968,7 +968,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatUnsubscribe {
                 request_id,
                 params: ChatUnsubscribeParams {
-                    thread_id: thread_id.to_string(),
+                    chat_id: thread_id.to_string(),
                 },
             })
             .await
@@ -983,7 +983,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatCompactStart {
                 request_id,
                 params: ChatCompactStartParams {
-                    thread_id: thread_id.to_string(),
+                    chat_id: thread_id.to_string(),
                 },
             })
             .await
@@ -1002,7 +1002,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatShellCommand {
                 request_id,
                 params: ChatShellCommandParams {
-                    thread_id: thread_id.to_string(),
+                    chat_id: thread_id.to_string(),
                     command,
                 },
             })
@@ -1022,7 +1022,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatApproveGuardianDeniedAction {
                 request_id,
                 params: ChatApproveGuardianDeniedActionParams {
-                    thread_id: thread_id.to_string(),
+                    chat_id: thread_id.to_string(),
                     event: serde_json::to_value(event)
                         .wrap_err("failed to serialize Auto Review denial event")?,
                 },
@@ -1042,7 +1042,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatBackgroundTerminalsClean {
                 request_id,
                 params: ChatBackgroundTerminalsCleanParams {
-                    thread_id: thread_id.to_string(),
+                    chat_id: thread_id.to_string(),
                 },
             })
             .await
@@ -1053,15 +1053,15 @@ impl AppServerSession {
     pub(crate) async fn thread_rollback(
         &mut self,
         thread_id: ThreadId,
-        num_turns: u32,
+        num_interactions: u32,
     ) -> Result<ChatRollbackResponse> {
         let request_id = self.next_request_id();
         self.client
             .request_typed(ClientRequest::ChatRollback {
                 request_id,
                 params: ChatRollbackParams {
-                    thread_id: thread_id.to_string(),
-                    num_turns,
+                    chat_id: thread_id.to_string(),
+                    num_interactions,
                 },
             })
             .await
@@ -1078,7 +1078,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ReviewStart {
                 request_id,
                 params: ReviewStartParams {
-                    thread_id: thread_id.to_string(),
+                    chat_id: thread_id.to_string(),
                     target,
                     delivery: Some(ReviewDelivery::Inline),
                 },
@@ -1398,7 +1398,7 @@ fn thread_start_params_from_config(
         config: config_request_overrides_from_config(config),
         ephemeral: Some(config.ephemeral),
         session_start_source,
-        thread_source: Some(ChatSource::User),
+        chat_source: Some(ChatSource::User),
         developer_instructions: with_terminal_visualization_instructions(
             config, /*control_instructions*/ None,
         ),
@@ -1423,7 +1423,7 @@ fn thread_resume_params_from_config(
         })
         .flatten();
     ChatResumeParams {
-        thread_id: thread_id.to_string(),
+        chat_id: thread_id.to_string(),
         model: config.model.clone(),
         model_provider: thread_params_mode.model_provider_from_config(&config),
         service_tier: service_tier_override_from_config(&config),
@@ -1458,7 +1458,7 @@ fn thread_fork_params_from_config(
         })
         .flatten();
     ChatForkParams {
-        thread_id: thread_id.to_string(),
+        chat_id: thread_id.to_string(),
         model: config.model.clone(),
         model_provider: thread_params_mode.model_provider_from_config(&config),
         service_tier: service_tier_override_from_config(&config),
@@ -1475,7 +1475,7 @@ fn thread_fork_params_from_config(
             config.developer_instructions.clone(),
         ),
         ephemeral: config.ephemeral,
-        thread_source: Some(ChatSource::User),
+        chat_source: Some(ChatSource::User),
         ..ChatForkParams::default()
     }
 }
@@ -1504,7 +1504,7 @@ async fn started_thread_from_start_response(
             .map_err(color_eyre::eyre::Report::msg)?;
     Ok(AppServerStartedThread {
         session,
-        turns: response.thread.turns,
+        turns: response.thread.interactions,
     })
 }
 
@@ -1519,7 +1519,7 @@ async fn started_thread_from_resume_response(
             .map_err(color_eyre::eyre::Report::msg)?;
     Ok(AppServerStartedThread {
         session,
-        turns: response.thread.turns,
+        turns: response.thread.interactions,
     })
 }
 
@@ -1534,7 +1534,7 @@ async fn started_thread_from_fork_response(
             .map_err(color_eyre::eyre::Report::msg)?;
     Ok(AppServerStartedThread {
         session,
-        turns: response.thread.turns,
+        turns: response.thread.interactions,
     })
 }
 
@@ -1662,7 +1662,7 @@ fn display_permission_profile_from_thread_response(
     reason = "session mapping keeps explicit fields"
 )]
 async fn thread_session_state_from_thread_response(
-    thread_id: &str,
+    chat_id: &str,
     forked_from_id: Option<String>,
     thread_name: Option<String>,
     rollout_path: Option<PathBuf>,
@@ -1679,8 +1679,8 @@ async fn thread_session_state_from_thread_response(
     reasoning_effort: Option<datax_protocol::openai_models::ReasoningEffort>,
     config: &Config,
 ) -> Result<ThreadSessionState, String> {
-    let thread_id = ThreadId::from_string(thread_id)
-        .map_err(|err| format!("thread id `{thread_id}` is invalid: {err}"))?;
+    let thread_id = ThreadId::from_string(chat_id)
+        .map_err(|err| format!("thread id `{chat_id}` is invalid: {err}"))?;
     let forked_from_id = forked_from_id
         .as_deref()
         .map(ThreadId::from_string)
@@ -1877,7 +1877,7 @@ mod tests {
                 .map(permission_profile_id_from_active_profile)
         );
         assert_eq!(params.model_provider, Some(config.model_provider_id));
-        assert_eq!(params.thread_source, Some(ChatSource::User));
+        assert_eq!(params.chat_source, Some(ChatSource::User));
     }
 
     #[tokio::test]
@@ -2029,8 +2029,8 @@ mod tests {
         assert_eq!(start.permissions, None);
         assert_eq!(resume.permissions, None);
         assert_eq!(fork.permissions, None);
-        assert_eq!(start.thread_source, Some(ChatSource::User));
-        assert_eq!(fork.thread_source, Some(ChatSource::User));
+        assert_eq!(start.chat_source, Some(ChatSource::User));
+        assert_eq!(fork.chat_source, Some(ChatSource::User));
     }
 
     #[test]
@@ -2134,8 +2134,8 @@ mod tests {
         assert_eq!(start.permissions, None);
         assert_eq!(resume.permissions, None);
         assert_eq!(fork.permissions, None);
-        assert_eq!(start.thread_source, Some(ChatSource::User));
-        assert_eq!(fork.thread_source, Some(ChatSource::User));
+        assert_eq!(start.chat_source, Some(ChatSource::User));
+        assert_eq!(fork.chat_source, Some(ChatSource::User));
     }
 
     #[tokio::test]
@@ -2319,7 +2319,7 @@ mod tests {
                 id: thread_id.to_string(),
                 session_id: ThreadId::new().to_string(),
                 forked_from_id: Some(forked_from_id.to_string()),
-                parent_thread_id: None,
+                parent_chat_id: None,
                 preview: "hello".to_string(),
                 ephemeral: false,
                 model_provider: "openai".to_string(),
@@ -2331,15 +2331,15 @@ mod tests {
                 cwd: test_path_buf("/tmp/project").abs(),
                 cli_version: "0.0.0".to_string(),
                 source: datax_app_server_protocol::SessionSource::Cli,
-                thread_source: None,
+                chat_source: None,
                 agent_nickname: None,
                 agent_role: None,
                 git_info: None,
                 name: None,
-                turns: vec![Interaction {
+                interactions: vec![Interaction {
                     id: "turn-1".to_string(),
-                    items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-                    items: vec![
+                    messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+                    messages: vec![
                         datax_app_server_protocol::Message::UserMessage {
                             id: "user-1".to_string(),
                             client_id: None,
@@ -2403,7 +2403,7 @@ mod tests {
         );
         assert_eq!(started.session.permission_profile, read_only_profile);
         assert_eq!(started.turns.len(), 1);
-        assert_eq!(started.turns[0], response.thread.turns[0]);
+        assert_eq!(started.turns[0], response.thread.interactions[0]);
 
         let embedded_config = ConfigBuilder::default()
             .codex_home(temp_dir.path().join("embedded-codex-home"))

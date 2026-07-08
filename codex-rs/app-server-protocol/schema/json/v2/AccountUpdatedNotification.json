@@ -5,7 +5,7 @@
       "description": "Authentication mode for OpenAI-backed providers.",
       "oneOf": [
         {
-          "description": "OpenAI API key provided by the caller and stored by Codex.",
+          "description": "OpenAI API key provided by the caller and stored by Datax.",
           "enum": [
             "apikey"
           ],

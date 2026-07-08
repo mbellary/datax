@@ -175,12 +175,12 @@ impl ThreadEventStore {
             .find_map(|event| match event {
                 ThreadBufferedEvent::Notification(ServerNotification::MessageStarted(
                     notification,
-                )) if turn_id_matches(turn_id, &notification.turn_id) => {
+                )) if turn_id_matches(turn_id, &notification.interaction_id) => {
                     file_change_item_changes(&notification.item, item_id)
                 }
                 ThreadBufferedEvent::Notification(ServerNotification::MessageCompleted(
                     notification,
-                )) if turn_id_matches(turn_id, &notification.turn_id) => {
+                )) if turn_id_matches(turn_id, &notification.interaction_id) => {
                     file_change_item_changes(&notification.item, item_id)
                 }
                 ThreadBufferedEvent::Request(_)
@@ -193,13 +193,13 @@ impl ThreadEventStore {
                     .iter()
                     .rev()
                     .filter(|turn| turn_id_matches(turn_id, &turn.id))
-                    .flat_map(|turn| turn.items.iter().rev())
+                    .flat_map(|turn| turn.messages.iter().rev())
                     .find_map(|item| file_change_item_changes(item, item_id))
             })
     }
 
     pub(super) fn apply_thread_rollback(&mut self, response: &ChatRollbackResponse) {
-        self.turns = response.thread.turns.clone();
+        self.turns = response.thread.interactions.clone();
         self.buffer.clear();
         self.pending_interactive_replay = PendingInteractiveReplayState::default();
         self.active_turn_id = None;
@@ -381,11 +381,15 @@ mod tests {
         }
     }
 
-    fn test_turn(turn_id: &str, status: InteractionStatus, items: Vec<Message>) -> Interaction {
+    fn test_turn(
+        interaction_id: &str,
+        status: InteractionStatus,
+        items: Vec<Message>,
+    ) -> Interaction {
         Interaction {
-            id: turn_id.to_string(),
-            items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-            items,
+            id: interaction_id.to_string(),
+            messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
+            messages: items,
             status,
             error: None,
             started_at: None,
@@ -394,35 +398,35 @@ mod tests {
         }
     }
 
-    fn turn_started_notification(thread_id: ThreadId, turn_id: &str) -> ServerNotification {
+    fn turn_started_notification(thread_id: ThreadId, interaction_id: &str) -> ServerNotification {
         ServerNotification::InteractionStarted(InteractionStartedNotification {
-            thread_id: thread_id.to_string(),
-            turn: Interaction {
-                started_at: Some(0),
-                ..test_turn(turn_id, InteractionStatus::InProgress, Vec::new())
+            chat_id: thread_id.to_string(),
+        turn: Interaction {
+            started_at: Some(0),
+            ..test_turn(interaction_id, InteractionStatus::InProgress, Vec::new())
             },
         })
     }
 
     fn turn_completed_notification(
         thread_id: ThreadId,
-        turn_id: &str,
+        interaction_id: &str,
         status: InteractionStatus,
     ) -> ServerNotification {
         ServerNotification::InteractionCompleted(InteractionCompletedNotification {
-            thread_id: thread_id.to_string(),
-            turn: Interaction {
-                completed_at: Some(0),
-                duration_ms: Some(1),
-                ..test_turn(turn_id, status, Vec::new())
+            chat_id: thread_id.to_string(),
+        turn: Interaction {
+            completed_at: Some(0),
+            duration_ms: Some(1),
+            ..test_turn(interaction_id, status, Vec::new())
             },
         })
     }
 
-    fn hook_started_notification(thread_id: ThreadId, turn_id: &str) -> ServerNotification {
+    fn hook_started_notification(thread_id: ThreadId, interaction_id: &str) -> ServerNotification {
         ServerNotification::HookStarted(HookStartedNotification {
-            thread_id: thread_id.to_string(),
-            turn_id: Some(turn_id.to_string()),
+            chat_id: thread_id.to_string(),
+            interaction_id: Some(interaction_id.to_string()),
             run: AppServerHookRunSummary {
                 id: "user-prompt-submit:0:/tmp/hooks.json".to_string(),
                 event_name: AppServerHookEventName::UserPromptSubmit,
@@ -442,10 +446,13 @@ mod tests {
         })
     }
 
-    fn hook_completed_notification(thread_id: ThreadId, turn_id: &str) -> ServerNotification {
+    fn hook_completed_notification(
+        thread_id: ThreadId,
+        interaction_id: &str,
+    ) -> ServerNotification {
         ServerNotification::HookCompleted(HookCompletedNotification {
-            thread_id: thread_id.to_string(),
-            turn_id: Some(turn_id.to_string()),
+            chat_id: thread_id.to_string(),
+            interaction_id: Some(interaction_id.to_string()),
             run: AppServerHookRunSummary {
                 id: "user-prompt-submit:0:/tmp/hooks.json".to_string(),
                 event_name: AppServerHookEventName::UserPromptSubmit,
@@ -476,16 +483,16 @@ mod tests {
 
     fn exec_approval_request(
         thread_id: ThreadId,
-        turn_id: &str,
-        item_id: &str,
+        interaction_id: &str,
+        message_id: &str,
         approval_id: Option<&str>,
     ) -> ServerRequest {
         ServerRequest::CommandExecutionRequestApproval {
             request_id: AppServerRequestId::Integer(1),
             params: CommandExecutionRequestApprovalParams {
-                thread_id: thread_id.to_string(),
-                turn_id: turn_id.to_string(),
-                item_id: item_id.to_string(),
+                chat_id: thread_id.to_string(),
+                interaction_id: interaction_id.to_string(),
+                message_id: message_id.to_string(),
                 started_at_ms: 0,
                 approval_id: approval_id.map(str::to_string),
                 environment_id: None,
@@ -568,7 +575,7 @@ mod tests {
         store.push_notification(ServerNotification::ServerRequestResolved(
             datax_app_server_protocol::ServerRequestResolvedNotification {
                 request_id: AppServerRequestId::Integer(1),
-                thread_id: thread_id.to_string(),
+                chat_id: thread_id.to_string(),
             },
         ));
 
@@ -615,7 +622,7 @@ mod tests {
         let thread_id = ThreadId::new();
         let notification = ServerNotification::McpServerStatusUpdated(
             datax_app_server_protocol::McpServerStatusUpdatedNotification {
-                thread_id: Some(thread_id.to_string()),
+                chat_id: Some(thread_id.to_string()),
                 name: "sentry".to_string(),
                 status: datax_app_server_protocol::McpServerStartupState::Failed,
                 error: Some("sentry is not logged in".to_string()),

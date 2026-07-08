@@ -411,7 +411,7 @@ mod tests {
             id: read_thread_id.to_string(),
             session_id: read_thread_id.to_string(),
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             preview: "read thread".to_string(),
             ephemeral: false,
             model_provider: "read-provider".to_string(),
@@ -423,12 +423,12 @@ mod tests {
             cwd: test_path_buf("/tmp/read").abs(),
             cli_version: "0.0.0".to_string(),
             source: datax_app_server_protocol::SessionSource::Unknown,
-            thread_source: None,
+            chat_source: None,
             agent_nickname: None,
             agent_role: None,
             git_info: None,
             name: Some("read thread".to_string()),
-            turns: Vec::new(),
+            interactions: Vec::new(),
         };
 
         app.primary_session_configured = Some(primary_session.clone());

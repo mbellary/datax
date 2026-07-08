@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "description": "EXPERIMENTAL - emitted when chat realtime transport closes.",
+  "description": "EXPERIMENTAL - emitted when thread realtime transport closes.",
   "properties": {
     "chatId": {
       "type": "string"

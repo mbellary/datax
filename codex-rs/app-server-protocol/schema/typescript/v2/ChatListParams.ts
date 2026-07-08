@@ -26,11 +26,11 @@ modelProviders?: Array<string> | null, /**
  * are returned. When omitted or empty, defaults to interactive sources.
  */
 sourceKinds?: Array<ChatSourceKind> | null, /**
- * Optional archived filter; when set to true, only archived threads are returned.
- * If false or null, only non-archived threads are returned.
+ * Optional archived filter; when set to true, only archived chats are returned.
+ * If false or null, only non-archived chats are returned.
  */
 archived?: boolean | null, /**
- * Optional cwd filter or filters; when set, only threads whose session cwd
+ * Optional cwd filter or filters; when set, only chats whose session cwd
  * exactly matches one of these paths are returned.
  */
 cwd?: string | Array<string> | null, /**

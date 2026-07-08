@@ -53,9 +53,9 @@ fn app_server_exec_approval_request_splits_shell_wrapped_command() {
     let script = r#"python3 -c 'print("Hello, world!")'"#;
     let request = exec_approval_request_from_params(
         AppServerCommandExecutionRequestApprovalParams {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
-            item_id: "item-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
+            message_id: "item-1".to_string(),
             started_at_ms: 0,
             approval_id: Some("approval-1".to_string()),
             environment_id: None,
@@ -95,9 +95,9 @@ fn app_server_exec_approval_request_preserves_permissions_context() {
     let write_api_path = LegacyAppPathString::from_abs_path(&write_path);
     let request = exec_approval_request_from_params(
         AppServerCommandExecutionRequestApprovalParams {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
-            item_id: "item-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
+            message_id: "item-1".to_string(),
             started_at_ms: 0,
             approval_id: Some("approval-1".to_string()),
             environment_id: None,
@@ -155,9 +155,9 @@ async fn network_exec_approval_history_describes_session_host_allowance() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let request = exec_approval_request_from_params(
         AppServerCommandExecutionRequestApprovalParams {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
-            item_id: "item-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
+            message_id: "item-1".to_string(),
             started_at_ms: 0,
             approval_id: Some("approval-1".to_string()),
             environment_id: None,
@@ -197,9 +197,9 @@ async fn network_exec_approval_history_describes_one_time_host_allowance() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let request = exec_approval_request_from_params(
         AppServerCommandExecutionRequestApprovalParams {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
-            item_id: "item-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
+            message_id: "item-1".to_string(),
             started_at_ms: 0,
             approval_id: Some("approval-1".to_string()),
             environment_id: None,
@@ -239,9 +239,9 @@ async fn network_exec_approval_history_describes_canceled_host_request() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let request = exec_approval_request_from_params(
         AppServerCommandExecutionRequestApprovalParams {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
-            item_id: "item-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
+            message_id: "item-1".to_string(),
             started_at_ms: 0,
             approval_id: Some("approval-1".to_string()),
             environment_id: None,
@@ -288,9 +288,9 @@ fn app_server_request_permissions_preserves_file_system_permissions() {
         AbsolutePathBuf::try_from(PathBuf::from(test_path_display("/tmp"))).expect("absolute cwd");
 
     let request = request_permissions_from_params(AppServerPermissionsRequestApprovalParams {
-        thread_id: "thread-1".to_string(),
-        turn_id: "turn-1".to_string(),
-        item_id: "item-1".to_string(),
+        chat_id: "thread-1".to_string(),
+        interaction_id: "turn-1".to_string(),
+        message_id: "item-1".to_string(),
         environment_id: Some("remote".to_string()),
         started_at_ms: 0,
         cwd: cwd.clone(),

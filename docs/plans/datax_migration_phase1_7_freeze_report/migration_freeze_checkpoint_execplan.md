@@ -31,7 +31,8 @@ The user-visible outcome is a concrete freeze checklist plus a cleanup of active
 - [x] (2026-07-08 00:00Z) Confirmed no writable-tree `codex-rs` path references remain outside `.codex/` local metadata.
 - [x] (2026-07-08 00:00Z) Inventoried internal Codex-era names and split them into public/wire/generated/persistence/snapshot identity debt versus internal-only classification entries.
 - [x] (2026-07-08 00:00Z) Ran Track B post-change static status commands and confirmed the output matches the classified audit baseline.
-- [ ] Inventory downstream Codex artifacts discovered during the Phase 1.7 scans for Phase 2 adapter/runtime planning.
+- [x] (2026-07-08 00:00Z) Inventoried downstream Codex and compatibility artifacts discovered during Phase 1.7 scans for Phase 2 adapter/runtime planning.
+- [x] (2026-07-08 00:00Z) Cleaned active local Datax app-server test-client and websocket banner wording found during Track C.
 - [ ] Record final validation evidence from the user and close out the freeze report.
 
 ## Surprises & Discoveries
@@ -62,6 +63,14 @@ The user-visible outcome is a concrete freeze checklist plus a cleanup of active
   Evidence: The root grouping returned 527 `datax-rs`, 25 `sdk`, and 6 `docs` files. The `datax-rs` grouping returned the same largest groups recorded in this plan: `core` (144), `tui` (87), `app-server` (39), `app-server-protocol` (34), `rollout-trace` (27), `hooks` (26), `state` (25), `ext` (25), and `thread-store` (19). The `codex_thread` / `codex_turn` file list and snapshot file list also matched the classified Track B categories.
 - Observation: Downstream Codex artifact discovery should be recorded for Phase 2 rather than implemented in Phase 1.
   Evidence: A focused artifact-candidate search across app-server, SDK, scripts, and GitHub metadata reported 184 files. These need classification before Phase 2, not adapter wiring during Phase 1.
+- Observation: Track C found active local Datax app-server surfaces that were not valid downstream Codex artifacts.
+  Evidence: `datax-rs/app-server-test-client/src/lib.rs`, `datax-rs/app-server-test-client/README.md`, and `datax-rs/app-server-transport/src/transport/websocket.rs` used Codex app-server wording for the local Datax app-server test client, binary examples, temp directory, environment variables, and websocket startup banner.
+- Observation: The remaining app-server protocol `codex_app_server_protocol` filenames and `CodexAppServerProtocol` schema titles are generated compatibility identifiers with broad blast radius.
+  Evidence: Matches remain in `datax-rs/app-server-protocol/src/export.rs`, app-server protocol schema fixture tests, `.github/blob-size-allowlist.txt`, SDK generated files, and checked-in JSON/TypeScript schema outputs.
+- Observation: ChatGPT backend `/backend-api/codex` URLs are external service contracts, not local Datax app-server runtime wiring.
+  Evidence: Matches appear in `datax-rs/model-provider-info`, `datax-rs/codex-api`, `datax-rs/codex-client`, response debug context, protocol tests, analytics tests, agent identity, and release-prepare workflow configuration.
+- Observation: `codex-sdk` remains an isolated SDK/package track, not Track C adapter wiring.
+  Evidence: Matches remain in `sdk/typescript`, `sdk/python`, `datax-cli/scripts/build_npm_package.py`, and `.github/workflows/rust-release.yml`.
 
 ## Decision Log
 
@@ -88,6 +97,12 @@ The user-visible outcome is a concrete freeze checklist plus a cleanup of active
   Date/Author: 2026-07-08 / Codex.
 - Decision: Record downstream Codex artifacts discovered during Phase 1 scans for Phase 2.
   Rationale: Phase 1 scanning will expose artifacts that may belong to the future downstream Codex app-server adapter/runtime boundary. Capturing them now helps Phase 2 without adding adapter implementation or runtime coupling during Phase 1.
+  Date/Author: 2026-07-08 / Codex.
+- Decision: Fix active local Datax app-server wording discovered by Track C, but do not rename generated schema bundle identifiers or SDK package names in this track.
+  Rationale: Test-client help text, README examples, launcher defaults, temp paths, and websocket banners are Datax-owned active surfaces with narrow blast radius. Schema bundle titles/filenames and SDK package names affect generated clients, fixture tests, release packaging, and downstream compatibility, so they remain separate follow-up tracks.
+  Date/Author: 2026-07-08 / Codex.
+- Decision: Classify ChatGPT backend `/backend-api/codex` URLs as external dependency artifacts, not downstream Codex app-server adapter code.
+  Rationale: The planned Phase 2 downstream Codex app-server adapter is a Datax runtime boundary. Existing ChatGPT backend URLs are service API contracts used by model/provider/client code and should not be moved into `codex-runtime` unless Phase 2 deliberately scopes them there.
   Date/Author: 2026-07-08 / Codex.
 - Decision: Do not classify `codex-sdk` as an accepted freeze exception without a dedicated decision.
   Rationale: It is an active public package and SDK surface, not merely historical text. Renaming it touches TypeScript SDK package metadata, imports, tests, release packaging, and possibly Python SDK references. That is too broad to silently include in metadata cleanup, but it is also too active to accept as a harmless exception.
@@ -221,6 +236,16 @@ These rows describe the implementation tracks now in Phase 1.7 scope. Each track
 | `datax-rs/core/src/codex_thread.rs` and related `datax-rs/core/src/session/**/*` / `datax-rs/core/src/tasks/**/*` files | `Deferred` | Track B classification: internal core execution/session owner names. Rename only after app-server, TUI, rollout, and downstream Codex compatibility boundaries are mapped. |
 | `datax-rs/tui/**/*` | `Deferred` | Track B classification: TUI local state still uses `thread_id` / `turn_id` because it bridges app-server chat/interaction payloads to inherited local session structures. Rename only with focused TUI state tests and snapshot review. |
 | `datax-rs/**/snapshots/*codex*.snap` and `datax-rs/**/snapshots/*codex*.snap.new` | `Completed` | Track B audit: existing generated snapshot identity debt found in `core`, `cli`, and pending `tui` snapshots. `datax_tui__...gpt5_codex...` snapshots are model-slug references and are excluded from product identity cleanup. |
+| `datax-rs/app-server-test-client/src/lib.rs` | `Completed` | Track C: fixed active local Datax app-server help text, default launched binary, temp path, trace target, error strings, and client title. Left protocol/event compatibility names such as `codex_plugin_*` and `codex_streamlined_login` unchanged. |
+| `datax-rs/app-server-test-client/README.md` | `Completed` | Track C: fixed local Datax app-server quickstart examples, binary paths, temp path, and test-client binary name. |
+| `datax-rs/app-server-transport/src/transport/websocket.rs` | `Completed` | Track C: fixed active websocket startup banner from `codex app-server` to `datax app-server`. |
+| `datax-rs/app-server-protocol/src/bin/export.rs` | `Completed` | Track C: fixed active export command help text to say Datax app-server protocol. |
+| `datax-rs/app-server-protocol/src/protocol/v2/thread_data.rs` | `Completed` | Track C: fixed source documentation for chat origin examples from `codex exec` / `codex app-server` to Datax-owned names. Requires app-server schema regeneration by the user. |
+| `datax-rs/app-server-protocol/src/protocol/v2/plugin.rs` | `Completed` | Track C: clarified that the remaining Codex app-server wording is an upstream compatibility note for plugin availability decoding. Requires app-server schema regeneration by the user. |
+| `datax-rs/app-server-protocol/src/export.rs` | `Deferred` | Track C: generated schema bundle filenames and titles still use `codex_app_server_protocol` / `CodexAppServerProtocol`. Rename only in a protocol/schema compatibility track. |
+| `datax-rs/app-server-protocol/schema/**/*` | `Pending` | Track C: generated schema outputs will reflect the `thread_data.rs` and `plugin.rs` documentation edits after the user runs schema generation. Bundle filenames/titles remain deferred. |
+| `sdk/python/src/openai_codex/generated/**/*` | `Pending` | Track C / SDK boundary: generated SDK artifacts will continue to expose Codex protocol names until the SDK/package and schema-identity tracks are approved. |
+| `datax-rs/codex-client/**/*`, `datax-rs/codex-api/**/*`, `datax-rs/model-provider-info/**/*`, and related tests | `No Change Required` | Track C: ChatGPT backend `/backend-api/codex` URLs are external service contracts, not the future downstream app-server adapter boundary. |
 | `.github/workflows/rust-release.yml` | `Pending` | Isolated `codex-sdk` track. Do not fix until user approves the SDK/package track. |
 | `datax-cli/scripts/build_npm_package.py` | `Pending` | Isolated `codex-sdk` track. Do not fix until user approves the SDK/package track. |
 | `sdk/typescript/package.json` | `Pending` | Isolated `codex-sdk` track. Do not fix until user approves the SDK/package track. |
@@ -446,6 +471,81 @@ After this Track B audit commit is pulled, the user runs these commands and prov
 
 Expected result: output is allowed. Any output should match the classified Track B categories above. New public, wire, generated, CLI-visible, fixture, documentation, or snapshot identity matches outside these categories must be added to this ExecPlan before Phase 1 freeze is accepted.
 
+## Track C: Downstream Codex Artifact Register
+
+Track C inventories artifacts that might be relevant to a future downstream Codex app-server adapter/runtime boundary, fixes active local Datax app-server wording where the scan shows it is not downstream compatibility, and classifies everything else for Phase 2. It does not implement an adapter, move files into a new runtime folder, or make Datax call a downstream Codex app-server.
+
+The Track C audit concluded:
+
+- Local Datax app-server surfaces should say Datax now. This includes app-server test-client help text, README examples, runtime temp paths, environment variable names, and websocket startup banners.
+- `datax-rs/app-server-protocol` remains the current Datax app-server protocol area. Schema bundle names such as `codex_app_server_protocol.schemas.json` and schema titles such as `CodexAppServerProtocol` are compatibility/generated identity debt and need a dedicated protocol/schema rename track.
+- `sdk/typescript` and `sdk/python` still contain `codex-sdk`, `@openai/codex`, `openai_codex`, and generated Codex protocol names. These belong to the isolated SDK/package track, not Track C adapter wiring.
+- ChatGPT backend URLs under `/backend-api/codex` are external service contracts. They are not the future downstream Codex app-server adapter.
+- GitHub actions such as `openai/codex-action` and upstream release URLs are external automation/provenance artifacts unless a later track replaces that automation.
+
+### Track C Inventory Commands
+
+These commands were used to define the Track C scope and distinguish active local Datax app-server wording from true compatibility/deferred artifacts.
+
+    cd /home/mbellary/wsl/projects/datax
+    git status --short --branch
+
+    rg -n "Codex app-server|codex app-server|codex-app-server|CodexAppServerProtocol|codex_app_server_protocol|@openai/codex|codex-sdk|backend-api/codex|openai/codex/releases|codex-action" \
+      datax-rs/app-server-protocol \
+      datax-rs/app-server-test-client \
+      datax-rs/app-server-transport \
+      datax-rs/backend-client \
+      datax-rs/rmcp-client \
+      sdk \
+      datax-cli \
+      scripts \
+      .github \
+      --glob '!.git/**' \
+      --glob '!datax-rs/target/**' \
+      --glob '!**/*.snap.new'
+
+    rg -n "CODEX_BIN|CODEX_APP_SERVER_URL|codex app-server|codex-app-server|./target/debug/codex|/tmp/codex-app-server-test-client" \
+      datax-rs/app-server-test-client/src/lib.rs \
+      datax-rs/app-server-test-client/README.md
+
+    rg -n "\b(Codex|codex) app-server" \
+      datax-rs/app-server-transport/src/transport/websocket.rs \
+      datax-rs/app-server-protocol/src/bin/export.rs \
+      datax-rs/app-server-protocol/src/protocol/v2/thread_data.rs \
+      datax-rs/app-server-protocol/src/protocol/v2/plugin.rs
+
+    rg -n "backend-api/codex|CHATGPT_CODEX_BASE_URL|OPENAI_BASE_URL|codex/responses|codex/models|codex/realtime" \
+      datax-rs \
+      --glob '!datax-rs/target/**' \
+      --glob '!**/*.snap.new'
+
+### Track C Post-Change Validation Commands
+
+After this Track C implementation is pulled, the user runs these commands and provides the output. The schema generation commands are required because `datax-rs/app-server-protocol/src/protocol/v2/thread_data.rs` and `datax-rs/app-server-protocol/src/protocol/v2/plugin.rs` source documentation changed.
+
+    cd /home/mbellary/wsl/projects/datax
+    git status --short --branch
+
+    rg -n "CODEX_BIN|CODEX_APP_SERVER_URL|codex app-server|codex-app-server|./target/debug/codex|/tmp/codex-app-server-test-client" \
+      datax-rs/app-server-test-client/src/lib.rs \
+      datax-rs/app-server-test-client/README.md
+
+    rg -n "\b(Codex|codex) app-server" \
+      datax-rs/app-server-transport/src/transport/websocket.rs \
+      datax-rs/app-server-protocol/src/bin/export.rs \
+      datax-rs/app-server-protocol/src/protocol/v2/thread_data.rs \
+      datax-rs/app-server-protocol/src/protocol/v2/plugin.rs
+
+    cd /home/mbellary/wsl/projects/datax/datax-rs
+    just write-app-server-schema
+    just write-app-server-schema --experimental
+    just fmt
+
+    cd /home/mbellary/wsl/projects/datax
+    git diff --check -- . ':(exclude)**/*.snap'
+
+Expected result: the focused test-client search returns no matches. The focused `codex app-server` search may return the `Upstream Codex app-server` plugin compatibility comment only. Schema generation should update checked-in schema artifacts for the changed source documentation.
+
 ## Plan of Work
 
 The implementation started as metadata-only, but Phase 1.7 now also owns remaining Datax-owned identity cleanup. Inventory every `codex-rs` path reference before modifying files, then rename the top-level Rust source directory to `datax-rs` and update build, CI, package, schema, Bazel, docs, and helper-script references in the same checkpoint. Inventory internal Codex-era identifiers before modifying files; rename public, wire, generated, CLI-visible, fixture, snapshot identity, and documentation occurrences, and classify any internal-only names that remain. Snapshot IDs and pending snapshot filenames such as `codex_tui__...` and `codex_core__...` belong to Track B because they are generated from crate/module/test identity, not from the Track A Rust workspace path. Record downstream Codex artifacts discovered during these scans for Phase 2 adapter/runtime planning, but do not implement the adapter or wire Datax to a downstream Codex app-server in Phase 1. Do not use this as permission to move unrelated Datax-owned crates or redesign the repository layout. Do not run format, build, generation, fix, or test commands unless the user asks for that exact command.
@@ -465,10 +565,12 @@ The final freeze report will use the concrete checklist as the command source. T
 | `rg -l --hidden "\b(codex_thread\|codex_turn\|codex_turns)\b" datax-rs sdk docs ...` | repository root | Yes | `Completed` | Track B post-change narrow Codex-era internal-name list matched the deferred core, rollout-trace, app-server, and historical-plan categories. |
 | `find datax-rs -path '*/snapshots/*codex*.snap' -print` | repository root | Yes | `Completed` | Existing snapshot identity output matched the classified baseline. Model-slug snapshots containing `gpt5_codex` are accepted exceptions. |
 | `find datax-rs -path '*/snapshots/*codex*.snap.new' -print` | repository root | Yes | `Completed` | Pending snapshot identity output matched the classified baseline. These files remain unaccepted pending a crate/module identity rename track. |
+| `rg -n "CODEX_BIN\|CODEX_APP_SERVER_URL\|codex app-server\|codex-app-server\|./target/debug/codex\|/tmp/codex-app-server-test-client" datax-rs/app-server-test-client/src/lib.rs datax-rs/app-server-test-client/README.md` | repository root | Yes | `Completed` | Track C active local app-server test-client cleanup returns no matches after implementation. |
+| `rg -n "\b(Codex\|codex) app-server" datax-rs/app-server-transport/src/transport/websocket.rs datax-rs/app-server-protocol/src/bin/export.rs datax-rs/app-server-protocol/src/protocol/v2/thread_data.rs datax-rs/app-server-protocol/src/protocol/v2/plugin.rs` | repository root | Yes | `Completed` | Track C focused search now leaves only the explicit `Upstream Codex app-server` plugin compatibility note. |
+| `just write-app-server-schema` | `datax-rs` | Yes | `Deferred` | User-run only. Required after Track C source documentation edits in app-server protocol. |
+| `just write-app-server-schema --experimental` | `datax-rs` | Yes | `Deferred` | User-run only. Required after Track C source documentation edits in app-server protocol. |
 | `just fmt` | repository root | Yes | `Deferred` | User-run only. |
 | `just write-config-schema` | repository root | Yes | `Deferred` | User-run only. |
-| `just write-app-server-schema` | repository root | Yes | `Deferred` | User-run only. |
-| `just write-app-server-schema --experimental` | repository root | Yes | `Deferred` | User-run only. |
 | `just write-hooks-schema` | repository root | Yes | `Deferred` | User-run only. |
 | `cargo build` | repository root | Yes | `Deferred` | User-run only. |
 | `just test -p datax-cli` | repository root | Yes | `Deferred` | User-run only. |

@@ -1,17 +1,17 @@
 # App Server Test Client
-Quickstart for running and hitting `codex app-server`.
+Quickstart for running and hitting `datax app-server`.
 
 ## Quickstart
 
 Run from `<reporoot>/datax-rs`.
 
 ```bash
-# 1) Build debug codex binary
+# 1) Build debug datax binary
 cargo build -p datax-cli --bin datax
 
 # 2) Start websocket app-server in background
 cargo run -p datax-app-server-test-client -- \
-  --datax-bin ./target/debug/codex \
+  --datax-bin ./target/debug/datax \
   serve --listen ws://127.0.0.1:4222 --kill
 
 # 3) Call app-server (defaults to ws://127.0.0.1:4222)
@@ -19,7 +19,7 @@ cargo run -p datax-app-server-test-client -- model-list
 ```
 
 `send-message` and `send-message-v2` handle `request_user_input` server requests interactively.
-When Codex asks a question, choose a numbered option (or `o` for a free-form answer when offered)
+When Datax asks a question, choose a numbered option (or `o` for a free-form answer when offered)
 and the client will send the response and continue streaming the same turn.
 
 ## Testing Plugin Analytics
@@ -31,15 +31,15 @@ not sent to the analytics backend. The model turn uses a loopback Responses
 API server.
 
 The selected plugin must already be installed and enabled remotely, and the
-active Codex profile must be authenticated. On a fresh local cache, the command
+active Datax profile must be authenticated. On a fresh local cache, the command
 retries ephemeral turns while the installed remote bundle finishes syncing.
 
 ```bash
-# Build a debug Codex binary; analytics capture is unavailable in release builds.
+# Build a debug Datax binary; analytics capture is unavailable in release builds.
 cargo build -p datax-cli --bin datax
 
 cargo run -p datax-app-server-test-client -- \
-  --datax-bin ./target/debug/codex \
+  --datax-bin ./target/debug/datax \
   plugin-analytics-smoke \
   --plugin-id linear@openai-curated-remote
 ```
@@ -72,7 +72,7 @@ local `<plugin>@<marketplace>` ID.
 
 ```bash
 cargo run -p datax-app-server-test-client -- \
-  --datax-bin ./target/debug/codex \
+  --datax-bin ./target/debug/datax \
   plugin-analytics-mutation-smoke \
   --remote-plugin-id <REMOTE_PLUGIN_ID> \
   --confirm-account-mutation \
@@ -95,13 +95,13 @@ For a dirty or uncertain result, retry cleanup with:
 
 ```bash
 cargo run -p datax-app-server-test-client -- \
-  --datax-bin ./target/debug/codex \
+  --datax-bin ./target/debug/datax \
   plugin-remote-uninstall \
   --remote-plugin-id <REMOTE_PLUGIN_ID> \
   --confirm-account-mutation
 ```
 
-Cleanup does not require analytics capture or a debug Codex binary. When the
+Cleanup does not require analytics capture or a debug Datax binary. When the
 smoke uses global `--config` overrides, its printed recovery command preserves
 them so cleanup targets the same backend and account.
 
@@ -116,7 +116,7 @@ cargo run -p datax-app-server-test-client -- watch
 
 ## Testing Thread Rejoin Behavior
 
-Build and start an app server using commands above. The app-server log is written to `/tmp/codex-app-server-test-client/app-server.log`
+Build and start an app server using commands above. The app-server log is written to `/tmp/datax-app-server-test-client/app-server.log`
 
 ### 1) Get a thread id
 
@@ -134,12 +134,12 @@ Copy a thread id from the `thread-list` output.
 Terminal A:
 
 ```bash
-cargo run --bin codex-app-server-test-client -- \
+cargo run --bin datax-app-server-test-client -- \
   resume-message-v2 <THREAD_ID> "respond with thorough docs on the rust core"
 ```
 
 Terminal B (while Terminal A is still streaming):
 
 ```bash
-cargo run --bin codex-app-server-test-client -- thread-resume <THREAD_ID>
+cargo run --bin datax-app-server-test-client -- thread-resume <THREAD_ID>
 ```

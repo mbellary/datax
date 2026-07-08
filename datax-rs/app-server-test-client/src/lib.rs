@@ -109,23 +109,23 @@ const OTEL_SERVICE_NAME: &str = "datax-app-server-test-client";
 const TRACE_DISABLED_MESSAGE: &str =
     "Not enabled - enable tracing in $DATAX_HOME/config.toml to get a trace URL!";
 
-/// Minimal launcher that initializes the Codex app-server and logs the handshake.
+/// Minimal launcher that initializes the Datax app-server and logs the handshake.
 #[derive(Parser)]
-#[command(author = "Codex", version, about = "Bootstrap Codex app-server", long_about = None)]
+#[command(author = "Datax", version, about = "Bootstrap Datax app-server", long_about = None)]
 struct Cli {
-    /// Path to the `codex` CLI binary. When set, requests use stdio by
-    /// spawning `codex app-server` as a child process.
-    #[arg(long, env = "CODEX_BIN", global = true)]
+    /// Path to the `datax` CLI binary. When set, requests use stdio by
+    /// spawning `datax app-server` as a child process.
+    #[arg(long, env = "DATAX_BIN", global = true)]
     datax_bin: Option<PathBuf>,
 
     /// Existing websocket server URL to connect to.
     ///
     /// If neither `--datax-bin` nor `--url` is provided, defaults to
     /// `ws://127.0.0.1:4222`.
-    #[arg(long, env = "CODEX_APP_SERVER_URL", global = true)]
+    #[arg(long, env = "DATAX_APP_SERVER_URL", global = true)]
     url: Option<String>,
 
-    /// Forwarded to the `codex` CLI as `--config key=value`. Repeatable.
+    /// Forwarded to the `datax` CLI as `--config key=value`. Repeatable.
     ///
     /// Example:
     ///   `--config 'model_providers.mock.base_url="http://localhost:4010/v2"'`
@@ -153,21 +153,21 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum CliCommand {
-    /// Start `codex app-server` on a websocket endpoint in the background.
+    /// Start `datax app-server` on a websocket endpoint in the background.
     ///
     /// Logs are written to:
-    ///   `/tmp/codex-app-server-test-client/`
+    ///   `/tmp/datax-app-server-test-client/`
     Serve {
-        /// WebSocket listen URL passed to `codex app-server --listen`.
+        /// WebSocket listen URL passed to `datax app-server --listen`.
         #[arg(long, default_value = "ws://127.0.0.1:4222")]
         listen: String,
         /// Kill any process listening on the same port before starting.
         #[arg(long, default_value_t = false)]
         kill: bool,
     },
-    /// Send a user message through the Codex app-server.
+    /// Send a user message through the Datax app-server.
     SendMessage {
-        /// User message to send to Codex.
+        /// User message to send to Datax.
         user_message: String,
     },
     /// Send a user message through the app-server V2 chat/interaction APIs.
@@ -175,14 +175,14 @@ enum CliCommand {
         /// Opt into experimental app-server methods and fields.
         #[arg(long)]
         experimental_api: bool,
-        /// User message to send to Codex.
+        /// User message to send to Datax.
         user_message: String,
     },
     /// Resume a V2 chat by id, then send a user message.
     ResumeMessageV2 {
         /// Existing chat id to resume.
         thread_id: String,
-        /// User message to send to Codex.
+        /// User message to send to Datax.
         user_message: String,
     },
     /// Resume a V2 chat and continuously stream notifications/events.
@@ -236,12 +236,12 @@ enum CliCommand {
         #[arg(long, default_value_t = false)]
         device_code: bool,
     },
-    /// Fetch the current account rate limits from the Codex app-server.
+    /// Fetch the current account rate limits from the Datax app-server.
     GetAccountRateLimits,
-    /// List the available models from the Codex app-server.
+    /// List the available models from the Datax app-server.
     #[command(name = "model-list")]
     ModelList,
-    /// List stored threads from the Codex app-server.
+    /// List stored threads from the Datax app-server.
     #[command(name = "chat-list")]
     ChatList {
         /// Number of threads to return.
@@ -327,7 +327,7 @@ pub async fn run() -> Result<()> {
     match command {
         CliCommand::Serve { listen, kill } => {
             ensure_dynamic_tools_unused(&dynamic_tools, "serve")?;
-            let datax_bin = datax_bin.unwrap_or_else(|| PathBuf::from("codex"));
+            let datax_bin = datax_bin.unwrap_or_else(|| PathBuf::from("datax"));
             serve(&datax_bin, &config_overrides, &listen, kill)
         }
         CliCommand::SendMessage { user_message } => {
@@ -601,7 +601,7 @@ impl Drop for BackgroundAppServer {
 }
 
 fn serve(datax_bin: &Path, config_overrides: &[String], listen: &str, kill: bool) -> Result<()> {
-    let runtime_dir = PathBuf::from("/tmp/codex-app-server-test-client");
+    let runtime_dir = PathBuf::from("/tmp/datax-app-server-test-client");
     fs::create_dir_all(&runtime_dir)
         .with_context(|| format!("failed to create runtime dir {}", runtime_dir.display()))?;
     let log_path = runtime_dir.join("app-server.log");
@@ -619,7 +619,7 @@ fn serve(datax_bin: &Path, config_overrides: &[String], listen: &str, kill: bool
         .with_context(|| format!("failed to clone log file handle {}", log_path.display()))?;
 
     let mut cmdline = format!(
-        "tail -f /dev/null | RUST_BACKTRACE=full RUST_LOG=warn,codex_=trace {}",
+        "tail -f /dev/null | RUST_BACKTRACE=full RUST_LOG=warn,datax_=trace {}",
         shell_quote(&datax_bin.display().to_string())
     );
     for override_kv in config_overrides {
@@ -639,7 +639,7 @@ fn serve(datax_bin: &Path, config_overrides: &[String], listen: &str, kill: bool
 
     let pid = child.id();
 
-    println!("started codex app-server");
+    println!("started datax app-server");
     println!("listen: {listen}");
     println!("pid: {pid} (launcher process)");
     println!("log: {}", log_path.display());
@@ -1325,7 +1325,7 @@ fn live_elicitation_timeout_pause(
         .canonicalize()
         .with_context(|| format!("failed to resolve workspace `{}`", workspace.display()))?;
     let app_server_test_client_bin = std::env::current_exe()
-        .context("failed to resolve codex-app-server-test-client binary path")?;
+        .context("failed to resolve datax-app-server-test-client binary path")?;
     let endpoint = Endpoint::ConnectWs(websocket_url.clone());
     let mut client = DataxClient::connect(&endpoint, &[])?;
 
@@ -1555,7 +1555,7 @@ impl DataxClient {
         for (name, value) in environment {
             cmd.env(name, value);
         }
-        let mut codex_app_server = cmd
+        let mut datax_app_server = cmd
             .arg("app-server")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -1563,18 +1563,18 @@ impl DataxClient {
             .spawn()
             .with_context(|| format!("failed to start `{datax_bin_display}` app-server"))?;
 
-        let stdin = codex_app_server
+        let stdin = datax_app_server
             .stdin
             .take()
-            .context("codex app-server stdin unavailable")?;
-        let stdout = codex_app_server
+            .context("datax app-server stdin unavailable")?;
+        let stdout = datax_app_server
             .stdout
             .take()
-            .context("codex app-server stdout unavailable")?;
+            .context("datax app-server stdout unavailable")?;
 
         Ok(Self {
             transport: ClientTransport::Stdio {
-                child: codex_app_server,
+                child: datax_app_server,
                 stdin: Some(stdin),
                 stdout: BufReader::new(stdout),
             },
@@ -1604,7 +1604,7 @@ impl DataxClient {
                     if Instant::now() >= deadline {
                         return Err(err).with_context(|| {
                             format!(
-                                "failed to connect to websocket app-server at `{url}`; if no server is running, start one with `codex-app-server-test-client serve --listen {url}`"
+                                "failed to connect to websocket app-server at `{url}`; if no server is running, start one with `datax-app-server-test-client serve --listen {url}`"
                             )
                         });
                     }
@@ -1657,7 +1657,7 @@ impl DataxClient {
             params: InitializeParams {
                 client_info: ClientInfo {
                     name: "datax-toy-app-server".to_string(),
-                    title: Some("Codex Toy App Server".to_string()),
+                    title: Some("Datax Toy App Server".to_string()),
                     version: env!("CARGO_PKG_VERSION").to_string(),
                 },
                 capabilities: Some(InitializeCapabilities {
@@ -2196,10 +2196,10 @@ impl DataxClient {
                     writeln!(stdin, "{payload}")?;
                     stdin
                         .flush()
-                        .context("failed to flush payload to codex app-server")?;
+                        .context("failed to flush payload to datax app-server")?;
                     return Ok(());
                 }
-                bail!("codex app-server stdin closed")
+                bail!("datax app-server stdin closed")
             }
             ClientTransport::WebSocket { socket, url } => {
                 socket
@@ -2216,9 +2216,9 @@ impl DataxClient {
                 let mut response_line = String::new();
                 let bytes = stdout
                     .read_line(&mut response_line)
-                    .context("failed to read from codex app-server")?;
+                    .context("failed to read from datax app-server")?;
                 if bytes == 0 {
-                    bail!("codex app-server closed stdout");
+                    bail!("datax app-server closed stdout");
                 }
                 Ok(response_line)
             }
@@ -2335,14 +2335,14 @@ impl Drop for DataxClient {
         let _ = stdin.take();
 
         if let Ok(Some(status)) = child.try_wait() {
-            println!("[codex app-server exited: {status}]");
+            println!("[datax app-server exited: {status}]");
             return;
         }
 
         let deadline = SystemTime::now() + APP_SERVER_GRACEFUL_SHUTDOWN_TIMEOUT;
         loop {
             if let Ok(Some(status)) = child.try_wait() {
-                println!("[codex app-server exited: {status}]");
+                println!("[datax app-server exited: {status}]");
                 return;
             }
 

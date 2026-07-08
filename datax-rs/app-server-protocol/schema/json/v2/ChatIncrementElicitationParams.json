@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Parameters for `chat/increment_elicitation`.",
+  "properties": {
+    "chatId": {
+      "description": "Chat whose out-of-band elicitation counter should be incremented.",
+      "type": "string"
+    }
+  },
+  "required": [
+    "chatId"
+  ],
+  "title": "ChatIncrementElicitationParams",
+  "type": "object"
+}

@@ -58,7 +58,7 @@ For each Phase 1 milestone:
   prose.
 - Defer test and build execution until the post-implementation migration test
   pass unless the user explicitly asks to run a command during the milestone.
-- Run `just fmt` from `codex-rs` after code changes.
+- Run `just fmt` from `datax-rs` after code changes.
 - Run `just fix -p <project>` before finalizing substantial Rust changes.
 - Ask before running the complete `just test` suite.
 
@@ -160,7 +160,7 @@ Acceptance` with this shape:
 
         git diff --check
 
-    From `codex-rs`, run the targeted crate tests and expect them to pass:
+    From `datax-rs`, run the targeted crate tests and expect them to pass:
 
         just test -p <crate>
 

@@ -13,7 +13,7 @@ on:
       - ".github/workflows/v8-canary.yml"
       - "MODULE.bazel"
       - "MODULE.bazel.lock"
-      - "codex-rs/Cargo.toml"
+      - "datax-rs/Cargo.toml"
       - "patches/BUILD.bazel"
       - "patches/llvm_*.patch"
       - "patches/rules_cc_*.patch"
@@ -33,7 +33,7 @@ on:
       - ".github/workflows/v8-canary.yml"
       - "MODULE.bazel"
       - "MODULE.bazel.lock"
-      - "codex-rs/Cargo.toml"
+      - "datax-rs/Cargo.toml"
       - "patches/BUILD.bazel"
       - "patches/llvm_*.patch"
       - "patches/rules_cc_*.patch"
@@ -309,7 +309,7 @@ jobs:
           fi
 
           (
-            cd codex-rs
+            cd datax-rs
             CARGO_TARGET_DIR="${RUNNER_TEMP}/rusty-v8-cargo-smoke-${TARGET}-${SANDBOX}" \
             RUSTY_V8_ARCHIVE="${GITHUB_WORKSPACE}/${archive}" \
             RUSTY_V8_SRC_BINDING_PATH="${GITHUB_WORKSPACE}/${binding}" \
@@ -448,7 +448,7 @@ jobs:
           fi
 
           (
-            cd codex-rs
+            cd datax-rs
             RUSTY_V8_ARCHIVE="${GITHUB_WORKSPACE}/${archive}" \
             RUSTY_V8_SRC_BINDING_PATH="${GITHUB_WORKSPACE}/${binding}" \
             cargo +1.95.0 test -p datax-v8-poc --target "${TARGET}" --features sandbox --no-run

@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "SortDirection": {
+      "enum": [
+        "asc",
+        "desc"
+      ],
+      "type": "string"
+    }
+  },
+  "properties": {
+    "chatId": {
+      "type": "string"
+    },
+    "cursor": {
+      "description": "Opaque cursor to pass to the next call to continue after the last item.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "interactionId": {
+      "type": "string"
+    },
+    "limit": {
+      "description": "Optional item page size.",
+      "format": "uint32",
+      "minimum": 0.0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "sortDirection": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/SortDirection"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional item pagination direction; defaults to ascending."
+    }
+  },
+  "required": [
+    "chatId",
+    "interactionId"
+  ],
+  "title": "ChatInteractionsMessagesListParams",
+  "type": "object"
+}

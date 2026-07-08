@@ -17,6 +17,6 @@ This milestone is migration-only. It renames Rust workspace package names, depen
 - Rust package names and dependency keys use `datax-*` where they represent internal Datax crates.
 - Rust crate identifiers use `datax_*` where they represent renamed internal crates.
 - Bazel crate target names and `crate_name` values align with the renamed Rust crate identifiers.
-- `codex-rs/Cargo.lock` and any required Bazel lock metadata are refreshed or explicitly documented.
+- `datax-rs/Cargo.lock` and any required Bazel lock metadata are refreshed or explicitly documented.
 - Remaining Codex/codex references are documented in the ExecPlan exception register.
 - Exact validation commands are documented in the ExecPlan and marked deferred unless explicitly run during the milestone.

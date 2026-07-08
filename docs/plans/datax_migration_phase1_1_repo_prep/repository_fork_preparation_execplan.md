@@ -26,8 +26,8 @@ The observable result is a repository-preparation-only pull request that adds th
 
 - Observation: The initial branch name from the execution model used the generic app branch prefix instead of the migration repository identity.
   Evidence: The branch guidance in `docs/plans/Recommended-Datax-Migration-Execution-Model.md` was corrected before continuing with Phase 1.1.
-- Observation: The repository has one root `justfile`; there is no separate `codex-rs/justfile`.
-  Evidence: `sed -n '1,220p' codex-rs/justfile` returned `No such file or directory`, while the root `justfile` sets `working-directory := "codex-rs"`.
+- Observation: The repository has one root `justfile`; there is no separate `datax-rs/justfile`.
+  Evidence: `sed -n '1,220p' datax-rs/justfile` returned `No such file or directory`, while the root `justfile` sets `working-directory := "datax-rs"`.
 - Observation: Repository issues were disabled when Phase 1.1 started.
   Evidence: `gh issue create --repo mbellary/datax ...` returned `the 'mbellary/datax' repository has disabled issues`; `gh repo edit mbellary/datax --enable-issues` succeeded and issue #1 was then created.
 - Observation: GitHub reported existing dependency alerts on the default branch during the first Phase 1.1 push.
@@ -72,7 +72,7 @@ This milestone intentionally does not change Rust source files, package metadata
 | `justfile` | `Not Required` | Inspected to determine validation commands; no edit required. |
 | `package.json` | `Not Required` | Belongs to later package rename work; no edit required during repository preparation. |
 | `codex-cli/package.json` | `Not Required` | Belongs to later package rename work; no edit required during repository preparation. |
-| `codex-rs/Cargo.toml` | `Not Required` | Belongs to later Rust workspace rename work; no edit required during repository preparation. |
+| `datax-rs/Cargo.toml` | `Not Required` | Belongs to later Rust workspace rename work; no edit required during repository preparation. |
 | `MODULE.bazel` | `Not Required` | Belongs to later build metadata rename work; no edit required during repository preparation. |
 | `BUILD.bazel` | `Not Required` | Belongs to later build metadata rename work; no edit required during repository preparation. |
 
@@ -159,7 +159,7 @@ Create GitHub artifacts after local validation:
 | `git diff --check` | Yes | Completed | Passed with no output. |
 | Search checked-in plan files for the forbidden mixed-case spelling | Yes | Completed | Passed with no matches. |
 | `just fmt-check` | Yes | Completed | First sandboxed run failed because `uv` could not write to the home cache; rerun with approved permissions passed. |
-| `just fmt` from `codex-rs` | No | Not Required | No code changes are planned in Phase 1.1. |
+| `just fmt` from `datax-rs` | No | Not Required | No code changes are planned in Phase 1.1. |
 | `just test -p <crate>` | No | Not Required | No crate changes are planned in Phase 1.1. |
 | Full `just test` | No | Not Required | Complete suite is intentionally deferred because Phase 1.1 is documentation-only and full suite requires approval. |
 

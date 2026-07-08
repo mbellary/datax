@@ -17,7 +17,7 @@ jobs:
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
-      - name: Verify codex-rs Cargo manifests inherit workspace settings
+      - name: Verify Datax Rust Cargo manifests inherit workspace settings
         run: python3 .github/scripts/verify_cargo_workspace_manifests.py
 
       - name: Verify datax-tui does not import datax-core directly
@@ -26,8 +26,8 @@ jobs:
       - name: Verify Bazel clippy flags match Cargo workspace lints
         run: python3 .github/scripts/verify_bazel_clippy_lints.py
 
-      - name: Test Codex package builder
-        run: python3 -m unittest discover -s scripts/codex_package -p 'test_*.py'
+      - name: Test Datax package builder
+        run: python3 -m unittest discover -s scripts/datax_package -p 'test_*.py'
 
       - name: Setup pnpm
         uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288 # v5
@@ -52,15 +52,15 @@ jobs:
           # cross-platform native payload required by the npm package layout.
           # Passing the workflow URL directly avoids relying on old rust-v*
           # branches remaining discoverable via `gh run list --branch ...`.
-          CODEX_VERSION=0.133.0-alpha.4
+          DATAX_VERSION=0.133.0-alpha.4
           WORKFLOW_URL="https://github.com/openai/codex/actions/runs/26201494185"
           OUTPUT_DIR="${RUNNER_TEMP}"
           python3 ./scripts/stage_npm_packages.py \
-            --release-version "$CODEX_VERSION" \
+            --release-version "$DATAX_VERSION" \
             --workflow-url "$WORKFLOW_URL" \
-            --package codex \
+            --package datax \
             --output-dir "$OUTPUT_DIR"
-          PACK_OUTPUT="${OUTPUT_DIR}/datax-npm-${CODEX_VERSION}.tgz"
+          PACK_OUTPUT="${OUTPUT_DIR}/datax-npm-${DATAX_VERSION}.tgz"
           echo "pack_output=$PACK_OUTPUT" >> "$GITHUB_OUTPUT"
 
       - name: Upload staged npm package artifact

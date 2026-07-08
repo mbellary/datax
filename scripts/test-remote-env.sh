@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-# Remote-env setup script for codex-rs integration tests.
+# Remote-env setup script for datax-rs integration tests.
 #
 # Usage (source-only):
 #   source scripts/test-remote-env.sh
-#   cd codex-rs
+#   cd datax-rs
 #   just test -p datax-core --test all remote_test_env_can_connect_and_use_filesystem
 #   codex_remote_env_cleanup
 
@@ -25,7 +25,7 @@ setup_remote_env() {
   local remote_exec_server_stdout_path
 
   container_name="${CODEX_TEST_REMOTE_ENV_CONTAINER_NAME:-datax-remote-test-env-local-$(date +%s)-${RANDOM}}"
-  codex_binary_path="${REPO_ROOT}/codex-rs/target/debug/datax"
+  codex_binary_path="${REPO_ROOT}/datax-rs/target/debug/datax"
 
   if ! command -v docker >/dev/null 2>&1; then
     echo "docker is required (Colima or Docker Desktop)" >&2
@@ -43,7 +43,7 @@ setup_remote_env() {
   fi
 
   (
-    cd "${REPO_ROOT}/codex-rs"
+    cd "${REPO_ROOT}/datax-rs"
     cargo build -p datax-cli --bin datax
   )
 

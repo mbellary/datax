@@ -11,7 +11,7 @@ from .targets import TargetSpec
 from .v8 import resolve_datax_v8_cargo_env
 
 
-RUST_WORKSPACE_ROOT = REPO_ROOT / "codex-rs"
+RUST_WORKSPACE_ROOT = REPO_ROOT / "datax-rs"
 
 
 @dataclass(frozen=True)

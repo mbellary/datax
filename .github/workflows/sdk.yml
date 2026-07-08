@@ -97,7 +97,7 @@ jobs:
             --build_metadata=COMMIT_SHA=${GITHUB_SHA} \
             --build_metadata=TAG_job=sdk \
             -- \
-            //codex-rs/cli:datax
+            //datax-rs/cli:datax
 
           # Resolve the exact output file using the same wrapper/config path as
           # the build instead of guessing which Bazel convenience symlink is
@@ -108,7 +108,7 @@ jobs:
               cquery \
               --output=files \
               -- \
-              //codex-rs/cli:datax \
+              //datax-rs/cli:datax \
               | grep -E '^(/|bazel-out/)' \
               | tail -n 1
           )"
@@ -118,7 +118,7 @@ jobs:
             datax_bazel_output_path="${GITHUB_WORKSPACE}/${cquery_output}"
           fi
           if [[ -z "${datax_bazel_output_path}" ]]; then
-            echo "Bazel did not report an output path for //codex-rs/cli:datax." >&2
+            echo "Bazel did not report an output path for //datax-rs/cli:datax." >&2
             exit 1
           fi
           if [[ ! -e "${datax_bazel_output_path}" ]]; then
@@ -160,4 +160,4 @@ jobs:
         with:
           path: |
             ~/.cache/bazel-repo-cache
-          key: bazel-cache-x86_64-unknown-linux-gnu-${{ hashFiles('MODULE.bazel', 'codex-rs/Cargo.lock', 'codex-rs/Cargo.toml') }}
+          key: bazel-cache-x86_64-unknown-linux-gnu-${{ hashFiles('MODULE.bazel', 'datax-rs/Cargo.lock', 'datax-rs/Cargo.toml') }}

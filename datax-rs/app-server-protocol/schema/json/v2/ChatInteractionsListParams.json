@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "InteractionMessagesView": {
+      "oneOf": [
+        {
+          "description": "`messages` was not loaded for this turn. The field is intentionally empty.",
+          "enum": [
+            "notLoaded"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "`messages` contains only a display summary for this turn.",
+          "enum": [
+            "summary"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "`messages` contains every Message available from persisted app-server history for this turn.",
+          "enum": [
+            "full"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "SortDirection": {
+      "enum": [
+        "asc",
+        "desc"
+      ],
+      "type": "string"
+    }
+  },
+  "properties": {
+    "chatId": {
+      "type": "string"
+    },
+    "cursor": {
+      "description": "Opaque cursor to pass to the next call to continue after the last interaction.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "limit": {
+      "description": "Optional interaction page size.",
+      "format": "uint32",
+      "minimum": 0.0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "messagesView": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/InteractionMessagesView"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "How much message detail to include for each returned interaction; defaults to summary."
+    },
+    "sortDirection": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/SortDirection"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Optional interaction pagination direction; defaults to descending."
+    }
+  },
+  "required": [
+    "chatId"
+  ],
+  "title": "ChatInteractionsListParams",
+  "type": "object"
+}

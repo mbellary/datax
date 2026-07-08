@@ -8,7 +8,7 @@ This plan follows `PLANS.md` from the repository root. It builds on `docs/plans/
 
 Phase 1.2 changes the product identity surfaces that make the fork install, package, and launch as Datax instead of the upstream product name. After this milestone, the npm CLI shim, package builder, release package metadata, installer scripts, DotSlash manifest, root package metadata, and focused installation guidance should name Datax. A reviewer should be able to stage the npm package or run the local launcher and see `datax`-named package metadata and executable paths without any product feature behavior changes.
 
-This milestone is not the full Rust crate graph migration. The `codex-rs` workspace directory, Rust crate package names, crate imports, app-server protocol concepts, generated protocol artifacts, Python SDK public module names, and persisted state paths remain for later Phase 1 milestones unless they directly block the package identity rename here.
+This milestone is not the full Rust crate graph migration. The `datax-rs` workspace directory, Rust crate package names, crate imports, app-server protocol concepts, generated protocol artifacts, Python SDK public module names, and persisted state paths remain for later Phase 1 milestones unless they directly block the package identity rename here.
 
 ## Progress
 
@@ -46,7 +46,7 @@ This milestone is not the full Rust crate graph migration. The `codex-rs` worksp
 
 ## Decision Log
 
-- Decision: Keep the `codex-rs` directory name and most Rust crate package names unchanged in Phase 1.2.
+- Decision: Keep the `datax-rs` directory name and most Rust crate package names unchanged in Phase 1.2.
   Rationale: Renaming the workspace directory and all `codex-*` crates requires coordinated Cargo, Bazel, imports, generated files, and lockfile updates. That is the explicit Phase 1.3 scope and would make Phase 1.2 too broad to validate incrementally.
   Date/Author: 2026-07-06 / Codex
 
@@ -97,13 +97,13 @@ The root `justfile` wraps common developer commands and currently has helper rec
 | `scripts/build_datax_package.py` | `Completed` | Renamed package-builder launcher and import path. |
 | `scripts/datax_package/__init__.py` | `Completed` | Renamed package-builder module docstring. |
 | `scripts/datax_package/archive.py` | `Completed` | Renamed package archive docstring and temp prefixes. |
-| `scripts/datax_package/cargo.py` | `Completed` | Renamed package-builder entrypoint behavior while keeping the current `codex-rs` workspace path and Windows helper binary names as documented deferrals. |
+| `scripts/datax_package/cargo.py` | `Completed` | Renamed package-builder entrypoint behavior while keeping the current `datax-rs` workspace path and Windows helper binary names as documented deferrals. |
 | `scripts/datax_package/cli.py` | `Completed` | Renamed CLI defaults, temp prefixes, and user-visible package builder messages; Windows helper flags remain tied to existing helper binaries. |
 | `scripts/datax_package/dotslash.py` | `Completed` | Renamed package cache directory and package path metadata. |
 | `scripts/datax_package/layout.py` | `Completed` | Renamed canonical package metadata, resources directory, path directory, and primary executable paths; Windows helper files remain deferred. |
 | `scripts/datax_package/ripgrep.py` | `Completed` | Updated manifest path after package-builder directory rename. |
 | `scripts/datax_package/targets.py` | `Completed` | Renamed primary package variant to `datax`; app-server variant remains deferred because its binary still exists under the current Rust package graph. |
-| `scripts/datax_package/version.py` | `Completed` | Updated docstring/path context while keeping `codex-rs/Cargo.toml` as the current version source. |
+| `scripts/datax_package/version.py` | `Completed` | Updated docstring/path context while keeping `datax-rs/Cargo.toml` as the current version source. |
 | `scripts/datax_package/zsh.py` | `Completed` | Renamed zsh DotSlash manifest path and artifact label. |
 | `scripts/datax_package/test_archive.py` | `Completed` | Updated imports after package-builder directory rename. |
 | `scripts/datax_package/test_cargo.py` | `Completed` | Updated package variant expectations and primary binary expectations; Windows helper expectations remain deferred. |
@@ -126,28 +126,28 @@ The root `justfile` wraps common developer commands and currently has helper rec
 | `README.md` | `Completed` | Updated focused first-screen install and package identity text only; avoided broad product documentation expansion. |
 | `docs/install.md` | `Completed` | Updated build-critical install instructions and local CLI command examples. |
 | `justfile` | `Completed` | Added/renamed local helper recipes for `datax` and updated direct binary paths while leaving Rust crate package references deferred. |
-| `MODULE.bazel` | `Completed` | Renamed Bazel module name to `datax`; `//codex-rs` path labels remain deferred to Phase 1.3. |
-| `codex-rs/cli/Cargo.toml` | `Completed` | Renamed CLI binary target from the upstream executable name to `datax`; package/dependency crate names remain deferred to Phase 1.3. |
-| `codex-rs/cli/BUILD.bazel` | `Completed` | Renamed Bazel release binary target to `datax`. |
-| `codex-rs/app-server/BUILD.bazel` | `Completed` | Updated direct Bazel data dependency to the renamed CLI binary target. |
-| `codex-rs/core/BUILD.bazel` | `Completed` | Updated direct Bazel data dependency to the renamed CLI binary target. |
-| `codex-rs/rmcp-client/BUILD.bazel` | `Completed` | Updated direct Bazel data dependency to the renamed CLI binary target. |
-| `codex-rs/tui/BUILD.bazel` | `Completed` | Updated direct Bazel data dependency to the renamed CLI binary target. |
-| `codex-rs/docs/bazel.md` | `Completed` | Updated direct Bazel CLI target example to the renamed binary target. |
-| `codex-rs/app-server-test-client/README.md` | `Completed` | Updated CLI binary build examples to `--bin datax`; app-server protocol examples remain deferred. |
-| `codex-rs/cli/src/doctor.rs` | `Completed` | Updated npm package root diagnostics for the Datax npm package. |
-| `codex-rs/cli/src/doctor/updates.rs` | `Completed` | Updated update command labels for Datax npm/bun/brew package names. |
-| `codex-rs/tui/src/update_action.rs` | `Completed` | Updated update actions and standalone installer commands to Datax package and installer names. |
-| `codex-rs/tui/src/npm_registry.rs` | `Completed` | Updated npm registry test fixture URL to the Datax package. |
-| `codex-rs/tui/src/snapshots/codex_tui__update_prompt__tests__update_prompt_modal.snap` | `Completed` | Updated rename-only update prompt snapshot text. |
+| `MODULE.bazel` | `Completed` | Renamed Bazel module name to `datax`; `//datax-rs` path labels remain deferred to Phase 1.3. |
+| `datax-rs/cli/Cargo.toml` | `Completed` | Renamed CLI binary target from the upstream executable name to `datax`; package/dependency crate names remain deferred to Phase 1.3. |
+| `datax-rs/cli/BUILD.bazel` | `Completed` | Renamed Bazel release binary target to `datax`. |
+| `datax-rs/app-server/BUILD.bazel` | `Completed` | Updated direct Bazel data dependency to the renamed CLI binary target. |
+| `datax-rs/core/BUILD.bazel` | `Completed` | Updated direct Bazel data dependency to the renamed CLI binary target. |
+| `datax-rs/rmcp-client/BUILD.bazel` | `Completed` | Updated direct Bazel data dependency to the renamed CLI binary target. |
+| `datax-rs/tui/BUILD.bazel` | `Completed` | Updated direct Bazel data dependency to the renamed CLI binary target. |
+| `datax-rs/docs/bazel.md` | `Completed` | Updated direct Bazel CLI target example to the renamed binary target. |
+| `datax-rs/app-server-test-client/README.md` | `Completed` | Updated CLI binary build examples to `--bin datax`; app-server protocol examples remain deferred. |
+| `datax-rs/cli/src/doctor.rs` | `Completed` | Updated npm package root diagnostics for the Datax npm package. |
+| `datax-rs/cli/src/doctor/updates.rs` | `Completed` | Updated update command labels for Datax npm/bun/brew package names. |
+| `datax-rs/tui/src/update_action.rs` | `Completed` | Updated update actions and standalone installer commands to Datax package and installer names. |
+| `datax-rs/tui/src/npm_registry.rs` | `Completed` | Updated npm registry test fixture URL to the Datax package. |
+| `datax-rs/tui/src/snapshots/codex_tui__update_prompt__tests__update_prompt_modal.snap` | `Completed` | Updated rename-only update prompt snapshot text. |
 | `cliff.toml` | `Completed` | Updated changelog install command to the Datax npm package. |
 | `scripts/debug-codex.sh` | `Completed` | Updated helper command to run the `datax` binary; script filename is deferred. |
 | `scripts/run_tui_with_exec_server.sh` | `Completed` | Updated helper to start the renamed CLI binary. |
 | `scripts/start-codex-exec.sh` | `Completed` | Updated helper to build the renamed CLI binary. |
 | `scripts/test-remote-env.sh` | `Completed` | Updated helper to build and locate the renamed CLI binary. |
-| `codex-rs/Cargo.toml` | `Not Required` | Full workspace crate package rename belongs to Phase 1.3; inspect only for version and package builder dependency. |
-| `codex-rs/Cargo.lock` | `Not Required` | Full crate lockfile rename belongs to Phase 1.3; do not churn before workspace rename. |
-| `codex-rs/responses-api-proxy/npm/package.json` | `Not Required` | Separate npm package remains tied to response proxy packaging; inspect as dependency of staging script but do not rename in this milestone unless packaging tests require it. |
+| `datax-rs/Cargo.toml` | `Not Required` | Full workspace crate package rename belongs to Phase 1.3; inspect only for version and package builder dependency. |
+| `datax-rs/Cargo.lock` | `Not Required` | Full crate lockfile rename belongs to Phase 1.3; do not churn before workspace rename. |
+| `datax-rs/responses-api-proxy/npm/package.json` | `Not Required` | Separate npm package remains tied to response proxy packaging; inspect as dependency of staging script but do not rename in this milestone unless packaging tests require it. |
 | `sdk/typescript/package.json` | `Not Required` | SDK product package metadata belongs to package rename discovery, but public TypeScript SDK API is tied to Phase 1.4 protocol rename; defer to avoid half-renaming SDK surface. |
 | `sdk/python/pyproject.toml` | `Not Required` | Python package metadata is tied to module name, generated types, and runtime dependency package; defer to SDK/protocol milestone instead of breaking imports. |
 | `sdk/python/uv.lock` | `Not Required` | Generated Python lockfile remains unchanged until Python SDK package/runtime dependency changes are performed together. |
@@ -161,8 +161,8 @@ The root `justfile` wraps common developer commands and currently has helper rec
 The following names may remain after Phase 1.2 and must be revisited later:
 
 - `CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR` and `CODEX_SANDBOX_ENV_VAR`: protected by repository instructions and never renamed.
-- `codex-rs/` directory and `codex-*` Rust crate packages: deferred to Phase 1.3 Rust workspace stabilization.
-- `codex-rs/responses-api-proxy` package and npm artifact names: deferred because the response proxy remains a separate package whose full rename depends on Rust workspace stabilization and release workflow follow-up.
+- `datax-rs/` directory and `codex-*` Rust crate packages: deferred to Phase 1.3 Rust workspace stabilization.
+- `datax-rs/responses-api-proxy` package and npm artifact names: deferred because the response proxy remains a separate package whose full rename depends on Rust workspace stabilization and release workflow follow-up.
 - `codex-app-server` binary/package names: deferred because app-server model and protocol rename is Phase 1.4.
 - `codex-command-runner` and `codex-windows-sandbox-setup` helper binaries: deferred because they are owned by the Windows sandbox Rust crate and renaming them requires coordinated Rust source, tests, and packaging changes.
 - App-server thread/turn/item public protocol names: deferred to Phase 1.4.
@@ -175,7 +175,7 @@ The following names may remain after Phase 1.2 and must be revisited later:
 
 This milestone touches CLI executable naming, npm package names, install scripts, release artifact names, DotSlash manifests, package-builder output layout, selected docs that explain installation/build commands, and Bazel release output labels. It does not intentionally touch configuration file formats, app-server protocol methods, persisted session formats, generated app-server schemas, TypeScript bindings, Python SDK generated bindings, snapshots, or data engineering product behavior.
 
-If `codex-rs/cli/Cargo.toml` changes the binary name from `codex` to `datax`, targeted CLI validation must prove `cargo run --bin datax -- --version` and the npm launcher path both work. If that binary rename reveals broad import or test coupling, record the dependency and either complete only the required direct references or defer with an explicit exception.
+If `datax-rs/cli/Cargo.toml` changes the binary name from `codex` to `datax`, targeted CLI validation must prove `cargo run --bin datax -- --version` and the npm launcher path both work. If that binary rename reveals broad import or test coupling, record the dependency and either complete only the required direct references or defer with an explicit exception.
 
 ## Dependency Order
 
@@ -198,7 +198,7 @@ Update local developer metadata. Adjust `package.json`, `pnpm-lock.yaml`, `READM
 From the repository root, run:
 
     git status --short --branch
-    rg -l "codex|Codex|CODEX" codex-cli scripts/codex_package scripts/stage_npm_packages.py scripts/build_codex_package.py scripts/install .github/dotslash-config.json .github/workflows/rust-release.yml .github/scripts/build-codex-package-archive.sh package.json README.md docs/install.md justfile MODULE.bazel codex-rs/cli/Cargo.toml codex-rs/cli/BUILD.bazel | sort
+    rg -l "codex|Codex|CODEX" codex-cli scripts/codex_package scripts/stage_npm_packages.py scripts/build_codex_package.py scripts/install .github/dotslash-config.json .github/workflows/rust-release.yml .github/scripts/build-codex-package-archive.sh package.json README.md docs/install.md justfile MODULE.bazel datax-rs/cli/Cargo.toml datax-rs/cli/BUILD.bazel | sort
 
 Create the GitHub issue:
 
@@ -220,7 +220,7 @@ From the repository root, run the whitespace check and expect no output:
 
     git diff --check
 
-From `codex-rs`, run the formatter and expect it to complete successfully:
+From `datax-rs`, run the formatter and expect it to complete successfully:
 
     just fmt
 
@@ -236,7 +236,7 @@ From the repository root, run package-builder unit tests and expect all tests in
 
     python3 -m unittest discover -s scripts/datax_package -p 'test_*.py'
 
-From `codex-rs`, run the targeted CLI crate tests and expect them to pass:
+From `datax-rs`, run the targeted CLI crate tests and expect them to pass:
 
     just test -p codex-cli
 
@@ -250,7 +250,7 @@ From the repository root, run the npm package staging smoke test and expect the 
 
 From the repository root, run the forbidden mixed-case spelling search and expect no matches. The search term is split here only so the forbidden spelling is not checked into the plan:
 
-    rg -n "Data""X" docs/plans .github datax-cli scripts codex-rs/cli codex-rs/tui README.md package.json pnpm-workspace.yaml MODULE.bazel
+    rg -n "Data""X" docs/plans .github datax-cli scripts datax-rs/cli datax-rs/tui README.md package.json pnpm-workspace.yaml MODULE.bazel
 
 From the repository root, run the unresolved inventory-status search and expect no matches:
 
@@ -258,7 +258,7 @@ From the repository root, run the unresolved inventory-status search and expect 
 
 From the repository root, run the malformed rename-fragment search and expect no matches:
 
-    rg -n "RUNNER_TEMP\}datax|unsigned-dmgdatax|signed-dmgdatax|releasedatax|npmdatax|openaidatax|datax-rs|datax-command-runner|datax-windows-sandbox" .github datax-cli scripts codex-rs docs README.md package.json pnpm-workspace.yaml MODULE.bazel justfile
+    rg -n "RUNNER_TEMP\}datax|unsigned-dmgdatax|signed-dmgdatax|releasedatax|npmdatax|openaidatax|datax-rs|datax-command-runner|datax-windows-sandbox" .github datax-cli scripts datax-rs docs README.md package.json pnpm-workspace.yaml MODULE.bazel justfile
 
 Do not run the complete `just test` suite without user approval.
 
@@ -269,11 +269,11 @@ Acceptance for this milestone is that a reviewer can inspect staged package meta
 | Command | Working Directory | Required | Status | Remarks Notes |
 | --- | --- | --- | --- | --- |
 | `git diff --check` | repository root | Yes | Deferred | Whitespace validation after edits; user will run in the post-implementation test pass unless requested earlier. |
-| `just fmt` | `codex-rs` | Yes, after code changes | Completed | Initial sandboxed run failed because `uv` could not write its home cache; rerun with cache access passed. |
+| `just fmt` | `datax-rs` | Yes, after code changes | Completed | Initial sandboxed run failed because `uv` could not write its home cache; rerun with cache access passed. |
 | `just fmt-check` | repository root | Yes | Deferred | Formatting check; user will run in the post-implementation test pass unless requested earlier. |
 | `python3 -m py_compile datax-cli/scripts/build_npm_package.py scripts/stage_npm_packages.py scripts/build_datax_package.py scripts/datax_package/*.py` | repository root | Yes for renamed Python scripts | Completed | Passed. Generated `__pycache__` directories were removed after the check. |
 | `python3 -m unittest discover -s scripts/datax_package -p 'test_*.py'` | repository root | Yes if package builder is renamed | Completed | Passed: 8 tests. |
-| `just test -p codex-cli` | `codex-rs` | Yes if CLI binary/package changes | Deferred | Started, then interrupted at user request to defer long-running tests. Exact command retained for the post-implementation test pass. |
+| `just test -p codex-cli` | `datax-rs` | Yes if CLI binary/package changes | Deferred | Started, then interrupted at user request to defer long-running tests. Exact command retained for the post-implementation test pass. |
 | Staged launcher smoke command from `Validation and Acceptance` | repository root | Best effort | Deferred | Direct source-tree launcher execution fails unless a native optional dependency or vendor directory is present; use the staged command above. |
 | Single-shell npm staging smoke command from `Validation and Acceptance` | repository root | Yes if npm builder remains executable without native binaries | Completed | Passed and staged package metadata with `name: datax`, `bin.datax`, and Datax platform optional dependencies. |
 | Search for the forbidden mixed-case spelling in `docs/plans`, package, release, CLI, TUI, and root metadata surfaces | repository root | Yes | Completed | Returned no matches after the initial plan wording was corrected. |

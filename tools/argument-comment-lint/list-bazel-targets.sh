@@ -12,7 +12,7 @@ cd "${repo_root}"
 manual_rust_test_targets="$(
   ./.github/scripts/run-bazel-query-ci.sh \
     --output=label \
-    -- 'kind("rust_test rule", attr(tags, "manual", //codex-rs/...))'
+    -- 'kind("rust_test rule", attr(tags, "manual", //datax-rs/...))'
 )"
 if [[ "${RUNNER_OS:-}" != "Windows" ]]; then
   manual_rust_test_targets="$(printf '%s\n' "${manual_rust_test_targets}" | grep -v -- '-windows-cross-bin$' || true)"
@@ -20,6 +20,6 @@ fi
 
 # The lint configuration does not register the transitioned Windows toolchain.
 printf '%s\n' \
-  "//codex-rs/..." \
-  "-//codex-rs/core/tests/remote_env_windows:smoke-test"
+  "//datax-rs/..." \
+  "-//datax-rs/core/tests/remote_env_windows:smoke-test"
 printf '%s\n' "${manual_rust_test_targets}"

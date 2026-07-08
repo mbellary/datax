@@ -20,7 +20,7 @@ jobs:
       contents: read
     defaults:
       run:
-        working-directory: codex-rs
+        working-directory: datax-rs
     strategy:
       fail-fast: false
       matrix:
@@ -112,7 +112,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: cargo-timings-rust-release-windows-${{ matrix.target }}-${{ matrix.bundle }}
-          path: codex-rs/target/**/cargo-timings/cargo-timing.html
+          path: datax-rs/target/**/cargo-timings/cargo-timing.html
           if-no-files-found: warn
 
       - name: Stage Windows binaries
@@ -141,7 +141,7 @@ jobs:
         with:
           name: windows-binaries-${{ matrix.target }}-${{ matrix.bundle }}
           path: |
-            codex-rs/target/${{ matrix.target }}/release/staged-${{ matrix.bundle }}/*
+            datax-rs/target/${{ matrix.target }}/release/staged-${{ matrix.bundle }}/*
 
   build-windows-symbols:
     needs:
@@ -153,7 +153,7 @@ jobs:
       contents: read
     defaults:
       run:
-        working-directory: codex-rs
+        working-directory: datax-rs
     strategy:
       fail-fast: false
       matrix:
@@ -169,7 +169,7 @@ jobs:
         with:
           pattern: windows-binaries-${{ matrix.target }}-*
           merge-multiple: true
-          path: codex-rs/target/${{ matrix.target }}/release
+          path: datax-rs/target/${{ matrix.target }}/release
       - name: Build symbols archive
         shell: bash
         run: |
@@ -183,7 +183,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ${{ matrix.target }}-symbols
-          path: codex-rs/symbols-dist/${{ matrix.target }}/*
+          path: datax-rs/symbols-dist/${{ matrix.target }}/*
           if-no-files-found: error
 
   build-windows:
@@ -200,7 +200,7 @@ jobs:
       id-token: write
     defaults:
       run:
-        working-directory: codex-rs
+        working-directory: datax-rs
     strategy:
       fail-fast: false
       matrix:
@@ -225,19 +225,19 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: windows-binaries-${{ matrix.target }}-primary
-          path: codex-rs/target/${{ matrix.target }}/release
+          path: datax-rs/target/${{ matrix.target }}/release
 
       - name: Download prebuilt Windows helper binaries
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: windows-binaries-${{ matrix.target }}-helpers
-          path: codex-rs/target/${{ matrix.target }}/release
+          path: datax-rs/target/${{ matrix.target }}/release
 
       - name: Download prebuilt Windows app-server binary
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: windows-binaries-${{ matrix.target }}-app-server
-          path: codex-rs/target/${{ matrix.target }}/release
+          path: datax-rs/target/${{ matrix.target }}/release
 
       - name: Verify binaries
         shell: bash
@@ -273,7 +273,7 @@ jobs:
       - name: Install DotSlash
         uses: facebook/install-dotslash@1e4e7b3e07eaca387acb98f1d4720e0bee8dbb6a # v2
 
-      - name: Build Codex package archives
+      - name: Build Datax package archives
         shell: bash
         run: |
           set -euo pipefail
@@ -407,4 +407,4 @@ jobs:
         with:
           name: ${{ matrix.target }}
           path: |
-            codex-rs/dist/${{ matrix.target }}/*
+            datax-rs/dist/${{ matrix.target }}/*

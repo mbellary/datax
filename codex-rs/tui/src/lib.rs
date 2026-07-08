@@ -586,7 +586,7 @@ fn session_target_from_app_server_thread(
     match ThreadId::from_string(&thread.id) {
         Ok(thread_id) => Some(resume_picker::SessionTarget {
             path: thread.path,
-            thread_id,
+            chat_id: thread_id,
         }),
         Err(err) => {
             warn!(
@@ -1623,7 +1623,7 @@ async fn run_ratatui_app(
                     &mut tui,
                     state_db.as_deref(),
                     &current_cwd,
-                    target_session.thread_id,
+                    target_session.chat_id,
                     target_session.path.as_deref(),
                     action,
                     allow_prompt,
@@ -2166,7 +2166,7 @@ mod tests {
         let thread_id = ThreadId::new();
         let target = crate::resume_picker::SessionTarget {
             path: None,
-            thread_id,
+            chat_id: thread_id,
         };
 
         assert_eq!(target.display_label(), format!("thread {thread_id}"));
@@ -2608,8 +2608,8 @@ mod tests {
         .expect("expected global fork --last target");
         app_server.shutdown().await?;
 
-        assert_eq!(scoped_target.thread_id, project_thread_id);
-        assert_eq!(show_all_target.thread_id, other_thread_id);
+        assert_eq!(scoped_target.chat_id, project_thread_id);
+        assert_eq!(show_all_target.chat_id, other_thread_id);
         Ok(())
     }
 
@@ -2654,7 +2654,7 @@ mod tests {
         .expect("expected scan-and-repair fallback to find the rollout");
         app_server.shutdown().await?;
 
-        assert_eq!(target.thread_id, thread_id);
+        assert_eq!(target.chat_id, thread_id);
         Ok(())
     }
 
@@ -2856,7 +2856,7 @@ mod tests {
                     .await?;
             let target = target.expect("name lookup should find the saved thread");
             assert_eq!(target.path, Some(rollout_path));
-            assert_eq!(target.thread_id, thread_id);
+            assert_eq!(target.chat_id, thread_id);
 
             app_server.shutdown().await?;
             Ok(())

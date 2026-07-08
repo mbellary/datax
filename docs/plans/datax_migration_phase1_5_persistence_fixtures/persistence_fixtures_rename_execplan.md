@@ -34,6 +34,7 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
 - [x] (2026-07-08 00:00Z) Corrected user-reported `just test -p datax-core` compile failures where core suite tests accidentally referenced a non-existent `TestCodex.datax` internal field.
 - [x] (2026-07-08 00:00Z) Corrected follow-up `datax-core` lib-test compile failures where core unit tests accidentally used non-existent `Interaction` and `ChatSettings` internal test/protocol names.
 - [x] (2026-07-08 00:00Z) Corrected user-reported `just test -p datax-tui` compile failures where TUI tests and fixtures still mixed old app-server protocol field names with TUI-internal thread/turn names.
+- [x] (2026-07-08 03:39Z) Corrected follow-up `datax-tui` compile failures where TUI resume-picker structs had already moved to `chat_id` but callers and tests still referenced `thread_id` fields.
 
 ## Surprises & Discoveries
 
@@ -69,6 +70,8 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
   Evidence: The user-reported `datax-core` lib-test output failed on `TestCodexResponsesRequestKind::Interaction` and `Op::ChatSettings`; these were restored to `TestCodexResponsesRequestKind::Turn` and `Op::ThreadSettings`, matching the existing core enums.
 - Observation: TUI tests include both app-server protocol DTO fixtures and TUI-local event/command structs in the same files, so a one-way rename is not correct.
   Evidence: The user-reported `datax-tui` test output failed on protocol DTO fields such as `thread_id`, `turn_id`, `item_id`, `turns`, `items`, `session_start_source`, and `turn_kind`, while also failing when TUI-local `AppEvent::SubmitThreadOp`, `AppCommand::ExecApproval`, `ThreadSessionState`, and `ThreadRollback` were accidentally moved away from their existing internal `thread_id`, `turn_id`, and `num_turns` fields.
+- Observation: TUI resume-picker types are a boundary between app-server chat IDs and older internal thread terminology; the struct fields now use `chat_id`, but many surrounding local variables still reasonably use `thread_id`.
+  Evidence: The user-reported `datax-tui` test output failed on `SessionTarget.thread_id`, `Row.thread_id`, `PickerLoadRequest::{Preview,Transcript} { thread_id }`, and `BackgroundEvent::{Preview,Transcript} { thread_id }`; the fix aligned field names to `chat_id` while preserving local `ThreadId` variables where they feed internal routing or legacy rollout resolution.
 
 ## Decision Log
 
@@ -196,14 +199,18 @@ Finally run formatting and static checks. Test/build commands remain deferred fo
 | `codex-rs/tui/src/app/app_server_event_targets.rs` | `Completed` | Follow-up from user `cargo build`; notification/request routing now reads current chat-scoped protocol fields. |
 | `codex-rs/tui/src/app/app_server_requests.rs` | `Completed` | Follow-up from user `cargo build`; pending app-server request tracking now reads current message ids while preserving internal item ids. |
 | `codex-rs/tui/src/app/background_requests.rs` | `Completed` | Follow-up from user `cargo build`; feedback, MCP inventory, and apps-list requests now use current app-server protocol fields. |
+| `codex-rs/tui/src/app/session_lifecycle.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; resume flow now reads `SessionTarget.chat_id` while continuing to pass `ThreadId` values through existing internal session lifecycle APIs. |
 | `codex-rs/tui/src/app/thread_events.rs` | `Completed` | Follow-up from user `cargo build`; thread event replay reads current interaction/message fields. |
+| `codex-rs/tui/src/app/thread_routing.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; same-thread resume guard now reads `SessionTarget.chat_id`. |
 | `codex-rs/tui/src/app/thread_settings.rs` | `Completed` | Follow-up from user `cargo build`; settings update params now use `chat_id`. |
+| `codex-rs/tui/src/app.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; startup resume/fork paths now read `SessionTarget.chat_id`. |
 | `codex-rs/tui/src/chatwidget.rs` | `Completed` | Follow-up from user `cargo build`; approval conversion helpers map protocol ids into existing TUI event shapes. |
 | `codex-rs/tui/src/chatwidget/protocol.rs` | `Completed` | Follow-up from user `cargo build`; notification handling now uses current protocol field names and realtime notification variant. |
 | `codex-rs/tui/src/chatwidget/replay.rs` | `Completed` | Follow-up from user `cargo build`; replay now consumes `Interaction.messages` and emits `InteractionCompletedNotification.chat_id`. |
 | `codex-rs/tui/src/chatwidget/tool_requests.rs` | `Completed` | Follow-up from user `cargo build`; app-server request params now read `chat_id`, `interaction_id`, and `message_id` while TUI approval requests keep internal field names. |
-| `codex-rs/tui/src/resume_picker.rs` | `Completed` | Follow-up from user `cargo build`; transcript preview reads `Chat.interactions`. |
+| `codex-rs/tui/src/resume_picker.rs` | `Completed` | Follow-up from user `cargo build` and `just test -p datax-tui`; transcript preview reads `Chat.interactions`, and picker target/row/background request fields consistently use `chat_id`. |
 | `codex-rs/tui/src/thread_transcript.rs` | `Completed` | Follow-up from user `cargo build`; transcript rendering reads `Chat.interactions` and `Interaction.messages`. |
+| `codex-rs/tui/src/lib.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; session target construction and tests now use `chat_id` on `SessionTarget`. |
 | `codex-rs/tui/src/app/agent_status_feed_tests.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; app-server message-completion fixture fields now use `chat_id` and `interaction_id`. |
 | `codex-rs/tui/src/bottom_pane/mcp_server_elicitation.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; MCP elicitation test params now use current `chat_id` and `interaction_id` fields. |
 | `codex-rs/tui/src/bottom_pane/request_user_input/mod.rs` | `Completed` | Follow-up from user `just test -p datax-tui`; request-user-input overlay tests now use current protocol fields and assertions. |

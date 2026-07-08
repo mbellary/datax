@@ -747,7 +747,7 @@ impl App {
                 tui,
                 self.state_db.as_deref(),
                 &current_cwd,
-                target_session.thread_id,
+                target_session.chat_id,
                 target_session.path.as_deref(),
                 CwdPromptAction::Resume,
                 /*allow_prompt*/ true,
@@ -783,7 +783,7 @@ impl App {
             self.chat_widget.rollout_path().as_deref(),
         );
         match app_server
-            .resume_thread(resume_config.clone(), target_session.thread_id)
+            .resume_thread(resume_config.clone(), target_session.chat_id)
             .await
         {
             Ok(resumed) => {

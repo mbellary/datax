@@ -35,6 +35,7 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
 - [x] (2026-07-08 00:00Z) Corrected follow-up `datax-core` lib-test compile failures where core unit tests accidentally used non-existent `Interaction` and `ChatSettings` internal test/protocol names.
 - [x] (2026-07-08 00:00Z) Corrected user-reported `just test -p datax-tui` compile failures where TUI tests and fixtures still mixed old app-server protocol field names with TUI-internal thread/turn names.
 - [x] (2026-07-08 03:39Z) Corrected follow-up `datax-tui` compile failures where TUI resume-picker structs had already moved to `chat_id` but callers and tests still referenced `thread_id` fields.
+- [x] (2026-07-08 03:48Z) Corrected follow-up `datax-tui` compile failure where `begin_transcript_loading` accepted `chat_id` but still assigned a removed local `thread_id`.
 
 ## Surprises & Discoveries
 
@@ -72,6 +73,8 @@ The observable result is that the code no longer defaults to `~/.codex` or `CODE
   Evidence: The user-reported `datax-tui` test output failed on protocol DTO fields such as `thread_id`, `turn_id`, `item_id`, `turns`, `items`, `session_start_source`, and `turn_kind`, while also failing when TUI-local `AppEvent::SubmitThreadOp`, `AppCommand::ExecApproval`, `ThreadSessionState`, and `ThreadRollback` were accidentally moved away from their existing internal `thread_id`, `turn_id`, and `num_turns` fields.
 - Observation: TUI resume-picker types are a boundary between app-server chat IDs and older internal thread terminology; the struct fields now use `chat_id`, but many surrounding local variables still reasonably use `thread_id`.
   Evidence: The user-reported `datax-tui` test output failed on `SessionTarget.thread_id`, `Row.thread_id`, `PickerLoadRequest::{Preview,Transcript} { thread_id }`, and `BackgroundEvent::{Preview,Transcript} { thread_id }`; the fix aligned field names to `chat_id` while preserving local `ThreadId` variables where they feed internal routing or legacy rollout resolution.
+- Observation: Local variable drift can remain even after field-shape scans when a function parameter was renamed but a body assignment still references the old name.
+  Evidence: The user-reported `datax-tui` test output failed on `begin_transcript_loading` assigning `Some(thread_id)` even though the parameter is `chat_id`; the assignment now uses `chat_id`.
 
 ## Decision Log
 

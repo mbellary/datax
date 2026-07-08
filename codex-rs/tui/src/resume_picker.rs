@@ -982,7 +982,7 @@ impl PickerState {
     }
 
     fn begin_transcript_loading(&mut self, chat_id: ThreadId) {
-        self.pending_transcript_open = Some(thread_id);
+        self.pending_transcript_open = Some(chat_id);
         self.transcript_loading_frame_shown = false;
         self.request_frame();
     }

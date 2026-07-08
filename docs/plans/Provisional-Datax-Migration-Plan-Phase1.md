@@ -250,6 +250,10 @@ Required validation sequence:
 The concrete Phase 1.7 freeze checklist, including exact commands and expected
 evidence, is maintained in
 `docs/plans/datax_migration_phase1_7_freeze_report/phase1_migration_freeze_checklist.md`.
+The final executable Phase 1 verification plan, including build, test,
+formatting, schema generation, smoke, snapshot, and install-from-source
+commands, is maintained in
+`docs/plans/datax_migration_phase1_test_plan/phase1_test_plan.md`.
 
 1. Static search checks
    - No product-owned `codex`, `Codex`, or `CODEX` references remain except documented exceptions.

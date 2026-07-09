@@ -264,8 +264,11 @@ impl ContextManager {
             user_positions[user_positions.len() - n_from_end]
         };
 
-        cut_idx =
-            self.trim_pre_turn_context_updates(&snapshot, first_instruction_interaction_idx, cut_idx);
+        cut_idx = self.trim_pre_turn_context_updates(
+            &snapshot,
+            first_instruction_interaction_idx,
+            cut_idx,
+        );
 
         self.replace(snapshot[..cut_idx].to_vec());
     }

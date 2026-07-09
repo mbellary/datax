@@ -4,21 +4,21 @@ use crate::agent::registry::AgentRegistry;
 use crate::agent::role::DEFAULT_ROLE_NAME;
 use crate::agent::role::resolve_role_config;
 use crate::agent::status::is_final;
-use crate::codex_thread::ThreadConfigSnapshot;
+use crate::chat_manager::ChatManagerState;
+use crate::chat_manager::ResumeThreadWithHistoryOptions;
 use crate::config::Config;
 use crate::config::RolloutBudgetConfig;
+use crate::datax_chat::ThreadConfigSnapshot;
 use crate::environment_selection::TurnEnvironmentSnapshot;
 use crate::rollout_budget::RolloutBudget;
 use crate::session::emit_subagent_session_started;
 use crate::session_prefix::format_inter_agent_completion_message;
 use crate::session_prefix::format_subagent_context_line;
 use crate::session_prefix::format_subagent_notification_message;
-use crate::thread_manager::ResumeThreadWithHistoryOptions;
-use crate::thread_manager::ThreadManagerState;
 use crate::thread_rollout_truncation::truncate_rollout_to_last_n_fork_turns;
 use datax_protocol::AgentPath;
-use datax_protocol::SessionId;
 use datax_protocol::ChatId;
+use datax_protocol::SessionId;
 use datax_protocol::error::CodexErr;
 use datax_protocol::error::Result as CodexResult;
 use datax_protocol::models::ContentItem;
@@ -89,7 +89,7 @@ pub(crate) struct ListedAgent {
 /// spawn new agents and the inter-agent communication layer.
 /// An `AgentControl` instance is intended to be created at most once per root thread/session
 /// tree. That same `AgentControl` is then shared with every sub-agent spawned from that root,
-/// which keeps the registry scoped to that root thread rather than the entire `ThreadManager`.
+/// which keeps the registry scoped to that root thread rather than the entire `ChatManager`.
 #[derive(Clone, Default)]
 pub(crate) struct AgentControl {
     /// ID shared by the whole agent control session. This means every sub-agents from a common
@@ -97,8 +97,8 @@ pub(crate) struct AgentControl {
     session_id: SessionId,
     /// Weak handle back to the global thread registry/state.
     /// This is `Weak` to avoid reference cycles and shadow persistence of the form
-    /// `ThreadManagerState -> CodexThread -> Session -> SessionServices -> ThreadManagerState`.
-    manager: Weak<ThreadManagerState>,
+    /// `ChatManagerState -> DataxChat -> Session -> SessionServices -> ChatManagerState`.
+    manager: Weak<ChatManagerState>,
     state: Arc<AgentRegistry>,
     v2_residency: Arc<V2Residency>,
     agent_execution_limiter: Arc<AgentExecutionLimiter>,
@@ -109,7 +109,7 @@ pub(crate) struct AgentControl {
 impl AgentControl {
     /// Construct a new `AgentControl` that can spawn/message agents via the given manager state.
     pub(crate) fn new(
-        manager: Weak<ThreadManagerState>,
+        manager: Weak<ChatManagerState>,
         rollout_budget: Option<RolloutBudgetConfig>,
     ) -> Self {
         let control = Self {
@@ -152,7 +152,7 @@ impl AgentControl {
     async fn send_input_after_capacity_check(
         &self,
         agent_id: ChatId,
-        state: &Arc<ThreadManagerState>,
+        state: &Arc<ChatManagerState>,
         initial_operation: Op,
     ) -> CodexResult<String> {
         let last_task_message = match &initial_operation {
@@ -216,11 +216,11 @@ impl AgentControl {
     async fn handle_thread_request_result(
         &self,
         agent_id: ChatId,
-        state: &Arc<ThreadManagerState>,
+        state: &Arc<ChatManagerState>,
         result: CodexResult<String>,
     ) -> CodexResult<String> {
         if matches!(result, Err(CodexErr::InternalAgentDied)) {
-            let _ = state.remove_thread(&agent_id).await;
+            let _ = state.remove_chat(&agent_id).await;
             self.forget_v2_residency(agent_id);
             self.state.release_spawned_thread(agent_id);
         }
@@ -233,7 +233,7 @@ impl AgentControl {
             // No agent available if upgrade fails.
             return AgentStatus::NotFound;
         };
-        let Ok(thread) = state.get_thread(agent_id).await else {
+        let Ok(thread) = state.get_chat(agent_id).await else {
             return AgentStatus::NotFound;
         };
         thread.agent_status().await
@@ -275,7 +275,7 @@ impl AgentControl {
         let Ok(state) = self.upgrade() else {
             return None;
         };
-        let Ok(thread) = state.get_thread(agent_id).await else {
+        let Ok(thread) = state.get_chat(agent_id).await else {
             return None;
         };
         Some(thread.config_snapshot().await)
@@ -308,7 +308,7 @@ impl AgentControl {
         agent_id: ChatId,
     ) -> CodexResult<watch::Receiver<AgentStatus>> {
         let state = self.upgrade()?;
-        let thread = state.get_thread(agent_id).await?;
+        let thread = state.get_chat(agent_id).await?;
         Ok(thread.subscribe_status())
     }
 
@@ -370,7 +370,7 @@ impl AgentControl {
             .as_ref()
             .is_none_or(|prefix| agent_matches_prefix(Some(&root_path), prefix))
             && let Some(root_chat_id) = self.state.agent_id_for_path(&root_path)
-            && let Ok(root_thread) = state.get_thread(root_chat_id).await
+            && let Ok(root_thread) = state.get_chat(root_chat_id).await
         {
             agents.push(ListedAgent {
                 agent_name: root_path.to_string(),
@@ -390,7 +390,7 @@ impl AgentControl {
                 continue;
             }
 
-            let Ok(thread) = state.get_thread(chat_id).await else {
+            let Ok(thread) = state.get_chat(chat_id).await else {
                 continue;
             };
             let agent_name = metadata
@@ -420,9 +420,8 @@ impl AgentControl {
         child_reference: String,
         child_agent_path: Option<AgentPath>,
     ) {
-        let Some(SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-            parent_chat_id, ..
-        })) = session_source
+        let Some(SessionSource::SubAgent(SubAgentSource::ThreadSpawn { parent_chat_id, .. })) =
+            session_source
         else {
             return;
         };
@@ -449,7 +448,7 @@ impl AgentControl {
             let Ok(state) = control.upgrade() else {
                 return;
             };
-            let child_thread = state.get_thread(child_chat_id).await.ok();
+            let child_thread = state.get_chat(child_chat_id).await.ok();
             let child_uses_multi_agent_v2 = match child_thread.as_ref() {
                 Some(child_thread) => {
                     child_thread.multi_agent_version() == Some(MultiAgentVersion::V2)
@@ -487,7 +486,7 @@ impl AgentControl {
                 return;
             }
             let message = format_subagent_notification_message(child_reference.as_str(), &status);
-            let Ok(parent_thread) = state.get_thread(parent_chat_id).await else {
+            let Ok(parent_thread) = state.get_chat(parent_chat_id).await else {
                 return;
             };
             parent_thread
@@ -536,7 +535,7 @@ impl AgentControl {
         Ok((session_source, agent_metadata))
     }
 
-    fn upgrade(&self) -> CodexResult<Arc<ThreadManagerState>> {
+    fn upgrade(&self) -> CodexResult<Arc<ChatManagerState>> {
         self.manager
             .upgrade()
             .ok_or_else(|| CodexErr::UnsupportedOperation("thread manager dropped".to_string()))
@@ -544,17 +543,16 @@ impl AgentControl {
 
     async fn inherited_environments_for_source(
         &self,
-        state: &Arc<ThreadManagerState>,
+        state: &Arc<ChatManagerState>,
         session_source: Option<&SessionSource>,
     ) -> Option<TurnEnvironmentSnapshot> {
-        let Some(SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-            parent_chat_id, ..
-        })) = session_source
+        let Some(SessionSource::SubAgent(SubAgentSource::ThreadSpawn { parent_chat_id, .. })) =
+            session_source
         else {
             return None;
         };
 
-        let parent_thread = state.get_thread(*parent_chat_id).await.ok()?;
+        let parent_thread = state.get_chat(*parent_chat_id).await.ok()?;
         Some(
             parent_thread
                 .codex
@@ -568,18 +566,17 @@ impl AgentControl {
 
     async fn inherited_exec_policy_for_source(
         &self,
-        state: &Arc<ThreadManagerState>,
+        state: &Arc<ChatManagerState>,
         session_source: Option<&SessionSource>,
         child_config: &Config,
     ) -> Option<Arc<crate::exec_policy::ExecPolicyManager>> {
-        let Some(SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-            parent_chat_id, ..
-        })) = session_source
+        let Some(SessionSource::SubAgent(SubAgentSource::ThreadSpawn { parent_chat_id, .. })) =
+            session_source
         else {
             return None;
         };
 
-        let parent_thread = state.get_thread(*parent_chat_id).await.ok()?;
+        let parent_thread = state.get_chat(*parent_chat_id).await.ok()?;
         let parent_config = parent_thread.codex.session.get_config().await;
         if !crate::exec_policy::child_uses_parent_exec_policy(&parent_config, child_config) {
             return None;
@@ -607,18 +604,15 @@ impl AgentControl {
         let mut children_by_parent = HashMap::<ChatId, Vec<(ChatId, AgentMetadata)>>::new();
 
         for (parent_chat_id, child_chat_id) in state.list_live_thread_spawn_edges().await {
-            children_by_parent
-                .entry(parent_chat_id)
-                .or_default()
-                .push((
-                    child_chat_id,
-                    self.state
-                        .agent_metadata_for_thread(child_chat_id)
-                        .unwrap_or(AgentMetadata {
-                            agent_id: Some(child_chat_id),
-                            ..Default::default()
-                        }),
-                ));
+            children_by_parent.entry(parent_chat_id).or_default().push((
+                child_chat_id,
+                self.state
+                    .agent_metadata_for_thread(child_chat_id)
+                    .unwrap_or(AgentMetadata {
+                        agent_id: Some(child_chat_id),
+                        ..Default::default()
+                    }),
+            ));
         }
 
         for children in children_by_parent.values_mut() {
@@ -637,12 +631,11 @@ impl AgentControl {
 
     async fn persist_thread_spawn_edge_for_source(
         &self,
-        thread: &crate::CodexThread,
+        thread: &crate::DataxChat,
         child_chat_id: ChatId,
         session_source: Option<&SessionSource>,
     ) {
-        let Some(parent_chat_id) = session_source.and_then(SessionSource::parent_chat_id)
-        else {
+        let Some(parent_chat_id) = session_source.and_then(SessionSource::parent_chat_id) else {
             return;
         };
         let Some(state_db_ctx) = thread.state_db() else {

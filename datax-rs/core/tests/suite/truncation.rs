@@ -547,7 +547,10 @@ async fn mcp_image_output_preserves_image_and_no_text_summary() -> Result<()> {
         .await?;
 
     // Wait for completion to ensure the outbound request is captured.
-    wait_for_event(&fixture.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(&fixture.codex, |ev| {
+        matches!(ev, EventMsg::InteractionComplete(_))
+    })
+    .await;
     let output_item = final_mock.single_request().function_call_output(call_id);
     // Expect exactly the wall-time text and image item; no trailing truncation summary.
     let output = output_item.get("output").expect("output");

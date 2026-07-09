@@ -11,7 +11,7 @@ use tempfile::TempDir;
 use datax_config::CloudConfigBundleLoader;
 use datax_config::LoaderOverrides;
 use datax_config::test_support::CloudConfigBundleFixture;
-use datax_core::CodexThread;
+use datax_core::DataxChat;
 use datax_core::config::Config;
 use datax_core::config::ConfigBuilder;
 use datax_core::config::ConfigOverrides;
@@ -44,7 +44,7 @@ static TEST_ARG0_PATH_ENTRY: OnceLock<Option<Arg0PathEntryGuard>> = OnceLock::ne
 
 #[ctor]
 fn enable_deterministic_unified_exec_process_ids_for_tests() {
-    datax_core::test_support::set_thread_manager_test_mode(/*enabled*/ true);
+    datax_core::test_support::set_chat_manager_test_mode(/*enabled*/ true);
     datax_core::test_support::set_deterministic_process_ids(/*enabled*/ true);
 }
 
@@ -254,7 +254,7 @@ pub fn find_codex_linux_sandbox_exe() -> Result<PathBuf, CargoBinError> {
 }
 
 pub async fn wait_for_event<F>(
-    codex: &CodexThread,
+    codex: &DataxChat,
     predicate: F,
 ) -> datax_protocol::protocol::EventMsg
 where
@@ -265,7 +265,7 @@ where
 }
 
 /// Waits for a configured MCP server to finish startup and requires it to be ready.
-pub async fn wait_for_mcp_server(codex: &CodexThread, server_name: &str) -> anyhow::Result<()> {
+pub async fn wait_for_mcp_server(codex: &DataxChat, server_name: &str) -> anyhow::Result<()> {
     use datax_protocol::protocol::EventMsg;
 
     // Wait for the startup summary regardless of outcome, then interpret the
@@ -298,7 +298,7 @@ pub async fn wait_for_mcp_server(codex: &CodexThread, server_name: &str) -> anyh
 }
 
 pub async fn submit_thread_settings(
-    codex: &CodexThread,
+    codex: &DataxChat,
     thread_settings: datax_protocol::protocol::ThreadSettingsOverrides,
 ) -> anyhow::Result<()> {
     use datax_protocol::protocol::EventMsg;
@@ -322,7 +322,7 @@ pub async fn submit_thread_settings(
     }
 }
 
-pub async fn wait_for_event_match<T, F>(codex: &CodexThread, matcher: F) -> T
+pub async fn wait_for_event_match<T, F>(codex: &DataxChat, matcher: F) -> T
 where
     F: Fn(&datax_protocol::protocol::EventMsg) -> Option<T>,
 {
@@ -331,7 +331,7 @@ where
 }
 
 pub async fn wait_for_event_with_timeout<F>(
-    codex: &CodexThread,
+    codex: &DataxChat,
     mut predicate: F,
     wait_time: tokio::time::Duration,
 ) -> datax_protocol::protocol::EventMsg

@@ -69,7 +69,7 @@ async fn renews_cache_ttl_on_matching_models_etag() -> Result<()> {
     let config = test.config.clone();
 
     // Populate cache via initial refresh.
-    let models_manager = test.thread_manager.get_models_manager();
+    let models_manager = test.chat_manager.get_models_manager();
     let _ = models_manager
         .list_models(RefreshStrategy::OnlineIfUncached)
         .await;
@@ -119,7 +119,10 @@ async fn renews_cache_ttl_on_matching_models_etag() -> Result<()> {
         })
         .await?;
 
-    let _ = wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
+    let _ = wait_for_event(&codex, |event| {
+        matches!(event, EventMsg::InteractionComplete(_))
+    })
+    .await;
 
     let refreshed_cache = read_cache(&cache_path).await?;
     assert!(
@@ -134,7 +137,7 @@ async fn renews_cache_ttl_on_matching_models_etag() -> Result<()> {
 
     // Cached models remain usable offline.
     let offline_models = test
-        .thread_manager
+        .chat_manager
         .list_models(RefreshStrategy::Offline)
         .await;
     assert!(
@@ -176,7 +179,7 @@ async fn uses_cache_when_version_matches() -> Result<()> {
         });
 
     let test = builder.build(&server).await?;
-    let models_manager = test.thread_manager.get_models_manager();
+    let models_manager = test.chat_manager.get_models_manager();
     let models = models_manager
         .list_models(RefreshStrategy::OnlineIfUncached)
         .await;
@@ -223,7 +226,7 @@ async fn refreshes_when_cache_version_missing() -> Result<()> {
         });
 
     let test = builder.build(&server).await?;
-    let models_manager = test.thread_manager.get_models_manager();
+    let models_manager = test.chat_manager.get_models_manager();
     let models = models_manager
         .list_models(RefreshStrategy::OnlineIfUncached)
         .await;
@@ -271,7 +274,7 @@ async fn refreshes_when_cache_version_differs() -> Result<()> {
         });
 
     let test = builder.build(&server).await?;
-    let models_manager = test.thread_manager.get_models_manager();
+    let models_manager = test.chat_manager.get_models_manager();
     let models = models_manager
         .list_models(RefreshStrategy::OnlineIfUncached)
         .await;

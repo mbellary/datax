@@ -30,6 +30,8 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 - [x] (2026-07-09 00:00Z) Started Milestone 3 on branch `codex/phase1-8-m3-protocol-primitives`; GitHub issue #21 tracks the protocol primitive and event rename slice.
 - [x] (2026-07-09 00:00Z) Renamed the exported protocol primitive `ThreadId -> ChatId` and the protocol source module `thread_id.rs -> chat_id.rs`.
 - [x] (2026-07-09 00:00Z) Renamed Datax-facing protocol event identifiers from turn vocabulary to interaction vocabulary: `turn_id -> interaction_id`, `TurnStarted -> InteractionStarted`, `TurnComplete -> InteractionComplete`, and `TurnAborted -> InteractionAborted`.
+- [x] (2026-07-09 00:00Z) Started Milestone 4 on branch `codex/phase1-8-m4-runtime-names`; GitHub issue #23 tracks the live runtime rename slice.
+- [x] (2026-07-09 00:00Z) Renamed live runtime contracts and call sites: `ThreadManager -> ChatManager`, `CodexThread -> DataxChat`, `NewThread -> NewChat`, `StartThreadOptions -> StartChatOptions`, and the runtime module files `thread_manager.rs -> chat_manager.rs` and `codex_thread.rs -> datax_chat.rs`.
 - [ ] Rename persistence and history types according to the same mapping while preserving compatibility with existing stored records.
 - [ ] Regenerate affected app-server schemas and run targeted tests.
 - [ ] Update Phase 2 bridge plans so downstream Codex integration starts only after Datax owns the Datax-named protocol and runtime contracts.
@@ -313,6 +315,59 @@ Milestone 3 command assumptions:
 - `just test -p datax-app-server-protocol` validates API schema/export behavior after the protocol primitive rename.
 - `just test -p datax-app-server` validates app-server call sites updated for `ChatId` and interaction event names.
 - The user asked Codex not to run build/test commands during this milestone, so these commands are listed for user execution rather than run by Codex.
+
+## Milestone 4 Runtime Names Summary
+
+Milestone 4 renames the live runtime API from inherited Codex/Thread vocabulary to native Datax chat vocabulary while preserving behavior.
+
+Mechanical runtime mappings completed:
+
+- `ThreadManager -> ChatManager`
+- `CodexThread -> DataxChat`
+- `NewThread -> NewChat`
+- `StartThreadOptions -> StartChatOptions`
+- `thread_manager.rs -> chat_manager.rs`
+- `codex_thread.rs -> datax_chat.rs`
+- `thread_manager_tests.rs -> chat_manager_tests.rs`
+- Core runtime methods such as `start_thread`, `start_thread_with_options`, `start_thread_with_tools`, `fork_thread`, `get_thread`, and `remove_thread` became `start_chat`, `start_chat_with_options`, `start_chat_with_tools`, `fork_chat`, `get_chat`, and `remove_chat`.
+- `NewChat.thread` became `NewChat.chat` so the new Datax runtime handle does not expose the old role name.
+
+Compatibility retained:
+
+- Generated protobuf and external compatibility surfaces that still expose `thread_id` were not renamed in this milestone. `datax-rs/config/src/thread_config/remote.rs` now passes `ThreadConfigContext.chat_id` into the generated `LoadThreadConfigRequest.thread_id` field because the protobuf contract still owns that legacy name.
+- Persistence, rollout/history, SQL table names, and stored thread-store types remain in their current vocabulary until Milestone 5.
+- App-server state filenames and persistent goal/status names remain for Milestone 6 unless directly required by the runtime API rename.
+
+Milestone 4 assumptions:
+
+- This milestone changes the Datax live runtime API and dependent Rust call sites only; it does not alter runtime behavior, persistence format, JSON-RPC method names, or generated schema.
+- `DataxChat` is the Datax-native live chat/session handle for the role previously named `CodexThread`.
+- Any remaining `thread` terms after this milestone should be reviewed under the later persistence/history/state milestones or classified as compatibility/provenance.
+- The branch for this milestone is `codex/phase1-8-m4-runtime-names`; the tracking issue is #23.
+
+Milestone 4 validation status:
+
+- `just fmt` completed successfully in `datax-rs`.
+- `git diff --check` completed successfully.
+- `just fix -p datax-core` could not run in the sandbox without escalation because Cargo could not bind its local lock listener. An escalated run reached compilation and exposed a generated protobuf field mismatch in `datax-rs/config/src/thread_config/remote.rs`; that mismatch was fixed. The follow-up escalated `just fix -p datax-core` run was rejected by the user, and the user instructed Codex to proceed to commit and push instead.
+- `just test -p datax-core` and `just test -p datax-app-server` were not run by Codex before commit because the user instructed Codex to proceed after the `just fix` rerun was rejected.
+
+Milestone 4 user-run commands:
+
+    cd /home/mbellary/wsl/projects/datax
+    git diff --check
+    cd /home/mbellary/wsl/projects/datax/datax-rs
+    just fmt
+    just fix -p datax-core
+    just test -p datax-core
+    just test -p datax-app-server
+
+Milestone 4 command assumptions:
+
+- `just fmt` is required because Rust source and tests changed broadly across runtime call sites.
+- `just fix -p datax-core` validates the renamed core runtime API under clippy and may apply additional mechanical cleanups.
+- `just test -p datax-core` validates the core runtime, agent-control, and integration-test call sites updated for `ChatManager` and `DataxChat`.
+- `just test -p datax-app-server` validates app-server processors and live chat listeners that now depend on the Datax-named runtime API.
 
 ## Plan of Work
 

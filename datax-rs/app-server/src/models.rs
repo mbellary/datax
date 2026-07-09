@@ -4,16 +4,13 @@ use datax_app_server_protocol::Model;
 use datax_app_server_protocol::ModelServiceTier;
 use datax_app_server_protocol::ModelUpgradeInfo;
 use datax_app_server_protocol::ReasoningEffortOption;
-use datax_core::ThreadManager;
+use datax_core::ChatManager;
 use datax_models_manager::manager::RefreshStrategy;
 use datax_protocol::openai_models::ModelPreset;
 use datax_protocol::openai_models::ReasoningEffortPreset;
 
-pub async fn supported_models(
-    thread_manager: Arc<ThreadManager>,
-    include_hidden: bool,
-) -> Vec<Model> {
-    thread_manager
+pub async fn supported_models(chat_manager: Arc<ChatManager>, include_hidden: bool) -> Vec<Model> {
+    chat_manager
         .list_models(RefreshStrategy::OnlineIfUncached)
         .await
         .into_iter()

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use datax_arg0::Arg0DispatchPaths;
-use datax_core::ThreadManager;
+use datax_core::ChatManager;
 use datax_core::config::ConfigOverrides;
 use datax_external_agent_sessions::CompletedExternalAgentSessionImport;
 use datax_external_agent_sessions::ExternalAgentSessionMigration;
@@ -36,7 +36,7 @@ const SESSION_IMPORT_CONCURRENCY: usize = 5;
 pub(super) struct ExternalAgentSessionImporter {
     codex_home: PathBuf,
     permits: Arc<Semaphore>,
-    thread_manager: Arc<ThreadManager>,
+    chat_manager: Arc<ChatManager>,
     thread_store: Arc<dyn ThreadStore>,
     config_manager: ConfigManager,
     arg0_paths: Arg0DispatchPaths,
@@ -45,7 +45,7 @@ pub(super) struct ExternalAgentSessionImporter {
 impl ExternalAgentSessionImporter {
     pub(super) fn new(
         codex_home: PathBuf,
-        thread_manager: Arc<ThreadManager>,
+        chat_manager: Arc<ChatManager>,
         thread_store: Arc<dyn ThreadStore>,
         config_manager: ConfigManager,
         arg0_paths: Arg0DispatchPaths,
@@ -53,7 +53,7 @@ impl ExternalAgentSessionImporter {
         Self {
             codex_home,
             permits: Arc::new(Semaphore::new(1)),
-            thread_manager,
+            chat_manager,
             thread_store,
             config_manager,
             arg0_paths,
@@ -182,7 +182,7 @@ impl ExternalAgentSessionImporter {
             )
             .await
             .map_err(|err| format!("failed to load imported session config: {err}"))?;
-        let models_manager = self.thread_manager.get_models_manager();
+        let models_manager = self.chat_manager.get_models_manager();
         let model = models_manager
             .get_default_model(&config.model, RefreshStrategy::Offline)
             .await;
@@ -190,7 +190,7 @@ impl ExternalAgentSessionImporter {
             .get_model_info(model.as_str(), &config.to_models_manager_config())
             .await;
         let chat_id = ChatId::new();
-        let source = self.thread_manager.session_source();
+        let source = self.chat_manager.session_source();
         let cwd = config.cwd.to_path_buf();
         let model_provider = config.model_provider_id.clone();
         let memory_mode = if config.memories.generate_memories {

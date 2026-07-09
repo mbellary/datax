@@ -115,7 +115,7 @@ async fn response_for_remote_model(
         .with_auth(CodexAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(configure);
     let test = builder.build(&server).await?;
-    let models_manager = test.thread_manager.get_models_manager();
+    let models_manager = test.chat_manager.get_models_manager();
     let available_model = wait_for_model_available(&models_manager, &model_slug).await;
     assert_eq!(available_model.model, model_slug);
     assert_eq!(models_mock.requests().len(), 1);
@@ -267,7 +267,7 @@ async fn unsupported_code_mode_warning_is_emitted_each_turn() -> Result<()> {
         })
         .build(&server)
         .await?;
-    let models_manager = test.thread_manager.get_models_manager();
+    let models_manager = test.chat_manager.get_models_manager();
     let available_model = wait_for_model_available(&models_manager, model_slug).await;
     assert_eq!(available_model.model, model_slug);
     assert_eq!(models_mock.requests().len(), 1);

@@ -5,7 +5,7 @@ use core_test_support::skip_if_no_network;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
 use datax_core::ForkSnapshot;
-use datax_core::NewThread;
+use datax_core::NewChat;
 use datax_core::parse_turn_item;
 use datax_protocol::items::TurnItem;
 use datax_protocol::protocol::EventMsg;
@@ -22,7 +22,7 @@ use wiremock::matchers::method;
 use wiremock::matchers::path;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn fork_thread_twice_drops_to_first_message() {
+async fn fork_chat_twice_drops_to_first_message() {
     skip_if_no_network!();
 
     // Start a mock server that completes three turns.
@@ -43,7 +43,7 @@ async fn fork_thread_twice_drops_to_first_message() {
     let mut builder = test_codex();
     let test = builder.build(&server).await.expect("create conversation");
     let codex = test.codex.clone();
-    let thread_manager = test.thread_manager.clone();
+    let chat_manager = test.chat_manager.clone();
     let config_for_fork = test.config.clone();
 
     // Send three user messages; wait for three completed turns.
@@ -94,11 +94,10 @@ async fn fork_thread_twice_drops_to_first_message() {
     // After dropping again (n=1 on fork1), compute expected relative to fork1's rollout.
 
     // Fork once with n=1 → drops the last user input and everything after.
-    let NewThread {
-        thread: codex_fork1,
-        ..
-    } = thread_manager
-        .fork_thread(
+    let NewChat {
+        chat: codex_fork1, ..
+    } = chat_manager
+        .fork_chat(
             ForkSnapshot::TruncateBeforeNthUserMessage(1),
             config_for_fork.clone(),
             base_path.clone(),
@@ -118,11 +117,10 @@ async fn fork_thread_twice_drops_to_first_message() {
     );
 
     // Fork again with n=0 → drops the (new) last user message, leaving only the first.
-    let NewThread {
-        thread: codex_fork2,
-        ..
-    } = thread_manager
-        .fork_thread(
+    let NewChat {
+        chat: codex_fork2, ..
+    } = chat_manager
+        .fork_chat(
             ForkSnapshot::TruncateBeforeNthUserMessage(0),
             config_for_fork.clone(),
             fork1_path.clone(),
@@ -149,7 +147,7 @@ async fn fork_thread_twice_drops_to_first_message() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn fork_thread_from_history_does_not_require_source_rollout_path() {
+async fn fork_chat_from_history_does_not_require_source_rollout_path() {
     skip_if_no_network!();
 
     let server = MockServer::start().await;
@@ -168,7 +166,7 @@ async fn fork_thread_from_history_does_not_require_source_rollout_path() {
     let mut builder = test_codex();
     let test = builder.build(&server).await.expect("create conversation");
     let codex = test.codex.clone();
-    let thread_manager = test.thread_manager.clone();
+    let chat_manager = test.chat_manager.clone();
 
     codex
         .submit(Op::UserInput {
@@ -187,11 +185,11 @@ async fn fork_thread_from_history_does_not_require_source_rollout_path() {
 
     let source_path = codex.rollout_path().expect("source rollout path");
     let source_items = read_rollout_items(&source_path);
-    let NewThread {
-        thread: forked_thread,
+    let NewChat {
+        chat: forked_thread,
         ..
-    } = thread_manager
-        .fork_thread_from_history(
+    } = chat_manager
+        .fork_chat_from_history(
             ForkSnapshot::Interrupted,
             test.config.clone(),
             InitialHistory::Resumed(ResumedHistory {

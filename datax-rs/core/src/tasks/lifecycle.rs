@@ -1,7 +1,7 @@
 use datax_extension_api::ExtensionData;
 use datax_protocol::protocol::CodexErrorInfo;
-use datax_protocol::protocol::TokenUsage;
 use datax_protocol::protocol::InteractionAbortReason;
+use datax_protocol::protocol::TokenUsage;
 
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;

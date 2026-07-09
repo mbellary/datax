@@ -28,7 +28,7 @@ use datax_rmcp_client::perform_oauth_login_silent;
 #[derive(Clone)]
 pub(crate) struct PluginRequestProcessor {
     auth_manager: Arc<AuthManager>,
-    thread_manager: Arc<ThreadManager>,
+    chat_manager: Arc<ChatManager>,
     outgoing: Arc<OutgoingMessageSender>,
     analytics_events_client: AnalyticsEventsClient,
     config_manager: ConfigManager,
@@ -339,7 +339,7 @@ fn plugin_share_principal_from_remote(
 impl PluginRequestProcessor {
     pub(crate) fn new(
         auth_manager: Arc<AuthManager>,
-        thread_manager: Arc<ThreadManager>,
+        chat_manager: Arc<ChatManager>,
         outgoing: Arc<OutgoingMessageSender>,
         analytics_events_client: AnalyticsEventsClient,
         config_manager: ConfigManager,
@@ -347,7 +347,7 @@ impl PluginRequestProcessor {
     ) -> Self {
         Self {
             auth_manager,
-            thread_manager,
+            chat_manager,
             outgoing,
             analytics_events_client,
             config_manager,
@@ -455,11 +455,11 @@ impl PluginRequestProcessor {
     }
 
     pub(crate) fn effective_plugins_changed_callback(&self) -> Arc<dyn Fn() + Send + Sync> {
-        let thread_manager = Arc::clone(&self.thread_manager);
+        let chat_manager = Arc::clone(&self.chat_manager);
         let config_manager = self.config_manager.clone();
         Arc::new(move || {
             Self::spawn_effective_plugins_changed_task(
-                Arc::clone(&thread_manager),
+                Arc::clone(&chat_manager),
                 config_manager.clone(),
             );
         })
@@ -467,28 +467,28 @@ impl PluginRequestProcessor {
 
     fn on_effective_plugins_changed(&self) {
         Self::spawn_effective_plugins_changed_task(
-            Arc::clone(&self.thread_manager),
+            Arc::clone(&self.chat_manager),
             self.config_manager.clone(),
         );
     }
 
     fn spawn_effective_plugins_changed_task(
-        thread_manager: Arc<ThreadManager>,
+        chat_manager: Arc<ChatManager>,
         config_manager: ConfigManager,
     ) {
         tokio::spawn(async move {
-            thread_manager.plugins_manager().clear_cache();
-            thread_manager.skills_service().clear_cache();
-            if thread_manager.list_chat_ids().await.is_empty() {
+            chat_manager.plugins_manager().clear_cache();
+            chat_manager.skills_service().clear_cache();
+            if chat_manager.list_chat_ids().await.is_empty() {
                 return;
             }
-            crate::mcp_refresh::queue_best_effort_refresh(&thread_manager, &config_manager).await;
+            crate::mcp_refresh::queue_best_effort_refresh(&chat_manager, &config_manager).await;
         });
     }
 
     fn clear_plugin_related_caches(&self) {
-        self.thread_manager.plugins_manager().clear_cache();
-        self.thread_manager.skills_service().clear_cache();
+        self.chat_manager.plugins_manager().clear_cache();
+        self.chat_manager.skills_service().clear_cache();
     }
 
     async fn load_latest_config(
@@ -527,7 +527,7 @@ impl PluginRequestProcessor {
         &self,
         params: PluginListParams,
     ) -> Result<PluginListResponse, JSONRPCErrorError> {
-        let plugins_manager = self.thread_manager.plugins_manager();
+        let plugins_manager = self.chat_manager.plugins_manager();
         let PluginListParams {
             cwds,
             marketplace_kinds,
@@ -779,7 +779,7 @@ impl PluginRequestProcessor {
         &self,
         params: PluginInstalledParams,
     ) -> Result<PluginInstalledResponse, JSONRPCErrorError> {
-        let plugins_manager = self.thread_manager.plugins_manager();
+        let plugins_manager = self.chat_manager.plugins_manager();
         let PluginInstalledParams {
             cwds,
             install_suggestion_plugin_names,
@@ -974,7 +974,7 @@ impl PluginRequestProcessor {
         &self,
         params: PluginReadParams,
     ) -> Result<PluginReadResponse, JSONRPCErrorError> {
-        let plugins_manager = self.thread_manager.plugins_manager();
+        let plugins_manager = self.chat_manager.plugins_manager();
         let PluginReadParams {
             marketplace_path,
             remote_marketplace_name,
@@ -1073,7 +1073,7 @@ impl PluginRequestProcessor {
                     .iter()
                     .filter(|skill| {
                         skill.matches_product_restriction_for_product(
-                            self.thread_manager.session_source().restriction_product(),
+                            self.chat_manager.session_source().restriction_product(),
                         )
                     })
                     .cloned()
@@ -1439,7 +1439,7 @@ impl PluginRequestProcessor {
             ));
         }
 
-        let plugins_manager = self.thread_manager.plugins_manager();
+        let plugins_manager = self.chat_manager.plugins_manager();
         let marketplace_display = marketplace_path.display().to_string();
         let plugin_name_for_log = plugin_name.clone();
         let request = PluginInstallRequest {
@@ -1612,7 +1612,7 @@ impl PluginRequestProcessor {
             remote_plugin_catalog_error_to_jsonrpc(err, "install remote plugin")
         })?;
 
-        self.thread_manager
+        self.chat_manager
             .plugins_manager()
             .maybe_start_remote_installed_plugins_cache_refresh_after_mutation(
                 &config.plugins_config_input(),
@@ -1621,7 +1621,7 @@ impl PluginRequestProcessor {
             );
 
         let plugin_metadata = self
-            .thread_manager
+            .chat_manager
             .plugins_manager()
             .telemetry_metadata_for_installed_plugin_with_remote_id(
                 &result.plugin_id,
@@ -1719,7 +1719,7 @@ impl PluginRequestProcessor {
             return;
         };
         let plugin = self
-            .thread_manager
+            .chat_manager
             .plugins_manager()
             .telemetry_metadata_for_plugin_id_with_remote_id(&plugin_id, remote_plugin_id);
         self.analytics_events_client
@@ -1737,14 +1737,14 @@ impl PluginRequestProcessor {
             return Vec::new();
         }
 
-        let environment_manager = self.thread_manager.environment_manager();
+        let environment_manager = self.chat_manager.environment_manager();
         let (all_connectors_result, accessible_connectors_result) = tokio::join!(
             connectors::list_all_connectors_with_options(config, /*force_refetch*/ false, &[]),
             connectors::list_accessible_connectors_from_mcp_tools_with_mcp_manager(
                 config,
                 /*force_refetch*/ true,
                 Arc::clone(&environment_manager),
-                self.thread_manager.mcp_manager(),
+                self.chat_manager.mcp_manager(),
             ),
         );
 
@@ -1888,7 +1888,7 @@ impl PluginRequestProcessor {
         if is_valid_remote_plugin_id(&plugin_id) {
             return self.remote_plugin_uninstall_response(plugin_id).await;
         }
-        let plugins_manager = self.thread_manager.plugins_manager();
+        let plugins_manager = self.chat_manager.plugins_manager();
 
         plugins_manager
             .uninstall_plugin(plugin_id)
@@ -1992,7 +1992,7 @@ impl PluginRequestProcessor {
             &uninstall_result,
             Ok(()) | Err(RemotePluginCatalogError::CacheRemove(_))
         ) {
-            let plugins_manager = self.thread_manager.plugins_manager();
+            let plugins_manager = self.chat_manager.plugins_manager();
             if plugins_manager.clear_remote_installed_plugins_cache() {
                 self.on_effective_plugins_changed();
             }

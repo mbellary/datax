@@ -5,7 +5,7 @@ const MCP_TOOL_THREAD_ID_META_KEY: &str = "threadId";
 #[derive(Clone)]
 pub(crate) struct McpRequestProcessor {
     auth_manager: Arc<AuthManager>,
-    thread_manager: Arc<ThreadManager>,
+    chat_manager: Arc<ChatManager>,
     outgoing: Arc<OutgoingMessageSender>,
     config_manager: ConfigManager,
 }
@@ -13,13 +13,13 @@ pub(crate) struct McpRequestProcessor {
 impl McpRequestProcessor {
     pub(crate) fn new(
         auth_manager: Arc<AuthManager>,
-        thread_manager: Arc<ThreadManager>,
+        chat_manager: Arc<ChatManager>,
         outgoing: Arc<OutgoingMessageSender>,
         config_manager: ConfigManager,
     ) -> Self {
         Self {
             auth_manager,
-            thread_manager,
+            chat_manager,
             outgoing,
             config_manager,
         }
@@ -77,7 +77,7 @@ impl McpRequestProcessor {
         &self,
         _params: Option<()>,
     ) -> Result<McpServerRefreshResponse, JSONRPCErrorError> {
-        crate::mcp_refresh::queue_strict_refresh(&self.thread_manager, &self.config_manager)
+        crate::mcp_refresh::queue_strict_refresh(&self.chat_manager, &self.config_manager)
             .await
             .map_err(|err| internal_error(format!("failed to refresh MCP servers: {err}")))?;
         Ok(McpServerRefreshResponse {})
@@ -96,13 +96,13 @@ impl McpRequestProcessor {
     async fn load_thread(
         &self,
         chat_id: &str,
-    ) -> Result<(ChatId, Arc<CodexThread>), JSONRPCErrorError> {
+    ) -> Result<(ChatId, Arc<DataxChat>), JSONRPCErrorError> {
         let chat_id = ChatId::from_string(chat_id)
             .map_err(|err| invalid_request(format!("invalid thread id: {err}")))?;
 
         let thread = self
-            .thread_manager
-            .get_thread(chat_id)
+            .chat_manager
+            .get_chat(chat_id)
             .await
             .map_err(|_| invalid_request(format!("thread not found: {chat_id}")))?;
 
@@ -122,7 +122,7 @@ impl McpRequestProcessor {
 
         let auth = self.auth_manager.auth().await;
         let effective_servers = self
-            .thread_manager
+            .chat_manager
             .mcp_manager()
             .effective_servers(&config, auth.as_ref())
             .await;
@@ -220,14 +220,14 @@ impl McpRequestProcessor {
         let mcp_config = match thread {
             Some(thread) => thread.runtime_mcp_config(&config).await,
             None => {
-                self.thread_manager
+                self.chat_manager
                     .mcp_manager()
                     .runtime_config(&config)
                     .await
             }
         };
         let auth = self.auth_manager.auth().await;
-        let environment_manager = self.thread_manager.environment_manager();
+        let environment_manager = self.chat_manager.environment_manager();
         // This status path has no turn-selected environment. Use config cwd
         // as the local stdio fallback; named environment stdio MCPs must
         // declare their own absolute cwd.
@@ -375,12 +375,12 @@ impl McpRequestProcessor {
 
         let config = self.load_latest_config(/*fallback_cwd*/ None).await?;
         let mcp_config = self
-            .thread_manager
+            .chat_manager
             .mcp_manager()
             .runtime_config(&config)
             .await;
         let auth = self.auth_manager.auth().await;
-        let environment_manager = self.thread_manager.environment_manager();
+        let environment_manager = self.chat_manager.environment_manager();
         // This threadless resource-read path has no turn cwd or turn-selected
         // environment. Use config cwd only as the local stdio fallback; named
         // environment stdio MCPs must declare their own absolute cwd.

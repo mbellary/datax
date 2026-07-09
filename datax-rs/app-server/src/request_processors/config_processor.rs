@@ -36,7 +36,7 @@ use datax_config::ManagedHooksRequirementsToml;
 use datax_config::MatcherGroup as CoreMatcherGroup;
 use datax_config::ResidencyRequirement as CoreResidencyRequirement;
 use datax_config::SandboxModeRequirement as CoreSandboxModeRequirement;
-use datax_core::ThreadManager;
+use datax_core::ChatManager;
 use datax_features::canonical_feature_for_key;
 use datax_features::feature_for_key;
 use datax_model_provider::create_model_provider;
@@ -58,7 +58,7 @@ const SUPPORTED_EXPERIMENTAL_FEATURE_ENABLEMENT: &[&str] = &[
 pub(crate) struct ConfigRequestProcessor {
     outgoing: Arc<OutgoingMessageSender>,
     config_manager: ConfigManager,
-    thread_manager: Arc<ThreadManager>,
+    chat_manager: Arc<ChatManager>,
     analytics_events_client: AnalyticsEventsClient,
 }
 
@@ -66,13 +66,13 @@ impl ConfigRequestProcessor {
     pub(crate) fn new(
         outgoing: Arc<OutgoingMessageSender>,
         config_manager: ConfigManager,
-        thread_manager: Arc<ThreadManager>,
+        chat_manager: Arc<ChatManager>,
         analytics_events_client: AnalyticsEventsClient,
     ) -> Self {
         Self {
             outgoing,
             config_manager,
-            thread_manager,
+            chat_manager,
             analytics_events_client,
         }
     }
@@ -168,8 +168,8 @@ impl ConfigRequestProcessor {
     }
 
     pub(crate) async fn handle_config_mutation(&self) {
-        self.thread_manager.plugins_manager().clear_cache();
-        self.thread_manager.skills_service().clear_cache();
+        self.chat_manager.plugins_manager().clear_cache();
+        self.chat_manager.skills_service().clear_cache();
     }
 
     async fn handle_config_mutation_result<T>(
@@ -282,9 +282,9 @@ impl ConfigRequestProcessor {
                 return;
             }
         };
-        let chat_ids = self.thread_manager.list_chat_ids().await;
+        let chat_ids = self.chat_manager.list_chat_ids().await;
         for chat_id in chat_ids {
-            let Ok(thread) = self.thread_manager.get_thread(chat_id).await else {
+            let Ok(thread) = self.chat_manager.get_chat(chat_id).await else {
                 continue;
             };
             thread.refresh_runtime_config(next_config.clone()).await;
@@ -295,7 +295,7 @@ impl ConfigRequestProcessor {
         &self,
         pending_changes: std::collections::BTreeMap<String, bool>,
     ) {
-        let plugins_manager = self.thread_manager.plugins_manager();
+        let plugins_manager = self.chat_manager.plugins_manager();
         for (plugin_id, enabled) in pending_changes {
             let Ok(plugin_id) = PluginId::parse(&plugin_id) else {
                 continue;

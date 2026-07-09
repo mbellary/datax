@@ -1,8 +1,8 @@
 use super::input_queue::TurnInput;
 use super::session::Session;
 use super::turn_context::TurnContext;
-use crate::codex_thread::TryStartTurnIfIdleError;
-use crate::codex_thread::TryStartTurnIfIdleRejectionReason;
+use crate::datax_chat::TryStartTurnIfIdleError;
+use crate::datax_chat::TryStartTurnIfIdleRejectionReason;
 use crate::state::ActiveTurn;
 use crate::state::TurnState;
 use crate::tasks::RegularTask;

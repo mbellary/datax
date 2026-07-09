@@ -3432,8 +3432,8 @@ async fn code_mode_can_call_hidden_dynamic_tools() -> Result<()> {
     });
     let base_test = builder.build(&server).await?;
     let new_thread = base_test
-        .thread_manager
-        .start_thread_with_tools(
+        .chat_manager
+        .start_chat_with_tools(
             base_test.config.clone(),
             vec![DynamicToolSpec::Namespace(DynamicToolNamespaceSpec {
                 name: "codex_app".to_string(),
@@ -3457,7 +3457,7 @@ async fn code_mode_can_call_hidden_dynamic_tools() -> Result<()> {
         )
         .await?;
     let mut test = base_test;
-    test.codex = new_thread.thread;
+    test.codex = new_thread.chat;
     test.session_configured = new_thread.session_configured;
 
     let code = r#"
@@ -3601,8 +3601,8 @@ async fn code_mode_excludes_configured_nested_tool_namespaces() -> Result<()> {
     });
     let base_test = builder.build(&server).await?;
     let new_thread = base_test
-        .thread_manager
-        .start_thread_with_tools(
+        .chat_manager
+        .start_chat_with_tools(
             base_test.config.clone(),
             vec![DynamicToolSpec::Namespace(DynamicToolNamespaceSpec {
                 name: "excluded".to_string(),
@@ -3623,7 +3623,7 @@ async fn code_mode_excludes_configured_nested_tool_namespaces() -> Result<()> {
         )
         .await?;
     let mut test = base_test;
-    test.codex = new_thread.thread;
+    test.codex = new_thread.chat;
     test.session_configured = new_thread.session_configured;
 
     let first_mock = responses::mount_sse_once(

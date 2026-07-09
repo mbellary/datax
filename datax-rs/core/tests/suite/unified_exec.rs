@@ -2473,7 +2473,10 @@ async fn unified_exec_keeps_long_running_session_after_turn_end() -> Result<()> 
         "expected numeric pid, got {pid:?}"
     );
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(&codex, |event| {
+        matches!(event, EventMsg::InteractionComplete(_))
+    })
+    .await;
 
     assert!(
         process_is_alive(&pid)?,
@@ -2572,7 +2575,10 @@ async fn unified_exec_interrupt_preserves_long_running_session() -> Result<()> {
     );
 
     codex.submit(Op::Interrupt).await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionAborted(_))).await;
+    wait_for_event(&codex, |event| {
+        matches!(event, EventMsg::InteractionAborted(_))
+    })
+    .await;
 
     assert!(
         process_is_alive(&pid)?,
@@ -3042,7 +3048,10 @@ async fn unified_exec_runs_under_sandbox() -> Result<()> {
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(&codex, |event| {
+        matches!(event, EventMsg::InteractionComplete(_))
+    })
+    .await;
 
     let requests = request_log.requests();
     assert!(!requests.is_empty(), "expected at least one POST request");
@@ -3164,7 +3173,10 @@ async fn unified_exec_enforces_glob_deny_read_policy() -> Result<()> {
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(&codex, |event| {
+        matches!(event, EventMsg::InteractionComplete(_))
+    })
+    .await;
 
     let requests = request_log.requests();
     assert!(!requests.is_empty(), "expected at least one POST request");
@@ -3302,7 +3314,10 @@ async fn unified_exec_python_prompt_under_seatbelt() -> Result<()> {
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(&codex, |event| {
+        matches!(event, EventMsg::InteractionComplete(_))
+    })
+    .await;
 
     let requests = request_log.requests();
     assert!(!requests.is_empty(), "expected at least one POST request");

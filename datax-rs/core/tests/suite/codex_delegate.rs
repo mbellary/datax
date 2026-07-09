@@ -113,7 +113,10 @@ async fn codex_delegate_forwards_exec_approval_and_proceeds_on_approval() {
         matches!(ev, EventMsg::ExitedReviewMode(_))
     })
     .await;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(&test.codex, |ev| {
+        matches!(ev, EventMsg::InteractionComplete(_))
+    })
+    .await;
 }
 
 /// Delegate should surface ApplyPatchApprovalRequest and honor parent decision
@@ -193,7 +196,10 @@ async fn codex_delegate_forwards_patch_approval_and_proceeds_on_decision() {
         matches!(ev, EventMsg::ExitedReviewMode(_))
     })
     .await;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(&test.codex, |ev| {
+        matches!(ev, EventMsg::InteractionComplete(_))
+    })
+    .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

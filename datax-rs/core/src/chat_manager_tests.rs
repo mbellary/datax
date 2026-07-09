@@ -20,11 +20,11 @@ use datax_protocol::models::ResponseItem;
 use datax_protocol::openai_models::ModelsResponse;
 use datax_protocol::protocol::AgentMessageEvent;
 use datax_protocol::protocol::InitialHistory;
+use datax_protocol::protocol::InteractionStartedEvent;
 use datax_protocol::protocol::InternalSessionSource;
 use datax_protocol::protocol::ResumedHistory;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::ThreadSource;
-use datax_protocol::protocol::InteractionStartedEvent;
 use datax_protocol::protocol::UserMessageEvent;
 use datax_utils_path_uri::PathUri;
 use pretty_assertions::assert_eq;
@@ -166,13 +166,13 @@ fn out_of_range_truncation_drops_only_unfinished_suffix_mid_turn() {
 }
 
 #[test]
-fn fork_thread_accepts_legacy_usize_snapshot_argument() {
+fn fork_chat_accepts_legacy_usize_snapshot_argument() {
     fn assert_legacy_snapshot_callsite(
-        manager: &ThreadManager,
+        manager: &ChatManager,
         config: Config,
         path: std::path::PathBuf,
     ) {
-        let _future = manager.fork_thread(
+        let _future = manager.fork_chat(
             usize::MAX,
             config,
             path,
@@ -181,7 +181,7 @@ fn fork_thread_accepts_legacy_usize_snapshot_argument() {
         );
     }
 
-    let _: fn(&ThreadManager, Config, std::path::PathBuf) = assert_legacy_snapshot_callsite;
+    let _: fn(&ChatManager, Config, std::path::PathBuf) = assert_legacy_snapshot_callsite;
 }
 
 #[test]
@@ -269,19 +269,19 @@ async fn shutdown_all_threads_bounded_submits_shutdown_to_every_thread() {
     config.cwd = config.codex_home.abs();
     std::fs::create_dir_all(&config.codex_home).expect("create codex home");
 
-    let manager = ThreadManager::with_models_provider_and_home_for_tests(
+    let manager = ChatManager::with_models_provider_and_home_for_tests(
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.codex_home.to_path_buf(),
         Arc::new(datax_exec_server::EnvironmentManager::default_for_tests()),
     );
     let thread_1 = manager
-        .start_thread(config.clone())
+        .start_chat(config.clone())
         .await
         .expect("start first thread")
         .chat_id;
     let thread_2 = manager
-        .start_thread(config.clone())
+        .start_chat(config.clone())
         .await
         .expect("start second thread")
         .chat_id;
@@ -299,21 +299,21 @@ async fn shutdown_all_threads_bounded_submits_shutdown_to_every_thread() {
 }
 
 #[tokio::test]
-async fn start_thread_keeps_internal_threads_hidden_from_normal_lookups() {
+async fn start_chat_keeps_internal_threads_hidden_from_normal_lookups() {
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
     config.codex_home = temp_dir.path().join("datax-home").abs();
     config.cwd = config.codex_home.abs();
     std::fs::create_dir_all(&config.codex_home).expect("create codex home");
 
-    let manager = ThreadManager::with_models_provider_and_home_for_tests(
+    let manager = ChatManager::with_models_provider_and_home_for_tests(
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.codex_home.to_path_buf(),
         Arc::new(datax_exec_server::EnvironmentManager::default_for_tests()),
     );
     let thread = manager
-        .start_thread_with_options(StartThreadOptions {
+        .start_chat_with_options(StartChatOptions {
             config,
             initial_history: InitialHistory::New,
             session_source: Some(SessionSource::Internal(
@@ -331,7 +331,7 @@ async fn start_thread_keeps_internal_threads_hidden_from_normal_lookups() {
         .expect("internal thread should start");
 
     assert_eq!(manager.list_chat_ids().await, Vec::new());
-    assert!(manager.get_thread(thread.chat_id).await.is_err());
+    assert!(manager.get_chat(thread.chat_id).await.is_err());
 
     let report = manager
         .shutdown_all_threads_bounded(Duration::from_secs(10))
@@ -343,7 +343,7 @@ async fn start_thread_keeps_internal_threads_hidden_from_normal_lookups() {
 }
 
 #[tokio::test]
-async fn start_thread_seeds_extension_data_for_mcp_and_lifecycle_contributors() {
+async fn start_chat_seeds_extension_data_for_mcp_and_lifecycle_contributors() {
     struct InitialDataRecorder {
         lifecycle_observed: Arc<std::sync::Mutex<Vec<(String, String)>>>,
         mcp_observed: Arc<std::sync::Mutex<Vec<String>>>,
@@ -428,7 +428,7 @@ async fn start_thread_seeds_extension_data_for_mcp_and_lifecycle_contributors() 
     let mut extensions = datax_extension_api::ExtensionRegistryBuilder::new();
     extensions.thread_lifecycle_contributor(recorder.clone());
     extensions.mcp_server_contributor(recorder);
-    let manager = ThreadManager::new(
+    let manager = ChatManager::new(
         &config,
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing()),
         SessionSource::Exec,
@@ -455,7 +455,7 @@ async fn start_thread_seeds_extension_data_for_mcp_and_lifecycle_contributors() 
     };
 
     let first_thread = manager
-        .start_thread_with_options(StartThreadOptions {
+        .start_chat_with_options(StartChatOptions {
             config: config.clone(),
             initial_history: InitialHistory::New,
             session_source: None,
@@ -470,7 +470,7 @@ async fn start_thread_seeds_extension_data_for_mcp_and_lifecycle_contributors() 
         .await
         .expect("start first thread");
     let second_thread = manager
-        .start_thread_with_options(StartThreadOptions {
+        .start_chat_with_options(StartChatOptions {
             config: config.clone(),
             initial_history: InitialHistory::New,
             session_source: None,
@@ -484,8 +484,8 @@ async fn start_thread_seeds_extension_data_for_mcp_and_lifecycle_contributors() 
         })
         .await
         .expect("start second thread");
-    let first_resolved = first_thread.thread.runtime_mcp_config(&config).await;
-    let second_resolved = second_thread.thread.runtime_mcp_config(&config).await;
+    let first_resolved = first_thread.chat.runtime_mcp_config(&config).await;
+    let second_resolved = second_thread.chat.runtime_mcp_config(&config).await;
 
     assert_eq!(
         *lifecycle_observed
@@ -493,10 +493,7 @@ async fn start_thread_seeds_extension_data_for_mcp_and_lifecycle_contributors() 
             .unwrap_or_else(std::sync::PoisonError::into_inner),
         vec![
             (first_thread.chat_id.to_string(), "selected-a".to_string()),
-            (
-                second_thread.chat_id.to_string(),
-                "selected-b".to_string()
-            ),
+            (second_thread.chat_id.to_string(), "selected-b".to_string()),
         ]
     );
     assert_eq!(
@@ -537,7 +534,7 @@ async fn resume_and_fork_do_not_restore_thread_environments_from_rollout() {
 
     let auth_manager =
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing());
-    let manager = ThreadManager::new(
+    let manager = ChatManager::new(
         &config,
         auth_manager.clone(),
         SessionSource::Exec,
@@ -562,7 +559,7 @@ async fn resume_and_fork_do_not_restore_thread_environments_from_rollout() {
     let mut source_config = config.clone();
     source_config.cwd = selected_cwd.clone();
     let source = manager
-        .start_thread_with_options(StartThreadOptions {
+        .start_chat_with_options(StartChatOptions {
             config: source_config,
             initial_history: InitialHistory::New,
             session_source: None,
@@ -576,22 +573,22 @@ async fn resume_and_fork_do_not_restore_thread_environments_from_rollout() {
         })
         .await
         .expect("start source thread");
-    source.thread.ensure_rollout_materialized().await;
+    source.chat.ensure_rollout_materialized().await;
     source
-        .thread
+        .chat
         .flush_rollout()
         .await
         .expect("flush source rollout");
     let rollout_path = source
-        .thread
+        .chat
         .rollout_path()
         .expect("source rollout path should exist");
     source
-        .thread
+        .chat
         .shutdown_and_wait()
         .await
         .expect("shutdown source thread before resume");
-    let _ = manager.remove_thread(&source.chat_id).await;
+    let _ = manager.remove_chat(&source.chat_id).await;
 
     let resumed = manager
         .resume_thread_from_rollout(
@@ -604,7 +601,7 @@ async fn resume_and_fork_do_not_restore_thread_environments_from_rollout() {
         .await
         .expect("resume source thread");
     let resumed_turn = resumed
-        .thread
+        .chat
         .codex
         .session
         .new_turn_with_sub_id("resume-turn".to_string(), SessionSettingsUpdate::default())
@@ -621,7 +618,7 @@ async fn resume_and_fork_do_not_restore_thread_environments_from_rollout() {
     );
 
     let forked = manager
-        .fork_thread(
+        .fork_chat(
             ForkSnapshot::Interrupted,
             config,
             rollout_path,
@@ -631,7 +628,7 @@ async fn resume_and_fork_do_not_restore_thread_environments_from_rollout() {
         .await
         .expect("fork source thread");
     let forked_turn = forked
-        .thread
+        .chat
         .codex
         .session
         .new_turn_with_sub_id("fork-turn".to_string(), SessionSettingsUpdate::default())
@@ -661,7 +658,7 @@ async fn explicit_installation_id_skips_codex_home_file() {
     let installation_id = uuid::Uuid::new_v4().to_string();
     let state_db = init_state_db(&config).await;
     let thread_store = thread_store_from_config(&config, state_db.clone());
-    let manager = ThreadManager::new(
+    let manager = ChatManager::new(
         &config,
         auth_manager,
         SessionSource::Exec,
@@ -677,19 +674,19 @@ async fn explicit_installation_id_skips_codex_home_file() {
     );
 
     let thread = manager
-        .start_thread(config.clone())
+        .start_chat(config.clone())
         .await
         .expect("start thread with explicit installation id");
 
     assert!(!config.codex_home.join(INSTALLATION_ID_FILENAME).exists());
-    assert_eq!(thread.thread.codex.session.installation_id, installation_id);
+    assert_eq!(thread.chat.codex.session.installation_id, installation_id);
 
     thread
-        .thread
+        .chat
         .shutdown_and_wait()
         .await
         .expect("shutdown thread");
-    let _ = manager.remove_thread(&thread.chat_id).await;
+    let _ = manager.remove_chat(&thread.chat_id).await;
 }
 
 #[tokio::test]
@@ -702,7 +699,7 @@ async fn resume_active_thread_from_rollout_returns_running_thread() {
 
     let auth_manager =
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing());
-    let manager = ThreadManager::new(
+    let manager = ChatManager::new(
         &config,
         auth_manager.clone(),
         SessionSource::Exec,
@@ -718,17 +715,17 @@ async fn resume_active_thread_from_rollout_returns_running_thread() {
     );
 
     let source = manager
-        .start_thread(config.clone())
+        .start_chat(config.clone())
         .await
         .expect("start source thread");
-    source.thread.ensure_rollout_materialized().await;
+    source.chat.ensure_rollout_materialized().await;
     source
-        .thread
+        .chat
         .flush_rollout()
         .await
         .expect("flush source rollout");
     let rollout_path = source
-        .thread
+        .chat
         .rollout_path()
         .expect("source rollout path should exist");
 
@@ -743,10 +740,10 @@ async fn resume_active_thread_from_rollout_returns_running_thread() {
         .await
         .expect("resume active source thread");
     assert_eq!(resumed.chat_id, source.chat_id);
-    assert!(Arc::ptr_eq(&resumed.thread, &source.thread));
+    assert!(Arc::ptr_eq(&resumed.chat, &source.chat));
 
     source
-        .thread
+        .chat
         .shutdown_and_wait()
         .await
         .expect("shutdown source thread");
@@ -762,7 +759,7 @@ async fn resume_stopped_thread_from_rollout_spawns_new_thread() {
 
     let auth_manager =
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing());
-    let manager = ThreadManager::new(
+    let manager = ChatManager::new(
         &config,
         auth_manager.clone(),
         SessionSource::Exec,
@@ -778,21 +775,21 @@ async fn resume_stopped_thread_from_rollout_spawns_new_thread() {
     );
 
     let source = manager
-        .start_thread(config.clone())
+        .start_chat(config.clone())
         .await
         .expect("start source thread");
-    source.thread.ensure_rollout_materialized().await;
+    source.chat.ensure_rollout_materialized().await;
     source
-        .thread
+        .chat
         .flush_rollout()
         .await
         .expect("flush source rollout");
     let rollout_path = source
-        .thread
+        .chat
         .rollout_path()
         .expect("source rollout path should exist");
     source
-        .thread
+        .chat
         .shutdown_and_wait()
         .await
         .expect("shutdown source thread");
@@ -808,10 +805,10 @@ async fn resume_stopped_thread_from_rollout_spawns_new_thread() {
         .await
         .expect("resume stopped source thread");
     assert_eq!(resumed.chat_id, source.chat_id);
-    assert!(!Arc::ptr_eq(&resumed.thread, &source.thread));
+    assert!(!Arc::ptr_eq(&resumed.chat, &source.chat));
 
     resumed
-        .thread
+        .chat
         .shutdown_and_wait()
         .await
         .expect("shutdown resumed thread");
@@ -829,7 +826,7 @@ async fn resume_stopped_thread_from_rollout_preserves_thread_source() {
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing());
     let state_db = init_state_db(&config).await;
     let thread_store = thread_store_from_config(&config, state_db.clone());
-    let manager = ThreadManager::new(
+    let manager = ChatManager::new(
         &config,
         auth_manager.clone(),
         SessionSource::Exec,
@@ -845,7 +842,7 @@ async fn resume_stopped_thread_from_rollout_preserves_thread_source() {
     );
 
     let source = manager
-        .start_thread_with_options(StartThreadOptions {
+        .start_chat_with_options(StartChatOptions {
             config: config.clone(),
             initial_history: InitialHistory::New,
             session_source: None,
@@ -859,22 +856,22 @@ async fn resume_stopped_thread_from_rollout_preserves_thread_source() {
         })
         .await
         .expect("start source thread");
-    source.thread.ensure_rollout_materialized().await;
+    source.chat.ensure_rollout_materialized().await;
     source
-        .thread
+        .chat
         .flush_rollout()
         .await
         .expect("flush source rollout");
     let rollout_path = source
-        .thread
+        .chat
         .rollout_path()
         .expect("source rollout path should exist");
     source
-        .thread
+        .chat
         .shutdown_and_wait()
         .await
         .expect("shutdown source thread before resume");
-    let _ = manager.remove_thread(&source.chat_id).await;
+    let _ = manager.remove_chat(&source.chat_id).await;
 
     let resumed = manager
         .resume_thread_from_rollout(
@@ -888,17 +885,12 @@ async fn resume_stopped_thread_from_rollout_preserves_thread_source() {
         .expect("resume source thread");
 
     assert_eq!(
-        resumed
-            .thread
-            .config_snapshot()
-            .await
-            .thread_source
-            .as_ref(),
+        resumed.chat.config_snapshot().await.thread_source.as_ref(),
         Some(&ThreadSource::User)
     );
 
     resumed
-        .thread
+        .chat
         .shutdown_and_wait()
         .await
         .expect("shutdown resumed thread");
@@ -923,7 +915,7 @@ async fn rollout_path_resume_and_fork_read_history_through_thread_store() {
         .as_any()
         .downcast_ref::<InMemoryThreadStore>()
         .expect("configured in-memory store");
-    let manager = ThreadManager::new(
+    let manager = ChatManager::new(
         &config,
         auth_manager.clone(),
         SessionSource::Exec,
@@ -939,15 +931,15 @@ async fn rollout_path_resume_and_fork_read_history_through_thread_store() {
     );
 
     let source = manager
-        .start_thread(config.clone())
+        .start_chat(config.clone())
         .await
         .expect("start source thread");
     source
-        .thread
+        .chat
         .shutdown_and_wait()
         .await
         .expect("shutdown source thread");
-    let _ = manager.remove_thread(&source.chat_id).await;
+    let _ = manager.remove_chat(&source.chat_id).await;
 
     let rollout_path = config
         .codex_home
@@ -968,11 +960,11 @@ async fn rollout_path_resume_and_fork_read_history_through_thread_store() {
         .await
         .expect("seed rollout path in store");
     resumed
-        .thread
+        .chat
         .shutdown_and_wait()
         .await
         .expect("shutdown seeded resumed thread");
-    let _ = manager.remove_thread(&resumed.chat_id).await;
+    let _ = manager.remove_chat(&resumed.chat_id).await;
 
     let resumed_from_path = manager
         .resume_thread_from_rollout(
@@ -987,7 +979,7 @@ async fn rollout_path_resume_and_fork_read_history_through_thread_store() {
     assert_eq!(resumed_from_path.chat_id, resumed.chat_id);
 
     let forked = manager
-        .fork_thread(
+        .fork_chat(
             ForkSnapshot::Interrupted,
             config,
             rollout_path,
@@ -1002,12 +994,12 @@ async fn rollout_path_resume_and_fork_read_history_through_thread_store() {
     assert_eq!(calls.read_thread_by_rollout_path, 2);
 
     resumed_from_path
-        .thread
+        .chat
         .shutdown_and_wait()
         .await
         .expect("shutdown path-resumed thread");
     forked
-        .thread
+        .chat
         .shutdown_and_wait()
         .await
         .expect("shutdown forked thread");
@@ -1028,7 +1020,7 @@ async fn new_uses_active_provider_for_model_refresh() {
 
     let auth_manager =
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing());
-    let manager = ThreadManager::new(
+    let manager = ChatManager::new(
         &config,
         auth_manager,
         SessionSource::Exec,
@@ -1250,7 +1242,7 @@ async fn interrupted_fork_snapshot_does_not_synthesize_interaction_id_for_legacy
     let auth_manager =
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing());
     let state_db = init_state_db(&config).await;
-    let manager = ThreadManager::new(
+    let manager = ChatManager::new(
         &config,
         auth_manager.clone(),
         SessionSource::Exec,
@@ -1279,7 +1271,7 @@ async fn interrupted_fork_snapshot_does_not_synthesize_interaction_id_for_legacy
         .await
         .expect("create source thread from completed history");
     let source_path = source
-        .thread
+        .chat
         .rollout_path()
         .expect("source rollout path should exist");
     let source_history = RolloutRecorder::get_rollout_history(&source_path)
@@ -1291,7 +1283,7 @@ async fn interrupted_fork_snapshot_does_not_synthesize_interaction_id_for_legacy
     assert_eq!(expected_interaction_id, None);
 
     let forked = manager
-        .fork_thread(
+        .fork_chat(
             ForkSnapshot::Interrupted,
             config.clone(),
             source_path,
@@ -1301,7 +1293,7 @@ async fn interrupted_fork_snapshot_does_not_synthesize_interaction_id_for_legacy
         .await
         .expect("fork interrupted snapshot");
     let forked_path = forked
-        .thread
+        .chat
         .rollout_path()
         .expect("forked rollout path should exist");
     let history = RolloutRecorder::get_rollout_history(&forked_path)
@@ -1359,7 +1351,7 @@ async fn interrupted_fork_snapshot_preserves_explicit_interaction_id() {
     let auth_manager =
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing());
     let state_db = init_state_db(&config).await;
-    let manager = ThreadManager::new(
+    let manager = ChatManager::new(
         &config,
         auth_manager.clone(),
         SessionSource::Exec,
@@ -1395,7 +1387,7 @@ async fn interrupted_fork_snapshot_preserves_explicit_interaction_id() {
         .await
         .expect("create source thread from explicit partial history");
     let source_path = source
-        .thread
+        .chat
         .rollout_path()
         .expect("source rollout path should exist");
     let source_history = RolloutRecorder::get_rollout_history(&source_path)
@@ -1412,7 +1404,7 @@ async fn interrupted_fork_snapshot_preserves_explicit_interaction_id() {
     );
 
     let forked = manager
-        .fork_thread(
+        .fork_chat(
             ForkSnapshot::Interrupted,
             config.clone(),
             source_path,
@@ -1422,7 +1414,7 @@ async fn interrupted_fork_snapshot_preserves_explicit_interaction_id() {
         .await
         .expect("fork interrupted snapshot");
     let forked_path = forked
-        .thread
+        .chat
         .rollout_path()
         .expect("forked rollout path should exist");
     let history = RolloutRecorder::get_rollout_history(&forked_path)
@@ -1458,7 +1450,7 @@ async fn interrupted_fork_snapshot_uses_persisted_mid_turn_history_without_live_
     let auth_manager =
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing());
     let state_db = init_state_db(&config).await;
-    let manager = ThreadManager::new(
+    let manager = ChatManager::new(
         &config,
         auth_manager.clone(),
         SessionSource::Exec,
@@ -1487,17 +1479,17 @@ async fn interrupted_fork_snapshot_uses_persisted_mid_turn_history_without_live_
         .await
         .expect("create source thread from partial history");
     let source_path = source
-        .thread
+        .chat
         .rollout_path()
         .expect("source rollout path should exist");
     let source_history = RolloutRecorder::get_rollout_history(&source_path)
         .await
         .expect("read source rollout history");
     assert!(snapshot_turn_state(&source_history).ends_mid_turn);
-    manager.remove_thread(&source.chat_id).await;
+    manager.remove_chat(&source.chat_id).await;
 
     let forked = manager
-        .fork_thread(
+        .fork_chat(
             ForkSnapshot::Interrupted,
             config.clone(),
             source_path,
@@ -1507,7 +1499,7 @@ async fn interrupted_fork_snapshot_uses_persisted_mid_turn_history_without_live_
         .await
         .expect("fork interrupted snapshot");
     let forked_path = forked
-        .thread
+        .chat
         .rollout_path()
         .expect("forked rollout path should exist");
     let history = RolloutRecorder::get_rollout_history(&forked_path)
@@ -1535,9 +1527,9 @@ async fn interrupted_fork_snapshot_uses_persisted_mid_turn_history_without_live_
         1,
     );
 
-    manager.remove_thread(&forked.chat_id).await;
+    manager.remove_chat(&forked.chat_id).await;
     let reforked = manager
-        .fork_thread(
+        .fork_chat(
             ForkSnapshot::Interrupted,
             config.clone(),
             forked_path,
@@ -1547,7 +1539,7 @@ async fn interrupted_fork_snapshot_uses_persisted_mid_turn_history_without_live_
         .await
         .expect("re-fork interrupted snapshot");
     let reforked_path = reforked
-        .thread
+        .chat
         .rollout_path()
         .expect("re-forked rollout path should exist");
     let reforked_history = RolloutRecorder::get_rollout_history(&reforked_path)

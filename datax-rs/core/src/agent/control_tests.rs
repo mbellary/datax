@@ -1,7 +1,7 @@
 use super::*;
-use crate::CodexThread;
+use crate::ChatManager;
+use crate::DataxChat;
 use crate::StateDbHandle;
-use crate::ThreadManager;
 use crate::agent::agent_status_from_event;
 use crate::config::AgentRoleConfig;
 use crate::config::Config;
@@ -21,12 +21,12 @@ use datax_protocol::protocol::CompactedItem;
 use datax_protocol::protocol::ErrorEvent;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::InterAgentCommunication;
-use datax_protocol::protocol::SessionSource;
-use datax_protocol::protocol::SubAgentSource;
 use datax_protocol::protocol::InteractionAbortReason;
 use datax_protocol::protocol::InteractionAbortedEvent;
 use datax_protocol::protocol::InteractionCompleteEvent;
 use datax_protocol::protocol::InteractionStartedEvent;
+use datax_protocol::protocol::SessionSource;
+use datax_protocol::protocol::SubAgentSource;
 use datax_thread_store::ArchiveThreadParams;
 use datax_thread_store::LocalThreadStore;
 use datax_thread_store::LocalThreadStoreConfig;
@@ -99,7 +99,7 @@ struct AgentControlHarness {
     _home: TempDir,
     config: Config,
     state_db: Option<StateDbHandle>,
-    manager: ThreadManager,
+    manager: ChatManager,
     control: AgentControl,
 }
 
@@ -111,7 +111,7 @@ impl AgentControlHarness {
 
     async fn new_with_config(home: TempDir, config: Config) -> Self {
         let state_db = init_state_db(&config).await;
-        let manager = ThreadManager::with_models_provider_home_and_state_for_tests(
+        let manager = ChatManager::with_models_provider_home_and_state_for_tests(
             CodexAuth::from_api_key("dummy"),
             config.model_provider.clone(),
             config.codex_home.to_path_buf(),
@@ -128,13 +128,13 @@ impl AgentControlHarness {
         }
     }
 
-    async fn start_thread(&self) -> (ChatId, Arc<CodexThread>) {
+    async fn start_chat(&self) -> (ChatId, Arc<DataxChat>) {
         let new_thread = self
             .manager
-            .start_thread(self.config.clone())
+            .start_chat(self.config.clone())
             .await
             .expect("start thread");
-        (new_thread.chat_id, new_thread.thread)
+        (new_thread.chat_id, new_thread.chat)
     }
 }
 
@@ -193,7 +193,7 @@ fn history_contains_assistant_inter_agent_communication(
     })
 }
 
-async fn wait_for_subagent_notification(parent_thread: &Arc<CodexThread>) -> bool {
+async fn wait_for_subagent_notification(parent_thread: &Arc<DataxChat>) -> bool {
     let wait = async {
         loop {
             let history_items = parent_thread
@@ -214,7 +214,7 @@ async fn wait_for_subagent_notification(parent_thread: &Arc<CodexThread>) -> boo
     timeout(Duration::from_secs(10), wait).await.is_ok()
 }
 
-async fn persist_thread_for_tree_resume(thread: &Arc<CodexThread>, message: &str) {
+async fn persist_thread_for_tree_resume(thread: &Arc<DataxChat>, message: &str) {
     thread
         .inject_user_message_without_turn(message.to_string())
         .await;
@@ -255,8 +255,8 @@ async fn wait_for_live_thread_spawn_children(
     .expect("expected persisted child tree");
 }
 
-async fn assert_thread_not_loaded(manager: &ThreadManager, chat_id: ChatId) {
-    match manager.get_thread(chat_id).await {
+async fn assert_thread_not_loaded(manager: &ChatManager, chat_id: ChatId) {
+    match manager.get_chat(chat_id).await {
         Err(CodexErr::ThreadNotFound(id)) => assert_eq!(id, chat_id),
         Err(err) => panic!("expected ThreadNotFound, got {err:?}"),
         Ok(_) => panic!("expected thread not to be loaded"),
@@ -304,13 +304,14 @@ async fn on_event_updates_status_from_task_started() {
 
 #[tokio::test]
 async fn on_event_updates_status_from_task_complete() {
-    let status = agent_status_from_event(&EventMsg::InteractionComplete(InteractionCompleteEvent {
-        interaction_id: "turn-1".to_string(),
-        last_agent_message: Some("done".to_string()),
-        completed_at: None,
-        duration_ms: None,
-        time_to_first_token_ms: None,
-    }));
+    let status =
+        agent_status_from_event(&EventMsg::InteractionComplete(InteractionCompleteEvent {
+            interaction_id: "turn-1".to_string(),
+            last_agent_message: Some("done".to_string()),
+            completed_at: None,
+            duration_ms: None,
+            time_to_first_token_ms: None,
+        }));
     let expected = AgentStatus::Completed(Some("done".to_string()));
     assert_eq!(status, Some(expected));
 }
@@ -402,7 +403,7 @@ async fn get_status_returns_not_found_for_missing_thread() {
 #[tokio::test]
 async fn get_status_returns_pending_init_for_new_thread() {
     let harness = AgentControlHarness::new().await;
-    let (chat_id, _) = harness.start_thread().await;
+    let (chat_id, _) = harness.start_chat().await;
     let status = harness.control.get_status(chat_id).await;
     assert_eq!(status, AgentStatus::PendingInit);
 }
@@ -422,7 +423,7 @@ async fn subscribe_status_errors_for_missing_thread() {
 #[tokio::test]
 async fn subscribe_status_updates_on_shutdown() {
     let harness = AgentControlHarness::new().await;
-    let (chat_id, thread) = harness.start_thread().await;
+    let (chat_id, thread) = harness.start_chat().await;
     let mut status_rx = harness
         .control
         .subscribe_status(chat_id)
@@ -442,7 +443,7 @@ async fn subscribe_status_updates_on_shutdown() {
 #[tokio::test]
 async fn send_input_submits_user_message() {
     let harness = AgentControlHarness::new().await;
-    let (chat_id, _thread) = harness.start_thread().await;
+    let (chat_id, _thread) = harness.start_chat().await;
 
     let submission_id = harness
         .control
@@ -481,7 +482,7 @@ async fn send_input_submits_user_message() {
 #[tokio::test]
 async fn send_inter_agent_communication_without_turn_queues_message_without_triggering_turn() {
     let harness = AgentControlHarness::new().await;
-    let (chat_id, thread) = harness.start_thread().await;
+    let (chat_id, thread) = harness.start_chat().await;
     let communication = InterAgentCommunication::new(
         AgentPath::root(),
         AgentPath::try_from("/root/worker").expect("agent path"),
@@ -546,7 +547,7 @@ async fn ensure_v2_agent_loaded_reloads_registered_unloaded_agent() {
     let _ = config.features.enable(Feature::MultiAgentV2);
     let _ = config.features.enable(Feature::Sqlite);
     let harness = AgentControlHarness::new_with_config(home, config).await;
-    let (parent_chat_id, _parent_thread) = harness.start_thread().await;
+    let (parent_chat_id, _parent_thread) = harness.start_chat().await;
     let agent_path = AgentPath::try_from("/root/worker").expect("agent path");
     let spawned_agent = harness
         .control
@@ -569,7 +570,7 @@ async fn ensure_v2_agent_loaded_reloads_registered_unloaded_agent() {
         .expect("spawn_agent should succeed");
     let child_thread = harness
         .manager
-        .get_thread(spawned_agent.chat_id)
+        .get_chat(spawned_agent.chat_id)
         .await
         .expect("child thread should exist");
     child_thread
@@ -587,11 +588,11 @@ async fn ensure_v2_agent_loaded_reloads_registered_unloaded_agent() {
     assert!(
         harness
             .manager
-            .remove_thread(&spawned_agent.chat_id)
+            .remove_chat(&spawned_agent.chat_id)
             .await
             .is_some()
     );
-    match harness.manager.get_thread(spawned_agent.chat_id).await {
+    match harness.manager.get_chat(spawned_agent.chat_id).await {
         Err(CodexErr::ThreadNotFound(id)) => assert_eq!(id, spawned_agent.chat_id),
         Err(err) => panic!("expected ThreadNotFound, got {err:?}"),
         Ok(_) => panic!("expected thread to be removed"),
@@ -604,7 +605,7 @@ async fn ensure_v2_agent_loaded_reloads_registered_unloaded_agent() {
         .expect("known v2 agent should reload");
     let _ = harness
         .manager
-        .get_thread(spawned_agent.chat_id)
+        .get_chat(spawned_agent.chat_id)
         .await
         .expect("reloaded child thread should exist");
 
@@ -638,7 +639,7 @@ async fn resume_agent_from_rollout_does_not_reopen_v2_descendants() {
     let _ = config.features.enable(Feature::MultiAgentV2);
     let _ = config.features.enable(Feature::Sqlite);
     let harness = AgentControlHarness::new_with_config(home, config).await;
-    let (parent_chat_id, parent_thread) = harness.start_thread().await;
+    let (parent_chat_id, parent_thread) = harness.start_chat().await;
     let worker_path = AgentPath::root().join("worker").expect("worker path");
     let worker_chat_id = harness
         .control
@@ -674,19 +675,18 @@ async fn resume_agent_from_rollout_does_not_reopen_v2_descendants() {
 
     let worker_thread = harness
         .manager
-        .get_thread(worker_chat_id)
+        .get_chat(worker_chat_id)
         .await
         .expect("worker thread should exist");
     let reviewer_thread = harness
         .manager
-        .get_thread(reviewer_chat_id)
+        .get_chat(reviewer_chat_id)
         .await
         .expect("reviewer thread should exist");
     persist_thread_for_tree_resume(&parent_thread, "parent persisted").await;
     persist_thread_for_tree_resume(&worker_thread, "worker persisted").await;
     persist_thread_for_tree_resume(&reviewer_thread, "reviewer persisted").await;
-    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[worker_chat_id])
-        .await;
+    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[worker_chat_id]).await;
     wait_for_live_thread_spawn_children(&harness.control, worker_chat_id, &[reviewer_chat_id])
         .await;
 
@@ -697,7 +697,7 @@ async fn resume_agent_from_rollout_does_not_reopen_v2_descendants() {
     assert_eq!(report.submit_failed, Vec::<ChatId>::new());
     assert_eq!(report.timed_out, Vec::<ChatId>::new());
 
-    let resumed_manager = ThreadManager::with_models_provider_home_and_state_for_tests(
+    let resumed_manager = ChatManager::with_models_provider_home_and_state_for_tests(
         CodexAuth::from_api_key("dummy"),
         harness.config.model_provider.clone(),
         harness.config.codex_home.to_path_buf(),
@@ -706,11 +706,7 @@ async fn resume_agent_from_rollout_does_not_reopen_v2_descendants() {
     );
     let resumed_control = resumed_manager.agent_control();
     let resumed_parent_chat_id = resumed_control
-        .resume_agent_from_rollout(
-            harness.config.clone(),
-            parent_chat_id,
-            SessionSource::Exec,
-        )
+        .resume_agent_from_rollout(harness.config.clone(), parent_chat_id, SessionSource::Exec)
         .await
         .expect("v2 root resume should succeed");
     assert_eq!(resumed_parent_chat_id, parent_chat_id);
@@ -725,7 +721,7 @@ async fn resume_agent_from_rollout_does_not_reopen_v2_descendants() {
 #[tokio::test]
 async fn encrypted_inter_agent_communication_clears_existing_last_task_message() {
     let harness = AgentControlHarness::new().await;
-    let (parent_chat_id, _) = harness.start_thread().await;
+    let (parent_chat_id, _) = harness.start_chat().await;
     let agent_path = AgentPath::try_from("/root/worker").expect("agent path");
     let spawned_agent = harness
         .control
@@ -792,7 +788,7 @@ async fn spawn_agent_creates_thread_and_sends_prompt() {
         .expect("spawn_agent should succeed");
     let _thread = harness
         .manager
-        .get_thread(chat_id)
+        .get_chat(chat_id)
         .await
         .expect("thread should be registered");
     let expected = (
@@ -833,11 +829,11 @@ async fn spawn_agent_can_fork_parent_thread_history_with_sanitized_items() {
         Some("Child subagent guidance.".to_string());
     let new_thread = harness
         .manager
-        .start_thread(parent_config.clone())
+        .start_chat(parent_config.clone())
         .await
         .expect("start parent thread");
     let parent_chat_id = new_thread.chat_id;
-    let parent_thread = new_thread.thread;
+    let parent_thread = new_thread.chat;
     parent_thread
         .inject_user_message_without_turn("parent seed context".to_string())
         .await;
@@ -941,7 +937,7 @@ async fn spawn_agent_can_fork_parent_thread_history_with_sanitized_items() {
 
     let child_thread = harness
         .manager
-        .get_thread(child_chat_id)
+        .get_chat(child_chat_id)
         .await
         .expect("child thread should be registered");
     assert_ne!(child_chat_id, parent_chat_id);
@@ -1001,7 +997,7 @@ async fn spawn_agent_can_fork_parent_thread_history_with_sanitized_items() {
         .chat_id;
     let no_hint_child_thread = harness
         .manager
-        .get_thread(no_hint_child_chat_id)
+        .get_chat(no_hint_child_chat_id)
         .await
         .expect("no-hint child thread should be registered");
     let no_hint_history = no_hint_child_thread.codex.session.clone_history().await;
@@ -1063,11 +1059,11 @@ async fn spawn_agent_fork_strips_parent_usage_hints_from_compacted_history() {
         Some("Child subagent guidance.".to_string());
     let new_thread = harness
         .manager
-        .start_thread(parent_config)
+        .start_chat(parent_config)
         .await
         .expect("start parent thread");
     let parent_chat_id = new_thread.chat_id;
-    let parent_thread = new_thread.thread;
+    let parent_thread = new_thread.chat;
     let turn_context = parent_thread.codex.session.new_default_turn().await;
     let parent_spawn_call_id = "spawn-call-compacted-usage-hints".to_string();
     let replacement_history = vec![
@@ -1142,7 +1138,7 @@ async fn spawn_agent_fork_strips_parent_usage_hints_from_compacted_history() {
 
     let child_thread = harness
         .manager
-        .get_thread(child_chat_id)
+        .get_chat(child_chat_id)
         .await
         .expect("child thread should be registered");
     let history = child_thread.codex.session.clone_history().await;
@@ -1173,7 +1169,7 @@ async fn spawn_agent_fork_strips_parent_usage_hints_from_compacted_history() {
 #[tokio::test]
 async fn spawn_agent_fork_flushes_parent_rollout_before_loading_history() {
     let harness = AgentControlHarness::new().await;
-    let (parent_chat_id, parent_thread) = harness.start_thread().await;
+    let (parent_chat_id, parent_thread) = harness.start_chat().await;
     let turn_context = parent_thread.codex.session.new_default_turn().await;
     let parent_spawn_call_id = "spawn-call-unflushed".to_string();
     parent_thread
@@ -1212,7 +1208,7 @@ async fn spawn_agent_fork_flushes_parent_rollout_before_loading_history() {
 
     let child_thread = harness
         .manager
-        .get_thread(child_chat_id)
+        .get_chat(child_chat_id)
         .await
         .expect("child thread should be registered");
     let history = child_thread.codex.session.clone_history().await;
@@ -1235,7 +1231,7 @@ async fn spawn_agent_fork_flushes_parent_rollout_before_loading_history() {
 #[tokio::test]
 async fn spawn_agent_fork_last_n_turns_keeps_only_recent_turns() {
     let harness = AgentControlHarness::new().await;
-    let (parent_chat_id, parent_thread) = harness.start_thread().await;
+    let (parent_chat_id, parent_thread) = harness.start_chat().await;
 
     parent_thread
         .inject_user_message_without_turn("old parent context".to_string())
@@ -1329,7 +1325,7 @@ async fn spawn_agent_fork_last_n_turns_keeps_only_recent_turns() {
 
     let child_thread = harness
         .manager
-        .get_thread(child_chat_id)
+        .get_chat(child_chat_id)
         .await
         .expect("child thread should be registered");
     let history = child_thread.codex.session.clone_history().await;
@@ -1374,7 +1370,7 @@ async fn spawn_agent_fork_last_n_turns_keeps_only_recent_turns() {
 #[tokio::test]
 async fn spawn_agent_fork_last_n_turns_drops_parent_startup_prefix_when_under_limit() {
     let harness = AgentControlHarness::new().await;
-    let (parent_chat_id, parent_thread) = harness.start_thread().await;
+    let (parent_chat_id, parent_thread) = harness.start_chat().await;
     let startup_turn_context = parent_thread.codex.session.new_default_turn().await;
     parent_thread
         .codex
@@ -1441,7 +1437,7 @@ async fn spawn_agent_fork_last_n_turns_drops_parent_startup_prefix_when_under_li
 
     let child_thread = harness
         .manager
-        .get_thread(child_chat_id)
+        .get_chat(child_chat_id)
         .await
         .expect("child thread should be registered");
     let history = child_thread.codex.session.clone_history().await;
@@ -1487,11 +1483,11 @@ async fn spawn_agent_fork_last_n_turns_strips_parent_usage_hints() {
         Some("Child subagent guidance.".to_string());
     let new_thread = harness
         .manager
-        .start_thread(parent_config)
+        .start_chat(parent_config)
         .await
         .expect("start parent thread");
     let parent_chat_id = new_thread.chat_id;
-    let parent_thread = new_thread.thread;
+    let parent_thread = new_thread.chat;
     parent_thread
         .inject_user_message_without_turn("parent task".to_string())
         .await;
@@ -1552,7 +1548,7 @@ async fn spawn_agent_fork_last_n_turns_strips_parent_usage_hints() {
 
     let child_thread = harness
         .manager
-        .get_thread(child_chat_id)
+        .get_chat(child_chat_id)
         .await
         .expect("child thread should be registered");
     let history = child_thread.codex.session.clone_history().await;
@@ -1584,7 +1580,7 @@ async fn spawn_agent_respects_max_threads_limit() {
         TomlValue::Integer(max_threads as i64),
     )])
     .await;
-    let manager = ThreadManager::with_models_provider_and_home_for_tests(
+    let manager = ChatManager::with_models_provider_and_home_for_tests(
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.codex_home.to_path_buf(),
@@ -1593,7 +1589,7 @@ async fn spawn_agent_respects_max_threads_limit() {
     let control = manager.agent_control();
 
     let _ = manager
-        .start_thread(config.clone())
+        .start_chat(config.clone())
         .await
         .expect("start thread");
 
@@ -1636,7 +1632,7 @@ async fn spawn_agent_releases_slot_after_shutdown() {
         TomlValue::Integer(max_threads as i64),
     )])
     .await;
-    let manager = ThreadManager::with_models_provider_and_home_for_tests(
+    let manager = ChatManager::with_models_provider_and_home_for_tests(
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.codex_home.to_path_buf(),
@@ -1679,7 +1675,7 @@ async fn spawn_agent_limit_shared_across_clones() {
         TomlValue::Integer(max_threads as i64),
     )])
     .await;
-    let manager = ThreadManager::with_models_provider_and_home_for_tests(
+    let manager = ChatManager::with_models_provider_and_home_for_tests(
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.codex_home.to_path_buf(),
@@ -1724,7 +1720,7 @@ async fn resume_agent_respects_max_threads_limit() {
         TomlValue::Integer(max_threads as i64),
     )])
     .await;
-    let manager = ThreadManager::with_models_provider_and_home_for_tests(
+    let manager = ChatManager::with_models_provider_and_home_for_tests(
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.codex_home.to_path_buf(),
@@ -1780,7 +1776,7 @@ async fn resume_agent_releases_slot_after_resume_failure() {
         TomlValue::Integer(max_threads as i64),
     )])
     .await;
-    let manager = ThreadManager::with_models_provider_and_home_for_tests(
+    let manager = ChatManager::with_models_provider_and_home_for_tests(
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.codex_home.to_path_buf(),
@@ -1806,7 +1802,7 @@ async fn resume_agent_releases_slot_after_resume_failure() {
 #[tokio::test]
 async fn spawn_child_completion_notifies_parent_history() {
     let harness = AgentControlHarness::new().await;
-    let (parent_chat_id, parent_thread) = harness.start_thread().await;
+    let (parent_chat_id, parent_thread) = harness.start_chat().await;
 
     let child_chat_id = harness
         .control
@@ -1826,7 +1822,7 @@ async fn spawn_child_completion_notifies_parent_history() {
 
     let child_thread = harness
         .manager
-        .get_thread(child_chat_id)
+        .get_chat(child_chat_id)
         .await
         .expect("child thread should exist");
     let _ = child_thread
@@ -1844,11 +1840,11 @@ async fn multi_agent_v2_completion_ignores_dead_direct_parent() {
     let _ = config.features.enable(Feature::MultiAgentV2);
     let root = harness
         .manager
-        .start_thread(config.clone())
+        .start_chat(config.clone())
         .await
         .expect("root thread should start");
     let root_chat_id = root.chat_id;
-    let root_thread = root.thread;
+    let root_thread = root.chat;
     let worker_path = AgentPath::root().join("worker_a").expect("worker path");
     let worker_chat_id = harness
         .control
@@ -1889,7 +1885,7 @@ async fn multi_agent_v2_completion_ignores_dead_direct_parent() {
 
     let tester_thread = harness
         .manager
-        .get_thread(tester_chat_id)
+        .get_chat(tester_chat_id)
         .await
         .expect("tester thread should exist");
     let tester_turn = tester_thread.codex.session.new_default_turn().await;
@@ -1950,19 +1946,19 @@ async fn multi_agent_v2_completion_ignores_dead_direct_parent() {
 #[tokio::test]
 async fn multi_agent_v2_completion_queues_message_for_direct_parent() {
     let harness = AgentControlHarness::new().await;
-    let (_root_chat_id, root_thread) = harness.start_thread().await;
-    let (worker_chat_id, _worker_thread) = harness.start_thread().await;
+    let (_root_chat_id, root_thread) = harness.start_chat().await;
+    let (worker_chat_id, _worker_thread) = harness.start_chat().await;
     let mut tester_config = harness.config.clone();
     let _ = tester_config.features.enable(Feature::MultiAgentV2);
     let tester_chat_id = harness
         .manager
-        .start_thread(tester_config.clone())
+        .start_chat(tester_config.clone())
         .await
         .expect("tester thread should start")
         .chat_id;
     let tester_thread = harness
         .manager
-        .get_thread(tester_chat_id)
+        .get_chat(tester_chat_id)
         .await
         .expect("tester thread should exist");
     let worker_path = AgentPath::root().join("worker_a").expect("worker path");
@@ -2052,7 +2048,7 @@ async fn multi_agent_v2_completion_queues_message_for_direct_parent() {
 #[tokio::test]
 async fn completion_watcher_notifies_parent_when_child_is_missing() {
     let harness = AgentControlHarness::new().await;
-    let (parent_chat_id, parent_thread) = harness.start_thread().await;
+    let (parent_chat_id, parent_thread) = harness.start_chat().await;
     let child_chat_id = ChatId::new();
 
     harness.control.maybe_start_completion_watcher(
@@ -2093,7 +2089,7 @@ async fn completion_watcher_notifies_parent_when_child_is_missing() {
 #[tokio::test]
 async fn spawn_thread_subagent_gets_random_nickname_in_session_source() {
     let harness = AgentControlHarness::new().await;
-    let (parent_chat_id, _parent_thread) = harness.start_thread().await;
+    let (parent_chat_id, _parent_thread) = harness.start_chat().await;
 
     let child_chat_id = harness
         .control
@@ -2113,7 +2109,7 @@ async fn spawn_thread_subagent_gets_random_nickname_in_session_source() {
 
     let child_thread = harness
         .manager
-        .get_thread(child_chat_id)
+        .get_chat(child_chat_id)
         .await
         .expect("child thread should be registered");
     let snapshot = child_thread.config_snapshot().await;
@@ -2145,7 +2141,7 @@ async fn spawn_thread_subagent_uses_role_specific_nickname_candidates() {
             nickname_candidates: Some(vec!["Atlas".to_string()]),
         },
     );
-    let (parent_chat_id, _parent_thread) = harness.start_thread().await;
+    let (parent_chat_id, _parent_thread) = harness.start_chat().await;
 
     let child_chat_id = harness
         .control
@@ -2165,7 +2161,7 @@ async fn spawn_thread_subagent_uses_role_specific_nickname_candidates() {
 
     let child_thread = harness
         .manager
-        .get_thread(child_chat_id)
+        .get_chat(child_chat_id)
         .await
         .expect("child thread should be registered");
     let snapshot = child_thread.config_snapshot().await;
@@ -2186,7 +2182,7 @@ async fn resume_thread_subagent_restores_stored_metadata() {
         .enable(Feature::Sqlite)
         .expect("test config should allow sqlite");
     let state_db = init_state_db(&config).await;
-    let manager = ThreadManager::with_models_provider_home_and_state_for_tests(
+    let manager = ChatManager::with_models_provider_home_and_state_for_tests(
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.codex_home.to_path_buf(),
@@ -2201,7 +2197,7 @@ async fn resume_thread_subagent_restores_stored_metadata() {
         manager,
         control,
     };
-    let (parent_chat_id, _parent_thread) = harness.start_thread().await;
+    let (parent_chat_id, _parent_thread) = harness.start_chat().await;
     let agent_path = AgentPath::from_string("/root/explorer".to_string())
         .expect("test agent path should be valid");
 
@@ -2223,7 +2219,7 @@ async fn resume_thread_subagent_restores_stored_metadata() {
 
     let child_thread = harness
         .manager
-        .get_thread(child_chat_id)
+        .get_chat(child_chat_id)
         .await
         .expect("child thread should exist");
     child_thread
@@ -2267,7 +2263,7 @@ async fn resume_thread_subagent_restores_stored_metadata() {
         .expect("sqlite state db should be available for nickname resume test");
     timeout(Duration::from_secs(5), async {
         loop {
-            if let Ok(Some(metadata)) = state_db.get_thread(child_chat_id).await
+            if let Ok(Some(metadata)) = state_db.get_chat(child_chat_id).await
                 && metadata.agent_nickname.is_some()
                 && metadata.agent_role.as_deref() == Some("explorer")
             {
@@ -2304,7 +2300,7 @@ async fn resume_thread_subagent_restores_stored_metadata() {
 
     let resumed_snapshot = harness
         .manager
-        .get_thread(resumed_chat_id)
+        .get_chat(resumed_chat_id)
         .await
         .expect("resumed child thread should exist")
         .config_snapshot()
@@ -2348,7 +2344,7 @@ async fn resume_agent_from_rollout_reads_archived_rollout_path() {
 
     let child_thread = harness
         .manager
-        .get_thread(child_chat_id)
+        .get_chat(child_chat_id)
         .await
         .expect("child thread should exist");
     persist_thread_for_tree_resume(&child_thread, "persist before archiving").await;
@@ -2385,7 +2381,7 @@ async fn resume_agent_from_rollout_reads_archived_rollout_path() {
 #[tokio::test]
 async fn list_agent_subtree_chat_ids_includes_anonymous_and_closed_descendants() {
     let harness = AgentControlHarness::new().await;
-    let (parent_chat_id, _parent_thread) = harness.start_thread().await;
+    let (parent_chat_id, _parent_thread) = harness.start_chat().await;
     let worker_path = AgentPath::root().join("worker").expect("worker path");
     let reviewer_path = AgentPath::root().join("reviewer").expect("reviewer path");
 
@@ -2488,10 +2484,7 @@ async fn list_agent_subtree_chat_ids_includes_anonymous_and_closed_descendants()
         no_path_grandchild_chat_id,
     ];
     expected_worker_subtree_chat_ids.sort_by_key(ToString::to_string);
-    assert_eq!(
-        worker_subtree_chat_ids,
-        expected_worker_subtree_chat_ids
-    );
+    assert_eq!(worker_subtree_chat_ids, expected_worker_subtree_chat_ids);
 
     let mut no_path_child_subtree_chat_ids = harness
         .manager
@@ -2511,7 +2504,7 @@ async fn list_agent_subtree_chat_ids_includes_anonymous_and_closed_descendants()
 #[tokio::test]
 async fn list_agent_subtree_chat_ids_finds_live_descendants_of_unloaded_root() {
     let (_home, config) = test_config().await;
-    let manager = ThreadManager::with_models_provider_home_and_state_for_tests(
+    let manager = ChatManager::with_models_provider_home_and_state_for_tests(
         CodexAuth::from_api_key("dummy"),
         config.model_provider.clone(),
         config.codex_home.to_path_buf(),
@@ -2520,7 +2513,7 @@ async fn list_agent_subtree_chat_ids_finds_live_descendants_of_unloaded_root() {
     );
     let control = manager.agent_control();
     let parent_chat_id = manager
-        .start_thread(config.clone())
+        .start_chat(config.clone())
         .await
         .expect("parent should start")
         .chat_id;
@@ -2554,15 +2547,14 @@ async fn list_agent_subtree_chat_ids_finds_live_descendants_of_unloaded_root() {
         .await
         .expect("grandchild spawn should succeed");
 
-    manager.remove_thread(&parent_chat_id).await;
+    manager.remove_chat(&parent_chat_id).await;
 
     let mut subtree_chat_ids = manager
         .list_agent_subtree_chat_ids(parent_chat_id)
         .await
         .expect("live subtree should load");
     subtree_chat_ids.sort_by_key(ToString::to_string);
-    let mut expected_subtree_chat_ids =
-        vec![parent_chat_id, child_chat_id, grandchild_chat_id];
+    let mut expected_subtree_chat_ids = vec![parent_chat_id, child_chat_id, grandchild_chat_id];
     expected_subtree_chat_ids.sort_by_key(ToString::to_string);
 
     assert_eq!(subtree_chat_ids, expected_subtree_chat_ids);
@@ -2571,7 +2563,7 @@ async fn list_agent_subtree_chat_ids_finds_live_descendants_of_unloaded_root() {
 #[tokio::test]
 async fn shutdown_agent_tree_closes_live_descendants() {
     let harness = AgentControlHarness::new().await;
-    let (parent_chat_id, _parent_thread) = harness.start_thread().await;
+    let (parent_chat_id, _parent_thread) = harness.start_chat().await;
 
     let child_chat_id = harness
         .control
@@ -2606,18 +2598,17 @@ async fn shutdown_agent_tree_closes_live_descendants() {
 
     let child_thread = harness
         .manager
-        .get_thread(child_chat_id)
+        .get_chat(child_chat_id)
         .await
         .expect("child thread should exist");
     let grandchild_thread = harness
         .manager
-        .get_thread(grandchild_chat_id)
+        .get_chat(grandchild_chat_id)
         .await
         .expect("grandchild thread should exist");
     persist_thread_for_tree_resume(&child_thread, "child persisted").await;
     persist_thread_for_tree_resume(&grandchild_thread, "grandchild persisted").await;
-    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[child_chat_id])
-        .await;
+    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[child_chat_id]).await;
     wait_for_live_thread_spawn_children(&harness.control, child_chat_id, &[grandchild_chat_id])
         .await;
 
@@ -2656,7 +2647,7 @@ async fn shutdown_agent_tree_closes_live_descendants() {
 #[tokio::test]
 async fn shutdown_agent_tree_closes_descendants_when_started_at_child() {
     let harness = AgentControlHarness::new().await;
-    let (parent_chat_id, _parent_thread) = harness.start_thread().await;
+    let (parent_chat_id, _parent_thread) = harness.start_chat().await;
 
     let child_chat_id = harness
         .control
@@ -2691,18 +2682,17 @@ async fn shutdown_agent_tree_closes_descendants_when_started_at_child() {
 
     let child_thread = harness
         .manager
-        .get_thread(child_chat_id)
+        .get_chat(child_chat_id)
         .await
         .expect("child thread should exist");
     let grandchild_thread = harness
         .manager
-        .get_thread(grandchild_chat_id)
+        .get_chat(grandchild_chat_id)
         .await
         .expect("grandchild thread should exist");
     persist_thread_for_tree_resume(&child_thread, "child persisted").await;
     persist_thread_for_tree_resume(&grandchild_thread, "grandchild persisted").await;
-    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[child_chat_id])
-        .await;
+    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[child_chat_id]).await;
     wait_for_live_thread_spawn_children(&harness.control, child_chat_id, &[grandchild_chat_id])
         .await;
 
@@ -2747,7 +2737,7 @@ async fn shutdown_agent_tree_closes_descendants_when_started_at_child() {
 #[tokio::test]
 async fn resume_agent_from_rollout_does_not_reopen_closed_descendants() {
     let harness = AgentControlHarness::new().await;
-    let (parent_chat_id, parent_thread) = harness.start_thread().await;
+    let (parent_chat_id, parent_thread) = harness.start_chat().await;
 
     let child_chat_id = harness
         .control
@@ -2782,19 +2772,18 @@ async fn resume_agent_from_rollout_does_not_reopen_closed_descendants() {
 
     let child_thread = harness
         .manager
-        .get_thread(child_chat_id)
+        .get_chat(child_chat_id)
         .await
         .expect("child thread should exist");
     let grandchild_thread = harness
         .manager
-        .get_thread(grandchild_chat_id)
+        .get_chat(grandchild_chat_id)
         .await
         .expect("grandchild thread should exist");
     persist_thread_for_tree_resume(&parent_thread, "parent persisted").await;
     persist_thread_for_tree_resume(&child_thread, "child persisted").await;
     persist_thread_for_tree_resume(&grandchild_thread, "grandchild persisted").await;
-    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[child_chat_id])
-        .await;
+    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[child_chat_id]).await;
     wait_for_live_thread_spawn_children(&harness.control, child_chat_id, &[grandchild_chat_id])
         .await;
 
@@ -2811,11 +2800,7 @@ async fn resume_agent_from_rollout_does_not_reopen_closed_descendants() {
 
     let resumed_parent_chat_id = harness
         .control
-        .resume_agent_from_rollout(
-            harness.config.clone(),
-            parent_chat_id,
-            SessionSource::Exec,
-        )
+        .resume_agent_from_rollout(harness.config.clone(), parent_chat_id, SessionSource::Exec)
         .await
         .expect("single-thread resume should succeed");
     assert_eq!(resumed_parent_chat_id, parent_chat_id);
@@ -2842,7 +2827,7 @@ async fn resume_agent_from_rollout_does_not_reopen_closed_descendants() {
 #[tokio::test]
 async fn resume_closed_child_reopens_open_descendants() {
     let harness = AgentControlHarness::new().await;
-    let (parent_chat_id, parent_thread) = harness.start_thread().await;
+    let (parent_chat_id, parent_thread) = harness.start_chat().await;
 
     let child_chat_id = harness
         .control
@@ -2877,19 +2862,18 @@ async fn resume_closed_child_reopens_open_descendants() {
 
     let child_thread = harness
         .manager
-        .get_thread(child_chat_id)
+        .get_chat(child_chat_id)
         .await
         .expect("child thread should exist");
     let grandchild_thread = harness
         .manager
-        .get_thread(grandchild_chat_id)
+        .get_chat(grandchild_chat_id)
         .await
         .expect("grandchild thread should exist");
     persist_thread_for_tree_resume(&parent_thread, "parent persisted").await;
     persist_thread_for_tree_resume(&child_thread, "child persisted").await;
     persist_thread_for_tree_resume(&grandchild_thread, "grandchild persisted").await;
-    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[child_chat_id])
-        .await;
+    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[child_chat_id]).await;
     wait_for_live_thread_spawn_children(&harness.control, child_chat_id, &[grandchild_chat_id])
         .await;
 
@@ -2939,7 +2923,7 @@ async fn resume_closed_child_reopens_open_descendants() {
 #[tokio::test]
 async fn resume_agent_from_rollout_reopens_open_descendants_after_manager_shutdown() {
     let harness = AgentControlHarness::new().await;
-    let (parent_chat_id, parent_thread) = harness.start_thread().await;
+    let (parent_chat_id, parent_thread) = harness.start_chat().await;
 
     let child_chat_id = harness
         .control
@@ -2974,19 +2958,18 @@ async fn resume_agent_from_rollout_reopens_open_descendants_after_manager_shutdo
 
     let child_thread = harness
         .manager
-        .get_thread(child_chat_id)
+        .get_chat(child_chat_id)
         .await
         .expect("child thread should exist");
     let grandchild_thread = harness
         .manager
-        .get_thread(grandchild_chat_id)
+        .get_chat(grandchild_chat_id)
         .await
         .expect("grandchild thread should exist");
     persist_thread_for_tree_resume(&parent_thread, "parent persisted").await;
     persist_thread_for_tree_resume(&child_thread, "child persisted").await;
     persist_thread_for_tree_resume(&grandchild_thread, "grandchild persisted").await;
-    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[child_chat_id])
-        .await;
+    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[child_chat_id]).await;
     wait_for_live_thread_spawn_children(&harness.control, child_chat_id, &[grandchild_chat_id])
         .await;
 
@@ -2999,11 +2982,7 @@ async fn resume_agent_from_rollout_reopens_open_descendants_after_manager_shutdo
 
     let resumed_parent_chat_id = harness
         .control
-        .resume_agent_from_rollout(
-            harness.config.clone(),
-            parent_chat_id,
-            SessionSource::Exec,
-        )
+        .resume_agent_from_rollout(harness.config.clone(), parent_chat_id, SessionSource::Exec)
         .await
         .expect("tree resume should succeed");
     assert_eq!(resumed_parent_chat_id, parent_chat_id);
@@ -3030,7 +3009,7 @@ async fn resume_agent_from_rollout_reopens_open_descendants_after_manager_shutdo
 #[tokio::test]
 async fn resume_agent_from_rollout_uses_edge_data_when_descendant_metadata_source_is_stale() {
     let harness = AgentControlHarness::new().await;
-    let (parent_chat_id, parent_thread) = harness.start_thread().await;
+    let (parent_chat_id, parent_thread) = harness.start_chat().await;
 
     let child_chat_id = harness
         .control
@@ -3065,19 +3044,18 @@ async fn resume_agent_from_rollout_uses_edge_data_when_descendant_metadata_sourc
 
     let child_thread = harness
         .manager
-        .get_thread(child_chat_id)
+        .get_chat(child_chat_id)
         .await
         .expect("child thread should exist");
     let grandchild_thread = harness
         .manager
-        .get_thread(grandchild_chat_id)
+        .get_chat(grandchild_chat_id)
         .await
         .expect("grandchild thread should exist");
     persist_thread_for_tree_resume(&parent_thread, "parent persisted").await;
     persist_thread_for_tree_resume(&child_thread, "child persisted").await;
     persist_thread_for_tree_resume(&grandchild_thread, "grandchild persisted").await;
-    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[child_chat_id])
-        .await;
+    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[child_chat_id]).await;
     wait_for_live_thread_spawn_children(&harness.control, child_chat_id, &[grandchild_chat_id])
         .await;
 
@@ -3085,7 +3063,7 @@ async fn resume_agent_from_rollout_uses_edge_data_when_descendant_metadata_sourc
         .state_db()
         .expect("sqlite state db should be available");
     let mut stale_metadata = state_db
-        .get_thread(grandchild_chat_id)
+        .get_chat(grandchild_chat_id)
         .await
         .expect("grandchild metadata query should succeed")
         .expect("grandchild metadata should exist");
@@ -3112,11 +3090,7 @@ async fn resume_agent_from_rollout_uses_edge_data_when_descendant_metadata_sourc
 
     let resumed_parent_chat_id = harness
         .control
-        .resume_agent_from_rollout(
-            harness.config.clone(),
-            parent_chat_id,
-            SessionSource::Exec,
-        )
+        .resume_agent_from_rollout(harness.config.clone(), parent_chat_id, SessionSource::Exec)
         .await
         .expect("tree resume should succeed");
     assert_eq!(resumed_parent_chat_id, parent_chat_id);
@@ -3135,7 +3109,7 @@ async fn resume_agent_from_rollout_uses_edge_data_when_descendant_metadata_sourc
 
     let resumed_grandchild_snapshot = harness
         .manager
-        .get_thread(grandchild_chat_id)
+        .get_chat(grandchild_chat_id)
         .await
         .expect("resumed grandchild thread should exist")
         .config_snapshot()
@@ -3161,7 +3135,7 @@ async fn resume_agent_from_rollout_uses_edge_data_when_descendant_metadata_sourc
 #[tokio::test]
 async fn resume_agent_from_rollout_skips_descendants_when_parent_resume_fails() {
     let harness = AgentControlHarness::new().await;
-    let (parent_chat_id, parent_thread) = harness.start_thread().await;
+    let (parent_chat_id, parent_thread) = harness.start_chat().await;
 
     let child_chat_id = harness
         .control
@@ -3196,19 +3170,18 @@ async fn resume_agent_from_rollout_skips_descendants_when_parent_resume_fails() 
 
     let child_thread = harness
         .manager
-        .get_thread(child_chat_id)
+        .get_chat(child_chat_id)
         .await
         .expect("child thread should exist");
     let grandchild_thread = harness
         .manager
-        .get_thread(grandchild_chat_id)
+        .get_chat(grandchild_chat_id)
         .await
         .expect("grandchild thread should exist");
     persist_thread_for_tree_resume(&parent_thread, "parent persisted").await;
     persist_thread_for_tree_resume(&child_thread, "child persisted").await;
     persist_thread_for_tree_resume(&grandchild_thread, "grandchild persisted").await;
-    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[child_chat_id])
-        .await;
+    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[child_chat_id]).await;
     wait_for_live_thread_spawn_children(&harness.control, child_chat_id, &[grandchild_chat_id])
         .await;
 
@@ -3227,11 +3200,7 @@ async fn resume_agent_from_rollout_skips_descendants_when_parent_resume_fails() 
 
     let resumed_parent_chat_id = harness
         .control
-        .resume_agent_from_rollout(
-            harness.config.clone(),
-            parent_chat_id,
-            SessionSource::Exec,
-        )
+        .resume_agent_from_rollout(harness.config.clone(), parent_chat_id, SessionSource::Exec)
         .await
         .expect("root resume should succeed");
     assert_eq!(resumed_parent_chat_id, parent_chat_id);

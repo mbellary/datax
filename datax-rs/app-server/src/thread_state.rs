@@ -6,7 +6,7 @@ use datax_app_server_protocol::ChatSettings;
 use datax_app_server_protocol::Interaction;
 use datax_app_server_protocol::InteractionError;
 use datax_app_server_protocol::RequestId;
-use datax_core::CodexThread;
+use datax_core::DataxChat;
 use datax_core::ThreadConfigSnapshot;
 use datax_file_watcher::WatchRegistration;
 use datax_protocol::ChatId;
@@ -86,12 +86,12 @@ pub(crate) struct ThreadState {
     last_thread_settings: Option<ChatSettings>,
     listener_command_tx: Option<mpsc::UnboundedSender<ThreadListenerCommand>>,
     current_turn_history: ChatHistoryBuilder,
-    listener_thread: Option<Weak<CodexThread>>,
+    listener_thread: Option<Weak<DataxChat>>,
     watch_registration: WatchRegistration,
 }
 
 impl ThreadState {
-    pub(crate) fn listener_matches(&self, conversation: &Arc<CodexThread>) -> bool {
+    pub(crate) fn listener_matches(&self, conversation: &Arc<DataxChat>) -> bool {
         self.listener_thread
             .as_ref()
             .and_then(Weak::upgrade)
@@ -101,7 +101,7 @@ impl ThreadState {
     pub(crate) fn set_listener(
         &mut self,
         cancel_tx: oneshot::Sender<()>,
-        conversation: &Arc<CodexThread>,
+        conversation: &Arc<DataxChat>,
         watch_registration: WatchRegistration,
         thread_settings_baseline: ChatSettings,
     ) -> (mpsc::UnboundedReceiver<ThreadListenerCommand>, u64) {
@@ -141,13 +141,19 @@ impl ThreadState {
         self.current_turn_history.active_turn_snapshot()
     }
 
-    pub(crate) fn track_current_turn_event(&mut self, event_interaction_id: &str, event: &EventMsg) {
+    pub(crate) fn track_current_turn_event(
+        &mut self,
+        event_interaction_id: &str,
+        event: &EventMsg,
+    ) {
         if let EventMsg::InteractionStarted(payload) = event {
             self.turn_summary.started_at = payload.started_at;
         }
         self.current_turn_history.handle_event(event);
-        if matches!(event, EventMsg::InteractionAborted(_) | EventMsg::InteractionComplete(_))
-            && !self.current_turn_history.has_active_turn()
+        if matches!(
+            event,
+            EventMsg::InteractionAborted(_) | EventMsg::InteractionComplete(_)
+        ) && !self.current_turn_history.has_active_turn()
         {
             self.last_terminal_interaction_id = Some(event_interaction_id.to_string());
             self.current_turn_history.reset();
@@ -292,8 +298,7 @@ pub(crate) struct ThreadStateManager {
     state: Arc<Mutex<ThreadStateManagerInner>>,
     // Extension event sinks are synchronous, so they need an await-free way to
     // enqueue work on the active per-thread listener.
-    listener_commands:
-        Arc<StdMutex<HashMap<ChatId, mpsc::UnboundedSender<ThreadListenerCommand>>>>,
+    listener_commands: Arc<StdMutex<HashMap<ChatId, mpsc::UnboundedSender<ThreadListenerCommand>>>>,
 }
 
 impl ThreadStateManager {
@@ -393,7 +398,7 @@ impl ThreadStateManager {
             .remove(&chat_id);
     }
 
-    pub(crate) async fn remove_thread_state(&self, chat_id: ChatId) {
+    pub(crate) async fn remove_chat_state(&self, chat_id: ChatId) {
         let thread_state = {
             let mut state = self.state.lock().await;
             let thread_state = state

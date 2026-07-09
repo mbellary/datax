@@ -22,9 +22,9 @@ use tracing::trace;
 use tracing::trace_span;
 use tracing::warn;
 
-use crate::codex_thread::BackgroundTerminalInfo;
 use crate::config::Config;
 use crate::context::ContextualUserFragment;
+use crate::datax_chat::BackgroundTerminalInfo;
 use crate::hook_runtime::inspect_pending_input;
 use crate::hook_runtime::record_additional_contexts;
 use crate::hook_runtime::record_pending_input;
@@ -46,11 +46,11 @@ use datax_otel::TURN_TOKEN_USAGE_METRIC;
 use datax_otel::TURN_TOOL_CALL_METRIC;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::EventMsg;
-use datax_protocol::protocol::MultiAgentVersion;
-use datax_protocol::protocol::TokenUsage;
 use datax_protocol::protocol::InteractionAbortReason;
 use datax_protocol::protocol::InteractionAbortedEvent;
 use datax_protocol::protocol::InteractionCompleteEvent;
+use datax_protocol::protocol::MultiAgentVersion;
+use datax_protocol::protocol::TokenUsage;
 use datax_protocol::protocol::WarningEvent;
 
 pub(crate) use compact::CompactTask;
@@ -100,7 +100,9 @@ pub(crate) fn interrupted_turn_history_marker(
     match marker {
         InterruptedTurnHistoryMarker::Disabled => None,
         InterruptedTurnHistoryMarker::ContextualUser => Some(ContextualUserFragment::into(
-            crate::context::InteractionAborted::new(crate::context::InteractionAborted::INTERRUPTED_GUIDANCE),
+            crate::context::InteractionAborted::new(
+                crate::context::InteractionAborted::INTERRUPTED_GUIDANCE,
+            ),
         )),
         InterruptedTurnHistoryMarker::Developer => {
             let marker = crate::context::InteractionAborted::new(
@@ -822,7 +824,11 @@ impl Session {
             .await
     }
 
-    async fn handle_task_abort(self: &Arc<Self>, task: RunningTask, reason: InteractionAbortReason) {
+    async fn handle_task_abort(
+        self: &Arc<Self>,
+        task: RunningTask,
+        reason: InteractionAbortReason,
+    ) {
         let sub_id = task.turn_context.sub_id.clone();
         if task.cancellation_token.is_cancelled() {
             return;
@@ -869,7 +875,9 @@ impl Session {
             // Ensure the marker is durably visible before emitting InteractionAborted: some clients
             // synchronously re-read the rollout on receipt of the abort event.
             if let Err(err) = self.flush_rollout().await {
-                warn!("failed to flush interrupted-turn marker before emitting InteractionAborted: {err}");
+                warn!(
+                    "failed to flush interrupted-turn marker before emitting InteractionAborted: {err}"
+                );
             }
         }
 

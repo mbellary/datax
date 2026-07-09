@@ -163,12 +163,7 @@ async fn thread_delete_with_non_local_thread_store_does_not_create_local_persist
             },
         })
         .await?;
-    delete_thread(
-        &client,
-        /*request_id*/ 5,
-        unloaded_chat_id.to_string(),
-    )
-    .await?;
+    delete_thread(&client, /*request_id*/ 5, unloaded_chat_id.to_string()).await?;
 
     client.shutdown().await?;
 

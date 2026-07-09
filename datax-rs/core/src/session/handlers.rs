@@ -32,6 +32,7 @@ use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::GuardianAssessmentEvent;
 use datax_protocol::protocol::GuardianAssessmentStatus;
 use datax_protocol::protocol::InterAgentCommunication;
+use datax_protocol::protocol::InteractionAbortReason;
 use datax_protocol::protocol::McpServerRefreshConfig;
 use datax_protocol::protocol::Op;
 use datax_protocol::protocol::RealtimeConversationListVoicesResponseEvent;
@@ -44,7 +45,6 @@ use datax_protocol::protocol::ThreadRolledBackEvent;
 use datax_protocol::protocol::ThreadSettingsAppliedEvent;
 use datax_protocol::protocol::ThreadSettingsOverrides;
 use datax_protocol::protocol::ThreadSettingsSnapshot;
-use datax_protocol::protocol::InteractionAbortReason;
 use datax_protocol::protocol::WarningEvent;
 use datax_protocol::request_permissions::RequestPermissionsResponse;
 use datax_protocol::request_user_input::RequestUserInputResponse;
@@ -588,7 +588,8 @@ async fn shutdown_session_runtime(sess: &Arc<Session>) {
     if let Some(startup_prewarm) = sess.take_session_startup_prewarm().await {
         startup_prewarm.abort().await;
     }
-    sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
+    sess.abort_all_tasks(InteractionAbortReason::Interrupted)
+        .await;
     let _ = sess.conversation.shutdown().await;
     sess.services
         .unified_exec_manager

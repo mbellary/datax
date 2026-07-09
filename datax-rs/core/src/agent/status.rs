@@ -6,7 +6,9 @@ use datax_protocol::protocol::EventMsg;
 pub(crate) fn agent_status_from_event(msg: &EventMsg) -> Option<AgentStatus> {
     match msg {
         EventMsg::InteractionStarted(_) => Some(AgentStatus::Running),
-        EventMsg::InteractionComplete(ev) => Some(AgentStatus::Completed(ev.last_agent_message.clone())),
+        EventMsg::InteractionComplete(ev) => {
+            Some(AgentStatus::Completed(ev.last_agent_message.clone()))
+        }
         EventMsg::InteractionAborted(ev) => match ev.reason {
             datax_protocol::protocol::InteractionAbortReason::Interrupted
             | datax_protocol::protocol::InteractionAbortReason::BudgetLimited => {

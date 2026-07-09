@@ -450,10 +450,7 @@ impl OutgoingMessageSender {
         request_id_to_callback.remove_entry(id)
     }
 
-    pub(crate) async fn pending_requests_for_thread(
-        &self,
-        chat_id: ChatId,
-    ) -> Vec<ServerRequest> {
+    pub(crate) async fn pending_requests_for_thread(&self, chat_id: ChatId) -> Vec<ServerRequest> {
         let request_id_to_callback = self.request_id_to_callback.lock().await;
         let mut requests = request_id_to_callback
             .values()

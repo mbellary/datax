@@ -100,7 +100,10 @@ impl GuardianRejectionCircuitBreaker {
         self.turns.remove(interaction_id);
     }
 
-    pub(crate) fn record_denial(&mut self, interaction_id: &str) -> GuardianRejectionCircuitBreakerAction {
+    pub(crate) fn record_denial(
+        &mut self,
+        interaction_id: &str,
+    ) -> GuardianRejectionCircuitBreakerAction {
         let turn = self.turns.entry(interaction_id.to_string()).or_default();
         turn.consecutive_denials = turn.consecutive_denials.saturating_add(1);
         Self::record_recent_review(turn, /*denied*/ true);

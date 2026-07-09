@@ -14,9 +14,9 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use datax_config::CloudConfigBundleLoader;
-use datax_core::CodexThread;
-use datax_core::StartThreadOptions;
-use datax_core::ThreadManager;
+use datax_core::ChatManager;
+use datax_core::DataxChat;
+use datax_core::StartChatOptions;
 use datax_core::TimeProvider;
 use datax_core::config::Config;
 use datax_core::resolve_installation_id;
@@ -577,7 +577,7 @@ impl TestCodexBuilder {
                     config.codex_home.clone(),
                 ))
             });
-        let thread_manager = ThreadManager::new(
+        let chat_manager = ChatManager::new(
             &config,
             datax_core::test_support::auth_manager_from_auth(auth.clone()),
             SessionSource::Exec,
@@ -591,7 +591,7 @@ impl TestCodexBuilder {
             /*attestation_provider*/ None,
             /*external_time_provider*/ self.external_time_provider.clone(),
         );
-        let thread_manager = Arc::new(thread_manager);
+        let chat_manager = Arc::new(chat_manager);
         let user_shell_override = self.user_shell_override.clone();
 
         let new_conversation = match (resume_from, user_shell_override) {
@@ -599,7 +599,7 @@ impl TestCodexBuilder {
                 let auth_manager = datax_core::test_support::auth_manager_from_auth(auth);
                 Box::pin(
                     datax_core::test_support::resume_thread_from_rollout_with_user_shell_override(
-                        thread_manager.as_ref(),
+                        chat_manager.as_ref(),
                         config.clone(),
                         path,
                         auth_manager,
@@ -611,7 +611,7 @@ impl TestCodexBuilder {
             }
             (Some(path), None) => {
                 let auth_manager = datax_core::test_support::auth_manager_from_auth(auth);
-                Box::pin(thread_manager.resume_thread_from_rollout(
+                Box::pin(chat_manager.resume_thread_from_rollout(
                     config.clone(),
                     path,
                     auth_manager,
@@ -622,8 +622,8 @@ impl TestCodexBuilder {
             }
             (None, Some(user_shell_override)) => {
                 Box::pin(
-                    datax_core::test_support::start_thread_with_user_shell_override(
-                        thread_manager.as_ref(),
+                    datax_core::test_support::start_chat_with_user_shell_override(
+                        chat_manager.as_ref(),
                         config.clone(),
                         user_shell_override,
                         self.supports_openai_form_elicitation,
@@ -632,21 +632,19 @@ impl TestCodexBuilder {
                 .await?
             }
             (None, None) => {
-                let environments = thread_manager.default_environment_selections(&config.cwd);
-                Box::pin(
-                    thread_manager.start_thread_with_options(StartThreadOptions {
-                        config: config.clone(),
-                        initial_history: InitialHistory::New,
-                        session_source: None,
-                        thread_source: None,
-                        dynamic_tools: Vec::new(),
-                        metrics_service_name: None,
-                        parent_trace: None,
-                        environments,
-                        thread_extension_init: Default::default(),
-                        supports_openai_form_elicitation: self.supports_openai_form_elicitation,
-                    }),
-                )
+                let environments = chat_manager.default_environment_selections(&config.cwd);
+                Box::pin(chat_manager.start_chat_with_options(StartChatOptions {
+                    config: config.clone(),
+                    initial_history: InitialHistory::New,
+                    session_source: None,
+                    thread_source: None,
+                    dynamic_tools: Vec::new(),
+                    metrics_service_name: None,
+                    parent_trace: None,
+                    environments,
+                    thread_extension_init: Default::default(),
+                    supports_openai_form_elicitation: self.supports_openai_form_elicitation,
+                }))
                 .await?
             }
         };
@@ -655,9 +653,9 @@ impl TestCodexBuilder {
             home,
             cwd,
             config,
-            codex: new_conversation.thread,
+            codex: new_conversation.chat,
             session_configured: new_conversation.session_configured,
-            thread_manager,
+            chat_manager,
             _test_env: test_env,
         })
     }
@@ -741,10 +739,10 @@ fn ensure_test_model_catalog(config: &mut Config) -> Result<()> {
 pub struct TestCodex {
     pub home: Arc<TempDir>,
     pub cwd: Arc<TempDir>,
-    pub codex: Arc<CodexThread>,
+    pub codex: Arc<DataxChat>,
     pub session_configured: SessionConfiguredEvent,
     pub config: Config,
-    pub thread_manager: Arc<ThreadManager>,
+    pub chat_manager: Arc<ChatManager>,
     _test_env: TestEnv,
 }
 

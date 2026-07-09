@@ -27,13 +27,13 @@ use datax_protocol::openai_models::ModelPreset;
 use datax_protocol::protocol::SessionSource;
 use once_cell::sync::Lazy;
 
-use crate::ThreadManager;
+use crate::ChatManager;
+use crate::chat_manager;
 use crate::config::Config;
 use crate::responses_metadata::CodexResponsesMetadata;
 use crate::responses_metadata::CodexResponsesRequestKind;
 use crate::responses_metadata::subagent_header_value;
 use crate::responses_metadata::subagent_metadata_kind;
-use crate::thread_manager;
 use crate::unified_exec;
 
 static TEST_MODEL_PRESETS: Lazy<Vec<ModelPreset>> = Lazy::new(|| {
@@ -55,8 +55,8 @@ impl UserInstructionsProvider for EmptyUserInstructionsProvider {
     }
 }
 
-pub fn set_thread_manager_test_mode(enabled: bool) {
-    thread_manager::set_thread_manager_test_mode_for_tests(enabled);
+pub fn set_chat_manager_test_mode(enabled: bool) {
+    chat_manager::set_chat_manager_test_mode_for_tests(enabled);
 }
 
 pub fn set_deterministic_process_ids(enabled: bool) {
@@ -71,20 +71,20 @@ pub fn auth_manager_from_auth_with_home(auth: CodexAuth, codex_home: PathBuf) ->
     AuthManager::from_auth_for_testing_with_home(auth, codex_home)
 }
 
-pub fn thread_manager_with_models_provider(
+pub fn chat_manager_with_models_provider(
     auth: CodexAuth,
     provider: ModelProviderInfo,
-) -> ThreadManager {
-    ThreadManager::with_models_provider_for_tests(auth, provider)
+) -> ChatManager {
+    ChatManager::with_models_provider_for_tests(auth, provider)
 }
 
-pub fn thread_manager_with_models_provider_and_home(
+pub fn chat_manager_with_models_provider_and_home(
     auth: CodexAuth,
     provider: ModelProviderInfo,
     codex_home: PathBuf,
     environment_manager: Arc<EnvironmentManager>,
-) -> ThreadManager {
-    ThreadManager::with_models_provider_and_home_for_tests(
+) -> ChatManager {
+    ChatManager::with_models_provider_and_home_for_tests(
         auth,
         provider,
         codex_home,
@@ -92,14 +92,14 @@ pub fn thread_manager_with_models_provider_and_home(
     )
 }
 
-pub fn thread_manager_with_models_provider_home_and_state(
+pub fn chat_manager_with_models_provider_home_and_state(
     auth: CodexAuth,
     provider: ModelProviderInfo,
     codex_home: PathBuf,
     environment_manager: Arc<EnvironmentManager>,
     state_db: Option<crate::StateDbHandle>,
-) -> ThreadManager {
-    ThreadManager::with_models_provider_home_and_state_for_tests(
+) -> ChatManager {
+    ChatManager::with_models_provider_home_and_state_for_tests(
         auth,
         provider,
         codex_home,
@@ -108,14 +108,14 @@ pub fn thread_manager_with_models_provider_home_and_state(
     )
 }
 
-pub async fn start_thread_with_user_shell_override(
-    thread_manager: &ThreadManager,
+pub async fn start_chat_with_user_shell_override(
+    chat_manager: &ChatManager,
     config: Config,
     user_shell_override: crate::shell::Shell,
     supports_openai_form_elicitation: bool,
-) -> datax_protocol::error::Result<crate::NewThread> {
-    thread_manager
-        .start_thread_with_user_shell_override_for_tests(
+) -> datax_protocol::error::Result<crate::NewChat> {
+    chat_manager
+        .start_chat_with_user_shell_override_for_tests(
             config,
             user_shell_override,
             supports_openai_form_elicitation,
@@ -124,14 +124,14 @@ pub async fn start_thread_with_user_shell_override(
 }
 
 pub async fn resume_thread_from_rollout_with_user_shell_override(
-    thread_manager: &ThreadManager,
+    chat_manager: &ChatManager,
     config: Config,
     rollout_path: PathBuf,
     auth_manager: Arc<AuthManager>,
     user_shell_override: crate::shell::Shell,
     supports_openai_form_elicitation: bool,
-) -> datax_protocol::error::Result<crate::NewThread> {
-    thread_manager
+) -> datax_protocol::error::Result<crate::NewChat> {
+    chat_manager
         .resume_thread_from_rollout_with_user_shell_override_for_tests(
             config,
             rollout_path,

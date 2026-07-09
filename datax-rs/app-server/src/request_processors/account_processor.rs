@@ -62,7 +62,7 @@ impl Drop for ActiveLogin {
 #[derive(Clone)]
 pub(crate) struct AccountRequestProcessor {
     auth_manager: Arc<AuthManager>,
-    thread_manager: Arc<ThreadManager>,
+    chat_manager: Arc<ChatManager>,
     outgoing: Arc<OutgoingMessageSender>,
     config: Arc<Config>,
     config_manager: ConfigManager,
@@ -72,14 +72,14 @@ pub(crate) struct AccountRequestProcessor {
 impl AccountRequestProcessor {
     pub(crate) fn new(
         auth_manager: Arc<AuthManager>,
-        thread_manager: Arc<ThreadManager>,
+        chat_manager: Arc<ChatManager>,
         outgoing: Arc<OutgoingMessageSender>,
         config: Arc<Config>,
         config_manager: ConfigManager,
     ) -> Self {
         Self {
             auth_manager,
-            thread_manager,
+            chat_manager,
             outgoing,
             config,
             config_manager,
@@ -171,7 +171,7 @@ impl AccountRequestProcessor {
 
     pub(crate) fn clear_external_auth(&self) {
         self.auth_manager.clear_external_auth();
-        self.thread_manager
+        self.chat_manager
             .plugins_manager()
             .set_auth_mode(self.auth_manager.get_api_auth_mode());
     }
@@ -186,13 +186,13 @@ impl AccountRequestProcessor {
 
     async fn maybe_refresh_plugin_caches_for_current_config(
         config_manager: &ConfigManager,
-        thread_manager: &Arc<ThreadManager>,
+        chat_manager: &Arc<ChatManager>,
         auth: Option<CodexAuth>,
     ) {
-        thread_manager
+        chat_manager
             .plugins_manager()
             .set_auth_mode(auth.as_ref().map(CodexAuth::api_auth_mode));
-        thread_manager
+        chat_manager
             .plugins_manager()
             .clear_recommended_plugins_cache();
 
@@ -201,16 +201,16 @@ impl AccountRequestProcessor {
             .await
         {
             Ok(config) => {
-                let refresh_thread_manager = Arc::clone(thread_manager);
+                let refresh_chat_manager = Arc::clone(chat_manager);
                 let refresh_config_manager = config_manager.clone();
-                thread_manager
+                chat_manager
                     .plugins_manager()
                     .maybe_start_remote_plugin_caches_refresh(
                         &config.plugins_config_input(),
                         auth,
                         Some(Arc::new(move || {
                             Self::spawn_effective_plugins_changed_task(
-                                Arc::clone(&refresh_thread_manager),
+                                Arc::clone(&refresh_chat_manager),
                                 refresh_config_manager.clone(),
                             );
                         })),
@@ -225,16 +225,16 @@ impl AccountRequestProcessor {
     }
 
     fn spawn_effective_plugins_changed_task(
-        thread_manager: Arc<ThreadManager>,
+        chat_manager: Arc<ChatManager>,
         config_manager: ConfigManager,
     ) {
         tokio::spawn(async move {
-            thread_manager.plugins_manager().clear_cache();
-            thread_manager.skills_service().clear_cache();
-            if thread_manager.list_chat_ids().await.is_empty() {
+            chat_manager.plugins_manager().clear_cache();
+            chat_manager.skills_service().clear_cache();
+            if chat_manager.list_chat_ids().await.is_empty() {
                 return;
             }
-            crate::mcp_refresh::queue_best_effort_refresh(&thread_manager, &config_manager).await;
+            crate::mcp_refresh::queue_best_effort_refresh(&chat_manager, &config_manager).await;
         });
     }
 
@@ -418,7 +418,7 @@ impl AccountRequestProcessor {
 
         let outgoing_clone = self.outgoing.clone();
         let config_manager = self.config_manager.clone();
-        let thread_manager = Arc::clone(&self.thread_manager);
+        let chat_manager = Arc::clone(&self.chat_manager);
         let chatgpt_base_url = self.config.chatgpt_base_url.clone();
         let active_login = self.active_login.clone();
         let auth_url = server.auth_url.clone();
@@ -440,7 +440,7 @@ impl AccountRequestProcessor {
             Self::send_chatgpt_login_completion_notifications(
                 &outgoing_clone,
                 config_manager,
-                thread_manager,
+                chat_manager,
                 chatgpt_base_url,
                 login_id,
                 success,
@@ -494,7 +494,7 @@ impl AccountRequestProcessor {
 
         let outgoing_clone = self.outgoing.clone();
         let config_manager = self.config_manager.clone();
-        let thread_manager = Arc::clone(&self.thread_manager);
+        let chat_manager = Arc::clone(&self.chat_manager);
         let chatgpt_base_url = self.config.chatgpt_base_url.clone();
         let active_login = self.active_login.clone();
         tokio::spawn(async move {
@@ -513,7 +513,7 @@ impl AccountRequestProcessor {
             Self::send_chatgpt_login_completion_notifications(
                 &outgoing_clone,
                 config_manager,
-                thread_manager,
+                chat_manager,
                 chatgpt_base_url,
                 login_id,
                 success,
@@ -635,7 +635,7 @@ impl AccountRequestProcessor {
     async fn send_login_success_notifications(&self, login_id: Option<Uuid>) {
         Self::maybe_refresh_plugin_caches_for_current_config(
             &self.config_manager,
-            &self.thread_manager,
+            &self.chat_manager,
             self.auth_manager.auth_cached(),
         )
         .await;
@@ -661,7 +661,7 @@ impl AccountRequestProcessor {
     async fn send_chatgpt_login_completion_notifications(
         outgoing: &OutgoingMessageSender,
         config_manager: ConfigManager,
-        thread_manager: Arc<ThreadManager>,
+        chat_manager: Arc<ChatManager>,
         chatgpt_base_url: String,
         login_id: Uuid,
         success: bool,
@@ -677,7 +677,7 @@ impl AccountRequestProcessor {
             .await;
 
         if success {
-            let auth_manager = thread_manager.auth_manager();
+            let auth_manager = chat_manager.auth_manager();
             auth_manager.reload().await;
             config_manager
                 .replace_cloud_config_bundle_loader(auth_manager.clone(), chatgpt_base_url);
@@ -688,7 +688,7 @@ impl AccountRequestProcessor {
             let auth = auth_manager.auth_cached();
             Self::maybe_refresh_plugin_caches_for_current_config(
                 &config_manager,
-                &thread_manager,
+                &chat_manager,
                 auth.clone(),
             )
             .await;
@@ -720,7 +720,7 @@ impl AccountRequestProcessor {
 
         Self::maybe_refresh_plugin_caches_for_current_config(
             &self.config_manager,
-            &self.thread_manager,
+            &self.chat_manager,
             self.auth_manager.auth_cached(),
         )
         .await;

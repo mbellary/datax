@@ -11,14 +11,14 @@ use datax_protocol::protocol::SessionSource;
 use datax_protocol::user_input::UserInput;
 use tokio_util::sync::CancellationToken;
 
+use crate::chat_manager::ChatManager;
+use crate::chat_manager::thread_store_from_config;
 use crate::config::Config;
 use crate::resolve_installation_id;
 use crate::session::session::Session;
 use crate::session::turn::build_prompt;
 use crate::session::turn::built_tools;
 use crate::state_db_bridge::StateDbHandle;
-use crate::thread_manager::ThreadManager;
-use crate::thread_manager::thread_store_from_config;
 use datax_extension_api::empty_extension_registry;
 
 /// Build the model-visible `input` list for a single debug turn.
@@ -41,7 +41,7 @@ pub async fn build_prompt_input(
 
     let thread_store = thread_store_from_config(&config, state_db.clone());
     let installation_id = resolve_installation_id(&config.codex_home).await?;
-    let thread_manager = ThreadManager::new(
+    let chat_manager = ChatManager::new(
         &config,
         Arc::clone(&auth_manager),
         SessionSource::Exec,
@@ -62,11 +62,11 @@ pub async fn build_prompt_input(
         /*attestation_provider*/ None,
         /*external_time_provider*/ None,
     );
-    let thread = thread_manager.start_thread(config).await?;
+    let thread = chat_manager.start_chat(config).await?;
 
-    let output = build_prompt_input_from_session(thread.thread.codex.session.as_ref(), input).await;
-    let shutdown = thread.thread.shutdown_and_wait().await;
-    let _removed = thread_manager.remove_thread(&thread.chat_id).await;
+    let output = build_prompt_input_from_session(thread.chat.codex.session.as_ref(), input).await;
+    let shutdown = thread.chat.shutdown_and_wait().await;
+    let _removed = chat_manager.remove_chat(&thread.chat_id).await;
 
     shutdown?;
     output

@@ -9,9 +9,9 @@ use crate::exec_approval::handle_exec_approval_request;
 use crate::outgoing_message::OutgoingMessageSender;
 use crate::outgoing_message::OutgoingNotificationMeta;
 use crate::patch_approval::handle_patch_approval_request;
-use datax_core::CodexThread;
-use datax_core::NewThread;
-use datax_core::ThreadManager;
+use datax_core::ChatManager;
+use datax_core::DataxChat;
+use datax_core::NewChat;
 use datax_core::config::Config as CodexConfig;
 use datax_protocol::ChatId;
 use datax_protocol::protocol::AgentMessageEvent;
@@ -19,9 +19,9 @@ use datax_protocol::protocol::ApplyPatchApprovalRequestEvent;
 use datax_protocol::protocol::Event;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::ExecApprovalRequestEvent;
+use datax_protocol::protocol::InteractionCompleteEvent;
 use datax_protocol::protocol::Op;
 use datax_protocol::protocol::Submission;
-use datax_protocol::protocol::InteractionCompleteEvent;
 use datax_protocol::user_input::UserInput;
 use rmcp::model::CallToolResult;
 use rmcp::model::Content;
@@ -59,14 +59,14 @@ pub async fn run_codex_tool_session(
     initial_prompt: String,
     config: CodexConfig,
     outgoing: Arc<OutgoingMessageSender>,
-    thread_manager: Arc<ThreadManager>,
+    chat_manager: Arc<ChatManager>,
     running_requests_id_to_codex_uuid: Arc<Mutex<HashMap<RequestId, ChatId>>>,
 ) {
-    let NewThread {
+    let NewChat {
         chat_id,
-        thread,
+        chat: thread,
         session_configured,
-    } = match thread_manager.start_thread(config.clone()).await {
+    } = match chat_manager.start_chat(config.clone()).await {
         Ok(res) => res,
         Err(e) => {
             let result = CallToolResult::error(vec![Content::text(format!(
@@ -142,7 +142,7 @@ pub async fn run_codex_tool_session(
 
 pub async fn run_codex_tool_session_reply(
     chat_id: ChatId,
-    thread: Arc<CodexThread>,
+    thread: Arc<DataxChat>,
     outgoing: Arc<OutgoingMessageSender>,
     request_id: RequestId,
     prompt: String,
@@ -193,7 +193,7 @@ pub async fn run_codex_tool_session_reply(
 
 async fn run_codex_tool_session_inner(
     chat_id: ChatId,
-    thread: Arc<CodexThread>,
+    thread: Arc<DataxChat>,
     outgoing: Arc<OutgoingMessageSender>,
     request_id: RequestId,
     running_requests_id_to_codex_uuid: Arc<Mutex<HashMap<RequestId, ChatId>>>,
@@ -301,7 +301,8 @@ async fn run_codex_tool_session_inner(
                         continue;
                     }
                     EventMsg::InteractionComplete(InteractionCompleteEvent {
-                        last_agent_message, ..
+                        last_agent_message,
+                        ..
                     }) => {
                         let text = match last_agent_message {
                             Some(msg) => msg,

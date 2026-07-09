@@ -183,8 +183,8 @@ pub(crate) fn thread_initialized_event(payload: &Value) -> Result<&Value> {
         .ok_or_else(|| anyhow::anyhow!("analytics payload missing events array"))?;
     events
         .iter()
-        .find(|event| event["event_type"] == "codex_thread_initialized")
-        .ok_or_else(|| anyhow::anyhow!("codex_thread_initialized event should be present"))
+        .find(|event| event["event_type"] == "datax_chat_initialized")
+        .ok_or_else(|| anyhow::anyhow!("datax_chat_initialized event should be present"))
 }
 
 pub(crate) fn assert_basic_thread_initialized_event(

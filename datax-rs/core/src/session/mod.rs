@@ -85,8 +85,8 @@ use datax_network_proxy::normalize_host;
 use datax_otel::current_span_trace_id;
 use datax_otel::current_span_w3c_trace_context;
 use datax_otel::set_parent_from_w3c_trace_context;
-use datax_protocol::SessionId;
 use datax_protocol::ChatId;
+use datax_protocol::SessionId;
 use datax_protocol::approvals::ElicitationRequestEvent;
 use datax_protocol::approvals::ExecPolicyAmendment;
 use datax_protocol::approvals::NetworkPolicyAmendment;
@@ -117,6 +117,7 @@ use datax_protocol::protocol::AdditionalContextEntry;
 use datax_protocol::protocol::FileChange;
 use datax_protocol::protocol::HasLegacyEvent;
 use datax_protocol::protocol::InterAgentCommunication;
+use datax_protocol::protocol::InteractionAbortReason;
 use datax_protocol::protocol::ItemCompletedEvent;
 use datax_protocol::protocol::ItemStartedEvent;
 use datax_protocol::protocol::MultiAgentVersion;
@@ -126,7 +127,6 @@ use datax_protocol::protocol::RolloutItem;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
 use datax_protocol::protocol::ThreadSource;
-use datax_protocol::protocol::InteractionAbortReason;
 use datax_protocol::protocol::TurnContextItem;
 use datax_protocol::protocol::TurnContextNetworkItem;
 use datax_protocol::protocol::TurnEnvironmentSelection;
@@ -186,7 +186,6 @@ use tracing::warn;
 use uuid::Uuid;
 
 use crate::client::ModelClient;
-use crate::codex_thread::ThreadConfigSnapshot;
 #[cfg(test)]
 use crate::compact::collect_user_messages;
 use crate::config::Config;
@@ -197,6 +196,7 @@ use crate::config::PermissionProfileState;
 use crate::config::StartedNetworkProxy;
 use crate::config::resolve_web_search_mode_for_turn;
 use crate::context_manager::ContextManager;
+use crate::datax_chat::ThreadConfigSnapshot;
 use crate::thread_rollout_truncation::initial_history_has_prior_user_turns;
 use datax_config::CONFIG_TOML_FILE;
 use datax_config::ConfigLayerSource;
@@ -1763,7 +1763,10 @@ impl Session {
             return;
         }
 
-        if !matches!(msg, EventMsg::InteractionComplete(_) | EventMsg::InteractionAborted(_)) {
+        if !matches!(
+            msg,
+            EventMsg::InteractionComplete(_) | EventMsg::InteractionAborted(_)
+        ) {
             return;
         }
 
@@ -3799,7 +3802,8 @@ impl Session {
     pub async fn interrupt_task(self: &Arc<Self>) {
         info!("interrupt received: abort current task, if any");
         let had_active_turn = self.active_turn.lock().await.is_some();
-        self.abort_all_tasks(InteractionAbortReason::Interrupted).await;
+        self.abort_all_tasks(InteractionAbortReason::Interrupted)
+            .await;
         if !had_active_turn {
             self.cancel_mcp_startup().await;
         }

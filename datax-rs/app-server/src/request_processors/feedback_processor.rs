@@ -7,7 +7,7 @@ const MAX_FEEDBACK_TREE_THREADS: usize = 8;
 #[derive(Clone)]
 pub(crate) struct FeedbackRequestProcessor {
     auth_manager: Arc<AuthManager>,
-    thread_manager: Arc<ThreadManager>,
+    chat_manager: Arc<ChatManager>,
     config: Arc<Config>,
     feedback: CodexFeedback,
     log_db: Option<LogDbLayer>,
@@ -17,7 +17,7 @@ pub(crate) struct FeedbackRequestProcessor {
 impl FeedbackRequestProcessor {
     pub(crate) fn new(
         auth_manager: Arc<AuthManager>,
-        thread_manager: Arc<ThreadManager>,
+        chat_manager: Arc<ChatManager>,
         config: Arc<Config>,
         feedback: CodexFeedback,
         log_db: Option<LogDbLayer>,
@@ -25,7 +25,7 @@ impl FeedbackRequestProcessor {
     ) -> Self {
         Self {
             auth_manager,
-            thread_manager,
+            chat_manager,
             config,
             feedback,
             log_db,
@@ -93,7 +93,7 @@ impl FeedbackRequestProcessor {
             let state_db_ctx = self.state_db.clone();
             let feedback_chat_ids = match conversation_id {
                 Some(conversation_id) => match self
-                    .thread_manager
+                    .chat_manager
                     .list_agent_subtree_chat_ids(conversation_id)
                     .await
                 {
@@ -155,10 +155,7 @@ impl FeedbackRequestProcessor {
                     .iter()
                     .map(ToString::to_string)
                     .collect::<Vec<_>>();
-                let chat_id_refs = chat_id_texts
-                    .iter()
-                    .map(String::as_str)
-                    .collect::<Vec<_>>();
+                let chat_id_refs = chat_id_texts.iter().map(String::as_str).collect::<Vec<_>>();
                 match state_db_ctx
                     .query_feedback_logs_for_threads(&chat_id_refs)
                     .await
@@ -199,7 +196,7 @@ impl FeedbackRequestProcessor {
                 }
             }
             if let Some(conversation_id) = conversation_id
-                && let Ok(conversation) = self.thread_manager.get_thread(conversation_id).await
+                && let Ok(conversation) = self.chat_manager.get_chat(conversation_id).await
                 && let Some(guardian_rollout_path) =
                     conversation.guardian_trunk_rollout_path().await
                 && seen_attachment_paths.insert(guardian_rollout_path.clone())
@@ -240,7 +237,7 @@ impl FeedbackRequestProcessor {
             }
         }
 
-        let session_source = self.thread_manager.session_source();
+        let session_source = self.chat_manager.session_source();
 
         let upload_result = tokio::task::spawn_blocking(move || {
             let tags = (!upload_tags.is_empty()).then_some(&upload_tags);
@@ -275,7 +272,7 @@ impl FeedbackRequestProcessor {
         conversation_id: ChatId,
         state_db_ctx: Option<&StateDbHandle>,
     ) -> Option<PathBuf> {
-        if let Ok(conversation) = self.thread_manager.get_thread(conversation_id).await
+        if let Ok(conversation) = self.chat_manager.get_chat(conversation_id).await
             && let Some(rollout_path) = conversation.rollout_path()
         {
             return Some(rollout_path);

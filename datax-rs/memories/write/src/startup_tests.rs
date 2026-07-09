@@ -297,8 +297,8 @@ async fn memories_startup_phase1_uses_live_thread_service_tier_and_detached_meta
     );
 
     let context = crate::runtime::MemoryStartupContext::new(
-        Arc::clone(&test.thread_manager),
-        test.thread_manager.auth_manager(),
+        Arc::clone(&test.chat_manager),
+        test.chat_manager.auth_manager(),
         test.session_configured.chat_id,
         Arc::clone(&test.codex),
         &test.config,
@@ -423,7 +423,7 @@ async fn run_memory_phase_one_model_request_test(
     let test = build_test_codex_with_memories_config(server, Arc::clone(&home), memories).await?;
     let provider = Arc::new(MockMemoryModelProvider::new(
         test.config.model_provider.clone(),
-        Some(test.thread_manager.auth_manager()),
+        Some(test.chat_manager.auth_manager()),
     ));
     let db = test
         .datax
@@ -464,7 +464,7 @@ async fn run_memory_phase_two_model_request_test(
     let test = build_test_codex_with_memories_config(server, home.clone(), memories).await?;
     let provider = Arc::new(MockMemoryModelProvider::new(
         test.config.model_provider.clone(),
-        Some(test.thread_manager.auth_manager()),
+        Some(test.chat_manager.auth_manager()),
     ));
     let db = test
         .datax
@@ -549,8 +549,8 @@ async fn trigger_memories_startup(test: &TestCodex) {
         .enable(Feature::MemoryTool)
         .expect("test config should allow feature update");
     start_memories_startup_task(
-        Arc::clone(&test.thread_manager),
-        test.thread_manager.auth_manager(),
+        Arc::clone(&test.chat_manager),
+        test.chat_manager.auth_manager(),
         test.session_configured.chat_id,
         Arc::clone(&test.codex),
         Arc::new(config),
@@ -570,8 +570,8 @@ async fn memory_startup_context_with_provider(
         .expect("test config should allow feature update");
     let config = Arc::new(config);
     let context = Arc::new(MemoryStartupContext::new_for_testing(
-        Arc::clone(&test.thread_manager),
-        test.thread_manager.auth_manager(),
+        Arc::clone(&test.chat_manager),
+        test.chat_manager.auth_manager(),
         test.session_configured.chat_id,
         Arc::clone(&test.codex),
         config.as_ref(),
@@ -815,8 +815,7 @@ async fn seed_stage1_output_for_existing_thread(
     let claim = db
         .memories()
         .try_claim_stage1_job(
-            chat_id, owner, updated_at, /*lease_seconds*/ 3_600,
-            /*max_running_jobs*/ 64,
+            chat_id, owner, updated_at, /*lease_seconds*/ 3_600, /*max_running_jobs*/ 64,
         )
         .await?;
     let ownership_token = match claim {

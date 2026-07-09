@@ -16,7 +16,7 @@ use core_test_support::test_codex::TestCodexBuilder;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
 use datax_core::ForkSnapshot;
-use datax_core::StartThreadOptions;
+use datax_core::StartChatOptions;
 use datax_exec_server::CreateDirectoryOptions;
 use datax_exec_server::LOCAL_ENVIRONMENT_ID;
 use datax_exec_server::REMOTE_ENVIRONMENT_ID;
@@ -99,7 +99,7 @@ fn assert_single_instruction_fragment(request: &responses::ResponsesRequest, exp
     assert_eq!(instruction_fragments(request), vec![expected.to_string()]);
 }
 
-async fn submit_thread_turn(thread: &Arc<datax_core::CodexThread>, prompt: &str) -> Result<()> {
+async fn submit_thread_turn(thread: &Arc<datax_core::DataxChat>, prompt: &str) -> Result<()> {
     thread
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
@@ -112,7 +112,10 @@ async fn submit_thread_turn(thread: &Arc<datax_core::CodexThread>, prompt: &str)
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(thread, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(thread, |event| {
+        matches!(event, EventMsg::InteractionComplete(_))
+    })
+    .await;
     Ok(())
 }
 
@@ -434,8 +437,8 @@ async fn loads_user_instructions_without_a_primary_environment() -> Result<()> {
     assert_eq!(provider.load_count(), 1);
 
     let no_environment_thread = test
-        .thread_manager
-        .start_thread_with_options(StartThreadOptions {
+        .chat_manager
+        .start_chat_with_options(StartChatOptions {
             config: test.config.clone(),
             initial_history: InitialHistory::New,
             session_source: None,
@@ -450,12 +453,12 @@ async fn loads_user_instructions_without_a_primary_environment() -> Result<()> {
         .await?;
     assert_eq!(provider.load_count(), 2);
     assert_eq!(
-        no_environment_thread.thread.instruction_sources().await,
+        no_environment_thread.chat.instruction_sources().await,
         vec![PathUri::from_abs_path(&global_source)]
     );
 
     no_environment_thread
-        .thread
+        .chat
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "inspect global instructions without an environment".to_string(),
@@ -467,7 +470,7 @@ async fn loads_user_instructions_without_a_primary_environment() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&no_environment_thread.thread, |event| {
+    wait_for_event(&no_environment_thread.chat, |event| {
         matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
@@ -641,8 +644,8 @@ async fn multi_environment_thread_loads_every_project_and_keeps_creation_snapsho
     let test = builder.build_with_remote_and_local_env(&server).await?;
     let remote_source = test.config.cwd.join(GLOBAL_AGENTS_FILENAME);
     let thread = test
-        .thread_manager
-        .start_thread_with_options(StartThreadOptions {
+        .chat_manager
+        .start_chat_with_options(StartChatOptions {
             config: test.config.clone(),
             initial_history: InitialHistory::New,
             session_source: None,
@@ -666,7 +669,7 @@ async fn multi_environment_thread_loads_every_project_and_keeps_creation_snapsho
         .await?;
     assert_eq!(provider.load_count(), 2);
     assert_eq!(
-        thread.thread.instruction_sources().await,
+        thread.chat.instruction_sources().await,
         vec![
             PathUri::from_abs_path(&global_source),
             PathUri::from_abs_path(&remote_source),
@@ -674,7 +677,7 @@ async fn multi_environment_thread_loads_every_project_and_keeps_creation_snapsho
         ]
     );
 
-    submit_thread_turn(&thread.thread, "first multi-environment turn").await?;
+    submit_thread_turn(&thread.chat, "first multi-environment turn").await?;
 
     write_global_file(
         home.as_ref(),
@@ -692,7 +695,7 @@ async fn multi_environment_thread_loads_every_project_and_keeps_creation_snapsho
         local_root.path().join(GLOBAL_AGENTS_OVERRIDE_FILENAME),
         "new local project instructions",
     )?;
-    submit_thread_turn(&thread.thread, "second multi-environment turn").await?;
+    submit_thread_turn(&thread.chat, "second multi-environment turn").await?;
 
     let contents = format!(
         "{GLOBAL_INSTRUCTIONS}\n\nfor `{REMOTE_ENVIRONMENT_ID}` with root {}\n\nremote project instructions\n\nfor `{LOCAL_ENVIRONMENT_ID}` with root {}\n\nlocal project instructions",
@@ -707,7 +710,7 @@ async fn multi_environment_thread_loads_every_project_and_keeps_creation_snapsho
     assert_single_instruction_fragment(&requests[1], &expected);
     assert_eq!(provider.load_count(), 2);
     assert_eq!(
-        thread.thread.instruction_sources().await,
+        thread.chat.instruction_sources().await,
         vec![
             PathUri::from_abs_path(&global_source),
             PathUri::from_abs_path(&remote_source),
@@ -893,8 +896,8 @@ async fn fork_replays_rendered_instructions_from_shared_history() -> Result<()> 
     fork_config.model_catalog = parent.config.model_catalog.clone();
     fork_config.codex_self_exe = parent.config.codex_self_exe.clone();
     let forked = parent
-        .thread_manager
-        .fork_thread(
+        .chat_manager
+        .fork_chat(
             ForkSnapshot::Interrupted,
             fork_config,
             rollout_path,
@@ -905,13 +908,13 @@ async fn fork_replays_rendered_instructions_from_shared_history() -> Result<()> 
 
     // Assert the fork reports the new source before issuing its first turn.
     assert_eq!(
-        forked.thread.instruction_sources().await,
+        forked.chat.instruction_sources().await,
         vec![PathUri::from_abs_path(&new_source)],
         "fork config should reflect the newly loaded global source"
     );
 
     forked
-        .thread
+        .chat
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "continue fork".to_string(),
@@ -923,7 +926,7 @@ async fn fork_replays_rendered_instructions_from_shared_history() -> Result<()> 
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&forked.thread, |event| {
+    wait_for_event(&forked.chat, |event| {
         matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
@@ -1049,12 +1052,12 @@ async fn run_subagent_global_instruction_case(fork_context: bool) -> Result<()> 
         NEW_GLOBAL_INSTRUCTIONS,
     )?;
     assert_ne!(source, new_source);
-    let mut created_threads = test.thread_manager.subscribe_thread_created();
+    let mut created_threads = test.chat_manager.subscribe_thread_created();
     test.submit_turn(parent_prompt).await?;
     let child_chat_id = tokio::time::timeout(Duration::from_secs(10), created_threads.recv())
         .await
         .map_err(|_| anyhow!("timed out waiting for the subagent thread"))??;
-    let child_thread = test.thread_manager.get_thread(child_chat_id).await?;
+    let child_thread = test.chat_manager.get_chat(child_chat_id).await?;
     let spawn_request = spawn_mock.single_request();
     let child_request = tokio::time::timeout(Duration::from_secs(10), async {
         loop {

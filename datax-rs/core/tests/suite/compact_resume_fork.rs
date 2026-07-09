@@ -23,8 +23,8 @@ use core_test_support::responses::sse;
 use core_test_support::test_codex::local_selections;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
-use datax_core::CodexThread;
-use datax_core::ThreadManager;
+use datax_core::ChatManager;
+use datax_core::DataxChat;
 use datax_core::compact::SUMMARIZATION_PROMPT;
 use datax_core::config::Config;
 use datax_core::spawn::CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR;
@@ -158,7 +158,7 @@ async fn compact_resume_and_fork_preserve_model_history_view() {
         "compact+resume test expects resumed path {resumed_path:?} to exist",
     );
 
-    let forked = fork_thread(&manager, &config, resumed_path, /*nth_user_message*/ 2).await;
+    let forked = fork_chat(&manager, &config, resumed_path, /*nth_user_message*/ 2).await;
     user_turn(&forked, "AFTER_FORK").await;
 
     // 3. Capture the requests to the model and validate the history slices.
@@ -314,7 +314,7 @@ async fn compact_resume_after_second_compaction_preserves_history() -> Result<()
         "second compact test expects resumed path {resumed_path:?} to exist",
     );
 
-    let forked = fork_thread(&manager, &config, resumed_path, /*nth_user_message*/ 3).await;
+    let forked = fork_chat(&manager, &config, resumed_path, /*nth_user_message*/ 3).await;
     user_turn(&forked, "AFTER_FORK").await;
 
     compact_conversation(&forked).await;
@@ -753,7 +753,7 @@ async fn mount_second_compact_sequence(server: &MockServer) -> ResponseMock {
 async fn start_test_conversation(
     server: &MockServer,
     model: Option<&str>,
-) -> (Arc<TempDir>, Config, Arc<ThreadManager>, Arc<CodexThread>) {
+) -> (Arc<TempDir>, Config, Arc<ChatManager>, Arc<DataxChat>) {
     let base_url = format!("{}/v1", server.uri());
     let model = model.map(str::to_string);
     let mut builder = test_codex().with_config(move |config| {
@@ -767,10 +767,10 @@ async fn start_test_conversation(
     let test = Box::pin(builder.build(server))
         .await
         .expect("create conversation");
-    (test.home, test.config, test.thread_manager, test.codex)
+    (test.home, test.config, test.chat_manager, test.codex)
 }
 
-async fn user_turn(conversation: &Arc<CodexThread>, text: &str) {
+async fn user_turn(conversation: &Arc<DataxChat>, text: &str) {
     conversation
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
@@ -784,10 +784,13 @@ async fn user_turn(conversation: &Arc<CodexThread>, text: &str) {
         })
         .await
         .expect("submit user turn");
-    wait_for_event(conversation, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(conversation, |ev| {
+        matches!(ev, EventMsg::InteractionComplete(_))
+    })
+    .await;
 }
 
-async fn compact_conversation(conversation: &Arc<CodexThread>) {
+async fn compact_conversation(conversation: &Arc<DataxChat>) {
     conversation
         .submit(Op::Compact)
         .await
@@ -803,14 +806,17 @@ async fn compact_conversation(conversation: &Arc<CodexThread>) {
         panic!("expected warning event after compact");
     };
     assert_eq!(message, COMPACT_WARNING_MESSAGE);
-    wait_for_event(conversation, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(conversation, |ev| {
+        matches!(ev, EventMsg::InteractionComplete(_))
+    })
+    .await;
 }
 
-fn fetch_conversation_path(conversation: &Arc<CodexThread>) -> std::path::PathBuf {
+fn fetch_conversation_path(conversation: &Arc<DataxChat>) -> std::path::PathBuf {
     conversation.rollout_path().expect("rollout path")
 }
 
-async fn shutdown_conversation(conversation: &Arc<CodexThread>) {
+async fn shutdown_conversation(conversation: &Arc<DataxChat>) {
     conversation
         .shutdown_and_wait()
         .await
@@ -818,10 +824,10 @@ async fn shutdown_conversation(conversation: &Arc<CodexThread>) {
 }
 
 async fn resume_conversation(
-    manager: &ThreadManager,
+    manager: &ChatManager,
     config: &Config,
     path: std::path::PathBuf,
-) -> Arc<CodexThread> {
+) -> Arc<DataxChat> {
     let auth_manager = datax_core::test_support::auth_manager_from_auth(
         datax_login::CodexAuth::from_api_key("dummy"),
     );
@@ -834,17 +840,17 @@ async fn resume_conversation(
     ))
     .await
     .expect("resume conversation")
-    .thread
+    .chat
 }
 
 #[cfg(test)]
-async fn fork_thread(
-    manager: &ThreadManager,
+async fn fork_chat(
+    manager: &ChatManager,
     config: &Config,
     path: std::path::PathBuf,
     nth_user_message: usize,
-) -> Arc<CodexThread> {
-    Box::pin(manager.fork_thread(
+) -> Arc<DataxChat> {
+    Box::pin(manager.fork_chat(
         nth_user_message,
         config.clone(),
         path,
@@ -853,5 +859,5 @@ async fn fork_thread(
     ))
     .await
     .expect("fork conversation")
-    .thread
+    .chat
 }

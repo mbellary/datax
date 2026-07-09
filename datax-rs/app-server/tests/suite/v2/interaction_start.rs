@@ -3575,7 +3575,7 @@ async fn turn_start_emits_spawn_agent_item_with_model_metadata_v2() -> Result<()
     assert_eq!(turn_completed.chat_id, thread.id);
     assert_eq!(turn_completed.interaction.id, turn.interaction.id);
 
-    // Reuse this live spawn setup to cover chat/delete's ThreadManager descendant path.
+    // Reuse this live spawn setup to cover chat/delete's ChatManager descendant path.
     let delete_req = mcp
         .send_chat_delete_request(ChatDeleteParams {
             chat_id: thread.id.clone(),
@@ -3602,10 +3602,7 @@ async fn turn_start_emits_spawn_agent_item_with_model_metadata_v2() -> Result<()
         )?;
         deleted_chat_ids.push(deleted.chat_id);
     }
-    assert_eq!(
-        deleted_chat_ids,
-        vec![receiver_chat_id, thread.id.clone()]
-    );
+    assert_eq!(deleted_chat_ids, vec![receiver_chat_id, thread.id.clone()]);
 
     let list_req = mcp
         .send_chat_loaded_list_request(ChatLoadedListParams::default())

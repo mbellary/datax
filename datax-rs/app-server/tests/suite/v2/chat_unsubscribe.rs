@@ -45,7 +45,7 @@ async fn thread_unsubscribe_keeps_thread_loaded_until_idle_timeout() -> Result<(
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let chat_id = start_thread(&mut mcp).await?;
+    let chat_id = start_chat(&mut mcp).await?;
 
     let unsubscribe_id = mcp
         .send_chat_unsubscribe_request(ChatUnsubscribeParams {
@@ -256,7 +256,7 @@ async fn thread_unsubscribe_preserves_cached_status_before_idle_unload() -> Resu
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let chat_id = start_thread(&mut mcp).await?;
+    let chat_id = start_chat(&mut mcp).await?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -343,7 +343,7 @@ async fn thread_unsubscribe_reports_not_subscribed_before_idle_unload() -> Resul
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let chat_id = start_thread(&mut mcp).await?;
+    let chat_id = start_chat(&mut mcp).await?;
 
     let first_unsubscribe_id = mcp
         .send_chat_unsubscribe_request(ChatUnsubscribeParams {
@@ -419,7 +419,7 @@ stream_max_retries = 0
     )
 }
 
-async fn start_thread(mcp: &mut TestAppServer) -> Result<String> {
+async fn start_chat(mcp: &mut TestAppServer) -> Result<String> {
     let req_id = mcp
         .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),

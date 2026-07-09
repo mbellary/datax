@@ -39,7 +39,7 @@ use datax_app_server_protocol::MigrationDetails;
 use datax_app_server_protocol::PluginsMigration;
 use datax_app_server_protocol::ServerNotification;
 use datax_arg0::Arg0DispatchPaths;
-use datax_core::ThreadManager;
+use datax_core::ChatManager;
 use datax_external_agent_sessions::ExternalAgentSessionMigration as CoreSessionMigration;
 use datax_rollout::StateDbHandle;
 use datax_state::ExternalAgentConfigImportFailureRecord;
@@ -57,7 +57,7 @@ pub(crate) struct ExternalAgentConfigRequestProcessor {
     outgoing: Arc<OutgoingMessageSender>,
     migration_service: ExternalAgentConfigService,
     session_importer: ExternalAgentSessionImporter,
-    thread_manager: Arc<ThreadManager>,
+    chat_manager: Arc<ChatManager>,
     config_processor: ConfigRequestProcessor,
     state_db: Option<StateDbHandle>,
     analytics_events_client: AnalyticsEventsClient,
@@ -65,7 +65,7 @@ pub(crate) struct ExternalAgentConfigRequestProcessor {
 
 pub(crate) struct ExternalAgentConfigRequestProcessorArgs {
     pub(crate) outgoing: Arc<OutgoingMessageSender>,
-    pub(crate) thread_manager: Arc<ThreadManager>,
+    pub(crate) chat_manager: Arc<ChatManager>,
     pub(crate) thread_store: Arc<dyn ThreadStore>,
     pub(crate) config_manager: ConfigManager,
     pub(crate) config_processor: ConfigRequestProcessor,
@@ -79,7 +79,7 @@ impl ExternalAgentConfigRequestProcessor {
     pub(crate) fn new(args: ExternalAgentConfigRequestProcessorArgs) -> Self {
         let ExternalAgentConfigRequestProcessorArgs {
             outgoing,
-            thread_manager,
+            chat_manager,
             thread_store,
             config_manager,
             config_processor,
@@ -90,7 +90,7 @@ impl ExternalAgentConfigRequestProcessor {
         } = args;
         let session_importer = ExternalAgentSessionImporter::new(
             codex_home.clone(),
-            Arc::clone(&thread_manager),
+            Arc::clone(&chat_manager),
             thread_store,
             config_manager,
             arg0_paths,
@@ -99,7 +99,7 @@ impl ExternalAgentConfigRequestProcessor {
             outgoing,
             migration_service: ExternalAgentConfigService::new(codex_home),
             session_importer,
-            thread_manager,
+            chat_manager,
             config_processor,
             state_db,
             analytics_events_client,
@@ -264,7 +264,7 @@ impl ExternalAgentConfigRequestProcessor {
         let outgoing = Arc::clone(&self.outgoing);
         let state_db = self.state_db.clone();
         let analytics_events_client = self.analytics_events_client.clone();
-        let thread_manager = Arc::clone(&self.thread_manager);
+        let chat_manager = Arc::clone(&self.chat_manager);
         let session_import_result = (!pending_session_imports.is_empty()).then(|| {
             CoreImportItemResult::new(
                 CoreMigrationItemType::Sessions,
@@ -329,8 +329,8 @@ impl ExternalAgentConfigRequestProcessor {
             background_item_results.extend(plugin_results);
             completed_item_results.extend(background_item_results);
             if has_plugin_imports {
-                thread_manager.plugins_manager().clear_cache();
-                thread_manager.skills_service().clear_cache();
+                chat_manager.plugins_manager().clear_cache();
+                chat_manager.skills_service().clear_cache();
             }
             send_completed_import_notification(
                 &outgoing,

@@ -1,6 +1,6 @@
 use datax_app_server_protocol::DynamicToolCallOutputContentItem;
 use datax_app_server_protocol::DynamicToolCallResponse;
-use datax_core::CodexThread;
+use datax_core::DataxChat;
 use datax_protocol::dynamic_tools::DynamicToolCallOutputContentItem as CoreDynamicToolCallOutputContentItem;
 use datax_protocol::dynamic_tools::DynamicToolResponse as CoreDynamicToolResponse;
 use datax_protocol::protocol::Op;
@@ -16,7 +16,7 @@ use crate::server_request_error::is_turn_transition_server_request_error;
 pub(crate) async fn on_call_response(
     call_id: String,
     receiver: oneshot::Receiver<ClientRequestResult>,
-    conversation: Arc<CodexThread>,
+    conversation: Arc<DataxChat>,
 ) {
     let response = receiver.await;
     let (response, _error) = match response {

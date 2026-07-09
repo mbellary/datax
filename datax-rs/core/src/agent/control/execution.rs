@@ -36,7 +36,7 @@ impl AgentControl {
             return Ok(());
         }
         let state = self.upgrade()?;
-        let thread = state.get_thread(chat_id).await?;
+        let thread = state.get_chat(chat_id).await?;
         if thread.codex.session.active_turn.lock().await.is_some() {
             return Ok(());
         }

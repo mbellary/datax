@@ -16,7 +16,7 @@ use datax_protocol::protocol::ReviewOutputEvent;
 use datax_protocol::protocol::SubAgentSource;
 use tokio_util::sync::CancellationToken;
 
-use crate::codex_delegate::run_codex_thread_one_shot;
+use crate::codex_delegate::run_datax_chat_one_shot;
 use crate::config::Constrained;
 use crate::review_format::format_review_findings_block;
 use crate::review_format::render_review_output_text;
@@ -122,7 +122,7 @@ async fn start_review_conversation(
         .clone()
         .unwrap_or_else(|| ctx.model_info.slug.clone());
     sub_agent_config.model = Some(model);
-    (run_codex_thread_one_shot(
+    (run_datax_chat_one_shot(
         sub_agent_config,
         session.auth_manager(),
         session.models_manager(),

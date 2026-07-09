@@ -9,7 +9,7 @@ use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
-use datax_core::CodexThread;
+use datax_core::DataxChat;
 use datax_core::compact::SUMMARIZATION_PROMPT;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::Op;
@@ -65,8 +65,8 @@ async fn window_id_advances_after_compact_persists_on_resume_and_resets_on_fork(
     shutdown_thread(&resumed.codex).await?;
 
     let forked = resumed
-        .thread_manager
-        .fork_thread(
+        .chat_manager
+        .fork_chat(
             /*snapshot*/ 0usize,
             resumed.config.clone(),
             rollout_path,
@@ -74,8 +74,8 @@ async fn window_id_advances_after_compact_persists_on_resume_and_resets_on_fork(
             /*parent_trace*/ None,
         )
         .await?;
-    submit_user_turn(&forked.thread, "after fork").await?;
-    shutdown_thread(&forked.thread).await?;
+    submit_user_turn(&forked.chat, "after fork").await?;
+    shutdown_thread(&forked.chat).await?;
 
     let requests = request_log.requests();
     assert_eq!(requests.len(), 5, "expected five model requests");
@@ -99,7 +99,7 @@ async fn window_id_advances_after_compact_persists_on_resume_and_resets_on_fork(
     Ok(())
 }
 
-async fn submit_user_turn(codex: &Arc<CodexThread>, text: &str) -> Result<()> {
+async fn submit_user_turn(codex: &Arc<DataxChat>, text: &str) -> Result<()> {
     codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
@@ -112,22 +112,28 @@ async fn submit_user_turn(codex: &Arc<CodexThread>, text: &str) -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(codex, |event| {
+        matches!(event, EventMsg::InteractionComplete(_))
+    })
+    .await;
     Ok(())
 }
 
-async fn submit_compact_turn(codex: &Arc<CodexThread>) -> Result<()> {
+async fn submit_compact_turn(codex: &Arc<DataxChat>) -> Result<()> {
     codex.submit(Op::Compact).await?;
     let warning_event = wait_for_event(codex, |event| matches!(event, EventMsg::Warning(_))).await;
     let EventMsg::Warning(WarningEvent { message }) = warning_event else {
         panic!("expected warning event after compact");
     };
     assert_eq!(message, COMPACT_WARNING_MESSAGE);
-    wait_for_event(codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(codex, |event| {
+        matches!(event, EventMsg::InteractionComplete(_))
+    })
+    .await;
     Ok(())
 }
 
-async fn shutdown_thread(codex: &Arc<CodexThread>) -> Result<()> {
+async fn shutdown_thread(codex: &Arc<DataxChat>) -> Result<()> {
     codex.submit(Op::Shutdown).await?;
     wait_for_event(codex, |event| matches!(event, EventMsg::ShutdownComplete)).await;
     Ok(())

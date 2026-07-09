@@ -4,7 +4,7 @@ use core::time::Duration;
 use core_test_support::load_default_config_for_test;
 use core_test_support::wait_for_event;
 use datax_config::CONFIG_TOML_FILE;
-use datax_core::NewThread;
+use datax_core::NewChat;
 use datax_features::Feature;
 use datax_login::CodexAuth;
 use datax_protocol::protocol::EventMsg;
@@ -31,17 +31,16 @@ async fn emits_warning_when_unstable_features_enabled_via_config() {
         toml! { features = { apply_patch_streaming_events = true } }.into(),
     );
 
-    let thread_manager = datax_core::test_support::thread_manager_with_models_provider(
+    let chat_manager = datax_core::test_support::chat_manager_with_models_provider(
         CodexAuth::from_api_key("test"),
         config.model_provider.clone(),
     );
     let auth_manager =
         datax_core::test_support::auth_manager_from_auth(CodexAuth::from_api_key("test"));
 
-    let NewThread {
-        thread: conversation,
-        ..
-    } = thread_manager
+    let NewChat {
+        chat: conversation, ..
+    } = chat_manager
         .resume_thread_with_history(
             config.clone(),
             InitialHistory::New,
@@ -78,17 +77,16 @@ async fn suppresses_warning_when_configured() {
         toml! { features = { apply_patch_streaming_events = true } }.into(),
     );
 
-    let thread_manager = datax_core::test_support::thread_manager_with_models_provider(
+    let chat_manager = datax_core::test_support::chat_manager_with_models_provider(
         CodexAuth::from_api_key("test"),
         config.model_provider.clone(),
     );
     let auth_manager =
         datax_core::test_support::auth_manager_from_auth(CodexAuth::from_api_key("test"));
 
-    let NewThread {
-        thread: conversation,
-        ..
-    } = thread_manager
+    let NewChat {
+        chat: conversation, ..
+    } = chat_manager
         .resume_thread_with_history(
             config.clone(),
             InitialHistory::New,

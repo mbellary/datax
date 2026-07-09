@@ -188,7 +188,7 @@ impl TracingHarness {
         read_response(&mut self.outgoing_rx, request_id).await
     }
 
-    async fn start_thread(
+    async fn start_chat(
         &mut self,
         request_id: i64,
         trace: Option<W3cTraceContext>,
@@ -551,7 +551,7 @@ fn thread_start_jsonrpc_span_exports_server_span_and_parents_children() -> Resul
             } = RemoteTrace::new("00000000000000000000000000000011", "0000000000000022");
 
             let _: ChatStartResponse = harness
-                .start_thread(/*request_id*/ 20_002, /*trace*/ None)
+                .start_chat(/*request_id*/ 20_002, /*trace*/ None)
                 .await;
             let untraced_spans = wait_for_exported_spans(harness.tracing, |spans| {
                 spans.iter().any(|span| {
@@ -589,7 +589,7 @@ fn thread_start_jsonrpc_span_exports_server_span_and_parents_children() -> Resul
 
             let baseline_len = untraced_spans.len();
             let _: ChatStartResponse = harness
-                .start_thread(/*request_id*/ 20_003, Some(remote_trace))
+                .start_chat(/*request_id*/ 20_003, Some(remote_trace))
                 .await;
             let spans = wait_for_new_exported_spans(harness.tracing, baseline_len, |spans| {
                 spans.iter().any(|span| {
@@ -631,7 +631,7 @@ fn thread_start_jsonrpc_span_exports_server_span_and_parents_children() -> Resul
 #[serial(app_server_tracing)]
 async fn turn_start_jsonrpc_span_parents_core_turn_spans() -> Result<()> {
     let mut harness = TracingHarness::new().await?;
-    let thread_start_response = harness.start_thread(/*request_id*/ 2, /*trace*/ None).await;
+    let thread_start_response = harness.start_chat(/*request_id*/ 2, /*trace*/ None).await;
     let chat_id = thread_start_response.chat.id.clone();
 
     harness.reset_tracing();

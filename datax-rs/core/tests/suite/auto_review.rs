@@ -125,11 +125,11 @@ async fn remote_model_override_uses_catalog_model_for_strict_auto_review() -> Re
         codex,
         cwd,
         config,
-        thread_manager,
+        chat_manager,
         ..
     } = builder.build(&server).await?;
 
-    let models_manager = thread_manager.get_models_manager();
+    let models_manager = chat_manager.get_models_manager();
     models_manager
         .list_models(RefreshStrategy::OnlineIfUncached)
         .await;
@@ -194,7 +194,10 @@ async fn remote_model_override_uses_catalog_model_for_strict_auto_review() -> Re
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(&codex, |event| {
+        matches!(event, EventMsg::InteractionComplete(_))
+    })
+    .await;
 
     let guardian_request = responses
         .requests()

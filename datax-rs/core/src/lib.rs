@@ -19,16 +19,16 @@ pub(crate) mod session;
 pub use responses_metadata::CodexResponsesMetadata;
 pub use session::SteerInputError;
 pub use turn_metadata::detached_memory_responses_metadata;
-mod codex_thread;
 mod compact_remote;
 mod compact_remote_v2;
 mod config_lock;
-pub use codex_thread::BackgroundTerminalInfo;
-pub use codex_thread::CodexThread;
-pub use codex_thread::CodexThreadSettingsOverrides;
-pub use codex_thread::ThreadConfigSnapshot;
-pub use codex_thread::TryStartTurnIfIdleError;
-pub use codex_thread::TryStartTurnIfIdleRejectionReason;
+mod datax_chat;
+pub use datax_chat::BackgroundTerminalInfo;
+pub use datax_chat::DataxChat;
+pub use datax_chat::DataxChatSettingsOverrides;
+pub use datax_chat::ThreadConfigSnapshot;
+pub use datax_chat::TryStartTurnIfIdleError;
+pub use datax_chat::TryStartTurnIfIdleRejectionReason;
 pub use session::turn_context::TurnContext;
 mod agent;
 mod attestation;
@@ -109,25 +109,25 @@ pub use datax_protocol::config_types::ModelProviderAuthInfo;
 mod event_mapping;
 pub mod review_format;
 pub use datax_prompts as review_prompts;
-mod thread_manager;
+mod chat_manager;
 pub(crate) mod web_search;
 pub(crate) mod windows_sandbox_read_grants;
-pub use thread_manager::ForkSnapshot;
-pub use thread_manager::NewThread;
-pub use thread_manager::StartThreadOptions;
-pub use thread_manager::ThreadManager;
-pub use thread_manager::ThreadShutdownReport;
-pub use thread_manager::build_models_manager;
-pub use thread_manager::thread_store_from_config;
+pub use chat_manager::ChatManager;
+pub use chat_manager::ForkSnapshot;
+pub use chat_manager::NewChat;
+pub use chat_manager::StartChatOptions;
+pub use chat_manager::ThreadShutdownReport;
+pub use chat_manager::build_models_manager;
+pub use chat_manager::thread_store_from_config;
 pub use web_search::web_search_action_detail;
 pub use web_search::web_search_detail;
 pub use windows_sandbox_read_grants::grant_read_root_non_elevated;
-#[deprecated(note = "use ThreadManager")]
-pub type ConversationManager = ThreadManager;
-#[deprecated(note = "use NewThread")]
-pub type NewConversation = NewThread;
-#[deprecated(note = "use CodexThread")]
-pub type CodexConversation = CodexThread;
+#[deprecated(note = "use ChatManager")]
+pub type ConversationManager = ChatManager;
+#[deprecated(note = "use NewChat")]
+pub type NewConversation = NewChat;
+#[deprecated(note = "use DataxChat")]
+pub type CodexConversation = DataxChat;
 pub(crate) mod agents_md;
 pub use agents_md::DEFAULT_AGENTS_MD_FILENAME;
 pub use agents_md::LOCAL_AGENTS_MD_FILENAME;

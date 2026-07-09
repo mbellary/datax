@@ -16,11 +16,12 @@ use datax_core_api::AskForApproval;
 use datax_core_api::AuthCredentialsStoreMode;
 use datax_core_api::AuthManager;
 use datax_core_api::AutoCompactTokenLimitScope;
+use datax_core_api::ChatManager;
 use datax_core_api::CodexHomeUserInstructionsProvider;
-use datax_core_api::CodexThread;
 use datax_core_api::Config;
 use datax_core_api::ConfigLayerStack;
 use datax_core_api::Constrained;
+use datax_core_api::DataxChat;
 use datax_core_api::EnvironmentManager;
 use datax_core_api::EventMsg;
 use datax_core_api::ExecServerRuntimePaths;
@@ -30,7 +31,7 @@ use datax_core_api::History;
 use datax_core_api::MemoriesConfig;
 use datax_core_api::ModelAvailabilityNuxConfig;
 use datax_core_api::MultiAgentV2Config;
-use datax_core_api::NewThread;
+use datax_core_api::NewChat;
 use datax_core_api::Notice;
 use datax_core_api::OAuthCredentialsStoreMode;
 use datax_core_api::OPENAI_PROVIDER_ID;
@@ -44,7 +45,6 @@ use datax_core_api::RealtimeConfig;
 use datax_core_api::SessionPickerViewMode;
 use datax_core_api::SessionSource;
 use datax_core_api::TerminalResizeReflowConfig;
-use datax_core_api::ThreadManager;
 use datax_core_api::ThreadStoreConfig;
 use datax_core_api::ToolSuggestConfig;
 use datax_core_api::TuiKeymap;
@@ -66,7 +66,7 @@ use datax_core_api::thread_store_from_config;
 #[derive(Debug, Parser)]
 #[command(
     name = "datax-thread-manager-sample",
-    about = "Run one Codex turn through ThreadManager and print mapped notifications as newline-delimited JSON."
+    about = "Run one Codex turn through ChatManager and print mapped notifications as newline-delimited JSON."
 )]
 struct Args {
     /// Override the model for this run.
@@ -83,7 +83,7 @@ fn main() -> anyhow::Result<()> {
 }
 
 async fn run_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
-    if let Err(err) = set_default_originator("codex_thread_manager_sample".to_string()) {
+    if let Err(err) = set_default_originator("datax_chat_manager_sample".to_string()) {
         tracing::warn!("failed to set originator: {err:?}");
     }
 
@@ -124,7 +124,7 @@ async fn run_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
     let user_instructions_provider = Arc::new(CodexHomeUserInstructionsProvider::new(
         config.codex_home.clone(),
     ));
-    let thread_manager = ThreadManager::new(
+    let chat_manager = ChatManager::new(
         &config,
         auth_manager,
         SessionSource::Exec,
@@ -139,17 +139,19 @@ async fn run_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
         /*external_time_provider*/ None,
     );
 
-    let NewThread {
-        chat_id, thread, ..
-    } = thread_manager
-        .start_thread(config)
+    let NewChat {
+        chat_id,
+        chat: thread,
+        ..
+    } = chat_manager
+        .start_chat(config)
         .await
         .context("start Codex thread")?;
 
     let chat_id_string = chat_id.to_string();
     let turn_output = run_turn(&thread, &chat_id_string, prompt).await;
     let shutdown_result = thread.shutdown_and_wait().await;
-    let _ = thread_manager.remove_thread(&chat_id).await;
+    let _ = chat_manager.remove_chat(&chat_id).await;
 
     turn_output?;
     shutdown_result.context("shut down Codex thread")?;
@@ -301,7 +303,7 @@ fn new_config(model: Option<String>, arg0_paths: Arg0DispatchPaths) -> anyhow::R
     Ok(config)
 }
 
-async fn run_turn(thread: &CodexThread, chat_id: &str, prompt: String) -> anyhow::Result<()> {
+async fn run_turn(thread: &DataxChat, chat_id: &str, prompt: String) -> anyhow::Result<()> {
     thread
         .submit(Op::UserInput {
             items: vec![UserInput::Text {

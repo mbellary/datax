@@ -1133,7 +1133,9 @@ async fn stop_hook_can_block_multiple_times_in_same_turn() -> Result<()> {
         })
         .collect::<Vec<_>>();
     assert!(
-        stop_interaction_ids.iter().all(|interaction_id| !interaction_id.is_empty()),
+        stop_interaction_ids
+            .iter()
+            .all(|interaction_id| !interaction_id.is_empty()),
         "stop hook turn ids should be non-empty",
     );
     let first_stop_interaction_id = stop_interaction_ids
@@ -1919,7 +1921,9 @@ async fn blocked_queued_prompt_does_not_strand_earlier_accepted_prompt() -> Resu
         })
         .collect::<Vec<_>>();
     assert!(
-        queued_interaction_ids.iter().all(|interaction_id| !interaction_id.is_empty()),
+        queued_interaction_ids
+            .iter()
+            .all(|interaction_id| !interaction_id.is_empty()),
         "queued prompt hook turn ids should be non-empty",
     );
     let first_queued_interaction_id = queued_interaction_ids

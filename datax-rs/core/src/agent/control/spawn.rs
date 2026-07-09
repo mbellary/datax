@@ -117,7 +117,7 @@ impl AgentControl {
         chat_id: ChatId,
     ) -> CodexResult<()> {
         let state = self.upgrade()?;
-        if state.get_thread(chat_id).await.is_ok() {
+        if state.get_chat(chat_id).await.is_ok() {
             self.touch_loaded_v2_residency(&state, chat_id).await;
             return Ok(());
         }
@@ -181,7 +181,7 @@ impl AgentControl {
                 Ok(())
             }
             Err(err) => {
-                if state.get_thread(chat_id).await.is_ok() {
+                if state.get_chat(chat_id).await.is_ok() {
                     drop(residency_slot);
                     self.touch_loaded_v2_residency(&state, chat_id).await;
                     return Ok(());
@@ -298,12 +298,10 @@ impl AgentControl {
         }
 
         if let Some(SessionSource::SubAgent(
-            subagent_source @ SubAgentSource::ThreadSpawn {
-                parent_chat_id, ..
-            },
+            subagent_source @ SubAgentSource::ThreadSpawn { parent_chat_id, .. },
         )) = notification_source.as_ref()
         {
-            let client_metadata = match state.get_thread(*parent_chat_id).await {
+            let client_metadata = match state.get_chat(*parent_chat_id).await {
                 Ok(parent_thread) => {
                     parent_thread
                         .codex
@@ -323,7 +321,7 @@ impl AgentControl {
                     }
                 }
             };
-            let thread_config = new_thread.thread.codex.thread_config_snapshot().await;
+            let thread_config = new_thread.chat.codex.thread_config_snapshot().await;
             let parent_chat_id = thread_config.parent_chat_id;
             emit_subagent_session_started(
                 &new_thread
@@ -333,7 +331,7 @@ impl AgentControl {
                     .services
                     .analytics_events_client,
                 client_metadata,
-                new_thread.thread.codex.session.session_id(),
+                new_thread.chat.codex.session.session_id(),
                 new_thread.chat_id,
                 parent_chat_id,
                 thread_config,
@@ -347,7 +345,7 @@ impl AgentControl {
         state.notify_thread_created(new_thread.chat_id);
 
         self.persist_thread_spawn_edge_for_source(
-            new_thread.thread.as_ref(),
+            new_thread.chat.as_ref(),
             new_thread.chat_id,
             notification_source.as_ref(),
         )
@@ -378,13 +376,13 @@ impl AgentControl {
 
     async fn spawn_forked_thread(
         &self,
-        state: &Arc<ThreadManagerState>,
+        state: &Arc<ChatManagerState>,
         config: Config,
         session_source: SessionSource,
         options: &SpawnAgentOptions,
         inheritance: SpawnAgentThreadInheritance,
         multi_agent_version: MultiAgentVersion,
-    ) -> CodexResult<crate::thread_manager::NewThread> {
+    ) -> CodexResult<crate::chat_manager::NewChat> {
         let SpawnAgentThreadInheritance {
             environments: inherited_environments,
             exec_policy: inherited_exec_policy,
@@ -399,9 +397,8 @@ impl AgentControl {
                 "spawn_agent fork requires a fork mode".to_string(),
             ));
         };
-        let SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-            parent_chat_id, ..
-        }) = &session_source
+        let SessionSource::SubAgent(SubAgentSource::ThreadSpawn { parent_chat_id, .. }) =
+            &session_source
         else {
             return Err(CodexErr::Fatal(
                 "spawn_agent fork requires a thread-spawn session source".to_string(),
@@ -409,7 +406,7 @@ impl AgentControl {
         };
 
         let parent_chat_id = *parent_chat_id;
-        let parent_thread = state.get_thread(parent_chat_id).await.ok();
+        let parent_thread = state.get_chat(parent_chat_id).await.ok();
         if let Some(parent_thread) = parent_thread.as_ref() {
             // `record_conversation_items` only queues persistence writes asynchronously.
             // Flush before snapshotting store history for a fork.
@@ -504,7 +501,7 @@ impl AgentControl {
         }
 
         state
-            .fork_thread_with_source(
+            .fork_chat_with_source(
                 config.clone(),
                 InitialHistory::Forked(forked_rollout_items),
                 self.clone(),
@@ -537,7 +534,7 @@ impl AgentControl {
         {
             return Ok(resumed_chat_id);
         }
-        let Ok(resumed_thread) = state.get_thread(resumed_chat_id).await else {
+        let Ok(resumed_thread) = state.get_chat(resumed_chat_id).await else {
             return Ok(resumed_chat_id);
         };
         let Some(state_db_ctx) = resumed_thread.state_db() else {
@@ -564,7 +561,7 @@ impl AgentControl {
 
             for child_chat_id in child_ids {
                 let child_depth = parent_depth + 1;
-                let child_resumed = if state.get_thread(child_chat_id).await.is_ok() {
+                let child_resumed = if state.get_chat(child_chat_id).await.is_ok() {
                     true
                 } else {
                     let child_session_source =
@@ -644,7 +641,7 @@ impl AgentControl {
             }) => {
                 let (resumed_agent_nickname, resumed_agent_role) =
                     if let Some(state_db_ctx) = state_db_ctx.as_ref() {
-                        match state_db_ctx.get_thread(chat_id).await {
+                        match state_db_ctx.get_chat(chat_id).await {
                             Ok(Some(metadata)) => (metadata.agent_nickname, metadata.agent_role),
                             Ok(None) | Err(_) => (None, None),
                         }
@@ -702,7 +699,7 @@ impl AgentControl {
             );
         }
         self.persist_thread_spawn_edge_for_source(
-            resumed_thread.thread.as_ref(),
+            resumed_thread.chat.as_ref(),
             resumed_thread.chat_id,
             Some(&notification_source),
         )

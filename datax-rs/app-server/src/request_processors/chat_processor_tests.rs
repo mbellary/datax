@@ -1267,7 +1267,7 @@ mod thread_processor_behavior_tests {
             );
         }
 
-        manager.remove_thread_state(chat_id).await;
+        manager.remove_chat_state(chat_id).await;
         assert_eq!(cancel_rx.await, Ok(()));
 
         let state = manager.thread_state(chat_id).await;

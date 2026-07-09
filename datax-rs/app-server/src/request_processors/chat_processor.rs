@@ -345,7 +345,7 @@ fn validate_dynamic_tools(tools: &[DynamicToolSpec]) -> Result<(), String> {
 #[derive(Clone)]
 pub(crate) struct ChatRequestProcessor {
     pub(super) auth_manager: Arc<AuthManager>,
-    pub(super) thread_manager: Arc<ThreadManager>,
+    pub(super) chat_manager: Arc<ChatManager>,
     pub(super) outgoing: Arc<OutgoingMessageSender>,
     pub(super) arg0_paths: Arg0DispatchPaths,
     pub(super) config: Arc<Config>,
@@ -377,7 +377,7 @@ impl ChatRequestProcessor {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         auth_manager: Arc<AuthManager>,
-        thread_manager: Arc<ThreadManager>,
+        chat_manager: Arc<ChatManager>,
         outgoing: Arc<OutgoingMessageSender>,
         arg0_paths: Arg0DispatchPaths,
         config: Arc<Config>,
@@ -394,7 +394,7 @@ impl ChatRequestProcessor {
     ) -> Self {
         Self {
             auth_manager,
-            thread_manager,
+            chat_manager,
             outgoing,
             arg0_paths,
             config,
@@ -714,7 +714,7 @@ impl ChatRequestProcessor {
         &self,
         params: GetConversationSummaryParams,
     ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
-        self.get_thread_summary_response_inner(params)
+        self.get_chat_summary_response_inner(params)
             .await
             .map(|response| Some(response.into()))
     }
@@ -722,14 +722,14 @@ impl ChatRequestProcessor {
     async fn load_thread(
         &self,
         chat_id: &str,
-    ) -> Result<(ChatId, Arc<CodexThread>), JSONRPCErrorError> {
+    ) -> Result<(ChatId, Arc<DataxChat>), JSONRPCErrorError> {
         // Resolve the core conversation handle from a v2 thread id string.
         let chat_id = ChatId::from_string(chat_id)
             .map_err(|err| invalid_request(format!("invalid thread id: {err}")))?;
 
         let thread = self
-            .thread_manager
-            .get_thread(chat_id)
+            .chat_manager
+            .get_chat(chat_id)
             .await
             .map_err(|_| invalid_request(format!("thread not found: {chat_id}")))?;
 
@@ -747,7 +747,7 @@ impl ChatRequestProcessor {
     }
 
     async fn set_app_server_client_info(
-        chat: &CodexThread,
+        chat: &DataxChat,
         app_server_client_name: Option<String>,
         app_server_client_version: Option<String>,
     ) -> Result<(), JSONRPCErrorError> {
@@ -770,9 +770,9 @@ impl ChatRequestProcessor {
         self.outgoing
             .cancel_requests_for_thread(chat_id, /*error*/ None)
             .await;
-        self.thread_state_manager.remove_thread_state(chat_id).await;
+        self.thread_state_manager.remove_chat_state(chat_id).await;
         self.thread_watch_manager
-            .remove_thread(&chat_id.to_string())
+            .remove_chat(&chat_id.to_string())
             .await;
     }
 
@@ -784,7 +784,7 @@ impl ChatRequestProcessor {
         let chat_id = ChatId::from_string(&params.chat_id)
             .map_err(|err| invalid_request(format!("invalid thread id: {err}")))?;
 
-        if self.thread_manager.get_thread(chat_id).await.is_err() {
+        if self.chat_manager.get_chat(chat_id).await.is_err() {
             self.finalize_thread_teardown(chat_id).await;
             return Ok(ChatUnsubscribeResponse {
                 status: ChatUnsubscribeStatus::NotLoaded,
@@ -809,7 +809,7 @@ impl ChatRequestProcessor {
     }
 
     pub(super) async fn prepare_thread_for_removal(&self, chat_id: ChatId, operation: &str) {
-        let removed_conversation = self.thread_manager.remove_thread(&chat_id).await;
+        let removed_conversation = self.chat_manager.remove_chat(&chat_id).await;
         if let Some(conversation) = removed_conversation {
             info!("thread {chat_id} was active; shutting down");
             match wait_for_thread_shutdown(&conversation).await {
@@ -829,7 +829,7 @@ impl ChatRequestProcessor {
 
     fn listener_task_context(&self) -> ListenerTaskContext {
         ListenerTaskContext {
-            thread_manager: Arc::clone(&self.thread_manager),
+            chat_manager: Arc::clone(&self.chat_manager),
             thread_state_manager: self.thread_state_manager.clone(),
             outgoing: Arc::clone(&self.outgoing),
             pending_thread_unloads: Arc::clone(&self.pending_thread_unloads),
@@ -859,7 +859,7 @@ impl ChatRequestProcessor {
     async fn ensure_listener_task_running(
         &self,
         conversation_id: ChatId,
-        conversation: Arc<CodexThread>,
+        conversation: Arc<DataxChat>,
         thread_state: Arc<Mutex<ThreadState>>,
     ) -> Result<(), JSONRPCErrorError> {
         super::thread_lifecycle::ensure_listener_task_running(
@@ -911,7 +911,7 @@ impl ChatRequestProcessor {
             ));
         }
         let environment_selections =
-            resolve_turn_environment_selections(self.thread_manager.as_ref(), environments)?;
+            resolve_turn_environment_selections(self.chat_manager.as_ref(), environments)?;
         let runtime_workspace_roots = runtime_workspace_roots.map(resolve_runtime_workspace_roots);
         let mut typesafe_overrides = self.build_thread_config_overrides(
             model,
@@ -929,7 +929,7 @@ impl ChatRequestProcessor {
         );
         typesafe_overrides.ephemeral = ephemeral;
         let listener_task_context = ListenerTaskContext {
-            thread_manager: Arc::clone(&self.thread_manager),
+            chat_manager: Arc::clone(&self.chat_manager),
             thread_state_manager: self.thread_state_manager.clone(),
             outgoing: Arc::clone(&self.outgoing),
             pending_thread_unloads: Arc::clone(&self.pending_thread_unloads),
@@ -988,7 +988,7 @@ impl ChatRequestProcessor {
 
     pub(crate) async fn shutdown_threads(&self) {
         let report = self
-            .thread_manager
+            .chat_manager
             .shutdown_all_threads_bounded(Duration::from_secs(10))
             .await;
         for chat_id in report.submit_failed {
@@ -1009,7 +1009,7 @@ impl ChatRequestProcessor {
     async fn submit_core_op(
         &self,
         request_id: &ConnectionRequestId,
-        chat: &CodexThread,
+        chat: &DataxChat,
         op: Op,
     ) -> CodexResult<String> {
         thread
@@ -1110,7 +1110,7 @@ impl ChatRequestProcessor {
 
         let environments = environments.unwrap_or_else(|| {
             listener_task_context
-                .thread_manager
+                .chat_manager
                 .default_environment_selections(&config.cwd)
         });
         let dynamic_tools = dynamic_tools.unwrap_or_default();
@@ -1131,14 +1131,14 @@ impl ChatRequestProcessor {
             datax_mcp_extension::initialize_executor_plugin_thread_data(&mut thread_extension_init);
         }
         let create_thread_started_at = std::time::Instant::now();
-        let NewThread {
+        let NewChat {
             chat_id: chat_id,
-            thread,
+            chat: thread,
             session_configured,
             ..
         } = listener_task_context
-            .thread_manager
-            .start_thread_with_options(StartThreadOptions {
+            .chat_manager
+            .start_chat_with_options(StartChatOptions {
                 config,
                 initial_history: match session_start_source
                     .unwrap_or(datax_app_server_protocol::ChatStartSource::Startup)
@@ -1495,7 +1495,7 @@ impl ChatRequestProcessor {
         };
 
         let _thread_list_state_permit = self.acquire_thread_list_state_permit().await?;
-        self.thread_manager
+        self.chat_manager
             .update_thread_metadata(
                 chat_id,
                 StoreThreadMetadataPatch {
@@ -1524,7 +1524,7 @@ impl ChatRequestProcessor {
         let chat_id = ChatId::from_string(&chat_id)
             .map_err(|err| invalid_request(format!("invalid thread id: {err}")))?;
 
-        self.thread_manager
+        self.chat_manager
             .update_thread_metadata(
                 chat_id,
                 StoreThreadMetadataPatch {
@@ -1603,7 +1603,7 @@ impl ChatRequestProcessor {
 
         let updated_thread = {
             let _thread_list_state_permit = self.acquire_thread_list_state_permit().await?;
-            self.thread_manager
+            self.chat_manager
                 .update_thread_metadata(thread_uuid, patch, /*include_archived*/ true)
                 .await
                 .map_err(|err| core_thread_write_error("update thread metadata", err))?
@@ -1613,7 +1613,7 @@ impl ChatRequestProcessor {
             self.config.model_provider_id.as_str(),
             &self.config.cwd,
         );
-        if let Ok(loaded_thread) = self.thread_manager.get_thread(thread_uuid).await {
+        if let Ok(loaded_thread) = self.chat_manager.get_chat(thread_uuid).await {
             thread.session_id = loaded_thread.session_configured().session_id.to_string();
         }
         self.attach_thread_name(thread_uuid, &mut thread).await;
@@ -1839,7 +1839,7 @@ impl ChatRequestProcessor {
         // `chat/shellCommand` is app-server's local-host shell escape hatch,
         // not the normal turn-selected shell tool path.
         if self
-            .thread_manager
+            .chat_manager
             .environment_manager()
             .try_local_environment()
             .is_none()
@@ -2092,7 +2092,7 @@ impl ChatRequestProcessor {
     ) -> Result<ChatLoadedListResponse, JSONRPCErrorError> {
         let ChatLoadedListParams { cursor, limit } = params;
         let mut data: Vec<String> = self
-            .thread_manager
+            .chat_manager
             .list_chat_ids()
             .await
             .into_iter()
@@ -2158,7 +2158,7 @@ impl ChatRequestProcessor {
         chat_id: ChatId,
         include_interactions: bool,
     ) -> Result<Chat, ThreadReadViewError> {
-        let loaded_thread = self.thread_manager.get_thread(chat_id).await.ok();
+        let loaded_thread = self.chat_manager.get_chat(chat_id).await.ok();
         let mut thread = if include_interactions {
             if let Some(loaded_thread) = loaded_thread.as_ref() {
                 // Loaded thread with interactions: use persisted metadata when it exists,
@@ -2271,7 +2271,7 @@ impl ChatRequestProcessor {
         &self,
         chat_id: ChatId,
         include_interactions: bool,
-        loaded_thread: &CodexThread,
+        loaded_thread: &DataxChat,
         persisted_thread: Option<Chat>,
     ) -> Result<Chat, ThreadReadViewError> {
         let config_snapshot = loaded_thread.config_snapshot().await;
@@ -2307,7 +2307,7 @@ impl ChatRequestProcessor {
         chat_id: ChatId,
         chat: &mut Chat,
         include_interactions: bool,
-        loaded_thread: &CodexThread,
+        loaded_thread: &DataxChat,
     ) -> Result<(), ThreadReadViewError> {
         self.attach_thread_name(chat_id, thread).await;
 
@@ -2345,7 +2345,7 @@ impl ChatRequestProcessor {
         // every request. Rollback and compaction events can change earlier interactions, so
         // the server has to rebuild the full turn list until turn metadata is indexed
         // separately.
-        let loaded_thread = self.thread_manager.get_thread(thread_uuid).await.ok();
+        let loaded_thread = self.chat_manager.get_chat(thread_uuid).await.ok();
         let has_live_running_thread = match loaded_thread.as_ref() {
             Some(thread) => matches!(thread.agent_status().await, AgentStatus::Running),
             None => false,
@@ -2412,7 +2412,7 @@ impl ChatRequestProcessor {
             }
         }
 
-        let thread = self.thread_manager.get_thread(chat_id).await.map_err(|_| {
+        let thread = self.chat_manager.get_chat(chat_id).await.map_err(|_| {
             ThreadReadViewError::InvalidRequest(format!("thread not loaded: {chat_id}"))
         })?;
         let config_snapshot = thread.config_snapshot().await;
@@ -2430,7 +2430,7 @@ impl ChatRequestProcessor {
     }
 
     pub(crate) fn thread_created_receiver(&self) -> broadcast::Receiver<ChatId> {
-        self.thread_manager.subscribe_thread_created()
+        self.chat_manager.subscribe_thread_created()
     }
 
     pub(crate) async fn connection_initialized(
@@ -2450,7 +2450,7 @@ impl ChatRequestProcessor {
             .await;
 
         for chat_id in chat_ids {
-            if self.thread_manager.get_thread(chat_id).await.is_err() {
+            if self.chat_manager.get_chat(chat_id).await.is_err() {
                 // Reconcile stale app-server bookkeeping when the thread has already been
                 // removed from the core manager.
                 self.finalize_thread_teardown(chat_id).await;
@@ -2469,7 +2469,7 @@ impl ChatRequestProcessor {
         connection_ids: Vec<ConnectionId>,
     ) {
         let mut raw_events_enabled = false;
-        if let Ok(thread) = self.thread_manager.get_thread(chat_id).await {
+        if let Ok(thread) = self.chat_manager.get_chat(chat_id).await {
             let config_snapshot = thread.config_snapshot().await;
             let loaded_thread = build_thread_from_snapshot(
                 chat_id,
@@ -2641,7 +2641,7 @@ impl ChatRequestProcessor {
         let response_history = thread_history.clone();
 
         match self
-            .thread_manager
+            .chat_manager
             .resume_thread_with_history(
                 config,
                 thread_history,
@@ -2651,14 +2651,14 @@ impl ChatRequestProcessor {
             )
             .await
         {
-            Ok(NewThread {
+            Ok(NewChat {
                 chat_id: chat_id,
-                chat: codex_thread,
+                chat: datax_chat,
                 session_configured,
                 ..
             }) => {
                 if let Err(err) = Self::set_app_server_client_info(
-                    codex_thread.as_ref(),
+                    datax_chat.as_ref(),
                     app_server_client_name,
                     app_server_client_version,
                 )
@@ -2667,7 +2667,7 @@ impl ChatRequestProcessor {
                     self.outgoing.send_error(request_id, err).await;
                     return Ok(());
                 }
-                let instruction_sources = codex_thread.legacy_instruction_sources().await;
+                let instruction_sources = datax_chat.legacy_instruction_sources().await;
                 let SessionConfiguredEvent { rollout_path, .. } = session_configured;
                 let Some(rollout_path) = rollout_path else {
                     let error =
@@ -2691,7 +2691,7 @@ impl ChatRequestProcessor {
                 let mut thread = match self
                     .load_thread_from_resume_source_or_send_internal(
                         chat_id,
-                        codex_thread.as_ref(),
+                        datax_chat.as_ref(),
                         &response_history,
                         rollout_path.as_path(),
                         resume_source_thread,
@@ -2707,7 +2707,7 @@ impl ChatRequestProcessor {
                         return Ok(());
                     }
                 };
-                thread.chat_source = codex_thread
+                thread.chat_source = datax_chat
                     .config_snapshot()
                     .await
                     .thread_source
@@ -2727,7 +2727,7 @@ impl ChatRequestProcessor {
                     thread_status,
                     /*has_live_in_progress_turn*/ false,
                 );
-                let config_snapshot = codex_thread.config_snapshot().await;
+                let config_snapshot = datax_chat.config_snapshot().await;
                 let sandbox = thread_response_sandbox_policy(
                     &config_snapshot.permission_profile,
                     config_snapshot.cwd().as_path(),
@@ -2783,10 +2783,11 @@ impl ChatRequestProcessor {
                 // `excludeTurns` is explicitly the cheap resume path, so avoid
                 // rebuilding history only to attribute a replayed usage update.
                 if let Some(token_usage_thread) = token_usage_thread {
-                    let token_usage_interaction_id = latest_token_usage_interaction_id_from_rollout_items(
-                        &response_history.get_rollout_items(),
-                        token_usage_thread.interactions.as_slice(),
-                    );
+                    let token_usage_interaction_id =
+                        latest_token_usage_interaction_id_from_rollout_items(
+                            &response_history.get_rollout_items(),
+                            token_usage_thread.interactions.as_slice(),
+                        );
                     // The client needs restored usage before it starts another turn.
                     // Sending after the response preserves JSON-RPC request ordering while
                     // still filling the status line before the next turn lifecycle begins.
@@ -2795,13 +2796,13 @@ impl ChatRequestProcessor {
                         connection_id,
                         chat_id,
                         &token_usage_thread,
-                        codex_thread.as_ref(),
+                        datax_chat.as_ref(),
                         token_usage_interaction_id,
                     )
                     .await;
                 }
                 self.thread_goal_processor
-                    .emit_resume_goal_snapshot_and_continue(chat_id, codex_thread.as_ref())
+                    .emit_resume_goal_snapshot_and_continue(chat_id, datax_chat.as_ref())
                     .await;
             }
             Err(err) => {
@@ -2823,7 +2824,7 @@ impl ChatRequestProcessor {
         };
         let state_db_ctx = self.state_db.clone()?;
         let persisted_metadata = state_db_ctx
-            .get_thread(resumed_history.conversation_id)
+            .get_chat(resumed_history.conversation_id)
             .await
             .ok()
             .flatten()?;
@@ -2841,11 +2842,7 @@ impl ChatRequestProcessor {
     ) -> Result<RunningThreadResumeResult, JSONRPCErrorError> {
         let running_thread = if params.history.is_some() {
             if let Ok(existing_chat_id) = ChatId::from_string(&params.chat_id)
-                && self
-                    .thread_manager
-                    .get_thread(existing_chat_id)
-                    .await
-                    .is_ok()
+                && self.chat_manager.get_chat(existing_chat_id).await.is_ok()
             {
                 return Err(invalid_request(format!(
                     "cannot resume thread {existing_chat_id} with history while it is already running"
@@ -2853,7 +2850,7 @@ impl ChatRequestProcessor {
             }
             None
         } else if let Ok(existing_chat_id) = ChatId::from_string(&params.chat_id)
-            && let Ok(existing_thread) = self.thread_manager.get_thread(existing_chat_id).await
+            && let Ok(existing_thread) = self.chat_manager.get_chat(existing_chat_id).await
         {
             let source_thread = self
                 .read_stored_thread_for_resume(
@@ -2872,7 +2869,7 @@ impl ChatRequestProcessor {
                 )
                 .await?;
             let existing_chat_id = source_thread.chat_id;
-            match self.thread_manager.get_thread(existing_chat_id).await {
+            match self.chat_manager.get_chat(existing_chat_id).await {
                 Ok(existing_thread) => Some((existing_chat_id, existing_thread, source_thread)),
                 Err(_) => {
                     return Ok(RunningThreadResumeResult::NotRunning(Some(Box::new(
@@ -2917,7 +2914,7 @@ impl ChatRequestProcessor {
                     // thread that timed out during shutdown.
                     match wait_for_thread_shutdown(&existing_thread).await {
                         ThreadShutdownResult::Complete => {
-                            self.thread_manager.remove_thread(&existing_chat_id).await;
+                            self.chat_manager.remove_chat(&existing_chat_id).await;
                             self.finalize_thread_teardown(existing_chat_id).await;
                             // Shutdown can flush newer rollout messages, so reload the
                             // stored thread before starting the replacement session.
@@ -3148,7 +3145,7 @@ impl ChatRequestProcessor {
     async fn load_thread_from_resume_source_or_send_internal(
         &self,
         chat_id: ChatId,
-        chat: &CodexThread,
+        chat: &DataxChat,
         thread_history: &InitialHistory,
         rollout_path: &Path,
         resume_source_thread: Option<StoredThread>,
@@ -3358,14 +3355,14 @@ impl ChatRequestProcessor {
 
         let fallback_model_provider = config.model_provider_id.clone();
 
-        let NewThread {
+        let NewChat {
             chat_id: chat_id,
             chat: forked_thread,
             session_configured,
             ..
         } = self
-            .thread_manager
-            .fork_thread_from_history(
+            .chat_manager
+            .fork_chat_from_history(
                 ForkSnapshot::Interrupted,
                 config,
                 InitialHistory::Resumed(ResumedHistory {
@@ -3395,7 +3392,7 @@ impl ChatRequestProcessor {
         if session_configured.rollout_path.is_some()
             && let Some(name) = source_thread_name.clone()
         {
-            self.thread_manager
+            self.chat_manager
                 .update_thread_metadata(
                     chat_id,
                     StoreThreadMetadataPatch {
@@ -3527,7 +3524,7 @@ impl ChatRequestProcessor {
         Ok(())
     }
 
-    async fn get_thread_summary_response_inner(
+    async fn get_chat_summary_response_inner(
         &self,
         params: GetConversationSummaryParams,
     ) -> Result<GetConversationSummaryResponse, JSONRPCErrorError> {
@@ -4166,7 +4163,7 @@ pub(crate) fn chat_from_stored_thread(
         agent_nickname: source.get_nickname(),
         agent_role: source.get_agent_role(),
         source: source.into(),
-        chat_source: thread.thread_source.map(Into::into),
+        chat_source: thread.chat_source.map(Into::into),
         git_info,
         name: thread.name,
         interactions: Vec::new(),
@@ -4407,7 +4404,7 @@ fn paginate_background_terminals(
 fn build_thread_from_loaded_snapshot(
     chat_id: ChatId,
     config_snapshot: &ThreadConfigSnapshot,
-    loaded_thread: &CodexThread,
+    loaded_thread: &DataxChat,
 ) -> Chat {
     build_thread_from_snapshot(
         chat_id,

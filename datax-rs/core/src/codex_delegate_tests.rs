@@ -15,11 +15,11 @@ use datax_protocol::protocol::ExecApprovalRequestEvent;
 use datax_protocol::protocol::GuardianAssessmentAction;
 use datax_protocol::protocol::GuardianAssessmentStatus;
 use datax_protocol::protocol::GuardianCommandSource;
+use datax_protocol::protocol::InteractionAbortReason;
+use datax_protocol::protocol::InteractionAbortedEvent;
 use datax_protocol::protocol::McpInvocation;
 use datax_protocol::protocol::RawResponseItemEvent;
 use datax_protocol::protocol::ReviewDecision;
-use datax_protocol::protocol::InteractionAbortReason;
-use datax_protocol::protocol::InteractionAbortedEvent;
 use datax_protocol::request_permissions::RequestPermissionProfile;
 use datax_protocol::request_permissions::RequestPermissionsEvent;
 use datax_protocol::request_permissions::RequestPermissionsResponse;
@@ -157,7 +157,7 @@ async fn forward_ops_preserves_submission_trace_context() {
 }
 
 #[tokio::test]
-async fn run_codex_thread_interactive_respects_pre_cancelled_spawn() {
+async fn run_datax_chat_interactive_respects_pre_cancelled_spawn() {
     let (parent_session, parent_ctx, _rx_events) =
         crate::session::tests::make_session_and_context_with_rx().await;
     let cancel_token = CancellationToken::new();
@@ -165,7 +165,7 @@ async fn run_codex_thread_interactive_respects_pre_cancelled_spawn() {
 
     let result = timeout(
         Duration::from_secs(/*secs*/ 1),
-        run_codex_thread_interactive(
+        run_datax_chat_interactive(
             parent_ctx.config.as_ref().clone(),
             Arc::clone(&parent_session.services.auth_manager),
             Arc::clone(&parent_session.services.models_manager),

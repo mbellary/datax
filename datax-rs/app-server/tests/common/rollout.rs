@@ -1,6 +1,6 @@
 use anyhow::Result;
-use datax_protocol::SessionId;
 use datax_protocol::ChatId;
+use datax_protocol::SessionId;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::GitInfo;
 use datax_protocol::protocol::SessionMeta;

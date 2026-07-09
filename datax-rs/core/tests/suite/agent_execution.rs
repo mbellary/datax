@@ -116,7 +116,7 @@ async fn v2_nested_spawn_checks_shared_active_execution_capacity() -> Result<()>
         second_output,
         "collab spawn failed: agent thread limit reached"
     );
-    assert_eq!(test.thread_manager.list_chat_ids().await.len(), 2);
+    assert_eq!(test.chat_manager.list_chat_ids().await.len(), 2);
 
     Ok(())
 }

@@ -86,7 +86,7 @@ args = ["exec-server", "--listen", "stdio"]
     let mut app_server = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, app_server.initialize()).await??;
 
-    let selected_thread = start_thread(
+    let selected_thread = start_chat(
         &mut app_server,
         Some(vec![SelectedCapabilityRoot {
             id: "executor-demo@1".to_string(),
@@ -206,8 +206,7 @@ startup_timeout_sec = 10
             .any(|name| name == MCP_SERVER_NAME)
     );
 
-    let unselected_thread =
-        start_thread(&mut app_server, /*selected_capability_roots*/ None).await?;
+    let unselected_thread = start_chat(&mut app_server, /*selected_capability_roots*/ None).await?;
     assert!(
         mcp_server_names(&mut app_server, unselected_thread)
             .await?
@@ -240,7 +239,7 @@ async fn mcp_server_names(app_server: &mut TestAppServer, chat_id: String) -> Re
         .collect())
 }
 
-async fn start_thread(
+async fn start_chat(
     app_server: &mut TestAppServer,
     selected_capability_roots: Option<Vec<SelectedCapabilityRoot>>,
 ) -> Result<String> {

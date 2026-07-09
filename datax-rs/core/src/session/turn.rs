@@ -2015,7 +2015,9 @@ async fn try_run_sampling_request(
             .await
         {
             Ok(event) => event,
-            Err(datax_async_utils::CancelErr::Cancelled) => break Err(CodexErr::InteractionAborted),
+            Err(datax_async_utils::CancelErr::Cancelled) => {
+                break Err(CodexErr::InteractionAborted);
+            }
         };
 
         let event = match event {

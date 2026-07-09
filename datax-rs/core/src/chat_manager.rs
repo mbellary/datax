@@ -1,10 +1,10 @@
 use crate::SkillsService;
 use crate::agent::AgentControl;
 use crate::attestation::AttestationProvider;
-use crate::codex_thread::CodexThread;
 use crate::config::Config;
 use crate::config::ThreadStoreConfig;
 use crate::current_time::TimeProvider;
+use crate::datax_chat::DataxChat;
 use crate::environment_selection::TurnEnvironmentSnapshot;
 use crate::environment_selection::default_thread_environment_selections;
 use crate::mcp::McpManager;
@@ -42,6 +42,8 @@ use datax_protocol::openai_models::ModelPreset;
 use datax_protocol::protocol::Event;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::InitialHistory;
+use datax_protocol::protocol::InteractionAbortReason;
+use datax_protocol::protocol::InteractionAbortedEvent;
 use datax_protocol::protocol::MultiAgentVersion;
 use datax_protocol::protocol::Op;
 use datax_protocol::protocol::ResumedHistory;
@@ -50,8 +52,6 @@ use datax_protocol::protocol::SessionConfiguredEvent;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
 use datax_protocol::protocol::ThreadSource;
-use datax_protocol::protocol::InteractionAbortReason;
-use datax_protocol::protocol::InteractionAbortedEvent;
 use datax_protocol::protocol::TurnEnvironmentSelection;
 use datax_protocol::protocol::W3cTraceContext;
 use datax_rollout::state_db::StateDbHandle;
@@ -92,11 +92,11 @@ static FORCE_TEST_THREAD_MANAGER_BEHAVIOR: AtomicBool = AtomicBool::new(false);
 type CapturedOps = Vec<(ChatId, Op)>;
 type SharedCapturedOps = Arc<std::sync::Mutex<CapturedOps>>;
 
-pub(crate) fn set_thread_manager_test_mode_for_tests(enabled: bool) {
+pub(crate) fn set_chat_manager_test_mode_for_tests(enabled: bool) {
     FORCE_TEST_THREAD_MANAGER_BEHAVIOR.store(enabled, Ordering::Relaxed);
 }
 
-fn should_use_test_thread_manager_behavior() -> bool {
+fn should_use_test_chat_manager_behavior() -> bool {
     FORCE_TEST_THREAD_MANAGER_BEHAVIOR.load(Ordering::Relaxed)
 }
 
@@ -112,9 +112,9 @@ impl Drop for TempCodexHomeGuard {
 
 /// Represents a newly created Codex thread (formerly called a conversation), including the first event
 /// (which is [`EventMsg::SessionConfigured`]).
-pub struct NewThread {
+pub struct NewChat {
     pub chat_id: ChatId,
-    pub thread: Arc<CodexThread>,
+    pub chat: Arc<DataxChat>,
     pub session_configured: SessionConfiguredEvent,
 }
 
@@ -149,7 +149,7 @@ pub enum ForkSnapshot {
     Interrupted,
 }
 
-/// Preserve legacy `fork_thread(usize, ...)` callsites by mapping them to the
+/// Preserve legacy `fork_chat(usize, ...)` callsites by mapping them to the
 /// existing truncate-before-nth-user-message snapshot mode.
 impl From<usize> for ForkSnapshot {
     fn from(value: usize) -> Self {
@@ -170,14 +170,14 @@ enum ShutdownOutcome {
     TimedOut,
 }
 
-/// [`ThreadManager`] is responsible for creating threads and maintaining
+/// [`ChatManager`] is responsible for creating threads and maintaining
 /// them in memory.
-pub struct ThreadManager {
-    state: Arc<ThreadManagerState>,
+pub struct ChatManager {
+    state: Arc<ChatManagerState>,
     _test_codex_home_guard: Option<TempCodexHomeGuard>,
 }
 
-pub struct StartThreadOptions {
+pub struct StartChatOptions {
     pub config: Config,
     pub initial_history: InitialHistory,
     pub session_source: Option<SessionSource>,
@@ -200,11 +200,11 @@ pub(crate) struct ResumeThreadWithHistoryOptions {
     pub(crate) inherited_exec_policy: Option<Arc<crate::exec_policy::ExecPolicyManager>>,
 }
 
-/// Shared, `Arc`-owned state for [`ThreadManager`]. This `Arc` is required to have a single
+/// Shared, `Arc`-owned state for [`ChatManager`]. This `Arc` is required to have a single
 /// `Arc` reference that can be downgraded to by `AgentControl` while preventing every single
 /// function to require an `Arc<&Self>`.
-pub(crate) struct ThreadManagerState {
-    threads: Arc<RwLock<HashMap<ChatId, Arc<CodexThread>>>>,
+pub(crate) struct ChatManagerState {
+    threads: Arc<RwLock<HashMap<ChatId, Arc<DataxChat>>>>,
     thread_created_tx: broadcast::Sender<ChatId>,
     auth_manager: Arc<AuthManager>,
     models_manager: SharedModelsManager,
@@ -257,7 +257,7 @@ pub fn thread_store_from_config(
     }
 }
 
-impl ThreadManager {
+impl ChatManager {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         config: &Config,
@@ -291,7 +291,7 @@ impl ThreadManager {
             restriction_product,
         ));
         Self {
-            state: Arc::new(ThreadManagerState {
+            state: Arc::new(ChatManagerState {
                 threads: Arc::new(RwLock::new(HashMap::new())),
                 thread_created_tx,
                 models_manager: build_models_manager(config, auth_manager.clone()),
@@ -309,7 +309,7 @@ impl ThreadManager {
                 installation_id,
                 analytics_events_client,
                 state_db,
-                ops_log: should_use_test_thread_manager_behavior()
+                ops_log: should_use_test_chat_manager_behavior()
                     .then(|| Arc::new(std::sync::Mutex::new(Vec::new()))),
             }),
             _test_codex_home_guard: None,
@@ -322,7 +322,7 @@ impl ThreadManager {
         auth: CodexAuth,
         provider: ModelProviderInfo,
     ) -> Self {
-        set_thread_manager_test_mode_for_tests(/*enabled*/ true);
+        set_chat_manager_test_mode_for_tests(/*enabled*/ true);
         let codex_home = std::env::temp_dir().join(format!(
             "datax-thread-manager-test-{}",
             uuid::Uuid::new_v4()
@@ -363,7 +363,7 @@ impl ThreadManager {
         environment_manager: Arc<EnvironmentManager>,
         state_db: Option<StateDbHandle>,
     ) -> Self {
-        set_thread_manager_test_mode_for_tests(/*enabled*/ true);
+        set_chat_manager_test_mode_for_tests(/*enabled*/ true);
         let auth_manager = AuthManager::from_auth_for_testing(auth);
         let installation_id = uuid::Uuid::new_v4().to_string();
         let skills_codex_home = match AbsolutePathBuf::from_absolute_path_checked(&codex_home) {
@@ -384,7 +384,7 @@ impl ThreadManager {
             restriction_product,
         ));
         // This test constructor has no Config input. Tests that need a non-local
-        // process store should construct ThreadManager::new with an explicit store.
+        // process store should construct ChatManager::new with an explicit store.
         let thread_store: Arc<dyn ThreadStore> = Arc::new(LocalThreadStore::new(
             LocalThreadStoreConfig {
                 codex_home: codex_home.clone(),
@@ -394,7 +394,7 @@ impl ThreadManager {
             state_db.clone(),
         ));
         Self {
-            state: Arc::new(ThreadManagerState {
+            state: Arc::new(ChatManagerState {
                 threads: Arc::new(RwLock::new(HashMap::new())),
                 thread_created_tx,
                 models_manager: create_model_provider(provider, Some(auth_manager.clone()))
@@ -415,7 +415,7 @@ impl ThreadManager {
                 installation_id,
                 analytics_events_client: None,
                 state_db,
-                ops_log: should_use_test_thread_manager_behavior()
+                ops_log: should_use_test_chat_manager_behavior()
                     .then(|| Arc::new(std::sync::Mutex::new(Vec::new()))),
             }),
             _test_codex_home_guard: None,
@@ -501,13 +501,13 @@ impl ThreadManager {
         self.state.thread_created_tx.subscribe()
     }
 
-    pub async fn get_thread(&self, chat_id: ChatId) -> CodexResult<Arc<CodexThread>> {
-        self.state.get_thread(chat_id).await
+    pub async fn get_chat(&self, chat_id: ChatId) -> CodexResult<Arc<DataxChat>> {
+        self.state.get_chat(chat_id).await
     }
 
     /// Updates metadata for loaded and cold threads through one entrypoint.
     ///
-    /// Loaded threads route through `CodexThread`/`LiveThread`, so metadata changes stay ordered
+    /// Loaded threads route through `DataxChat`/`LiveThread`, so metadata changes stay ordered
     /// with live rollout writes. Cold threads go directly to the store, which owns unloaded JSONL
     /// compatibility and SQLite metadata updates.
     pub async fn update_thread_metadata(
@@ -516,7 +516,7 @@ impl ThreadManager {
         patch: ThreadMetadataPatch,
         include_archived: bool,
     ) -> CodexResult<StoredThread> {
-        if let Ok(thread) = self.get_thread(chat_id).await {
+        if let Ok(thread) = self.get_chat(chat_id).await {
             if thread.config_snapshot().await.ephemeral {
                 return Err(CodexErr::InvalidRequest(format!(
                     "ephemeral thread does not support metadata updates: {chat_id}"
@@ -536,18 +536,13 @@ impl ThreadManager {
             })
             .await
             .map_err(|err| match err {
-                ThreadStoreError::ThreadNotFound { chat_id } => {
-                    CodexErr::ThreadNotFound(chat_id)
-                }
+                ThreadStoreError::ThreadNotFound { chat_id } => CodexErr::ThreadNotFound(chat_id),
                 err => thread_store_metadata_update_error(chat_id, err),
             })
     }
 
     /// List `chat_id` plus all known descendants in its spawn subtree.
-    pub async fn list_agent_subtree_chat_ids(
-        &self,
-        chat_id: ChatId,
-    ) -> CodexResult<Vec<ChatId>> {
+    pub async fn list_agent_subtree_chat_ids(&self, chat_id: ChatId) -> CodexResult<Vec<ChatId>> {
         let mut subtree_chat_ids = Vec::new();
         let mut seen_chat_ids = HashSet::new();
         subtree_chat_ids.push(chat_id);
@@ -585,22 +580,22 @@ impl ThreadManager {
         Ok(subtree_chat_ids)
     }
 
-    pub async fn start_thread(&self, config: Config) -> CodexResult<NewThread> {
+    pub async fn start_chat(&self, config: Config) -> CodexResult<NewChat> {
         // Box delegated thread-spawn futures so these convenience wrappers do
         // not inline the full spawn path into every caller's async state.
-        Box::pin(self.start_thread_with_tools(config, Vec::new())).await
+        Box::pin(self.start_chat_with_tools(config, Vec::new())).await
     }
 
-    pub async fn start_thread_with_tools(
+    pub async fn start_chat_with_tools(
         &self,
         config: Config,
         dynamic_tools: Vec<datax_protocol::dynamic_tools::DynamicToolSpec>,
-    ) -> CodexResult<NewThread> {
+    ) -> CodexResult<NewChat> {
         let environments = default_thread_environment_selections(
             self.state.environment_manager.as_ref(),
             &config.cwd,
         );
-        Box::pin(self.start_thread_with_options(StartThreadOptions {
+        Box::pin(self.start_chat_with_options(StartChatOptions {
             config,
             initial_history: InitialHistory::New,
             session_source: None,
@@ -615,19 +610,16 @@ impl ThreadManager {
         .await
     }
 
-    pub async fn start_thread_with_options(
-        &self,
-        options: StartThreadOptions,
-    ) -> CodexResult<NewThread> {
-        self.start_thread_with_options_and_fork_source(options, /*forked_from_chat_id*/ None)
+    pub async fn start_chat_with_options(&self, options: StartChatOptions) -> CodexResult<NewChat> {
+        self.start_chat_with_options_and_fork_source(options, /*forked_from_chat_id*/ None)
             .await
     }
 
-    async fn start_thread_with_options_and_fork_source(
+    async fn start_chat_with_options_and_fork_source(
         &self,
-        options: StartThreadOptions,
+        options: StartChatOptions,
         forked_from_chat_id: Option<ChatId>,
-    ) -> CodexResult<NewThread> {
+    ) -> CodexResult<NewChat> {
         let agent_control = self.agent_control_for_config(&options.config);
         let (resumed_session_source, resumed_thread_source) = options
             .initial_history
@@ -662,9 +654,9 @@ impl ThreadManager {
     pub async fn spawn_subagent(
         &self,
         forked_from_chat_id: ChatId,
-        mut options: StartThreadOptions,
-    ) -> CodexResult<NewThread> {
-        let fork_source = self.get_thread(forked_from_chat_id).await?;
+        mut options: StartChatOptions,
+    ) -> CodexResult<NewChat> {
+        let fork_source = self.get_chat(forked_from_chat_id).await?;
         // Persist queued rollout updates before reading the fork snapshot.
         fork_source.ensure_rollout_materialized().await;
         fork_source.flush_rollout().await?;
@@ -690,7 +682,7 @@ impl ThreadManager {
                 inherited_multi_agent_version,
             ),
         );
-        self.start_thread_with_options_and_fork_source(options, Some(forked_from_chat_id))
+        self.start_chat_with_options_and_fork_source(options, Some(forked_from_chat_id))
             .await
     }
 
@@ -701,7 +693,7 @@ impl ThreadManager {
         auth_manager: Arc<AuthManager>,
         parent_trace: Option<W3cTraceContext>,
         supports_openai_form_elicitation: bool,
-    ) -> CodexResult<NewThread> {
+    ) -> CodexResult<NewChat> {
         let initial_history = self.initial_history_from_rollout_path(rollout_path).await?;
         Box::pin(self.resume_thread_with_history(
             config,
@@ -721,7 +713,7 @@ impl ThreadManager {
         auth_manager: Arc<AuthManager>,
         parent_trace: Option<W3cTraceContext>,
         supports_openai_form_elicitation: bool,
-    ) -> CodexResult<NewThread> {
+    ) -> CodexResult<NewChat> {
         let agent_control = self.agent_control_for_config(&config);
         let environments = default_thread_environment_selections(
             self.state.environment_manager.as_ref(),
@@ -752,12 +744,12 @@ impl ThreadManager {
         .await
     }
 
-    pub(crate) async fn start_thread_with_user_shell_override_for_tests(
+    pub(crate) async fn start_chat_with_user_shell_override_for_tests(
         &self,
         config: Config,
         user_shell_override: crate::shell::Shell,
         supports_openai_form_elicitation: bool,
-    ) -> CodexResult<NewThread> {
+    ) -> CodexResult<NewChat> {
         let agent_control = self.agent_control_for_config(&config);
         let environments = default_thread_environment_selections(
             self.state.environment_manager.as_ref(),
@@ -789,7 +781,7 @@ impl ThreadManager {
         auth_manager: Arc<AuthManager>,
         user_shell_override: crate::shell::Shell,
         supports_openai_form_elicitation: bool,
-    ) -> CodexResult<NewThread> {
+    ) -> CodexResult<NewChat> {
         let agent_control = self.agent_control_for_config(&config);
         let initial_history = self.initial_history_from_rollout_path(rollout_path).await?;
         let environments = default_thread_environment_selections(
@@ -822,9 +814,9 @@ impl ThreadManager {
     }
 
     /// Removes the thread from the manager's internal map, though the thread is stored
-    /// as `Arc<CodexThread>`, it is possible that other references to it exist elsewhere.
+    /// as `Arc<DataxChat>`, it is possible that other references to it exist elsewhere.
     /// Returns the thread if the thread was found and removed.
-    pub async fn remove_thread(&self, chat_id: &ChatId) -> Option<Arc<CodexThread>> {
+    pub async fn remove_chat(&self, chat_id: &ChatId) -> Option<Arc<DataxChat>> {
         self.state.threads.write().await.remove(chat_id)
     }
 
@@ -883,20 +875,20 @@ impl ThreadManager {
     /// `snapshot` and starting a new thread with identical configuration
     /// (unless overridden by the caller's `config`). The new thread will have
     /// a fresh id.
-    pub async fn fork_thread<S>(
+    pub async fn fork_chat<S>(
         &self,
         snapshot: S,
         config: Config,
         path: PathBuf,
         thread_source: Option<ThreadSource>,
         parent_trace: Option<W3cTraceContext>,
-    ) -> CodexResult<NewThread>
+    ) -> CodexResult<NewChat>
     where
         S: Into<ForkSnapshot>,
     {
         let snapshot = snapshot.into();
         let history = self.initial_history_from_rollout_path(path).await?;
-        self.fork_thread_from_history(
+        self.fork_chat_from_history(
             snapshot,
             config,
             history,
@@ -926,7 +918,7 @@ impl ThreadManager {
     }
 
     /// Fork an existing thread from already-loaded store history.
-    pub async fn fork_thread_from_history<S>(
+    pub async fn fork_chat_from_history<S>(
         &self,
         snapshot: S,
         config: Config,
@@ -934,11 +926,11 @@ impl ThreadManager {
         thread_source: Option<ThreadSource>,
         parent_trace: Option<W3cTraceContext>,
         supports_openai_form_elicitation: bool,
-    ) -> CodexResult<NewThread>
+    ) -> CodexResult<NewChat>
     where
         S: Into<ForkSnapshot>,
     {
-        self.fork_thread_with_initial_history(
+        self.fork_chat_with_initial_history(
             snapshot.into(),
             config,
             history,
@@ -949,7 +941,7 @@ impl ThreadManager {
         .await
     }
 
-    async fn fork_thread_with_initial_history(
+    async fn fork_chat_with_initial_history(
         &self,
         snapshot: ForkSnapshot,
         config: Config,
@@ -957,7 +949,7 @@ impl ThreadManager {
         thread_source: Option<ThreadSource>,
         parent_trace: Option<W3cTraceContext>,
         supports_openai_form_elicitation: bool,
-    ) -> CodexResult<NewThread> {
+    ) -> CodexResult<NewChat> {
         // `forked_from_id()` describes this history's existing lineage. When
         // forking a resumed thread, the child copies the resumed thread itself.
         let source_chat_id = match &history {
@@ -1020,7 +1012,7 @@ impl ThreadManager {
     }
 }
 
-impl ThreadManagerState {
+impl ChatManagerState {
     pub(crate) fn state_db(&self) -> Option<StateDbHandle> {
         self.state_db.clone()
     }
@@ -1048,8 +1040,7 @@ impl ThreadManagerState {
                 }
                 match &thread.session_source {
                     SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-                        parent_chat_id,
-                        ..
+                        parent_chat_id, ..
                     }) => Some((*parent_chat_id, *chat_id)),
                     _ => None,
                 }
@@ -1058,7 +1049,7 @@ impl ThreadManagerState {
     }
 
     /// Fetch a thread by ID or return ThreadNotFound.
-    pub(crate) async fn get_thread(&self, chat_id: ChatId) -> CodexResult<Arc<CodexThread>> {
+    pub(crate) async fn get_chat(&self, chat_id: ChatId) -> CodexResult<Arc<DataxChat>> {
         let threads = self.threads.read().await;
         match threads.get(&chat_id) {
             Some(thread) if !thread.session_source.is_internal() => Ok(thread.clone()),
@@ -1093,7 +1084,7 @@ impl ThreadManagerState {
 
     /// Send an operation to a thread by ID.
     pub(crate) async fn send_op(&self, chat_id: ChatId, op: Op) -> CodexResult<String> {
-        let thread = self.get_thread(chat_id).await?;
+        let thread = self.get_chat(chat_id).await?;
         if let Some(ops_log) = &self.ops_log
             && let Ok(mut log) = ops_log.lock()
         {
@@ -1103,7 +1094,7 @@ impl ThreadManagerState {
     }
 
     /// Remove a thread from the manager by ID, returning it when present.
-    pub(crate) async fn remove_thread(&self, chat_id: &ChatId) -> Option<Arc<CodexThread>> {
+    pub(crate) async fn remove_chat(&self, chat_id: &ChatId) -> Option<Arc<DataxChat>> {
         self.threads.write().await.remove(chat_id)
     }
 
@@ -1144,7 +1135,7 @@ impl ThreadManagerState {
         };
         let inherited_multi_agent_version = match inherited_chat_id {
             Some(chat_id) => self
-                .get_thread(chat_id)
+                .get_chat(chat_id)
                 .await
                 .ok()
                 .and_then(|thread| thread.multi_agent_version()),
@@ -1183,15 +1174,15 @@ impl ThreadManagerState {
         }
 
         let inherited_chat_id = match session_source {
-            SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-                parent_chat_id, ..
-            }) => Some(*parent_chat_id),
+            SessionSource::SubAgent(SubAgentSource::ThreadSpawn { parent_chat_id, .. }) => {
+                Some(*parent_chat_id)
+            }
             _ => parent_chat_id.or(forked_from_chat_id),
         };
         let instructions = match inherited_chat_id {
             // The spawn path retains only thread IDs, so look up the live
             // runtime again here to inherit its user instructions.
-            Some(chat_id) => match self.get_thread(chat_id).await {
+            Some(chat_id) => match self.get_chat(chat_id).await {
                 Ok(thread) => thread.codex.session.user_instructions().await,
                 Err(_) => None,
             },
@@ -1208,7 +1199,7 @@ impl ThreadManagerState {
         &self,
         config: Config,
         agent_control: AgentControl,
-    ) -> CodexResult<NewThread> {
+    ) -> CodexResult<NewChat> {
         Box::pin(self.spawn_new_thread_with_source(
             config,
             agent_control,
@@ -1237,7 +1228,7 @@ impl ThreadManagerState {
         inherited_environments: Option<TurnEnvironmentSnapshot>,
         inherited_exec_policy: Option<Arc<crate::exec_policy::ExecPolicyManager>>,
         environments: Option<Vec<TurnEnvironmentSelection>>,
-    ) -> CodexResult<NewThread> {
+    ) -> CodexResult<NewChat> {
         let environments = environments.unwrap_or_else(|| {
             default_thread_environment_selections(self.environment_manager.as_ref(), &config.cwd)
         });
@@ -1266,7 +1257,7 @@ impl ThreadManagerState {
     pub(crate) async fn resume_thread_with_history_with_source(
         &self,
         options: ResumeThreadWithHistoryOptions,
-    ) -> CodexResult<NewThread> {
+    ) -> CodexResult<NewChat> {
         let ResumeThreadWithHistoryOptions {
             config,
             initial_history,
@@ -1302,7 +1293,7 @@ impl ThreadManagerState {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn fork_thread_with_source(
+    pub(crate) async fn fork_chat_with_source(
         &self,
         config: Config,
         initial_history: InitialHistory,
@@ -1314,7 +1305,7 @@ impl ThreadManagerState {
         inherited_environments: Option<TurnEnvironmentSnapshot>,
         inherited_exec_policy: Option<Arc<crate::exec_policy::ExecPolicyManager>>,
         environments: Option<Vec<TurnEnvironmentSelection>>,
-    ) -> CodexResult<NewThread> {
+    ) -> CodexResult<NewChat> {
         let environments = environments.unwrap_or_else(|| {
             default_thread_environment_selections(self.environment_manager.as_ref(), &config.cwd)
         });
@@ -1358,7 +1349,7 @@ impl ThreadManagerState {
         thread_extension_init: ExtensionDataInit,
         supports_openai_form_elicitation: bool,
         user_shell_override: Option<crate::shell::Shell>,
-    ) -> CodexResult<NewThread> {
+    ) -> CodexResult<NewChat> {
         Box::pin(self.spawn_thread_with_source(
             config,
             initial_history,
@@ -1401,7 +1392,7 @@ impl ThreadManagerState {
         thread_extension_init: ExtensionDataInit,
         supports_openai_form_elicitation: bool,
         user_shell_override: Option<crate::shell::Shell>,
-    ) -> CodexResult<NewThread> {
+    ) -> CodexResult<NewChat> {
         let is_resumed_thread = matches!(&initial_history, InitialHistory::Resumed(_));
         if let InitialHistory::Resumed(resumed) = &initial_history {
             let mut threads = self.threads.write().await;
@@ -1415,10 +1406,10 @@ impl ThreadManagerState {
                             resumed.conversation_id
                         )));
                     }
-                    return Ok(NewThread {
+                    return Ok(NewChat {
                         chat_id: resumed.conversation_id,
                         session_configured: thread.session_configured(),
-                        thread,
+                        chat: thread,
                     });
                 }
                 threads.remove(&resumed.conversation_id);
@@ -1439,9 +1430,7 @@ impl ThreadManagerState {
                 forked_from_chat_id,
             )
             .await;
-        let CodexSpawnOk {
-            codex, chat_id, ..
-        } = Box::pin(Codex::spawn(CodexSpawnArgs {
+        let CodexSpawnOk { codex, chat_id, .. } = Box::pin(Codex::spawn(CodexSpawnArgs {
             config,
             user_instructions,
             installation_id: self.installation_id.clone(),
@@ -1479,7 +1468,7 @@ impl ThreadManagerState {
             .finalize_thread_spawn(codex, chat_id, tracked_session_source)
             .await?;
         if is_resumed_thread {
-            new_thread.thread.emit_thread_resume_lifecycle().await;
+            new_thread.chat.emit_thread_resume_lifecycle().await;
         }
         Ok(new_thread)
     }
@@ -1489,7 +1478,7 @@ impl ThreadManagerState {
         codex: Codex,
         chat_id: ChatId,
         session_source: SessionSource,
-    ) -> CodexResult<NewThread> {
+    ) -> CodexResult<NewChat> {
         let event = codex.next_event().await?;
         let session_configured = match event {
             Event {
@@ -1504,16 +1493,16 @@ impl ThreadManagerState {
         {
             let mut threads = self.threads.write().await;
             if let std::collections::hash_map::Entry::Vacant(e) = threads.entry(chat_id) {
-                let thread = Arc::new(CodexThread::new(
+                let thread = Arc::new(DataxChat::new(
                     codex,
                     session_configured.clone(),
                     session_configured.rollout_path.clone(),
                     session_source,
                 ));
                 e.insert(thread.clone());
-                return Ok(NewThread {
+                return Ok(NewChat {
                     chat_id,
-                    thread,
+                    chat: thread,
                     session_configured,
                 });
             }
@@ -1541,9 +1530,8 @@ impl ThreadManagerState {
         // context. Resumed children already have a prior `ThreadStarted` event
         // for this thread id; deriving a child trace during resume would write
         // that start event again and make the bundle unreplayable.
-        let SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-            parent_chat_id, ..
-        }) = session_source
+        let SessionSource::SubAgent(SubAgentSource::ThreadSpawn { parent_chat_id, .. }) =
+            session_source
         else {
             return datax_rollout_trace::ThreadTraceContext::disabled();
         };
@@ -1554,7 +1542,7 @@ impl ThreadManagerState {
         // spawn preparation and session construction. Tracing is diagnostic, so
         // that race should not block child creation; the child simply starts
         // without a parent rollout trace.
-        self.get_thread(*parent_chat_id)
+        self.get_chat(*parent_chat_id)
             .await
             .ok()
             .map(|thread| thread.codex.session.services.rollout_thread_trace.clone())
@@ -1594,9 +1582,7 @@ fn thread_store_metadata_update_error(chat_id: ChatId, err: ThreadStoreError) ->
         ThreadStoreError::Unsupported { operation } => CodexErr::UnsupportedOperation(format!(
             "thread metadata update is not supported by this store: {operation}"
         )),
-        err => CodexErr::Fatal(format!(
-            "failed to update thread metadata {chat_id}: {err}"
-        )),
+        err => CodexErr::Fatal(format!("failed to update thread metadata {chat_id}: {err}")),
     }
 }
 
@@ -1685,7 +1671,9 @@ fn snapshot_turn_state(history: &InitialHistory) -> SnapshotTurnState {
         ends_mid_turn: !rollout_items[last_user_position + 1..].iter().any(|item| {
             matches!(
                 item,
-                RolloutItem::EventMsg(EventMsg::InteractionComplete(_) | EventMsg::InteractionAborted(_))
+                RolloutItem::EventMsg(
+                    EventMsg::InteractionComplete(_) | EventMsg::InteractionAborted(_)
+                )
             )
         }),
         active_interaction_id: None,
@@ -1731,12 +1719,13 @@ fn append_interrupted_boundary(
     interaction_id: Option<String>,
     interrupted_marker: InterruptedTurnHistoryMarker,
 ) -> InitialHistory {
-    let aborted_event = RolloutItem::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
-        interaction_id,
-        reason: InteractionAbortReason::Interrupted,
-        completed_at: None,
-        duration_ms: None,
-    }));
+    let aborted_event =
+        RolloutItem::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
+            interaction_id,
+            reason: InteractionAbortReason::Interrupted,
+            completed_at: None,
+            duration_ms: None,
+        }));
 
     match history {
         InitialHistory::New | InitialHistory::Cleared => {
@@ -1765,5 +1754,5 @@ fn append_interrupted_boundary(
 }
 
 #[cfg(test)]
-#[path = "thread_manager_tests.rs"]
+#[path = "chat_manager_tests.rs"]
 mod tests;

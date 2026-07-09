@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use datax_arg0::Arg0DispatchPaths;
+use datax_core::ChatManager;
 use datax_core::StateDbHandle;
-use datax_core::ThreadManager;
 use datax_core::config::Config;
 use datax_exec_server::EnvironmentManager;
 use datax_extension_api::empty_extension_registry;
@@ -42,7 +42,7 @@ pub(crate) struct MessageProcessor {
     outgoing: Arc<OutgoingMessageSender>,
     initialized: bool,
     arg0_paths: Arg0DispatchPaths,
-    thread_manager: Arc<ThreadManager>,
+    chat_manager: Arc<ChatManager>,
     running_requests_id_to_codex_uuid: Arc<Mutex<HashMap<RequestId, ChatId>>>,
 }
 
@@ -66,7 +66,7 @@ impl MessageProcessor {
         let user_instructions_provider = Arc::new(CodexHomeUserInstructionsProvider::new(
             config.codex_home.clone(),
         ));
-        let thread_manager = Arc::new(ThreadManager::new(
+        let chat_manager = Arc::new(ChatManager::new(
             config.as_ref(),
             auth_manager,
             SessionSource::Mcp,
@@ -84,7 +84,7 @@ impl MessageProcessor {
             outgoing,
             initialized: false,
             arg0_paths,
-            thread_manager,
+            chat_manager,
             running_requests_id_to_codex_uuid: Arc::new(Mutex::new(HashMap::new())),
         }
     }
@@ -386,7 +386,7 @@ impl MessageProcessor {
 
         // Clone outgoing and server to move into async task.
         let outgoing = self.outgoing.clone();
-        let thread_manager = self.thread_manager.clone();
+        let chat_manager = self.chat_manager.clone();
         let running_requests_id_to_codex_uuid = self.running_requests_id_to_codex_uuid.clone();
 
         // Spawn an async task to handle the Codex session so that we do not
@@ -398,7 +398,7 @@ impl MessageProcessor {
                 initial_prompt,
                 config,
                 outgoing,
-                thread_manager,
+                chat_manager,
                 running_requests_id_to_codex_uuid,
             )
             .await;
@@ -454,7 +454,7 @@ impl MessageProcessor {
         let outgoing = self.outgoing.clone();
         let running_requests_id_to_codex_uuid = self.running_requests_id_to_codex_uuid.clone();
 
-        let codex = match self.thread_manager.get_thread(chat_id).await {
+        let codex = match self.chat_manager.get_chat(chat_id).await {
             Ok(c) => c,
             Err(_) => {
                 tracing::warn!("Session not found for chat_id: {chat_id}");
@@ -532,7 +532,7 @@ impl MessageProcessor {
         tracing::info!("chat_id: {chat_id}");
 
         // Obtain the Codex thread from the server.
-        let codex_arc = match self.thread_manager.get_thread(chat_id).await {
+        let codex_arc = match self.chat_manager.get_chat(chat_id).await {
             Ok(c) => c,
             Err(_) => {
                 tracing::warn!("Session not found for chat_id: {chat_id}");

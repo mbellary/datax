@@ -7,7 +7,7 @@ use datax_goal_extension::GoalTokenBudgetUpdate;
 
 #[derive(Clone)]
 pub(crate) struct ThreadGoalRequestProcessor {
-    thread_manager: Arc<ThreadManager>,
+    chat_manager: Arc<ChatManager>,
     outgoing: Arc<OutgoingMessageSender>,
     config: Arc<Config>,
     thread_state_manager: ThreadStateManager,
@@ -17,7 +17,7 @@ pub(crate) struct ThreadGoalRequestProcessor {
 
 impl ThreadGoalRequestProcessor {
     pub(crate) fn new(
-        thread_manager: Arc<ThreadManager>,
+        chat_manager: Arc<ChatManager>,
         outgoing: Arc<OutgoingMessageSender>,
         config: Arc<Config>,
         thread_state_manager: ThreadStateManager,
@@ -25,7 +25,7 @@ impl ThreadGoalRequestProcessor {
         goal_service: Arc<GoalService>,
     ) -> Self {
         Self {
-            thread_manager,
+            chat_manager,
             outgoing,
             config,
             thread_state_manager,
@@ -66,7 +66,7 @@ impl ThreadGoalRequestProcessor {
     pub(crate) async fn emit_resume_goal_snapshot_and_continue(
         &self,
         chat_id: ChatId,
-        thread: &CodexThread,
+        thread: &DataxChat,
     ) {
         if !self.config.features.enabled(Feature::Goals) {
             return;
@@ -79,7 +79,7 @@ impl ThreadGoalRequestProcessor {
 
     pub(crate) async fn pending_resume_goal_state(
         &self,
-        thread: &CodexThread,
+        thread: &DataxChat,
     ) -> (bool, Option<StateDbHandle>) {
         let emit_thread_goal_update = self.config.features.enabled(Feature::Goals);
         let thread_goal_state_db = if emit_thread_goal_update {
@@ -136,7 +136,7 @@ impl ThreadGoalRequestProcessor {
             .map_err(goal_service_error)?;
         let goal = ChatGoal::from(outcome.goal.clone());
 
-        let persist_result = match self.thread_manager.get_thread(chat_id).await {
+        let persist_result = match self.chat_manager.get_chat(chat_id).await {
             Ok(thread) => {
                 // Live goal-first threads can be listed before any user turn is written.
                 // Use the live path so JSONL and SQLite preview metadata stay in sync.
@@ -220,7 +220,7 @@ impl ThreadGoalRequestProcessor {
         &self,
         chat_id: ChatId,
     ) -> Result<StateDbHandle, JSONRPCErrorError> {
-        if let Ok(thread) = self.thread_manager.get_thread(chat_id).await {
+        if let Ok(thread) = self.chat_manager.get_chat(chat_id).await {
             if thread.rollout_path().is_none() {
                 return Err(invalid_request(format!(
                     "ephemeral thread does not support goals: {chat_id}"
@@ -250,7 +250,7 @@ impl ThreadGoalRequestProcessor {
         chat_id: ChatId,
         state_db: &StateDbHandle,
     ) -> Result<(), JSONRPCErrorError> {
-        let running_thread = self.thread_manager.get_thread(chat_id).await.ok();
+        let running_thread = self.chat_manager.get_chat(chat_id).await.ok();
         let rollout_path = match running_thread.as_ref() {
             Some(thread) => thread.rollout_path().ok_or_else(|| {
                 invalid_request(format!(
@@ -390,6 +390,5 @@ fn goal_service_error(err: GoalServiceError) -> JSONRPCErrorError {
 }
 
 fn parse_chat_id_for_request(chat_id: &str) -> Result<ChatId, JSONRPCErrorError> {
-    ChatId::from_string(chat_id)
-        .map_err(|err| invalid_request(format!("invalid thread id: {err}")))
+    ChatId::from_string(chat_id).map_err(|err| invalid_request(format!("invalid thread id: {err}")))
 }

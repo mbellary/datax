@@ -733,7 +733,7 @@ pub(super) async fn send_thread_goal_snapshot_notification(
 
 pub(crate) fn populate_thread_turns_from_history(
     thread: &mut Chat,
-    messages: &[RolloutItem],
+    messages: &[RolloutMessage],
     active_turn: Option<&Interaction>,
 ) {
     let mut interactions = build_api_turns_from_rollout_items(messages);

@@ -21,7 +21,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::AppendThreadItemsParams;
+use crate::AppendChatMessagesParams;
 use crate::ArchiveThreadParams;
 use crate::CreateThreadParams;
 use crate::DeleteThreadParams;
@@ -31,10 +31,10 @@ use crate::ReadThreadByRolloutPathParams;
 use crate::ReadThreadParams;
 use crate::ResumeThreadParams;
 use crate::SearchThreadsParams;
-use crate::StoredThread;
-use crate::StoredThreadHistory;
-use crate::ThreadPage;
-use crate::ThreadSearchPage;
+use crate::StoredChat;
+use crate::StoredChatHistory;
+use crate::ChatPage;
+use crate::ChatSearchPage;
 use crate::ThreadStore;
 use crate::ThreadStoreError;
 use crate::ThreadStoreFuture;
@@ -112,7 +112,7 @@ impl LocalThreadStore {
         rollout_path: PathBuf,
         include_archived: bool,
         include_history: bool,
-    ) -> ThreadStoreResult<StoredThread> {
+    ) -> ThreadStoreResult<StoredChat> {
         read_thread::read_thread_by_rollout_path(
             self,
             rollout_path,
@@ -170,7 +170,7 @@ impl LocalThreadStore {
     async fn load_history(
         &self,
         params: LoadThreadHistoryParams,
-    ) -> ThreadStoreResult<StoredThreadHistory> {
+    ) -> ThreadStoreResult<StoredChatHistory> {
         if let Ok(rollout_path) = live_writer::rollout_path(self, params.chat_id).await {
             if !params.include_archived
                 && helpers::rollout_path_is_archived(
@@ -213,7 +213,7 @@ impl LocalThreadStore {
     async fn read_thread_by_rollout_path_params(
         &self,
         params: ReadThreadByRolloutPathParams,
-    ) -> ThreadStoreResult<StoredThread> {
+    ) -> ThreadStoreResult<StoredChat> {
         read_thread::read_thread_by_rollout_path(
             self,
             params.rollout_path,
@@ -237,7 +237,7 @@ impl ThreadStore for LocalThreadStore {
         Box::pin(async move { live_writer::resume_thread(self, params).await })
     }
 
-    fn append_items(&self, params: AppendThreadItemsParams) -> ThreadStoreFuture<'_, ()> {
+    fn append_items(&self, params: AppendChatMessagesParams) -> ThreadStoreFuture<'_, ()> {
         Box::pin(async move { live_writer::append_items(self, params).await })
     }
 
@@ -260,38 +260,38 @@ impl ThreadStore for LocalThreadStore {
     fn load_history(
         &self,
         params: LoadThreadHistoryParams,
-    ) -> ThreadStoreFuture<'_, StoredThreadHistory> {
+    ) -> ThreadStoreFuture<'_, StoredChatHistory> {
         Box::pin(LocalThreadStore::load_history(self, params))
     }
 
-    fn read_thread(&self, params: ReadThreadParams) -> ThreadStoreFuture<'_, StoredThread> {
+    fn read_thread(&self, params: ReadThreadParams) -> ThreadStoreFuture<'_, StoredChat> {
         Box::pin(async move { read_thread::read_thread(self, params).await })
     }
 
     fn read_thread_by_rollout_path(
         &self,
         params: ReadThreadByRolloutPathParams,
-    ) -> ThreadStoreFuture<'_, StoredThread> {
+    ) -> ThreadStoreFuture<'_, StoredChat> {
         Box::pin(LocalThreadStore::read_thread_by_rollout_path_params(
             self, params,
         ))
     }
 
-    fn list_threads(&self, params: ListThreadsParams) -> ThreadStoreFuture<'_, ThreadPage> {
+    fn list_threads(&self, params: ListThreadsParams) -> ThreadStoreFuture<'_, ChatPage> {
         Box::pin(async move { list_threads::list_threads(self, params).await })
     }
 
     fn search_threads(
         &self,
         params: SearchThreadsParams,
-    ) -> ThreadStoreFuture<'_, ThreadSearchPage> {
+    ) -> ThreadStoreFuture<'_, ChatSearchPage> {
         Box::pin(async move { search_threads::search_threads(self, params).await })
     }
 
     fn update_thread_metadata(
         &self,
         params: UpdateThreadMetadataParams,
-    ) -> ThreadStoreFuture<'_, StoredThread> {
+    ) -> ThreadStoreFuture<'_, StoredChat> {
         Box::pin(async move { update_thread_metadata::update_thread_metadata(self, params).await })
     }
 
@@ -299,7 +299,7 @@ impl ThreadStore for LocalThreadStore {
         Box::pin(async move { archive_thread::archive_thread(self, params).await })
     }
 
-    fn unarchive_thread(&self, params: ArchiveThreadParams) -> ThreadStoreFuture<'_, StoredThread> {
+    fn unarchive_thread(&self, params: ArchiveThreadParams) -> ThreadStoreFuture<'_, StoredChat> {
         Box::pin(async move { unarchive_thread::unarchive_thread(self, params).await })
     }
 
@@ -319,7 +319,7 @@ mod tests {
     use datax_protocol::models::ResponseItem;
     use datax_protocol::protocol::AgentMessageEvent;
     use datax_protocol::protocol::EventMsg;
-    use datax_protocol::protocol::RolloutItem;
+    use datax_protocol::protocol::RolloutMessage;
     use datax_protocol::protocol::SessionSource;
     use datax_protocol::protocol::ThreadMemoryMode;
     use datax_protocol::protocol::InteractionCompleteEvent;
@@ -350,7 +350,7 @@ mod tests {
             .expect("load rollout path");
 
         store
-            .append_items(AppendThreadItemsParams {
+            .append_items(AppendChatMessagesParams {
                 chat_id,
                 items: vec![user_message_item("first live write")],
             })
@@ -372,7 +372,7 @@ mod tests {
             .await
             .expect("shutdown live thread");
         let err = store
-            .append_items(AppendThreadItemsParams {
+            .append_items(AppendChatMessagesParams {
                 chat_id,
                 items: vec![user_message_item("write after shutdown")],
             })
@@ -403,7 +403,7 @@ mod tests {
             .await
             .expect("create live thread");
         store
-            .append_items(AppendThreadItemsParams {
+            .append_items(AppendChatMessagesParams {
                 chat_id,
                 items: vec![user_message_item("raw append")],
             })
@@ -483,7 +483,7 @@ mod tests {
             .expect("sqlite metadata");
 
         live_thread
-            .append_items(&[RolloutItem::EventMsg(EventMsg::InteractionStarted(
+            .append_items(&[RolloutMessage::EventMsg(EventMsg::InteractionStarted(
                 InteractionStartedEvent {
                     interaction_id: "turn-1".to_string(),
                     trace_id: None,
@@ -504,24 +504,24 @@ mod tests {
 
         live_thread
             .append_items(&[
-                RolloutItem::EventMsg(EventMsg::AgentMessage(AgentMessageEvent {
+                RolloutMessage::EventMsg(EventMsg::AgentMessage(AgentMessageEvent {
                     message: "commentary".to_string(),
                     phase: Some(MessagePhase::Commentary),
                     memory_citation: None,
                 })),
-                RolloutItem::ResponseItem(ResponseItem::FunctionCallOutput {
+                RolloutMessage::ResponseItem(ResponseItem::FunctionCallOutput {
                     id: None,
                     call_id: "call-1".to_string(),
                     output: FunctionCallOutputPayload::from_text("tool output".to_string()),
                     internal_chat_message_metadata_passthrough: None,
                 }),
-                RolloutItem::EventMsg(EventMsg::TokenCount(
+                RolloutMessage::EventMsg(EventMsg::TokenCount(
                     datax_protocol::protocol::TokenCountEvent {
                         info: None,
                         rate_limits: None,
                     },
                 )),
-                RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+                RolloutMessage::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
                     interaction_id: "turn-1".to_string(),
                     last_agent_message: None,
                     completed_at: None,
@@ -599,7 +599,7 @@ mod tests {
             .expect("live rollout path");
 
         live_thread
-            .append_items(&[RolloutItem::EventMsg(EventMsg::TokenCount(
+            .append_items(&[RolloutMessage::EventMsg(EventMsg::TokenCount(
                 datax_protocol::protocol::TokenCountEvent {
                     info: None,
                     rate_limits: None,
@@ -774,7 +774,7 @@ mod tests {
                 .expect("check rollout path")
         );
         let err = store
-            .append_items(AppendThreadItemsParams {
+            .append_items(AppendChatMessagesParams {
                 chat_id,
                 items: vec![user_message_item("write after discard")],
             })
@@ -797,7 +797,7 @@ mod tests {
             .await
             .expect("create initial thread");
         first_store
-            .append_items(AppendThreadItemsParams {
+            .append_items(AppendChatMessagesParams {
                 chat_id,
                 items: vec![user_message_item("before resume")],
             })
@@ -832,7 +832,7 @@ mod tests {
             .await
             .expect("resume live thread");
         resumed_store
-            .append_items(AppendThreadItemsParams {
+            .append_items(AppendChatMessagesParams {
                 chat_id,
                 items: vec![user_message_item("after resume")],
             })
@@ -943,7 +943,7 @@ mod tests {
             .await
             .expect("resume live thread");
         store
-            .append_items(AppendThreadItemsParams {
+            .append_items(AppendChatMessagesParams {
                 chat_id,
                 items: vec![user_message_item("external history item")],
             })
@@ -965,7 +965,7 @@ mod tests {
         assert!(history.items.iter().any(|item| {
             matches!(
                 item,
-                RolloutItem::EventMsg(EventMsg::UserMessage(event)) if event.message == "external history item"
+                RolloutMessage::EventMsg(EventMsg::UserMessage(event)) if event.message == "external history item"
             )
         }));
     }
@@ -1004,7 +1004,7 @@ mod tests {
         assert!(thread.history.expect("history").items.iter().any(|item| {
             matches!(
                 item,
-                RolloutItem::EventMsg(EventMsg::UserMessage(event)) if event.message == "Hello from user"
+                RolloutMessage::EventMsg(EventMsg::UserMessage(event)) if event.message == "Hello from user"
             )
         }));
     }
@@ -1029,7 +1029,7 @@ mod tests {
             .await
             .expect("resume live archived thread");
         store
-            .append_items(AppendThreadItemsParams {
+            .append_items(AppendChatMessagesParams {
                 chat_id,
                 items: vec![user_message_item("archived live history item")],
             })
@@ -1071,7 +1071,7 @@ mod tests {
         assert!(history.items.iter().any(|item| {
             matches!(
                 item,
-                RolloutItem::EventMsg(EventMsg::UserMessage(event)) if event.message == "archived live history item"
+                RolloutMessage::EventMsg(EventMsg::UserMessage(event)) if event.message == "archived live history item"
             )
         }));
     }
@@ -1087,7 +1087,7 @@ mod tests {
             .await
             .expect("create thread");
         store
-            .append_items(AppendThreadItemsParams {
+            .append_items(AppendChatMessagesParams {
                 chat_id,
                 items: vec![user_message_item("path read")],
             })
@@ -1115,7 +1115,7 @@ mod tests {
                 .expect("history")
                 .items
                 .into_iter()
-                .filter(|item| matches!(item, RolloutItem::EventMsg(EventMsg::UserMessage(_))))
+                .filter(|item| matches!(item, RolloutMessage::EventMsg(EventMsg::UserMessage(_))))
                 .count(),
             1
         );
@@ -1145,8 +1145,8 @@ mod tests {
         }
     }
 
-    fn user_message_item(message: &str) -> RolloutItem {
-        RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+    fn user_message_item(message: &str) -> RolloutMessage {
+        RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
             client_id: None,
             message: message.to_string(),
             images: None,
@@ -1163,7 +1163,7 @@ mod tests {
         assert!(items.iter().any(|item| {
             matches!(
                 item,
-                RolloutItem::EventMsg(EventMsg::UserMessage(event)) if event.message == expected
+                RolloutMessage::EventMsg(EventMsg::UserMessage(event)) if event.message == expected
             )
         }));
     }

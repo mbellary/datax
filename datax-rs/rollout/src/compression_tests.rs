@@ -8,7 +8,7 @@ use std::time::SystemTime;
 use datax_protocol::ChatId;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::InitialHistory;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::protocol::SessionMeta;
 use datax_protocol::protocol::SessionMetaLine;
@@ -88,7 +88,7 @@ async fn append_rollout_item_materializes_compressed_rollout() -> anyhow::Result
 
     append_rollout_item_to_path(
         &rollout_path,
-        &RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+        &RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
             message: "hello after append".to_string(),
             ..Default::default()
         })),
@@ -209,7 +209,7 @@ async fn resume_materializes_compressed_rollout_path() -> anyhow::Result<()> {
     assert!(rollout_path.exists());
     assert!(!compressed_path.exists());
     recorder
-        .record_canonical_items(&[RolloutItem::EventMsg(EventMsg::UserMessage(
+        .record_canonical_items(&[RolloutMessage::EventMsg(EventMsg::UserMessage(
             UserMessageEvent {
                 message: "hello after resume".to_string(),
                 ..Default::default()
@@ -263,7 +263,7 @@ async fn append_materialization_preserves_compressed_rollout_permissions() -> an
 
     append_rollout_item_to_path(
         &rollout_path,
-        &RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+        &RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
             message: "materialize restricted transcript".to_string(),
             ..Default::default()
         })),
@@ -480,11 +480,11 @@ fn write_rollout(path: &std::path::Path, chat_id: ChatId, message: &str) -> anyh
     let lines = [
         RolloutLine {
             timestamp: "2025-01-03T12:00:00Z".to_string(),
-            item: RolloutItem::SessionMeta(session_meta_line),
+            item: RolloutMessage::SessionMeta(session_meta_line),
         },
         RolloutLine {
             timestamp: "2025-01-03T12:00:01Z".to_string(),
-            item: RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+            item: RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
                 message: message.to_string(),
                 ..Default::default()
             })),

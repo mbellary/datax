@@ -17,7 +17,7 @@ use tracing::warn;
 
 use crate::SkillMetadata;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::skills::model::SkillToolDependency;
 use datax_mcp::ElicitationReviewerHandle;
 use datax_mcp::McpOAuthLoginSupport;
@@ -33,7 +33,7 @@ const MCP_DEPENDENCY_OPTION_SKIP: &str = "Continue anyway";
 
 pub(crate) async fn maybe_prompt_and_install_mcp_dependencies(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     cancellation_token: &CancellationToken,
     mentioned_skills: &[SkillMetadata],
     elicitation_reviewer: Option<ElicitationReviewerHandle>,
@@ -80,7 +80,7 @@ pub(crate) async fn maybe_prompt_and_install_mcp_dependencies(
 
 pub(crate) async fn maybe_install_mcp_dependencies(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     config: &crate::config::Config,
     mentioned_skills: &[SkillMetadata],
     elicitation_reviewer: Option<ElicitationReviewerHandle>,
@@ -212,7 +212,7 @@ pub(crate) async fn maybe_install_mcp_dependencies(
 
 async fn should_install_mcp_dependencies(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     missing: &HashMap<String, McpServerConfig>,
     cancellation_token: &CancellationToken,
 ) -> bool {

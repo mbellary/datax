@@ -1,7 +1,7 @@
 use datax_protocol::items::AgentMessageContent;
 use datax_protocol::items::AgentMessageItem;
 use datax_protocol::items::ReasoningItem;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::items::UserMessageItem;
 use datax_protocol::items::WebSearchItem;
 use datax_protocol::models::ContentItem;
@@ -142,7 +142,7 @@ fn parse_agent_message(
     }
 }
 
-pub fn parse_turn_item(item: &ResponseItem) -> Option<TurnItem> {
+pub fn parse_turn_item(item: &ResponseItem) -> Option<InteractionMessage> {
     match item {
         ResponseItem::Message {
             role,
@@ -152,9 +152,9 @@ pub fn parse_turn_item(item: &ResponseItem) -> Option<TurnItem> {
             ..
         } => match role.as_str() {
             "user" => parse_visible_hook_prompt_message(id.as_ref(), content)
-                .map(TurnItem::HookPrompt)
-                .or_else(|| parse_user_message(content).map(TurnItem::UserMessage)),
-            "assistant" => Some(TurnItem::AgentMessage(parse_agent_message(
+                .map(InteractionMessage::HookPrompt)
+                .or_else(|| parse_user_message(content).map(InteractionMessage::UserMessage)),
+            "assistant" => Some(InteractionMessage::AgentMessage(parse_agent_message(
                 id.as_ref(),
                 content,
                 phase.clone(),
@@ -183,7 +183,7 @@ pub fn parse_turn_item(item: &ResponseItem) -> Option<TurnItem> {
                     | ReasoningItemContent::Text { text } => text,
                 })
                 .collect();
-            Some(TurnItem::Reasoning(ReasoningItem {
+            Some(InteractionMessage::Reasoning(ReasoningItem {
                 id: id.clone().unwrap_or_default(),
                 summary_text,
                 raw_content,
@@ -194,7 +194,7 @@ pub fn parse_turn_item(item: &ResponseItem) -> Option<TurnItem> {
                 Some(action) => (action.clone(), web_search_action_detail(action)),
                 None => (WebSearchAction::Other, String::new()),
             };
-            Some(TurnItem::WebSearch(WebSearchItem {
+            Some(InteractionMessage::WebSearch(WebSearchItem {
                 id: id.clone().unwrap_or_default(),
                 query,
                 action,
@@ -206,7 +206,7 @@ pub fn parse_turn_item(item: &ResponseItem) -> Option<TurnItem> {
             revised_prompt,
             result,
             ..
-        } => Some(TurnItem::ImageGeneration(
+        } => Some(InteractionMessage::ImageGeneration(
             datax_protocol::items::ImageGenerationItem {
                 id: id.clone()?,
                 status: status.clone(),

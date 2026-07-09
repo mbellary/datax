@@ -1,7 +1,7 @@
 use crate::function_tool::FunctionCallError;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
-use crate::tools::context::SharedTurnDiffTracker;
+use crate::session::turn_context::InteractionContext;
+use crate::tools::context::SharedInteractionDiffTracker;
 use crate::tools::sandboxing::ToolError;
 use crate::turn_timing::now_unix_timestamp_ms;
 use datax_apply_patch::AppliedPatchDelta;
@@ -9,7 +9,7 @@ use datax_protocol::error::CodexErr;
 use datax_protocol::error::SandboxErr;
 use datax_protocol::exec_output::ExecToolCallOutput;
 use datax_protocol::items::FileChangeItem;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::parse_command::ParsedCommand;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::ExecCommandBeginEvent;
@@ -18,7 +18,7 @@ use datax_protocol::protocol::ExecCommandSource;
 use datax_protocol::protocol::ExecCommandStatus;
 use datax_protocol::protocol::FileChange;
 use datax_protocol::protocol::PatchApplyStatus;
-use datax_protocol::protocol::TurnDiffEvent;
+use datax_protocol::protocol::InteractionDiffEvent;
 use datax_shell_command::parse_command::parse_command;
 use datax_utils_absolute_path::AbsolutePathBuf;
 use datax_utils_path_uri::PathUri;
@@ -31,17 +31,17 @@ use super::format_exec_output_str;
 #[derive(Clone, Copy)]
 pub(crate) struct ToolEventCtx<'a> {
     pub session: &'a Session,
-    pub turn: &'a TurnContext,
+    pub turn: &'a InteractionContext,
     pub call_id: &'a str,
-    pub turn_diff_tracker: Option<&'a SharedTurnDiffTracker>,
+    pub turn_diff_tracker: Option<&'a SharedInteractionDiffTracker>,
 }
 
 impl<'a> ToolEventCtx<'a> {
     pub fn new(
         session: &'a Session,
-        turn: &'a TurnContext,
+        turn: &'a InteractionContext,
         call_id: &'a str,
-        turn_diff_tracker: Option<&'a SharedTurnDiffTracker>,
+        turn_diff_tracker: Option<&'a SharedInteractionDiffTracker>,
     ) -> Self {
         Self {
             session,
@@ -70,7 +70,7 @@ pub(crate) enum ToolEventFailure<'a> {
     },
 }
 
-enum TurnDiffTrackerUpdate<'a> {
+enum InteractionDiffTrackerUpdate<'a> {
     Track {
         environment_id: Option<String>,
         delta: &'a AppliedPatchDelta,
@@ -82,11 +82,11 @@ enum TurnDiffTrackerUpdate<'a> {
 fn tracker_update_for_known_delta<'a>(
     environment_id: Option<&str>,
     delta: &'a AppliedPatchDelta,
-) -> TurnDiffTrackerUpdate<'a> {
+) -> InteractionDiffTrackerUpdate<'a> {
     if delta.is_exact() && delta.is_empty() {
-        TurnDiffTrackerUpdate::None
+        InteractionDiffTrackerUpdate::None
     } else {
-        TurnDiffTrackerUpdate::Track {
+        InteractionDiffTrackerUpdate::Track {
             environment_id: environment_id.map(str::to_string),
             delta,
         }
@@ -214,7 +214,7 @@ impl ToolEmitter {
                 ctx.session
                     .emit_turn_item_started(
                         ctx.turn,
-                        &TurnItem::FileChange(FileChangeItem {
+                        &InteractionMessage::FileChange(FileChangeItem {
                             id: ctx.call_id.to_string(),
                             changes: changes.clone(),
                             status: None,
@@ -243,7 +243,7 @@ impl ToolEmitter {
                 };
                 let tracker_update = applied_patch_delta
                     .map(|delta| tracker_update_for_known_delta(environment_id.as_deref(), delta))
-                    .unwrap_or(TurnDiffTrackerUpdate::Invalidate);
+                    .unwrap_or(InteractionDiffTrackerUpdate::Invalidate);
                 emit_patch_end(
                     ctx,
                     changes.clone(),
@@ -268,7 +268,7 @@ impl ToolEmitter {
                     } else {
                         PatchApplyStatus::Failed
                     },
-                    TurnDiffTrackerUpdate::Invalidate,
+                    InteractionDiffTrackerUpdate::Invalidate,
                 )
                 .await;
             }
@@ -282,7 +282,7 @@ impl ToolEmitter {
                     String::new(),
                     (*message).to_string(),
                     PatchApplyStatus::Failed,
-                    TurnDiffTrackerUpdate::None,
+                    InteractionDiffTrackerUpdate::None,
                 )
                 .await;
             }
@@ -307,7 +307,7 @@ impl ToolEmitter {
                         .map(|delta| {
                             tracker_update_for_known_delta(environment_id.as_deref(), delta)
                         })
-                        .unwrap_or(TurnDiffTrackerUpdate::None),
+                        .unwrap_or(InteractionDiffTrackerUpdate::None),
                 )
                 .await;
             }
@@ -573,12 +573,12 @@ async fn emit_patch_end(
     stdout: String,
     stderr: String,
     status: PatchApplyStatus,
-    tracker_update: TurnDiffTrackerUpdate<'_>,
+    tracker_update: InteractionDiffTrackerUpdate<'_>,
 ) {
     ctx.session
         .emit_turn_item_completed(
             ctx.turn,
-            TurnItem::FileChange(FileChangeItem {
+            InteractionMessage::FileChange(FileChangeItem {
                 id: ctx.call_id.to_string(),
                 changes,
                 status: Some(status),
@@ -594,18 +594,18 @@ async fn emit_patch_end(
             let mut guard = tracker.lock().await;
             let had_unified_diff = guard.has_unified_diff();
             let tracker_changed = match tracker_update {
-                TurnDiffTrackerUpdate::Track {
+                InteractionDiffTrackerUpdate::Track {
                     environment_id,
                     delta,
                 } => {
                     guard.track_delta(environment_id.as_deref().unwrap_or_default(), delta);
                     true
                 }
-                TurnDiffTrackerUpdate::Invalidate => {
+                InteractionDiffTrackerUpdate::Invalidate => {
                     guard.invalidate();
                     true
                 }
-                TurnDiffTrackerUpdate::None => false,
+                InteractionDiffTrackerUpdate::None => false,
             };
             let unified_diff = guard.get_unified_diff();
             (
@@ -615,7 +615,7 @@ async fn emit_patch_end(
         };
         if should_emit_turn_diff {
             ctx.session
-                .send_event(ctx.turn, EventMsg::TurnDiff(TurnDiffEvent { unified_diff }))
+                .send_event(ctx.turn, EventMsg::InteractionDiff(InteractionDiffEvent { unified_diff }))
                 .await;
         }
     }
@@ -625,12 +625,12 @@ async fn emit_patch_end(
 mod tests {
     use super::*;
     use crate::session::tests::make_session_and_context_with_dynamic_tools_and_rx;
-    use crate::turn_diff_tracker::TurnDiffTracker;
+    use crate::turn_diff_tracker::InteractionDiffTracker;
     use datax_exec_server::LOCAL_FS;
     use datax_protocol::error::CodexErr;
     use datax_protocol::error::SandboxErr;
     use datax_protocol::exec_output::ExecToolCallOutput;
-    use datax_protocol::items::TurnItem;
+    use datax_protocol::items::InteractionMessage;
     use datax_protocol::protocol::PatchApplyStatus;
     use datax_utils_path_uri::PathUri;
     use std::sync::Arc;
@@ -643,7 +643,7 @@ mod tests {
     ) {
         let (session, turn, rx_event) =
             make_session_and_context_with_dynamic_tools_and_rx(Vec::new()).await;
-        let tracker = Arc::new(Mutex::new(TurnDiffTracker::new()));
+        let tracker = Arc::new(Mutex::new(InteractionDiffTracker::new()));
         let dir = tempdir().expect("tempdir");
         let cwd = PathUri::from_host_native_path(dir.path()).expect("absolute cwd");
         let mut stdout = Vec::new();
@@ -675,10 +675,10 @@ mod tests {
         let completed = rx_event.recv().await.expect("item completed event");
         assert!(matches!(
             completed.msg,
-            EventMsg::ItemCompleted(event)
+            EventMsg::MessageCompleted(event)
                 if matches!(
                     &event.item,
-                    TurnItem::FileChange(FileChangeItem {
+                    InteractionMessage::FileChange(FileChangeItem {
                         status: Some(status),
                         ..
                     }) if status == &expected_status
@@ -690,7 +690,7 @@ mod tests {
                 .await
                 .expect("turn diff event")
                 .expect("channel open");
-            if let EventMsg::TurnDiff(TurnDiffEvent { unified_diff }) = event.msg {
+            if let EventMsg::InteractionDiff(InteractionDiffEvent { unified_diff }) = event.msg {
                 break unified_diff;
             }
         };
@@ -727,7 +727,7 @@ mod tests {
     async fn net_zero_patch_emits_empty_turn_diff() {
         let (session, turn, rx_event) =
             make_session_and_context_with_dynamic_tools_and_rx(Vec::new()).await;
-        let tracker = Arc::new(Mutex::new(TurnDiffTracker::new()));
+        let tracker = Arc::new(Mutex::new(InteractionDiffTracker::new()));
         let dir = tempdir().expect("tempdir");
         let cwd = PathUri::from_host_native_path(dir.path()).expect("absolute cwd");
 
@@ -754,7 +754,7 @@ mod tests {
                 String::new(),
                 String::new(),
                 PatchApplyStatus::Completed,
-                TurnDiffTrackerUpdate::Track {
+                InteractionDiffTrackerUpdate::Track {
                     environment_id: None,
                     delta: &delta,
                 },
@@ -764,7 +764,7 @@ mod tests {
             rx_event.recv().await.expect("item completed event");
             let unified_diff = loop {
                 let event = rx_event.recv().await.expect("turn diff event");
-                if let EventMsg::TurnDiff(TurnDiffEvent { unified_diff }) = event.msg {
+                if let EventMsg::InteractionDiff(InteractionDiffEvent { unified_diff }) = event.msg {
                     break unified_diff;
                 }
             };
@@ -780,7 +780,7 @@ mod tests {
     async fn invalidation_emits_empty_turn_diff() {
         let (session, turn, rx_event) =
             make_session_and_context_with_dynamic_tools_and_rx(Vec::new()).await;
-        let tracker = Arc::new(Mutex::new(TurnDiffTracker::new()));
+        let tracker = Arc::new(Mutex::new(InteractionDiffTracker::new()));
         let dir = tempdir().expect("tempdir");
         let cwd = PathUri::from_host_native_path(dir.path()).expect("absolute cwd");
         let mut stdout = Vec::new();
@@ -803,14 +803,14 @@ mod tests {
             String::new(),
             String::new(),
             PatchApplyStatus::Completed,
-            TurnDiffTrackerUpdate::Invalidate,
+            InteractionDiffTrackerUpdate::Invalidate,
         )
         .await;
 
         rx_event.recv().await.expect("item completed event");
         loop {
             let event = rx_event.recv().await.expect("turn diff event");
-            if let EventMsg::TurnDiff(TurnDiffEvent { unified_diff }) = event.msg {
+            if let EventMsg::InteractionDiff(InteractionDiffEvent { unified_diff }) = event.msg {
                 assert_eq!(unified_diff, "");
                 break;
             }

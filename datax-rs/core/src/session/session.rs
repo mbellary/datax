@@ -522,7 +522,7 @@ impl Session {
         let resumed_session_id = match &initial_history {
             InitialHistory::Resumed(resumed) => {
                 resumed.history.iter().find_map(|item| match item {
-                    RolloutItem::SessionMeta(meta_line) => Some(meta_line.meta.session_id),
+                    RolloutMessage::SessionMeta(meta_line) => Some(meta_line.meta.session_id),
                     _ => None,
                 })
             }

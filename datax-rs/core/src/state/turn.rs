@@ -20,7 +20,7 @@ use tokio::sync::oneshot;
 
 use crate::agent::control::AgentExecutionGuard;
 use crate::session::TurnInputQueue;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::tasks::AnySessionTask;
 use datax_protocol::models::AdditionalPermissionProfile;
 use datax_protocol::protocol::ReviewDecision;
@@ -75,7 +75,7 @@ pub(crate) struct RunningTask {
     pub(crate) task: Arc<dyn AnySessionTask>,
     pub(crate) cancellation_token: CancellationToken,
     pub(crate) handle: AbortOnDropHandle<()>,
-    pub(crate) turn_context: Arc<TurnContext>,
+    pub(crate) turn_context: Arc<InteractionContext>,
     pub(crate) turn_extension_data: Arc<ExtensionData>,
     pub(crate) _agent_execution_guard: Option<AgentExecutionGuard>,
     // Timer recorded when the task drops to capture the full turn duration.

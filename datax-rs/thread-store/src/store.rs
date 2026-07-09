@@ -3,26 +3,26 @@ use std::any::Any;
 use std::future::Future;
 use std::pin::Pin;
 
-use crate::AppendThreadItemsParams;
+use crate::AppendChatMessagesParams;
 use crate::ArchiveThreadParams;
 use crate::CreateThreadParams;
 use crate::DeleteThreadParams;
-use crate::ItemPage;
-use crate::ListItemsParams;
+use crate::MessagePage;
+use crate::ListMessagesParams;
 use crate::ListThreadsParams;
-use crate::ListTurnsParams;
+use crate::ListInteractionsParams;
 use crate::LoadThreadHistoryParams;
 use crate::ReadThreadByRolloutPathParams;
 use crate::ReadThreadParams;
 use crate::ResumeThreadParams;
 use crate::SearchThreadsParams;
-use crate::StoredThread;
-use crate::StoredThreadHistory;
-use crate::ThreadPage;
-use crate::ThreadSearchPage;
+use crate::StoredChat;
+use crate::StoredChatHistory;
+use crate::ChatPage;
+use crate::ChatSearchPage;
 use crate::ThreadStoreError;
 use crate::ThreadStoreResult;
-use crate::TurnPage;
+use crate::InteractionPage;
 use crate::UpdateThreadMetadataParams;
 
 /// Future returned by [`ThreadStore`] operations.
@@ -43,7 +43,7 @@ pub trait ThreadStore: Any + Send + Sync {
     ///
     /// Implementations should apply the shared rollout persistence policy before writing durable
     /// replay history and before updating any implementation-owned projections.
-    fn append_items(&self, params: AppendThreadItemsParams) -> ThreadStoreFuture<'_, ()>;
+    fn append_items(&self, params: AppendChatMessagesParams) -> ThreadStoreFuture<'_, ()>;
 
     /// Materializes the thread if persistence is lazy, then persists all queued items.
     fn persist_thread(&self, chat_id: ChatId) -> ThreadStoreFuture<'_, ()>;
@@ -65,10 +65,10 @@ pub trait ThreadStore: Any + Send + Sync {
     fn load_history(
         &self,
         params: LoadThreadHistoryParams,
-    ) -> ThreadStoreFuture<'_, StoredThreadHistory>;
+    ) -> ThreadStoreFuture<'_, StoredChatHistory>;
 
     /// Reads a thread summary and optionally its persisted history.
-    fn read_thread(&self, params: ReadThreadParams) -> ThreadStoreFuture<'_, StoredThread>;
+    fn read_thread(&self, params: ReadThreadParams) -> ThreadStoreFuture<'_, StoredChat>;
 
     /// Reads a rollout-backed thread by path when the store supports path-addressed lookups.
     ///
@@ -76,16 +76,16 @@ pub trait ThreadStore: Any + Send + Sync {
     fn read_thread_by_rollout_path(
         &self,
         params: ReadThreadByRolloutPathParams,
-    ) -> ThreadStoreFuture<'_, StoredThread>;
+    ) -> ThreadStoreFuture<'_, StoredChat>;
 
     /// Lists stored threads matching the supplied filters.
-    fn list_threads(&self, params: ListThreadsParams) -> ThreadStoreFuture<'_, ThreadPage>;
+    fn list_threads(&self, params: ListThreadsParams) -> ThreadStoreFuture<'_, ChatPage>;
 
     /// Searches stored threads and returns search-only preview metadata.
     fn search_threads(
         &self,
         _params: SearchThreadsParams,
-    ) -> ThreadStoreFuture<'_, ThreadSearchPage> {
+    ) -> ThreadStoreFuture<'_, ChatSearchPage> {
         Box::pin(async {
             Err(ThreadStoreError::Unsupported {
                 operation: "thread/search",
@@ -94,7 +94,7 @@ pub trait ThreadStore: Any + Send + Sync {
     }
 
     /// Lists turns within a stored thread.
-    fn list_turns(&self, _params: ListTurnsParams) -> ThreadStoreFuture<'_, TurnPage> {
+    fn list_turns(&self, _params: ListInteractionsParams) -> ThreadStoreFuture<'_, InteractionPage> {
         Box::pin(async {
             Err(ThreadStoreError::Unsupported {
                 operation: "list_turns",
@@ -103,10 +103,10 @@ pub trait ThreadStore: Any + Send + Sync {
     }
 
     /// Lists persisted items within a stored thread, optionally filtered to a turn.
-    fn list_items(&self, _params: ListItemsParams) -> ThreadStoreFuture<'_, ItemPage> {
+    fn list_messages(&self, _params: ListMessagesParams) -> ThreadStoreFuture<'_, MessagePage> {
         Box::pin(async {
             Err(ThreadStoreError::Unsupported {
-                operation: "list_items",
+                operation: "list_messages",
             })
         })
     }
@@ -118,13 +118,13 @@ pub trait ThreadStore: Any + Send + Sync {
     fn update_thread_metadata(
         &self,
         params: UpdateThreadMetadataParams,
-    ) -> ThreadStoreFuture<'_, StoredThread>;
+    ) -> ThreadStoreFuture<'_, StoredChat>;
 
     /// Archives a thread.
     fn archive_thread(&self, params: ArchiveThreadParams) -> ThreadStoreFuture<'_, ()>;
 
     /// Unarchives a thread and returns its updated metadata.
-    fn unarchive_thread(&self, params: ArchiveThreadParams) -> ThreadStoreFuture<'_, StoredThread>;
+    fn unarchive_thread(&self, params: ArchiveThreadParams) -> ThreadStoreFuture<'_, StoredChat>;
 
     /// Deletes a thread's persisted rollout data and associated metadata.
     fn delete_thread(&self, params: DeleteThreadParams) -> ThreadStoreFuture<'_, ()>;

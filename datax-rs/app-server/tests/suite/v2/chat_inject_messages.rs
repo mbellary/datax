@@ -15,7 +15,7 @@ use datax_core::RolloutRecorder;
 use datax_protocol::models::ContentItem;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::InitialHistory;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use serde_json::Value;
 use std::path::Path;
 use tempfile::TempDir;
@@ -86,7 +86,7 @@ async fn thread_inject_items_adds_raw_response_items_to_thread_history() -> Resu
         resumed_history
             .history
             .iter()
-            .any(|item| matches!(item, RolloutItem::ResponseItem(response_item) if responses::strip_metadata(response_item.clone()) == injected_item)),
+            .any(|item| matches!(item, RolloutMessage::ResponseItem(response_item) if responses::strip_metadata(response_item.clone()) == injected_item)),
         "injected item should be persisted in rollout history"
     );
 

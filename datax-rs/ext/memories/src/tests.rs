@@ -4,7 +4,7 @@ use std::sync::Arc;
 use datax_extension_api::ContextContributor;
 use datax_extension_api::ExtensionData;
 use datax_extension_api::ExtensionRegistryBuilder;
-use datax_extension_api::NoopTurnItemEmitter;
+use datax_extension_api::NoopInteractionMessageEmitter;
 use datax_extension_api::PromptSlot;
 use datax_extension_api::ToolCall;
 use datax_extension_api::ToolContributor;
@@ -214,7 +214,7 @@ async fn add_ad_hoc_note_tool_creates_note_file() {
             model: "gpt-test".to_string(),
             truncation_policy: TruncationPolicy::Bytes(1024),
             conversation_history: datax_extension_api::ConversationHistory::default(),
-            turn_item_emitter: Arc::new(NoopTurnItemEmitter),
+            turn_item_emitter: Arc::new(NoopInteractionMessageEmitter),
             environments: Vec::new(),
             payload: payload.clone(),
         })
@@ -258,7 +258,7 @@ async fn add_ad_hoc_note_tool_rejects_paths_as_filenames() {
             model: "gpt-test".to_string(),
             truncation_policy: TruncationPolicy::Bytes(1024),
             conversation_history: datax_extension_api::ConversationHistory::default(),
-            turn_item_emitter: Arc::new(NoopTurnItemEmitter),
+            turn_item_emitter: Arc::new(NoopInteractionMessageEmitter),
             environments: Vec::new(),
             payload,
         })
@@ -303,7 +303,7 @@ async fn read_tool_reads_memory_file() {
             model: "gpt-test".to_string(),
             truncation_policy: TruncationPolicy::Bytes(1024),
             conversation_history: datax_extension_api::ConversationHistory::default(),
-            turn_item_emitter: Arc::new(NoopTurnItemEmitter),
+            turn_item_emitter: Arc::new(NoopInteractionMessageEmitter),
             environments: Vec::new(),
             payload: payload.clone(),
         })
@@ -351,7 +351,7 @@ async fn search_tool_accepts_multiple_queries() {
             model: "gpt-test".to_string(),
             truncation_policy: TruncationPolicy::Bytes(1024),
             conversation_history: datax_extension_api::ConversationHistory::default(),
-            turn_item_emitter: Arc::new(NoopTurnItemEmitter),
+            turn_item_emitter: Arc::new(NoopInteractionMessageEmitter),
             environments: Vec::new(),
             payload: payload.clone(),
         })
@@ -425,7 +425,7 @@ async fn search_tool_accepts_windowed_all_match_mode() {
             model: "gpt-test".to_string(),
             truncation_policy: TruncationPolicy::Bytes(1024),
             conversation_history: datax_extension_api::ConversationHistory::default(),
-            turn_item_emitter: Arc::new(NoopTurnItemEmitter),
+            turn_item_emitter: Arc::new(NoopInteractionMessageEmitter),
             environments: Vec::new(),
             payload: payload.clone(),
         })
@@ -479,7 +479,7 @@ async fn search_tool_rejects_legacy_single_query() {
             model: "gpt-test".to_string(),
             truncation_policy: TruncationPolicy::Bytes(1024),
             conversation_history: datax_extension_api::ConversationHistory::default(),
-            turn_item_emitter: Arc::new(NoopTurnItemEmitter),
+            turn_item_emitter: Arc::new(NoopInteractionMessageEmitter),
             environments: Vec::new(),
             payload,
         })

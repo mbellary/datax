@@ -7,7 +7,7 @@ use std::sync::Weak;
 
 use datax_protocol::ChatId;
 use datax_protocol::protocol::EventMsg;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::ThreadGoal;
 use datax_protocol::protocol::ThreadGoalStatus;
 use datax_protocol::protocol::ThreadGoalUpdatedEvent;
@@ -64,8 +64,8 @@ pub struct GoalSetOutcome {
 }
 
 impl GoalSetOutcome {
-    pub fn thread_goal_updated_item(&self) -> RolloutItem {
-        RolloutItem::EventMsg(EventMsg::ThreadGoalUpdated(ThreadGoalUpdatedEvent {
+    pub fn thread_goal_updated_item(&self) -> RolloutMessage {
+        RolloutMessage::EventMsg(EventMsg::ThreadGoalUpdated(ThreadGoalUpdatedEvent {
             chat_id: self.goal.chat_id,
             interaction_id: None,
             goal: self.goal.clone(),

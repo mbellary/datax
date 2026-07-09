@@ -8,7 +8,7 @@ use chrono::Utc;
 use datax_protocol::ChatId;
 use datax_protocol::protocol::CompactedItem;
 use datax_protocol::protocol::GitInfo;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::protocol::SessionMeta;
 use datax_protocol::protocol::SessionMetaLine;
@@ -58,7 +58,7 @@ async fn extract_metadata_from_rollout_uses_session_meta() {
     };
     let rollout_line = RolloutLine {
         timestamp: "2026-01-27T12:34:56Z".to_string(),
-        item: RolloutItem::SessionMeta(session_meta_line.clone()),
+        item: RolloutMessage::SessionMeta(session_meta_line.clone()),
     };
     let json = serde_json::to_string(&rollout_line).expect("rollout json");
     let mut file = File::create(&path).expect("create rollout");
@@ -116,14 +116,14 @@ async fn extract_metadata_from_rollout_returns_latest_memory_mode() {
     let lines = vec![
         RolloutLine {
             timestamp: "2026-01-27T12:34:56Z".to_string(),
-            item: RolloutItem::SessionMeta(SessionMetaLine {
+            item: RolloutMessage::SessionMeta(SessionMetaLine {
                 meta: session_meta,
                 git: None,
             }),
         },
         RolloutLine {
             timestamp: "2026-01-27T12:35:00Z".to_string(),
-            item: RolloutItem::SessionMeta(SessionMetaLine {
+            item: RolloutMessage::SessionMeta(SessionMetaLine {
                 meta: polluted_meta,
                 git: None,
             }),
@@ -153,7 +153,7 @@ fn builder_from_items_falls_back_to_filename() {
     let path = dir
         .path()
         .join(format!("rollout-2026-01-27T12-34-56-{uuid}.jsonl"));
-    let items = vec![RolloutItem::Compacted(CompactedItem {
+    let items = vec![RolloutMessage::Compacted(CompactedItem {
         message: "noop".to_string(),
         replacement_history: None,
         window_number: None,
@@ -382,7 +382,7 @@ fn write_rollout_in_sessions_with_cwd(
     };
     let rollout_line = RolloutLine {
         timestamp: event_ts.to_string(),
-        item: RolloutItem::SessionMeta(session_meta_line),
+        item: RolloutMessage::SessionMeta(session_meta_line),
     };
     let json = serde_json::to_string(&rollout_line).expect("serialize rollout");
     let mut file = File::create(&path).expect("create rollout");

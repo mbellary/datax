@@ -6,7 +6,7 @@ use datax_mcp::CODEX_APPS_MCP_SERVER_NAME;
 use datax_protocol::items::McpToolCallError;
 use datax_protocol::items::McpToolCallItem;
 use datax_protocol::items::McpToolCallStatus;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::mcp::CallToolResult;
 use datax_protocol::protocol::TruncationPolicy;
 use datax_utils_output_truncation::truncate_text;
@@ -22,7 +22,7 @@ use serde_json::Value;
 
 use crate::function_tool::FunctionCallError;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::tools::context::FunctionToolOutput;
 use datax_protocol::protocol::McpInvocation;
 
@@ -34,12 +34,12 @@ pub use list_mcp_resource_templates::ListMcpResourceTemplatesHandler;
 pub use list_mcp_resources::ListMcpResourcesHandler;
 pub use read_mcp_resource::ReadMcpResourceHandler;
 
-fn model_can_access_mcp_server(turn: &TurnContext, server: &str) -> bool {
+fn model_can_access_mcp_server(turn: &InteractionContext, server: &str) -> bool {
     turn.config.orchestrator_mcp_enabled || server != CODEX_APPS_MCP_SERVER_NAME
 }
 
 fn ensure_model_can_access_mcp_server(
-    turn: &TurnContext,
+    turn: &InteractionContext,
     server: &str,
 ) -> Result<(), FunctionCallError> {
     if model_can_access_mcp_server(turn, server) {
@@ -207,7 +207,7 @@ fn call_tool_result_from_content(content: &str, success: Option<bool>) -> CallTo
 
 async fn emit_tool_call_begin(
     session: &Arc<Session>,
-    turn: &TurnContext,
+    turn: &InteractionContext,
     call_id: &str,
     invocation: McpInvocation,
 ) {
@@ -216,7 +216,7 @@ async fn emit_tool_call_begin(
         tool,
         arguments,
     } = invocation;
-    let item = TurnItem::McpToolCall(McpToolCallItem {
+    let item = InteractionMessage::McpToolCall(McpToolCallItem {
         id: call_id.to_string(),
         server,
         tool,
@@ -235,7 +235,7 @@ async fn emit_tool_call_begin(
 
 async fn emit_tool_call_end(
     session: &Arc<Session>,
-    turn: &TurnContext,
+    turn: &InteractionContext,
     call_id: &str,
     invocation: McpInvocation,
     duration: Duration,
@@ -257,7 +257,7 @@ async fn emit_tool_call_end(
         tool,
         arguments,
     } = invocation;
-    let item = TurnItem::McpToolCall(McpToolCallItem {
+    let item = InteractionMessage::McpToolCall(McpToolCallItem {
         id: call_id.to_string(),
         server,
         tool,

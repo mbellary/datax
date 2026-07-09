@@ -453,7 +453,7 @@ async fn dispatch_notifies_tool_lifecycle_contributors() -> anyhow::Result<()> {
 
 fn test_invocation(
     session: Arc<crate::session::session::Session>,
-    turn: Arc<crate::session::turn_context::TurnContext>,
+    turn: Arc<crate::session::turn_context::InteractionContext>,
     call_id: &str,
     tool_name: datax_tools::ToolName,
 ) -> ToolInvocation {
@@ -462,7 +462,7 @@ fn test_invocation(
         turn,
         cancellation_token: tokio_util::sync::CancellationToken::new(),
         tracker: Arc::new(tokio::sync::Mutex::new(
-            crate::turn_diff_tracker::TurnDiffTracker::new(),
+            crate::turn_diff_tracker::InteractionDiffTracker::new(),
         )),
         call_id: call_id.to_string(),
         tool_name,

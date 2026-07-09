@@ -1,11 +1,11 @@
-use super::turn_context::TurnContext;
+use super::turn_context::InteractionContext;
 use crate::context::world_state::EnvironmentsState;
 use crate::context::world_state::WorldState;
 use crate::environment_selection::TurnEnvironmentSnapshot;
-use datax_protocol::protocol::TurnContextItem;
+use datax_protocol::protocol::InteractionContextMessage;
 
 pub(super) fn build_world_state_from_turn_context(
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     environment_subagents: &str,
 ) -> WorldState {
     let mut world_state = WorldState::default();
@@ -19,7 +19,7 @@ pub(super) fn build_world_state_from_turn_context(
 }
 
 pub(super) fn build_world_state_from_environment_snapshot(
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     environments: &TurnEnvironmentSnapshot,
 ) -> WorldState {
     let mut world_state = WorldState::default();
@@ -33,7 +33,7 @@ pub(super) fn build_world_state_from_environment_snapshot(
 }
 
 pub(super) fn build_world_state_from_turn_context_item(
-    turn_context_item: &TurnContextItem,
+    turn_context_item: &InteractionContextMessage,
 ) -> WorldState {
     let mut world_state = WorldState::default();
     world_state.add_section(EnvironmentsState::from_turn_context_item(turn_context_item));

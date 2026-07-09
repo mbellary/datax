@@ -21,10 +21,10 @@ use crate::function_tool::FunctionCallError;
 use crate::original_image_detail::can_request_original_image_detail;
 use crate::original_image_detail::sanitize_original_image_detail as sanitize_image_detail_items;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::tools::ToolRouter;
 use crate::tools::context::FunctionToolOutput;
-use crate::tools::context::SharedTurnDiffTracker;
+use crate::tools::context::SharedInteractionDiffTracker;
 use crate::tools::context::ToolPayload;
 use crate::tools::effective_tool_mode;
 use crate::tools::parallel::ToolCallRuntime;
@@ -55,7 +55,7 @@ pub(crate) fn is_exec_tool_name(tool_name: &ToolName) -> bool {
 #[derive(Clone)]
 pub(crate) struct ExecContext {
     pub(super) session: Arc<Session>,
-    pub(super) turn: Arc<TurnContext>,
+    pub(super) turn: Arc<InteractionContext>,
 }
 
 pub(crate) struct CodeModeService {
@@ -113,9 +113,9 @@ impl CodeModeService {
     pub(crate) fn start_turn_worker(
         &self,
         session: &Arc<Session>,
-        turn: &Arc<TurnContext>,
+        turn: &Arc<InteractionContext>,
         router: Arc<ToolRouter>,
-        tracker: SharedTurnDiffTracker,
+        tracker: SharedInteractionDiffTracker,
     ) -> Option<CodeModeDispatchWorker> {
         let tool_mode = effective_tool_mode(turn);
         if !matches!(tool_mode, ToolMode::CodeMode | ToolMode::CodeModeOnly)
@@ -187,7 +187,7 @@ pub(super) async fn handle_runtime_response(
     }
 }
 
-fn sanitize_runtime_image_detail(turn: &TurnContext, items: &mut [FunctionCallOutputContentItem]) {
+fn sanitize_runtime_image_detail(turn: &InteractionContext, items: &mut [FunctionCallOutputContentItem]) {
     sanitize_image_detail_items(can_request_original_image_detail(&turn.model_info), items);
 }
 

@@ -7,12 +7,12 @@ use core_test_support::wait_for_event;
 use datax_core::ForkSnapshot;
 use datax_core::NewChat;
 use datax_core::parse_turn_item;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::InitialHistory;
 use datax_protocol::protocol::Op;
 use datax_protocol::protocol::ResumedHistory;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::user_input::UserInput;
 use wiremock::Mock;
@@ -72,11 +72,11 @@ async fn fork_chat_twice_drops_to_first_message() {
     // Compute expected prefixes after each fork by truncating base rollout
     // strictly before the nth user input (0-based).
     let base_items = read_rollout_items(&base_path);
-    let find_user_input_positions = |items: &[RolloutItem]| -> Vec<usize> {
+    let find_user_input_positions = |items: &[RolloutMessage]| -> Vec<usize> {
         let mut pos = Vec::new();
         for (i, it) in items.iter().enumerate() {
-            if let RolloutItem::ResponseItem(response_item) = it
-                && let Some(TurnItem::UserMessage(_)) = parse_turn_item(response_item)
+            if let RolloutMessage::ResponseItem(response_item) = it
+                && let Some(InteractionMessage::UserMessage(_)) = parse_turn_item(response_item)
             {
                 // Consider any user message as an input boundary; recorder stores both EventMsg and ResponseItem.
                 // We specifically look for input items, which are represented as ContentItem::InputText.
@@ -89,7 +89,7 @@ async fn fork_chat_twice_drops_to_first_message() {
 
     // After cutting at nth user input (n=1 → second user message), cut strictly before that input.
     let cut1 = user_inputs.get(1).copied().unwrap_or(0);
-    let expected_after_first: Vec<RolloutItem> = base_items[..cut1].to_vec();
+    let expected_after_first: Vec<RolloutMessage> = base_items[..cut1].to_vec();
 
     // After dropping again (n=1 on fork1), compute expected relative to fork1's rollout.
 
@@ -138,7 +138,7 @@ async fn fork_chat_twice_drops_to_first_message() {
         .get(fork1_user_inputs.len().saturating_sub(1))
         .copied()
         .unwrap_or(0);
-    let expected_after_second: Vec<RolloutItem> = fork1_items[..cut_last_on_fork1].to_vec();
+    let expected_after_second: Vec<RolloutMessage> = fork1_items[..cut_last_on_fork1].to_vec();
     let fork2_items = read_rollout_items(&fork2_path);
     pretty_assertions::assert_eq!(
         serde_json::to_value(&fork2_items).unwrap(),
@@ -220,10 +220,10 @@ async fn fork_chat_from_history_does_not_require_source_rollout_path() {
     );
 }
 
-fn read_rollout_items(path: &std::path::Path) -> Vec<RolloutItem> {
+fn read_rollout_items(path: &std::path::Path) -> Vec<RolloutMessage> {
     let read_message = format!("failed to read rollout file {}", path.display());
     let text = std::fs::read_to_string(path).expect(&read_message);
-    let mut items: Vec<RolloutItem> = Vec::new();
+    let mut items: Vec<RolloutMessage> = Vec::new();
     for line in text.lines() {
         if line.trim().is_empty() {
             continue;
@@ -233,7 +233,7 @@ fn read_rollout_items(path: &std::path::Path) -> Vec<RolloutItem> {
         let parse_line_message = format!("failed to parse rollout line `{line}`");
         let rl: RolloutLine = serde_json::from_value(v).expect(&parse_line_message);
         match rl.item {
-            RolloutItem::SessionMeta(_) => {}
+            RolloutMessage::SessionMeta(_) => {}
             other => items.push(other),
         }
     }

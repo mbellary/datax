@@ -13,7 +13,7 @@ use datax_protocol::error::CodexErr;
 use datax_protocol::models::BaseInstructions;
 use datax_protocol::models::ContentItem;
 use datax_protocol::models::ResponseItem;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::TokenUsage;
 use datax_rollout::INTERACTIVE_SESSION_SOURCES;
 use datax_rollout::should_persist_response_item_for_memories;
@@ -402,19 +402,19 @@ mod job {
 
     /// Serializes filtered stage-1 memory items for prompt inclusion.
     pub(super) fn serialize_filtered_rollout_response_items(
-        items: &[RolloutItem],
+        items: &[RolloutMessage],
     ) -> datax_protocol::error::Result<String> {
         let filtered = items
             .iter()
             .filter_map(|item| match item {
-                RolloutItem::ResponseItem(item) => sanitize_response_item_for_memories(item),
-                RolloutItem::InterAgentCommunication(communication) => {
+                RolloutMessage::ResponseItem(item) => sanitize_response_item_for_memories(item),
+                RolloutMessage::InterAgentCommunication(communication) => {
                     Some(communication.to_model_input_item())
                 }
-                RolloutItem::SessionMeta(_)
-                | RolloutItem::Compacted(_)
-                | RolloutItem::TurnContext(_)
-                | RolloutItem::EventMsg(_) => None,
+                RolloutMessage::SessionMeta(_)
+                | RolloutMessage::Compacted(_)
+                | RolloutMessage::InteractionContext(_)
+                | RolloutMessage::EventMsg(_) => None,
             })
             .collect::<Vec<_>>();
         let serialized = serde_json::to_string(&filtered).map_err(|err| {
@@ -712,9 +712,9 @@ mod tests {
         };
 
         let serialized = job::serialize_filtered_rollout_response_items(&[
-            RolloutItem::ResponseItem(mixed_contextual_message),
-            RolloutItem::ResponseItem(skill_message),
-            RolloutItem::ResponseItem(subagent_message.clone()),
+            RolloutMessage::ResponseItem(mixed_contextual_message),
+            RolloutMessage::ResponseItem(skill_message),
+            RolloutMessage::ResponseItem(subagent_message.clone()),
         ])
         .expect("serialize");
         let parsed: Vec<ResponseItem> = serde_json::from_str(&serialized).expect("parse");
@@ -740,7 +740,7 @@ mod tests {
     #[test]
     fn serializes_memory_rollout_redacts_secrets_before_prompt_upload() {
         let serialized =
-            job::serialize_filtered_rollout_response_items(&[RolloutItem::ResponseItem(
+            job::serialize_filtered_rollout_response_items(&[RolloutMessage::ResponseItem(
                 ResponseItem::FunctionCallOutput {
                     id: None,
                     call_id: "call_123".to_string(),
@@ -781,8 +781,8 @@ mod tests {
         ];
 
         let serialized = job::serialize_filtered_rollout_response_items(&[
-            RolloutItem::InterAgentCommunication(plaintext),
-            RolloutItem::InterAgentCommunication(encrypted),
+            RolloutMessage::InterAgentCommunication(plaintext),
+            RolloutMessage::InterAgentCommunication(encrypted),
         ])
         .expect("serialize");
         let parsed: Vec<ResponseItem> = serde_json::from_str(&serialized).expect("parse");

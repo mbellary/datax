@@ -1,7 +1,7 @@
 use crate::function_tool::FunctionCallError;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
-use crate::tools::context::SharedTurnDiffTracker;
+use crate::session::turn_context::InteractionContext;
+use crate::tools::context::SharedInteractionDiffTracker;
 use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolPayload;
 use crate::tools::handlers::ToolSearchHandlerCache;
@@ -59,7 +59,7 @@ pub(crate) struct ToolSuggestCandidates {
 
 impl ToolRouter {
     pub(crate) fn from_turn_context(
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         params: ToolRouterParams<'_>,
         tool_search_handler_cache: &ToolSearchHandlerCache,
     ) -> Self {
@@ -164,9 +164,9 @@ impl ToolRouter {
     pub async fn dispatch_tool_call_with_code_mode_result(
         &self,
         session: Arc<Session>,
-        turn: Arc<TurnContext>,
+        turn: Arc<InteractionContext>,
         cancellation_token: CancellationToken,
-        tracker: SharedTurnDiffTracker,
+        tracker: SharedInteractionDiffTracker,
         call: ToolCall,
         source: ToolCallSource,
     ) -> Result<AnyToolResult, FunctionCallError> {
@@ -187,9 +187,9 @@ impl ToolRouter {
     pub(crate) async fn dispatch_tool_call_with_terminal_outcome(
         &self,
         session: Arc<Session>,
-        turn: Arc<TurnContext>,
+        turn: Arc<InteractionContext>,
         cancellation_token: CancellationToken,
-        tracker: SharedTurnDiffTracker,
+        tracker: SharedInteractionDiffTracker,
         call: ToolCall,
         source: ToolCallSource,
         terminal_outcome_reached: Arc<AtomicBool>,
@@ -210,9 +210,9 @@ impl ToolRouter {
     async fn dispatch_tool_call_with_code_mode_result_inner(
         &self,
         session: Arc<Session>,
-        turn: Arc<TurnContext>,
+        turn: Arc<InteractionContext>,
         cancellation_token: CancellationToken,
-        tracker: SharedTurnDiffTracker,
+        tracker: SharedInteractionDiffTracker,
         call: ToolCall,
         source: ToolCallSource,
         terminal_outcome_reached: Option<Arc<AtomicBool>>,

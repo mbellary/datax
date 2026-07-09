@@ -47,7 +47,7 @@ struct DiffCacheKey {
 
 /// Tracks the net text diff for the current turn from committed apply_patch
 /// mutations, without rereading the workspace filesystem.
-pub struct TurnDiffTracker {
+pub struct InteractionDiffTracker {
     valid: bool,
     display_roots_by_environment: HashMap<String, PathBuf>,
     baseline_by_path: HashMap<TrackedPath, TrackedContent>,
@@ -60,7 +60,7 @@ pub struct TurnDiffTracker {
     rendered_diff_count: std::cell::Cell<usize>,
 }
 
-impl Default for TurnDiffTracker {
+impl Default for InteractionDiffTracker {
     fn default() -> Self {
         Self {
             valid: true,
@@ -77,7 +77,7 @@ impl Default for TurnDiffTracker {
     }
 }
 
-impl TurnDiffTracker {
+impl InteractionDiffTracker {
     pub fn new() -> Self {
         Self::default()
     }

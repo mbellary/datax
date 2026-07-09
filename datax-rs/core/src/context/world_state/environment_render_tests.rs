@@ -12,7 +12,7 @@ use datax_protocol::permissions::NetworkSandboxPolicy;
 use datax_protocol::permissions::project_roots_glob_pattern;
 use datax_protocol::protocol::AskForApproval;
 use datax_protocol::protocol::SandboxPolicy;
-use datax_protocol::protocol::TurnContextItem;
+use datax_protocol::protocol::InteractionContextMessage;
 use datax_utils_absolute_path::test_support::PathBufExt;
 use pretty_assertions::assert_eq;
 use std::path::Path;
@@ -216,7 +216,7 @@ fn turn_context_item_filesystem_uses_workspace_roots_instead_of_cwd() {
     let repo = test_abs_path("/repo");
     let other_repo = test_abs_path("/other-repo");
     let repo_private = repo.join("private");
-    let item = TurnContextItem {
+    let item = InteractionContextMessage {
         interaction_id: None,
         cwd: test_abs_path("/not-the-workspace"),
         workspace_roots: Some(vec![repo.clone(), other_repo.clone()]),

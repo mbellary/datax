@@ -14,7 +14,7 @@ use crate::TokenUsageContributor;
 use crate::ToolContributor;
 use crate::ToolLifecycleContributor;
 use crate::TurnInputContributor;
-use crate::TurnItemContributor;
+use crate::InteractionMessageContributor;
 use crate::TurnLifecycleContributor;
 
 /// Mutable registry used while hosts register typed runtime contributions.
@@ -29,7 +29,7 @@ pub struct ExtensionRegistryBuilder<C: Sync> {
     turn_input_contributors: Vec<Arc<dyn TurnInputContributor>>,
     tool_contributors: Vec<Arc<dyn ToolContributor>>,
     tool_lifecycle_contributors: Vec<Arc<dyn ToolLifecycleContributor>>,
-    turn_item_contributors: Vec<Arc<dyn TurnItemContributor>>,
+    turn_item_contributors: Vec<Arc<dyn InteractionMessageContributor>>,
     approval_review_contributors: Vec<Arc<dyn ApprovalReviewContributor>>,
 }
 
@@ -125,7 +125,7 @@ impl<C: Sync> ExtensionRegistryBuilder<C> {
     }
 
     /// Registers one ordered turn-item contributor.
-    pub fn turn_item_contributor(&mut self, contributor: Arc<dyn TurnItemContributor>) {
+    pub fn turn_item_contributor(&mut self, contributor: Arc<dyn InteractionMessageContributor>) {
         self.turn_item_contributors.push(contributor);
     }
 
@@ -160,7 +160,7 @@ pub struct ExtensionRegistry<C: Sync> {
     turn_input_contributors: Vec<Arc<dyn TurnInputContributor>>,
     tool_contributors: Vec<Arc<dyn ToolContributor>>,
     tool_lifecycle_contributors: Vec<Arc<dyn ToolLifecycleContributor>>,
-    turn_item_contributors: Vec<Arc<dyn TurnItemContributor>>,
+    turn_item_contributors: Vec<Arc<dyn InteractionMessageContributor>>,
     approval_review_contributors: Vec<Arc<dyn ApprovalReviewContributor>>,
 }
 
@@ -236,7 +236,7 @@ impl<C: Sync> ExtensionRegistry<C> {
     }
 
     /// Returns the registered ordered turn-item contributors.
-    pub fn turn_item_contributors(&self) -> &[Arc<dyn TurnItemContributor>] {
+    pub fn turn_item_contributors(&self) -> &[Arc<dyn InteractionMessageContributor>] {
         &self.turn_item_contributors
     }
 }

@@ -8,7 +8,7 @@ use datax_protocol::items::ImageViewItem;
 use datax_protocol::items::McpToolCallItem;
 use datax_protocol::items::McpToolCallStatus as CoreMcpToolCallStatus;
 use datax_protocol::items::ReasoningItem;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::items::UserMessageItem;
 use datax_protocol::items::WebSearchItem;
 use datax_protocol::mcp::CallToolResult;
@@ -2419,7 +2419,7 @@ fn network_requirements_serializes_canonical_and_legacy_fields() {
 
 #[test]
 fn core_turn_item_into_thread_item_converts_supported_variants() {
-    let user_item = TurnItem::UserMessage(UserMessageItem {
+    let user_item = InteractionMessage::UserMessage(UserMessageItem {
         id: "user-1".to_string(),
         client_id: Some("client-message-1".to_string()),
         content: vec![
@@ -2476,7 +2476,7 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
         }
     );
 
-    let agent_item = TurnItem::AgentMessage(AgentMessageItem {
+    let agent_item = InteractionMessage::AgentMessage(AgentMessageItem {
         id: "agent-1".to_string(),
         content: vec![
             AgentMessageContent::Text {
@@ -2500,7 +2500,7 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
         }
     );
 
-    let agent_item_with_phase = TurnItem::AgentMessage(AgentMessageItem {
+    let agent_item_with_phase = InteractionMessage::AgentMessage(AgentMessageItem {
         id: "agent-2".to_string(),
         content: vec![AgentMessageContent::Text {
             text: "final".to_string(),
@@ -2535,7 +2535,7 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
         }
     );
 
-    let reasoning_item = TurnItem::Reasoning(ReasoningItem {
+    let reasoning_item = InteractionMessage::Reasoning(ReasoningItem {
         id: "reasoning-1".to_string(),
         summary_text: vec!["line one".to_string(), "line two".to_string()],
         raw_content: vec![],
@@ -2550,7 +2550,7 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
         }
     );
 
-    let search_item = TurnItem::WebSearch(WebSearchItem {
+    let search_item = InteractionMessage::WebSearch(WebSearchItem {
         id: "search-1".to_string(),
         query: "docs".to_string(),
         action: CoreWebSearchAction::Search {
@@ -2571,7 +2571,7 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
         }
     );
 
-    let image_view_item = TurnItem::ImageView(ImageViewItem {
+    let image_view_item = InteractionMessage::ImageView(ImageViewItem {
         id: "view-image-1".to_string(),
         path: test_path_buf("/tmp/view-image.png").abs(),
     });
@@ -2584,7 +2584,7 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
         }
     );
 
-    let file_change_item = TurnItem::FileChange(FileChangeItem {
+    let file_change_item = InteractionMessage::FileChange(FileChangeItem {
         id: "patch-1".to_string(),
         changes: [(
             PathBuf::from("README.md"),
@@ -2613,7 +2613,7 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
         }
     );
 
-    let mcp_tool_call_item = TurnItem::McpToolCall(McpToolCallItem {
+    let mcp_tool_call_item = InteractionMessage::McpToolCall(McpToolCallItem {
         id: "mcp-1".to_string(),
         server: "server".to_string(),
         tool: "tool".to_string(),
@@ -2649,7 +2649,7 @@ fn core_turn_item_into_thread_item_converts_supported_variants() {
         }
     );
 
-    let completed_mcp_tool_call_item = TurnItem::McpToolCall(McpToolCallItem {
+    let completed_mcp_tool_call_item = InteractionMessage::McpToolCall(McpToolCallItem {
         id: "mcp-2".to_string(),
         server: "server".to_string(),
         tool: "tool".to_string(),

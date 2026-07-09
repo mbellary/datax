@@ -40,7 +40,7 @@ use datax_protocol::permissions::NetworkSandboxPolicy;
 use datax_protocol::protocol::AskForApproval;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::Op;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::user_input::UserInput;
 use datax_utils_absolute_path::AbsolutePathBuf;
@@ -906,7 +906,7 @@ fn rollout_hook_prompt_texts(text: &str) -> Result<Vec<String>> {
             continue;
         }
         let rollout: RolloutLine = serde_json::from_str(trimmed).context("parse rollout line")?;
-        if let RolloutItem::ResponseItem(ResponseItem::Message { role, content, .. }) = rollout.item
+        if let RolloutMessage::ResponseItem(ResponseItem::Message { role, content, .. }) = rollout.item
             && role == "user"
         {
             for item in content {

@@ -251,7 +251,7 @@ impl CoreToolRuntime for RequestPluginInstallHandler {}
 
 async fn maybe_persist_disabled_install_request(
     session: &crate::session::session::Session,
-    turn: &crate::session::turn_context::TurnContext,
+    turn: &crate::session::turn_context::InteractionContext,
     tool: &DiscoverableTool,
     response: &ElicitationResponse,
 ) {
@@ -310,7 +310,7 @@ fn disabled_install_request(tool: &DiscoverableTool) -> ToolSuggestDisabledTool 
 
 async fn verify_request_plugin_install_completed(
     session: &crate::session::session::Session,
-    turn: &crate::session::turn_context::TurnContext,
+    turn: &crate::session::turn_context::InteractionContext,
     tool: &DiscoverableTool,
     auth: Option<&datax_login::CodexAuth>,
 ) -> bool {
@@ -373,7 +373,7 @@ async fn verify_request_plugin_install_completed(
 
 async fn refresh_remote_installed_plugins_cache_after_install(
     session: &crate::session::session::Session,
-    turn: &crate::session::turn_context::TurnContext,
+    turn: &crate::session::turn_context::InteractionContext,
     auth: Option<&datax_login::CodexAuth>,
     tool_id: &str,
 ) {
@@ -402,7 +402,7 @@ fn is_remote_plugin_install_suggestion(plugin_id: &str) -> bool {
 
 async fn refresh_missing_requested_connectors(
     session: &crate::session::session::Session,
-    turn: &crate::session::turn_context::TurnContext,
+    turn: &crate::session::turn_context::InteractionContext,
     auth: Option<&datax_login::CodexAuth>,
     expected_connector_ids: &[String],
     tool_id: &str,

@@ -2952,10 +2952,10 @@ async fn server_overloaded_error_does_not_switch_models() {
     }
 
     while let Ok(event) = op_rx.try_recv() {
-        if let Op::OverrideTurnContext { model, .. } = event {
+        if let Op::OverrideInteractionContext { model, .. } = event {
             assert!(
                 model.is_none(),
-                "did not expect OverrideTurnContext model update on server-overloaded error"
+                "did not expect OverrideInteractionContext model update on server-overloaded error"
             );
         }
     }

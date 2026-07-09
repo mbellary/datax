@@ -29,7 +29,7 @@ use datax_protocol::protocol::InterAgentCommunication;
 use datax_protocol::protocol::MultiAgentVersion;
 use datax_protocol::protocol::Op;
 use datax_protocol::protocol::ResumedHistory;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
 use datax_protocol::protocol::ThreadSource;

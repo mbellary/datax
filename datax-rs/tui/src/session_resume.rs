@@ -34,7 +34,7 @@ struct SessionMetadata {
 }
 
 #[derive(Deserialize)]
-struct TurnContextResumeState {
+struct InteractionContextResumeState {
     cwd: PathBuf,
     model: String,
 }
@@ -167,7 +167,7 @@ async fn read_rollout_resume_state(path: &Path) -> io::Result<RolloutResumeState
                 }
             }
             "turn_context" => {
-                if let Ok(turn_context) = serde_json::from_value::<TurnContextResumeState>(payload)
+                if let Ok(turn_context) = serde_json::from_value::<InteractionContextResumeState>(payload)
                 {
                     state.cwd = Some(turn_context.cwd);
                     state.model = Some(turn_context.model);

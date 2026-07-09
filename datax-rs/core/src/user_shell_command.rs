@@ -3,13 +3,13 @@ use datax_protocol::models::ResponseItem;
 
 use crate::context::ContextualUserFragment;
 use crate::context::UserShellCommand;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::tools::format_exec_output_str;
 
 fn user_shell_command_fragment(
     command: &str,
     exec_output: &ExecToolCallOutput,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
 ) -> UserShellCommand {
     let output = format_exec_output_str(
         exec_output,
@@ -22,7 +22,7 @@ fn user_shell_command_fragment(
 pub fn format_user_shell_command_record(
     command: &str,
     exec_output: &ExecToolCallOutput,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
 ) -> String {
     user_shell_command_fragment(command, exec_output, turn_context).render()
 }
@@ -30,7 +30,7 @@ pub fn format_user_shell_command_record(
 pub fn user_shell_command_record_item(
     command: &str,
     exec_output: &ExecToolCallOutput,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
 ) -> ResponseItem {
     ContextualUserFragment::into(user_shell_command_fragment(
         command,

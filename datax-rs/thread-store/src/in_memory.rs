@@ -9,13 +9,13 @@ use chrono::Utc;
 use datax_protocol::ChatId;
 use datax_protocol::models::PermissionProfile;
 use datax_protocol::protocol::AskForApproval;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::SessionMeta;
 use datax_protocol::protocol::SessionMetaLine;
 use datax_protocol::protocol::ThreadMemoryMode;
 use datax_rollout::persisted_rollout_items;
 
-use crate::AppendThreadItemsParams;
+use crate::AppendChatMessagesParams;
 use crate::ArchiveThreadParams;
 use crate::CreateThreadParams;
 use crate::DeleteThreadParams;
@@ -24,10 +24,10 @@ use crate::LoadThreadHistoryParams;
 use crate::ReadThreadByRolloutPathParams;
 use crate::ReadThreadParams;
 use crate::ResumeThreadParams;
-use crate::StoredThread;
-use crate::StoredThreadHistory;
+use crate::StoredChat;
+use crate::StoredChatHistory;
 use crate::ThreadMetadataPatch;
-use crate::ThreadPage;
+use crate::ChatPage;
 use crate::ThreadStore;
 use crate::ThreadStoreError;
 use crate::ThreadStoreFuture;
@@ -44,10 +44,10 @@ fn stores() -> &'static Mutex<HashMap<String, Arc<InMemoryThreadStore>>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ListItemsParams;
-    use crate::ListTurnsParams;
+    use crate::ListMessagesParams;
+    use crate::ListInteractionsParams;
     use crate::SortDirection;
-    use crate::StoredTurnItemsView;
+    use crate::StoredInteractionMessagesView;
     use crate::ThreadPersistenceMetadata;
     use crate::ThreadSortKey;
     use datax_protocol::models::BaseInstructions;
@@ -59,13 +59,13 @@ mod tests {
         let chat_id = ChatId::default();
 
         let turns_err = store
-            .list_turns(ListTurnsParams {
+            .list_turns(ListInteractionsParams {
                 chat_id,
                 include_archived: true,
                 cursor: None,
                 page_size: 10,
                 sort_direction: SortDirection::Asc,
-                items_view: StoredTurnItemsView::Summary,
+                items_view: StoredInteractionMessagesView::Summary,
             })
             .await
             .expect_err("default list_turns should be unsupported");
@@ -77,7 +77,7 @@ mod tests {
         ));
 
         let items_err = store
-            .list_items(ListItemsParams {
+            .list_messages(ListMessagesParams {
                 chat_id,
                 interaction_id: None,
                 include_archived: true,
@@ -86,11 +86,11 @@ mod tests {
                 sort_direction: SortDirection::Asc,
             })
             .await
-            .expect_err("default list_items should be unsupported");
+            .expect_err("default list_messages should be unsupported");
         assert!(matches!(
             items_err,
             ThreadStoreError::Unsupported {
-                operation: "list_items"
+                operation: "list_messages"
             }
         ));
     }
@@ -201,7 +201,7 @@ pub struct InMemoryThreadStore {
 struct InMemoryThreadStoreState {
     calls: InMemoryThreadStoreCalls,
     created_threads: HashMap<ChatId, CreateThreadParams>,
-    histories: HashMap<ChatId, Vec<RolloutItem>>,
+    histories: HashMap<ChatId, Vec<RolloutMessage>>,
     metadata_updates: HashMap<ChatId, ThreadMetadataPatch>,
     names: HashMap<ChatId, Option<String>>,
     rollout_paths: HashMap<PathBuf, ChatId>,
@@ -254,7 +254,7 @@ impl InMemoryThreadStore {
             .histories
             .entry(params.chat_id)
             .or_default()
-            .push(RolloutItem::SessionMeta(SessionMetaLine {
+            .push(RolloutMessage::SessionMeta(SessionMetaLine {
                 meta: session_meta,
                 git: None,
             }));
@@ -276,7 +276,7 @@ impl InMemoryThreadStore {
         Ok(())
     }
 
-    async fn append_items(&self, params: AppendThreadItemsParams) -> ThreadStoreResult<()> {
+    async fn append_items(&self, params: AppendChatMessagesParams) -> ThreadStoreResult<()> {
         let canonical_items = persisted_rollout_items(params.items.as_slice());
         if canonical_items.is_empty() {
             return Ok(());
@@ -294,7 +294,7 @@ impl InMemoryThreadStore {
     async fn load_history(
         &self,
         params: LoadThreadHistoryParams,
-    ) -> ThreadStoreResult<StoredThreadHistory> {
+    ) -> ThreadStoreResult<StoredChatHistory> {
         let mut state = self.state.lock().await;
         state.calls.load_history += 1;
         let items = state.histories.get(&params.chat_id).cloned().ok_or(
@@ -302,13 +302,13 @@ impl InMemoryThreadStore {
                 chat_id: params.chat_id,
             },
         )?;
-        Ok(StoredThreadHistory {
+        Ok(StoredChatHistory {
             chat_id: params.chat_id,
             items,
         })
     }
 
-    async fn read_thread(&self, params: ReadThreadParams) -> ThreadStoreResult<StoredThread> {
+    async fn read_thread(&self, params: ReadThreadParams) -> ThreadStoreResult<StoredChat> {
         let mut state = self.state.lock().await;
         state.calls.read_thread += 1;
         if params.include_history {
@@ -320,7 +320,7 @@ impl InMemoryThreadStore {
     async fn read_thread_by_rollout_path(
         &self,
         params: ReadThreadByRolloutPathParams,
-    ) -> ThreadStoreResult<StoredThread> {
+    ) -> ThreadStoreResult<StoredChat> {
         let mut state = self.state.lock().await;
         state.calls.read_thread_by_rollout_path += 1;
         let Some(chat_id) = state.rollout_paths.get(&params.rollout_path).copied() else {
@@ -334,7 +334,7 @@ impl InMemoryThreadStore {
         stored_thread_from_state(&state, chat_id, params.include_history)
     }
 
-    async fn list_threads(&self) -> ThreadStoreResult<ThreadPage> {
+    async fn list_threads(&self) -> ThreadStoreResult<ChatPage> {
         let mut state = self.state.lock().await;
         state.calls.list_threads += 1;
         let mut items = state
@@ -345,7 +345,7 @@ impl InMemoryThreadStore {
             })
             .collect::<ThreadStoreResult<Vec<_>>>()?;
         items.sort_by_key(|item| item.chat_id.to_string());
-        Ok(ThreadPage {
+        Ok(ChatPage {
             items,
             next_cursor: None,
         })
@@ -354,7 +354,7 @@ impl InMemoryThreadStore {
     async fn update_thread_metadata(
         &self,
         params: UpdateThreadMetadataParams,
-    ) -> ThreadStoreResult<StoredThread> {
+    ) -> ThreadStoreResult<StoredChat> {
         let mut state = self.state.lock().await;
         state.calls.update_thread_metadata += 1;
         if let Some(name) = params.patch.name.clone() {
@@ -401,7 +401,7 @@ impl ThreadStore for InMemoryThreadStore {
         Box::pin(InMemoryThreadStore::resume_thread(self, params))
     }
 
-    fn append_items(&self, params: AppendThreadItemsParams) -> ThreadStoreFuture<'_, ()> {
+    fn append_items(&self, params: AppendChatMessagesParams) -> ThreadStoreFuture<'_, ()> {
         Box::pin(InMemoryThreadStore::append_items(self, params))
     }
 
@@ -436,24 +436,24 @@ impl ThreadStore for InMemoryThreadStore {
     fn load_history(
         &self,
         params: LoadThreadHistoryParams,
-    ) -> ThreadStoreFuture<'_, StoredThreadHistory> {
+    ) -> ThreadStoreFuture<'_, StoredChatHistory> {
         Box::pin(InMemoryThreadStore::load_history(self, params))
     }
 
-    fn read_thread(&self, params: ReadThreadParams) -> ThreadStoreFuture<'_, StoredThread> {
+    fn read_thread(&self, params: ReadThreadParams) -> ThreadStoreFuture<'_, StoredChat> {
         Box::pin(InMemoryThreadStore::read_thread(self, params))
     }
 
     fn read_thread_by_rollout_path(
         &self,
         params: ReadThreadByRolloutPathParams,
-    ) -> ThreadStoreFuture<'_, StoredThread> {
+    ) -> ThreadStoreFuture<'_, StoredChat> {
         Box::pin(InMemoryThreadStore::read_thread_by_rollout_path(
             self, params,
         ))
     }
 
-    fn list_threads(&self, params: ListThreadsParams) -> ThreadStoreFuture<'_, ThreadPage> {
+    fn list_threads(&self, params: ListThreadsParams) -> ThreadStoreFuture<'_, ChatPage> {
         Box::pin(async move {
             let mut page = InMemoryThreadStore::list_threads(self).await?;
             if let Some(parent_chat_id) = params.parent_chat_id {
@@ -467,7 +467,7 @@ impl ThreadStore for InMemoryThreadStore {
     fn update_thread_metadata(
         &self,
         params: UpdateThreadMetadataParams,
-    ) -> ThreadStoreFuture<'_, StoredThread> {
+    ) -> ThreadStoreFuture<'_, StoredChat> {
         Box::pin(InMemoryThreadStore::update_thread_metadata(self, params))
     }
 
@@ -478,7 +478,7 @@ impl ThreadStore for InMemoryThreadStore {
         })
     }
 
-    fn unarchive_thread(&self, params: ArchiveThreadParams) -> ThreadStoreFuture<'_, StoredThread> {
+    fn unarchive_thread(&self, params: ArchiveThreadParams) -> ThreadStoreFuture<'_, StoredChat> {
         Box::pin(async move {
             let mut state = self.state.lock().await;
             state.calls.unarchive_thread += 1;
@@ -495,13 +495,13 @@ fn stored_thread_from_state(
     state: &InMemoryThreadStoreState,
     chat_id: ChatId,
     include_history: bool,
-) -> ThreadStoreResult<StoredThread> {
+) -> ThreadStoreResult<StoredChat> {
     let created = state
         .created_threads
         .get(&chat_id)
         .ok_or(ThreadStoreError::ThreadNotFound { chat_id })?;
     let history_items = state.histories.get(&chat_id).cloned().unwrap_or_default();
-    let history = include_history.then(|| StoredThreadHistory {
+    let history = include_history.then(|| StoredChatHistory {
         chat_id,
         items: history_items.clone(),
     });
@@ -514,7 +514,7 @@ fn stored_thread_from_state(
             (*mapped_chat_id == chat_id).then(|| path.clone())
         });
 
-    Ok(StoredThread {
+    Ok(StoredChat {
         chat_id,
         extra_config: created.extra_config.clone(),
         rollout_path: metadata

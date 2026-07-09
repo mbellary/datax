@@ -69,7 +69,7 @@ async fn record_initial_history_reconstructs_typed_inter_agent_message() {
     session
         .record_initial_history(InitialHistory::Resumed(ResumedHistory {
             conversation_id: ChatId::default(),
-            history: vec![RolloutItem::InterAgentCommunication(communication.clone())],
+            history: vec![RolloutMessage::InterAgentCommunication(communication.clone())],
             rollout_path: Some(PathBuf::from("/tmp/resume.jsonl")),
         }))
         .await;
@@ -85,7 +85,7 @@ async fn record_initial_history_resumed_bare_turn_context_does_not_hydrate_previ
 {
     let (session, turn_context) = make_session_and_context().await;
     let previous_model = "previous-rollout-model";
-    let previous_context_item = TurnContextItem {
+    let previous_context_item = InteractionContextMessage {
         interaction_id: Some(turn_context.sub_id.clone()),
         #[allow(deprecated)]
         cwd: turn_context.cwd.clone(),
@@ -107,7 +107,7 @@ async fn record_initial_history_resumed_bare_turn_context_does_not_hydrate_previ
         effort: turn_context.reasoning_effort.clone(),
         summary: datax_protocol::config_types::ReasoningSummary::Auto,
     };
-    let rollout_items = vec![RolloutItem::TurnContext(previous_context_item)];
+    let rollout_items = vec![RolloutMessage::InteractionContext(previous_context_item)];
 
     session
         .record_initial_history(InitialHistory::Resumed(ResumedHistory {
@@ -126,7 +126,7 @@ async fn record_initial_history_resumed_hydrates_previous_turn_settings_from_lif
  {
     let (session, turn_context) = make_session_and_context().await;
     let previous_model = "previous-rollout-model";
-    let mut previous_context_item = TurnContextItem {
+    let mut previous_context_item = InteractionContextMessage {
         interaction_id: Some(turn_context.sub_id.clone()),
         #[allow(deprecated)]
         cwd: turn_context.cwd.clone(),
@@ -155,7 +155,7 @@ async fn record_initial_history_resumed_hydrates_previous_turn_settings_from_lif
     previous_context_item.interaction_id = None;
 
     let rollout_items = vec![
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: interaction_id.clone(),
                 trace_id: None,
@@ -164,7 +164,7 @@ async fn record_initial_history_resumed_hydrates_previous_turn_settings_from_lif
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "seed".to_string(),
@@ -174,8 +174,8 @@ async fn record_initial_history_resumed_hydrates_previous_turn_settings_from_lif
                 ..Default::default()
             },
         )),
-        RolloutItem::TurnContext(previous_context_item),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+        RolloutMessage::InteractionContext(previous_context_item),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(
             datax_protocol::protocol::InteractionCompleteEvent {
                 interaction_id,
                 last_agent_message: None,
@@ -225,7 +225,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_com
     let turn_two_assistant = assistant_message("turn 2 assistant");
 
     let rollout_items = vec![
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: first_interaction_id.clone(),
                 trace_id: None,
@@ -234,7 +234,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_com
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "turn 1 user".to_string(),
@@ -244,10 +244,10 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_com
                 ..Default::default()
             },
         )),
-        RolloutItem::TurnContext(first_context_item.clone()),
-        RolloutItem::ResponseItem(turn_one_user.clone()),
-        RolloutItem::ResponseItem(turn_one_assistant.clone()),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+        RolloutMessage::InteractionContext(first_context_item.clone()),
+        RolloutMessage::ResponseItem(turn_one_user.clone()),
+        RolloutMessage::ResponseItem(turn_one_assistant.clone()),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(
             datax_protocol::protocol::InteractionCompleteEvent {
                 interaction_id: first_interaction_id,
                 last_agent_message: None,
@@ -256,7 +256,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_com
                 time_to_first_token_ms: None,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: rolled_back_interaction_id.clone(),
                 trace_id: None,
@@ -265,7 +265,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_com
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "turn 2 user".to_string(),
@@ -275,10 +275,10 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_com
                 ..Default::default()
             },
         )),
-        RolloutItem::TurnContext(rolled_back_context_item),
-        RolloutItem::ResponseItem(turn_two_user),
-        RolloutItem::ResponseItem(turn_two_assistant),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+        RolloutMessage::InteractionContext(rolled_back_context_item),
+        RolloutMessage::ResponseItem(turn_two_user),
+        RolloutMessage::ResponseItem(turn_two_assistant),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(
             datax_protocol::protocol::InteractionCompleteEvent {
                 interaction_id: rolled_back_interaction_id,
                 last_agent_message: None,
@@ -287,7 +287,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_com
                 time_to_first_token_ms: None,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::ThreadRolledBack(
+        RolloutMessage::EventMsg(EventMsg::ThreadRolledBack(
             datax_protocol::protocol::ThreadRolledBackEvent { num_turns: 1 },
         )),
     ];
@@ -330,7 +330,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_inc
     let turn_two_user = user_message("turn 2 user");
 
     let rollout_items = vec![
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: first_interaction_id.clone(),
                 trace_id: None,
@@ -339,7 +339,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_inc
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "turn 1 user".to_string(),
@@ -349,10 +349,10 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_inc
                 ..Default::default()
             },
         )),
-        RolloutItem::TurnContext(first_context_item.clone()),
-        RolloutItem::ResponseItem(turn_one_user.clone()),
-        RolloutItem::ResponseItem(turn_one_assistant.clone()),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+        RolloutMessage::InteractionContext(first_context_item.clone()),
+        RolloutMessage::ResponseItem(turn_one_user.clone()),
+        RolloutMessage::ResponseItem(turn_one_assistant.clone()),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(
             datax_protocol::protocol::InteractionCompleteEvent {
                 interaction_id: first_interaction_id,
                 last_agent_message: None,
@@ -361,7 +361,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_inc
                 time_to_first_token_ms: None,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: incomplete_interaction_id,
                 trace_id: None,
@@ -370,7 +370,7 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_inc
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "turn 2 user".to_string(),
@@ -380,8 +380,8 @@ async fn reconstruct_history_rollback_keeps_history_and_metadata_in_sync_for_inc
                 ..Default::default()
             },
         )),
-        RolloutItem::ResponseItem(turn_two_user),
-        RolloutItem::EventMsg(EventMsg::ThreadRolledBack(
+        RolloutMessage::ResponseItem(turn_two_user),
+        RolloutMessage::EventMsg(EventMsg::ThreadRolledBack(
             datax_protocol::protocol::ThreadRolledBackEvent { num_turns: 1 },
         )),
     ];
@@ -427,7 +427,7 @@ async fn reconstruct_history_rollback_skips_non_user_turns_for_history_and_metad
     let standalone_assistant = assistant_message("standalone assistant");
 
     let rollout_items = vec![
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: first_interaction_id.clone(),
                 trace_id: None,
@@ -436,7 +436,7 @@ async fn reconstruct_history_rollback_skips_non_user_turns_for_history_and_metad
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "turn 1 user".to_string(),
@@ -446,10 +446,10 @@ async fn reconstruct_history_rollback_skips_non_user_turns_for_history_and_metad
                 ..Default::default()
             },
         )),
-        RolloutItem::TurnContext(first_context_item.clone()),
-        RolloutItem::ResponseItem(turn_one_user.clone()),
-        RolloutItem::ResponseItem(turn_one_assistant.clone()),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+        RolloutMessage::InteractionContext(first_context_item.clone()),
+        RolloutMessage::ResponseItem(turn_one_user.clone()),
+        RolloutMessage::ResponseItem(turn_one_assistant.clone()),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(
             datax_protocol::protocol::InteractionCompleteEvent {
                 interaction_id: first_interaction_id,
                 last_agent_message: None,
@@ -458,7 +458,7 @@ async fn reconstruct_history_rollback_skips_non_user_turns_for_history_and_metad
                 time_to_first_token_ms: None,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: second_interaction_id.clone(),
                 trace_id: None,
@@ -467,7 +467,7 @@ async fn reconstruct_history_rollback_skips_non_user_turns_for_history_and_metad
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "turn 2 user".to_string(),
@@ -477,9 +477,9 @@ async fn reconstruct_history_rollback_skips_non_user_turns_for_history_and_metad
                 ..Default::default()
             },
         )),
-        RolloutItem::ResponseItem(turn_two_user),
-        RolloutItem::ResponseItem(turn_two_assistant),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+        RolloutMessage::ResponseItem(turn_two_user),
+        RolloutMessage::ResponseItem(turn_two_assistant),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(
             datax_protocol::protocol::InteractionCompleteEvent {
                 interaction_id: second_interaction_id,
                 last_agent_message: None,
@@ -488,7 +488,7 @@ async fn reconstruct_history_rollback_skips_non_user_turns_for_history_and_metad
                 time_to_first_token_ms: None,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: standalone_interaction_id.clone(),
                 trace_id: None,
@@ -497,8 +497,8 @@ async fn reconstruct_history_rollback_skips_non_user_turns_for_history_and_metad
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::ResponseItem(standalone_assistant),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+        RolloutMessage::ResponseItem(standalone_assistant),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(
             datax_protocol::protocol::InteractionCompleteEvent {
                 interaction_id: standalone_interaction_id,
                 last_agent_message: None,
@@ -507,7 +507,7 @@ async fn reconstruct_history_rollback_skips_non_user_turns_for_history_and_metad
                 time_to_first_token_ms: None,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::ThreadRolledBack(
+        RolloutMessage::EventMsg(EventMsg::ThreadRolledBack(
             datax_protocol::protocol::ThreadRolledBackEvent { num_turns: 1 },
         )),
     ];
@@ -545,7 +545,7 @@ async fn reconstruct_history_rollback_counts_inter_agent_assistant_turns() {
         .clone()
         .expect("turn context should have interaction_id");
     let assistant_interaction_id = "assistant-instruction-turn".to_string();
-    let assistant_turn_context = TurnContextItem {
+    let assistant_turn_context = InteractionContextMessage {
         interaction_id: Some(assistant_interaction_id.clone()),
         ..first_context_item.clone()
     };
@@ -553,7 +553,7 @@ async fn reconstruct_history_rollback_counts_inter_agent_assistant_turns() {
     let assistant_reply = assistant_message("worker reply");
 
     let rollout_items = vec![
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: first_interaction_id.clone(),
                 trace_id: None,
@@ -562,7 +562,7 @@ async fn reconstruct_history_rollback_counts_inter_agent_assistant_turns() {
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "turn 1 user".to_string(),
@@ -572,10 +572,10 @@ async fn reconstruct_history_rollback_counts_inter_agent_assistant_turns() {
                 ..Default::default()
             },
         )),
-        RolloutItem::TurnContext(first_context_item.clone()),
-        RolloutItem::ResponseItem(user_message("turn 1 user")),
-        RolloutItem::ResponseItem(assistant_message("turn 1 assistant")),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+        RolloutMessage::InteractionContext(first_context_item.clone()),
+        RolloutMessage::ResponseItem(user_message("turn 1 user")),
+        RolloutMessage::ResponseItem(assistant_message("turn 1 assistant")),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(
             datax_protocol::protocol::InteractionCompleteEvent {
                 interaction_id: first_interaction_id,
                 last_agent_message: None,
@@ -584,7 +584,7 @@ async fn reconstruct_history_rollback_counts_inter_agent_assistant_turns() {
                 time_to_first_token_ms: None,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: assistant_interaction_id.clone(),
                 trace_id: None,
@@ -593,10 +593,10 @@ async fn reconstruct_history_rollback_counts_inter_agent_assistant_turns() {
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::TurnContext(assistant_turn_context),
-        RolloutItem::ResponseItem(assistant_instruction),
-        RolloutItem::ResponseItem(assistant_reply),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+        RolloutMessage::InteractionContext(assistant_turn_context),
+        RolloutMessage::ResponseItem(assistant_instruction),
+        RolloutMessage::ResponseItem(assistant_reply),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(
             datax_protocol::protocol::InteractionCompleteEvent {
                 interaction_id: assistant_interaction_id,
                 last_agent_message: None,
@@ -605,7 +605,7 @@ async fn reconstruct_history_rollback_counts_inter_agent_assistant_turns() {
                 time_to_first_token_ms: None,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::ThreadRolledBack(
+        RolloutMessage::EventMsg(EventMsg::ThreadRolledBack(
             datax_protocol::protocol::ThreadRolledBackEvent { num_turns: 1 },
         )),
     ];
@@ -646,7 +646,7 @@ async fn reconstruct_history_rollback_clears_history_and_metadata_when_exceeding
         .clone()
         .expect("turn context should have interaction_id");
     let rollout_items = vec![
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: only_interaction_id.clone(),
                 trace_id: None,
@@ -655,7 +655,7 @@ async fn reconstruct_history_rollback_clears_history_and_metadata_when_exceeding
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "only user".to_string(),
@@ -665,10 +665,10 @@ async fn reconstruct_history_rollback_clears_history_and_metadata_when_exceeding
                 ..Default::default()
             },
         )),
-        RolloutItem::TurnContext(only_context_item),
-        RolloutItem::ResponseItem(user_message("only user")),
-        RolloutItem::ResponseItem(assistant_message("only assistant")),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+        RolloutMessage::InteractionContext(only_context_item),
+        RolloutMessage::ResponseItem(user_message("only user")),
+        RolloutMessage::ResponseItem(assistant_message("only assistant")),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(
             datax_protocol::protocol::InteractionCompleteEvent {
                 interaction_id: only_interaction_id,
                 last_agent_message: None,
@@ -677,7 +677,7 @@ async fn reconstruct_history_rollback_clears_history_and_metadata_when_exceeding
                 time_to_first_token_ms: None,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::ThreadRolledBack(
+        RolloutMessage::EventMsg(EventMsg::ThreadRolledBack(
             datax_protocol::protocol::ThreadRolledBackEvent { num_turns: 99 },
         )),
     ];
@@ -701,7 +701,7 @@ async fn record_initial_history_resumed_rollback_skips_only_user_turns() {
         .expect("turn context should have interaction_id");
     let standalone_interaction_id = "standalone-task-turn".to_string();
     let rollout_items = vec![
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: user_interaction_id.clone(),
                 trace_id: None,
@@ -710,7 +710,7 @@ async fn record_initial_history_resumed_rollback_skips_only_user_turns() {
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "seed".to_string(),
@@ -720,8 +720,8 @@ async fn record_initial_history_resumed_rollback_skips_only_user_turns() {
                 ..Default::default()
             },
         )),
-        RolloutItem::TurnContext(previous_context_item),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+        RolloutMessage::InteractionContext(previous_context_item),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(
             datax_protocol::protocol::InteractionCompleteEvent {
                 interaction_id: user_interaction_id,
                 last_agent_message: None,
@@ -731,7 +731,7 @@ async fn record_initial_history_resumed_rollback_skips_only_user_turns() {
             },
         )),
         // Standalone task turn (no UserMessage) should not consume rollback skips.
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: standalone_interaction_id.clone(),
                 trace_id: None,
@@ -740,7 +740,7 @@ async fn record_initial_history_resumed_rollback_skips_only_user_turns() {
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(
             datax_protocol::protocol::InteractionCompleteEvent {
                 interaction_id: standalone_interaction_id,
                 last_agent_message: None,
@@ -749,7 +749,7 @@ async fn record_initial_history_resumed_rollback_skips_only_user_turns() {
                 time_to_first_token_ms: None,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::ThreadRolledBack(
+        RolloutMessage::EventMsg(EventMsg::ThreadRolledBack(
             datax_protocol::protocol::ThreadRolledBackEvent { num_turns: 1 },
         )),
     ];
@@ -777,7 +777,7 @@ async fn record_initial_history_resumed_rollback_drops_incomplete_user_turn_comp
     let incomplete_interaction_id = "incomplete-compacted-user-turn".to_string();
 
     let rollout_items = vec![
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: previous_interaction_id.clone(),
                 trace_id: None,
@@ -786,7 +786,7 @@ async fn record_initial_history_resumed_rollback_drops_incomplete_user_turn_comp
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "seed".to_string(),
@@ -796,8 +796,8 @@ async fn record_initial_history_resumed_rollback_drops_incomplete_user_turn_comp
                 ..Default::default()
             },
         )),
-        RolloutItem::TurnContext(previous_context_item.clone()),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+        RolloutMessage::InteractionContext(previous_context_item.clone()),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(
             datax_protocol::protocol::InteractionCompleteEvent {
                 interaction_id: previous_interaction_id,
                 last_agent_message: None,
@@ -806,7 +806,7 @@ async fn record_initial_history_resumed_rollback_drops_incomplete_user_turn_comp
                 time_to_first_token_ms: None,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: incomplete_interaction_id,
                 trace_id: None,
@@ -815,7 +815,7 @@ async fn record_initial_history_resumed_rollback_drops_incomplete_user_turn_comp
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "rolled back".to_string(),
@@ -825,7 +825,7 @@ async fn record_initial_history_resumed_rollback_drops_incomplete_user_turn_comp
                 ..Default::default()
             },
         )),
-        RolloutItem::Compacted(CompactedItem {
+        RolloutMessage::Compacted(CompactedItem {
             message: String::new(),
             replacement_history: Some(Vec::new()),
             window_number: None,
@@ -833,7 +833,7 @@ async fn record_initial_history_resumed_rollback_drops_incomplete_user_turn_comp
             previous_window_id: None,
             window_id: None,
         }),
-        RolloutItem::EventMsg(EventMsg::ThreadRolledBack(
+        RolloutMessage::EventMsg(EventMsg::ThreadRolledBack(
             datax_protocol::protocol::ThreadRolledBackEvent { num_turns: 1 },
         )),
     ];
@@ -866,7 +866,7 @@ async fn record_initial_history_resumed_rollback_drops_incomplete_user_turn_comp
 async fn record_initial_history_resumed_bare_turn_context_does_not_seed_reference_context_item() {
     let (session, turn_context) = make_session_and_context().await;
     let previous_context_item = turn_context.to_turn_context_item();
-    let rollout_items = vec![RolloutItem::TurnContext(previous_context_item.clone())];
+    let rollout_items = vec![RolloutMessage::InteractionContext(previous_context_item.clone())];
 
     session
         .record_initial_history(InitialHistory::Resumed(ResumedHistory {
@@ -884,8 +884,8 @@ async fn record_initial_history_resumed_does_not_seed_reference_context_item_aft
     let (session, turn_context) = make_session_and_context().await;
     let previous_context_item = turn_context.to_turn_context_item();
     let rollout_items = vec![
-        RolloutItem::TurnContext(previous_context_item),
-        RolloutItem::Compacted(CompactedItem {
+        RolloutMessage::InteractionContext(previous_context_item),
+        RolloutMessage::Compacted(CompactedItem {
             message: String::new(),
             replacement_history: Some(Vec::new()),
             window_number: None,
@@ -912,9 +912,9 @@ async fn reconstruct_history_legacy_compaction_without_replacement_history_does_
  {
     let (session, turn_context) = make_session_and_context().await;
     let rollout_items = vec![
-        RolloutItem::ResponseItem(user_message("before compact")),
-        RolloutItem::ResponseItem(assistant_message("assistant reply")),
-        RolloutItem::Compacted(CompactedItem {
+        RolloutMessage::ResponseItem(user_message("before compact")),
+        RolloutMessage::ResponseItem(assistant_message("assistant reply")),
+        RolloutMessage::Compacted(CompactedItem {
             message: "legacy summary".to_string(),
             replacement_history: None,
             window_number: None,
@@ -948,8 +948,8 @@ async fn reconstruct_history_legacy_compaction_without_replacement_history_clear
         .clone()
         .expect("turn context should have interaction_id");
     let rollout_items = vec![
-        RolloutItem::ResponseItem(user_message("before compact")),
-        RolloutItem::Compacted(CompactedItem {
+        RolloutMessage::ResponseItem(user_message("before compact")),
+        RolloutMessage::Compacted(CompactedItem {
             message: "legacy summary".to_string(),
             replacement_history: None,
             window_number: None,
@@ -957,7 +957,7 @@ async fn reconstruct_history_legacy_compaction_without_replacement_history_clear
             previous_window_id: None,
             window_id: None,
         }),
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: current_interaction_id.clone(),
                 trace_id: None,
@@ -966,7 +966,7 @@ async fn reconstruct_history_legacy_compaction_without_replacement_history_clear
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "after legacy compact".to_string(),
@@ -976,8 +976,8 @@ async fn reconstruct_history_legacy_compaction_without_replacement_history_clear
                 ..Default::default()
             },
         )),
-        RolloutItem::TurnContext(current_context_item),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+        RolloutMessage::InteractionContext(current_context_item),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(
             datax_protocol::protocol::InteractionCompleteEvent {
                 interaction_id: current_interaction_id,
                 last_agent_message: None,
@@ -1000,7 +1000,7 @@ async fn record_initial_history_resumed_turn_context_after_compaction_reestablis
  {
     let (session, turn_context) = make_session_and_context().await;
     let previous_model = "previous-rollout-model";
-    let previous_context_item = TurnContextItem {
+    let previous_context_item = InteractionContextMessage {
         interaction_id: Some(turn_context.sub_id.clone()),
         #[allow(deprecated)]
         cwd: turn_context.cwd.clone(),
@@ -1027,7 +1027,7 @@ async fn record_initial_history_resumed_turn_context_after_compaction_reestablis
         .clone()
         .expect("turn context should have interaction_id");
     let rollout_items = vec![
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: previous_interaction_id.clone(),
                 trace_id: None,
@@ -1036,7 +1036,7 @@ async fn record_initial_history_resumed_turn_context_after_compaction_reestablis
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "seed".to_string(),
@@ -1046,8 +1046,8 @@ async fn record_initial_history_resumed_turn_context_after_compaction_reestablis
                 ..Default::default()
             },
         )),
-        // Compaction clears baseline until a later TurnContextItem re-establishes it.
-        RolloutItem::Compacted(CompactedItem {
+        // Compaction clears baseline until a later InteractionContextMessage re-establishes it.
+        RolloutMessage::Compacted(CompactedItem {
             message: String::new(),
             replacement_history: Some(Vec::new()),
             window_number: None,
@@ -1055,8 +1055,8 @@ async fn record_initial_history_resumed_turn_context_after_compaction_reestablis
             previous_window_id: None,
             window_id: None,
         }),
-        RolloutItem::TurnContext(previous_context_item),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+        RolloutMessage::InteractionContext(previous_context_item),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(
             datax_protocol::protocol::InteractionCompleteEvent {
                 interaction_id: previous_interaction_id,
                 last_agent_message: None,
@@ -1086,7 +1086,7 @@ async fn record_initial_history_resumed_turn_context_after_compaction_reestablis
     assert_eq!(
         serde_json::to_value(session.reference_context_item().await)
             .expect("serialize seeded reference context item"),
-        serde_json::to_value(Some(TurnContextItem {
+        serde_json::to_value(Some(InteractionContextMessage {
             interaction_id: Some(turn_context.sub_id.clone()),
             #[allow(deprecated)]
             cwd: turn_context.cwd.clone(),
@@ -1117,7 +1117,7 @@ async fn record_initial_history_resumed_aborted_turn_without_id_clears_active_tu
  {
     let (session, turn_context) = make_session_and_context().await;
     let previous_model = "previous-rollout-model";
-    let previous_context_item = TurnContextItem {
+    let previous_context_item = InteractionContextMessage {
         interaction_id: Some(turn_context.sub_id.clone()),
         #[allow(deprecated)]
         cwd: turn_context.cwd.clone(),
@@ -1146,7 +1146,7 @@ async fn record_initial_history_resumed_aborted_turn_without_id_clears_active_tu
     let aborted_interaction_id = "aborted-turn-without-id".to_string();
 
     let rollout_items = vec![
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: previous_interaction_id.clone(),
                 trace_id: None,
@@ -1155,7 +1155,7 @@ async fn record_initial_history_resumed_aborted_turn_without_id_clears_active_tu
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "seed".to_string(),
@@ -1165,8 +1165,8 @@ async fn record_initial_history_resumed_aborted_turn_without_id_clears_active_tu
                 ..Default::default()
             },
         )),
-        RolloutItem::TurnContext(previous_context_item),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+        RolloutMessage::InteractionContext(previous_context_item),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(
             datax_protocol::protocol::InteractionCompleteEvent {
                 interaction_id: previous_interaction_id,
                 last_agent_message: None,
@@ -1175,7 +1175,7 @@ async fn record_initial_history_resumed_aborted_turn_without_id_clears_active_tu
                 time_to_first_token_ms: None,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: aborted_interaction_id,
                 trace_id: None,
@@ -1184,7 +1184,7 @@ async fn record_initial_history_resumed_aborted_turn_without_id_clears_active_tu
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "aborted".to_string(),
@@ -1194,7 +1194,7 @@ async fn record_initial_history_resumed_aborted_turn_without_id_clears_active_tu
                 ..Default::default()
             },
         )),
-        RolloutItem::EventMsg(EventMsg::InteractionAborted(
+        RolloutMessage::EventMsg(EventMsg::InteractionAborted(
             datax_protocol::protocol::InteractionAbortedEvent {
                 interaction_id: None,
                 reason: InteractionAbortReason::Interrupted,
@@ -1202,7 +1202,7 @@ async fn record_initial_history_resumed_aborted_turn_without_id_clears_active_tu
                 duration_ms: None,
             },
         )),
-        RolloutItem::Compacted(CompactedItem {
+        RolloutMessage::Compacted(CompactedItem {
             message: String::new(),
             replacement_history: Some(Vec::new()),
             window_number: None,
@@ -1243,7 +1243,7 @@ async fn record_initial_history_resumed_unmatched_abort_preserves_active_turn_fo
     let current_model = "current-rollout-model";
     let current_interaction_id = "current-turn".to_string();
     let unmatched_abort_interaction_id = "other-turn".to_string();
-    let current_context_item = TurnContextItem {
+    let current_context_item = InteractionContextMessage {
         interaction_id: Some(current_interaction_id.clone()),
         #[allow(deprecated)]
         cwd: turn_context.cwd.clone(),
@@ -1267,7 +1267,7 @@ async fn record_initial_history_resumed_unmatched_abort_preserves_active_turn_fo
     };
 
     let rollout_items = vec![
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: previous_interaction_id.clone(),
                 trace_id: None,
@@ -1276,7 +1276,7 @@ async fn record_initial_history_resumed_unmatched_abort_preserves_active_turn_fo
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "seed".to_string(),
@@ -1286,8 +1286,8 @@ async fn record_initial_history_resumed_unmatched_abort_preserves_active_turn_fo
                 ..Default::default()
             },
         )),
-        RolloutItem::TurnContext(previous_context_item),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+        RolloutMessage::InteractionContext(previous_context_item),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(
             datax_protocol::protocol::InteractionCompleteEvent {
                 interaction_id: previous_interaction_id,
                 last_agent_message: None,
@@ -1296,7 +1296,7 @@ async fn record_initial_history_resumed_unmatched_abort_preserves_active_turn_fo
                 time_to_first_token_ms: None,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: current_interaction_id.clone(),
                 trace_id: None,
@@ -1305,7 +1305,7 @@ async fn record_initial_history_resumed_unmatched_abort_preserves_active_turn_fo
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "current".to_string(),
@@ -1315,7 +1315,7 @@ async fn record_initial_history_resumed_unmatched_abort_preserves_active_turn_fo
                 ..Default::default()
             },
         )),
-        RolloutItem::EventMsg(EventMsg::InteractionAborted(
+        RolloutMessage::EventMsg(EventMsg::InteractionAborted(
             datax_protocol::protocol::InteractionAbortedEvent {
                 interaction_id: Some(unmatched_abort_interaction_id),
                 reason: InteractionAbortReason::Interrupted,
@@ -1323,8 +1323,8 @@ async fn record_initial_history_resumed_unmatched_abort_preserves_active_turn_fo
                 duration_ms: None,
             },
         )),
-        RolloutItem::TurnContext(current_context_item.clone()),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+        RolloutMessage::InteractionContext(current_context_item.clone()),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(
             datax_protocol::protocol::InteractionCompleteEvent {
                 interaction_id: current_interaction_id,
                 last_agent_message: None,
@@ -1364,7 +1364,7 @@ async fn record_initial_history_resumed_trailing_incomplete_turn_compaction_clea
  {
     let (session, turn_context) = make_session_and_context().await;
     let previous_model = "previous-rollout-model";
-    let previous_context_item = TurnContextItem {
+    let previous_context_item = InteractionContextMessage {
         interaction_id: Some(turn_context.sub_id.clone()),
         #[allow(deprecated)]
         cwd: turn_context.cwd.clone(),
@@ -1393,7 +1393,7 @@ async fn record_initial_history_resumed_trailing_incomplete_turn_compaction_clea
     let incomplete_interaction_id = "trailing-incomplete-turn".to_string();
 
     let rollout_items = vec![
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: previous_interaction_id.clone(),
                 trace_id: None,
@@ -1402,7 +1402,7 @@ async fn record_initial_history_resumed_trailing_incomplete_turn_compaction_clea
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "seed".to_string(),
@@ -1412,8 +1412,8 @@ async fn record_initial_history_resumed_trailing_incomplete_turn_compaction_clea
                 ..Default::default()
             },
         )),
-        RolloutItem::TurnContext(previous_context_item),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+        RolloutMessage::InteractionContext(previous_context_item),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(
             datax_protocol::protocol::InteractionCompleteEvent {
                 interaction_id: previous_interaction_id,
                 last_agent_message: None,
@@ -1422,7 +1422,7 @@ async fn record_initial_history_resumed_trailing_incomplete_turn_compaction_clea
                 time_to_first_token_ms: None,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: incomplete_interaction_id,
                 trace_id: None,
@@ -1431,7 +1431,7 @@ async fn record_initial_history_resumed_trailing_incomplete_turn_compaction_clea
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "incomplete".to_string(),
@@ -1441,7 +1441,7 @@ async fn record_initial_history_resumed_trailing_incomplete_turn_compaction_clea
                 ..Default::default()
             },
         )),
-        RolloutItem::Compacted(CompactedItem {
+        RolloutMessage::Compacted(CompactedItem {
             message: String::new(),
             replacement_history: Some(Vec::new()),
             window_number: None,
@@ -1480,7 +1480,7 @@ async fn record_initial_history_resumed_trailing_incomplete_turn_preserves_turn_
         .expect("turn context should have interaction_id");
 
     let rollout_items = vec![
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: current_interaction_id,
                 trace_id: None,
@@ -1489,7 +1489,7 @@ async fn record_initial_history_resumed_trailing_incomplete_turn_preserves_turn_
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "incomplete".to_string(),
@@ -1499,7 +1499,7 @@ async fn record_initial_history_resumed_trailing_incomplete_turn_preserves_turn_
                 ..Default::default()
             },
         )),
-        RolloutItem::TurnContext(current_context_item.clone()),
+        RolloutMessage::InteractionContext(current_context_item.clone()),
     ];
 
     session
@@ -1531,7 +1531,7 @@ async fn record_initial_history_resumed_replaced_incomplete_compacted_turn_clear
  {
     let (session, turn_context) = make_session_and_context().await;
     let previous_model = "previous-rollout-model";
-    let previous_context_item = TurnContextItem {
+    let previous_context_item = InteractionContextMessage {
         interaction_id: Some(turn_context.sub_id.clone()),
         #[allow(deprecated)]
         cwd: turn_context.cwd.clone(),
@@ -1561,7 +1561,7 @@ async fn record_initial_history_resumed_replaced_incomplete_compacted_turn_clear
     let replacing_interaction_id = "replacing-turn".to_string();
 
     let rollout_items = vec![
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: previous_interaction_id.clone(),
                 trace_id: None,
@@ -1570,7 +1570,7 @@ async fn record_initial_history_resumed_replaced_incomplete_compacted_turn_clear
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "seed".to_string(),
@@ -1580,8 +1580,8 @@ async fn record_initial_history_resumed_replaced_incomplete_compacted_turn_clear
                 ..Default::default()
             },
         )),
-        RolloutItem::TurnContext(previous_context_item),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+        RolloutMessage::InteractionContext(previous_context_item),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(
             datax_protocol::protocol::InteractionCompleteEvent {
                 interaction_id: previous_interaction_id,
                 last_agent_message: None,
@@ -1590,7 +1590,7 @@ async fn record_initial_history_resumed_replaced_incomplete_compacted_turn_clear
                 time_to_first_token_ms: None,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: compacted_incomplete_interaction_id,
                 trace_id: None,
@@ -1599,7 +1599,7 @@ async fn record_initial_history_resumed_replaced_incomplete_compacted_turn_clear
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "compacted".to_string(),
@@ -1609,7 +1609,7 @@ async fn record_initial_history_resumed_replaced_incomplete_compacted_turn_clear
                 ..Default::default()
             },
         )),
-        RolloutItem::Compacted(CompactedItem {
+        RolloutMessage::Compacted(CompactedItem {
             message: String::new(),
             replacement_history: Some(Vec::new()),
             window_number: None,
@@ -1619,7 +1619,7 @@ async fn record_initial_history_resumed_replaced_incomplete_compacted_turn_clear
         }),
         // A newer InteractionStarted replaces the incomplete compacted turn without a matching
         // completion/abort for the old one.
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: replacing_interaction_id,
                 trace_id: None,

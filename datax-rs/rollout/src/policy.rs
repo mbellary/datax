@@ -1,22 +1,22 @@
 use crate::protocol::EventMsg;
-use crate::protocol::RolloutItem;
+use crate::protocol::RolloutMessage;
 use datax_protocol::models::ResponseItem;
 
 /// Whether a rollout `item` should be persisted in rollout files.
-pub fn is_persisted_rollout_item(item: &RolloutItem) -> bool {
+pub fn is_persisted_rollout_item(item: &RolloutMessage) -> bool {
     match item {
-        RolloutItem::ResponseItem(item) => should_persist_response_item(item),
-        RolloutItem::InterAgentCommunication(_) => true,
-        RolloutItem::EventMsg(ev) => should_persist_event_msg(ev),
+        RolloutMessage::ResponseItem(item) => should_persist_response_item(item),
+        RolloutMessage::InterAgentCommunication(_) => true,
+        RolloutMessage::EventMsg(ev) => should_persist_event_msg(ev),
         // Persist Codex executive markers so we can analyze flows (e.g., compaction, API turns).
-        RolloutItem::Compacted(_) | RolloutItem::TurnContext(_) | RolloutItem::SessionMeta(_) => {
+        RolloutMessage::Compacted(_) | RolloutMessage::InteractionContext(_) | RolloutMessage::SessionMeta(_) => {
             true
         }
     }
 }
 
 /// Return the canonical rollout items that should be persisted for a live append.
-pub fn persisted_rollout_items(items: &[RolloutItem]) -> Vec<RolloutItem> {
+pub fn persisted_rollout_items(items: &[RolloutMessage]) -> Vec<RolloutMessage> {
     let mut persisted = Vec::new();
     for item in items {
         if is_persisted_rollout_item(item) {
@@ -94,14 +94,14 @@ pub fn should_persist_event_msg(ev: &EventMsg) -> bool {
         | EventMsg::WebSearchEnd(_)
         | EventMsg::ImageGenerationEnd(_)
         | EventMsg::SubAgentActivity(_) => true,
-        EventMsg::ItemCompleted(event) => {
+        EventMsg::MessageCompleted(event) => {
             // These items have no equivalent raw ResponseItem or legacy event,
             // so persist their completion for replay without retaining every
             // item lifecycle event.
             matches!(
                 event.item,
-                datax_protocol::items::TurnItem::Plan(_)
-                    | datax_protocol::items::TurnItem::Sleep(_)
+                datax_protocol::items::InteractionMessage::Plan(_)
+                    | datax_protocol::items::InteractionMessage::Sleep(_)
             )
         }
         EventMsg::Error(_)
@@ -141,7 +141,7 @@ pub fn should_persist_event_msg(ev: &EventMsg) -> bool {
         | EventMsg::StreamError(_)
         | EventMsg::PatchApplyBegin(_)
         | EventMsg::PatchApplyUpdated(_)
-        | EventMsg::TurnDiff(_)
+        | EventMsg::InteractionDiff(_)
         | EventMsg::RealtimeConversationListVoicesResponse(_)
         | EventMsg::McpStartupUpdate(_)
         | EventMsg::McpStartupComplete(_)
@@ -149,7 +149,7 @@ pub fn should_persist_event_msg(ev: &EventMsg) -> bool {
         | EventMsg::PlanUpdate(_)
         | EventMsg::ShutdownComplete
         | EventMsg::DeprecationNotice(_)
-        | EventMsg::ItemStarted(_)
+        | EventMsg::MessageStarted(_)
         | EventMsg::HookStarted(_)
         | EventMsg::HookCompleted(_)
         | EventMsg::AgentMessageContentDelta(_)

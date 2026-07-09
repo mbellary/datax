@@ -3,7 +3,7 @@ use std::sync::Arc;
 use datax_prompts::render_review_exit_interrupted;
 use datax_prompts::render_review_exit_success;
 use datax_protocol::config_types::WebSearchMode;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::models::ContentItem;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::AgentMessageContentDeltaEvent;
@@ -11,7 +11,7 @@ use datax_protocol::protocol::AskForApproval;
 use datax_protocol::protocol::Event;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::ExitedReviewModeEvent;
-use datax_protocol::protocol::ItemCompletedEvent;
+use datax_protocol::protocol::MessageCompletedEvent;
 use datax_protocol::protocol::ReviewOutputEvent;
 use datax_protocol::protocol::SubAgentSource;
 use tokio_util::sync::CancellationToken;
@@ -22,7 +22,7 @@ use crate::review_format::format_review_findings_block;
 use crate::review_format::render_review_output_text;
 use crate::session::TurnInput;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::state::TaskKind;
 use datax_features::Feature;
 use datax_protocol::user_input::UserInput;
@@ -52,7 +52,7 @@ impl SessionTask for ReviewTask {
     async fn run(
         self: Arc<Self>,
         session: Arc<SessionTaskContext>,
-        ctx: Arc<TurnContext>,
+        ctx: Arc<InteractionContext>,
         input: Vec<TurnInput>,
         cancellation_token: CancellationToken,
     ) -> SessionTaskResult {
@@ -88,14 +88,14 @@ impl SessionTask for ReviewTask {
         Ok(None)
     }
 
-    async fn abort(&self, session: Arc<SessionTaskContext>, ctx: Arc<TurnContext>) {
+    async fn abort(&self, session: Arc<SessionTaskContext>, ctx: Arc<InteractionContext>) {
         exit_review_mode(session.clone_session(), /*review_output*/ None, ctx).await;
     }
 }
 
 async fn start_review_conversation(
     session: Arc<SessionTaskContext>,
-    ctx: Arc<TurnContext>,
+    ctx: Arc<InteractionContext>,
     input: Vec<UserInput>,
     cancellation_token: CancellationToken,
 ) -> Option<async_channel::Receiver<Event>> {
@@ -141,7 +141,7 @@ async fn start_review_conversation(
 
 async fn process_review_events(
     session: Arc<SessionTaskContext>,
-    ctx: Arc<TurnContext>,
+    ctx: Arc<InteractionContext>,
     receiver: async_channel::Receiver<Event>,
 ) -> Option<ReviewOutputEvent> {
     let mut prev_agent_message: Option<Event> = None;
@@ -156,11 +156,11 @@ async fn process_review_events(
                 }
                 prev_agent_message = Some(event);
             }
-            // Suppress ItemCompleted only for assistant messages: forwarding it
+            // Suppress MessageCompleted only for assistant messages: forwarding it
             // would trigger legacy AgentMessage via as_legacy_events(), which this
             // review flow intentionally hides in favor of structured output.
-            EventMsg::ItemCompleted(ItemCompletedEvent {
-                item: TurnItem::AgentMessage(_),
+            EventMsg::MessageCompleted(MessageCompletedEvent {
+                item: InteractionMessage::AgentMessage(_),
                 ..
             })
             | EventMsg::AgentMessageContentDelta(AgentMessageContentDeltaEvent { .. }) => {}
@@ -215,7 +215,7 @@ fn parse_review_output_event(text: &str) -> ReviewOutputEvent {
 pub(crate) async fn exit_review_mode(
     session: Arc<Session>,
     review_output: Option<ReviewOutputEvent>,
-    ctx: Arc<TurnContext>,
+    ctx: Arc<InteractionContext>,
 ) {
     const REVIEW_USER_MESSAGE_ID: &str = "review_rollout_user";
     const REVIEW_ASSISTANT_MESSAGE_ID: &str = "review_rollout_assistant";

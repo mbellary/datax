@@ -11,7 +11,7 @@ use datax_protocol::openai_models::ReasoningEffort;
 use datax_protocol::protocol::AskForApproval;
 use datax_protocol::protocol::GitInfo;
 use datax_protocol::protocol::MultiAgentVersion;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::ThreadMemoryMode as MemoryMode;
 use datax_protocol::protocol::ThreadSource;
@@ -96,7 +96,7 @@ pub struct ResumeThreadParams {
     /// Known local rollout path when the caller resumed from a specific file.
     pub rollout_path: Option<PathBuf>,
     /// Known replay history for the resumed thread, if already loaded by the caller.
-    pub history: Option<Vec<RolloutItem>>,
+    pub history: Option<Vec<RolloutMessage>>,
     /// Whether archived threads may be reopened.
     pub include_archived: bool,
     /// Metadata for future writes appended to the resumed live thread.
@@ -105,14 +105,14 @@ pub struct ResumeThreadParams {
 
 /// Parameters for appending rollout items to a live thread.
 #[derive(Clone, Debug)]
-pub struct AppendThreadItemsParams {
+pub struct AppendChatMessagesParams {
     /// Thread id to append to.
     pub chat_id: ChatId,
     /// Raw rollout items to append in order.
     ///
     /// Store implementations are responsible for applying the shared rollout persistence policy
     /// before writing durable replay history or any implementation-owned projections.
-    pub items: Vec<RolloutItem>,
+    pub items: Vec<RolloutMessage>,
 }
 
 /// Parameters for loading persisted history for resume, fork, rollback, and memory jobs.
@@ -126,11 +126,11 @@ pub struct LoadThreadHistoryParams {
 
 /// Persisted rollout history for a thread, without any filesystem path requirement.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct StoredThreadHistory {
+pub struct StoredChatHistory {
     /// Thread id represented by the history.
     pub chat_id: ChatId,
     /// Persisted rollout items in replay order.
-    pub items: Vec<RolloutItem>,
+    pub items: Vec<RolloutMessage>,
 }
 
 /// Parameters for reading a thread summary and optionally its replay history.
@@ -227,31 +227,31 @@ pub struct SearchThreadsParams {
 
 /// A page of stored thread records.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ThreadPage {
+pub struct ChatPage {
     /// Threads returned for this page.
-    pub items: Vec<StoredThread>,
+    pub items: Vec<StoredChat>,
     /// Opaque cursor to continue listing.
     pub next_cursor: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct StoredThreadSearchResult {
-    pub thread: StoredThread,
+pub struct StoredChatSearchResult {
+    pub chat: StoredChat,
     pub snippet: String,
 }
 
 /// A page of thread-search results.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ThreadSearchPage {
+pub struct ChatSearchPage {
     /// Search results returned for this page.
-    pub items: Vec<StoredThreadSearchResult>,
+    pub items: Vec<StoredChatSearchResult>,
     /// Opaque cursor to continue searching.
     pub next_cursor: Option<String>,
 }
 
 /// Requested amount of item detail for stored turns.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub enum StoredTurnItemsView {
+pub enum StoredInteractionMessagesView {
     /// Return turn metadata only.
     NotLoaded,
     /// Return display summary items for each turn.
@@ -263,7 +263,7 @@ pub enum StoredTurnItemsView {
 
 /// Store-owned status for a persisted turn.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum StoredTurnStatus {
+pub enum StoredInteractionStatus {
     /// The turn completed normally.
     Completed,
     /// The turn was interrupted before normal completion.
@@ -276,7 +276,7 @@ pub enum StoredTurnStatus {
 
 /// Store-owned error details for a failed persisted turn.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct StoredTurnError {
+pub struct StoredInteractionError {
     /// User-visible error message.
     pub message: String,
     /// Optional additional detail for clients that expose expanded error context.
@@ -285,7 +285,7 @@ pub struct StoredTurnError {
 
 /// Parameters for listing turns within a stored thread.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ListTurnsParams {
+pub struct ListInteractionsParams {
     /// Thread id to read.
     pub chat_id: ChatId,
     /// Whether archived threads are eligible.
@@ -297,27 +297,27 @@ pub struct ListTurnsParams {
     /// Sort direction requested by the caller.
     pub sort_direction: SortDirection,
     /// Requested amount of item detail for each returned turn.
-    pub items_view: StoredTurnItemsView,
+    pub items_view: StoredInteractionMessagesView,
 }
 
 /// Store-owned turn representation used by turn pagination APIs.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct StoredTurn {
+pub struct StoredInteraction {
     /// Turn id.
     pub interaction_id: String,
     /// Persisted rollout items associated with this turn, according to `items_view`.
-    pub items: Vec<RolloutItem>,
+    pub items: Vec<RolloutMessage>,
     /// Opaque serialized turn metadata supplied by a projected durable store.
     pub metadata_json: Option<Vec<u8>>,
     /// Semantic turn creation timestamp in milliseconds, when supplied by a projected durable
     /// store.
     pub turn_created_at_ms: Option<i64>,
     /// Amount of item detail included in `items`.
-    pub items_view: StoredTurnItemsView,
+    pub items_view: StoredInteractionMessagesView,
     /// Store-owned status for API layer projection.
-    pub status: StoredTurnStatus,
+    pub status: StoredInteractionStatus,
     /// Error message when the turn failed.
-    pub error: Option<StoredTurnError>,
+    pub error: Option<StoredInteractionError>,
     /// Unix timestamp (seconds) when the turn started.
     pub started_at: Option<i64>,
     /// Unix timestamp (seconds) when the turn completed.
@@ -328,9 +328,9 @@ pub struct StoredTurn {
 
 /// A page of stored turns.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct TurnPage {
+pub struct InteractionPage {
     /// Turns returned for this page.
-    pub turns: Vec<StoredTurn>,
+    pub interactions: Vec<StoredInteraction>,
     /// Opaque cursor to continue listing.
     pub next_cursor: Option<String>,
     /// Opaque cursor for fetching in the opposite direction.
@@ -339,7 +339,7 @@ pub struct TurnPage {
 
 /// Parameters for listing persisted items within a thread.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ListItemsParams {
+pub struct ListMessagesParams {
     /// Thread id to read.
     pub chat_id: ChatId,
     /// Optional turn id to filter by. When omitted, returns items across the thread.
@@ -356,19 +356,19 @@ pub struct ListItemsParams {
 
 /// A projected app-server `ThreadItem` snapshot within a turn.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct StoredThreadItem {
+pub struct StoredChatMessage {
     pub interaction_id: Option<String>,
-    pub item_key: String,
-    pub item_ordinal: u64,
-    pub item_created_at_ms: i64,
-    pub materialized_thread_item_json: Vec<u8>,
+    pub message_key: String,
+    pub message_ordinal: u64,
+    pub message_created_at_ms: i64,
+    pub materialized_chat_message_json: Vec<u8>,
 }
 
 /// A page of persisted items within a thread, optionally filtered to a turn.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ItemPage {
+pub struct MessagePage {
     /// Items returned for this page.
-    pub items: Vec<StoredThreadItem>,
+    pub items: Vec<StoredChatMessage>,
     /// Opaque cursor to continue listing.
     pub next_cursor: Option<String>,
     /// Opaque cursor for fetching in the opposite direction.
@@ -377,7 +377,7 @@ pub struct ItemPage {
 
 /// Store-owned thread metadata used by list/read/resume responses.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct StoredThread {
+pub struct StoredChat {
     /// Thread id.
     pub chat_id: ChatId,
     /// Optional extra configuration fields for the thread.
@@ -431,7 +431,7 @@ pub struct StoredThread {
     /// First user message observed for this thread, if any.
     pub first_user_message: Option<String>,
     /// Persisted history, populated only when requested.
-    pub history: Option<StoredThreadHistory>,
+    pub history: Option<StoredChatHistory>,
 }
 
 /// Optional field patch where omission leaves a value unchanged and `Some(None)` clears it.

@@ -8,7 +8,7 @@ use datax_protocol::models::ResponseItem;
 use datax_protocol::models::plaintext_agent_message_content;
 use datax_thread_store::ListThreadsParams;
 use datax_thread_store::SortDirection;
-use datax_thread_store::StoredThread;
+use datax_thread_store::StoredChat;
 use datax_thread_store::ThreadSortKey;
 use datax_utils_absolute_path::AbsolutePathBuf;
 use datax_utils_output_truncation::TruncationPolicy;
@@ -125,7 +125,7 @@ pub(crate) async fn build_realtime_startup_context(
     Some(context)
 }
 
-async fn load_recent_threads(sess: &Session) -> Vec<StoredThread> {
+async fn load_recent_threads(sess: &Session) -> Vec<StoredChat> {
     match sess
         .services
         .thread_store
@@ -154,9 +154,9 @@ async fn load_recent_threads(sess: &Session) -> Vec<StoredThread> {
 
 async fn build_recent_work_section(
     cwd: &AbsolutePathBuf,
-    recent_threads: &[StoredThread],
+    recent_threads: &[StoredChat],
 ) -> Option<String> {
-    let mut groups: HashMap<PathBuf, Vec<&StoredThread>> = HashMap::new();
+    let mut groups: HashMap<PathBuf, Vec<&StoredChat>> = HashMap::new();
     for entry in recent_threads {
         let group = match AbsolutePathBuf::from_absolute_path(entry.cwd.as_path()) {
             Ok(entry_cwd) => resolve_root_git_project_for_trust(LOCAL_FS.as_ref(), &entry_cwd)
@@ -489,7 +489,7 @@ fn format_startup_context_blob(body: &str) -> String {
 async fn format_thread_group(
     current_group: &Path,
     group: &Path,
-    entries: Vec<&StoredThread>,
+    entries: Vec<&StoredChat>,
 ) -> Option<String> {
     let latest = entries.first()?;
     let group_label =

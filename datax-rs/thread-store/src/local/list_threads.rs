@@ -13,7 +13,7 @@ use super::helpers::set_thread_name_from_title;
 use super::helpers::stored_thread_from_rollout_item;
 use crate::ListThreadsParams;
 use crate::SortDirection;
-use crate::ThreadPage;
+use crate::ChatPage;
 use crate::ThreadSortKey;
 use crate::ThreadStoreError;
 use crate::ThreadStoreResult;
@@ -21,7 +21,7 @@ use crate::ThreadStoreResult;
 pub(super) async fn list_threads(
     store: &LocalThreadStore,
     params: ListThreadsParams,
-) -> ThreadStoreResult<ThreadPage> {
+) -> ThreadStoreResult<ChatPage> {
     let cursor = params
         .cursor
         .as_deref()
@@ -105,7 +105,7 @@ pub(super) async fn list_threads(
         }
     }
 
-    Ok(ThreadPage { items, next_cursor })
+    Ok(ChatPage { items, next_cursor })
 }
 
 pub(super) async fn list_rollout_threads(

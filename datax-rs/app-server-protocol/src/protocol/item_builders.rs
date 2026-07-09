@@ -1,6 +1,6 @@
 //! Shared builders for app-server [`Message`] values derived from compatibility events.
 //!
-//! Most live tool messages now come from first-class core `ItemStarted` / `ItemCompleted` events.
+//! Most live tool messages now come from first-class core `MessageStarted` / `MessageCompleted` events.
 //! These builders remain for approval flows, rebuilt legacy history, and other pre-execution
 //! paths where the underlying tool has not started or never starts at all.
 //!

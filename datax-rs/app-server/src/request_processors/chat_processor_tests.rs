@@ -138,7 +138,7 @@ mod thread_processor_behavior_tests {
     use datax_protocol::protocol::SubAgentSource;
     use datax_protocol::protocol::TurnEnvironmentSelections;
     use datax_state::ThreadMetadataBuilder;
-    use datax_thread_store::StoredThread;
+    use datax_thread_store::StoredChat;
     use datax_utils_absolute_path::test_support::PathBufExt;
     use datax_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
@@ -286,7 +286,7 @@ mod thread_processor_behavior_tests {
 
     #[test]
     fn thread_turns_list_merges_in_progress_active_turn_before_agent_status_running() {
-        let persisted_items = vec![RolloutItem::EventMsg(EventMsg::UserMessage(
+        let persisted_items = vec![RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "persisted".to_string(),
@@ -465,7 +465,7 @@ mod thread_processor_behavior_tests {
             DateTime::parse_from_rfc3339("2025-01-02T03:04:06.789Z").expect("valid timestamp");
         let chat_id =
             ChatId::from_string("00000000-0000-0000-0000-000000000123").expect("valid thread");
-        let stored_thread = StoredThread {
+        let stored_thread = StoredChat {
             chat_id: chat_id,
             extra_config: None,
             rollout_path: Some(PathBuf::from("/tmp/thread.jsonl")),
@@ -990,7 +990,7 @@ mod thread_processor_behavior_tests {
 
     #[tokio::test]
     async fn read_summary_from_rollout_returns_empty_preview_when_no_user_message() -> Result<()> {
-        use datax_protocol::protocol::RolloutItem;
+        use datax_protocol::protocol::RolloutMessage;
         use datax_protocol::protocol::RolloutLine;
         use datax_protocol::protocol::SessionMetaLine;
         use std::fs;
@@ -1012,7 +1012,7 @@ mod thread_processor_behavior_tests {
 
         let line = RolloutLine {
             timestamp: timestamp.clone(),
-            item: RolloutItem::SessionMeta(SessionMetaLine {
+            item: RolloutMessage::SessionMeta(SessionMetaLine {
                 meta: session_meta.clone(),
                 git: None,
             }),
@@ -1047,7 +1047,7 @@ mod thread_processor_behavior_tests {
 
     #[tokio::test]
     async fn read_summary_from_rollout_preserves_agent_nickname() -> Result<()> {
-        use datax_protocol::protocol::RolloutItem;
+        use datax_protocol::protocol::RolloutMessage;
         use datax_protocol::protocol::RolloutLine;
         use datax_protocol::protocol::SessionMetaLine;
         use std::fs;
@@ -1079,7 +1079,7 @@ mod thread_processor_behavior_tests {
 
         let line = RolloutLine {
             timestamp,
-            item: RolloutItem::SessionMeta(SessionMetaLine {
+            item: RolloutMessage::SessionMeta(SessionMetaLine {
                 meta: session_meta,
                 git: None,
             }),
@@ -1098,7 +1098,7 @@ mod thread_processor_behavior_tests {
 
     #[tokio::test]
     async fn read_summary_from_rollout_preserves_forked_from_id() -> Result<()> {
-        use datax_protocol::protocol::RolloutItem;
+        use datax_protocol::protocol::RolloutMessage;
         use datax_protocol::protocol::RolloutLine;
         use datax_protocol::protocol::SessionMetaLine;
         use std::fs;
@@ -1121,7 +1121,7 @@ mod thread_processor_behavior_tests {
 
         let line = RolloutLine {
             timestamp,
-            item: RolloutItem::SessionMeta(SessionMetaLine {
+            item: RolloutMessage::SessionMeta(SessionMetaLine {
                 meta: session_meta,
                 git: None,
             }),

@@ -7,7 +7,7 @@ use datax_protocol::models::ContentItem;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::AgentMessageEvent;
 use datax_protocol::protocol::EventMsg;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::TokenCountEvent;
 use datax_protocol::protocol::TokenUsage;
 use datax_protocol::protocol::TokenUsageInfo;
@@ -56,7 +56,7 @@ pub(crate) fn load_session_for_import_with_content_sha256(
     )))
 }
 
-fn rollout_items_from_messages(messages: Vec<ConversationMessage>) -> Vec<RolloutItem> {
+fn rollout_items_from_messages(messages: Vec<ConversationMessage>) -> Vec<RolloutMessage> {
     let mut items = Vec::new();
     let mut current_turn = None;
     let mut response_item_bytes = 0i64;
@@ -72,7 +72,7 @@ fn rollout_items_from_messages(messages: Vec<ConversationMessage>) -> Vec<Rollou
                 }
                 user_turn_count += 1;
                 let interaction_id = format!("external-import-turn-{user_turn_count}");
-                items.push(RolloutItem::EventMsg(EventMsg::InteractionStarted(
+                items.push(RolloutMessage::EventMsg(EventMsg::InteractionStarted(
                     InteractionStartedEvent {
                         interaction_id: interaction_id.clone(),
                         trace_id: None,
@@ -81,7 +81,7 @@ fn rollout_items_from_messages(messages: Vec<ConversationMessage>) -> Vec<Rollou
                         collaboration_mode_kind: Default::default(),
                     },
                 )));
-                items.push(RolloutItem::EventMsg(EventMsg::UserMessage(
+                items.push(RolloutMessage::EventMsg(EventMsg::UserMessage(
                     UserMessageEvent {
                         message: message.text.clone(),
                         ..Default::default()
@@ -89,7 +89,7 @@ fn rollout_items_from_messages(messages: Vec<ConversationMessage>) -> Vec<Rollou
                 )));
                 response_item_bytes =
                     response_item_bytes.saturating_add(message_byte_count(&message));
-                items.push(RolloutItem::ResponseItem(response_item(message)));
+                items.push(RolloutMessage::ResponseItem(response_item(message)));
                 current_turn = Some(interaction_id);
             }
             MessageRole::Assistant => {
@@ -99,14 +99,14 @@ fn rollout_items_from_messages(messages: Vec<ConversationMessage>) -> Vec<Rollou
                 response_item_bytes =
                     response_item_bytes.saturating_add(message_byte_count(&message));
                 last_model_visible_tokens = approx_tokens_from_byte_count_i64(response_item_bytes);
-                items.push(RolloutItem::EventMsg(EventMsg::AgentMessage(
+                items.push(RolloutMessage::EventMsg(EventMsg::AgentMessage(
                     AgentMessageEvent {
                         message: message.text.clone(),
                         phase: None,
                         memory_citation: None,
                     },
                 )));
-                items.push(RolloutItem::ResponseItem(response_item(message)));
+                items.push(RolloutMessage::ResponseItem(response_item(message)));
             }
         }
     }
@@ -120,8 +120,8 @@ fn rollout_items_from_messages(messages: Vec<ConversationMessage>) -> Vec<Rollou
     items
 }
 
-fn external_session_imported_marker_item() -> RolloutItem {
-    RolloutItem::EventMsg(EventMsg::AgentMessage(AgentMessageEvent {
+fn external_session_imported_marker_item() -> RolloutMessage {
+    RolloutMessage::EventMsg(EventMsg::AgentMessage(AgentMessageEvent {
         message: EXTERNAL_SESSION_IMPORTED_MARKER.to_string(),
         phase: None,
         memory_citation: None,
@@ -149,12 +149,12 @@ fn message_byte_count(message: &ConversationMessage) -> i64 {
     i64::try_from(message.text.len()).unwrap_or(i64::MAX)
 }
 
-fn token_count_item(last_model_visible_tokens: i64) -> RolloutItem {
+fn token_count_item(last_model_visible_tokens: i64) -> RolloutMessage {
     let usage = TokenUsage {
         total_tokens: last_model_visible_tokens,
         ..TokenUsage::default()
     };
-    RolloutItem::EventMsg(EventMsg::TokenCount(TokenCountEvent {
+    RolloutMessage::EventMsg(EventMsg::TokenCount(TokenCountEvent {
         info: Some(TokenUsageInfo {
             total_token_usage: usage.clone(),
             last_token_usage: usage,
@@ -164,8 +164,8 @@ fn token_count_item(last_model_visible_tokens: i64) -> RolloutItem {
     }))
 }
 
-fn turn_complete_item(interaction_id: String, completed_at: Option<i64>) -> RolloutItem {
-    RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+fn turn_complete_item(interaction_id: String, completed_at: Option<i64>) -> RolloutMessage {
+    RolloutMessage::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
         interaction_id,
         last_agent_message: None,
         completed_at,
@@ -253,7 +253,7 @@ mod tests {
             .iter()
             .rev()
             .find_map(|item| match item {
-                RolloutItem::EventMsg(EventMsg::InteractionComplete(event)) => Some(event),
+                RolloutMessage::EventMsg(EventMsg::InteractionComplete(event)) => Some(event),
                 _ => None,
             });
         assert_eq!(
@@ -288,7 +288,7 @@ mod tests {
             .filter(|item| {
                 matches!(
                     item,
-                    RolloutItem::ResponseItem(ResponseItem::Message { .. })
+                    RolloutMessage::ResponseItem(ResponseItem::Message { .. })
                 )
             })
             .count();
@@ -296,8 +296,8 @@ mod tests {
             .rollout_items
             .iter()
             .filter(|item| match item {
-                RolloutItem::EventMsg(EventMsg::UserMessage(event)) => event.message == request,
-                RolloutItem::EventMsg(EventMsg::AgentMessage(event)) => event.message == answer,
+                RolloutMessage::EventMsg(EventMsg::UserMessage(event)) => event.message == request,
+                RolloutMessage::EventMsg(EventMsg::AgentMessage(event)) => event.message == answer,
                 _ => false,
             })
             .count();
@@ -396,7 +396,7 @@ mod tests {
             .rollout_items
             .iter()
             .find_map(|item| match item {
-                RolloutItem::EventMsg(EventMsg::TokenCount(event)) => event.info.clone(),
+                RolloutMessage::EventMsg(EventMsg::TokenCount(event)) => event.info.clone(),
                 _ => None,
             })
             .expect("token count event");

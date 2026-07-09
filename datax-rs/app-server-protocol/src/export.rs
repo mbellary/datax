@@ -2428,10 +2428,10 @@ mod tests {
                     "type": "object",
                     "properties": {
                         "current_thread": { "$ref": "#/definitions/ChatId" },
-                        "turn_item": { "$ref": "#/definitions/TurnItem" }
+                        "turn_item": { "$ref": "#/definitions/InteractionMessage" }
                     },
                     "definitions": {
-                        "TurnItem": {
+                        "InteractionMessage": {
                             "type": "object",
                             "properties": {
                                 "chat_id": { "$ref": "#/definitions/ChatId" },
@@ -2480,18 +2480,18 @@ mod tests {
         );
         assert_eq!(
             bundle["definitions"]["LegacyEnvelope"]["properties"]["turn_item"]["$ref"],
-            serde_json::json!("#/definitions/TurnItem")
+            serde_json::json!("#/definitions/InteractionMessage")
         );
         assert_eq!(
-            bundle["definitions"]["TurnItem"]["properties"]["chat_id"]["$ref"],
+            bundle["definitions"]["InteractionMessage"]["properties"]["chat_id"]["$ref"],
             serde_json::json!("#/definitions/v2/ChatId")
         );
         assert_eq!(
-            bundle["definitions"]["TurnItem"]["properties"]["phase"]["$ref"],
+            bundle["definitions"]["InteractionMessage"]["properties"]["phase"]["$ref"],
             serde_json::json!("#/definitions/v2/MessagePhase")
         );
         assert_eq!(
-            bundle["definitions"]["TurnItem"]["properties"]["content"]["messages"]["$ref"],
+            bundle["definitions"]["InteractionMessage"]["properties"]["content"]["messages"]["$ref"],
             serde_json::json!("#/definitions/v2/UserInput")
         );
 

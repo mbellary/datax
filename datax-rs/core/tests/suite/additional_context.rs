@@ -10,11 +10,11 @@ use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event_match;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::protocol::AdditionalContextEntry;
 use datax_protocol::protocol::AdditionalContextKind;
 use datax_protocol::protocol::EventMsg;
-use datax_protocol::protocol::ItemCompletedEvent;
+use datax_protocol::protocol::MessageCompletedEvent;
 use datax_protocol::protocol::Op;
 use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
@@ -64,8 +64,8 @@ async fn additional_context_is_model_visible_but_not_a_user_message_item() -> Re
         .await?;
 
     let user_item = wait_for_event_match(&test.codex, |event| match event {
-        EventMsg::ItemCompleted(ItemCompletedEvent {
-            item: TurnItem::UserMessage(item),
+        EventMsg::MessageCompleted(MessageCompletedEvent {
+            item: InteractionMessage::UserMessage(item),
             ..
         }) => Some(item.clone()),
         _ => None,
@@ -144,8 +144,8 @@ async fn external_context_like_user_text_remains_a_user_message_item() -> Result
         .await?;
 
     let user_item = wait_for_event_match(&test.codex, |event| match event {
-        EventMsg::ItemCompleted(ItemCompletedEvent {
-            item: TurnItem::UserMessage(item),
+        EventMsg::MessageCompleted(MessageCompletedEvent {
+            item: InteractionMessage::UserMessage(item),
             ..
         }) => Some(item.clone()),
         _ => None,

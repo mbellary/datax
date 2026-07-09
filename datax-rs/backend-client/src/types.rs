@@ -189,9 +189,9 @@ pub struct Turn {
     #[serde(default, deserialize_with = "deserialize_vec")]
     pub sibling_interaction_ids: Vec<String>,
     #[serde(default, deserialize_with = "deserialize_vec")]
-    pub input_items: Vec<TurnItem>,
+    pub input_items: Vec<InteractionMessage>,
     #[serde(default, deserialize_with = "deserialize_vec")]
-    pub output_items: Vec<TurnItem>,
+    pub output_items: Vec<InteractionMessage>,
     #[serde(default)]
     pub worklog: Option<Worklog>,
     #[serde(default)]
@@ -199,7 +199,7 @@ pub struct Turn {
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
-pub struct TurnItem {
+pub struct InteractionMessage {
     #[serde(rename = "type", default)]
     pub kind: String,
     #[serde(default)]
@@ -293,7 +293,7 @@ impl ContentFragment {
     }
 }
 
-impl TurnItem {
+impl InteractionMessage {
     fn text_values(&self) -> Vec<String> {
         self.content
             .iter()
@@ -321,7 +321,7 @@ impl TurnItem {
 
 impl Turn {
     fn unified_diff(&self) -> Option<String> {
-        self.output_items.iter().find_map(TurnItem::diff_text)
+        self.output_items.iter().find_map(InteractionMessage::diff_text)
     }
 
     fn message_texts(&self) -> Vec<String> {
@@ -329,7 +329,7 @@ impl Turn {
             .output_items
             .iter()
             .filter(|item| item.kind == "message")
-            .flat_map(TurnItem::text_values)
+            .flat_map(InteractionMessage::text_values)
             .collect();
 
         if let Some(log) = &self.worklog {
@@ -354,7 +354,7 @@ impl Turn {
                     .map(|r| r.eq_ignore_ascii_case("user"))
                     .unwrap_or(true)
             })
-            .flat_map(TurnItem::text_values)
+            .flat_map(InteractionMessage::text_values)
             .collect();
 
         if parts.is_empty() {

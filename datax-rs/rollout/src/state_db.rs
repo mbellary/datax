@@ -9,7 +9,7 @@ use anyhow::Context;
 use chrono::DateTime;
 use chrono::Utc;
 use datax_protocol::ChatId;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::SessionSource;
 pub use datax_state::LogEntry;
 use datax_state::ThreadMetadataBuilder;
@@ -493,7 +493,7 @@ pub async fn reconcile_rollout(
     rollout_path: &Path,
     default_provider: &str,
     builder: Option<&ThreadMetadataBuilder>,
-    items: &[RolloutItem],
+    items: &[RolloutMessage],
     archived_only: Option<bool>,
     new_thread_memory_mode: Option<&str>,
 ) {
@@ -632,7 +632,7 @@ pub async fn apply_rollout_items(
     rollout_path: &Path,
     default_provider: &str,
     builder: Option<&ThreadMetadataBuilder>,
-    items: &[RolloutItem],
+    items: &[RolloutMessage],
     stage: &str,
     new_thread_memory_mode: Option<&str>,
     updated_at_override: Option<DateTime<Utc>>,

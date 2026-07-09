@@ -26,7 +26,7 @@ use datax_model_provider_info::ModelProviderInfo;
 use datax_model_provider_info::built_in_model_providers;
 use datax_models_manager::bundled_models_response;
 use datax_protocol::config_types::AutoCompactTokenLimitScope;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::models::PermissionProfile;
 use datax_protocol::openai_models::ModelInfo;
 use datax_protocol::openai_models::ModelsResponse;
@@ -34,10 +34,10 @@ use datax_protocol::protocol::AskForApproval;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::HookEventName;
 use datax_protocol::protocol::HookRunStatus;
-use datax_protocol::protocol::ItemCompletedEvent;
-use datax_protocol::protocol::ItemStartedEvent;
+use datax_protocol::protocol::MessageCompletedEvent;
+use datax_protocol::protocol::MessageStartedEvent;
 use datax_protocol::protocol::Op;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::protocol::WarningEvent;
 use datax_protocol::user_input::UserInput;
@@ -371,7 +371,7 @@ fn replacement_history_from_rollout(path: &Path) -> Result<Vec<Value>> {
         .filter(|line| !line.is_empty())
     {
         let entry: RolloutLine = serde_json::from_str(line)?;
-        if let RolloutItem::Compacted(compacted) = entry.item
+        if let RolloutMessage::Compacted(compacted) = entry.item
             && let Some(items) = compacted.replacement_history
         {
             replacement_history = Some(
@@ -460,12 +460,12 @@ async fn assert_compaction_uses_turn_lifecycle_id(codex: &std::sync::Arc<datax_c
         let event = codex.next_event().await.expect("next event");
         match event.msg {
             EventMsg::InteractionStarted(_) => turn_started_id = Some(event.id.clone()),
-            EventMsg::ItemStarted(ItemStartedEvent {
-                item: TurnItem::ContextCompaction(_),
+            EventMsg::MessageStarted(MessageStartedEvent {
+                item: InteractionMessage::ContextCompaction(_),
                 ..
             }) => compact_started_id = Some(event.id.clone()),
-            EventMsg::ItemCompleted(ItemCompletedEvent {
-                item: TurnItem::ContextCompaction(_),
+            EventMsg::MessageCompleted(MessageCompletedEvent {
+                item: InteractionMessage::ContextCompaction(_),
                 ..
             }) => compact_completed_id = Some(event.id.clone()),
             EventMsg::InteractionComplete(_) => turn_completed_id = Some(event.id.clone()),
@@ -681,7 +681,7 @@ async fn summarize_context_three_requests_and_instructions() {
     codex.submit(Op::Shutdown).await.unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
 
-    // Verify rollout contains user-turn TurnContext entries and a Compacted entry.
+    // Verify rollout contains user-turn InteractionContext entries and a Compacted entry.
     println!("rollout path: {}", rollout_path.display());
     let text = std::fs::read_to_string(&rollout_path).expect("failed to read rollout file");
     let mut regular_turn_context_count = 0usize;
@@ -695,10 +695,10 @@ async fn summarize_context_three_requests_and_instructions() {
             continue;
         };
         match entry.item {
-            RolloutItem::TurnContext(_) => {
+            RolloutMessage::InteractionContext(_) => {
                 regular_turn_context_count += 1;
             }
-            RolloutItem::Compacted(ci) if ci.message == expected_summary_message => {
+            RolloutMessage::Compacted(ci) if ci.message == expected_summary_message => {
                 saw_compacted_summary = true;
             }
             _ => {}
@@ -707,7 +707,7 @@ async fn summarize_context_three_requests_and_instructions() {
 
     assert_eq!(
         regular_turn_context_count, 2,
-        "rollout should contain one TurnContext entry per real user turn"
+        "rollout should contain one InteractionContext entry per real user turn"
     );
     assert!(
         saw_compacted_summary,
@@ -1060,14 +1060,14 @@ async fn manual_compact_emits_context_compaction_items() {
     {
         let event = codex.next_event().await.unwrap();
         match event.msg {
-            EventMsg::ItemStarted(ItemStartedEvent {
-                item: TurnItem::ContextCompaction(item),
+            EventMsg::MessageStarted(MessageStartedEvent {
+                item: InteractionMessage::ContextCompaction(item),
                 ..
             }) => {
                 started_item = Some(item);
             }
-            EventMsg::ItemCompleted(ItemCompletedEvent {
-                item: TurnItem::ContextCompaction(item),
+            EventMsg::MessageCompleted(MessageCompletedEvent {
+                item: InteractionMessage::ContextCompaction(item),
                 ..
             }) => {
                 completed_item = Some(item);
@@ -1892,14 +1892,14 @@ async fn auto_compact_emits_context_compaction_items() {
         loop {
             let event = codex.next_event().await.unwrap();
             match event.msg {
-                EventMsg::ItemStarted(ItemStartedEvent {
-                    item: TurnItem::ContextCompaction(item),
+                EventMsg::MessageStarted(MessageStartedEvent {
+                    item: InteractionMessage::ContextCompaction(item),
                     ..
                 }) => {
                     started_item = Some(item);
                 }
-                EventMsg::ItemCompleted(ItemCompletedEvent {
-                    item: TurnItem::ContextCompaction(item),
+                EventMsg::MessageCompleted(MessageCompletedEvent {
+                    item: InteractionMessage::ContextCompaction(item),
                     ..
                 }) => {
                     completed_item = Some(item);
@@ -2002,8 +2002,8 @@ async fn auto_compact_starts_after_turn_started() {
 
     let first = wait_for_event_match(&codex, |ev| match ev {
         EventMsg::InteractionStarted(_) => Some("turn"),
-        EventMsg::ItemStarted(ItemStartedEvent {
-            item: TurnItem::ContextCompaction(_),
+        EventMsg::MessageStarted(MessageStartedEvent {
+            item: InteractionMessage::ContextCompaction(_),
             ..
         }) => Some("compaction"),
         _ => None,
@@ -2014,8 +2014,8 @@ async fn auto_compact_starts_after_turn_started() {
     wait_for_event(&codex, |ev| {
         matches!(
             ev,
-            EventMsg::ItemStarted(ItemStartedEvent {
-                item: TurnItem::ContextCompaction(_),
+            EventMsg::MessageStarted(MessageStartedEvent {
+                item: InteractionMessage::ContextCompaction(_),
                 ..
             })
         )
@@ -2824,7 +2824,7 @@ async fn pre_sampling_compact_recovers_comp_hash_after_resume() {
         .lines()
         .filter_map(|line| serde_json::from_str::<RolloutLine>(line).ok())
         .find_map(|line| match line.item {
-            RolloutItem::TurnContext(context) => context.comp_hash,
+            RolloutMessage::InteractionContext(context) => context.comp_hash,
             _ => None,
         });
     assert_eq!(persisted_comp_hash.as_deref(), Some("hash-a"));
@@ -3124,17 +3124,17 @@ async fn auto_compact_persists_rollout_entries() {
             continue;
         };
         match entry.item {
-            RolloutItem::TurnContext(_) => {
+            RolloutMessage::InteractionContext(_) => {
                 turn_context_count += 1;
             }
-            RolloutItem::Compacted(_) => {}
+            RolloutMessage::Compacted(_) => {}
             _ => {}
         }
     }
 
     assert_eq!(
         turn_context_count, 3,
-        "rollout should contain one TurnContext entry per real user turn"
+        "rollout should contain one InteractionContext entry per real user turn"
     );
 }
 

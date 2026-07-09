@@ -1814,7 +1814,7 @@ default_permissions = "locked-down"
     };
     assert_eq!(
         op,
-        Op::OverrideTurnContext {
+        Op::OverrideInteractionContext {
             cwd: None,
             approval_policy: None,
             approvals_reviewer: None,
@@ -1908,7 +1908,7 @@ async fn update_feature_flags_enabling_guardian_selects_auto_review() -> Result<
     );
     assert_eq!(
         op_rx.try_recv(),
-        Ok(Op::OverrideTurnContext {
+        Ok(Op::OverrideInteractionContext {
             cwd: None,
             approval_policy: Some(auto_review.approval_policy),
             approvals_reviewer: Some(auto_review.approvals_reviewer),
@@ -2003,7 +2003,7 @@ async fn update_feature_flags_disabling_guardian_clears_review_policy_and_restor
     assert_eq!(app.runtime_approval_policy_override, None);
     assert_eq!(
         op_rx.try_recv(),
-        Ok(Op::OverrideTurnContext {
+        Ok(Op::OverrideInteractionContext {
             cwd: None,
             approval_policy: None,
             approvals_reviewer: Some(ApprovalsReviewer::User),
@@ -2084,7 +2084,7 @@ async fn update_feature_flags_enabling_guardian_overrides_explicit_manual_review
     );
     assert_eq!(
         op_rx.try_recv(),
-        Ok(Op::OverrideTurnContext {
+        Ok(Op::OverrideInteractionContext {
             cwd: None,
             approval_policy: Some(auto_review.approval_policy),
             approvals_reviewer: Some(auto_review.approvals_reviewer),
@@ -2144,7 +2144,7 @@ async fn update_feature_flags_disabling_guardian_clears_manual_review_policy_wit
     );
     assert_eq!(
         op_rx.try_recv(),
-        Ok(Op::OverrideTurnContext {
+        Ok(Op::OverrideInteractionContext {
             cwd: None,
             approval_policy: None,
             approvals_reviewer: Some(ApprovalsReviewer::User),

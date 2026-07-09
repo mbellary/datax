@@ -14,7 +14,7 @@ use datax_extension_api::ConversationHistory;
 use datax_extension_api::ExtensionData;
 use datax_extension_api::ExtensionEventSink;
 use datax_extension_api::ExtensionRegistryBuilder;
-use datax_extension_api::NoopTurnItemEmitter;
+use datax_extension_api::NoopInteractionMessageEmitter;
 use datax_extension_api::ThreadStartInput;
 use datax_extension_api::ToolCall;
 use datax_extension_api::ToolPayload;
@@ -364,7 +364,7 @@ async fn skills_list_truncates_catalog_descriptions_in_tool_output() -> TestResu
             model: "gpt-test".to_string(),
             truncation_policy: TruncationPolicy::Bytes(1_024),
             conversation_history: ConversationHistory::default(),
-            turn_item_emitter: Arc::new(NoopTurnItemEmitter),
+            turn_item_emitter: Arc::new(NoopInteractionMessageEmitter),
             environments: Vec::new(),
             payload: payload.clone(),
         })

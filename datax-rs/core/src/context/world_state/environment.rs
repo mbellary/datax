@@ -4,10 +4,10 @@ use crate::context::environment_context::FileSystemContext;
 use crate::context::environment_context::NetworkContext;
 use crate::context::environment_context::push_xml_escaped_text;
 use crate::environment_selection::TurnEnvironmentSnapshot;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use datax_exec_server::LOCAL_ENVIRONMENT_ID;
-use datax_protocol::protocol::TurnContextItem;
-use datax_protocol::protocol::TurnContextNetworkItem;
+use datax_protocol::protocol::InteractionContextMessage;
+use datax_protocol::protocol::InteractionContextNetworkMessage;
 use datax_utils_absolute_path::AbsolutePathBuf;
 use datax_utils_path_uri::PathUri;
 use std::collections::BTreeMap;
@@ -24,12 +24,12 @@ pub(crate) struct EnvironmentsState {
 }
 
 impl EnvironmentsState {
-    pub(crate) fn from_turn_context(turn_context: &TurnContext) -> Self {
+    pub(crate) fn from_turn_context(turn_context: &InteractionContext) -> Self {
         Self::from_turn_context_with_environments(turn_context, &turn_context.environments)
     }
 
     pub(crate) fn from_turn_context_with_environments(
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         environments: &TurnEnvironmentSnapshot,
     ) -> Self {
         Self {
@@ -45,7 +45,7 @@ impl EnvironmentsState {
         }
     }
 
-    pub(crate) fn from_turn_context_item(turn_context_item: &TurnContextItem) -> Self {
+    pub(crate) fn from_turn_context_item(turn_context_item: &InteractionContextMessage) -> Self {
         Self {
             environments: [(
                 LOCAL_ENVIRONMENT_ID.to_string(),
@@ -335,7 +335,7 @@ fn environment_context_markers() -> (&'static str, &'static str) {
     )
 }
 
-fn network_from_turn_context(turn_context: &TurnContext) -> Option<NetworkContext> {
+fn network_from_turn_context(turn_context: &InteractionContext) -> Option<NetworkContext> {
     let network = turn_context
         .config
         .config_layer_stack
@@ -357,8 +357,8 @@ fn network_from_turn_context(turn_context: &TurnContext) -> Option<NetworkContex
     ))
 }
 
-fn network_from_turn_context_item(turn_context_item: &TurnContextItem) -> Option<NetworkContext> {
-    let TurnContextNetworkItem {
+fn network_from_turn_context_item(turn_context_item: &InteractionContextMessage) -> Option<NetworkContext> {
+    let InteractionContextNetworkMessage {
         allowed_domains,
         denied_domains,
     } = turn_context_item.network.as_ref()?;
@@ -369,7 +369,7 @@ fn network_from_turn_context_item(turn_context_item: &TurnContextItem) -> Option
 }
 
 fn workspace_roots_from_turn_context_item(
-    turn_context_item: &TurnContextItem,
+    turn_context_item: &InteractionContextMessage,
 ) -> Vec<AbsolutePathBuf> {
     if let Some(workspace_roots) = turn_context_item.workspace_roots.as_ref() {
         return workspace_roots.clone();

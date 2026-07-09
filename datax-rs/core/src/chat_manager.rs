@@ -47,7 +47,7 @@ use datax_protocol::protocol::InteractionAbortedEvent;
 use datax_protocol::protocol::MultiAgentVersion;
 use datax_protocol::protocol::Op;
 use datax_protocol::protocol::ResumedHistory;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::SessionConfiguredEvent;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
@@ -61,7 +61,7 @@ use datax_thread_store::LocalThreadStore;
 use datax_thread_store::LocalThreadStoreConfig;
 use datax_thread_store::ReadThreadByRolloutPathParams;
 use datax_thread_store::ReadThreadParams;
-use datax_thread_store::StoredThread;
+use datax_thread_store::StoredChat;
 use datax_thread_store::ThreadMetadataPatch;
 use datax_thread_store::ThreadStore;
 use datax_thread_store::ThreadStoreError;
@@ -515,7 +515,7 @@ impl ChatManager {
         chat_id: ChatId,
         patch: ThreadMetadataPatch,
         include_archived: bool,
-    ) -> CodexResult<StoredThread> {
+    ) -> CodexResult<StoredChat> {
         if let Ok(thread) = self.get_chat(chat_id).await {
             if thread.config_snapshot().await.ephemeral {
                 return Err(CodexErr::InvalidRequest(format!(
@@ -1060,7 +1060,7 @@ impl ChatManagerState {
     pub(crate) async fn read_stored_thread(
         &self,
         params: ReadThreadParams,
-    ) -> CodexResult<StoredThread> {
+    ) -> CodexResult<StoredChat> {
         let chat_id = params.chat_id;
         self.thread_store
             .read_thread(params)
@@ -1551,7 +1551,7 @@ impl ChatManagerState {
 }
 
 fn stored_thread_to_initial_history(
-    stored_thread: StoredThread,
+    stored_thread: StoredChat,
     rollout_path: Option<PathBuf>,
 ) -> CodexResult<InitialHistory> {
     let chat_id = stored_thread.chat_id;
@@ -1597,7 +1597,7 @@ fn truncate_before_nth_user_message(
     n: usize,
     snapshot_state: &SnapshotTurnState,
 ) -> InitialHistory {
-    let items: Vec<RolloutItem> = history.get_rollout_items();
+    let items: Vec<RolloutMessage> = history.get_rollout_items();
     let user_positions = truncation::user_message_positions_in_rollout(&items);
     let rolled = if snapshot_state.ends_mid_turn && n >= user_positions.len() {
         if let Some(cut_idx) = snapshot_state
@@ -1671,7 +1671,7 @@ fn snapshot_turn_state(history: &InitialHistory) -> SnapshotTurnState {
         ends_mid_turn: !rollout_items[last_user_position + 1..].iter().any(|item| {
             matches!(
                 item,
-                RolloutItem::EventMsg(
+                RolloutMessage::EventMsg(
                     EventMsg::InteractionComplete(_) | EventMsg::InteractionAborted(_)
                 )
             )
@@ -1720,7 +1720,7 @@ fn append_interrupted_boundary(
     interrupted_marker: InterruptedTurnHistoryMarker,
 ) -> InitialHistory {
     let aborted_event =
-        RolloutItem::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
+        RolloutMessage::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
             interaction_id,
             reason: InteractionAbortReason::Interrupted,
             completed_at: None,
@@ -1731,21 +1731,21 @@ fn append_interrupted_boundary(
         InitialHistory::New | InitialHistory::Cleared => {
             let mut history = Vec::new();
             if let Some(marker) = interrupted_turn_history_marker(interrupted_marker) {
-                history.push(RolloutItem::ResponseItem(marker));
+                history.push(RolloutMessage::ResponseItem(marker));
             }
             history.push(aborted_event);
             InitialHistory::Forked(history)
         }
         InitialHistory::Forked(mut history) => {
             if let Some(marker) = interrupted_turn_history_marker(interrupted_marker) {
-                history.push(RolloutItem::ResponseItem(marker));
+                history.push(RolloutMessage::ResponseItem(marker));
             }
             history.push(aborted_event);
             InitialHistory::Forked(history)
         }
         InitialHistory::Resumed(mut resumed) => {
             if let Some(marker) = interrupted_turn_history_marker(interrupted_marker) {
-                resumed.history.push(RolloutItem::ResponseItem(marker));
+                resumed.history.push(RolloutMessage::ResponseItem(marker));
             }
             resumed.history.push(aborted_event);
             InitialHistory::Forked(resumed.history)

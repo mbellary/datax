@@ -63,7 +63,7 @@ use datax_extension_api::ExtensionDataInit;
 use datax_extension_api::LoadedUserInstructions;
 use datax_extension_api::PromptFragment;
 use datax_extension_api::PromptSlot;
-use datax_extension_api::TurnContextContributionInput;
+use datax_extension_api::InteractionContextContributionInput;
 use datax_features::FEATURES;
 use datax_features::Feature;
 use datax_features::unstable_features_warning_event;
@@ -100,7 +100,7 @@ use datax_protocol::config_types::Settings;
 use datax_protocol::config_types::WebSearchMode;
 use datax_protocol::dynamic_tools::DynamicToolResponse;
 use datax_protocol::dynamic_tools::DynamicToolSpec;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::items::UserMessageItem;
 use datax_protocol::mcp::CallToolResult;
 use datax_protocol::models::ActivePermissionProfile;
@@ -118,17 +118,17 @@ use datax_protocol::protocol::FileChange;
 use datax_protocol::protocol::HasLegacyEvent;
 use datax_protocol::protocol::InterAgentCommunication;
 use datax_protocol::protocol::InteractionAbortReason;
-use datax_protocol::protocol::ItemCompletedEvent;
-use datax_protocol::protocol::ItemStartedEvent;
+use datax_protocol::protocol::MessageCompletedEvent;
+use datax_protocol::protocol::MessageStartedEvent;
 use datax_protocol::protocol::MultiAgentVersion;
 use datax_protocol::protocol::RawResponseItemEvent;
 use datax_protocol::protocol::ReviewRequest;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
 use datax_protocol::protocol::ThreadSource;
-use datax_protocol::protocol::TurnContextItem;
-use datax_protocol::protocol::TurnContextNetworkItem;
+use datax_protocol::protocol::InteractionContextMessage;
+use datax_protocol::protocol::InteractionContextNetworkMessage;
 use datax_protocol::protocol::TurnEnvironmentSelection;
 use datax_protocol::protocol::TurnEnvironmentSelections;
 use datax_protocol::protocol::W3cTraceContext;
@@ -245,7 +245,7 @@ use self::turn::AssistantMessageStreamParsers;
 #[cfg(test)]
 use self::turn::collect_explicit_app_ids_from_skill_items;
 use self::turn::realtime_text_for_event;
-use self::turn_context::TurnContext;
+use self::turn_context::InteractionContext;
 use self::turn_context::TurnSkillsContext;
 use self::world_state::build_world_state_from_environment_snapshot;
 use self::world_state::build_world_state_from_turn_context;
@@ -1224,7 +1224,7 @@ impl Session {
 
     pub(crate) async fn get_estimated_token_count(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
     ) -> Option<i64> {
         let state = self.state.lock().await;
         state.history.estimate_token_count(turn_context)
@@ -1361,8 +1361,8 @@ impl Session {
     )]
     async fn apply_rollout_reconstruction(
         &self,
-        turn_context: &TurnContext,
-        rollout_items: &[RolloutItem],
+        turn_context: &InteractionContext,
+        rollout_items: &[RolloutMessage],
     ) -> Option<PreviousTurnSettings> {
         let rollout_reconstruction::RolloutReconstruction {
             mut history,
@@ -1420,7 +1420,7 @@ impl Session {
 
     async fn set_auto_compact_window_estimated_prefill_for_scope(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         tokens: i64,
     ) {
         if !matches!(
@@ -1434,9 +1434,9 @@ impl Session {
         state.set_auto_compact_window_estimated_prefill(tokens);
     }
 
-    fn last_token_info_from_rollout(rollout_items: &[RolloutItem]) -> Option<TokenUsageInfo> {
+    fn last_token_info_from_rollout(rollout_items: &[RolloutMessage]) -> Option<TokenUsageInfo> {
         rollout_items.iter().rev().find_map(|item| match item {
-            RolloutItem::EventMsg(EventMsg::TokenCount(ev)) => ev.info.clone(),
+            RolloutMessage::EventMsg(EventMsg::TokenCount(ev)) => ev.info.clone(),
             _ => None,
         })
     }
@@ -1678,10 +1678,10 @@ impl Session {
 
     async fn build_settings_update_items(
         &self,
-        reference_context_item: Option<&TurnContextItem>,
-        current_context: &TurnContext,
+        reference_context_item: Option<&InteractionContextMessage>,
+        current_context: &InteractionContext,
     ) -> Vec<ResponseItem> {
-        // TODO: Make context updates a pure diff of persisted previous/current TurnContextItem
+        // TODO: Make context updates a pure diff of persisted previous/current InteractionContextMessage
         // state so replay/backtracking is deterministic. Runtime inputs that affect model-visible
         // context (exec policy, feature gates, previous-turn bridge) should be persisted
         // state or explicit non-state replay events.
@@ -1700,7 +1700,7 @@ impl Session {
     }
 
     /// Record a terminal CodexErr before the app-server completion notification is reduced.
-    pub(crate) fn track_turn_codex_error(&self, turn_context: &TurnContext, error: &CodexErr) {
+    pub(crate) fn track_turn_codex_error(&self, turn_context: &InteractionContext, error: &CodexErr) {
         self.services
             .analytics_events_client
             .track_turn_codex_error(TurnCodexErrorFact::from_codex_err(
@@ -1711,7 +1711,7 @@ impl Session {
     }
 
     /// Persist the event to rollout and send it to clients.
-    pub(crate) async fn send_event(&self, turn_context: &TurnContext, msg: EventMsg) {
+    pub(crate) async fn send_event(&self, turn_context: &InteractionContext, msg: EventMsg) {
         let legacy_source = msg.clone();
         if let EventMsg::Error(error) = &legacy_source
             && error
@@ -1756,7 +1756,7 @@ impl Session {
     /// Forwards terminal turn events from spawned MultiAgentV2 children to their direct parent.
     async fn maybe_notify_parent_of_terminal_turn(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         msg: &EventMsg,
     ) {
         if turn_context.multi_agent_version != MultiAgentVersion::V2 {
@@ -1808,7 +1808,7 @@ impl Session {
     /// Sends the standard completion envelope from a spawned MultiAgentV2 child to its parent.
     async fn forward_child_completion_to_parent(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         parent_chat_id: ChatId,
         child_agent_path: &datax_protocol::AgentPath,
         status: AgentStatus,
@@ -1890,7 +1890,7 @@ impl Session {
 
     pub(crate) async fn send_event_raw(&self, event: Event) {
         // Persist the event into rollout storage (the store filters as needed).
-        let rollout_items = vec![RolloutItem::EventMsg(event.msg.clone())];
+        let rollout_items = vec![RolloutMessage::EventMsg(event.msg.clone())];
         self.persist_rollout_items(&rollout_items).await;
         self.services
             .rollout_thread_trace
@@ -1908,10 +1908,10 @@ impl Session {
         }
     }
 
-    pub(crate) async fn emit_turn_item_started(&self, turn_context: &TurnContext, item: &TurnItem) {
+    pub(crate) async fn emit_turn_item_started(&self, turn_context: &InteractionContext, item: &InteractionMessage) {
         self.send_event(
             turn_context,
-            EventMsg::ItemStarted(ItemStartedEvent {
+            EventMsg::MessageStarted(MessageStartedEvent {
                 chat_id: self.chat_id,
                 interaction_id: turn_context.sub_id.clone(),
                 item: item.clone(),
@@ -1923,13 +1923,13 @@ impl Session {
 
     pub(crate) async fn emit_turn_item_completed(
         &self,
-        turn_context: &TurnContext,
-        item: TurnItem,
+        turn_context: &InteractionContext,
+        item: InteractionMessage,
     ) {
         record_turn_ttfm_metric(turn_context, &item).await;
         self.send_event(
             turn_context,
-            EventMsg::ItemCompleted(ItemCompletedEvent {
+            EventMsg::MessageCompleted(MessageCompletedEvent {
                 chat_id: self.chat_id,
                 interaction_id: turn_context.sub_id.clone(),
                 item,
@@ -1961,7 +1961,7 @@ impl Session {
         Ok(())
     }
 
-    pub(crate) async fn turn_context_for_sub_id(&self, sub_id: &str) -> Option<Arc<TurnContext>> {
+    pub(crate) async fn turn_context_for_sub_id(&self, sub_id: &str) -> Option<Arc<InteractionContext>> {
         let active = self.active_turn.lock().await;
         active
             .as_ref()
@@ -1972,7 +1972,7 @@ impl Session {
 
     async fn active_turn_context_and_cancellation_token(
         &self,
-    ) -> Option<(Arc<TurnContext>, CancellationToken)> {
+    ) -> Option<(Arc<InteractionContext>, CancellationToken)> {
         let active = self.active_turn.lock().await;
         let task = active.as_ref()?.task.as_ref()?;
         Some((
@@ -2094,7 +2094,7 @@ impl Session {
     )]
     pub async fn request_command_approval(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         call_id: String,
         approval_id: Option<String>,
         environment_id: Option<String>,
@@ -2172,7 +2172,7 @@ impl Session {
     )]
     pub async fn request_patch_approval(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         call_id: String,
         changes: HashMap<PathBuf, FileChange>,
         reason: Option<String>,
@@ -2213,7 +2213,7 @@ impl Session {
     )]
     pub(crate) async fn request_permissions_for_environment(
         self: &Arc<Self>,
-        turn_context: &Arc<TurnContext>,
+        turn_context: &Arc<InteractionContext>,
         call_id: String,
         args: RequestPermissionsArgs,
         environment: TurnEnvironmentSelection,
@@ -2381,7 +2381,7 @@ impl Session {
 
     pub(crate) async fn request_permissions_for_cwd(
         self: &Arc<Self>,
-        turn_context: &Arc<TurnContext>,
+        turn_context: &Arc<InteractionContext>,
         call_id: String,
         args: RequestPermissionsArgs,
         cwd: AbsolutePathBuf,
@@ -2420,7 +2420,7 @@ impl Session {
     )]
     pub async fn request_user_input(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         call_id: String,
         args: RequestUserInputArgs,
     ) -> Option<RequestUserInputResponse> {
@@ -2689,7 +2689,7 @@ impl Session {
     /// notify clients observing raw response items.
     pub(crate) fn prepare_conversation_items_for_history<'a>(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         items: &'a [ResponseItem],
     ) -> Cow<'a, [ResponseItem]> {
         let mut items = Cow::Borrowed(items);
@@ -2746,7 +2746,7 @@ impl Session {
     #[tracing::instrument(level = "trace", skip_all, fields(item_count = items.len()))]
     pub(crate) async fn record_conversation_items(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         items: &[ResponseItem],
     ) {
         let items = self.prepare_conversation_items_for_history(turn_context, items);
@@ -2764,7 +2764,7 @@ impl Session {
 
     pub(crate) async fn record_step_environment_context_if_changed(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         step_context: &step_context::StepContext,
     ) {
         if !turn_context.config.include_environment_context {
@@ -2788,7 +2788,7 @@ impl Session {
 
     pub(crate) async fn record_inter_agent_communication(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         mut communication: InterAgentCommunication,
     ) {
         communication.set_interaction_id_if_missing(&turn_context.sub_id);
@@ -2805,14 +2805,14 @@ impl Session {
                 turn_context.model_info.truncation_policy.into(),
             );
         }
-        self.persist_rollout_items(&[RolloutItem::InterAgentCommunication(communication)])
+        self.persist_rollout_items(&[RolloutMessage::InterAgentCommunication(communication)])
             .await;
         self.send_raw_response_items(turn_context, items).await;
     }
 
     async fn maybe_warn_on_server_model_mismatch(
         self: &Arc<Self>,
-        turn_context: &Arc<TurnContext>,
+        turn_context: &Arc<InteractionContext>,
         server_model: String,
     ) -> bool {
         let requested_model = turn_context.model_info.slug.clone();
@@ -2851,7 +2851,7 @@ impl Session {
 
     pub(crate) async fn emit_model_verification(
         self: &Arc<Self>,
-        turn_context: &Arc<TurnContext>,
+        turn_context: &Arc<InteractionContext>,
         verifications: Vec<ModelVerification>,
     ) {
         self.send_event(
@@ -2863,7 +2863,7 @@ impl Session {
 
     pub(crate) async fn emit_turn_moderation_metadata(
         self: &Arc<Self>,
-        turn_context: &Arc<TurnContext>,
+        turn_context: &Arc<InteractionContext>,
         metadata: TurnModerationMetadataEvent,
     ) {
         self.send_event(turn_context, EventMsg::TurnModerationMetadata(metadata))
@@ -2874,7 +2874,7 @@ impl Session {
     pub(crate) async fn replace_history(
         &self,
         items: Vec<ResponseItem>,
-        reference_context_item: Option<TurnContextItem>,
+        reference_context_item: Option<InteractionContextMessage>,
     ) {
         let mut state = self.state.lock().await;
         state.replace_history(items, reference_context_item);
@@ -2882,9 +2882,9 @@ impl Session {
 
     pub(crate) async fn replace_compacted_history(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         items: Vec<ResponseItem>,
-        reference_context_item: Option<TurnContextItem>,
+        reference_context_item: Option<InteractionContextMessage>,
         compacted_item: CompactedItem,
     ) {
         let items = if turn_context.config.features.enabled(Feature::ItemIds) {
@@ -2909,10 +2909,10 @@ impl Session {
             }
         }
 
-        self.persist_rollout_items(&[RolloutItem::Compacted(compacted_item)])
+        self.persist_rollout_items(&[RolloutMessage::Compacted(compacted_item)])
             .await;
         if let Some(turn_context_item) = reference_context_item {
-            self.persist_rollout_items(&[RolloutItem::TurnContext(turn_context_item)])
+            self.persist_rollout_items(&[RolloutMessage::InteractionContext(turn_context_item)])
                 .await;
         }
         {
@@ -2922,10 +2922,10 @@ impl Session {
     }
 
     async fn persist_rollout_response_items(&self, items: &[ResponseItem]) {
-        let rollout_items: Vec<RolloutItem> = items
+        let rollout_items: Vec<RolloutMessage> = items
             .iter()
             .cloned()
-            .map(RolloutItem::ResponseItem)
+            .map(RolloutMessage::ResponseItem)
             .collect();
         self.persist_rollout_items(&rollout_items).await;
     }
@@ -2971,7 +2971,7 @@ impl Session {
     }
 
     #[tracing::instrument(level = "trace", skip_all, fields(item_count = items.len()))]
-    async fn send_raw_response_items(&self, turn_context: &TurnContext, items: &[ResponseItem]) {
+    async fn send_raw_response_items(&self, turn_context: &InteractionContext, items: &[ResponseItem]) {
         for item in items {
             self.send_event(
                 turn_context,
@@ -2983,7 +2983,7 @@ impl Session {
 
     async fn build_turn_context_contribution_items(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
     ) -> Vec<ResponseItem> {
         let mut developer_sections = Vec::new();
         let mut contextual_user_sections = Vec::new();
@@ -2992,7 +2992,7 @@ impl Session {
 
         for contributor in &context_contributors {
             for fragment in contributor
-                .contribute_turn_context(TurnContextContributionInput {
+                .contribute_turn_context(InteractionContextContributionInput {
                     chat_id: self.chat_id(),
                     interaction_id: turn_context.sub_id.as_str(),
                     session_store: &self.services.session_extension_data,
@@ -3034,14 +3034,14 @@ impl Session {
 
     pub(crate) async fn build_initial_context(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
     ) -> Vec<ResponseItem> {
         let world_state = self.build_world_state(turn_context).await;
         self.build_initial_context_with_world_state(turn_context, &world_state)
             .await
     }
 
-    async fn build_world_state(&self, turn_context: &TurnContext) -> WorldState {
+    async fn build_world_state(&self, turn_context: &InteractionContext) -> WorldState {
         let environment_subagents = if turn_context.config.include_environment_context {
             self.services
                 .agent_control
@@ -3055,7 +3055,7 @@ impl Session {
 
     async fn build_initial_context_with_world_state(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         world_state: &WorldState,
     ) -> Vec<ResponseItem> {
         let mut developer_sections = Vec::<String>::with_capacity(8);
@@ -3238,7 +3238,7 @@ impl Session {
         }
         for contributor in &context_contributors {
             for fragment in contributor
-                .contribute_turn_context(TurnContextContributionInput {
+                .contribute_turn_context(InteractionContextContributionInput {
                     chat_id: self.chat_id(),
                     interaction_id: turn_context.sub_id.as_str(),
                     session_store: &self.services.session_extension_data,
@@ -3365,7 +3365,7 @@ impl Session {
     }
 
     #[tracing::instrument(level = "trace", skip_all, fields(item_count = items.len()))]
-    pub(crate) async fn persist_rollout_items(&self, items: &[RolloutItem]) {
+    pub(crate) async fn persist_rollout_items(&self, items: &[RolloutMessage]) {
         if let Some(live_thread) = self.live_thread()
             && let Err(e) = live_thread.append_items(items).await
         {
@@ -3397,7 +3397,7 @@ impl Session {
 
     pub(crate) async fn maybe_start_new_context_window(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
     ) -> Option<u64> {
         let window = {
             let mut state = self.state.lock().await;
@@ -3416,7 +3416,7 @@ impl Session {
             state.history.set_world_state_baseline(world_state);
         };
         self.persist_rollout_items(&[
-            RolloutItem::Compacted(CompactedItem {
+            RolloutMessage::Compacted(CompactedItem {
                 message: String::new(),
                 replacement_history: Some(replacement_history),
                 window_number: Some(window_number),
@@ -3424,7 +3424,7 @@ impl Session {
                 previous_window_id: window_ids.previous_window_id.map(|id| id.to_string()),
                 window_id: Some(window_ids.window_id.to_string()),
             }),
-            RolloutItem::TurnContext(turn_context_item),
+            RolloutMessage::InteractionContext(turn_context_item),
         ])
         .await;
         {
@@ -3435,7 +3435,7 @@ impl Session {
         Some(window_number)
     }
 
-    pub(crate) async fn reference_context_item(&self) -> Option<TurnContextItem> {
+    pub(crate) async fn reference_context_item(&self) -> Option<InteractionContextMessage> {
         let state = self.state.lock().await;
         state.reference_context_item()
     }
@@ -3456,7 +3456,7 @@ impl Session {
     #[instrument(level = "trace", skip_all)]
     pub(crate) async fn record_context_updates_and_set_reference_context_item(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
     ) {
         let reference_context_item = {
             let state = self.state.lock().await;
@@ -3504,9 +3504,9 @@ impl Session {
             self.record_conversation_items(turn_context, &context_items)
                 .await;
         }
-        // Persist one `TurnContextItem` per real user turn so resume/lazy replay can recover the
+        // Persist one `InteractionContextMessage` per real user turn so resume/lazy replay can recover the
         // latest durable baseline even when this turn emitted no model-visible context diffs.
-        self.persist_rollout_items(&[RolloutItem::TurnContext(turn_context_item.clone())])
+        self.persist_rollout_items(&[RolloutMessage::InteractionContext(turn_context_item.clone())])
             .await;
 
         // Advance the persisted-settings baseline even when this turn emitted no model-visible
@@ -3517,7 +3517,7 @@ impl Session {
 
     pub(crate) async fn update_token_usage_info(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         token_usage: Option<&TokenUsage>,
     ) -> CodexResult<()> {
         let result = self
@@ -3529,7 +3529,7 @@ impl Session {
 
     pub(crate) async fn record_token_usage_info(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         token_usage: Option<&TokenUsage>,
     ) -> CodexResult<()> {
         if let Some(token_usage) = token_usage {
@@ -3563,7 +3563,7 @@ impl Session {
         Ok(())
     }
 
-    pub(crate) async fn recompute_token_usage(&self, turn_context: &TurnContext) {
+    pub(crate) async fn recompute_token_usage(&self, turn_context: &InteractionContext) {
         let history = self.clone_history().await;
         let base_instructions = self.get_base_instructions().await;
         let Some(estimated_total_tokens) =
@@ -3603,7 +3603,7 @@ impl Session {
 
     pub(crate) async fn update_rate_limits(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         new_rate_limits: RateLimitSnapshot,
     ) {
         self.record_rate_limits_info(new_rate_limits).await;
@@ -3635,7 +3635,7 @@ impl Session {
         state.set_server_reasoning_included(included);
     }
 
-    pub(crate) async fn send_token_count_event(&self, turn_context: &TurnContext) {
+    pub(crate) async fn send_token_count_event(&self, turn_context: &InteractionContext) {
         let (info, rate_limits) = {
             let state = self.state.lock().await;
             state.token_info_and_rate_limits()
@@ -3644,7 +3644,7 @@ impl Session {
         self.send_event(turn_context, event).await;
     }
 
-    pub(crate) async fn set_total_tokens_full(&self, turn_context: &TurnContext) {
+    pub(crate) async fn set_total_tokens_full(&self, turn_context: &InteractionContext) {
         if let Some(context_window) = turn_context.model_context_window() {
             let mut state = self.state.lock().await;
             state.set_token_usage_full(context_window);
@@ -3654,7 +3654,7 @@ impl Session {
 
     pub(crate) async fn record_response_item_and_emit_turn_item(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         response_item: ResponseItem,
     ) {
         // Add to conversation history and persist response item to rollout.
@@ -3670,7 +3670,7 @@ impl Session {
 
     pub(crate) async fn record_user_prompt_and_emit_turn_item(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         input: &[UserInput],
         client_id: Option<String>,
     ) {
@@ -3682,7 +3682,7 @@ impl Session {
             .await;
         let mut user_message_item = UserMessageItem::new(input);
         user_message_item.client_id = client_id;
-        let turn_item = TurnItem::UserMessage(user_message_item);
+        let turn_item = InteractionMessage::UserMessage(user_message_item);
         self.emit_turn_item_started(turn_context, &turn_item).await;
         self.emit_turn_item_completed(turn_context, turn_item).await;
         self.ensure_rollout_materialized().await;
@@ -3690,7 +3690,7 @@ impl Session {
 
     pub(crate) async fn notify_stream_error(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         message: impl Into<String>,
         codex_error: CodexErr,
     ) {

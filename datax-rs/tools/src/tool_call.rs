@@ -31,11 +31,11 @@ impl ConversationHistory {
 }
 
 /// Future returned when an extension tool emits a visible turn-item lifecycle event.
-pub type TurnItemEmissionFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
+pub type InteractionMessageEmissionFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
 /// Visible turn items that an extension may publish into the host lifecycle.
 #[derive(Clone, Debug, PartialEq)]
-pub enum ExtensionTurnItem {
+pub enum ExtensionInteractionMessage {
     WebSearch(WebSearchItem),
     ImageGeneration(ImageGenerationItem),
 }
@@ -44,12 +44,12 @@ pub enum ExtensionTurnItem {
 ///
 /// Implementations route lifecycle events through the host's normal item event
 /// pipeline, including any persistence and client delivery owned by the host.
-pub trait TurnItemEmitter: Send + Sync {
+pub trait InteractionMessageEmitter: Send + Sync {
     /// Emits the beginning of one visible turn item.
-    fn emit_started<'a>(&'a self, item: ExtensionTurnItem) -> TurnItemEmissionFuture<'a>;
+    fn emit_started<'a>(&'a self, item: ExtensionInteractionMessage) -> InteractionMessageEmissionFuture<'a>;
 
     /// Emits one visible turn item after host-owned finalization.
-    fn emit_completed<'a>(&'a self, item: ExtensionTurnItem) -> TurnItemEmissionFuture<'a>;
+    fn emit_completed<'a>(&'a self, item: ExtensionInteractionMessage) -> InteractionMessageEmissionFuture<'a>;
 }
 
 /// Host-owned turn environment summary visible to extension tools.
@@ -67,14 +67,14 @@ pub struct ToolEnvironment {
 
 /// Turn-item emitter used when a caller does not expose visible item emission.
 #[derive(Debug, Default, Clone, Copy)]
-pub struct NoopTurnItemEmitter;
+pub struct NoopInteractionMessageEmitter;
 
-impl TurnItemEmitter for NoopTurnItemEmitter {
-    fn emit_started<'a>(&'a self, _item: ExtensionTurnItem) -> TurnItemEmissionFuture<'a> {
+impl InteractionMessageEmitter for NoopInteractionMessageEmitter {
+    fn emit_started<'a>(&'a self, _item: ExtensionInteractionMessage) -> InteractionMessageEmissionFuture<'a> {
         Box::pin(std::future::ready(()))
     }
 
-    fn emit_completed<'a>(&'a self, _item: ExtensionTurnItem) -> TurnItemEmissionFuture<'a> {
+    fn emit_completed<'a>(&'a self, _item: ExtensionInteractionMessage) -> InteractionMessageEmissionFuture<'a> {
         Box::pin(std::future::ready(()))
     }
 }
@@ -87,7 +87,7 @@ pub struct ToolCall {
     pub model: String,
     pub truncation_policy: TruncationPolicy,
     pub conversation_history: ConversationHistory,
-    pub turn_item_emitter: Arc<dyn TurnItemEmitter>,
+    pub turn_item_emitter: Arc<dyn InteractionMessageEmitter>,
     pub environments: Vec<ToolEnvironment>,
     pub payload: ToolPayload,
 }

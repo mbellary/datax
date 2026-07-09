@@ -100,7 +100,7 @@ impl std::fmt::Debug for TurnEnvironment {
 
 /// The context needed for a single turn of the thread.
 #[derive(Debug)]
-pub struct TurnContext {
+pub struct InteractionContext {
     pub(crate) sub_id: String,
     pub(crate) trace_id: Option<String>,
     pub(crate) realtime_active: bool,
@@ -149,7 +149,7 @@ enum TurnMultiAgentRuntime {
     Preview,
 }
 
-impl TurnContext {
+impl InteractionContext {
     pub(crate) fn permission_profile(&self) -> PermissionProfile {
         self.permission_profile.clone()
     }
@@ -362,11 +362,11 @@ impl TurnContext {
             .then_some(file_system_sandbox_policy)
     }
 
-    pub(crate) fn to_turn_context_item(&self) -> TurnContextItem {
+    pub(crate) fn to_turn_context_item(&self) -> InteractionContextMessage {
         let workspace_roots = self.config.effective_workspace_roots();
         #[allow(deprecated)]
         let cwd = self.cwd.clone();
-        TurnContextItem {
+        InteractionContextMessage {
             interaction_id: Some(self.sub_id.clone()),
             cwd,
             workspace_roots: (!workspace_roots.is_empty()).then_some(workspace_roots),
@@ -389,14 +389,14 @@ impl TurnContext {
         }
     }
 
-    fn turn_context_network_item(&self) -> Option<TurnContextNetworkItem> {
+    fn turn_context_network_item(&self) -> Option<InteractionContextNetworkMessage> {
         let network = self
             .config
             .config_layer_stack
             .requirements()
             .network
             .as_ref()?;
-        Some(TurnContextNetworkItem {
+        Some(InteractionContextNetworkMessage {
             allowed_domains: network
                 .domains
                 .as_ref()
@@ -496,7 +496,7 @@ impl Session {
         cwd: AbsolutePathBuf,
         sub_id: String,
         skills_snapshot: HostSkillsSnapshot,
-    ) -> TurnContext {
+    ) -> InteractionContext {
         let reasoning_effort = session_configuration.collaboration_mode.reasoning_effort();
         let reasoning_summary = session_configuration
             .model_reasoning_summary
@@ -540,7 +540,7 @@ impl Session {
         let (current_date, timezone) = local_time_context();
         let extension_data = Arc::new(datax_extension_api::ExtensionData::new(sub_id.clone()));
         extension_data.insert(skills_snapshot.clone());
-        TurnContext {
+        InteractionContext {
             sub_id,
             trace_id: current_span_trace_id(),
             realtime_active: false,
@@ -589,7 +589,7 @@ impl Session {
         &self,
         sub_id: String,
         updates: SessionSettingsUpdate,
-    ) -> CodexResult<Arc<TurnContext>> {
+    ) -> CodexResult<Arc<InteractionContext>> {
         let notify_config_contributors = !self.services.extensions.config_contributors().is_empty();
         let update_result: CodexResult<_> = {
             let mut state = self.state.lock().await;
@@ -659,7 +659,7 @@ impl Session {
         sub_id: String,
         session_configuration: SessionConfiguration,
         final_output_json_schema: Option<Option<Value>>,
-    ) -> Arc<TurnContext> {
+    ) -> Arc<InteractionContext> {
         self.new_turn_context_from_configuration(
             sub_id,
             session_configuration,
@@ -673,7 +673,7 @@ impl Session {
         &self,
         sub_id: String,
         session_configuration: SessionConfiguration,
-    ) -> Arc<TurnContext> {
+    ) -> Arc<InteractionContext> {
         self.new_turn_context_from_configuration(
             sub_id,
             session_configuration,
@@ -690,10 +690,10 @@ impl Session {
         session_configuration: SessionConfiguration,
         final_output_json_schema: Option<Option<Value>>,
         multi_agent_runtime: TurnMultiAgentRuntime,
-    ) -> Arc<TurnContext> {
+    ) -> Arc<InteractionContext> {
         let turn_environments = self.services.turn_environments.snapshot().await;
         let primary_turn_environment = turn_environments.primary().cloned();
-        // TODO(anp): Migrate per-turn config and legacy TurnContext cwd consumers to PathUri so
+        // TODO(anp): Migrate per-turn config and legacy InteractionContext cwd consumers to PathUri so
         // a foreign primary environment does not fall back to the session's host cwd.
         let cwd = primary_turn_environment
             .as_ref()
@@ -745,7 +745,7 @@ impl Session {
             .skills_service
             .snapshot_for_config(&skills_input, fs)
             .await;
-        let mut turn_context: TurnContext = Self::make_turn_context(
+        let mut turn_context: InteractionContext = Self::make_turn_context(
             self.chat_id(),
             self.session_id(),
             Some(Arc::clone(&self.services.auth_manager)),
@@ -790,7 +790,7 @@ impl Session {
         turn_context
     }
 
-    pub(crate) async fn maybe_emit_model_warnings_for_turn(&self, tc: &TurnContext) {
+    pub(crate) async fn maybe_emit_model_warnings_for_turn(&self, tc: &InteractionContext) {
         if tc.model_info.used_fallback_model_metadata {
             self.send_event(
                 tc,
@@ -812,12 +812,12 @@ impl Session {
         }
     }
 
-    pub(crate) async fn new_default_turn(&self) -> Arc<TurnContext> {
+    pub(crate) async fn new_default_turn(&self) -> Arc<InteractionContext> {
         self.new_default_turn_with_sub_id(self.next_internal_sub_id())
             .await
     }
 
-    pub(crate) async fn new_default_turn_with_sub_id(&self, sub_id: String) -> Arc<TurnContext> {
+    pub(crate) async fn new_default_turn_with_sub_id(&self, sub_id: String) -> Arc<InteractionContext> {
         let session_configuration = self.default_turn_configuration().await;
         self.new_turn_from_configuration(
             sub_id,
@@ -830,7 +830,7 @@ impl Session {
     pub(crate) async fn new_startup_prewarm_turn_with_sub_id(
         &self,
         sub_id: String,
-    ) -> Arc<TurnContext> {
+    ) -> Arc<InteractionContext> {
         let session_configuration = self.default_turn_configuration().await;
         self.new_startup_prewarm_turn_from_configuration(sub_id, session_configuration)
             .await

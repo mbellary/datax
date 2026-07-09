@@ -678,7 +678,7 @@ where
 mod tests {
     use super::*;
     use datax_protocol::ChatId;
-    use datax_protocol::protocol::RolloutItem;
+    use datax_protocol::protocol::RolloutMessage;
     use datax_protocol::protocol::RolloutLine;
     use pretty_assertions::assert_eq;
     use sqlx::sqlite::SqliteConnectOptions;
@@ -819,7 +819,7 @@ mod tests {
             let parsed_chat_id = ChatId::from_string(chat_id).expect("thread id");
             let rollout_line = RolloutLine {
                 timestamp: timestamp.to_string(),
-                item: RolloutItem::SessionMeta(datax_protocol::protocol::SessionMetaLine {
+                item: RolloutMessage::SessionMeta(datax_protocol::protocol::SessionMetaLine {
                     meta: datax_protocol::protocol::SessionMeta {
                         session_id: parsed_chat_id.into(),
                         id: parsed_chat_id,

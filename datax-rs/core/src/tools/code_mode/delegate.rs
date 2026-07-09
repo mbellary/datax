@@ -18,7 +18,7 @@ use super::ExecContext;
 use super::PUBLIC_TOOL_NAME;
 use super::call_nested_tool;
 use crate::tools::ToolRouter;
-use crate::tools::context::SharedTurnDiffTracker;
+use crate::tools::context::SharedInteractionDiffTracker;
 use crate::tools::parallel::ToolCallRuntime;
 
 pub(super) struct CodeModeDispatchBroker {
@@ -49,7 +49,7 @@ impl CodeModeDispatchBroker {
         &self,
         exec: ExecContext,
         router: Arc<ToolRouter>,
-        tracker: SharedTurnDiffTracker,
+        tracker: SharedInteractionDiffTracker,
     ) -> CodeModeDispatchWorker {
         let tool_runtime = ToolCallRuntime::new(
             router,

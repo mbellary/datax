@@ -29,7 +29,7 @@ impl CodeModeExecuteHandler {
     async fn execute(
         &self,
         session: std::sync::Arc<crate::session::session::Session>,
-        turn: std::sync::Arc<crate::session::turn_context::TurnContext>,
+        turn: std::sync::Arc<crate::session::turn_context::InteractionContext>,
         call_id: String,
         code: String,
     ) -> Result<FunctionToolOutput, FunctionCallError> {

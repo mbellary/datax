@@ -5,7 +5,7 @@ use datax_api::SearchQuery;
 use datax_api::SearchRequest;
 use datax_api::SearchSettings;
 use datax_core::web_search_action_detail;
-use datax_extension_api::ExtensionTurnItem;
+use datax_extension_api::ExtensionInteractionMessage;
 use datax_extension_api::FunctionCallError;
 use datax_extension_api::ResponsesApiTool;
 use datax_extension_api::ToolCall;
@@ -180,8 +180,8 @@ fn literal_url(ref_id: &str) -> Option<String> {
     Url::parse(ref_id).is_ok().then(|| ref_id.to_string())
 }
 
-fn web_search_item(call_id: &str, action: WebSearchAction) -> ExtensionTurnItem {
-    ExtensionTurnItem::WebSearch(WebSearchItem {
+fn web_search_item(call_id: &str, action: WebSearchAction) -> ExtensionInteractionMessage {
+    ExtensionInteractionMessage::WebSearch(WebSearchItem {
         id: call_id.to_string(),
         query: web_search_action_detail(&action),
         action,

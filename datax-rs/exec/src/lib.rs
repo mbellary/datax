@@ -91,7 +91,7 @@ use datax_protocol::models::PermissionProfile;
 use datax_protocol::protocol::AskForApproval;
 use datax_protocol::protocol::ReviewRequest;
 use datax_protocol::protocol::ReviewTarget;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::protocol::SessionConfiguredEvent;
 use datax_protocol::protocol::SessionSource;
@@ -116,8 +116,8 @@ pub use exec_events::CommandExecutionStatus;
 pub use exec_events::ErrorItem;
 pub use exec_events::FileChangeItem;
 pub use exec_events::FileUpdateChange;
-pub use exec_events::ItemCompletedEvent;
-pub use exec_events::ItemStartedEvent;
+pub use exec_events::MessageCompletedEvent;
+pub use exec_events::MessageStartedEvent;
 pub use exec_events::ItemUpdatedEvent;
 pub use exec_events::McpToolCallItem;
 pub use exec_events::McpToolCallItemError;
@@ -1436,7 +1436,7 @@ async fn parse_latest_turn_context_cwd(path: &Path) -> Option<PathBuf> {
         let Ok(rollout_line) = serde_json::from_str::<RolloutLine>(trimmed) else {
             continue;
         };
-        if let RolloutItem::TurnContext(item) = rollout_line.item {
+        if let RolloutMessage::InteractionContext(item) = rollout_line.item {
             return Some(item.cwd.into_path_buf());
         }
     }

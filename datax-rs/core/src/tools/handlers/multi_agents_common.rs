@@ -4,7 +4,7 @@ use crate::config::DEFAULT_MULTI_AGENT_V2_MIN_WAIT_TIMEOUT_MS;
 use crate::config::HARD_MAX_MULTI_AGENT_V2_TIMEOUT_MS;
 use crate::function_tool::FunctionCallError;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::tools::context::FunctionToolOutput;
 use crate::tools::context::ToolOutput;
 use crate::tools::context::ToolPayload;
@@ -203,21 +203,21 @@ pub(crate) fn parse_collab_input(
 /// the wrong provider or runtime policy.
 pub(crate) fn build_agent_spawn_config(
     base_instructions: &BaseInstructions,
-    turn: &TurnContext,
+    turn: &InteractionContext,
 ) -> Result<Config, FunctionCallError> {
     let mut config = build_agent_shared_config(turn)?;
     config.base_instructions = Some(base_instructions.text.clone());
     Ok(config)
 }
 
-pub(crate) fn build_agent_resume_config(turn: &TurnContext) -> Result<Config, FunctionCallError> {
+pub(crate) fn build_agent_resume_config(turn: &InteractionContext) -> Result<Config, FunctionCallError> {
     let mut config = build_agent_shared_config(turn)?;
     // For resume, keep base instructions sourced from rollout/session metadata.
     config.base_instructions = None;
     Ok(config)
 }
 
-fn build_agent_shared_config(turn: &TurnContext) -> Result<Config, FunctionCallError> {
+fn build_agent_shared_config(turn: &InteractionContext) -> Result<Config, FunctionCallError> {
     let base_config = turn.config.clone();
     let mut config = (*base_config).clone();
     config.model = Some(turn.model_info.slug.clone());
@@ -252,7 +252,7 @@ pub(crate) fn reject_full_fork_spawn_overrides(
 /// can make a child agent disagree with its parent about approval policy, cwd, or sandboxing.
 pub(crate) fn apply_spawn_agent_runtime_overrides(
     config: &mut Config,
-    turn: &TurnContext,
+    turn: &InteractionContext,
 ) -> Result<(), FunctionCallError> {
     config
         .permissions
@@ -276,7 +276,7 @@ pub(crate) fn apply_spawn_agent_runtime_overrides(
 
 pub(crate) async fn apply_requested_spawn_agent_model_overrides(
     session: &Session,
-    turn: &TurnContext,
+    turn: &InteractionContext,
     config: &mut Config,
     requested_model: Option<&str>,
     requested_reasoning_effort: Option<ReasoningEffort>,

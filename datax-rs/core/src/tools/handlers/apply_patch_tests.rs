@@ -18,7 +18,7 @@ use crate::tools::context::ToolInvocation;
 use crate::tools::hook_names::HookToolName;
 use crate::tools::registry::PostToolUsePayload;
 use crate::tools::registry::PreToolUsePayload;
-use crate::turn_diff_tracker::TurnDiffTracker;
+use crate::turn_diff_tracker::InteractionDiffTracker;
 
 fn sample_patch() -> &'static str {
     r#"*** Begin Patch
@@ -33,7 +33,7 @@ async fn invocation_for_payload(payload: ToolPayload) -> ToolInvocation {
         session: session.into(),
         turn: turn.into(),
         cancellation_token: tokio_util::sync::CancellationToken::new(),
-        tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
+        tracker: Arc::new(Mutex::new(InteractionDiffTracker::new())),
         call_id: "call-apply-patch".to_string(),
         tool_name: datax_tools::ToolName::plain("apply_patch"),
         source: crate::tools::context::ToolCallSource::Direct,

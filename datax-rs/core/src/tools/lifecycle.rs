@@ -5,7 +5,7 @@ use datax_extension_api::ToolStartInput;
 use datax_tools::ToolName;
 
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::tools::context::ToolCallSource;
 use crate::tools::context::ToolInvocation;
 
@@ -44,7 +44,7 @@ pub(crate) async fn notify_tool_finish(invocation: &ToolInvocation, outcome: Too
 
 pub(crate) async fn notify_tool_aborted(
     session: &Session,
-    turn: &TurnContext,
+    turn: &InteractionContext,
     call_id: &str,
     tool_name: &ToolName,
     source: ToolCallSource,
@@ -62,7 +62,7 @@ pub(crate) async fn notify_tool_aborted(
 
 async fn notify_tool_finish_parts(
     session: &Session,
-    turn: &TurnContext,
+    turn: &InteractionContext,
     call_id: &str,
     tool_name: &ToolName,
     source: ToolCallSource,

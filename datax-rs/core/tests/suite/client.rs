@@ -67,7 +67,7 @@ use datax_protocol::models::WebSearchAction;
 use datax_protocol::openai_models::ReasoningEffort;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::Op;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::protocol::SessionMeta;
 use datax_protocol::protocol::SessionMetaLine;
@@ -800,7 +800,7 @@ async fn resume_replays_legacy_js_repl_image_rollout_shapes() {
     let rollout = vec![
         RolloutLine {
             timestamp: "2024-01-01T00:00:00.000Z".to_string(),
-            item: RolloutItem::SessionMeta(SessionMetaLine {
+            item: RolloutMessage::SessionMeta(SessionMetaLine {
                 meta: SessionMeta {
                     session_id: chat_id.into(),
                     id: chat_id,
@@ -817,11 +817,11 @@ async fn resume_replays_legacy_js_repl_image_rollout_shapes() {
         },
         RolloutLine {
             timestamp: "2024-01-01T00:00:01.000Z".to_string(),
-            item: RolloutItem::ResponseItem(legacy_custom_tool_call),
+            item: RolloutMessage::ResponseItem(legacy_custom_tool_call),
         },
         RolloutLine {
             timestamp: "2024-01-01T00:00:02.000Z".to_string(),
-            item: RolloutItem::ResponseItem(ResponseItem::CustomToolCallOutput {
+            item: RolloutMessage::ResponseItem(ResponseItem::CustomToolCallOutput {
                 id: None,
                 call_id: "legacy-js-call".to_string(),
                 name: None,
@@ -831,7 +831,7 @@ async fn resume_replays_legacy_js_repl_image_rollout_shapes() {
         },
         RolloutLine {
             timestamp: "2024-01-01T00:00:03.000Z".to_string(),
-            item: RolloutItem::ResponseItem(ResponseItem::Message {
+            item: RolloutMessage::ResponseItem(ResponseItem::Message {
                 id: None,
                 role: "user".to_string(),
                 content: vec![ContentItem::InputImage {
@@ -936,7 +936,7 @@ async fn resume_replays_image_tool_outputs_with_detail() {
     let rollout = vec![
         RolloutLine {
             timestamp: "2024-01-01T00:00:00.000Z".to_string(),
-            item: RolloutItem::SessionMeta(SessionMetaLine {
+            item: RolloutMessage::SessionMeta(SessionMetaLine {
                 meta: SessionMeta {
                     session_id: chat_id.into(),
                     id: chat_id,
@@ -953,7 +953,7 @@ async fn resume_replays_image_tool_outputs_with_detail() {
         },
         RolloutLine {
             timestamp: "2024-01-01T00:00:01.000Z".to_string(),
-            item: RolloutItem::ResponseItem(ResponseItem::FunctionCall {
+            item: RolloutMessage::ResponseItem(ResponseItem::FunctionCall {
                 id: None,
                 name: "view_image".to_string(),
                 namespace: None,
@@ -964,7 +964,7 @@ async fn resume_replays_image_tool_outputs_with_detail() {
         },
         RolloutLine {
             timestamp: "2024-01-01T00:00:01.500Z".to_string(),
-            item: RolloutItem::ResponseItem(ResponseItem::FunctionCallOutput {
+            item: RolloutMessage::ResponseItem(ResponseItem::FunctionCallOutput {
                 id: None,
                 call_id: function_call_id.to_string(),
                 output: FunctionCallOutputPayload::from_content_items(vec![
@@ -978,7 +978,7 @@ async fn resume_replays_image_tool_outputs_with_detail() {
         },
         RolloutLine {
             timestamp: "2024-01-01T00:00:02.000Z".to_string(),
-            item: RolloutItem::ResponseItem(ResponseItem::CustomToolCall {
+            item: RolloutMessage::ResponseItem(ResponseItem::CustomToolCall {
                 id: None,
                 status: Some("completed".to_string()),
                 call_id: custom_call_id.to_string(),
@@ -989,7 +989,7 @@ async fn resume_replays_image_tool_outputs_with_detail() {
         },
         RolloutLine {
             timestamp: "2024-01-01T00:00:02.500Z".to_string(),
-            item: RolloutItem::ResponseItem(ResponseItem::CustomToolCallOutput {
+            item: RolloutMessage::ResponseItem(ResponseItem::CustomToolCallOutput {
                 id: None,
                 call_id: custom_call_id.to_string(),
                 name: None,

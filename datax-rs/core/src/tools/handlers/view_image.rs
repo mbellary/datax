@@ -1,5 +1,5 @@
 use datax_protocol::items::ImageViewItem;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::models::DEFAULT_IMAGE_DETAIL;
 use datax_protocol::models::FunctionCallOutputBody;
 use datax_protocol::models::FunctionCallOutputContentItem;
@@ -195,7 +195,7 @@ impl ViewImageHandler {
         // The history insertion path owns image decoding and resizing.
         let image_url = data_url_from_bytes("application/octet-stream", &file_bytes);
 
-        let item = TurnItem::ImageView(ImageViewItem {
+        let item = InteractionMessage::ImageView(ImageViewItem {
             id: call_id,
             path: event_path,
         });
@@ -257,7 +257,7 @@ mod tests {
     use crate::session::turn_context::TurnEnvironment;
     use crate::tools::context::ToolCallSource;
     use crate::tools::context::ToolInvocation;
-    use crate::turn_diff_tracker::TurnDiffTracker;
+    use crate::turn_diff_tracker::InteractionDiffTracker;
     use core_test_support::TempDirExt;
     use datax_protocol::models::PermissionProfile;
     use datax_utils_absolute_path::AbsolutePathBuf;
@@ -267,7 +267,7 @@ mod tests {
     use std::sync::Arc;
     use tokio::sync::Mutex;
 
-    fn replace_primary_environment_cwd(turn: &mut crate::TurnContext, cwd: AbsolutePathBuf) {
+    fn replace_primary_environment_cwd(turn: &mut crate::InteractionContext, cwd: AbsolutePathBuf) {
         let current = turn
             .environments
             .turn_environments
@@ -328,7 +328,7 @@ mod tests {
                 session: Arc::new(session),
                 turn: Arc::new(turn),
                 cancellation_token: tokio_util::sync::CancellationToken::new(),
-                tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
+                tracker: Arc::new(Mutex::new(InteractionDiffTracker::new())),
                 call_id: "call-view-image".to_string(),
                 tool_name: datax_tools::ToolName::plain("view_image"),
                 source: ToolCallSource::Direct,
@@ -356,7 +356,7 @@ mod tests {
                 session: Arc::new(session),
                 turn: Arc::new(turn),
                 cancellation_token: tokio_util::sync::CancellationToken::new(),
-                tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
+                tracker: Arc::new(Mutex::new(InteractionDiffTracker::new())),
                 call_id: "call-view-image".to_string(),
                 tool_name: datax_tools::ToolName::plain("view_image"),
                 source: ToolCallSource::Direct,
@@ -391,7 +391,7 @@ mod tests {
                 session: Arc::new(session),
                 turn: Arc::new(turn),
                 cancellation_token: tokio_util::sync::CancellationToken::new(),
-                tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
+                tracker: Arc::new(Mutex::new(InteractionDiffTracker::new())),
                 call_id: "call-view-image".to_string(),
                 tool_name: datax_tools::ToolName::plain("view_image"),
                 source: ToolCallSource::Direct,

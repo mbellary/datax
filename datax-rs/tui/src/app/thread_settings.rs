@@ -97,7 +97,7 @@ impl App {
         chat_id: ChatId,
         op: &AppCommand,
     ) {
-        let AppCommand::OverrideTurnContext {
+        let AppCommand::OverrideInteractionContext {
             cwd,
             approval_policy,
             approvals_reviewer,

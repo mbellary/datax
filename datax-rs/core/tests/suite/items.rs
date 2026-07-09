@@ -28,13 +28,13 @@ use datax_protocol::config_types::CollaborationMode;
 use datax_protocol::config_types::ModeKind;
 use datax_protocol::config_types::Settings;
 use datax_protocol::items::AgentMessageContent;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::models::PermissionProfile;
 use datax_protocol::models::WebSearchAction;
 use datax_protocol::protocol::AskForApproval;
 use datax_protocol::protocol::EventMsg;
-use datax_protocol::protocol::ItemCompletedEvent;
-use datax_protocol::protocol::ItemStartedEvent;
+use datax_protocol::protocol::MessageCompletedEvent;
+use datax_protocol::protocol::MessageStartedEvent;
 use datax_protocol::protocol::Op;
 use datax_protocol::user_input::ByteRange;
 use datax_protocol::user_input::TextElement;
@@ -126,16 +126,16 @@ async fn user_message_item_is_emitted() -> anyhow::Result<()> {
         .await?;
 
     let started_item = wait_for_event_match(&codex, |ev| match ev {
-        EventMsg::ItemStarted(ItemStartedEvent {
-            item: TurnItem::UserMessage(item),
+        EventMsg::MessageStarted(MessageStartedEvent {
+            item: InteractionMessage::UserMessage(item),
             ..
         }) => Some(item.clone()),
         _ => None,
     })
     .await;
     let completed_item = wait_for_event_match(&codex, |ev| match ev {
-        EventMsg::ItemCompleted(ItemCompletedEvent {
-            item: TurnItem::UserMessage(item),
+        EventMsg::MessageCompleted(MessageCompletedEvent {
+            item: InteractionMessage::UserMessage(item),
             ..
         }) => Some(item.clone()),
         _ => None,
@@ -185,16 +185,16 @@ async fn assistant_message_item_is_emitted() -> anyhow::Result<()> {
         .await?;
 
     let started = wait_for_event_match(&codex, |ev| match ev {
-        EventMsg::ItemStarted(ItemStartedEvent {
-            item: TurnItem::AgentMessage(item),
+        EventMsg::MessageStarted(MessageStartedEvent {
+            item: InteractionMessage::AgentMessage(item),
             ..
         }) => Some(item.clone()),
         _ => None,
     })
     .await;
     let completed = wait_for_event_match(&codex, |ev| match ev {
-        EventMsg::ItemCompleted(ItemCompletedEvent {
-            item: TurnItem::AgentMessage(item),
+        EventMsg::MessageCompleted(MessageCompletedEvent {
+            item: InteractionMessage::AgentMessage(item),
             ..
         }) => Some(item.clone()),
         _ => None,
@@ -246,16 +246,16 @@ async fn reasoning_item_is_emitted() -> anyhow::Result<()> {
         .await?;
 
     let started = wait_for_event_match(&codex, |ev| match ev {
-        EventMsg::ItemStarted(ItemStartedEvent {
-            item: TurnItem::Reasoning(item),
+        EventMsg::MessageStarted(MessageStartedEvent {
+            item: InteractionMessage::Reasoning(item),
             ..
         }) => Some(item.clone()),
         _ => None,
     })
     .await;
     let completed = wait_for_event_match(&codex, |ev| match ev {
-        EventMsg::ItemCompleted(ItemCompletedEvent {
-            item: TurnItem::Reasoning(item),
+        EventMsg::MessageCompleted(MessageCompletedEvent {
+            item: InteractionMessage::Reasoning(item),
             ..
         }) => Some(item.clone()),
         _ => None,
@@ -308,8 +308,8 @@ async fn web_search_item_is_emitted() -> anyhow::Result<()> {
         .await?;
 
     let started = wait_for_event_match(&codex, |ev| match ev {
-        EventMsg::ItemStarted(ItemStartedEvent {
-            item: TurnItem::WebSearch(item),
+        EventMsg::MessageStarted(MessageStartedEvent {
+            item: InteractionMessage::WebSearch(item),
             started_at_ms,
             ..
         }) => Some((item.clone(), *started_at_ms)),
@@ -322,8 +322,8 @@ async fn web_search_item_is_emitted() -> anyhow::Result<()> {
     })
     .await;
     let completed = wait_for_event_match(&codex, |ev| match ev {
-        EventMsg::ItemCompleted(ItemCompletedEvent {
-            item: TurnItem::WebSearch(item),
+        EventMsg::MessageCompleted(MessageCompletedEvent {
+            item: InteractionMessage::WebSearch(item),
             completed_at_ms,
             ..
         }) => Some((item.clone(), *completed_at_ms)),
@@ -388,8 +388,8 @@ async fn builtin_image_generation_call_persisted() -> anyhow::Result<()> {
         .await?;
 
     let started = wait_for_event_match(&codex, |ev| match ev {
-        EventMsg::ItemStarted(ItemStartedEvent {
-            item: TurnItem::ImageGeneration(item),
+        EventMsg::MessageStarted(MessageStartedEvent {
+            item: InteractionMessage::ImageGeneration(item),
             started_at_ms,
             ..
         }) => Some((item.clone(), *started_at_ms)),
@@ -402,8 +402,8 @@ async fn builtin_image_generation_call_persisted() -> anyhow::Result<()> {
     })
     .await;
     let completed = wait_for_event_match(&codex, |ev| match ev {
-        EventMsg::ItemCompleted(ItemCompletedEvent {
-            item: TurnItem::ImageGeneration(item),
+        EventMsg::MessageCompleted(MessageCompletedEvent {
+            item: InteractionMessage::ImageGeneration(item),
             completed_at_ms,
             ..
         }) => Some((item.clone(), *completed_at_ms)),
@@ -531,9 +531,9 @@ async fn agent_message_content_delta_has_item_metadata() -> anyhow::Result<()> {
         .await?;
 
     let (started_interaction_id, started_item) = wait_for_event_match(&codex, |ev| match ev {
-        EventMsg::ItemStarted(ItemStartedEvent {
+        EventMsg::MessageStarted(MessageStartedEvent {
             interaction_id,
-            item: TurnItem::AgentMessage(item),
+            item: InteractionMessage::AgentMessage(item),
             ..
         }) => Some((interaction_id.clone(), item.clone())),
         _ => None,
@@ -546,8 +546,8 @@ async fn agent_message_content_delta_has_item_metadata() -> anyhow::Result<()> {
     })
     .await;
     let completed_item = wait_for_event_match(&codex, |ev| match ev {
-        EventMsg::ItemCompleted(ItemCompletedEvent {
-            item: TurnItem::AgentMessage(item),
+        EventMsg::MessageCompleted(MessageCompletedEvent {
+            item: InteractionMessage::AgentMessage(item),
             ..
         }) => Some(item.clone()),
         _ => None,
@@ -611,8 +611,8 @@ async fn plan_mode_emits_plan_item_from_proposed_plan_block() -> anyhow::Result<
     .await;
 
     let plan_completed = wait_for_event_match(&codex, |ev| match ev {
-        EventMsg::ItemCompleted(ItemCompletedEvent {
-            item: TurnItem::Plan(item),
+        EventMsg::MessageCompleted(MessageCompletedEvent {
+            item: InteractionMessage::Plan(item),
             ..
         }) => Some(item.clone()),
         _ => None,
@@ -680,14 +680,14 @@ async fn plan_mode_strips_plan_from_agent_messages() -> anyhow::Result<()> {
             EventMsg::PlanDelta(event) => {
                 plan_delta = Some(event.delta);
             }
-            EventMsg::ItemCompleted(ItemCompletedEvent {
-                item: TurnItem::AgentMessage(item),
+            EventMsg::MessageCompleted(MessageCompletedEvent {
+                item: InteractionMessage::AgentMessage(item),
                 ..
             }) => {
                 agent_item = Some(item);
             }
-            EventMsg::ItemCompleted(ItemCompletedEvent {
-                item: TurnItem::Plan(item),
+            EventMsg::MessageCompleted(MessageCompletedEvent {
+                item: InteractionMessage::Plan(item),
                 ..
             }) => {
                 plan_item = Some(item);
@@ -782,15 +782,15 @@ async fn plan_mode_streaming_citations_are_stripped_across_added_deltas_and_done
     let turn_complete_idx = loop {
         let ev = wait_for_event(&codex, |_| true).await;
         match ev {
-            EventMsg::ItemStarted(ItemStartedEvent {
-                item: TurnItem::AgentMessage(item),
+            EventMsg::MessageStarted(MessageStartedEvent {
+                item: InteractionMessage::AgentMessage(item),
                 ..
             }) => {
                 agent_started_idx = Some(idx);
                 agent_started = Some(item);
             }
-            EventMsg::ItemStarted(ItemStartedEvent {
-                item: TurnItem::Plan(item),
+            EventMsg::MessageStarted(MessageStartedEvent {
+                item: InteractionMessage::Plan(item),
                 ..
             }) => {
                 plan_started_idx = Some(idx);
@@ -810,15 +810,15 @@ async fn plan_mode_streaming_citations_are_stripped_across_added_deltas_and_done
                 last_plan_delta_idx = Some(idx);
                 plan_deltas.push(event.delta);
             }
-            EventMsg::ItemCompleted(ItemCompletedEvent {
-                item: TurnItem::AgentMessage(item),
+            EventMsg::MessageCompleted(MessageCompletedEvent {
+                item: InteractionMessage::AgentMessage(item),
                 ..
             }) => {
                 agent_completed_idx = Some(idx);
                 agent_completed = Some(item);
             }
-            EventMsg::ItemCompleted(ItemCompletedEvent {
-                item: TurnItem::Plan(item),
+            EventMsg::MessageCompleted(MessageCompletedEvent {
+                item: InteractionMessage::Plan(item),
                 ..
             }) => {
                 plan_completed_idx = Some(idx);
@@ -948,22 +948,22 @@ async fn plan_mode_streaming_proposed_plan_tag_split_across_added_and_delta_is_p
     loop {
         let ev = wait_for_event(&codex, |_| true).await;
         match ev {
-            EventMsg::ItemStarted(ItemStartedEvent {
-                item: TurnItem::AgentMessage(item),
+            EventMsg::MessageStarted(MessageStartedEvent {
+                item: InteractionMessage::AgentMessage(item),
                 ..
             }) => agent_started = Some(item),
-            EventMsg::ItemStarted(ItemStartedEvent {
-                item: TurnItem::Plan(item),
+            EventMsg::MessageStarted(MessageStartedEvent {
+                item: InteractionMessage::Plan(item),
                 ..
             }) => plan_started = Some(item),
             EventMsg::AgentMessageContentDelta(event) => agent_deltas.push(event.delta),
             EventMsg::PlanDelta(event) => plan_deltas.push(event.delta),
-            EventMsg::ItemCompleted(ItemCompletedEvent {
-                item: TurnItem::AgentMessage(item),
+            EventMsg::MessageCompleted(MessageCompletedEvent {
+                item: InteractionMessage::AgentMessage(item),
                 ..
             }) => agent_completed = Some(item),
-            EventMsg::ItemCompleted(ItemCompletedEvent {
-                item: TurnItem::Plan(item),
+            EventMsg::MessageCompleted(MessageCompletedEvent {
+                item: InteractionMessage::Plan(item),
                 ..
             }) => plan_completed = Some(item),
             EventMsg::InteractionComplete(_) => break,
@@ -1050,14 +1050,14 @@ async fn plan_mode_handles_missing_plan_close_tag() -> anyhow::Result<()> {
             EventMsg::PlanDelta(event) => {
                 plan_delta = Some(event.delta);
             }
-            EventMsg::ItemCompleted(ItemCompletedEvent {
-                item: TurnItem::Plan(item),
+            EventMsg::MessageCompleted(MessageCompletedEvent {
+                item: InteractionMessage::Plan(item),
                 ..
             }) => {
                 plan_item = Some(item);
             }
-            EventMsg::ItemCompleted(ItemCompletedEvent {
-                item: TurnItem::AgentMessage(item),
+            EventMsg::MessageCompleted(MessageCompletedEvent {
+                item: InteractionMessage::AgentMessage(item),
                 ..
             }) => {
                 agent_item = Some(item);
@@ -1112,8 +1112,8 @@ async fn reasoning_content_delta_has_item_metadata() -> anyhow::Result<()> {
         .await?;
 
     let reasoning_item = wait_for_event_match(&codex, |ev| match ev {
-        EventMsg::ItemStarted(ItemStartedEvent {
-            item: TurnItem::Reasoning(item),
+        EventMsg::MessageStarted(MessageStartedEvent {
+            item: InteractionMessage::Reasoning(item),
             ..
         }) => Some(item.clone()),
         _ => None,
@@ -1167,8 +1167,8 @@ async fn reasoning_raw_content_delta_respects_flag() -> anyhow::Result<()> {
         .await?;
 
     let reasoning_item = wait_for_event_match(&codex, |ev| match ev {
-        EventMsg::ItemStarted(ItemStartedEvent {
-            item: TurnItem::Reasoning(item),
+        EventMsg::MessageStarted(MessageStartedEvent {
+            item: InteractionMessage::Reasoning(item),
             ..
         }) => Some(item.clone()),
         _ => None,

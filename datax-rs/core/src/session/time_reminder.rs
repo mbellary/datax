@@ -2,7 +2,7 @@ use datax_protocol::error::CodexErr;
 use datax_protocol::error::Result as CodexResult;
 
 use super::session::Session;
-use super::turn_context::TurnContext;
+use super::turn_context::InteractionContext;
 use crate::context::ContextualUserFragment;
 
 #[derive(Default)]
@@ -28,7 +28,7 @@ impl CurrentTimeReminderState {
 
 pub(super) async fn maybe_record_current_time_reminder(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     window_id: &str,
 ) -> CodexResult<()> {
     let Some(config) = turn_context.config.current_time_reminder else {

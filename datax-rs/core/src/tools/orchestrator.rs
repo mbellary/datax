@@ -136,7 +136,7 @@ impl ToolOrchestrator {
         tool: &mut T,
         req: &Rq,
         tool_ctx: &ToolCtx,
-        turn_ctx: &crate::session::turn_context::TurnContext,
+        turn_ctx: &crate::session::turn_context::InteractionContext,
         approval_policy: AskForApproval,
     ) -> Result<OrchestratorRunResult<Out>, ToolError>
     where

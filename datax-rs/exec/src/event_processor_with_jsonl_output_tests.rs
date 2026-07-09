@@ -73,7 +73,7 @@ fn runtime_warning_emits_a_non_fatal_error_item() {
     assert_eq!(
         collected,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemCompleted(ItemCompletedEvent {
+            events: vec![ThreadEvent::MessageCompleted(MessageCompletedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::Error(ErrorItem {
@@ -118,7 +118,7 @@ fn mcp_tool_call_result_preserves_meta_in_jsonl_event() {
     assert_eq!(collected.status, CodexStatus::Running);
     assert_eq!(collected.events.len(), 1);
 
-    let ThreadEvent::ItemCompleted(ItemCompletedEvent { item }) = &collected.events[0] else {
+    let ThreadEvent::MessageCompleted(MessageCompletedEvent { item }) = &collected.events[0] else {
         panic!("expected item.completed event");
     };
     let ThreadItemDetails::McpToolCall(item) = &item.details else {

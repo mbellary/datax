@@ -6,7 +6,7 @@ use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use datax_extension_api::ExtensionData;
 use datax_protocol::config_types::ModeKind;
 use datax_protocol::items::ImageGenerationItem;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_utils_stream_parser::strip_citations;
 use tokio_util::sync::CancellationToken;
 
@@ -15,7 +15,7 @@ use crate::context::ImageGenerationInstructions;
 use crate::function_tool::FunctionCallError;
 use crate::parse_turn_item;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::tools::parallel::ToolCallRuntime;
 use crate::tools::router::ToolRouter;
 use datax_memories_read::citations::chat_ids_from_memory_citation;
@@ -129,7 +129,7 @@ async fn save_image_generation_result(
 
 pub(crate) async fn persist_image_generation_item(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     image_item: &mut ImageGenerationItem,
 ) -> Option<AbsolutePathBuf> {
     image_item.saved_path = None;
@@ -167,7 +167,7 @@ pub(crate) async fn persist_image_generation_item(
 
 async fn record_image_generation_instructions(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     image_item: &ImageGenerationItem,
 ) {
     if image_item.saved_path.is_none() {
@@ -190,7 +190,7 @@ async fn record_image_generation_instructions(
 /// Persist a completed model response item and record any cited memory usage.
 pub(crate) async fn record_completed_response_item(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     item: &ResponseItem,
 ) {
     record_completed_response_item_with_finalized_facts(
@@ -204,9 +204,9 @@ pub(crate) async fn record_completed_response_item(
 
 pub(crate) async fn record_completed_response_item_with_finalized_facts(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     item: &ResponseItem,
-    finalized_facts: Option<&FinalizedTurnItemFacts>,
+    finalized_facts: Option<&FinalizedInteractionMessageFacts>,
 ) {
     sess.record_conversation_items(turn_context, std::slice::from_ref(item))
         .await;
@@ -254,7 +254,7 @@ fn response_item_may_include_external_context(item: &ResponseItem) -> bool {
 
 pub(crate) async fn mark_thread_memory_mode_polluted_if_external_context(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     item: &ResponseItem,
 ) {
     if !turn_context.config.memories.disable_on_external_context
@@ -315,7 +315,7 @@ pub(crate) struct OutputItemResult {
 
 pub(crate) struct HandleOutputCtx {
     pub sess: Arc<Session>,
-    pub turn_context: Arc<TurnContext>,
+    pub turn_context: Arc<InteractionContext>,
     pub turn_store: Arc<ExtensionData>,
     pub tool_runtime: ToolCallRuntime,
     pub cancellation_token: CancellationToken,
@@ -324,7 +324,7 @@ pub(crate) struct HandleOutputCtx {
 async fn apply_turn_item_contributors(
     sess: &Session,
     turn_store: &ExtensionData,
-    item: &mut TurnItem,
+    item: &mut InteractionMessage,
 ) {
     let contributors = sess.services.extensions.turn_item_contributors().to_vec();
     for contributor in contributors {
@@ -337,18 +337,18 @@ async fn apply_turn_item_contributors(
     }
 }
 
-pub(crate) enum TurnItemContributorPolicy<'a> {
+pub(crate) enum InteractionMessageContributorPolicy<'a> {
     Skip,
     Run(&'a ExtensionData),
 }
 
-pub(crate) struct FinalizedTurnItem {
-    pub(crate) turn_item: TurnItem,
-    pub(crate) facts: FinalizedTurnItemFacts,
+pub(crate) struct FinalizedInteractionMessage {
+    pub(crate) turn_item: InteractionMessage,
+    pub(crate) facts: FinalizedInteractionMessageFacts,
 }
 
 #[derive(Clone, Default)]
-pub(crate) struct FinalizedTurnItemFacts {
+pub(crate) struct FinalizedInteractionMessageFacts {
     pub(crate) memory_citation: Option<MemoryCitation>,
     pub(crate) last_agent_message: Option<String>,
     pub(crate) defers_mailbox_delivery_to_next_turn: bool,
@@ -356,17 +356,17 @@ pub(crate) struct FinalizedTurnItemFacts {
 
 pub(crate) async fn finalize_non_tool_response_item(
     sess: &Session,
-    turn_context: &TurnContext,
-    contributor_policy: TurnItemContributorPolicy<'_>,
+    turn_context: &InteractionContext,
+    contributor_policy: InteractionMessageContributorPolicy<'_>,
     item: &ResponseItem,
     plan_mode: bool,
-) -> Option<FinalizedTurnItem> {
+) -> Option<FinalizedInteractionMessage> {
     let turn_item =
         handle_non_tool_response_item(sess, turn_context, contributor_policy, item, plan_mode)
             .await?;
     let (memory_citation, last_agent_message, defers_mailbox_delivery_to_next_turn) =
         match &turn_item {
-            TurnItem::AgentMessage(agent_message) => {
+            InteractionMessage::AgentMessage(agent_message) => {
                 let combined = agent_message
                     .content
                     .iter()
@@ -388,12 +388,12 @@ pub(crate) async fn finalize_non_tool_response_item(
                     defers_mailbox_delivery_to_next_turn,
                 )
             }
-            TurnItem::ImageGeneration(_) => (None, None, true),
+            InteractionMessage::ImageGeneration(_) => (None, None, true),
             _ => (None, None, false),
         };
-    Some(FinalizedTurnItem {
+    Some(FinalizedInteractionMessage {
         turn_item,
-        facts: FinalizedTurnItemFacts {
+        facts: FinalizedInteractionMessageFacts {
             memory_citation,
             last_agent_message,
             defers_mailbox_delivery_to_next_turn,
@@ -405,7 +405,7 @@ pub(crate) async fn finalize_non_tool_response_item(
 pub(crate) async fn handle_output_item_done(
     ctx: &mut HandleOutputCtx,
     item: ResponseItem,
-    previously_active_item: Option<TurnItem>,
+    previously_active_item: Option<InteractionMessage>,
 ) -> Result<OutputItemResult> {
     let mut output = OutputItemResult::default();
     let plan_mode = ctx.turn_context.collaboration_mode.mode == ModeKind::Plan;
@@ -447,7 +447,7 @@ pub(crate) async fn handle_output_item_done(
             let finalized_turn_item = finalize_non_tool_response_item(
                 ctx.sess.as_ref(),
                 ctx.turn_context.as_ref(),
-                TurnItemContributorPolicy::Run(ctx.turn_store.as_ref()),
+                InteractionMessageContributorPolicy::Run(ctx.turn_store.as_ref()),
                 &item,
                 plan_mode,
             )
@@ -458,7 +458,7 @@ pub(crate) async fn handle_output_item_done(
             if let Some(finalized_turn_item) = finalized_turn_item {
                 if previously_active_item.is_none() {
                     let mut started_item = finalized_turn_item.turn_item.clone();
-                    if let TurnItem::ImageGeneration(item) = &mut started_item {
+                    if let InteractionMessage::ImageGeneration(item) = &mut started_item {
                         item.status = "in_progress".to_string();
                         item.revised_prompt = None;
                         item.result.clear();
@@ -516,11 +516,11 @@ pub(crate) async fn handle_output_item_done(
 
 pub(crate) async fn handle_non_tool_response_item(
     sess: &Session,
-    turn_context: &TurnContext,
-    contributor_policy: TurnItemContributorPolicy<'_>,
+    turn_context: &InteractionContext,
+    contributor_policy: InteractionMessageContributorPolicy<'_>,
     item: &ResponseItem,
     plan_mode: bool,
-) -> Option<TurnItem> {
+) -> Option<InteractionMessage> {
     debug!(?item, "Output item");
 
     match item {
@@ -537,7 +537,7 @@ pub(crate) async fn handle_non_tool_response_item(
                 plan_mode,
             )
             .await;
-            if let TurnItem::ImageGeneration(image_item) = &turn_item {
+            if let InteractionMessage::ImageGeneration(image_item) = &turn_item {
                 record_image_generation_instructions(sess, turn_context, image_item).await;
             }
             Some(turn_item)
@@ -554,15 +554,15 @@ pub(crate) async fn handle_non_tool_response_item(
 
 pub(crate) async fn finalize_turn_item(
     sess: &Session,
-    turn_context: &TurnContext,
-    contributor_policy: TurnItemContributorPolicy<'_>,
-    turn_item: &mut TurnItem,
+    turn_context: &InteractionContext,
+    contributor_policy: InteractionMessageContributorPolicy<'_>,
+    turn_item: &mut InteractionMessage,
     plan_mode: bool,
 ) {
-    if let TurnItemContributorPolicy::Run(turn_store) = contributor_policy {
+    if let InteractionMessageContributorPolicy::Run(turn_store) = contributor_policy {
         apply_turn_item_contributors(sess, turn_store, turn_item).await;
     }
-    if let TurnItem::AgentMessage(agent_message) = &mut *turn_item {
+    if let InteractionMessage::AgentMessage(agent_message) = &mut *turn_item {
         let combined = agent_message
             .content
             .iter()
@@ -578,7 +578,7 @@ pub(crate) async fn finalize_turn_item(
             agent_message.memory_citation = memory_citation;
         }
     }
-    if let TurnItem::ImageGeneration(image_item) = &mut *turn_item
+    if let InteractionMessage::ImageGeneration(image_item) = &mut *turn_item
         && !image_item.result.is_empty()
     {
         persist_image_generation_item(sess, turn_context, image_item).await;

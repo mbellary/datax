@@ -10,7 +10,7 @@ use chrono::Timelike;
 use chrono::Utc;
 use datax_protocol::ChatId;
 use datax_protocol::protocol::AskForApproval;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::SandboxPolicy;
 use datax_protocol::protocol::SessionMetaLine;
 use datax_protocol::protocol::SessionSource;
@@ -62,16 +62,16 @@ pub(crate) fn builder_from_session_meta(
 }
 
 pub fn builder_from_items(
-    items: &[RolloutItem],
+    items: &[RolloutMessage],
     rollout_path: &Path,
 ) -> Option<ThreadMetadataBuilder> {
     if let Some(session_meta) = items.iter().find_map(|item| match item {
-        RolloutItem::SessionMeta(meta_line) => Some(meta_line),
-        RolloutItem::ResponseItem(_)
-        | RolloutItem::InterAgentCommunication(_)
-        | RolloutItem::Compacted(_)
-        | RolloutItem::TurnContext(_)
-        | RolloutItem::EventMsg(_) => None,
+        RolloutMessage::SessionMeta(meta_line) => Some(meta_line),
+        RolloutMessage::ResponseItem(_)
+        | RolloutMessage::InterAgentCommunication(_)
+        | RolloutMessage::Compacted(_)
+        | RolloutMessage::InteractionContext(_)
+        | RolloutMessage::EventMsg(_) => None,
     }) && let Some(builder) = builder_from_session_meta(session_meta, rollout_path)
     {
         return Some(builder);
@@ -120,12 +120,12 @@ pub async fn extract_metadata_from_rollout(
     Ok(ExtractionOutcome {
         metadata,
         memory_mode: items.iter().rev().find_map(|item| match item {
-            RolloutItem::SessionMeta(meta_line) => meta_line.meta.memory_mode.clone(),
-            RolloutItem::ResponseItem(_)
-            | RolloutItem::InterAgentCommunication(_)
-            | RolloutItem::Compacted(_)
-            | RolloutItem::TurnContext(_)
-            | RolloutItem::EventMsg(_) => None,
+            RolloutMessage::SessionMeta(meta_line) => meta_line.meta.memory_mode.clone(),
+            RolloutMessage::ResponseItem(_)
+            | RolloutMessage::InterAgentCommunication(_)
+            | RolloutMessage::Compacted(_)
+            | RolloutMessage::InteractionContext(_)
+            | RolloutMessage::EventMsg(_) => None,
         }),
         parse_errors,
     })

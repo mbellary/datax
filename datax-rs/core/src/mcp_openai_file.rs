@@ -12,7 +12,7 @@
 //! inventory, so this module only handles the execution-time argument rewrite.
 
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use datax_api::OPENAI_FILE_UPLOAD_LIMIT_BYTES;
 use datax_api::upload_openai_file;
 use datax_login::CodexAuth;
@@ -21,7 +21,7 @@ use serde_json::Value as JsonValue;
 
 pub(crate) async fn rewrite_mcp_tool_arguments_for_openai_files(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     arguments_value: Option<JsonValue>,
     openai_file_input_params: Option<&[String]>,
 ) -> Result<Option<JsonValue>, String> {
@@ -59,7 +59,7 @@ pub(crate) async fn rewrite_mcp_tool_arguments_for_openai_files(
 }
 
 async fn rewrite_argument_value_for_openai_files(
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     auth: Option<&CodexAuth>,
     field_name: &str,
     value: &JsonValue,
@@ -99,7 +99,7 @@ async fn rewrite_argument_value_for_openai_files(
 }
 
 async fn build_uploaded_argument_value(
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     auth: Option<&CodexAuth>,
     field_name: &str,
     index: Option<usize>,
@@ -190,7 +190,7 @@ mod tests {
     use std::sync::Arc;
     use tempfile::tempdir;
 
-    fn set_primary_environment_cwd(turn_context: &mut TurnContext, cwd: &Path) {
+    fn set_primary_environment_cwd(turn_context: &mut InteractionContext, cwd: &Path) {
         let cwd = AbsolutePathBuf::try_from(cwd).expect("absolute path");
         turn_context.permission_profile = datax_protocol::models::PermissionProfile::Disabled;
         let primary = turn_context

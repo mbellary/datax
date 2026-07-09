@@ -4,7 +4,7 @@ use crate::context_manager::normalize;
 use crate::event_mapping::has_non_contextual_dev_message_content;
 use crate::event_mapping::is_contextual_dev_message_content;
 use crate::event_mapping::is_contextual_user_message_content;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use datax_protocol::models::BaseInstructions;
@@ -18,7 +18,7 @@ use datax_protocol::openai_models::InputModality;
 use datax_protocol::protocol::InterAgentCommunication;
 use datax_protocol::protocol::TokenUsage;
 use datax_protocol::protocol::TokenUsageInfo;
-use datax_protocol::protocol::TurnContextItem;
+use datax_protocol::protocol::InteractionContextMessage;
 use datax_utils_cache::BlockingLruCache;
 use datax_utils_cache::sha1_digest;
 use datax_utils_output_truncation::TruncationPolicy;
@@ -50,7 +50,7 @@ pub(crate) struct ContextManager {
     /// baseline and emits a full reinjection of context state. Rollback may
     /// also clear this when it trims a mixed initial-context developer bundle
     /// whose non-diff fragments no longer exist in the surviving history.
-    reference_context_item: Option<TurnContextItem>,
+    reference_context_item: Option<InteractionContextMessage>,
     /// World state most recently appended to model-visible history.
     world_state_baseline: Option<Arc<WorldState>>,
 }
@@ -76,11 +76,11 @@ impl ContextManager {
         self.token_info = info;
     }
 
-    pub(crate) fn set_reference_context_item(&mut self, item: Option<TurnContextItem>) {
+    pub(crate) fn set_reference_context_item(&mut self, item: Option<InteractionContextMessage>) {
         self.reference_context_item = item;
     }
 
-    pub(crate) fn reference_context_item(&self) -> Option<TurnContextItem> {
+    pub(crate) fn reference_context_item(&self) -> Option<InteractionContextMessage> {
         self.reference_context_item.clone()
     }
 
@@ -151,7 +151,7 @@ impl ContextManager {
 
     // Estimate token usage using byte-based heuristics from the truncation helpers.
     // This is a coarse lower bound, not a tokenizer-accurate count.
-    pub(crate) fn estimate_token_count(&self, turn_context: &TurnContext) -> Option<i64> {
+    pub(crate) fn estimate_token_count(&self, turn_context: &InteractionContext) -> Option<i64> {
         let model_info = &turn_context.model_info;
         let personality = turn_context.personality.or(turn_context.config.personality);
         let base_instructions = BaseInstructions {

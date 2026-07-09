@@ -322,7 +322,7 @@ mod tests {
     use crate::tools::hook_names::HookToolName;
     use crate::tools::registry::PostToolUsePayload;
     use crate::tools::registry::PreToolUsePayload;
-    use crate::turn_diff_tracker::TurnDiffTracker;
+    use crate::turn_diff_tracker::InteractionDiffTracker;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::time::Duration;
@@ -347,7 +347,7 @@ mod tests {
                 session: session.into(),
                 turn: turn.into(),
                 cancellation_token: tokio_util::sync::CancellationToken::new(),
-                tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
+                tracker: Arc::new(Mutex::new(InteractionDiffTracker::new())),
                 call_id: "call-mcp-pre".to_string(),
                 tool_name: datax_tools::ToolName::namespaced("memory", "create_entities"),
                 source: ToolCallSource::Direct,
@@ -379,7 +379,7 @@ mod tests {
                 session: session.into(),
                 turn: turn.into(),
                 cancellation_token: tokio_util::sync::CancellationToken::new(),
-                tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
+                tracker: Arc::new(Mutex::new(InteractionDiffTracker::new())),
                 call_id: "call-mcp-pre-builtin-like".to_string(),
                 tool_name: datax_tools::ToolName::namespaced("mcp__foo", "exec_command"),
                 source: ToolCallSource::Direct,
@@ -407,7 +407,7 @@ mod tests {
                     session: session.into(),
                     turn: turn.into(),
                     cancellation_token: tokio_util::sync::CancellationToken::new(),
-                    tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
+                    tracker: Arc::new(Mutex::new(InteractionDiffTracker::new())),
                     call_id: "call-mcp-rewrite-builtin-like".to_string(),
                     tool_name: datax_tools::ToolName::namespaced("mcp__foo", "exec_command"),
                     source: ToolCallSource::Direct,
@@ -454,7 +454,7 @@ mod tests {
             session: session.into(),
             turn: turn.into(),
             cancellation_token: tokio_util::sync::CancellationToken::new(),
-            tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
+            tracker: Arc::new(Mutex::new(InteractionDiffTracker::new())),
             call_id: "call-mcp-post".to_string(),
             tool_name: datax_tools::ToolName::namespaced("filesystem", "read_file"),
             source: ToolCallSource::Direct,

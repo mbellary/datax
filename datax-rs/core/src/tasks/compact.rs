@@ -5,7 +5,7 @@ use super::SessionTaskContext;
 use super::SessionTaskResult;
 use super::emit_compact_metric;
 use crate::session::TurnInput;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::state::TaskKind;
 use datax_protocol::error::CodexErr;
 use datax_protocol::user_input::UserInput;
@@ -26,7 +26,7 @@ impl SessionTask for CompactTask {
     async fn run(
         self: Arc<Self>,
         session: Arc<SessionTaskContext>,
-        ctx: Arc<TurnContext>,
+        ctx: Arc<InteractionContext>,
         _input: Vec<TurnInput>,
         _cancellation_token: CancellationToken,
     ) -> SessionTaskResult {

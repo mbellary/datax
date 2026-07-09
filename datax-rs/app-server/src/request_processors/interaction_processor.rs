@@ -555,7 +555,7 @@ impl InteractionRequestProcessor {
             .await;
         let turn = Interaction {
             id: interaction_id,
-            messages: vec![],
+            items: vec![],
             messages_view: InteractionMessagesView::NotLoaded,
             error: None,
             status: InteractionStatus::InProgress,
@@ -804,7 +804,7 @@ impl InteractionRequestProcessor {
         let (_, thread) = self.load_thread(&params.chat_id).await?;
 
         let messages = params
-            .messages
+            .items
             .into_iter()
             .enumerate()
             .map(|(index, value)| {

@@ -19,7 +19,7 @@ use crate::mcp_openai_file::rewrite_mcp_tool_arguments_for_openai_files;
 use crate::mcp_tool_approval_templates::RenderedMcpToolApprovalParam;
 use crate::mcp_tool_approval_templates::render_mcp_tool_approval_template;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::tools::hook_names::HookToolName;
 use crate::tools::sandboxing::PermissionRequestPayload;
 use crate::turn_metadata::McpTurnMetadataContext;
@@ -50,7 +50,7 @@ use datax_otel::sanitize_metric_tag_value;
 use datax_protocol::items::McpToolCallError;
 use datax_protocol::items::McpToolCallItem;
 use datax_protocol::items::McpToolCallStatus;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::mcp::CallToolResult;
 use datax_protocol::mcp_approval_meta::APPROVAL_KIND_KEY as MCP_TOOL_APPROVAL_KIND_KEY;
 use datax_protocol::mcp_approval_meta::APPROVAL_KIND_MCP_TOOL_CALL as MCP_TOOL_APPROVAL_KIND_MCP_TOOL_CALL;
@@ -111,7 +111,7 @@ const MCP_TOOL_CALL_EVENT_RESULT_MAX_BYTES: usize = DEFAULT_OUTPUT_BYTES_CAP;
 /// item lifecycle events to the `Session`.
 pub(crate) async fn handle_mcp_tool_call(
     sess: Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     call_id: String,
     server: String,
     tool_name: String,
@@ -333,7 +333,7 @@ impl McpToolCallItemMetadata {
 
 async fn handle_approved_mcp_tool_call(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     call_id: &str,
     invocation: McpInvocation,
     metadata: Option<&McpToolApprovalMetadata>,
@@ -429,7 +429,7 @@ async fn handle_approved_mcp_tool_call(
 }
 
 fn emit_mcp_call_metrics(
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     status: &str,
     tool_name: &str,
     connector_id: Option<&str>,
@@ -475,7 +475,7 @@ fn mcp_call_metric_tags(
 
 fn mcp_tool_call_span(
     session: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     fields: McpToolCallSpanFields<'_>,
 ) -> Span {
     let transport = match fields.server_origin {
@@ -575,7 +575,7 @@ fn truncate_str_to_char_boundary(value: &str, max_chars: usize) -> &str {
 
 async fn execute_mcp_tool_call(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     call_id: &str,
     invocation: &McpInvocation,
     rewritten_arguments: Option<JsonValue>,
@@ -625,7 +625,7 @@ async fn execute_mcp_tool_call(
 
 async fn maybe_request_codex_apps_auth_elicitation(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     call_id: &str,
     server: &str,
     metadata: Option<&McpToolApprovalMetadata>,
@@ -700,7 +700,7 @@ async fn maybe_request_codex_apps_auth_elicitation(
     auth_elicitation_completed_result(&plan.auth_failure, result.meta)
 }
 
-async fn refresh_codex_apps_after_connector_auth(sess: &Session, turn_context: &TurnContext) {
+async fn refresh_codex_apps_after_connector_auth(sess: &Session, turn_context: &InteractionContext) {
     let mcp_tools_result = {
         let manager = sess.services.mcp_connection_manager.load_full();
         manager.hard_refresh_codex_apps_tools_cache().await
@@ -723,7 +723,7 @@ async fn refresh_codex_apps_after_connector_auth(sess: &Session, turn_context: &
 
 async fn augment_mcp_tool_request_meta_with_sandbox_state(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     server: &str,
     mut meta: Option<serde_json::Value>,
 ) -> anyhow::Result<Option<serde_json::Value>> {
@@ -771,7 +771,7 @@ async fn augment_mcp_tool_request_meta_with_sandbox_state(
     Ok(meta)
 }
 
-fn sandbox_cwd_for_mcp_server(turn_context: &TurnContext, environment_id: &str) -> Option<PathUri> {
+fn sandbox_cwd_for_mcp_server(turn_context: &InteractionContext, environment_id: &str) -> Option<PathUri> {
     if let Some(environment) = turn_context
         .environments
         .turn_environments
@@ -791,7 +791,7 @@ fn sandbox_cwd_for_mcp_server(turn_context: &TurnContext, environment_id: &str) 
 
 async fn maybe_mark_thread_memory_mode_polluted(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     server: &str,
 ) {
     if !turn_context.config.memories.disable_on_external_context {
@@ -890,7 +890,7 @@ fn truncate_mcp_tool_result_for_event(
 
 async fn notify_mcp_tool_call_started(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     call_id: &str,
     invocation: McpInvocation,
     item_metadata: McpToolCallItemMetadata,
@@ -900,7 +900,7 @@ async fn notify_mcp_tool_call_started(
         tool,
         arguments,
     } = invocation;
-    let item = TurnItem::McpToolCall(McpToolCallItem {
+    let item = InteractionMessage::McpToolCall(McpToolCallItem {
         id: call_id.to_string(),
         server,
         tool,
@@ -919,7 +919,7 @@ async fn notify_mcp_tool_call_started(
 
 async fn notify_mcp_tool_call_completed(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     call_id: &str,
     invocation: McpInvocation,
     item_metadata: McpToolCallItemMetadata,
@@ -942,7 +942,7 @@ async fn notify_mcp_tool_call_completed(
         tool,
         arguments,
     } = invocation;
-    let item = TurnItem::McpToolCall(McpToolCallItem {
+    let item = InteractionMessage::McpToolCall(McpToolCallItem {
         id: call_id.to_string(),
         server,
         tool,
@@ -966,7 +966,7 @@ struct McpAppUsageMetadata {
 
 async fn maybe_track_codex_app_used(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     server: &str,
     tool_name: &str,
 ) {
@@ -1034,7 +1034,7 @@ const MCP_TOOL_THREAD_ID_META_KEY: &str = "threadId";
 
 async fn custom_mcp_tool_approval_mode(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     server: &str,
     tool_name: &str,
 ) -> AppToolApproval {
@@ -1082,7 +1082,7 @@ async fn custom_mcp_tool_approval_mode(
 }
 
 fn build_mcp_tool_call_request_meta(
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     server: &str,
     call_id: &str,
     metadata: Option<&McpToolApprovalMetadata>,
@@ -1203,7 +1203,7 @@ fn mcp_tool_approval_prompt_options(
 
 async fn maybe_request_mcp_tool_approval(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     call_id: &str,
     invocation: &McpInvocation,
     hook_tool_name: &HookToolName,
@@ -1386,7 +1386,7 @@ async fn maybe_request_mcp_tool_approval(
 }
 
 pub(crate) fn mcp_approvals_reviewer(
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     server_name: &str,
     metadata: Option<&McpToolApprovalMetadata>,
 ) -> ApprovalsReviewer {
@@ -1473,7 +1473,7 @@ async fn mcp_tool_approval_decision_from_guardian(
 
 pub(crate) async fn lookup_mcp_tool_metadata(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     server: &str,
     tool_name: &str,
 ) -> Option<McpToolApprovalMetadata> {
@@ -1660,7 +1660,7 @@ fn build_mcp_tool_approval_fallback_message(
 
 fn build_mcp_tool_approval_elicitation_request(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     request: McpToolApprovalElicitationRequest<'_>,
 ) -> McpServerElicitationRequestParams {
     let message = request
@@ -1939,7 +1939,7 @@ async fn remember_mcp_tool_approval(sess: &Session, key: McpToolApprovalKey) {
 
 async fn apply_mcp_tool_approval_decision(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     decision: &McpToolApprovalDecision,
     session_approval_key: Option<McpToolApprovalKey>,
     persistent_approval_key: Option<McpToolApprovalKey>,
@@ -1965,7 +1965,7 @@ async fn apply_mcp_tool_approval_decision(
 
 async fn maybe_persist_mcp_tool_approval(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     key: McpToolApprovalKey,
 ) {
     let tool_name = key.tool_name.clone();
@@ -2169,7 +2169,7 @@ fn requires_mcp_tool_approval(annotations: Option<&ToolAnnotations>) -> bool {
 
 async fn notify_mcp_tool_call_skip(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     call_id: &str,
     invocation: McpInvocation,
     item_metadata: McpToolCallItemMetadata,

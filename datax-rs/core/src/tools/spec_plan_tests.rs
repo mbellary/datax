@@ -31,7 +31,7 @@ use pretty_assertions::assert_eq;
 use serde_json::json;
 
 use crate::session::tests::make_session_and_context;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::tools::handlers::ToolSearchHandlerCache;
 use crate::tools::handlers::multi_agents_spec::MULTI_AGENT_V1_NAMESPACE;
 use crate::tools::router::ToolRouter;
@@ -173,7 +173,7 @@ impl ToolPlanProbe {
 }
 
 async fn probe_with(
-    configure_turn: impl FnOnce(&mut TurnContext),
+    configure_turn: impl FnOnce(&mut InteractionContext),
     inputs: ToolPlanInputs,
 ) -> ToolPlanProbe {
     let (_session, mut turn) = make_session_and_context().await;
@@ -192,11 +192,11 @@ async fn probe_with(
     ToolPlanProbe::from_router(router)
 }
 
-async fn probe(configure_turn: impl FnOnce(&mut TurnContext)) -> ToolPlanProbe {
+async fn probe(configure_turn: impl FnOnce(&mut InteractionContext)) -> ToolPlanProbe {
     probe_with(configure_turn, ToolPlanInputs::default()).await
 }
 
-fn set_feature(turn: &mut TurnContext, feature: Feature, enabled: bool) {
+fn set_feature(turn: &mut InteractionContext, feature: Feature, enabled: bool) {
     let mut config = (*turn.config).clone();
     if enabled {
         config
@@ -213,7 +213,7 @@ fn set_feature(turn: &mut TurnContext, feature: Feature, enabled: bool) {
     turn.config = Arc::new(config);
 }
 
-fn set_features(turn: &mut TurnContext, features: &[Feature]) {
+fn set_features(turn: &mut InteractionContext, features: &[Feature]) {
     for feature in features {
         set_feature(turn, *feature, /*enabled*/ true);
     }
@@ -234,13 +234,13 @@ fn zsh_fork_config_for_spec_plan_tests() -> datax_tools::ZshForkConfig {
     }
 }
 
-fn update_config(turn: &mut TurnContext, update: impl FnOnce(&mut crate::config::Config)) {
+fn update_config(turn: &mut InteractionContext, update: impl FnOnce(&mut crate::config::Config)) {
     let mut config = (*turn.config).clone();
     update(&mut config);
     turn.config = Arc::new(config);
 }
 
-fn set_web_search_mode(turn: &mut TurnContext, mode: WebSearchMode) {
+fn set_web_search_mode(turn: &mut InteractionContext, mode: WebSearchMode) {
     update_config(turn, |config| {
         config
             .web_search_mode
@@ -249,7 +249,7 @@ fn set_web_search_mode(turn: &mut TurnContext, mode: WebSearchMode) {
     });
 }
 
-fn use_chatgpt_auth(turn: &mut TurnContext) {
+fn use_chatgpt_auth(turn: &mut InteractionContext) {
     turn.auth_manager = Some(AuthManager::from_auth_for_testing(
         CodexAuth::create_dummy_chatgpt_auth_for_testing(),
     ));
@@ -259,7 +259,7 @@ fn use_chatgpt_auth(turn: &mut TurnContext) {
     );
 }
 
-fn use_bedrock_provider(turn: &mut TurnContext) {
+fn use_bedrock_provider(turn: &mut InteractionContext) {
     let provider_info = ModelProviderInfo::create_amazon_bedrock_provider(/*aws*/ None);
     update_config(turn, |config| {
         config.model_provider_id = AMAZON_BEDROCK_PROVIDER_ID.to_string();
@@ -331,7 +331,7 @@ impl ToolExecutor<ExtensionToolCall> for DeferredExtensionTool {
     }
 }
 
-fn duplicate_primary_environment(turn: &mut TurnContext) {
+fn duplicate_primary_environment(turn: &mut InteractionContext) {
     let mut second_environment = turn.environments.turn_environments[0].clone();
     second_environment.environment_id = "secondary".to_string();
     turn.environments.turn_environments.push(second_environment);

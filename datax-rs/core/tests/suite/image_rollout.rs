@@ -19,7 +19,7 @@ use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::AskForApproval;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::Op;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::user_input::UserInput;
 use image::ImageBuffer;
@@ -38,13 +38,13 @@ fn find_user_message_with_image(text: &str) -> Option<ResponseItem> {
             Ok(rollout) => rollout,
             Err(_) => continue,
         };
-        if let RolloutItem::ResponseItem(ResponseItem::Message { role, content, .. }) =
+        if let RolloutMessage::ResponseItem(ResponseItem::Message { role, content, .. }) =
             &rollout.item
             && role == "user"
             && content
                 .iter()
                 .any(|span| matches!(span, ContentItem::InputImage { .. }))
-            && let RolloutItem::ResponseItem(item) = rollout.item.clone()
+            && let RolloutMessage::ResponseItem(item) = rollout.item.clone()
         {
             return Some(item);
         }

@@ -32,7 +32,8 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 - [x] (2026-07-09 00:00Z) Renamed Datax-facing protocol event identifiers from turn vocabulary to interaction vocabulary: `turn_id -> interaction_id`, `TurnStarted -> InteractionStarted`, `TurnComplete -> InteractionComplete`, and `TurnAborted -> InteractionAborted`.
 - [x] (2026-07-09 00:00Z) Started Milestone 4 on branch `codex/phase1-8-m4-runtime-names`; GitHub issue #23 tracks the live runtime rename slice.
 - [x] (2026-07-09 00:00Z) Renamed live runtime contracts and call sites: `ThreadManager -> ChatManager`, `CodexThread -> DataxChat`, `NewThread -> NewChat`, `StartThreadOptions -> StartChatOptions`, and the runtime module files `thread_manager.rs -> chat_manager.rs` and `codex_thread.rs -> datax_chat.rs`.
-- [ ] Rename persistence and history types according to the same mapping while preserving compatibility with existing stored records.
+- [x] (2026-07-09 00:00Z) Started Milestone 5 on branch `codex/phase1-8-m5-message-history-names`; GitHub issue #25 tracks the message and history rename slice.
+- [x] (2026-07-09 00:00Z) Renamed message/history contracts: `TurnItem -> InteractionMessage`, `RolloutItem -> RolloutMessage`, `TurnContextItem -> InteractionContextMessage`, `ItemStarted/ItemCompleted -> MessageStarted/MessageCompleted`, and stored history/search/page types such as `StoredThread -> StoredChat`, `StoredTurn -> StoredInteraction`, and `StoredThreadHistory -> StoredChatHistory`.
 - [ ] Regenerate affected app-server schemas and run targeted tests.
 - [ ] Update Phase 2 bridge plans so downstream Codex integration starts only after Datax owns the Datax-named protocol and runtime contracts.
 
@@ -369,6 +370,77 @@ Milestone 4 command assumptions:
 - `just test -p datax-core` validates the core runtime, agent-control, and integration-test call sites updated for `ChatManager` and `DataxChat`.
 - `just test -p datax-app-server` validates app-server processors and live chat listeners that now depend on the Datax-named runtime API.
 
+## Milestone 5 Message and History Names Summary
+
+Milestone 5 renames exported message, rollout, and stored history types from inherited turn/item/thread vocabulary to native Datax interaction/message/chat vocabulary.
+
+Mechanical message/history mappings completed:
+
+- `TurnItem -> InteractionMessage`
+- `RolloutItem -> RolloutMessage`
+- `TurnContextItem -> InteractionContextMessage`
+- `TurnContextNetworkItem -> InteractionContextNetworkMessage`
+- `TurnContext -> InteractionContext` for the rollout-history enum variant
+- `TurnDiff -> InteractionDiff`
+- `ItemStarted -> MessageStarted`
+- `ItemCompleted -> MessageCompleted`
+- `ItemStartedEvent -> MessageStartedEvent`
+- `ItemCompletedEvent -> MessageCompletedEvent`
+- `AppendThreadItemsParams -> AppendChatMessagesParams`
+- `StoredThreadHistory -> StoredChatHistory`
+- `StoredThread -> StoredChat`
+- `StoredThreadSearchResult -> StoredChatSearchResult`
+- `StoredThreadItem -> StoredChatMessage`
+- `StoredTurn -> StoredInteraction`
+- `StoredTurnStatus -> StoredInteractionStatus`
+- `StoredTurnError -> StoredInteractionError`
+- `StoredTurnItemsView -> StoredInteractionMessagesView`
+- `ListTurnsParams -> ListInteractionsParams`
+- `ListItemsParams -> ListMessagesParams`
+- `TurnPage -> InteractionPage`
+- `ThreadPage -> ChatPage`
+- `ThreadSearchPage -> ChatSearchPage`
+
+Compatibility retained:
+
+- Old event tags `item_started`, `item_completed`, and `turn_diff` are accepted as serde aliases for `MessageStarted`, `MessageCompleted`, and `InteractionDiff`.
+- Old rollout-history tag `turn_context` is accepted as a serde alias for the new `interaction_context` rollout message variant.
+- Existing persisted `turn_id` fields inside interaction-context records remain accepted through the existing `#[serde(alias = "turn_id")]` compatibility attribute.
+- Store trait and method names such as `ThreadStore`, `read_thread`, `list_threads`, and `list_turns` are intentionally deferred to the app-server/state milestone; this slice changes the data contracts those APIs carry.
+
+Milestone 5 assumptions:
+
+- This milestone is a mechanical rename of exported message/history/store data names only; it does not change persistence behavior, rollout filtering, request processor behavior, or JSON-RPC method names.
+- Generic collection fields named `items` remain where they represent ordinary Rust/page collections rather than the protocol concept previously named `Item`.
+- Remaining `Thread`/`Turn` names in store trait methods, app-server state modules, and request processors are owned by Milestone 6 unless they are compatibility/provenance terms.
+- The branch for this milestone is `codex/phase1-8-m5-message-history-names`; the tracking issue is #25.
+
+Milestone 5 validation status:
+
+- `git diff --check` completed successfully.
+- Per user instruction, Codex did not run build, test, or format commands for this milestone.
+
+Milestone 5 user-run commands:
+
+    cd /home/mbellary/wsl/projects/datax
+    git diff --check
+    cd /home/mbellary/wsl/projects/datax/datax-rs
+    just fmt
+    just write-app-server-schema
+    just test -p datax-protocol
+    just test -p datax-thread-store
+    just test -p datax-app-server-protocol
+    just test -p datax-app-server
+
+Milestone 5 command assumptions:
+
+- `just fmt` is required because Rust source changed broadly and Codex intentionally did not run formatting in this milestone.
+- `just write-app-server-schema` is required because exported protocol and app-server-protocol TypeScript-facing names changed.
+- `just test -p datax-protocol` validates message/event/rollout serde compatibility aliases and protocol type changes.
+- `just test -p datax-thread-store` validates stored chat/history type changes and store call sites.
+- `just test -p datax-app-server-protocol` validates API projection from renamed protocol message/history types.
+- `just test -p datax-app-server` validates request processors that consume renamed rollout/history records.
+
 ## Plan of Work
 
 Milestone 1 is a boundary inventory. Search Datax-facing Rust and protocol files for `Codex`, `Thread`, `Turn`, `Item`, and common snake_case forms such as `thread_id` and `turn_id`. Classify each occurrence as a mechanical rename target, compatibility alias, downstream Codex bridge term, provenance, protected sandbox identifier, external dependency, or unrelated English. This milestone should update this plan with a concise inventory summary before code changes begin.
@@ -424,8 +496,10 @@ For Milestone 5, the user should run:
     git diff --check
     cd /home/mbellary/wsl/projects/datax/datax-rs
     just fmt
+    just write-app-server-schema
     just test -p datax-protocol
     just test -p datax-thread-store
+    just test -p datax-app-server-protocol
     just test -p datax-app-server
 
 For Milestone 6, the user should run:

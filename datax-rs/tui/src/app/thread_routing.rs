@@ -727,7 +727,7 @@ impl App {
                 app_server.reload_user_config().await?;
                 Ok(true)
             }
-            AppCommand::OverrideTurnContext { .. } => {
+            AppCommand::OverrideInteractionContext { .. } => {
                 self.sync_override_turn_context_settings(app_server, chat_id, op)
                     .await;
                 Ok(true)

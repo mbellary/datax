@@ -45,7 +45,7 @@ pub(crate) enum AppCommand {
         collaboration_mode: Option<CollaborationMode>,
         personality: Option<Personality>,
     },
-    OverrideTurnContext {
+    OverrideInteractionContext {
         cwd: Option<PathBuf>,
         approval_policy: Option<AskForApproval>,
         approvals_reviewer: Option<ApprovalsReviewer>,
@@ -176,7 +176,7 @@ impl AppCommand {
         collaboration_mode: Option<CollaborationMode>,
         personality: Option<Personality>,
     ) -> Self {
-        Self::OverrideTurnContext {
+        Self::OverrideInteractionContext {
             cwd,
             approval_policy,
             approvals_reviewer,

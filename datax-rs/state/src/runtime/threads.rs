@@ -870,7 +870,7 @@ ON CONFLICT(id) DO UPDATE SET
     pub async fn apply_rollout_items(
         &self,
         builder: &ThreadMetadataBuilder,
-        items: &[RolloutItem],
+        items: &[RolloutMessage],
         new_thread_memory_mode: Option<&str>,
         updated_at_override: Option<DateTime<Utc>>,
     ) -> anyhow::Result<()> {
@@ -1158,14 +1158,14 @@ SELECT
     );
 }
 
-pub(super) fn extract_memory_mode(items: &[RolloutItem]) -> Option<String> {
+pub(super) fn extract_memory_mode(items: &[RolloutMessage]) -> Option<String> {
     items.iter().rev().find_map(|item| match item {
-        RolloutItem::SessionMeta(meta_line) => meta_line.meta.memory_mode.clone(),
-        RolloutItem::ResponseItem(_)
-        | RolloutItem::InterAgentCommunication(_)
-        | RolloutItem::Compacted(_)
-        | RolloutItem::TurnContext(_)
-        | RolloutItem::EventMsg(_) => None,
+        RolloutMessage::SessionMeta(meta_line) => meta_line.meta.memory_mode.clone(),
+        RolloutMessage::ResponseItem(_)
+        | RolloutMessage::InterAgentCommunication(_)
+        | RolloutMessage::Compacted(_)
+        | RolloutMessage::InteractionContext(_)
+        | RolloutMessage::EventMsg(_) => None,
     })
 }
 
@@ -1955,7 +1955,7 @@ mod tests {
             metadata.created_at,
             SessionSource::Cli,
         );
-        let items = vec![RolloutItem::SessionMeta(SessionMetaLine {
+        let items = vec![RolloutMessage::SessionMeta(SessionMetaLine {
             meta: SessionMeta {
                 session_id: chat_id.into(),
                 id: chat_id,
@@ -2017,7 +2017,7 @@ mod tests {
             metadata.created_at,
             SessionSource::Cli,
         );
-        let items = vec![RolloutItem::SessionMeta(SessionMetaLine {
+        let items = vec![RolloutMessage::SessionMeta(SessionMetaLine {
             meta: SessionMeta {
                 session_id: chat_id.into(),
                 id: chat_id,
@@ -2673,7 +2673,7 @@ mod tests {
             metadata.created_at,
             SessionSource::Cli,
         );
-        let items = vec![RolloutItem::EventMsg(EventMsg::TokenCount(
+        let items = vec![RolloutMessage::EventMsg(EventMsg::TokenCount(
             datax_protocol::protocol::TokenCountEvent {
                 info: Some(datax_protocol::protocol::TokenUsageInfo {
                     total_token_usage: datax_protocol::protocol::TokenUsage {

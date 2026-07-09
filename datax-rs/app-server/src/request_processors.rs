@@ -396,7 +396,7 @@ use datax_protocol::config_types::WindowsSandboxLevel;
 use datax_protocol::error::CodexErr;
 use datax_protocol::error::Result as CodexResult;
 #[cfg(test)]
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::openai_models::ReasoningEffort;
 #[cfg(test)]
@@ -418,7 +418,7 @@ use datax_protocol::protocol::ResumedHistory;
 use datax_protocol::protocol::ReviewDelivery as CoreReviewDelivery;
 use datax_protocol::protocol::ReviewRequest;
 use datax_protocol::protocol::ReviewTarget as CoreReviewTarget;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::SessionConfiguredEvent;
 #[cfg(test)]
 use datax_protocol::protocol::SessionMetaLine;
@@ -443,7 +443,7 @@ use datax_thread_store::ReadThreadByRolloutPathParams as StoreReadThreadByRollou
 use datax_thread_store::ReadThreadParams as StoreReadThreadParams;
 use datax_thread_store::SearchThreadsParams as StoreSearchThreadsParams;
 use datax_thread_store::SortDirection as StoreSortDirection;
-use datax_thread_store::StoredThread;
+use datax_thread_store::StoredChat;
 use datax_thread_store::ThreadMetadataPatch as StoreThreadMetadataPatch;
 use datax_thread_store::ThreadSortKey as StoreThreadSortKey;
 use datax_thread_store::ThreadStore;
@@ -609,7 +609,7 @@ pub(crate) use self::thread_summary::summary_to_thread;
 pub(crate) use self::thread_summary::thread_settings_from_config_snapshot;
 pub(crate) use self::thread_summary::thread_settings_from_core_snapshot;
 
-pub(crate) fn build_api_turns_from_rollout_items(messages: &[RolloutItem]) -> Vec<Interaction> {
+pub(crate) fn build_api_turns_from_rollout_items(messages: &[RolloutMessage]) -> Vec<Interaction> {
     let mut builder = ChatHistoryBuilder::new();
     for item in messages {
         if is_persisted_rollout_item(item) {

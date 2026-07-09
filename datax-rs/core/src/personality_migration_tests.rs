@@ -1,7 +1,7 @@
 use super::*;
 use datax_protocol::ChatId;
 use datax_protocol::protocol::EventMsg;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::protocol::SessionMeta;
 use datax_protocol::protocol::SessionMetaLine;
@@ -66,11 +66,11 @@ async fn write_rollout_with_user_event(dir: &Path, chat_id: ChatId) -> io::Resul
     };
     let meta_line = RolloutLine {
         timestamp: TEST_TIMESTAMP.to_string(),
-        item: RolloutItem::SessionMeta(session_meta),
+        item: RolloutMessage::SessionMeta(session_meta),
     };
     let user_event = RolloutLine {
         timestamp: TEST_TIMESTAMP.to_string(),
-        item: RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+        item: RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
             client_id: None,
             message: "hello".to_string(),
             images: None,

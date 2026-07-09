@@ -39,14 +39,14 @@ use datax_protocol::protocol::GuardianAssessmentEvent;
 use datax_protocol::protocol::GuardianAssessmentStatus;
 use datax_protocol::protocol::ImageGenerationBeginEvent;
 use datax_protocol::protocol::ImageGenerationEndEvent;
-use datax_protocol::protocol::ItemCompletedEvent;
-use datax_protocol::protocol::ItemStartedEvent;
+use datax_protocol::protocol::MessageCompletedEvent;
+use datax_protocol::protocol::MessageStartedEvent;
 use datax_protocol::protocol::McpToolCallBeginEvent;
 use datax_protocol::protocol::McpToolCallEndEvent;
 use datax_protocol::protocol::PatchApplyBeginEvent;
 use datax_protocol::protocol::PatchApplyEndEvent;
 use datax_protocol::protocol::ReviewOutputEvent;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::ThreadRolledBackEvent;
 use datax_protocol::protocol::InteractionAbortedEvent;
 use datax_protocol::protocol::InteractionCompleteEvent;
@@ -72,11 +72,11 @@ use datax_protocol::protocol::ExecCommandStatus as CoreExecCommandStatus;
 #[cfg(test)]
 use datax_protocol::protocol::PatchApplyStatus as CorePatchApplyStatus;
 
-/// Convert persisted [`RolloutItem`] entries into a sequence of [`Interaction`] values.
+/// Convert persisted [`RolloutMessage`] entries into a sequence of [`Interaction`] values.
 ///
-/// When available, this uses `TurnContext.interaction_id` as the canonical turn id so
+/// When available, this uses `InteractionContext.interaction_id` as the canonical turn id so
 /// resumed/rebuilt thread history preserves the original turn identifiers.
-pub fn build_turns_from_rollout_items(messages: &[RolloutItem]) -> Vec<Interaction> {
+pub fn build_turns_from_rollout_items(messages: &[RolloutMessage]) -> Vec<Interaction> {
     let mut builder = ChatHistoryBuilder::new();
     for item in messages {
         builder.handle_rollout_item(item);
@@ -215,13 +215,13 @@ impl ThreadHistoryChangeAccumulator {
             self.changed_turns[index] = None;
         }
 
-        let removed_item_keys: Vec<(String, String)> = self
+        let removed_message_keys: Vec<(String, String)> = self
             .changed_item_indexes
             .keys()
             .filter(|(item_interaction_id, _)| item_interaction_id == &interaction_id)
             .cloned()
             .collect();
-        for key in removed_item_keys {
+        for key in removed_message_keys {
             if let Some(index) = self.changed_item_indexes.remove(&key) {
                 self.changed_items[index] = None;
             }
@@ -374,8 +374,8 @@ impl ChatHistoryBuilder {
             EventMsg::ContextCompacted(payload) => self.handle_context_compacted(payload),
             EventMsg::EnteredReviewMode(payload) => self.handle_entered_review_mode(payload),
             EventMsg::ExitedReviewMode(payload) => self.handle_exited_review_mode(payload),
-            EventMsg::ItemStarted(payload) => self.handle_item_started(payload),
-            EventMsg::ItemCompleted(payload) => self.handle_item_completed(payload),
+            EventMsg::MessageStarted(payload) => self.handle_item_started(payload),
+            EventMsg::MessageCompleted(payload) => self.handle_item_completed(payload),
             EventMsg::HookStarted(_) | EventMsg::HookCompleted(_) => {}
             EventMsg::Error(payload) => self.handle_error(payload),
             EventMsg::TokenCount(_) => {}
@@ -387,16 +387,16 @@ impl ChatHistoryBuilder {
         }
     }
 
-    pub fn handle_rollout_item(&mut self, item: &RolloutItem) {
+    pub fn handle_rollout_item(&mut self, item: &RolloutMessage) {
         self.current_rollout_index = self.next_rollout_index;
         self.next_rollout_index += 1;
         match item {
-            RolloutItem::EventMsg(event) => self.handle_event(event),
-            RolloutItem::Compacted(payload) => self.handle_compacted(payload),
-            RolloutItem::ResponseItem(item) => self.handle_response_item(item),
-            RolloutItem::InterAgentCommunication(_)
-            | RolloutItem::TurnContext(_)
-            | RolloutItem::SessionMeta(_) => {}
+            RolloutMessage::EventMsg(event) => self.handle_event(event),
+            RolloutMessage::Compacted(payload) => self.handle_compacted(payload),
+            RolloutMessage::ResponseItem(item) => self.handle_response_item(item),
+            RolloutMessage::InterAgentCommunication(_)
+            | RolloutMessage::InteractionContext(_)
+            | RolloutMessage::SessionMeta(_) => {}
         }
     }
 
@@ -408,7 +408,7 @@ impl ChatHistoryBuilder {
 
     /// Handles a rollout item and returns the materialized messages or turn metadata
     /// changed by that one append.
-    pub fn handle_rollout_item_with_changes(&mut self, item: &RolloutItem) -> ChatHistoryChangeSet {
+    pub fn handle_rollout_item_with_changes(&mut self, item: &RolloutMessage) -> ChatHistoryChangeSet {
         self.collect_changes(|builder| builder.handle_rollout_item(item))
     }
 
@@ -417,7 +417,7 @@ impl ChatHistoryBuilder {
     /// so only the latest snapshot is emitted.
     pub fn handle_rollout_items_with_changes(
         &mut self,
-        messages: &[RolloutItem],
+        messages: &[RolloutMessage],
     ) -> ChatHistoryChangeSet {
         let mut accumulator = ThreadHistoryChangeAccumulator::default();
         for item in messages {
@@ -577,51 +577,51 @@ impl ChatHistoryBuilder {
         });
     }
 
-    fn handle_item_started(&mut self, payload: &ItemStartedEvent) {
+    fn handle_item_started(&mut self, payload: &MessageStartedEvent) {
         match &payload.item {
-            datax_protocol::items::TurnItem::Plan(plan) => {
+            datax_protocol::items::InteractionMessage::Plan(plan) => {
                 if plan.text.is_empty() {
                     return;
                 }
                 self.upsert_item_in_interaction_id(&payload.interaction_id, Message::from(payload.item.clone()));
             }
-            datax_protocol::items::TurnItem::Sleep(_) => {
+            datax_protocol::items::InteractionMessage::Sleep(_) => {
                 self.upsert_item_in_interaction_id(&payload.interaction_id, Message::from(payload.item.clone()));
             }
-            datax_protocol::items::TurnItem::UserMessage(_)
-            | datax_protocol::items::TurnItem::HookPrompt(_)
-            | datax_protocol::items::TurnItem::AgentMessage(_)
-            | datax_protocol::items::TurnItem::Reasoning(_)
-            | datax_protocol::items::TurnItem::WebSearch(_)
-            | datax_protocol::items::TurnItem::ImageView(_)
-            | datax_protocol::items::TurnItem::ImageGeneration(_)
-            | datax_protocol::items::TurnItem::FileChange(_)
-            | datax_protocol::items::TurnItem::McpToolCall(_)
-            | datax_protocol::items::TurnItem::ContextCompaction(_) => {}
+            datax_protocol::items::InteractionMessage::UserMessage(_)
+            | datax_protocol::items::InteractionMessage::HookPrompt(_)
+            | datax_protocol::items::InteractionMessage::AgentMessage(_)
+            | datax_protocol::items::InteractionMessage::Reasoning(_)
+            | datax_protocol::items::InteractionMessage::WebSearch(_)
+            | datax_protocol::items::InteractionMessage::ImageView(_)
+            | datax_protocol::items::InteractionMessage::ImageGeneration(_)
+            | datax_protocol::items::InteractionMessage::FileChange(_)
+            | datax_protocol::items::InteractionMessage::McpToolCall(_)
+            | datax_protocol::items::InteractionMessage::ContextCompaction(_) => {}
         }
     }
 
-    fn handle_item_completed(&mut self, payload: &ItemCompletedEvent) {
+    fn handle_item_completed(&mut self, payload: &MessageCompletedEvent) {
         match &payload.item {
-            datax_protocol::items::TurnItem::Plan(plan) => {
+            datax_protocol::items::InteractionMessage::Plan(plan) => {
                 if plan.text.is_empty() {
                     return;
                 }
                 self.upsert_item_in_interaction_id(&payload.interaction_id, Message::from(payload.item.clone()));
             }
-            datax_protocol::items::TurnItem::Sleep(_) => {
+            datax_protocol::items::InteractionMessage::Sleep(_) => {
                 self.upsert_item_in_interaction_id(&payload.interaction_id, Message::from(payload.item.clone()));
             }
-            datax_protocol::items::TurnItem::UserMessage(_)
-            | datax_protocol::items::TurnItem::HookPrompt(_)
-            | datax_protocol::items::TurnItem::AgentMessage(_)
-            | datax_protocol::items::TurnItem::Reasoning(_)
-            | datax_protocol::items::TurnItem::WebSearch(_)
-            | datax_protocol::items::TurnItem::ImageView(_)
-            | datax_protocol::items::TurnItem::ImageGeneration(_)
-            | datax_protocol::items::TurnItem::FileChange(_)
-            | datax_protocol::items::TurnItem::McpToolCall(_)
-            | datax_protocol::items::TurnItem::ContextCompaction(_) => {}
+            datax_protocol::items::InteractionMessage::UserMessage(_)
+            | datax_protocol::items::InteractionMessage::HookPrompt(_)
+            | datax_protocol::items::InteractionMessage::AgentMessage(_)
+            | datax_protocol::items::InteractionMessage::Reasoning(_)
+            | datax_protocol::items::InteractionMessage::WebSearch(_)
+            | datax_protocol::items::InteractionMessage::ImageView(_)
+            | datax_protocol::items::InteractionMessage::ImageGeneration(_)
+            | datax_protocol::items::InteractionMessage::FileChange(_)
+            | datax_protocol::items::InteractionMessage::McpToolCall(_)
+            | datax_protocol::items::InteractionMessage::ContextCompaction(_) => {}
         }
     }
 
@@ -1522,7 +1522,7 @@ struct PendingTurn {
     /// True when this turn originated from an explicit `turn_started`/`turn_complete`
     /// boundary, so we preserve it even if it has no renderable messages.
     opened_explicitly: bool,
-    /// True when this turn includes a persisted `RolloutItem::Compacted`, which
+    /// True when this turn includes a persisted `RolloutMessage::Compacted`, which
     /// should keep the turn from being dropped even without normal messages.
     saw_compaction: bool,
     /// Index of the rollout item that opened this turn during replay.
@@ -1584,7 +1584,7 @@ mod tests {
     use datax_protocol::dynamic_tools::DynamicToolCallOutputContentItem as CoreDynamicToolCallOutputContentItem;
     use datax_protocol::items::HookPromptFragment as CoreHookPromptFragment;
     use datax_protocol::items::SleepItem as CoreSleepItem;
-    use datax_protocol::items::TurnItem as CoreTurnItem;
+    use datax_protocol::items::InteractionMessage as CoreInteractionMessage;
     use datax_protocol::items::UserMessageItem as CoreUserMessageItem;
     use datax_protocol::items::build_hook_prompt_message;
     use datax_protocol::mcp::CallToolResult;
@@ -1601,7 +1601,7 @@ mod tests {
     use datax_protocol::protocol::DynamicToolCallResponseEvent;
     use datax_protocol::protocol::ExecCommandEndEvent;
     use datax_protocol::protocol::ExecCommandSource;
-    use datax_protocol::protocol::ItemStartedEvent;
+    use datax_protocol::protocol::MessageStartedEvent;
     use datax_protocol::protocol::McpInvocation;
     use datax_protocol::protocol::McpToolCallEndEvent;
     use datax_protocol::protocol::PatchApplyBeginEvent;
@@ -1732,7 +1732,7 @@ mod tests {
     #[test]
     fn rebuilds_user_message_image_details_from_legacy_events() {
         let local_path = PathBuf::from("/tmp/local.png");
-        let events = vec![RolloutItem::EventMsg(EventMsg::UserMessage(
+        let events = vec![RolloutMessage::EventMsg(EventMsg::UserMessage(
             UserMessageEvent {
                 client_id: None,
                 message: "inspect these".into(),
@@ -1790,10 +1790,10 @@ mod tests {
                 local_images: Vec::new(),
                 ..Default::default()
             }),
-            EventMsg::ItemStarted(ItemStartedEvent {
+            EventMsg::MessageStarted(MessageStartedEvent {
                 chat_id: chat_id.clone(),
                 interaction_id: interaction_id.to_string(),
-                item: CoreTurnItem::UserMessage(CoreUserMessageItem {
+                item: CoreInteractionMessage::UserMessage(CoreUserMessageItem {
                     id: "user-item-id".to_string(),
                     client_id: None,
                     content: Vec::new(),
@@ -1811,7 +1811,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 1);
@@ -1833,7 +1833,7 @@ mod tests {
     fn rebuilds_sleep_item_from_persisted_completion() {
         let interaction_id = "turn-1";
         let chat_id = ChatId::new();
-        let sleep_item = CoreTurnItem::Sleep(CoreSleepItem {
+        let sleep_item = CoreInteractionMessage::Sleep(CoreSleepItem {
             id: "sleep-1".to_string(),
             duration_ms: 1_000,
         });
@@ -1845,7 +1845,7 @@ mod tests {
                 model_context_window: None,
                 collaboration_mode_kind: Default::default(),
             }),
-            EventMsg::ItemCompleted(ItemCompletedEvent {
+            EventMsg::MessageCompleted(MessageCompletedEvent {
                 chat_id: chat_id.clone(),
                 interaction_id: interaction_id.to_string(),
                 item: sleep_item,
@@ -1862,7 +1862,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
 
@@ -1888,10 +1888,10 @@ mod tests {
                 model_context_window: None,
                 collaboration_mode_kind: Default::default(),
             }),
-            EventMsg::ItemStarted(ItemStartedEvent {
+            EventMsg::MessageStarted(MessageStartedEvent {
                 chat_id: chat_id.clone(),
                 interaction_id: interaction_id.to_string(),
-                item: CoreTurnItem::UserMessage(CoreUserMessageItem {
+                item: CoreInteractionMessage::UserMessage(CoreUserMessageItem {
                     id: "user-item-id".to_string(),
                     client_id: Some("client-message-1".to_string()),
                     content: vec![datax_protocol::user_input::UserInput::Text {
@@ -1920,7 +1920,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 1);
@@ -1947,7 +1947,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 1);
@@ -1965,14 +1965,14 @@ mod tests {
     #[test]
     fn replays_image_generation_end_events_into_turn_history() {
         let messages = vec![
-            RolloutItem::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
+            RolloutMessage::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
                 interaction_id: "turn-image".into(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: None,
                 collaboration_mode_kind: Default::default(),
             })),
-            RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+            RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
                 client_id: None,
                 message: "generate an image".into(),
                 images: None,
@@ -1980,14 +1980,14 @@ mod tests {
                 local_images: Vec::new(),
                 ..Default::default()
             })),
-            RolloutItem::EventMsg(EventMsg::ImageGenerationEnd(ImageGenerationEndEvent {
+            RolloutMessage::EventMsg(EventMsg::ImageGenerationEnd(ImageGenerationEndEvent {
                 call_id: "ig_123".into(),
                 status: "completed".into(),
                 revised_prompt: Some("final prompt".into()),
                 result: "Zm9v".into(),
                 saved_path: Some(test_path_buf("/tmp/ig_123.png").abs()),
             })),
-            RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+            RolloutMessage::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
                 interaction_id: "turn-image".into(),
                 last_agent_message: None,
                 completed_at: None,
@@ -2058,7 +2058,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 1);
@@ -2122,7 +2122,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 2);
@@ -2223,7 +2223,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 2);
@@ -2306,7 +2306,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions, Vec::<Interaction>::new());
@@ -2349,7 +2349,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 1);
@@ -2441,7 +2441,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 1);
@@ -2532,7 +2532,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 1);
@@ -2613,7 +2613,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 1);
@@ -2691,7 +2691,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 1);
@@ -2789,7 +2789,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 1);
@@ -2855,7 +2855,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 1);
@@ -2950,7 +2950,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 2);
@@ -3270,7 +3270,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 2);
@@ -3334,7 +3334,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 2);
@@ -3347,14 +3347,14 @@ mod tests {
     #[test]
     fn preserves_compaction_only_turn() {
         let messages = vec![
-            RolloutItem::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
+            RolloutMessage::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
                 interaction_id: "turn-compact".into(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: None,
                 collaboration_mode_kind: Default::default(),
             })),
-            RolloutItem::Compacted(CompactedItem {
+            RolloutMessage::Compacted(CompactedItem {
                 message: String::new(),
                 replacement_history: None,
                 window_number: None,
@@ -3362,7 +3362,7 @@ mod tests {
                 previous_window_id: None,
                 window_id: None,
             }),
-            RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+            RolloutMessage::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
                 interaction_id: "turn-compact".into(),
                 last_agent_message: None,
                 completed_at: None,
@@ -3413,7 +3413,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 1);
@@ -3473,7 +3473,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 1);
@@ -3545,7 +3545,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 1);
@@ -3598,7 +3598,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 1);
@@ -3639,7 +3639,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 1);
@@ -3700,7 +3700,7 @@ mod tests {
 
         let messages = events
             .into_iter()
-            .map(RolloutItem::EventMsg)
+            .map(RolloutMessage::EventMsg)
             .collect::<Vec<_>>();
         let interactions = build_turns_from_rollout_items(&messages);
         assert_eq!(interactions.len(), 1);
@@ -3728,14 +3728,14 @@ mod tests {
         ])
         .expect("hook prompt message");
         let messages = vec![
-            RolloutItem::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
+            RolloutMessage::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
                 interaction_id: "turn-a".into(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: None,
                 collaboration_mode_kind: Default::default(),
             })),
-            RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+            RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
                 client_id: None,
                 message: "hello".into(),
                 images: None,
@@ -3743,8 +3743,8 @@ mod tests {
                 local_images: Vec::new(),
                 ..Default::default()
             })),
-            RolloutItem::ResponseItem(hook_prompt),
-            RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+            RolloutMessage::ResponseItem(hook_prompt),
+            RolloutMessage::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
                 interaction_id: "turn-a".into(),
                 last_agent_message: None,
                 completed_at: None,
@@ -3778,14 +3778,14 @@ mod tests {
     #[test]
     fn ignores_plain_user_response_items_in_rollout_replay() {
         let messages = vec![
-            RolloutItem::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
+            RolloutMessage::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
                 interaction_id: "turn-a".into(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: None,
                 collaboration_mode_kind: Default::default(),
             })),
-            RolloutItem::ResponseItem(datax_protocol::models::ResponseItem::Message {
+            RolloutMessage::ResponseItem(datax_protocol::models::ResponseItem::Message {
                 id: Some("msg-1".into()),
                 role: "user".into(),
                 content: vec![datax_protocol::models::ContentItem::InputText {
@@ -3794,7 +3794,7 @@ mod tests {
                 phase: None,
                 internal_chat_message_metadata_passthrough: None,
             }),
-            RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+            RolloutMessage::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
                 interaction_id: "turn-a".into(),
                 last_agent_message: None,
                 completed_at: None,
@@ -3812,7 +3812,7 @@ mod tests {
     fn changed_rollout_item_reports_new_item_snapshot() {
         let mut builder = ChatHistoryBuilder::new();
 
-        let changes = builder.handle_rollout_item_with_changes(&RolloutItem::EventMsg(
+        let changes = builder.handle_rollout_item_with_changes(&RolloutMessage::EventMsg(
             EventMsg::UserMessage(UserMessageEvent {
                 client_id: Some("client-message-1".into()),
                 message: "hello".into(),
@@ -3853,13 +3853,13 @@ mod tests {
     #[test]
     fn changed_rollout_item_reports_updated_existing_item_snapshot() {
         let mut builder = ChatHistoryBuilder::new();
-        builder.handle_rollout_item_with_changes(&RolloutItem::EventMsg(EventMsg::WebSearchBegin(
+        builder.handle_rollout_item_with_changes(&RolloutMessage::EventMsg(EventMsg::WebSearchBegin(
             WebSearchBeginEvent {
                 call_id: "search-1".into(),
             },
         )));
 
-        let changes = builder.handle_rollout_item_with_changes(&RolloutItem::EventMsg(
+        let changes = builder.handle_rollout_item_with_changes(&RolloutMessage::EventMsg(
             EventMsg::WebSearchEnd(WebSearchEndEvent {
                 call_id: "search-1".into(),
                 query: "codex".into(),
@@ -3893,13 +3893,13 @@ mod tests {
     #[test]
     fn changed_rollout_item_reports_streaming_item_mutation() {
         let mut builder = ChatHistoryBuilder::new();
-        builder.handle_rollout_item_with_changes(&RolloutItem::EventMsg(EventMsg::AgentReasoning(
+        builder.handle_rollout_item_with_changes(&RolloutMessage::EventMsg(EventMsg::AgentReasoning(
             AgentReasoningEvent {
                 text: "summary".into(),
             },
         )));
 
-        let changes = builder.handle_rollout_item_with_changes(&RolloutItem::EventMsg(
+        let changes = builder.handle_rollout_item_with_changes(&RolloutMessage::EventMsg(
             EventMsg::AgentReasoningRawContent(AgentReasoningRawContentEvent {
                 text: "raw content".into(),
             }),
@@ -3926,7 +3926,7 @@ mod tests {
     fn changed_rollout_item_reports_turn_completion_metadata() {
         let mut builder = ChatHistoryBuilder::new();
 
-        let start_changes = builder.handle_rollout_item_with_changes(&RolloutItem::EventMsg(
+        let start_changes = builder.handle_rollout_item_with_changes(&RolloutMessage::EventMsg(
             EventMsg::InteractionStarted(InteractionStartedEvent {
                 interaction_id: "turn-a".into(),
                 trace_id: None,
@@ -3951,7 +3951,7 @@ mod tests {
             }
         );
 
-        builder.handle_rollout_item_with_changes(&RolloutItem::EventMsg(EventMsg::UserMessage(
+        builder.handle_rollout_item_with_changes(&RolloutMessage::EventMsg(EventMsg::UserMessage(
             UserMessageEvent {
                 client_id: None,
                 message: "hello".into(),
@@ -3961,7 +3961,7 @@ mod tests {
                 ..Default::default()
             },
         )));
-        let complete_changes = builder.handle_rollout_item_with_changes(&RolloutItem::EventMsg(
+        let complete_changes = builder.handle_rollout_item_with_changes(&RolloutMessage::EventMsg(
             EventMsg::InteractionComplete(InteractionCompleteEvent {
                 interaction_id: "turn-a".into(),
                 last_agent_message: None,
@@ -3992,10 +3992,10 @@ mod tests {
     fn changed_rollout_items_dedupe_updated_item_snapshots() {
         let mut builder = ChatHistoryBuilder::new();
         let changes = builder.handle_rollout_items_with_changes(&[
-            RolloutItem::EventMsg(EventMsg::WebSearchBegin(WebSearchBeginEvent {
+            RolloutMessage::EventMsg(EventMsg::WebSearchBegin(WebSearchBeginEvent {
                 call_id: "search-1".into(),
             })),
-            RolloutItem::EventMsg(EventMsg::WebSearchEnd(WebSearchEndEvent {
+            RolloutMessage::EventMsg(EventMsg::WebSearchEnd(WebSearchEndEvent {
                 call_id: "search-1".into(),
                 query: "codex".into(),
                 action: CoreWebSearchAction::Search {
@@ -4036,14 +4036,14 @@ mod tests {
     fn changed_rollout_items_dedupe_turn_metadata_snapshots() {
         let mut builder = ChatHistoryBuilder::new();
         let changes = builder.handle_rollout_items_with_changes(&[
-            RolloutItem::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
+            RolloutMessage::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
                 interaction_id: "turn-a".into(),
                 trace_id: None,
                 started_at: Some(10),
                 model_context_window: None,
                 collaboration_mode_kind: Default::default(),
             })),
-            RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+            RolloutMessage::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
                 interaction_id: "turn-a".into(),
                 last_agent_message: None,
                 completed_at: Some(20),
@@ -4073,14 +4073,14 @@ mod tests {
     fn changed_rollout_items_drop_prior_changes_for_removed_turns() {
         let mut builder = ChatHistoryBuilder::new();
         let changes = builder.handle_rollout_items_with_changes(&[
-            RolloutItem::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
+            RolloutMessage::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
                 interaction_id: "turn-a".into(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: None,
                 collaboration_mode_kind: Default::default(),
             })),
-            RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+            RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
                 client_id: None,
                 message: "hello".into(),
                 images: None,
@@ -4088,7 +4088,7 @@ mod tests {
                 local_images: Vec::new(),
                 ..Default::default()
             })),
-            RolloutItem::EventMsg(EventMsg::ThreadRolledBack(ThreadRolledBackEvent {
+            RolloutMessage::EventMsg(EventMsg::ThreadRolledBack(ThreadRolledBackEvent {
                 num_turns: 1,
             })),
         ]);

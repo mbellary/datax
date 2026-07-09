@@ -43,9 +43,9 @@ use crate::session::PreviousTurnSettings;
 use crate::session::TurnInput;
 use crate::session::session::Session;
 use crate::session::step_context::StepContext;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::stream_events_utils::HandleOutputCtx;
-use crate::stream_events_utils::TurnItemContributorPolicy;
+use crate::stream_events_utils::InteractionMessageContributorPolicy;
 use crate::stream_events_utils::finalize_non_tool_response_item;
 use crate::stream_events_utils::handle_non_tool_response_item;
 use crate::stream_events_utils::handle_output_item_done;
@@ -55,7 +55,7 @@ use crate::stream_events_utils::raw_assistant_output_text_from_item;
 use crate::stream_events_utils::record_completed_response_item_with_finalized_facts;
 use crate::tasks::emit_compact_metric;
 use crate::tools::ToolRouter;
-use crate::tools::context::SharedTurnDiffTracker;
+use crate::tools::context::SharedInteractionDiffTracker;
 use crate::tools::parallel::ToolCallRuntime;
 use crate::tools::registry::ToolArgumentDiffConsumer;
 use crate::tools::router::ToolRouterParams;
@@ -64,7 +64,7 @@ use crate::tools::router::ToolSuggestPresentation;
 use crate::tools::router::extension_tool_executors;
 use crate::tools::spec_plan::search_tool_enabled;
 use crate::tools::spec_plan::tool_suggest_enabled;
-use crate::turn_diff_tracker::TurnDiffTracker;
+use crate::turn_diff_tracker::InteractionDiffTracker;
 use crate::turn_timing::record_turn_ttft_metric;
 use crate::util::error_or_panic;
 use datax_analytics::AppInvocation;
@@ -86,7 +86,7 @@ use datax_protocol::config_types::ServiceTier;
 use datax_protocol::error::CodexErr;
 use datax_protocol::error::Result as CodexResult;
 use datax_protocol::items::PlanItem;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::items::build_hook_prompt_message;
 use datax_protocol::models::BaseInstructions;
 use datax_protocol::models::ContentItem;
@@ -102,7 +102,7 @@ use datax_protocol::protocol::PlanDeltaEvent;
 use datax_protocol::protocol::ReasoningContentDeltaEvent;
 use datax_protocol::protocol::ReasoningRawContentDeltaEvent;
 use datax_protocol::protocol::SafetyBufferingEvent;
-use datax_protocol::protocol::TurnDiffEvent;
+use datax_protocol::protocol::InteractionDiffEvent;
 use datax_protocol::protocol::WarningEvent;
 use datax_protocol::user_input::UserInput;
 use datax_tools::ToolName;
@@ -141,7 +141,7 @@ use tracing::warn;
 ///
 pub(crate) async fn run_turn(
     sess: Arc<Session>,
-    turn_context: Arc<TurnContext>,
+    turn_context: Arc<InteractionContext>,
     turn_extension_data: Arc<datax_extension_api::ExtensionData>,
     input: Vec<TurnInput>,
     prewarmed_client_session: Option<ModelClientSession>,
@@ -198,11 +198,11 @@ pub(crate) async fn run_turn(
 
     let mut last_agent_message: Option<String> = None;
     let mut stop_hook_active = false;
-    // Although from the perspective of codex.rs, TurnDiffTracker has the lifecycle of a Task which contains
+    // Although from the perspective of codex.rs, InteractionDiffTracker has the lifecycle of a Task which contains
     // many turns, from the perspective of the user, it is a single turn.
     let display_roots = turn_diff_display_roots(turn_context.as_ref()).await;
     let turn_diff_tracker = Arc::new(tokio::sync::Mutex::new(
-        TurnDiffTracker::with_environment_display_roots(display_roots),
+        InteractionDiffTracker::with_environment_display_roots(display_roots),
     ));
 
     // `ModelClientSession` is turn-scoped and caches WebSocket + sticky routing state, so we reuse
@@ -470,7 +470,7 @@ pub(crate) async fn run_turn(
 }
 
 #[instrument(level = "trace", skip_all)]
-async fn turn_diff_display_roots(turn_context: &TurnContext) -> Vec<(String, PathBuf)> {
+async fn turn_diff_display_roots(turn_context: &InteractionContext) -> Vec<(String, PathBuf)> {
     let mut display_roots = Vec::new();
     for turn_environment in &turn_context.environments.turn_environments {
         // TODO(anp): Migrate git-root discovery and diff display roots to PathUri so foreign
@@ -491,7 +491,7 @@ async fn turn_diff_display_roots(turn_context: &TurnContext) -> Vec<(String, Pat
 #[instrument(level = "trace", skip_all)]
 async fn run_hooks_and_record_inputs(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     input: &[TurnInput],
 ) -> bool {
     let mut blocked_input = false;
@@ -520,7 +520,7 @@ async fn run_hooks_and_record_inputs(
 #[instrument(level = "trace", skip_all)]
 async fn build_skills_and_plugins(
     sess: &Arc<Session>,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     input: &[TurnInput],
     cancellation_token: &CancellationToken,
 ) -> Option<(Vec<ResponseItem>, HashSet<String>)> {
@@ -690,7 +690,7 @@ async fn build_skills_and_plugins(
 )]
 async fn build_extension_turn_input_items(
     sess: &Arc<Session>,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     user_input: &[UserInput],
     cancellation_token: &CancellationToken,
 ) -> Option<Vec<ResponseItem>> {
@@ -750,7 +750,7 @@ async fn build_extension_turn_input_items(
 )]
 async fn track_turn_resolved_config_analytics(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     input: &[TurnInput],
 ) {
     let thread_config = {
@@ -817,7 +817,7 @@ struct AutoCompactTokenStatus {
 
 async fn auto_compact_token_status(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
 ) -> AutoCompactTokenStatus {
     let active_context_tokens = sess.get_total_token_usage().await;
     let mut auto_compact_window_prefill_tokens = None;
@@ -867,7 +867,7 @@ async fn auto_compact_token_status(
 #[instrument(level = "trace", skip_all)]
 async fn run_pre_sampling_compact(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     client_session: &mut ModelClientSession,
 ) -> CodexResult<()> {
     if !turn_context
@@ -909,7 +909,7 @@ fn comp_hash_changed(previous: Option<&str>, current: Option<&str>) -> bool {
 /// Returns `Err(_)` only when compaction was attempted and failed.
 async fn maybe_run_previous_model_inline_compact(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     client_session: &mut ModelClientSession,
 ) -> CodexResult<()> {
     let Some(previous_turn_settings) = sess.previous_turn_settings().await else {
@@ -983,7 +983,7 @@ async fn maybe_run_previous_model_inline_compact(
 )]
 async fn run_auto_compact(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     client_session: &mut ModelClientSession,
     initial_context_injection: InitialContextInjection,
     reason: CompactionReason,
@@ -1098,7 +1098,7 @@ pub(super) fn collect_explicit_app_ids_from_skill_items(
 pub(crate) fn build_prompt(
     input: Vec<ResponseItem>,
     router: &ToolRouter,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     base_instructions: BaseInstructions,
 ) -> Prompt {
     Prompt {
@@ -1125,9 +1125,9 @@ pub(crate) fn build_prompt(
 )]
 async fn run_sampling_request(
     sess: Arc<Session>,
-    turn_context: Arc<TurnContext>,
+    turn_context: Arc<InteractionContext>,
     turn_store: Arc<datax_extension_api::ExtensionData>,
-    turn_diff_tracker: SharedTurnDiffTracker,
+    turn_diff_tracker: SharedInteractionDiffTracker,
     client_session: &mut ModelClientSession,
     responses_metadata: &CodexResponsesMetadata,
     input: Vec<ResponseItem>,
@@ -1229,7 +1229,7 @@ async fn run_sampling_request(
 )]
 pub(crate) async fn built_tools(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     cancellation_token: &CancellationToken,
 ) -> CodexResult<Arc<ToolRouter>> {
     let mcp_connection_manager = sess.services.mcp_connection_manager.load_full();
@@ -1381,7 +1381,7 @@ struct ProposedPlanItemState {
 /// Includes per-item parsers, deferred agent message bookkeeping, and the plan item lifecycle.
 struct PlanModeStreamState {
     /// Agent message items started by the model but deferred until we see non-plan text.
-    pending_agent_message_items: HashMap<String, TurnItem>,
+    pending_agent_message_items: HashMap<String, InteractionMessage>,
     /// Agent message items whose start notification has been emitted.
     started_agent_message_items: HashSet<String>,
     /// Leading whitespace buffered until we see non-whitespace text for an item.
@@ -1460,19 +1460,19 @@ impl ProposedPlanItemState {
         }
     }
 
-    async fn start(&mut self, sess: &Session, turn_context: &TurnContext) {
+    async fn start(&mut self, sess: &Session, turn_context: &InteractionContext) {
         if self.started || self.completed {
             return;
         }
         self.started = true;
-        let item = TurnItem::Plan(PlanItem {
+        let item = InteractionMessage::Plan(PlanItem {
             id: self.item_id.clone(),
             text: String::new(),
         });
         sess.emit_turn_item_started(turn_context, &item).await;
     }
 
-    async fn push_delta(&mut self, sess: &Session, turn_context: &TurnContext, delta: &str) {
+    async fn push_delta(&mut self, sess: &Session, turn_context: &InteractionContext, delta: &str) {
         if self.completed {
             return;
         }
@@ -1492,14 +1492,14 @@ impl ProposedPlanItemState {
     async fn complete_with_text(
         &mut self,
         sess: &Session,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         text: String,
     ) {
         if self.completed || !self.started {
             return;
         }
         self.completed = true;
-        let item = TurnItem::Plan(PlanItem {
+        let item = InteractionMessage::Plan(PlanItem {
             id: self.item_id.clone(),
             text,
         });
@@ -1512,7 +1512,7 @@ impl ProposedPlanItemState {
 /// plan-only outputs never show up as empty assistant messages.
 async fn maybe_emit_pending_agent_message_start(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     state: &mut PlanModeStreamState,
     item_id: &str,
 ) {
@@ -1540,8 +1540,8 @@ fn agent_message_text(item: &datax_protocol::items::AgentMessageItem) -> String 
 pub(super) fn realtime_text_for_event(msg: &EventMsg) -> Option<(String, Option<MessagePhase>)> {
     match msg {
         EventMsg::AgentMessage(event) => Some((event.message.clone(), event.phase.clone())),
-        EventMsg::ItemCompleted(event) => match &event.item {
-            TurnItem::AgentMessage(item) => Some((agent_message_text(item), item.phase.clone())),
+        EventMsg::MessageCompleted(event) => match &event.item {
+            InteractionMessage::AgentMessage(item) => Some((agent_message_text(item), item.phase.clone())),
             _ => None,
         },
         EventMsg::Error(_)
@@ -1593,7 +1593,7 @@ pub(super) fn realtime_text_for_event(msg: &EventMsg) -> Option<(String, Option<
         | EventMsg::ApplyPatchApprovalRequest(_)
         | EventMsg::DeprecationNotice(_)
         | EventMsg::StreamError(_)
-        | EventMsg::TurnDiff(_)
+        | EventMsg::InteractionDiff(_)
         | EventMsg::RealtimeConversationListVoicesResponse(_)
         | EventMsg::PlanUpdate(_)
         | EventMsg::InteractionAborted(_)
@@ -1601,7 +1601,7 @@ pub(super) fn realtime_text_for_event(msg: &EventMsg) -> Option<(String, Option<
         | EventMsg::EnteredReviewMode(_)
         | EventMsg::ExitedReviewMode(_)
         | EventMsg::RawResponseItem(_)
-        | EventMsg::ItemStarted(_)
+        | EventMsg::MessageStarted(_)
         | EventMsg::HookStarted(_)
         | EventMsg::HookCompleted(_)
         | EventMsg::AgentMessageContentDelta(_)
@@ -1624,10 +1624,10 @@ pub(super) fn realtime_text_for_event(msg: &EventMsg) -> Option<(String, Option<
 
 /// Split the stream into normal assistant text vs. proposed plan content.
 /// Normal text becomes AgentMessage deltas; plan content becomes PlanDelta +
-/// TurnItem::Plan.
+/// InteractionMessage::Plan.
 async fn handle_plan_segments(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     state: &mut PlanModeStreamState,
     item_id: &str,
     segments: Vec<ProposedPlanSegment>,
@@ -1690,7 +1690,7 @@ async fn handle_plan_segments(
 
 async fn emit_streamed_assistant_text_delta(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     plan_mode_state: Option<&mut PlanModeStreamState>,
     item_id: &str,
     parsed: ParsedAssistantTextDelta,
@@ -1725,7 +1725,7 @@ async fn emit_streamed_assistant_text_delta(
 /// Flush buffered assistant text parser state when an assistant message item ends.
 async fn flush_assistant_text_segments_for_item(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     plan_mode_state: Option<&mut PlanModeStreamState>,
     parsers: &mut AssistantMessageStreamParsers,
     item_id: &str,
@@ -1737,7 +1737,7 @@ async fn flush_assistant_text_segments_for_item(
 /// Flush any remaining buffered assistant text parser state at response completion.
 async fn flush_assistant_text_segments_all(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     mut plan_mode_state: Option<&mut PlanModeStreamState>,
     parsers: &mut AssistantMessageStreamParsers,
 ) {
@@ -1756,7 +1756,7 @@ async fn flush_assistant_text_segments_all(
 /// Emit completion for plan items by parsing the finalized assistant message.
 async fn maybe_complete_plan_item_from_message(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     state: &mut PlanModeStreamState,
     item: &ResponseItem,
 ) {
@@ -1785,7 +1785,7 @@ async fn maybe_complete_plan_item_from_message(
 /// Emit a completed agent message in plan mode, respecting deferred starts.
 async fn emit_agent_message_in_plan_mode(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     agent_message: datax_protocol::items::AgentMessageItem,
     state: &mut PlanModeStreamState,
 ) {
@@ -1807,7 +1807,7 @@ async fn emit_agent_message_in_plan_mode(
             .pending_agent_message_items
             .remove(&agent_message_id)
             .unwrap_or_else(|| {
-                TurnItem::AgentMessage(datax_protocol::items::AgentMessageItem {
+                InteractionMessage::AgentMessage(datax_protocol::items::AgentMessageItem {
                     id: agent_message_id.clone(),
                     content: Vec::new(),
                     phase: None,
@@ -1820,7 +1820,7 @@ async fn emit_agent_message_in_plan_mode(
             .insert(agent_message_id.clone());
     }
 
-    sess.emit_turn_item_completed(turn_context, TurnItem::AgentMessage(agent_message))
+    sess.emit_turn_item_completed(turn_context, InteractionMessage::AgentMessage(agent_message))
         .await;
     state.started_agent_message_items.remove(&agent_message_id);
 }
@@ -1828,13 +1828,13 @@ async fn emit_agent_message_in_plan_mode(
 /// Emit completion for a plan-mode turn item, handling agent messages specially.
 async fn emit_turn_item_in_plan_mode(
     sess: &Session,
-    turn_context: &TurnContext,
-    turn_item: TurnItem,
-    previously_active_item: Option<&TurnItem>,
+    turn_context: &InteractionContext,
+    turn_item: InteractionMessage,
+    previously_active_item: Option<&InteractionMessage>,
     state: &mut PlanModeStreamState,
 ) {
     match turn_item {
-        TurnItem::AgentMessage(agent_message) => {
+        InteractionMessage::AgentMessage(agent_message) => {
             emit_agent_message_in_plan_mode(sess, turn_context, agent_message, state).await;
         }
         _ => {
@@ -1849,11 +1849,11 @@ async fn emit_turn_item_in_plan_mode(
 /// Handle a completed assistant response item in plan mode, returning true if handled.
 async fn handle_assistant_item_done_in_plan_mode(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     turn_store: &datax_extension_api::ExtensionData,
     item: &ResponseItem,
     state: &mut PlanModeStreamState,
-    previously_active_item: Option<&TurnItem>,
+    previously_active_item: Option<&InteractionMessage>,
     last_agent_message: &mut Option<String>,
 ) -> bool {
     if let ResponseItem::Message { role, .. } = item
@@ -1865,7 +1865,7 @@ async fn handle_assistant_item_done_in_plan_mode(
         if let Some(finalized_turn_item) = finalize_non_tool_response_item(
             sess,
             turn_context,
-            TurnItemContributorPolicy::Run(turn_store),
+            InteractionMessageContributorPolicy::Run(turn_store),
             item,
             /*plan_mode*/ true,
         )
@@ -1904,7 +1904,7 @@ async fn handle_assistant_item_done_in_plan_mode(
 async fn drain_in_flight(
     in_flight: &mut FuturesOrdered<BoxFuture<'static, CodexResult<ResponseInputItem>>>,
     sess: Arc<Session>,
-    turn_context: Arc<TurnContext>,
+    turn_context: Arc<InteractionContext>,
 ) -> CodexResult<()> {
     while let Some(res) = in_flight.next().await {
         match res {
@@ -1938,11 +1938,11 @@ async fn drain_in_flight(
 async fn try_run_sampling_request(
     tool_runtime: ToolCallRuntime,
     sess: Arc<Session>,
-    turn_context: Arc<TurnContext>,
+    turn_context: Arc<InteractionContext>,
     turn_store: Arc<datax_extension_api::ExtensionData>,
     client_session: &mut ModelClientSession,
     responses_metadata: &CodexResponsesMetadata,
-    turn_diff_tracker: SharedTurnDiffTracker,
+    turn_diff_tracker: SharedInteractionDiffTracker,
     prompt: &Prompt,
     cancellation_token: CancellationToken,
 ) -> CodexResult<SamplingRequestResult> {
@@ -1978,7 +1978,7 @@ async fn try_run_sampling_request(
         FuturesOrdered::new();
     let mut needs_follow_up = false;
     let mut last_agent_message: Option<String> = None;
-    let mut active_item: Option<TurnItem> = None;
+    let mut active_item: Option<InteractionMessage> = None;
     let mut active_tool_argument_diff_consumer: Option<(
         String,
         Box<dyn ToolArgumentDiffConsumer>,
@@ -2052,7 +2052,7 @@ async fn try_run_sampling_request(
                 };
                 active_item_is_streaming_to_client = false;
                 if let Some(previous) = previously_streamed_item.as_ref()
-                    && matches!(previous, TurnItem::AgentMessage(_))
+                    && matches!(previous, InteractionMessage::AgentMessage(_))
                 {
                     let item_id = previous.id();
                     flush_assistant_text_segments_for_item(
@@ -2143,7 +2143,7 @@ async fn try_run_sampling_request(
                 if let Some(turn_item) = handle_non_tool_response_item(
                     sess.as_ref(),
                     turn_context.as_ref(),
-                    TurnItemContributorPolicy::Skip,
+                    InteractionMessageContributorPolicy::Skip,
                     &item,
                     plan_mode,
                 )
@@ -2154,13 +2154,13 @@ async fn try_run_sampling_request(
                     let mut seeded_parsed: Option<ParsedAssistantTextDelta> = None;
                     let mut seeded_item_id: Option<String> = None;
                     if stream_item_to_client
-                        && matches!(turn_item, TurnItem::AgentMessage(_))
+                        && matches!(turn_item, InteractionMessage::AgentMessage(_))
                         && let Some(raw_text) = raw_assistant_output_text_from_item(&item)
                     {
                         let item_id = turn_item.id();
                         let mut seeded =
                             assistant_message_stream_parsers.seed_item_text(&item_id, &raw_text);
-                        if let TurnItem::AgentMessage(agent_message) = &mut turn_item {
+                        if let InteractionMessage::AgentMessage(agent_message) = &mut turn_item {
                             agent_message.content =
                                 vec![datax_protocol::items::AgentMessageContent::Text {
                                     text: if plan_mode {
@@ -2175,7 +2175,7 @@ async fn try_run_sampling_request(
                     }
                     if stream_item_to_client {
                         if let Some(state) = plan_mode_state.as_mut()
-                            && matches!(turn_item, TurnItem::AgentMessage(_))
+                            && matches!(turn_item, InteractionMessage::AgentMessage(_))
                         {
                             let item_id = turn_item.id();
                             state
@@ -2291,7 +2291,7 @@ async fn try_run_sampling_request(
                         continue;
                     }
                     let item_id = active.id();
-                    if matches!(active, TurnItem::AgentMessage(_)) {
+                    if matches!(active, InteractionMessage::AgentMessage(_)) {
                         let parsed = assistant_message_stream_parsers.parse_delta(&item_id, &delta);
                         emit_streamed_assistant_text_delta(
                             &sess,
@@ -2428,7 +2428,7 @@ async fn try_run_sampling_request(
             tracker.get_unified_diff()
         };
         if let Some(unified_diff) = unified_diff {
-            let msg = EventMsg::TurnDiff(TurnDiffEvent { unified_diff });
+            let msg = EventMsg::InteractionDiff(InteractionDiffEvent { unified_diff });
             sess.clone().send_event(&turn_context, msg).await;
         }
     }

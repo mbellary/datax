@@ -21,7 +21,7 @@ use datax_hooks::UserPromptSubmitOutcome;
 use datax_hooks::UserPromptSubmitRequest;
 use datax_otel::HOOK_RUN_DURATION_METRIC;
 use datax_otel::HOOK_RUN_METRIC;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::items::UserMessageItem;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::AskForApproval;
@@ -44,7 +44,7 @@ use crate::context::HookAdditionalContext;
 use crate::event_mapping::parse_turn_item;
 use crate::session::TurnInput;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::tools::hook_names::HookToolName;
 use crate::tools::sandboxing::PermissionRequestPayload;
 
@@ -102,7 +102,7 @@ impl From<UserPromptSubmitOutcome> for ContextInjectingHookOutcome {
 #[instrument(level = "trace", skip_all)]
 pub(crate) async fn run_pending_session_start_hooks(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
 ) -> bool {
     while let Some(session_start_source) = sess.take_pending_session_start_source().await {
         // Pending session-start hooks are reused to dispatch thread-spawn subagent
@@ -162,7 +162,7 @@ pub(crate) async fn run_pending_session_start_hooks(
 /// handlers.
 pub(crate) async fn run_pre_tool_use_hooks(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     tool_use_id: String,
     tool_name: &HookToolName,
     tool_input: &Value,
@@ -224,7 +224,7 @@ pub(crate) async fn run_pre_tool_use_hooks(
 // tool input or post-run state.
 pub(crate) async fn run_permission_request_hooks(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     run_id_suffix: &str,
     payload: PermissionRequestPayload,
 ) -> Option<PermissionRequestDecision> {
@@ -263,7 +263,7 @@ pub(crate) async fn run_permission_request_hooks(
 /// matchers and hook logs.
 pub(crate) async fn run_post_tool_use_hooks(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     tool_use_id: String,
     tool_name: String,
     matcher_aliases: Vec<String>,
@@ -297,7 +297,7 @@ pub(crate) async fn run_post_tool_use_hooks(
 #[instrument(level = "trace", skip_all)]
 pub(crate) async fn run_turn_stop_hooks(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     stop_hook_active: bool,
     last_assistant_message: Option<String>,
 ) -> StopOutcome {
@@ -367,7 +367,7 @@ pub(crate) async fn run_turn_stop_hooks(
 
 pub(crate) async fn run_pre_compact_hooks(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     trigger: CompactionTrigger,
 ) -> PreCompactHookOutcome {
     let request = datax_hooks::PreCompactRequest {
@@ -404,7 +404,7 @@ pub(crate) enum PostCompactHookOutcome {
 
 pub(crate) async fn run_post_compact_hooks(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     trigger: CompactionTrigger,
 ) -> PostCompactHookOutcome {
     let request = datax_hooks::PostCompactRequest {
@@ -432,7 +432,7 @@ pub(crate) async fn run_post_compact_hooks(
 #[instrument(level = "trace", skip_all)]
 pub(crate) async fn run_legacy_after_agent_hook(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     input: &[ResponseItem],
     last_assistant_message: Option<String>,
 ) -> bool {
@@ -440,7 +440,7 @@ pub(crate) async fn run_legacy_after_agent_hook(
     let input_messages = input
         .iter()
         .filter_map(|item| match parse_turn_item(item) {
-            Some(TurnItem::UserMessage(user_message)) => Some(user_message.message()),
+            Some(InteractionMessage::UserMessage(user_message)) => Some(user_message.message()),
             _ => None,
         })
         .collect();
@@ -499,7 +499,7 @@ pub(crate) async fn run_legacy_after_agent_hook(
 
 pub(crate) async fn inspect_pending_input(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     pending_input_item: &TurnInput,
 ) -> HookRuntimeOutcome {
     match pending_input_item {
@@ -538,7 +538,7 @@ pub(crate) async fn inspect_pending_input(
 
 pub(crate) async fn record_pending_input(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     pending_input: TurnInput,
     additional_contexts: Vec<String>,
 ) {
@@ -565,7 +565,7 @@ pub(crate) async fn record_pending_input(
 
 async fn run_context_injecting_hook<Fut, Outcome>(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     preview_runs: Vec<HookRunSummary>,
     outcome_future: Fut,
 ) -> HookRuntimeOutcome
@@ -584,7 +584,7 @@ impl HookRuntimeOutcome {
     async fn record_additional_contexts(
         self,
         sess: &Arc<Session>,
-        turn_context: &Arc<TurnContext>,
+        turn_context: &Arc<InteractionContext>,
     ) -> bool {
         record_additional_contexts(sess, turn_context, self.additional_contexts).await;
 
@@ -594,7 +594,7 @@ impl HookRuntimeOutcome {
 
 pub(crate) async fn record_additional_contexts(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     additional_contexts: Vec<String>,
 ) {
     let developer_messages = additional_context_messages(additional_contexts);
@@ -616,7 +616,7 @@ fn additional_context_messages(additional_contexts: Vec<String>) -> Vec<Response
 
 async fn emit_hook_started_events(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     preview_runs: Vec<HookRunSummary>,
 ) {
     for run in preview_runs {
@@ -633,7 +633,7 @@ async fn emit_hook_started_events(
 
 pub(crate) async fn emit_hook_completed_events(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     completed_events: Vec<HookCompletedEvent>,
 ) {
     for completed in completed_events {
@@ -644,7 +644,7 @@ pub(crate) async fn emit_hook_completed_events(
     }
 }
 
-fn emit_hook_completed_metrics(turn_context: &TurnContext, completed: &HookCompletedEvent) {
+fn emit_hook_completed_metrics(turn_context: &InteractionContext, completed: &HookCompletedEvent) {
     let tags = hook_run_metric_tags(&completed.run);
     turn_context
         .session_telemetry
@@ -662,7 +662,7 @@ fn emit_hook_completed_metrics(turn_context: &TurnContext, completed: &HookCompl
 
 fn track_hook_completed_analytics(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     completed: &HookCompletedEvent,
 ) {
     let (tracking, hook) =
@@ -674,7 +674,7 @@ fn track_hook_completed_analytics(
 
 fn hook_run_analytics_payload(
     chat_id: String,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     completed: &HookCompletedEvent,
 ) -> (datax_analytics::TrackEventsContext, HookRunFact) {
     (
@@ -735,7 +735,7 @@ fn hook_run_metric_tags(run: &HookRunSummary) -> [(&'static str, &'static str); 
     ]
 }
 
-fn hook_permission_mode(turn_context: &TurnContext) -> String {
+fn hook_permission_mode(turn_context: &InteractionContext) -> String {
     match turn_context.approval_policy.value() {
         AskForApproval::Never => "bypassPermissions",
         AskForApproval::UnlessTrusted
@@ -748,7 +748,7 @@ fn hook_permission_mode(turn_context: &TurnContext) -> String {
 
 fn thread_spawn_subagent_hook_context(
     sess: &Arc<Session>,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
 ) -> Option<SubagentHookContext> {
     match &turn_context.session_source {
         SessionSource::SubAgent(SubAgentSource::ThreadSpawn { agent_role, .. }) => {

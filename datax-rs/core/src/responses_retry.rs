@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use crate::client::ModelClientSession;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::util::backoff;
 use datax_protocol::error::CodexErr;
 use datax_protocol::protocol::EventMsg;
@@ -25,7 +25,7 @@ pub(crate) async fn handle_retryable_response_stream_error(
     err: CodexErr,
     client_session: &mut ModelClientSession,
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     request: ResponsesStreamRequest,
 ) -> Result<(), CodexErr> {
     if *retries >= max_retries
@@ -80,7 +80,7 @@ pub(crate) async fn handle_retryable_response_stream_error(
 
 fn log_retry(
     request: ResponsesStreamRequest,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     err: &CodexErr,
     retries: u64,
     max_retries: u64,

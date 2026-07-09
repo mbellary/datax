@@ -1,6 +1,6 @@
 use crate::function_tool::FunctionCallError;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::tools::context::FunctionToolOutput;
 use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolPayload;
@@ -171,7 +171,7 @@ impl CoreToolRuntime for DynamicToolHandler {}
 )]
 async fn request_dynamic_tool(
     session: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     call_id: String,
     tool_name: ToolName,
     arguments: Value,

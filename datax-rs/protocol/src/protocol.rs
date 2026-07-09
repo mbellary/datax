@@ -29,7 +29,7 @@ use crate::dynamic_tools::DynamicToolCallOutputContentItem;
 use crate::dynamic_tools::DynamicToolCallRequest;
 use crate::dynamic_tools::DynamicToolResponse;
 use crate::dynamic_tools::DynamicToolSpec;
-use crate::items::TurnItem;
+use crate::items::InteractionMessage;
 use crate::mcp::CallToolResult;
 use crate::mcp::RequestId;
 use crate::memory_citation::MemoryCitation;
@@ -1386,7 +1386,8 @@ pub enum EventMsg {
     /// Notification that a patch application has finished.
     PatchApplyEnd(PatchApplyEndEvent),
 
-    TurnDiff(TurnDiffEvent),
+    #[serde(alias = "turn_diff")]
+    InteractionDiff(InteractionDiffEvent),
 
     /// List of voices supported by realtime conversation streams.
     RealtimeConversationListVoicesResponse(RealtimeConversationListVoicesResponseEvent),
@@ -1407,8 +1408,10 @@ pub enum EventMsg {
 
     RawResponseItem(RawResponseItemEvent),
 
-    ItemStarted(ItemStartedEvent),
-    ItemCompleted(ItemCompletedEvent),
+    #[serde(alias = "item_started")]
+    MessageStarted(MessageStartedEvent),
+    #[serde(alias = "item_completed")]
+    MessageCompleted(MessageCompletedEvent),
     HookStarted(HookStartedEvent),
     HookCompleted(HookCompletedEvent),
 
@@ -1763,42 +1766,42 @@ pub struct RawResponseItemEvent {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS, JsonSchema)]
-pub struct ItemStartedEvent {
+pub struct MessageStartedEvent {
     #[serde(alias = "thread_id")]
     pub chat_id: ChatId,
     #[serde(alias = "turn_id")]
     pub interaction_id: String,
-    pub item: TurnItem,
+    pub item: InteractionMessage,
     pub started_at_ms: i64,
 }
 
-impl HasLegacyEvent for ItemStartedEvent {
+impl HasLegacyEvent for MessageStartedEvent {
     fn as_legacy_events(&self, _: bool) -> Vec<EventMsg> {
         match &self.item {
-            TurnItem::WebSearch(item) => vec![EventMsg::WebSearchBegin(WebSearchBeginEvent {
+            InteractionMessage::WebSearch(item) => vec![EventMsg::WebSearchBegin(WebSearchBeginEvent {
                 call_id: item.id.clone(),
             })],
-            TurnItem::ImageView(_) => Vec::new(),
-            TurnItem::ImageGeneration(item) => {
+            InteractionMessage::ImageView(_) => Vec::new(),
+            InteractionMessage::ImageGeneration(item) => {
                 vec![EventMsg::ImageGenerationBegin(ImageGenerationBeginEvent {
                     call_id: item.id.clone(),
                 })]
             }
-            TurnItem::FileChange(item) => vec![item.as_legacy_begin_event(self.interaction_id.clone())],
-            TurnItem::McpToolCall(item) => vec![item.as_legacy_begin_event()],
+            InteractionMessage::FileChange(item) => vec![item.as_legacy_begin_event(self.interaction_id.clone())],
+            InteractionMessage::McpToolCall(item) => vec![item.as_legacy_begin_event()],
             _ => Vec::new(),
         }
     }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS, JsonSchema)]
-pub struct ItemCompletedEvent {
+pub struct MessageCompletedEvent {
     #[serde(alias = "thread_id")]
     pub chat_id: ChatId,
     #[serde(alias = "turn_id")]
     pub interaction_id: String,
-    pub item: TurnItem,
-    // Old rollout files may contain ItemCompleted events for PlanItem without
+    pub item: InteractionMessage,
+    // Old rollout files may contain MessageCompleted events for PlanItem without
     // this field. Default to 0 so those persisted rollouts still deserialize
     // after tightening the core event contract.
     #[serde(default = "default_item_completed_at_ms")]
@@ -1813,10 +1816,10 @@ pub trait HasLegacyEvent {
     fn as_legacy_events(&self, show_raw_agent_reasoning: bool) -> Vec<EventMsg>;
 }
 
-impl HasLegacyEvent for ItemCompletedEvent {
+impl HasLegacyEvent for MessageCompletedEvent {
     fn as_legacy_events(&self, show_raw_agent_reasoning: bool) -> Vec<EventMsg> {
         match &self.item {
-            TurnItem::FileChange(item) => item
+            InteractionMessage::FileChange(item) => item
                 .as_legacy_end_event(self.interaction_id.clone())
                 .into_iter()
                 .collect(),
@@ -1892,8 +1895,8 @@ impl HasLegacyEvent for ReasoningRawContentDeltaEvent {
 impl HasLegacyEvent for EventMsg {
     fn as_legacy_events(&self, show_raw_agent_reasoning: bool) -> Vec<EventMsg> {
         match self {
-            EventMsg::ItemStarted(event) => event.as_legacy_events(show_raw_agent_reasoning),
-            EventMsg::ItemCompleted(event) => event.as_legacy_events(show_raw_agent_reasoning),
+            EventMsg::MessageStarted(event) => event.as_legacy_events(show_raw_agent_reasoning),
+            EventMsg::MessageCompleted(event) => event.as_legacy_events(show_raw_agent_reasoning),
             EventMsg::AgentMessageContentDelta(event) => {
                 event.as_legacy_events(show_raw_agent_reasoning)
             }
@@ -2481,7 +2484,7 @@ pub struct ConversationPathResponseEvent {
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS)]
 pub struct ResumedHistory {
     pub conversation_id: ChatId,
-    pub history: Vec<RolloutItem>,
+    pub history: Vec<RolloutMessage>,
     pub rollout_path: Option<PathBuf>,
 }
 
@@ -2490,11 +2493,11 @@ pub enum InitialHistory {
     New,
     Cleared,
     Resumed(ResumedHistory),
-    Forked(Vec<RolloutItem>),
+    Forked(Vec<RolloutMessage>),
 }
 
 impl InitialHistory {
-    pub fn scan_rollout_items(&self, mut predicate: impl FnMut(&RolloutItem) -> bool) -> bool {
+    pub fn scan_rollout_items(&self, mut predicate: impl FnMut(&RolloutMessage) -> bool) -> bool {
         match self {
             InitialHistory::New | InitialHistory::Cleared => false,
             InitialHistory::Resumed(resumed) => resumed.history.iter().any(&mut predicate),
@@ -2507,12 +2510,12 @@ impl InitialHistory {
             InitialHistory::New | InitialHistory::Cleared => None,
             InitialHistory::Resumed(resumed) => {
                 resumed.history.iter().find_map(|item| match item {
-                    RolloutItem::SessionMeta(meta_line) => meta_line.meta.forked_from_id,
+                    RolloutMessage::SessionMeta(meta_line) => meta_line.meta.forked_from_id,
                     _ => None,
                 })
             }
             InitialHistory::Forked(items) => items.iter().find_map(|item| match item {
-                RolloutItem::SessionMeta(meta_line) => Some(meta_line.meta.id),
+                RolloutMessage::SessionMeta(meta_line) => Some(meta_line.meta.id),
                 _ => None,
             }),
         }
@@ -2526,7 +2529,7 @@ impl InitialHistory {
         }
     }
 
-    pub fn get_rollout_items(&self) -> Vec<RolloutItem> {
+    pub fn get_rollout_items(&self) -> Vec<RolloutMessage> {
         match self {
             InitialHistory::New | InitialHistory::Cleared => Vec::new(),
             InitialHistory::Resumed(resumed) => resumed.history.clone(),
@@ -2542,7 +2545,7 @@ impl InitialHistory {
                     .history
                     .iter()
                     .filter_map(|ri| match ri {
-                        RolloutItem::EventMsg(ev) => Some(ev.clone()),
+                        RolloutMessage::EventMsg(ev) => Some(ev.clone()),
                         _ => None,
                     })
                     .collect(),
@@ -2551,7 +2554,7 @@ impl InitialHistory {
                 items
                     .iter()
                     .filter_map(|ri| match ri {
-                        RolloutItem::EventMsg(ev) => Some(ev.clone()),
+                        RolloutMessage::EventMsg(ev) => Some(ev.clone()),
                         _ => None,
                     })
                     .collect(),
@@ -2565,12 +2568,12 @@ impl InitialHistory {
             InitialHistory::New | InitialHistory::Cleared => None,
             InitialHistory::Resumed(resumed) => {
                 resumed.history.iter().find_map(|item| match item {
-                    RolloutItem::SessionMeta(meta_line) => meta_line.meta.base_instructions.clone(),
+                    RolloutMessage::SessionMeta(meta_line) => meta_line.meta.base_instructions.clone(),
                     _ => None,
                 })
             }
             InitialHistory::Forked(items) => items.iter().find_map(|item| match item {
-                RolloutItem::SessionMeta(meta_line) => meta_line.meta.base_instructions.clone(),
+                RolloutMessage::SessionMeta(meta_line) => meta_line.meta.base_instructions.clone(),
                 _ => None,
             }),
         }
@@ -2581,12 +2584,12 @@ impl InitialHistory {
             InitialHistory::New | InitialHistory::Cleared => None,
             InitialHistory::Resumed(resumed) => {
                 resumed.history.iter().find_map(|item| match item {
-                    RolloutItem::SessionMeta(meta_line) => meta_line.meta.dynamic_tools.clone(),
+                    RolloutMessage::SessionMeta(meta_line) => meta_line.meta.dynamic_tools.clone(),
                     _ => None,
                 })
             }
             InitialHistory::Forked(items) => items.iter().find_map(|item| match item {
-                RolloutItem::SessionMeta(meta_line) => meta_line.meta.dynamic_tools.clone(),
+                RolloutMessage::SessionMeta(meta_line) => meta_line.meta.dynamic_tools.clone(),
                 _ => None,
             }),
         }
@@ -2614,12 +2617,12 @@ impl InitialHistory {
             .iter()
             .rev()
             .find_map(|item| match item {
-                RolloutItem::TurnContext(turn_context) => Some(turn_context),
-                RolloutItem::SessionMeta(_)
-                | RolloutItem::ResponseItem(_)
-                | RolloutItem::InterAgentCommunication(_)
-                | RolloutItem::Compacted(_)
-                | RolloutItem::EventMsg(_) => None,
+                RolloutMessage::InteractionContext(turn_context) => Some(turn_context),
+                RolloutMessage::SessionMeta(_)
+                | RolloutMessage::ResponseItem(_)
+                | RolloutMessage::InterAgentCommunication(_)
+                | RolloutMessage::Compacted(_)
+                | RolloutMessage::EventMsg(_) => None,
             })
             .and_then(|turn_context| turn_context.multi_agent_mode)
     }
@@ -2644,7 +2647,7 @@ impl InitialHistory {
             InitialHistory::New | InitialHistory::Cleared | InitialHistory::Forked(_) => None,
             InitialHistory::Resumed(resumed) => {
                 resumed.history.iter().find_map(|item| match item {
-                    RolloutItem::SessionMeta(meta_line) => Some(&meta_line.meta),
+                    RolloutMessage::SessionMeta(meta_line) => Some(&meta_line.meta),
                     _ => None,
                 })
             }
@@ -2652,9 +2655,9 @@ impl InitialHistory {
     }
 }
 
-fn session_cwd_from_items(items: &[RolloutItem]) -> Option<PathBuf> {
+fn session_cwd_from_items(items: &[RolloutMessage]) -> Option<PathBuf> {
     items.iter().find_map(|item| match item {
-        RolloutItem::SessionMeta(meta_line) => Some(meta_line.meta.cwd.clone()),
+        RolloutMessage::SessionMeta(meta_line) => Some(meta_line.meta.cwd.clone()),
         _ => None,
     })
 }
@@ -2912,11 +2915,11 @@ impl fmt::Display for InternalSessionSource {
 }
 
 fn multi_agent_version_from_items(
-    items: &[RolloutItem],
+    items: &[RolloutMessage],
     chat_id: Option<ChatId>,
 ) -> Option<MultiAgentVersion> {
     let session_meta_version = items.iter().rev().find_map(|item| match item {
-        RolloutItem::SessionMeta(meta_line)
+        RolloutMessage::SessionMeta(meta_line)
             if chat_id.is_none_or(|chat_id| meta_line.meta.id == chat_id) =>
         {
             meta_line.meta.multi_agent_version
@@ -2926,12 +2929,12 @@ fn multi_agent_version_from_items(
 
     session_meta_version.or_else(|| {
         items.iter().rev().find_map(|item| match item {
-            RolloutItem::TurnContext(turn_context) => turn_context.multi_agent_version,
-            RolloutItem::SessionMeta(_)
-            | RolloutItem::ResponseItem(_)
-            | RolloutItem::InterAgentCommunication(_)
-            | RolloutItem::Compacted(_)
-            | RolloutItem::EventMsg(_) => None,
+            RolloutMessage::InteractionContext(turn_context) => turn_context.multi_agent_version,
+            RolloutMessage::SessionMeta(_)
+            | RolloutMessage::ResponseItem(_)
+            | RolloutMessage::InterAgentCommunication(_)
+            | RolloutMessage::Compacted(_)
+            | RolloutMessage::EventMsg(_) => None,
         })
     })
 }
@@ -2948,7 +2951,7 @@ pub enum MultiAgentVersion {
 /// SessionMeta contains session-level data that doesn't correspond to a specific turn.
 ///
 /// NOTE: There used to be an `instructions` field here, which stored user_instructions, but we
-/// now save that on TurnContext. base_instructions stores the base instructions for the session,
+/// now save that on InteractionContext. base_instructions stores the base instructions for the session,
 /// and should be used when there is no config override.
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, TS)]
 pub struct SessionMeta {
@@ -3058,13 +3061,14 @@ impl<'de> Deserialize<'de> for SessionMetaLine {
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, TS)]
 #[serde(tag = "type", content = "payload", rename_all = "snake_case")]
-pub enum RolloutItem {
+pub enum RolloutMessage {
     SessionMeta(SessionMetaLine),
     ResponseItem(ResponseItem),
     /// Durable delivery metadata reconstructed as a model-visible `agent_message`.
     InterAgentCommunication(InterAgentCommunication),
     Compacted(CompactedItem),
-    TurnContext(TurnContextItem),
+    #[serde(alias = "turn_context")]
+    InteractionContext(InteractionContextMessage),
     EventMsg(EventMsg),
 }
 
@@ -3102,7 +3106,7 @@ impl From<CompactedItem> for ResponseItem {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema, TS)]
-pub struct TurnContextNetworkItem {
+pub struct InteractionContextNetworkMessage {
     pub allowed_domains: Vec<String>,
     pub denied_domains: Vec<String>,
 }
@@ -3112,7 +3116,7 @@ pub struct TurnContextNetworkItem {
 /// history re-establishes full context, so resume/fork replay can recover the
 /// latest durable baseline.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, TS)]
-pub struct TurnContextItem {
+pub struct InteractionContextMessage {
     #[serde(default, alias = "turn_id", skip_serializing_if = "Option::is_none")]
     pub interaction_id: Option<String>,
     pub cwd: AbsolutePathBuf,
@@ -3129,7 +3133,7 @@ pub struct TurnContextItem {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub permission_profile: Option<PermissionProfile>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub network: Option<TurnContextNetworkItem>,
+    pub network: Option<InteractionContextNetworkMessage>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub file_system_sandbox_policy: Option<FileSystemSandboxPolicy>,
     pub model: String,
@@ -3155,7 +3159,7 @@ pub struct TurnContextItem {
     pub summary: ReasoningSummaryConfig,
 }
 
-impl TurnContextItem {
+impl InteractionContextMessage {
     pub fn permission_profile(&self) -> PermissionProfile {
         self.permission_profile.clone().unwrap_or_else(|| {
             let file_system_sandbox_policy =
@@ -3230,7 +3234,7 @@ impl Mul<f64> for TruncationPolicy {
 pub struct RolloutLine {
     pub timestamp: String,
     #[serde(flatten)]
-    pub item: RolloutItem,
+    pub item: RolloutMessage,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, TS)]
@@ -3546,7 +3550,7 @@ pub enum PatchApplyStatus {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS)]
-pub struct TurnDiffEvent {
+pub struct InteractionDiffEvent {
     pub unified_diff: String,
 }
 
@@ -4960,10 +4964,10 @@ mod tests {
 
     #[test]
     fn item_started_event_from_web_search_emits_begin_event() {
-        let event = ItemStartedEvent {
+        let event = MessageStartedEvent {
             chat_id: ChatId::new(),
             interaction_id: "turn-1".into(),
-            item: TurnItem::WebSearch(WebSearchItem {
+            item: InteractionMessage::WebSearch(WebSearchItem {
                 id: "search-1".into(),
                 query: "find docs".into(),
                 action: WebSearchAction::Search {
@@ -4984,10 +4988,10 @@ mod tests {
 
     #[test]
     fn item_started_event_from_non_web_search_emits_no_legacy_events() {
-        let event = ItemStartedEvent {
+        let event = MessageStartedEvent {
             chat_id: ChatId::new(),
             interaction_id: "turn-1".into(),
-            item: TurnItem::UserMessage(UserMessageItem::new(&[])),
+            item: InteractionMessage::UserMessage(UserMessageItem::new(&[])),
             started_at_ms: 0,
         };
 
@@ -5000,10 +5004,10 @@ mod tests {
 
     #[test]
     fn item_started_event_from_image_generation_emits_begin_event() {
-        let event = ItemStartedEvent {
+        let event = MessageStartedEvent {
             chat_id: ChatId::new(),
             interaction_id: "turn-1".into(),
-            item: TurnItem::ImageGeneration(ImageGenerationItem {
+            item: InteractionMessage::ImageGeneration(ImageGenerationItem {
                 id: "ig-1".into(),
                 status: "in_progress".into(),
                 revised_prompt: None,
@@ -5023,11 +5027,11 @@ mod tests {
 
     #[test]
     fn item_started_event_from_file_change_emits_patch_begin_event() {
-        let event = ItemStartedEvent {
+        let event = MessageStartedEvent {
             chat_id: ChatId::new(),
             interaction_id: "turn-1".into(),
             started_at_ms: 0,
-            item: TurnItem::FileChange(FileChangeItem {
+            item: InteractionMessage::FileChange(FileChangeItem {
                 id: "patch-1".into(),
                 changes: [(
                     PathBuf::from("new.txt"),
@@ -5059,11 +5063,11 @@ mod tests {
 
     #[test]
     fn item_started_event_from_mcp_tool_call_emits_begin_event() {
-        let event = ItemStartedEvent {
+        let event = MessageStartedEvent {
             chat_id: ChatId::new(),
             interaction_id: "turn-1".into(),
             started_at_ms: 0,
-            item: TurnItem::McpToolCall(McpToolCallItem {
+            item: InteractionMessage::McpToolCall(McpToolCallItem {
                 id: "mcp-1".into(),
                 server: "server".into(),
                 tool: "tool".into(),
@@ -5100,10 +5104,10 @@ mod tests {
 
     #[test]
     fn item_completed_event_from_image_generation_emits_end_event() {
-        let event = ItemCompletedEvent {
+        let event = MessageCompletedEvent {
             chat_id: ChatId::new(),
             interaction_id: "turn-1".into(),
-            item: TurnItem::ImageGeneration(ImageGenerationItem {
+            item: InteractionMessage::ImageGeneration(ImageGenerationItem {
                 id: "ig-1".into(),
                 status: "completed".into(),
                 revised_prompt: Some("A tiny blue square".into()),
@@ -5132,11 +5136,11 @@ mod tests {
 
     #[test]
     fn item_completed_event_from_file_change_emits_patch_end_event() {
-        let event = ItemCompletedEvent {
+        let event = MessageCompletedEvent {
             chat_id: ChatId::new(),
             interaction_id: "turn-1".into(),
             completed_at_ms: 0,
-            item: TurnItem::FileChange(FileChangeItem {
+            item: InteractionMessage::FileChange(FileChangeItem {
                 id: "patch-1".into(),
                 changes: [(
                     PathBuf::from("new.txt"),
@@ -5170,11 +5174,11 @@ mod tests {
 
     #[test]
     fn item_completed_event_from_mcp_tool_call_emits_end_event() {
-        let event = ItemCompletedEvent {
+        let event = MessageCompletedEvent {
             chat_id: ChatId::new(),
             interaction_id: "turn-1".into(),
             completed_at_ms: 0,
-            item: TurnItem::McpToolCall(McpToolCallItem {
+            item: InteractionMessage::McpToolCall(McpToolCallItem {
                 id: "mcp-1".into(),
                 server: "server".into(),
                 tool: "tool".into(),
@@ -5218,30 +5222,30 @@ mod tests {
 
     #[test]
     fn item_started_event_requires_started_at_ms() {
-        let mut value = serde_json::to_value(ItemStartedEvent {
+        let mut value = serde_json::to_value(MessageStartedEvent {
             chat_id: ChatId::new(),
             interaction_id: "turn-1".into(),
-            item: TurnItem::UserMessage(UserMessageItem::new(&[])),
+            item: InteractionMessage::UserMessage(UserMessageItem::new(&[])),
             started_at_ms: 123,
         })
         .unwrap();
         value.as_object_mut().unwrap().remove("started_at_ms");
 
-        assert!(serde_json::from_value::<ItemStartedEvent>(value).is_err());
+        assert!(serde_json::from_value::<MessageStartedEvent>(value).is_err());
     }
 
     #[test]
     fn item_completed_event_defaults_missing_completed_at_ms() {
-        let mut value = serde_json::to_value(ItemCompletedEvent {
+        let mut value = serde_json::to_value(MessageCompletedEvent {
             chat_id: ChatId::new(),
             interaction_id: "turn-1".into(),
-            item: TurnItem::UserMessage(UserMessageItem::new(&[])),
+            item: InteractionMessage::UserMessage(UserMessageItem::new(&[])),
             completed_at_ms: 123,
         })
         .unwrap();
         value.as_object_mut().unwrap().remove("completed_at_ms");
 
-        let event = serde_json::from_value::<ItemCompletedEvent>(value).unwrap();
+        let event = serde_json::from_value::<MessageCompletedEvent>(value).unwrap();
         assert_eq!(event.completed_at_ms, 0);
     }
     #[test]
@@ -5447,7 +5451,7 @@ mod tests {
 
     #[test]
     fn turn_context_item_deserializes_without_network() -> Result<()> {
-        let item: TurnContextItem = serde_json::from_value(json!({
+        let item: InteractionContextMessage = serde_json::from_value(json!({
             "cwd": test_path_buf("/tmp"),
             "approval_policy": "never",
             "sandbox_policy": { "type": "danger-full-access" },
@@ -5486,8 +5490,8 @@ mod tests {
         assert_eq!(
             multi_agent_version_from_items(
                 &[
-                    RolloutItem::SessionMeta(older_meta),
-                    RolloutItem::SessionMeta(newer_meta_without_version),
+                    RolloutMessage::SessionMeta(older_meta),
+                    RolloutMessage::SessionMeta(newer_meta_without_version),
                 ],
                 Some(chat_id),
             ),
@@ -5498,7 +5502,7 @@ mod tests {
 
     #[test]
     fn latest_effective_multi_agent_mode_uses_latest_turn_context_even_when_unset() -> Result<()> {
-        let turn_context_item = |multi_agent_mode| -> Result<RolloutItem> {
+        let turn_context_item = |multi_agent_mode| -> Result<RolloutMessage> {
             let mut value = json!({
                 "cwd": test_path_buf("/tmp"),
                 "approval_policy": "never",
@@ -5507,7 +5511,7 @@ mod tests {
                 "summary": "auto",
             });
             value["multi_agent_mode"] = serde_json::to_value(multi_agent_mode)?;
-            Ok(RolloutItem::TurnContext(serde_json::from_value(value)?))
+            Ok(RolloutMessage::InteractionContext(serde_json::from_value(value)?))
         };
 
         assert_eq!(
@@ -5523,7 +5527,7 @@ mod tests {
 
     #[test]
     fn turn_context_item_serializes_network_when_present() -> Result<()> {
-        let item = TurnContextItem {
+        let item = InteractionContextMessage {
             interaction_id: None,
             cwd: test_path_buf("/tmp").abs(),
             workspace_roots: None,
@@ -5532,7 +5536,7 @@ mod tests {
             approval_policy: AskForApproval::Never,
             sandbox_policy: SandboxPolicy::DangerFullAccess,
             permission_profile: None,
-            network: Some(TurnContextNetworkItem {
+            network: Some(InteractionContextNetworkMessage {
                 allowed_domains: vec!["api.example.com".to_string()],
                 denied_domains: vec!["blocked.example.com".to_string()],
             }),

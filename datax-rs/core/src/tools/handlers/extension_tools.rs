@@ -1,21 +1,21 @@
 use std::sync::Arc;
 use std::sync::Weak;
 
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_tools::ConversationHistory;
-use datax_tools::ExtensionTurnItem;
+use datax_tools::ExtensionInteractionMessage;
 use datax_tools::ToolCall as ExtensionToolCall;
 use datax_tools::ToolEnvironment;
 use datax_tools::ToolName;
 use datax_tools::ToolSearchInfo;
 use datax_tools::ToolSpec;
-use datax_tools::TurnItemEmissionFuture;
-use datax_tools::TurnItemEmitter;
+use datax_tools::InteractionMessageEmissionFuture;
+use datax_tools::InteractionMessageEmitter;
 
 use crate::sandboxing::SandboxPermissions;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
-use crate::stream_events_utils::TurnItemContributorPolicy;
+use crate::session::turn_context::InteractionContext;
+use crate::stream_events_utils::InteractionMessageContributorPolicy;
 use crate::stream_events_utils::finalize_turn_item;
 use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolPayload;
@@ -63,23 +63,23 @@ impl CoreToolRuntime for ExtensionToolAdapter {
     }
 }
 
-struct CoreTurnItemEmitter {
+struct CoreInteractionMessageEmitter {
     session: Weak<Session>,
-    turn: Weak<TurnContext>,
+    turn: Weak<InteractionContext>,
 }
 
-fn extension_turn_item(item: ExtensionTurnItem) -> TurnItem {
+fn extension_turn_item(item: ExtensionInteractionMessage) -> InteractionMessage {
     match item {
-        ExtensionTurnItem::WebSearch(item) => TurnItem::WebSearch(item),
-        ExtensionTurnItem::ImageGeneration(mut item) => {
+        ExtensionInteractionMessage::WebSearch(item) => InteractionMessage::WebSearch(item),
+        ExtensionInteractionMessage::ImageGeneration(mut item) => {
             item.saved_path = None;
-            TurnItem::ImageGeneration(item)
+            InteractionMessage::ImageGeneration(item)
         }
     }
 }
 
-impl TurnItemEmitter for CoreTurnItemEmitter {
-    fn emit_started<'a>(&'a self, item: ExtensionTurnItem) -> TurnItemEmissionFuture<'a> {
+impl InteractionMessageEmitter for CoreInteractionMessageEmitter {
+    fn emit_started<'a>(&'a self, item: ExtensionInteractionMessage) -> InteractionMessageEmissionFuture<'a> {
         Box::pin(async move {
             let (Some(session), Some(turn)) = (self.session.upgrade(), self.turn.upgrade()) else {
                 return;
@@ -90,7 +90,7 @@ impl TurnItemEmitter for CoreTurnItemEmitter {
         })
     }
 
-    fn emit_completed<'a>(&'a self, item: ExtensionTurnItem) -> TurnItemEmissionFuture<'a> {
+    fn emit_completed<'a>(&'a self, item: ExtensionInteractionMessage) -> InteractionMessageEmissionFuture<'a> {
         Box::pin(async move {
             let (Some(session), Some(turn)) = (self.session.upgrade(), self.turn.upgrade()) else {
                 return;
@@ -99,7 +99,7 @@ impl TurnItemEmitter for CoreTurnItemEmitter {
             finalize_turn_item(
                 session.as_ref(),
                 turn.as_ref(),
-                TurnItemContributorPolicy::Run(turn.extension_data.as_ref()),
+                InteractionMessageContributorPolicy::Run(turn.extension_data.as_ref()),
                 &mut item,
                 turn.collaboration_mode.mode == datax_protocol::config_types::ModeKind::Plan,
             )
@@ -145,7 +145,7 @@ async fn to_extension_call(invocation: &ToolInvocation) -> ExtensionToolCall {
         model: invocation.turn.model_info.slug.clone(),
         truncation_policy: invocation.turn.model_info.truncation_policy.into(),
         conversation_history,
-        turn_item_emitter: Arc::new(CoreTurnItemEmitter {
+        turn_item_emitter: Arc::new(CoreInteractionMessageEmitter {
             session: Arc::downgrade(&invocation.session),
             turn: Arc::downgrade(&invocation.turn),
         }),
@@ -159,21 +159,21 @@ mod tests {
     use std::sync::Arc;
 
     use datax_extension_api::ExtensionData;
-    use datax_extension_api::TurnItemContributor;
-    use datax_protocol::items::TurnItem;
+    use datax_extension_api::InteractionMessageContributor;
+    use datax_protocol::items::InteractionMessage;
     use datax_protocol::items::WebSearchItem;
     use datax_protocol::models::ContentItem;
     use datax_protocol::models::ResponseItem;
     use datax_protocol::models::WebSearchAction;
     use datax_protocol::protocol::EventMsg;
-    use datax_tools::ExtensionTurnItem;
+    use datax_tools::ExtensionInteractionMessage;
     use datax_utils_absolute_path::test_support::PathExt;
     use datax_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use tokio::sync::Mutex;
 
-    use super::CoreTurnItemEmitter;
+    use super::CoreInteractionMessageEmitter;
     use super::ExtensionToolAdapter;
     use crate::tools::context::ToolCallSource;
     use crate::tools::context::ToolInvocation;
@@ -182,7 +182,7 @@ mod tests {
     use crate::tools::registry::CoreToolRuntime;
     use crate::tools::registry::PostToolUsePayload;
     use crate::tools::registry::PreToolUsePayload;
-    use crate::turn_diff_tracker::TurnDiffTracker;
+    use crate::turn_diff_tracker::InteractionDiffTracker;
 
     struct StubExtensionExecutor;
 
@@ -250,7 +250,7 @@ mod tests {
             &self,
             call: datax_tools::ToolCall,
         ) -> Result<Box<dyn datax_tools::ToolOutput>, datax_tools::FunctionCallError> {
-            let item = ExtensionTurnItem::WebSearch(WebSearchItem {
+            let item = ExtensionInteractionMessage::WebSearch(WebSearchItem {
                 id: call.call_id.clone(),
                 query: "rust trait object".to_string(),
                 action: WebSearchAction::Search {
@@ -276,7 +276,7 @@ mod tests {
             session: session.into(),
             turn: turn.into(),
             cancellation_token: tokio_util::sync::CancellationToken::new(),
-            tracker: Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new())),
+            tracker: Arc::new(tokio::sync::Mutex::new(InteractionDiffTracker::new())),
             call_id: "call-extension".to_string(),
             tool_name: datax_tools::ToolName::plain("extension_echo"),
             source: ToolCallSource::Direct,
@@ -345,7 +345,7 @@ mod tests {
             session,
             turn,
             cancellation_token: tokio_util::sync::CancellationToken::new(),
-            tracker: Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new())),
+            tracker: Arc::new(tokio::sync::Mutex::new(InteractionDiffTracker::new())),
             call_id: "call-extension".to_string(),
             tool_name: datax_tools::ToolName::plain("extension_echo"),
             source: ToolCallSource::Direct,
@@ -389,10 +389,10 @@ mod tests {
         }
 
         let started = rx.recv().await.expect("item started event");
-        let EventMsg::ItemStarted(started) = started.msg else {
+        let EventMsg::MessageStarted(started) = started.msg else {
             panic!("expected item started event");
         };
-        let TurnItem::WebSearch(started_item) = started.item else {
+        let InteractionMessage::WebSearch(started_item) = started.item else {
             panic!("expected web search item");
         };
         let begin = rx.recv().await.expect("legacy web search begin event");
@@ -400,10 +400,10 @@ mod tests {
             panic!("expected legacy web search begin event");
         };
         let completed = rx.recv().await.expect("item completed event");
-        let EventMsg::ItemCompleted(completed) = completed.msg else {
+        let EventMsg::MessageCompleted(completed) = completed.msg else {
             panic!("expected item completed event");
         };
-        let TurnItem::WebSearch(completed_item) = completed.item else {
+        let InteractionMessage::WebSearch(completed_item) = completed.item else {
             panic!("expected web search item");
         };
         let end = rx.recv().await.expect("legacy web search end event");
@@ -430,19 +430,19 @@ mod tests {
     struct ImageGenerationExtensionExecutor;
 
     #[derive(Debug)]
-    struct ExtensionTurnItemContributorRan;
+    struct ExtensionInteractionMessageContributorRan;
 
-    struct RecordExtensionTurnItemContributor;
+    struct RecordExtensionInteractionMessageContributor;
 
-    impl TurnItemContributor for RecordExtensionTurnItemContributor {
+    impl InteractionMessageContributor for RecordExtensionInteractionMessageContributor {
         fn contribute<'a>(
             &'a self,
             _thread_store: &'a ExtensionData,
             turn_store: &'a ExtensionData,
-            _item: &'a mut TurnItem,
+            _item: &'a mut InteractionMessage,
         ) -> datax_extension_api::ExtensionFuture<'a, Result<(), String>> {
             Box::pin(async move {
-                turn_store.insert(ExtensionTurnItemContributorRan);
+                turn_store.insert(ExtensionInteractionMessageContributorRan);
                 Ok(())
             })
         }
@@ -452,18 +452,18 @@ mod tests {
     async fn extension_completion_runs_turn_item_contributors() {
         let (mut session, turn) = crate::session::tests::make_session_and_context().await;
         let mut builder = datax_extension_api::ExtensionRegistryBuilder::new();
-        builder.turn_item_contributor(Arc::new(RecordExtensionTurnItemContributor));
+        builder.turn_item_contributor(Arc::new(RecordExtensionInteractionMessageContributor));
         session.services.extensions = Arc::new(builder.build());
         let session = Arc::new(session);
         let turn = Arc::new(turn);
-        let emitter = CoreTurnItemEmitter {
+        let emitter = CoreInteractionMessageEmitter {
             session: Arc::downgrade(&session),
             turn: Arc::downgrade(&turn),
         };
 
-        datax_tools::TurnItemEmitter::emit_completed(
+        datax_tools::InteractionMessageEmitter::emit_completed(
             &emitter,
-            ExtensionTurnItem::WebSearch(WebSearchItem {
+            ExtensionInteractionMessage::WebSearch(WebSearchItem {
                 id: "search-1".to_string(),
                 query: "contributors".to_string(),
                 action: WebSearchAction::Other,
@@ -473,7 +473,7 @@ mod tests {
 
         assert!(
             turn.extension_data
-                .get::<ExtensionTurnItemContributorRan>()
+                .get::<ExtensionInteractionMessageContributorRan>()
                 .is_some()
         );
     }
@@ -505,7 +505,7 @@ mod tests {
             call: datax_tools::ToolCall,
         ) -> Result<Box<dyn datax_tools::ToolOutput>, datax_tools::FunctionCallError> {
             call.turn_item_emitter
-                .emit_started(ExtensionTurnItem::ImageGeneration(
+                .emit_started(ExtensionInteractionMessage::ImageGeneration(
                     datax_protocol::items::ImageGenerationItem {
                         id: call.call_id.clone(),
                         status: "in_progress".to_string(),
@@ -516,7 +516,7 @@ mod tests {
                 ))
                 .await;
             call.turn_item_emitter
-                .emit_completed(ExtensionTurnItem::ImageGeneration(
+                .emit_completed(ExtensionInteractionMessage::ImageGeneration(
                     datax_protocol::items::ImageGenerationItem {
                         id: call.call_id,
                         status: "completed".to_string(),
@@ -546,7 +546,7 @@ mod tests {
             session,
             turn,
             cancellation_token: tokio_util::sync::CancellationToken::new(),
-            tracker: Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new())),
+            tracker: Arc::new(tokio::sync::Mutex::new(InteractionDiffTracker::new())),
             call_id: "call-image".to_string(),
             tool_name: datax_tools::ToolName::namespaced("image_gen", "imagegen"),
             source: ToolCallSource::Direct,
@@ -560,19 +560,19 @@ mod tests {
             .expect("extension call should succeed");
 
         let started = rx.recv().await.expect("item started event");
-        let EventMsg::ItemStarted(started) = started.msg else {
+        let EventMsg::MessageStarted(started) = started.msg else {
             panic!("expected item started event");
         };
-        let TurnItem::ImageGeneration(started_item) = started.item else {
+        let InteractionMessage::ImageGeneration(started_item) = started.item else {
             panic!("expected image generation item");
         };
         let begin = rx.recv().await.expect("legacy image start event");
         assert!(matches!(begin.msg, EventMsg::ImageGenerationBegin(_)));
         let completed = rx.recv().await.expect("item completed event");
-        let EventMsg::ItemCompleted(completed) = completed.msg else {
+        let EventMsg::MessageCompleted(completed) = completed.msg else {
             panic!("expected item completed event");
         };
-        let TurnItem::ImageGeneration(completed_item) = completed.item else {
+        let InteractionMessage::ImageGeneration(completed_item) = completed.item else {
             panic!("expected image generation item");
         };
         let end = rx.recv().await.expect("legacy image end event");

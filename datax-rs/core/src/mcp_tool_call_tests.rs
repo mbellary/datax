@@ -90,7 +90,7 @@ fn approval_metadata(
     }
 }
 
-fn mcp_turn_metadata_context(turn_context: &TurnContext) -> McpTurnMetadataContext<'_> {
+fn mcp_turn_metadata_context(turn_context: &InteractionContext) -> McpTurnMetadataContext<'_> {
     McpTurnMetadataContext {
         model: turn_context.model_info.slug.as_str(),
         reasoning_effort: turn_context.effective_reasoning_effort(),
@@ -187,7 +187,7 @@ async fn execute_mcp_tool_call_records_replayable_correlation() -> anyhow::Resul
 
 fn install_mcp_permission_request_hook(
     session: &mut Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     matcher: &str,
     hook_output: &serde_json::Value,
 ) -> std::path::PathBuf {
@@ -277,7 +277,7 @@ print({hook_output:?})
 /// Attaches a replayable rollout bundle to one synthetic session under test.
 fn attach_trace_bundle(
     session: &mut Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     root: &Path,
 ) -> anyhow::Result<()> {
     let rollout_thread_trace =
@@ -1207,10 +1207,10 @@ async fn mcp_tool_call_item_includes_app_identity() {
         .await
         .expect("tool call item timed out")
         .expect("tool call item event");
-    let EventMsg::ItemStarted(item_started) = event.msg else {
-        panic!("expected ItemStarted event");
+    let EventMsg::MessageStarted(item_started) = event.msg else {
+        panic!("expected MessageStarted event");
     };
-    let TurnItem::McpToolCall(item) = item_started.item else {
+    let InteractionMessage::McpToolCall(item) = item_started.item else {
         panic!("expected MCP tool call item");
     };
 
@@ -1333,7 +1333,7 @@ fn codex_apps_auth_failure_metadata() -> McpToolApprovalMetadata {
     )
 }
 
-async fn install_host_owned_codex_apps_manager(session: &Session, turn_context: &TurnContext) {
+async fn install_host_owned_codex_apps_manager(session: &Session, turn_context: &InteractionContext) {
     let auth = session.services.auth_manager.auth().await;
     let manager = datax_mcp::McpConnectionManager::new(
         &HashMap::new(),

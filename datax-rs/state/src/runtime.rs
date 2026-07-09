@@ -34,7 +34,7 @@ use crate::telemetry::DbTelemetry;
 use chrono::DateTime;
 use chrono::Utc;
 use datax_protocol::ChatId;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use log::LevelFilter;
 use serde_json::Value;
 use sqlx::ConnectOptions;

@@ -13,7 +13,7 @@ use datax_protocol::ChatId;
 #[cfg(test)]
 use datax_protocol::config_types::MultiAgentMode;
 use datax_protocol::protocol::EventMsg;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_rollout::state_db::StateDbHandle;
 use datax_utils_path_uri::LegacyAppPathString;
 use std::collections::HashMap;
@@ -31,7 +31,7 @@ type PendingInterruptQueue = Vec<ConnectionRequestId>;
 
 pub(crate) struct PendingThreadResumeRequest {
     pub(crate) request_id: ConnectionRequestId,
-    pub(crate) history_items: Vec<RolloutItem>,
+    pub(crate) history_items: Vec<RolloutMessage>,
     pub(crate) config_snapshot: ThreadConfigSnapshot,
     pub(crate) instruction_sources: Vec<LegacyAppPathString>,
     pub(crate) thread_summary: datax_app_server_protocol::Chat,

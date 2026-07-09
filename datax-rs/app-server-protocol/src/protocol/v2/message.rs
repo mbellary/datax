@@ -15,7 +15,7 @@ use datax_protocol::approvals::GuardianAssessmentDecisionSource as CoreGuardianA
 use datax_protocol::approvals::GuardianCommandSource as CoreGuardianCommandSource;
 use datax_protocol::items::AgentMessageContent as CoreAgentMessageContent;
 use datax_protocol::items::McpToolCallStatus as CoreMcpToolCallStatus;
-use datax_protocol::items::TurnItem as CoreTurnItem;
+use datax_protocol::items::InteractionMessage as CoreInteractionMessage;
 use datax_protocol::memory_citation::MemoryCitation as CoreMemoryCitation;
 use datax_protocol::memory_citation::MemoryCitationEntry as CoreMemoryCitationEntry;
 use datax_protocol::models::MessagePhase;
@@ -808,15 +808,15 @@ impl From<datax_protocol::models::WebSearchAction> for WebSearchAction {
     }
 }
 
-impl From<CoreTurnItem> for Message {
-    fn from(value: CoreTurnItem) -> Self {
+impl From<CoreInteractionMessage> for Message {
+    fn from(value: CoreInteractionMessage) -> Self {
         match value {
-            CoreTurnItem::UserMessage(user) => Message::UserMessage {
+            CoreInteractionMessage::UserMessage(user) => Message::UserMessage {
                 id: user.id,
                 client_id: user.client_id,
                 content: user.content.into_iter().map(UserInput::from).collect(),
             },
-            CoreTurnItem::HookPrompt(hook_prompt) => Message::HookPrompt {
+            CoreInteractionMessage::HookPrompt(hook_prompt) => Message::HookPrompt {
                 id: hook_prompt.id,
                 fragments: hook_prompt
                     .fragments
@@ -824,7 +824,7 @@ impl From<CoreTurnItem> for Message {
                     .map(HookPromptFragment::from)
                     .collect(),
             },
-            CoreTurnItem::AgentMessage(agent) => {
+            CoreInteractionMessage::AgentMessage(agent) => {
                 let text = agent
                     .content
                     .into_iter()
@@ -839,36 +839,36 @@ impl From<CoreTurnItem> for Message {
                     memory_citation: agent.memory_citation.map(Into::into),
                 }
             }
-            CoreTurnItem::Plan(plan) => Message::Plan {
+            CoreInteractionMessage::Plan(plan) => Message::Plan {
                 id: plan.id,
                 text: plan.text,
             },
-            CoreTurnItem::Reasoning(reasoning) => Message::Reasoning {
+            CoreInteractionMessage::Reasoning(reasoning) => Message::Reasoning {
                 id: reasoning.id,
                 summary: reasoning.summary_text,
                 content: reasoning.raw_content,
             },
-            CoreTurnItem::WebSearch(search) => Message::WebSearch {
+            CoreInteractionMessage::WebSearch(search) => Message::WebSearch {
                 id: search.id,
                 query: search.query,
                 action: Some(WebSearchAction::from(search.action)),
             },
-            CoreTurnItem::ImageView(image) => Message::ImageView {
+            CoreInteractionMessage::ImageView(image) => Message::ImageView {
                 id: image.id,
                 path: image.path,
             },
-            CoreTurnItem::Sleep(sleep) => Message::Sleep {
+            CoreInteractionMessage::Sleep(sleep) => Message::Sleep {
                 id: sleep.id,
                 duration_ms: sleep.duration_ms,
             },
-            CoreTurnItem::ImageGeneration(image) => Message::ImageGeneration {
+            CoreInteractionMessage::ImageGeneration(image) => Message::ImageGeneration {
                 id: image.id,
                 status: image.status,
                 revised_prompt: image.revised_prompt,
                 result: image.result,
                 saved_path: image.saved_path,
             },
-            CoreTurnItem::FileChange(file_change) => Message::FileChange {
+            CoreInteractionMessage::FileChange(file_change) => Message::FileChange {
                 id: file_change.id,
                 changes: convert_patch_changes(&file_change.changes),
                 status: file_change
@@ -877,7 +877,7 @@ impl From<CoreTurnItem> for Message {
                     .map(PatchApplyStatus::from)
                     .unwrap_or(PatchApplyStatus::InProgress),
             },
-            CoreTurnItem::McpToolCall(mcp) => {
+            CoreInteractionMessage::McpToolCall(mcp) => {
                 let duration_ms = mcp
                     .duration
                     .and_then(|duration| i64::try_from(duration.as_millis()).ok());
@@ -900,7 +900,7 @@ impl From<CoreTurnItem> for Message {
                     duration_ms,
                 }
             }
-            CoreTurnItem::ContextCompaction(compaction) => {
+            CoreInteractionMessage::ContextCompaction(compaction) => {
                 Message::ContextCompaction { id: compaction.id }
             }
         }
@@ -1214,7 +1214,7 @@ pub struct MessageCompletedNotification {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
-pub struct RawResponseItemCompletedNotification {
+pub struct RawResponseMessageCompletedNotification {
     pub chat_id: String,
     pub interaction_id: String,
     pub item: ResponseItem,

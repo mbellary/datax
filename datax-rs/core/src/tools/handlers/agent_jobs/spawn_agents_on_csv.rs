@@ -68,7 +68,7 @@ impl CoreToolRuntime for SpawnAgentsOnCsvHandler {
 /// `report_agent_job_result`, then exported to CSV on completion.
 pub async fn handle(
     session: Arc<Session>,
-    turn: Arc<TurnContext>,
+    turn: Arc<InteractionContext>,
     arguments: String,
 ) -> Result<FunctionToolOutput, FunctionCallError> {
     let args: SpawnAgentsOnCsvArgs = parse_arguments(arguments.as_str())?;
@@ -299,7 +299,7 @@ pub async fn handle(
     Ok(FunctionToolOutput::from_text(content, Some(true)))
 }
 
-fn single_local_environment_cwd(turn: &TurnContext) -> Result<AbsolutePathBuf, FunctionCallError> {
+fn single_local_environment_cwd(turn: &InteractionContext) -> Result<AbsolutePathBuf, FunctionCallError> {
     let [turn_environment] = turn.environments.turn_environments.as_slice() else {
         return Err(FunctionCallError::RespondToModel(
             "spawn_agents_on_csv requires exactly one local environment".to_string(),

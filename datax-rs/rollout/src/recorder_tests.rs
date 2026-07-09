@@ -9,13 +9,13 @@ use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::AgentMessageEvent;
 use datax_protocol::protocol::AskForApproval;
 use datax_protocol::protocol::EventMsg;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::protocol::SandboxPolicy;
 use datax_protocol::protocol::SessionMeta;
 use datax_protocol::protocol::SessionMetaLine;
 use datax_protocol::protocol::SessionSource;
-use datax_protocol::protocol::TurnContextItem;
+use datax_protocol::protocol::InteractionContextMessage;
 use datax_protocol::protocol::UserMessageEvent;
 use pretty_assertions::assert_eq;
 use std::fs;
@@ -109,11 +109,11 @@ async fn state_db_init_backfills_before_returning() -> anyhow::Result<()> {
     let lines = [
         RolloutLine {
             timestamp: "2026-01-27T12:34:56Z".to_string(),
-            item: RolloutItem::SessionMeta(session_meta_line),
+            item: RolloutMessage::SessionMeta(session_meta_line),
         },
         RolloutLine {
             timestamp: "2026-01-27T12:34:57Z".to_string(),
-            item: RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+            item: RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
                 client_id: None,
                 message: "hello from startup backfill".to_string(),
                 images: None,
@@ -213,13 +213,13 @@ async fn load_rollout_items_defaults_legacy_session_id() -> std::io::Result<()> 
     assert_eq!(loaded_chat_id, Some(chat_id));
     assert_eq!(parse_errors, 0);
     assert_eq!(items.len(), 2);
-    let RolloutItem::SessionMeta(session_meta) = &items[0] else {
+    let RolloutMessage::SessionMeta(session_meta) = &items[0] else {
         panic!("expected session metadata");
     };
     assert_eq!(session_meta.meta.session_id, SessionId::from(chat_id));
     assert!(matches!(
         items[1],
-        RolloutItem::ResponseItem(ResponseItem::Message { .. })
+        RolloutMessage::ResponseItem(ResponseItem::Message { .. })
     ));
 
     Ok(())
@@ -278,7 +278,7 @@ async fn load_rollout_items_preserves_legacy_guardian_assessment_lines() -> std:
     assert_eq!(loaded_chat_id, Some(chat_id));
     assert_eq!(parse_errors, 0);
     assert_eq!(items.len(), 2);
-    let RolloutItem::EventMsg(EventMsg::GuardianAssessment(assessment)) = &items[1] else {
+    let RolloutMessage::EventMsg(EventMsg::GuardianAssessment(assessment)) = &items[1] else {
         panic!("expected guardian assessment rollout item");
     };
     assert_eq!(assessment.id, "guardian-1");
@@ -353,7 +353,7 @@ async fn load_rollout_items_filters_legacy_ghost_snapshots_from_compaction_histo
     assert_eq!(loaded_chat_id, Some(chat_id));
     assert_eq!(parse_errors, 0);
     assert_eq!(items.len(), 2);
-    let RolloutItem::Compacted(compacted) = &items[1] else {
+    let RolloutMessage::Compacted(compacted) = &items[1] else {
         panic!("expected compacted rollout item");
     };
     let replacement_history = compacted
@@ -397,7 +397,7 @@ async fn recorder_materializes_on_flush_with_pending_items() -> std::io::Result<
     );
 
     recorder
-        .record_canonical_items(&[RolloutItem::EventMsg(EventMsg::AgentMessage(
+        .record_canonical_items(&[RolloutMessage::EventMsg(EventMsg::AgentMessage(
             AgentMessageEvent {
                 message: "buffered-event".to_string(),
                 phase: None,
@@ -412,7 +412,7 @@ async fn recorder_materializes_on_flush_with_pending_items() -> std::io::Result<
     );
 
     recorder
-        .record_canonical_items(&[RolloutItem::EventMsg(EventMsg::UserMessage(
+        .record_canonical_items(&[RolloutMessage::EventMsg(EventMsg::UserMessage(
             UserMessageEvent {
                 client_id: None,
                 message: "first-user-message".to_string(),
@@ -433,7 +433,7 @@ async fn recorder_materializes_on_flush_with_pending_items() -> std::io::Result<
     let text = std::fs::read_to_string(&rollout_path)?;
     let first_line = text.lines().next().expect("session metadata line");
     let session_meta: RolloutLine = serde_json::from_str(first_line)?;
-    let RolloutItem::SessionMeta(session_meta) = session_meta.item else {
+    let RolloutMessage::SessionMeta(session_meta) = session_meta.item else {
         panic!("expected session metadata in rollout");
     };
     assert_eq!(session_meta.meta.session_id, session_id);
@@ -475,7 +475,7 @@ async fn persist_reports_filesystem_error_and_retries_buffered_items() -> std::i
     let rollout_path = recorder.rollout_path().to_path_buf();
 
     recorder
-        .record_canonical_items(&[RolloutItem::EventMsg(EventMsg::AgentMessage(
+        .record_canonical_items(&[RolloutMessage::EventMsg(EventMsg::AgentMessage(
             AgentMessageEvent {
                 message: "buffered-before-persist".to_string(),
                 phase: None,
@@ -521,7 +521,7 @@ async fn writer_state_retries_write_error_before_reporting_flush_success() -> st
         home.path().to_path_buf(),
         rollout_path.clone(),
     );
-    state.add_items(vec![RolloutItem::EventMsg(EventMsg::AgentMessage(
+    state.add_items(vec![RolloutMessage::EventMsg(EventMsg::AgentMessage(
         AgentMessageEvent {
             message: "queued-after-writer-error".to_string(),
             phase: None,
@@ -1148,7 +1148,7 @@ async fn resume_candidate_matches_cwd_reads_latest_turn_context() -> std::io::Re
     let mut file = std::fs::OpenOptions::new().append(true).open(&path)?;
     let turn_context = RolloutLine {
         timestamp: "2025-01-03T13:00:01Z".to_string(),
-        item: RolloutItem::TurnContext(TurnContextItem {
+        item: RolloutMessage::InteractionContext(InteractionContextMessage {
             interaction_id: Some("turn-1".to_string()),
             cwd: serde_json::from_value(serde_json::json!(&latest_cwd))
                 .expect("absolute latest cwd"),

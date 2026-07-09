@@ -3,7 +3,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use datax_context_fragments::ContextualUserFragment;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::protocol::ReviewDecision;
 use datax_protocol::protocol::TokenUsageInfo;
 use datax_tools::ToolCall;
@@ -19,7 +19,7 @@ mod tool_lifecycle;
 mod turn_input;
 mod turn_lifecycle;
 
-pub use context::TurnContextContributionInput;
+pub use context::InteractionContextContributionInput;
 pub use mcp::McpServerContribution;
 pub use mcp::McpServerContributionContext;
 pub use prompt::PromptFragment;
@@ -84,7 +84,7 @@ pub trait ContextContributor: Send + Sync {
 
     fn contribute_turn_context<'a>(
         &'a self,
-        input: TurnContextContributionInput<'a>,
+        input: InteractionContextContributionInput<'a>,
     ) -> ExtensionFuture<'a, Vec<PromptFragment>> {
         Box::pin(async move {
             let _self = self;
@@ -273,11 +273,11 @@ pub trait ApprovalReviewContributor: Send + Sync {
 /// Implementations may mutate the item before it is emitted and may use the
 /// explicitly exposed thread- and turn-lifetime stores when they need durable
 /// extension-private state.
-pub trait TurnItemContributor: Send + Sync {
+pub trait InteractionMessageContributor: Send + Sync {
     fn contribute<'a>(
         &'a self,
         thread_store: &'a ExtensionData,
         turn_store: &'a ExtensionData,
-        item: &'a mut TurnItem,
+        item: &'a mut InteractionMessage,
     ) -> ExtensionFuture<'a, Result<(), String>>;
 }

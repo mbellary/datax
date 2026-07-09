@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use chrono::Utc;
 use datax_protocol::ChatId;
 use datax_protocol::protocol::GitInfo;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::ThreadMemoryMode;
 use datax_rollout::ARCHIVED_SESSIONS_SUBDIR;
@@ -22,7 +22,7 @@ use super::helpers::permission_profile_to_metadata_value;
 use super::live_writer;
 use crate::GitInfoPatch;
 use crate::ReadThreadParams;
-use crate::StoredThread;
+use crate::StoredChat;
 use crate::ThreadMetadataPatch;
 use crate::ThreadStoreError;
 use crate::ThreadStoreResult;
@@ -37,7 +37,7 @@ struct ResolvedRolloutPath {
 pub(super) async fn update_thread_metadata(
     store: &LocalThreadStore,
     params: UpdateThreadMetadataParams,
-) -> ThreadStoreResult<StoredThread> {
+) -> ThreadStoreResult<StoredChat> {
     let chat_id = params.chat_id;
     let patch = params.patch;
     if patch.is_empty() {
@@ -187,7 +187,7 @@ async fn apply_metadata_update(
     patch: ThreadMetadataPatch,
     include_archived: bool,
     require_sqlite_write: bool,
-) -> ThreadStoreResult<StoredThread> {
+) -> ThreadStoreResult<StoredChat> {
     let live_rollout_path = live_writer::rollout_path(store, chat_id).await.ok();
     let mut rollout_path = patch.rollout_path.clone().or(live_rollout_path);
     let mut rollout_path_archived = rollout_path
@@ -505,7 +505,7 @@ async fn apply_thread_git_info_to_rollout(
         repository_url: origin_url.clone(),
     });
     session_meta.meta.memory_mode = memory_mode.map(str::to_string);
-    append_rollout_item_to_path(rollout_path, &RolloutItem::SessionMeta(session_meta))
+    append_rollout_item_to_path(rollout_path, &RolloutMessage::SessionMeta(session_meta))
         .await
         .map_err(|err| ThreadStoreError::Internal {
             message: format!("failed to set thread git metadata: {err}"),
@@ -562,7 +562,7 @@ async fn apply_thread_memory_mode(
     // code will preserve the latest prior git marker when this field is absent.
     session_meta.git = None;
     session_meta.meta.memory_mode = Some(memory_mode_as_str(memory_mode).to_string());
-    append_rollout_item_to_path(rollout_path, &RolloutItem::SessionMeta(session_meta))
+    append_rollout_item_to_path(rollout_path, &RolloutMessage::SessionMeta(session_meta))
         .await
         .map_err(|err| ThreadStoreError::Internal {
             message: format!("failed to set thread memory mode: {err}"),

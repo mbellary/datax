@@ -30,15 +30,15 @@ pub(super) fn agent_nickname_candidates(config: &Config, role_name: Option<&str>
         .collect()
 }
 
-fn keep_forked_rollout_item(item: &RolloutItem, preserve_reference_context_item: bool) -> bool {
+fn keep_forked_rollout_item(item: &RolloutMessage, preserve_reference_context_item: bool) -> bool {
     match item {
-        RolloutItem::ResponseItem(ResponseItem::Message { role, phase, .. }) => match role.as_str()
+        RolloutMessage::ResponseItem(ResponseItem::Message { role, phase, .. }) => match role.as_str()
         {
             "system" | "developer" | "user" => true,
             "assistant" => *phase == Some(MessagePhase::FinalAnswer),
             _ => false,
         },
-        RolloutItem::ResponseItem(
+        RolloutMessage::ResponseItem(
             ResponseItem::AgentMessage { .. }
             | ResponseItem::Reasoning { .. }
             | ResponseItem::LocalShellCall { .. }
@@ -55,12 +55,12 @@ fn keep_forked_rollout_item(item: &RolloutItem, preserve_reference_context_item:
             | ResponseItem::ContextCompaction { .. }
             | ResponseItem::Other,
         ) => false,
-        RolloutItem::InterAgentCommunication(_) => false,
+        RolloutMessage::InterAgentCommunication(_) => false,
         // Full-history forks preserve the cached prompt prefix and can keep diffing
         // from the parent's durable baseline. Truncated forks drop part of that prompt,
         // so they must rebuild context on their first child turn.
-        RolloutItem::TurnContext(_) => preserve_reference_context_item,
-        RolloutItem::Compacted(_) | RolloutItem::EventMsg(_) | RolloutItem::SessionMeta(_) => true,
+        RolloutMessage::InteractionContext(_) => preserve_reference_context_item,
+        RolloutMessage::Compacted(_) | RolloutMessage::EventMsg(_) | RolloutMessage::SessionMeta(_) => true,
     }
 }
 
@@ -469,7 +469,7 @@ impl AgentControl {
             keep_forked_rollout_item(item, preserve_reference_context_item)
                 && !matches!(
                     item,
-                    RolloutItem::ResponseItem(response_item)
+                    RolloutMessage::ResponseItem(response_item)
                         if is_multi_agent_v2_usage_hint_message(
                             response_item,
                             &multi_agent_v2_usage_hint_texts_to_filter,
@@ -477,7 +477,7 @@ impl AgentControl {
                 )
         });
         for item in &mut forked_rollout_items {
-            if let RolloutItem::Compacted(compacted) = item
+            if let RolloutMessage::Compacted(compacted) = item
                 && let Some(replacement_history) = compacted.replacement_history.as_mut()
             {
                 replacement_history.retain(|response_item| {
@@ -497,7 +497,7 @@ impl AgentControl {
                     subagent_usage_hint_text,
                 ])
         {
-            forked_rollout_items.push(RolloutItem::ResponseItem(subagent_usage_hint_message));
+            forked_rollout_items.push(RolloutMessage::ResponseItem(subagent_usage_hint_message));
         }
 
         state

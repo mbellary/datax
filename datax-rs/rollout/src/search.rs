@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use datax_protocol::models::ContentItem;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::EventMsg;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::protocol::USER_MESSAGE_BEGIN;
 use regex::Regex;
@@ -250,9 +250,9 @@ fn content_match_snippet(jsonl_line: &str, search_term: &Regex) -> Option<String
     excerpt_around_match(text.as_str(), search_term)
 }
 
-fn conversation_text_from_item(item: &RolloutItem) -> Option<String> {
+fn conversation_text_from_item(item: &RolloutMessage) -> Option<String> {
     match item {
-        RolloutItem::EventMsg(EventMsg::UserMessage(user)) => {
+        RolloutMessage::EventMsg(EventMsg::UserMessage(user)) => {
             let text = strip_user_message_prefix(user.message.as_str());
             if text.is_empty() {
                 None
@@ -260,14 +260,14 @@ fn conversation_text_from_item(item: &RolloutItem) -> Option<String> {
                 Some(text.to_string())
             }
         }
-        RolloutItem::EventMsg(EventMsg::AgentMessage(agent)) => {
+        RolloutMessage::EventMsg(EventMsg::AgentMessage(agent)) => {
             if agent.message.trim().is_empty() {
                 None
             } else {
                 Some(agent.message.trim().to_string())
             }
         }
-        RolloutItem::ResponseItem(ResponseItem::Message { role, content, .. }) => {
+        RolloutMessage::ResponseItem(ResponseItem::Message { role, content, .. }) => {
             let text = content
                 .iter()
                 .filter_map(content_item_text)
@@ -279,12 +279,12 @@ fn conversation_text_from_item(item: &RolloutItem) -> Option<String> {
                 Some(text)
             }
         }
-        RolloutItem::SessionMeta(_)
-        | RolloutItem::TurnContext(_)
-        | RolloutItem::EventMsg(_)
-        | RolloutItem::ResponseItem(_)
-        | RolloutItem::InterAgentCommunication(_)
-        | RolloutItem::Compacted(_) => None,
+        RolloutMessage::SessionMeta(_)
+        | RolloutMessage::InteractionContext(_)
+        | RolloutMessage::EventMsg(_)
+        | RolloutMessage::ResponseItem(_)
+        | RolloutMessage::InterAgentCommunication(_)
+        | RolloutMessage::Compacted(_) => None,
     }
 }
 

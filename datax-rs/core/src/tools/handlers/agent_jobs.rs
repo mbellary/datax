@@ -3,7 +3,7 @@ use crate::agent::status::is_final;
 use crate::config::Config;
 use crate::function_tool::FunctionCallError;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::tools::handlers::multi_agents::build_agent_spawn_config;
 use crate::tools::handlers::parse_arguments;
 use datax_protocol::ChatId;
@@ -107,7 +107,7 @@ fn required_state_db(
 
 async fn build_runner_options(
     session: &Arc<Session>,
-    turn: &Arc<TurnContext>,
+    turn: &Arc<InteractionContext>,
     requested_concurrency: Option<usize>,
 ) -> Result<JobRunnerOptions, FunctionCallError> {
     let multi_agent_version = turn.multi_agent_version;
@@ -155,7 +155,7 @@ fn normalize_max_runtime_seconds(requested: Option<u64>) -> Result<Option<u64>, 
 
 async fn run_agent_job_loop(
     session: Arc<Session>,
-    turn: Arc<TurnContext>,
+    turn: Arc<InteractionContext>,
     db: Arc<datax_state::StateRuntime>,
     job_id: String,
     options: JobRunnerOptions,

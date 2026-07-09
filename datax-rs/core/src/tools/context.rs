@@ -1,11 +1,11 @@
 use crate::context_manager::truncate_function_output_payload;
 use crate::original_image_detail::sanitize_original_image_detail;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::tools::TELEMETRY_PREVIEW_MAX_BYTES;
 use crate::tools::TELEMETRY_PREVIEW_MAX_LINES;
 use crate::tools::TELEMETRY_PREVIEW_TRUNCATION_NOTICE;
-use crate::turn_diff_tracker::TurnDiffTracker;
+use crate::turn_diff_tracker::InteractionDiffTracker;
 use crate::unified_exec::resolve_max_tokens;
 use datax_protocol::mcp::CallToolResult;
 use datax_protocol::models::FunctionCallOutputBody;
@@ -35,7 +35,7 @@ where
     Box::new(output)
 }
 
-pub type SharedTurnDiffTracker = Arc<Mutex<TurnDiffTracker>>;
+pub type SharedInteractionDiffTracker = Arc<Mutex<InteractionDiffTracker>>;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ToolCallSource {
@@ -53,9 +53,9 @@ pub enum ToolCallSource {
 #[derive(Clone)]
 pub struct ToolInvocation {
     pub session: Arc<Session>,
-    pub turn: Arc<TurnContext>,
+    pub turn: Arc<InteractionContext>,
     pub cancellation_token: CancellationToken,
-    pub tracker: SharedTurnDiffTracker,
+    pub tracker: SharedInteractionDiffTracker,
     pub call_id: String,
     pub tool_name: ToolName,
     pub source: ToolCallSource,

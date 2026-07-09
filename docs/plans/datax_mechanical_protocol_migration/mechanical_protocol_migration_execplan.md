@@ -236,6 +236,24 @@ Milestone 2 assumptions:
 - Local variables named `thread` or `turn` may remain when they refer to runtime machinery that has not yet been mechanically migrated in this slice.
 - The branch for this milestone is `codex/phase1-8-m2-protocol-internals`; the tracking issue is #19.
 
+Milestone 2 user-run commands:
+
+    cd /home/mbellary/wsl/projects/datax
+    git diff --check
+    cd /home/mbellary/wsl/projects/datax/datax-rs
+    just fmt
+    just write-app-server-schema
+    just test -p datax-app-server-protocol
+    just test -p datax-app-server
+
+Milestone 2 command assumptions:
+
+- `just fmt` is required because Rust code and tests changed.
+- `just write-app-server-schema` is required because v2 protocol Rust field names and TypeScript exports changed while preserving the existing wire names.
+- `just test -p datax-app-server-protocol` validates protocol serialization, schema fixture, and TypeScript export behavior.
+- `just test -p datax-app-server` validates the app-server request processors, notifications, and v2 integration tests updated for the new Rust field names.
+- No complete workspace `just test` is required for this milestone unless the focused commands expose broader protocol/core breakage.
+
 ## Plan of Work
 
 Milestone 1 is a boundary inventory. Search Datax-facing Rust and protocol files for `Codex`, `Thread`, `Turn`, `Item`, and common snake_case forms such as `thread_id` and `turn_id`. Classify each occurrence as a mechanical rename target, compatibility alias, downstream Codex bridge term, provenance, protected sandbox identifier, external dependency, or unrelated English. This milestone should update this plan with a concise inventory summary before code changes begin.
@@ -262,6 +280,7 @@ For Milestone 2, the user should run:
     just fmt
     just write-app-server-schema
     just test -p datax-app-server-protocol
+    just test -p datax-app-server
 
 For Milestone 3, the user should run:
 

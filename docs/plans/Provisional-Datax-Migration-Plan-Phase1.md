@@ -212,6 +212,27 @@ Downstream Codex artifact note:
    - Do not use the `codex-rs` rename as permission to move unrelated Datax-owned crates or redesign the repository layout.
    - Only after this checkpoint, begin Phase 2 product evolution.
 
+8. Phase 1.8: Mechanical protocol/domain migration
+   - Execute the mechanical protocol/domain migration plan maintained in
+     `docs/plans/datax_mechanical_protocol_migration/mechanical_protocol_migration_execplan.md`.
+   - Treat the following mapping as the source-of-truth invariant:
+     `Codex` → `Datax`, `Thread` → `Chat`, `Turn` → `Interaction`, and
+     `Item` → `Message`.
+   - Apply the mapping compositionally to Datax-facing names. Examples:
+     `ThreadManager` → `ChatManager`, `ThreadId` → `ChatId`,
+     `TurnItem` → `InteractionMessage`, and `RolloutItem` →
+     `RolloutMessage`.
+   - Preserve existing runtime capabilities. This phase renames and aligns
+     Datax-facing contracts; it does not remove managers, live chat/session
+     handles, persistence, event streams, resumability, or history machinery.
+   - Keep compatibility aliases, provenance references, protected sandbox
+     identifiers, and future downstream Codex bridge terms explicit and
+     isolated.
+   - Do not add data engineering product features or downstream Codex app-server
+     integration in this phase.
+   - Only after Phase 1.8 is complete, begin Phase 2 product evolution and
+     downstream adapter/runtime implementation.
+
 ## Public API And Interface Changes
 Phase 1 intentionally changes naming but not behavior.
 
@@ -259,6 +280,9 @@ commands, is maintained in
    - No product-owned `codex`, `Codex`, or `CODEX` references remain except documented exceptions.
    - No Datax-owned `codex-rs` path references remain.
    - No public protocol `Thread`, `Turn`, or `Item` names remain.
+   - Phase 1.8 mechanical protocol/domain migration checks from
+     `docs/plans/datax_mechanical_protocol_migration/mechanical_protocol_migration_execplan.md`
+     pass or have documented compatibility exceptions.
    - No public, wire, generated, CLI-visible, fixture, or documentation references expose `thread_id`, `turn_id`, `ThreadId`, `TurnId`, `codex_thread`, `codex_turn`, or `codex_turns`.
    - Any internal-only Codex-era names that remain are classified with an explicit reason.
    - Protected sandbox identifiers remain unchanged.
@@ -300,6 +324,9 @@ Phase 1 acceptance criteria:
 - No Datax product features were added during the migration.
 - No unresolved Datax-owned Codex identity references remain.
 - No unclassified internal Codex-era implementation names remain.
+- Datax-facing runtime, persistence, and history names follow the Phase 1.8
+  mechanical mapping from `Codex`/`Thread`/`Turn`/`Item` to
+  `Datax`/`Chat`/`Interaction`/`Message`.
 - Any remaining Codex references have an explicit exception classification.
 - Candidate downstream Codex artifacts have a Phase 2 follow-up note when discovered during Phase 1 scans.
 - Existing Datax folder structure remains intact except for rename-required moves already completed during migration.
@@ -353,6 +380,11 @@ Behavior drift:
 Once Phase 1 is complete, Datax product evolution resumes from the clean Datax baseline.
 Phase 2 Plan : Provision-Datax-Migration-Plan-Phase2.md
 
+Phase 1 includes the Phase 1.8 mechanical protocol/domain migration plan:
+`docs/plans/datax_mechanical_protocol_migration/mechanical_protocol_migration_execplan.md`.
+Phase 2 must not begin downstream adapter/runtime implementation until that
+plan has either completed or documented any remaining compatibility exceptions.
+
 Phase 2 should introduce:
 
 - Data engineering domain model: Plan, Workflow, Deployment, Schedule, Execution, Monitor, Artifact, Approval.
@@ -384,5 +416,8 @@ Chosen defaults for this provisional migration plan:
 - Remaining migration cleanup is completed in Phase 1, not Phase 2.
 - Datax-owned `datax-rs` path references are completed in Phase 1, not Phase 2.
 - Internal Codex-era names are inventoried and classified in Phase 1, not left as unknown Phase 2 debt.
+- Phase 1.8 mechanically migrates Datax-facing protocol/domain names according
+  to `Codex` → `Datax`, `Thread` → `Chat`, `Turn` → `Interaction`, and
+  `Item` → `Message`.
 - Phase 2 starts from the current Datax repo structure and does not begin with a broad folder restructure.
 - Future downstream Codex app-server integration is isolated behind Datax-owned adapter/runtime boundaries.

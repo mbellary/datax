@@ -27,10 +27,10 @@ use datax_protocol::protocol::InteractionCompleteEvent;
 use datax_protocol::protocol::InteractionStartedEvent;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
-use datax_thread_store::ArchiveThreadParams;
-use datax_thread_store::LocalThreadStore;
-use datax_thread_store::LocalThreadStoreConfig;
-use datax_thread_store::ThreadStore;
+use datax_thread_store::ArchiveChatParams;
+use datax_thread_store::LocalChatStore;
+use datax_thread_store::LocalChatStoreConfig;
+use datax_thread_store::ChatStore;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::time::Duration;
@@ -214,7 +214,7 @@ async fn wait_for_subagent_notification(parent_thread: &Arc<DataxChat>) -> bool 
     timeout(Duration::from_secs(10), wait).await.is_ok()
 }
 
-async fn persist_thread_for_tree_resume(thread: &Arc<DataxChat>, message: &str) {
+async fn persist_chat_for_tree_resume(thread: &Arc<DataxChat>, message: &str) {
     thread
         .inject_user_message_without_turn(message.to_string())
         .await;
@@ -227,7 +227,7 @@ async fn persist_thread_for_tree_resume(thread: &Arc<DataxChat>, message: &str) 
         .expect("test thread rollout should flush");
 }
 
-async fn wait_for_live_thread_spawn_children(
+async fn wait_for_live_chat_spawn_children(
     control: &AgentControl,
     parent_chat_id: ChatId,
     expected_children: &[ChatId],
@@ -683,11 +683,11 @@ async fn resume_agent_from_rollout_does_not_reopen_v2_descendants() {
         .get_chat(reviewer_chat_id)
         .await
         .expect("reviewer thread should exist");
-    persist_thread_for_tree_resume(&parent_thread, "parent persisted").await;
-    persist_thread_for_tree_resume(&worker_thread, "worker persisted").await;
-    persist_thread_for_tree_resume(&reviewer_thread, "reviewer persisted").await;
-    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[worker_chat_id]).await;
-    wait_for_live_thread_spawn_children(&harness.control, worker_chat_id, &[reviewer_chat_id])
+    persist_chat_for_tree_resume(&parent_thread, "parent persisted").await;
+    persist_chat_for_tree_resume(&worker_thread, "worker persisted").await;
+    persist_chat_for_tree_resume(&reviewer_thread, "reviewer persisted").await;
+    wait_for_live_chat_spawn_children(&harness.control, parent_chat_id, &[worker_chat_id]).await;
+    wait_for_live_chat_spawn_children(&harness.control, worker_chat_id, &[reviewer_chat_id])
         .await;
 
     let report = harness
@@ -2175,7 +2175,7 @@ async fn spawn_thread_subagent_uses_role_specific_nickname_candidates() {
 }
 
 #[tokio::test]
-async fn resume_thread_subagent_restores_stored_metadata() {
+async fn resume_chat_subagent_restores_stored_metadata() {
     let (home, mut config) = test_config().await;
     config
         .features
@@ -2347,18 +2347,18 @@ async fn resume_agent_from_rollout_reads_archived_rollout_path() {
         .get_chat(child_chat_id)
         .await
         .expect("child thread should exist");
-    persist_thread_for_tree_resume(&child_thread, "persist before archiving").await;
+    persist_chat_for_tree_resume(&child_thread, "persist before archiving").await;
     let _ = harness
         .control
         .shutdown_live_agent(child_chat_id)
         .await
         .expect("child shutdown should succeed");
-    let store = LocalThreadStore::new(
-        LocalThreadStoreConfig::from_config(&harness.config),
+    let store = LocalChatStore::new(
+        LocalChatStoreConfig::from_config(&harness.config),
         harness.state_db.clone(),
     );
     store
-        .archive_thread(ArchiveThreadParams {
+        .archive_chat(ArchiveChatParams {
             chat_id: child_chat_id,
         })
         .await
@@ -2606,10 +2606,10 @@ async fn shutdown_agent_tree_closes_live_descendants() {
         .get_chat(grandchild_chat_id)
         .await
         .expect("grandchild thread should exist");
-    persist_thread_for_tree_resume(&child_thread, "child persisted").await;
-    persist_thread_for_tree_resume(&grandchild_thread, "grandchild persisted").await;
-    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[child_chat_id]).await;
-    wait_for_live_thread_spawn_children(&harness.control, child_chat_id, &[grandchild_chat_id])
+    persist_chat_for_tree_resume(&child_thread, "child persisted").await;
+    persist_chat_for_tree_resume(&grandchild_thread, "grandchild persisted").await;
+    wait_for_live_chat_spawn_children(&harness.control, parent_chat_id, &[child_chat_id]).await;
+    wait_for_live_chat_spawn_children(&harness.control, child_chat_id, &[grandchild_chat_id])
         .await;
 
     let _ = harness
@@ -2690,10 +2690,10 @@ async fn shutdown_agent_tree_closes_descendants_when_started_at_child() {
         .get_chat(grandchild_chat_id)
         .await
         .expect("grandchild thread should exist");
-    persist_thread_for_tree_resume(&child_thread, "child persisted").await;
-    persist_thread_for_tree_resume(&grandchild_thread, "grandchild persisted").await;
-    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[child_chat_id]).await;
-    wait_for_live_thread_spawn_children(&harness.control, child_chat_id, &[grandchild_chat_id])
+    persist_chat_for_tree_resume(&child_thread, "child persisted").await;
+    persist_chat_for_tree_resume(&grandchild_thread, "grandchild persisted").await;
+    wait_for_live_chat_spawn_children(&harness.control, parent_chat_id, &[child_chat_id]).await;
+    wait_for_live_chat_spawn_children(&harness.control, child_chat_id, &[grandchild_chat_id])
         .await;
 
     let _ = harness
@@ -2780,11 +2780,11 @@ async fn resume_agent_from_rollout_does_not_reopen_closed_descendants() {
         .get_chat(grandchild_chat_id)
         .await
         .expect("grandchild thread should exist");
-    persist_thread_for_tree_resume(&parent_thread, "parent persisted").await;
-    persist_thread_for_tree_resume(&child_thread, "child persisted").await;
-    persist_thread_for_tree_resume(&grandchild_thread, "grandchild persisted").await;
-    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[child_chat_id]).await;
-    wait_for_live_thread_spawn_children(&harness.control, child_chat_id, &[grandchild_chat_id])
+    persist_chat_for_tree_resume(&parent_thread, "parent persisted").await;
+    persist_chat_for_tree_resume(&child_thread, "child persisted").await;
+    persist_chat_for_tree_resume(&grandchild_thread, "grandchild persisted").await;
+    wait_for_live_chat_spawn_children(&harness.control, parent_chat_id, &[child_chat_id]).await;
+    wait_for_live_chat_spawn_children(&harness.control, child_chat_id, &[grandchild_chat_id])
         .await;
 
     let _ = harness
@@ -2870,11 +2870,11 @@ async fn resume_closed_child_reopens_open_descendants() {
         .get_chat(grandchild_chat_id)
         .await
         .expect("grandchild thread should exist");
-    persist_thread_for_tree_resume(&parent_thread, "parent persisted").await;
-    persist_thread_for_tree_resume(&child_thread, "child persisted").await;
-    persist_thread_for_tree_resume(&grandchild_thread, "grandchild persisted").await;
-    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[child_chat_id]).await;
-    wait_for_live_thread_spawn_children(&harness.control, child_chat_id, &[grandchild_chat_id])
+    persist_chat_for_tree_resume(&parent_thread, "parent persisted").await;
+    persist_chat_for_tree_resume(&child_thread, "child persisted").await;
+    persist_chat_for_tree_resume(&grandchild_thread, "grandchild persisted").await;
+    wait_for_live_chat_spawn_children(&harness.control, parent_chat_id, &[child_chat_id]).await;
+    wait_for_live_chat_spawn_children(&harness.control, child_chat_id, &[grandchild_chat_id])
         .await;
 
     let _ = harness
@@ -2966,11 +2966,11 @@ async fn resume_agent_from_rollout_reopens_open_descendants_after_manager_shutdo
         .get_chat(grandchild_chat_id)
         .await
         .expect("grandchild thread should exist");
-    persist_thread_for_tree_resume(&parent_thread, "parent persisted").await;
-    persist_thread_for_tree_resume(&child_thread, "child persisted").await;
-    persist_thread_for_tree_resume(&grandchild_thread, "grandchild persisted").await;
-    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[child_chat_id]).await;
-    wait_for_live_thread_spawn_children(&harness.control, child_chat_id, &[grandchild_chat_id])
+    persist_chat_for_tree_resume(&parent_thread, "parent persisted").await;
+    persist_chat_for_tree_resume(&child_thread, "child persisted").await;
+    persist_chat_for_tree_resume(&grandchild_thread, "grandchild persisted").await;
+    wait_for_live_chat_spawn_children(&harness.control, parent_chat_id, &[child_chat_id]).await;
+    wait_for_live_chat_spawn_children(&harness.control, child_chat_id, &[grandchild_chat_id])
         .await;
 
     let report = harness
@@ -3052,11 +3052,11 @@ async fn resume_agent_from_rollout_uses_edge_data_when_descendant_metadata_sourc
         .get_chat(grandchild_chat_id)
         .await
         .expect("grandchild thread should exist");
-    persist_thread_for_tree_resume(&parent_thread, "parent persisted").await;
-    persist_thread_for_tree_resume(&child_thread, "child persisted").await;
-    persist_thread_for_tree_resume(&grandchild_thread, "grandchild persisted").await;
-    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[child_chat_id]).await;
-    wait_for_live_thread_spawn_children(&harness.control, child_chat_id, &[grandchild_chat_id])
+    persist_chat_for_tree_resume(&parent_thread, "parent persisted").await;
+    persist_chat_for_tree_resume(&child_thread, "child persisted").await;
+    persist_chat_for_tree_resume(&grandchild_thread, "grandchild persisted").await;
+    wait_for_live_chat_spawn_children(&harness.control, parent_chat_id, &[child_chat_id]).await;
+    wait_for_live_chat_spawn_children(&harness.control, child_chat_id, &[grandchild_chat_id])
         .await;
 
     let state_db = grandchild_thread
@@ -3178,11 +3178,11 @@ async fn resume_agent_from_rollout_skips_descendants_when_parent_resume_fails() 
         .get_chat(grandchild_chat_id)
         .await
         .expect("grandchild thread should exist");
-    persist_thread_for_tree_resume(&parent_thread, "parent persisted").await;
-    persist_thread_for_tree_resume(&child_thread, "child persisted").await;
-    persist_thread_for_tree_resume(&grandchild_thread, "grandchild persisted").await;
-    wait_for_live_thread_spawn_children(&harness.control, parent_chat_id, &[child_chat_id]).await;
-    wait_for_live_thread_spawn_children(&harness.control, child_chat_id, &[grandchild_chat_id])
+    persist_chat_for_tree_resume(&parent_thread, "parent persisted").await;
+    persist_chat_for_tree_resume(&child_thread, "child persisted").await;
+    persist_chat_for_tree_resume(&grandchild_thread, "grandchild persisted").await;
+    wait_for_live_chat_spawn_children(&harness.control, parent_chat_id, &[child_chat_id]).await;
+    wait_for_live_chat_spawn_children(&harness.control, child_chat_id, &[grandchild_chat_id])
         .await;
 
     let child_rollout_path = child_thread

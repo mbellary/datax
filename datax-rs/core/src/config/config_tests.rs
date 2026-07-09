@@ -3783,9 +3783,9 @@ async fn forced_chatgpt_workspace_id_empty_values_disable_runtime_restriction()
 }
 
 #[tokio::test]
-async fn legacy_remote_thread_store_endpoint_is_rejected() {
+async fn legacy_remote_chat_store_endpoint_is_rejected() {
     let cfg: ConfigToml =
-        toml::from_str(r#"experimental_thread_store_endpoint = "https://example.com""#)
+        toml::from_str(r#"experimental_chat_store_endpoint = "https://example.com""#)
             .expect("legacy remote thread-store endpoint should still deserialize");
 
     let err = Config::load_from_base_config_with_overrides(
@@ -3798,7 +3798,7 @@ async fn legacy_remote_thread_store_endpoint_is_rejected() {
 
     assert!(
         err.to_string()
-            .contains("experimental_thread_store_endpoint")
+            .contains("experimental_chat_store_endpoint")
     );
     assert!(err.to_string().contains("no longer supported"));
 }

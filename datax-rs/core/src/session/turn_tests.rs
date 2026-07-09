@@ -10,7 +10,7 @@ struct RewriteAgentMessageContributor;
 impl InteractionMessageContributor for RewriteAgentMessageContributor {
     fn contribute<'a>(
         &'a self,
-        _thread_store: &'a ExtensionData,
+        _chat_store: &'a ExtensionData,
         _turn_store: &'a ExtensionData,
         item: &'a mut InteractionMessage,
     ) -> datax_extension_api::ExtensionFuture<'a, Result<(), String>> {

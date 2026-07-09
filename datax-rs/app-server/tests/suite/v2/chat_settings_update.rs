@@ -65,7 +65,7 @@ async fn thread_settings_update_emits_notification_and_updates_future_turns() ->
 
     start_text_turn(&mut mcp, thread.id.clone()).await?;
 
-    let updated = read_thread_settings_updated(&mut mcp).await?;
+    let updated = read_chat_settings_updated(&mut mcp).await?;
     assert_eq!(updated.chat_id, thread.id);
     assert_eq!(updated.thread_settings.model, model_id);
     assert_eq!(
@@ -79,7 +79,7 @@ async fn thread_settings_update_emits_notification_and_updates_future_turns() ->
     )
     .await??;
 
-    let read = read_thread_with_turns(&mut mcp, &thread.id).await?;
+    let read = read_chat_with_turns(&mut mcp, &thread.id).await?;
     assert_eq!(read.chat.interactions.len(), 1);
 
     let request_bodies = received_response_bodies(&server).await?;
@@ -120,7 +120,7 @@ async fn thread_settings_update_cwd_retargets_default_environment() -> Result<()
         },
     )
     .await?;
-    let updated = read_thread_settings_updated(&mut mcp).await?;
+    let updated = read_chat_settings_updated(&mut mcp).await?;
     assert_eq!(updated.thread_settings.cwd.as_path(), workspace.path());
 
     start_text_turn(&mut mcp, thread.id).await?;
@@ -177,7 +177,7 @@ async fn thread_settings_update_while_turn_is_active_emits_notification() -> Res
     )
     .await?;
 
-    let updated = read_thread_settings_updated(&mut mcp).await?;
+    let updated = read_chat_settings_updated(&mut mcp).await?;
     assert_eq!(updated.chat_id, thread.id);
     assert_eq!(updated.thread_settings.model, "mock-model-4");
 
@@ -215,7 +215,7 @@ async fn thread_settings_update_null_service_tier_uses_default() -> Result<()> {
     )
     .await?;
 
-    let set_updated = read_thread_settings_updated(&mut mcp).await?;
+    let set_updated = read_chat_settings_updated(&mut mcp).await?;
     assert_eq!(set_updated.chat_id, thread.id);
     assert_eq!(
         set_updated.thread_settings.service_tier.as_deref(),
@@ -232,7 +232,7 @@ async fn thread_settings_update_null_service_tier_uses_default() -> Result<()> {
     )
     .await?;
 
-    let clear_updated = read_thread_settings_updated(&mut mcp).await?;
+    let clear_updated = read_chat_settings_updated(&mut mcp).await?;
     assert_eq!(clear_updated.chat_id, thread.id);
     assert_eq!(clear_updated.thread_settings.model, model_id);
     assert_eq!(
@@ -329,7 +329,7 @@ async fn turn_start_settings_override_emits_thread_settings_updated() -> Result<
     let InteractionStartResponse { interaction: turn } = to_response(turn_response)?;
     assert!(!turn.id.is_empty());
 
-    let updated = read_thread_settings_updated(&mut mcp).await?;
+    let updated = read_chat_settings_updated(&mut mcp).await?;
     assert_eq!(updated.chat_id, thread.id);
     assert_eq!(updated.thread_settings.model, "mock-model-3");
 
@@ -391,7 +391,7 @@ async fn start_chat(mcp: &mut TestAppServer) -> Result<ChatStartResponse> {
     to_response(response)
 }
 
-async fn read_thread_with_turns(
+async fn read_chat_with_turns(
     mcp: &mut TestAppServer,
     chat_id: &str,
 ) -> Result<ChatReadResponse> {
@@ -409,7 +409,7 @@ async fn read_thread_with_turns(
     to_response(response)
 }
 
-async fn read_thread_settings_updated(
+async fn read_chat_settings_updated(
     mcp: &mut TestAppServer,
 ) -> Result<ChatSettingsUpdatedNotification> {
     let notification: JSONRPCNotification = timeout(

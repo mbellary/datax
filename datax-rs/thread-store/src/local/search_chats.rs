@@ -9,22 +9,22 @@ use datax_rollout::first_rollout_content_match_snippet;
 use datax_rollout::parse_cursor;
 use datax_rollout::search_rollout_matches;
 
-use super::LocalThreadStore;
-use super::helpers::distinct_thread_metadata_title;
+use super::LocalChatStore;
+use super::helpers::distinct_chat_metadata_title;
 use super::helpers::set_thread_name_from_title;
-use super::helpers::stored_thread_from_rollout_item;
-use super::list_threads::list_rollout_threads;
-use crate::ListThreadsParams;
-use crate::SearchThreadsParams;
+use super::helpers::stored_chat_from_rollout_item;
+use super::list_chats::list_rollout_threads;
+use crate::ListChatsParams;
+use crate::SearchChatsParams;
 use crate::SortDirection;
 use crate::StoredChatSearchResult;
 use crate::ChatSearchPage;
-use crate::ThreadSortKey;
-use crate::ThreadStoreError;
-use crate::ThreadStoreResult;
+use crate::ChatSortKey;
+use crate::ChatStoreError;
+use crate::ChatStoreResult;
 
 #[cfg(test)]
-#[path = "search_threads_tests.rs"]
+#[path = "search_chats_tests.rs"]
 mod tests;
 
 struct ThreadSearchItem {
@@ -32,13 +32,13 @@ struct ThreadSearchItem {
     snippet: String,
 }
 
-pub(super) async fn search_threads(
-    store: &LocalThreadStore,
-    params: SearchThreadsParams,
-) -> ThreadStoreResult<ChatSearchPage> {
+pub(super) async fn search_chats(
+    store: &LocalChatStore,
+    params: SearchChatsParams,
+) -> ChatStoreResult<ChatSearchPage> {
     let search_term = params.search_term.as_str();
     if search_term.is_empty() {
-        return Err(ThreadStoreError::InvalidRequest {
+        return Err(ChatStoreError::InvalidRequest {
             message: "thread/search requires search_term".to_string(),
         });
     }
@@ -46,15 +46,15 @@ pub(super) async fn search_threads(
         .cursor
         .as_deref()
         .map(|cursor| {
-            parse_cursor(cursor).ok_or_else(|| ThreadStoreError::InvalidRequest {
+            parse_cursor(cursor).ok_or_else(|| ChatStoreError::InvalidRequest {
                 message: format!("invalid cursor: {cursor}"),
             })
         })
         .transpose()?;
     let sort_key = match params.sort_key {
-        ThreadSortKey::CreatedAt => datax_rollout::ThreadSortKey::CreatedAt,
-        ThreadSortKey::UpdatedAt => datax_rollout::ThreadSortKey::UpdatedAt,
-        ThreadSortKey::RecencyAt => datax_rollout::ThreadSortKey::RecencyAt,
+        ChatSortKey::CreatedAt => datax_rollout::ChatSortKey::CreatedAt,
+        ChatSortKey::UpdatedAt => datax_rollout::ChatSortKey::UpdatedAt,
+        ChatSortKey::RecencyAt => datax_rollout::ChatSortKey::RecencyAt,
     };
     let sort_direction = match params.sort_direction {
         SortDirection::Asc => datax_rollout::SortDirection::Asc,
@@ -76,7 +76,7 @@ pub(super) async fn search_threads(
         search_term,
     )
     .await
-    .map_err(|err| ThreadStoreError::Internal {
+    .map_err(|err| ChatStoreError::Internal {
         message: format!("failed to search rollout contents: {err}"),
     })?;
     if matching_rollouts.is_empty() {
@@ -88,7 +88,7 @@ pub(super) async fn search_threads(
     let mut matching_items = Vec::new();
     let mut page_cursor = cursor;
     let scan_page_size = params.page_size.saturating_mul(8).clamp(256, 2048);
-    let scan_params = ListThreadsParams {
+    let scan_params = ListChatsParams {
         page_size: scan_page_size,
         cursor: None,
         sort_key: params.sort_key,
@@ -120,7 +120,7 @@ pub(super) async fn search_threads(
                 Some(Some(snippet)) => Some(snippet),
                 Some(None) => first_rollout_content_match_snippet(item.path.as_path(), search_term)
                     .await
-                    .map_err(|err| ThreadStoreError::Internal {
+                    .map_err(|err| ChatStoreError::Internal {
                         message: format!("failed to read rollout search match: {err}"),
                     })?,
                 None => None,
@@ -157,7 +157,7 @@ pub(super) async fn search_threads(
     let mut items = matching_items
         .into_iter()
         .filter_map(|item| {
-            stored_thread_from_rollout_item(
+            stored_chat_from_rollout_item(
                 item.item,
                 params.archived,
                 store.config.default_model_provider_id.as_str(),
@@ -175,16 +175,16 @@ pub(super) async fn search_threads(
 
 fn cursor_from_thread_search_item(
     item: &ThreadSearchItem,
-    sort_key: ThreadSortKey,
+    sort_key: ChatSortKey,
 ) -> Option<datax_rollout::Cursor> {
     let timestamp = match sort_key {
-        ThreadSortKey::CreatedAt => item.item.created_at.as_deref()?,
-        ThreadSortKey::UpdatedAt => item
+        ChatSortKey::CreatedAt => item.item.created_at.as_deref()?,
+        ChatSortKey::UpdatedAt => item
             .item
             .updated_at
             .as_deref()
             .or(item.item.created_at.as_deref())?,
-        ThreadSortKey::RecencyAt => item
+        ChatSortKey::RecencyAt => item
             .item
             .recency_at
             .as_deref()
@@ -192,13 +192,13 @@ fn cursor_from_thread_search_item(
             .or(item.item.created_at.as_deref())?,
     };
     match sort_key {
-        ThreadSortKey::RecencyAt => parse_cursor(&format!("{timestamp}|{}", item.item.chat_id?)),
-        ThreadSortKey::CreatedAt | ThreadSortKey::UpdatedAt => parse_cursor(timestamp),
+        ChatSortKey::RecencyAt => parse_cursor(&format!("{timestamp}|{}", item.item.chat_id?)),
+        ChatSortKey::CreatedAt | ChatSortKey::UpdatedAt => parse_cursor(timestamp),
     }
 }
 
 async fn set_thread_search_result_names(
-    store: &LocalThreadStore,
+    store: &LocalChatStore,
     items: &mut [StoredChatSearchResult],
 ) {
     let chat_ids = items
@@ -211,7 +211,7 @@ async fn set_thread_search_result_names(
             let Ok(Some(metadata)) = state_db_ctx.get_thread(chat_id).await else {
                 continue;
             };
-            if let Some(title) = distinct_thread_metadata_title(&metadata) {
+            if let Some(title) = distinct_chat_metadata_title(&metadata) {
                 names.insert(chat_id, title);
             }
         }

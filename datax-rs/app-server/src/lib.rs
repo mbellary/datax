@@ -107,8 +107,8 @@ mod request_processors;
 mod request_serialization;
 mod server_request_error;
 mod skills_watcher;
-mod thread_state;
-mod thread_status;
+mod chat_state;
+mod chat_status;
 mod transport;
 
 pub use crate::error_code::INPUT_TOO_LARGE_ERROR_CODE;
@@ -170,7 +170,7 @@ enum OutboundControlEvent {
 struct ShutdownState {
     requested: bool,
     forced: bool,
-    last_logged_running_turn_count: Option<usize>,
+    last_logged_running_interaction_count: Option<usize>,
 }
 
 enum ShutdownAction {
@@ -221,7 +221,7 @@ impl ShutdownState {
         &mut self,
         signal: ShutdownSignal,
         connection_count: usize,
-        running_turn_count: usize,
+        running_interaction_count: usize,
     ) {
         if self.requested {
             if matches!(signal, ShutdownSignal::Forceable) {
@@ -231,22 +231,22 @@ impl ShutdownState {
         }
 
         self.requested = true;
-        self.last_logged_running_turn_count = None;
+        self.last_logged_running_interaction_count = None;
         info!(
             "received shutdown signal; entering graceful restart drain (connections={}, runningAssistantTurns={}, requests still accepted until no assistant interactions are running)",
-            connection_count, running_turn_count,
+            connection_count, running_interaction_count,
         );
     }
 
-    fn update(&mut self, running_turn_count: usize, connection_count: usize) -> ShutdownAction {
+    fn update(&mut self, running_interaction_count: usize, connection_count: usize) -> ShutdownAction {
         if !self.requested {
             return ShutdownAction::Noop;
         }
 
-        if self.forced || running_turn_count == 0 {
+        if self.forced || running_interaction_count == 0 {
             if self.forced {
                 info!(
-                    "received second shutdown signal; forcing restart with {running_turn_count} running assistant turn(s) and {connection_count} connection(s)"
+                    "received second shutdown signal; forcing restart with {running_interaction_count} running assistant turn(s) and {connection_count} connection(s)"
                 );
             } else {
                 info!(
@@ -256,11 +256,11 @@ impl ShutdownState {
             return ShutdownAction::Finish;
         }
 
-        if self.last_logged_running_turn_count != Some(running_turn_count) {
+        if self.last_logged_running_interaction_count != Some(running_interaction_count) {
             info!(
-                "shutdown signal restart: waiting for {running_turn_count} running assistant turn(s) to finish"
+                "shutdown signal restart: waiting for {running_interaction_count} running assistant turn(s) to finish"
             );
-            self.last_logged_running_turn_count = Some(running_turn_count);
+            self.last_logged_running_interaction_count = Some(running_interaction_count);
         }
 
         ShutdownAction::Noop
@@ -900,7 +900,7 @@ pub async fn run_main_with_transport_options(
             plugin_startup_tasks: runtime_options.plugin_startup_tasks,
         }));
         let mut thread_created_rx = processor.thread_created_receiver();
-        let mut running_turn_count_rx = processor.subscribe_running_assistant_turn_count();
+        let mut running_interaction_count_rx = processor.subscribe_running_assistant_turn_count();
         let mut connections = HashMap::<ConnectionId, ConnectionState>::new();
         let mut connection_cleanup_tasks = ConnectionCleanupTasks::new();
         let mut remote_control_status_rx = remote_control_handle.status_receiver();
@@ -910,12 +910,12 @@ pub async fn run_main_with_transport_options(
             let mut listen_for_threads = true;
             let mut shutdown_state = ShutdownState::default();
             loop {
-                let running_turn_count = {
-                    let running_turn_count = running_turn_count_rx.borrow();
-                    *running_turn_count
+                let running_interaction_count = {
+                    let running_interaction_count = running_interaction_count_rx.borrow();
+                    *running_interaction_count
                 };
                 if matches!(
-                    shutdown_state.update(running_turn_count, connections.len()),
+                    shutdown_state.update(running_interaction_count, connections.len()),
                     ShutdownAction::Finish
                 ) {
                     transport_shutdown_token.cancel();
@@ -934,10 +934,10 @@ pub async fn run_main_with_transport_options(
                                 continue;
                             }
                         };
-                        let running_turn_count = *running_turn_count_rx.borrow();
-                        shutdown_state.on_signal(signal, connections.len(), running_turn_count);
+                        let running_interaction_count = *running_interaction_count_rx.borrow();
+                        shutdown_state.on_signal(signal, connections.len(), running_interaction_count);
                     }
-                    changed = running_turn_count_rx.changed(), if graceful_signal_restart_enabled && shutdown_state.requested() => {
+                    changed = running_interaction_count_rx.changed(), if graceful_signal_restart_enabled && shutdown_state.requested() => {
                         if changed.is_err() {
                             warn!("running-turn watcher closed during graceful restart drain");
                         }
@@ -1125,7 +1125,7 @@ pub async fn run_main_with_transport_options(
                                     }
                                 }
                                 processor
-                                    .try_attach_thread_listener(
+                                    .try_attach_chat_listener(
                                         chat_id,
                                         initialized_connection_ids,
                                     )
@@ -1155,7 +1155,7 @@ pub async fn run_main_with_transport_options(
                 .await;
                 connection_cleanup_tasks.drain().await;
                 processor.drain_background_tasks().await;
-                processor.shutdown_threads().await;
+                processor.shutdown_chats().await;
             } else {
                 connection_cleanup_tasks.abort();
             }

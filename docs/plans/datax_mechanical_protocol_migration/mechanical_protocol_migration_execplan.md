@@ -34,6 +34,8 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 - [x] (2026-07-09 00:00Z) Renamed live runtime contracts and call sites: `ThreadManager -> ChatManager`, `CodexThread -> DataxChat`, `NewThread -> NewChat`, `StartThreadOptions -> StartChatOptions`, and the runtime module files `thread_manager.rs -> chat_manager.rs` and `codex_thread.rs -> datax_chat.rs`.
 - [x] (2026-07-09 00:00Z) Started Milestone 5 on branch `codex/phase1-8-m5-message-history-names`; GitHub issue #25 tracks the message and history rename slice.
 - [x] (2026-07-09 00:00Z) Renamed message/history contracts: `TurnItem -> InteractionMessage`, `RolloutItem -> RolloutMessage`, `TurnContextItem -> InteractionContextMessage`, `ItemStarted/ItemCompleted -> MessageStarted/MessageCompleted`, and stored history/search/page types such as `StoredThread -> StoredChat`, `StoredTurn -> StoredInteraction`, and `StoredThreadHistory -> StoredChatHistory`.
+- [x] (2026-07-09 00:00Z) Started Milestone 6 on branch `codex/phase1-8-m6-app-server-state-names`; GitHub issue #27 tracks the app-server state/store rename slice.
+- [x] (2026-07-09 00:00Z) Renamed app-server state/listener/status and store API contracts to Datax terms, including `ThreadState -> ChatState`, `ThreadWatchManager -> ChatWatchManager`, `ThreadStore -> ChatStore`, and `CreateThreadParams -> CreateChatParams`.
 - [ ] Regenerate affected app-server schemas and run targeted tests.
 - [ ] Update Phase 2 bridge plans so downstream Codex integration starts only after Datax owns the Datax-named protocol and runtime contracts.
 
@@ -441,6 +443,91 @@ Milestone 5 command assumptions:
 - `just test -p datax-app-server-protocol` validates API projection from renamed protocol message/history types.
 - `just test -p datax-app-server` validates request processors that consume renamed rollout/history records.
 
+## Milestone 6 App-Server State and Store API Names Summary
+
+Milestone 6 renames Datax-facing app-server state, listener, status, and store API contracts from inherited thread/turn/item vocabulary to chat/interaction/message vocabulary.
+
+Mechanical app-server/state mappings completed:
+
+- `thread_state.rs -> chat_state.rs`
+- `thread_status.rs -> chat_status.rs`
+- `ThreadState -> ChatState`
+- `ThreadStateManager -> ChatStateManager`
+- `ThreadListenerCommand -> ChatListenerCommand`
+- `PendingThreadResumeRequest -> PendingChatResumeRequest`
+- `TurnSummary -> InteractionSummary`
+- `ThreadWatchManager -> ChatWatchManager`
+- `ThreadWatchActiveGuard -> ChatWatchActiveGuard`
+- `ThreadShutdownResult -> ChatShutdownResult`
+- listener helpers such as `try_attach_thread_listener` and `clear_all_thread_listeners` became `try_attach_chat_listener` and `clear_all_chat_listeners`
+- app-server request processor files `thread_goal_processor.rs`, `thread_lifecycle.rs`, `thread_summary.rs`, `thread_resume_redaction.rs`, and `thread_delete.rs` became `chat_*` modules
+
+Mechanical store/API mappings completed:
+
+- `ThreadStore -> ChatStore`
+- `ThreadStoreFuture -> ChatStoreFuture`
+- `ThreadStoreResult -> ChatStoreResult`
+- `ThreadStoreError -> ChatStoreError`
+- `ThreadStoreError::ThreadNotFound -> ChatStoreError::ChatNotFound`
+- `CreateThreadParams -> CreateChatParams`
+- `ResumeThreadParams -> ResumeChatParams`
+- `LoadThreadHistoryParams -> LoadChatHistoryParams`
+- `ReadThreadParams -> ReadChatParams`
+- `ReadThreadByRolloutPathParams -> ReadChatByRolloutPathParams`
+- `ListThreadsParams -> ListChatsParams`
+- `SearchThreadsParams -> SearchChatsParams`
+- `ThreadSortKey -> ChatSortKey`
+- `ThreadPersistenceMetadata -> ChatPersistenceMetadata`
+- `ThreadMetadataPatch -> ChatMetadataPatch`
+- `UpdateThreadMetadataParams -> UpdateChatMetadataParams`
+- `ArchiveThreadParams -> ArchiveChatParams`
+- `DeleteThreadParams -> DeleteChatParams`
+- `LocalThreadStore -> LocalChatStore`
+- `InMemoryThreadStore -> InMemoryChatStore`
+- `LiveThread -> LiveChat`
+- store methods such as `create_thread`, `read_thread`, `list_threads`, `archive_thread`, and `update_thread_metadata` became `create_chat`, `read_chat`, `list_chats`, `archive_chat`, and `update_chat_metadata`
+- config-facing store selectors `ThreadStoreToml`, `ThreadStoreConfig`, and `experimental_thread_store` became `ChatStoreToml`, `ChatStoreConfig`, and `experimental_chat_store`
+
+Compatibility retained:
+
+- The Rust crate/package remains `datax-thread-store` / `datax_thread_store` in this milestone. This avoids Cargo/Bazel dependency metadata churn while renaming the exported Datax-facing API inside the crate.
+- Existing state/protocol goal persistence APIs such as `thread_goals()`, `ThreadGoal`, `ThreadGoalStatus`, and `ThreadGoalUpdatedEvent` remain as external compatibility/state surfaces until their owning migration slice.
+- Existing `ThreadSettings*`, `ThreadMemoryMode`, `ThreadSource`, extension lifecycle names, and generated/provenance terms remain until their owning protocol or extension milestones.
+
+Milestone 6 assumptions:
+
+- This milestone is a mechanical rename only; it does not change app-server behavior, persistence behavior, runtime semantics, or JSON-RPC method names.
+- Config schema output is intentionally not regenerated by Codex in this milestone because the user asked Codex not to run formatter, schema, build, or test commands.
+- The crate/package name `datax-thread-store` is classified as dependency metadata for this milestone, not as a native protocol type. A later crate/package rename can be planned separately if desired.
+- The branch for this milestone is `codex/phase1-8-m6-app-server-state-names`; the tracking issue is #27.
+
+Milestone 6 validation status:
+
+- Per user instruction, Codex did not run build, test, formatter, or schema commands for this milestone.
+
+Milestone 6 user-run commands:
+
+    cd /home/mbellary/wsl/projects/datax
+    git diff --check
+    cd /home/mbellary/wsl/projects/datax/datax-rs
+    just fmt
+    just write-config-schema
+    just write-app-server-schema
+    just fix -p datax-thread-store
+    just fix -p datax-core
+    just fix -p datax-app-server
+    just test -p datax-thread-store
+    just test -p datax-core
+    just test -p datax-app-server
+
+Milestone 6 command assumptions:
+
+- `just fmt` is required because Rust source changed broadly and Codex intentionally did not run formatting.
+- `just write-config-schema` is required because `ConfigToml` changed from `experimental_thread_store` / `ThreadStoreToml` to `experimental_chat_store` / `ChatStoreToml`.
+- `just write-app-server-schema` is included because app-server request processors and API projection tests changed around store-backed chat operations.
+- `just fix -p datax-thread-store`, `just fix -p datax-core`, and `just fix -p datax-app-server` validate the renamed store API, dependent core runtime call sites, and app-server processors under the repo lint profile.
+- The targeted tests validate the renamed store API, core runtime callers, and app-server request processors without asking the user to run the full workspace suite.
+
 ## Plan of Work
 
 Milestone 1 is a boundary inventory. Search Datax-facing Rust and protocol files for `Codex`, `Thread`, `Turn`, `Item`, and common snake_case forms such as `thread_id` and `turn_id`. Classify each occurrence as a mechanical rename target, compatibility alias, downstream Codex bridge term, provenance, protected sandbox identifier, external dependency, or unrelated English. This milestone should update this plan with a concise inventory summary before code changes begin.
@@ -508,7 +595,13 @@ For Milestone 6, the user should run:
     git diff --check
     cd /home/mbellary/wsl/projects/datax/datax-rs
     just fmt
+    just write-config-schema
+    just write-app-server-schema
+    just fix -p datax-thread-store
+    just fix -p datax-core
     just fix -p datax-app-server
+    just test -p datax-thread-store
+    just test -p datax-core
     just test -p datax-app-server
 
 For Milestone 7, the user should run the focused commands from the changed crates, plus schema generation when protocol shapes changed:

@@ -34,8 +34,8 @@ use datax_models_manager::manager::SharedModelsManager;
 use datax_otel::SessionTelemetry;
 use datax_rollout::state_db::StateDbHandle;
 use datax_rollout_trace::ThreadTraceContext;
-use datax_thread_store::LiveThread;
-use datax_thread_store::ThreadStore;
+use datax_thread_store::LiveChat;
+use datax_thread_store::ChatStore;
 use std::path::PathBuf;
 use tokio::runtime::Handle;
 use tokio::sync::Mutex;
@@ -77,8 +77,8 @@ pub(crate) struct SessionServices {
     pub(crate) managed_network_requirements_configured: bool,
     pub(crate) network_approval: Arc<NetworkApprovalService>,
     pub(crate) state_db: Option<StateDbHandle>,
-    pub(crate) live_thread: Option<LiveThread>,
-    pub(crate) thread_store: Arc<dyn ThreadStore>,
+    pub(crate) live_chat: Option<LiveChat>,
+    pub(crate) chat_store: Arc<dyn ChatStore>,
     pub(crate) attestation_provider: Option<Arc<dyn AttestationProvider>>,
     pub(crate) time_provider: Arc<dyn TimeProvider>,
     /// Session-scoped model client shared across turns.

@@ -16,34 +16,34 @@ use datax_rollout::read_session_meta_line;
 use datax_state::ThreadMetadataBuilder;
 use tracing::warn;
 
-use super::LocalThreadStore;
+use super::LocalChatStore;
 use super::helpers::git_info_from_parts;
 use super::helpers::permission_profile_to_metadata_value;
 use super::live_writer;
 use crate::GitInfoPatch;
-use crate::ReadThreadParams;
+use crate::ReadChatParams;
 use crate::StoredChat;
-use crate::ThreadMetadataPatch;
-use crate::ThreadStoreError;
-use crate::ThreadStoreResult;
-use crate::UpdateThreadMetadataParams;
-use crate::local::read_thread;
+use crate::ChatMetadataPatch;
+use crate::ChatStoreError;
+use crate::ChatStoreResult;
+use crate::UpdateChatMetadataParams;
+use crate::local::read_chat;
 
 struct ResolvedRolloutPath {
     path: PathBuf,
     archived: bool,
 }
 
-pub(super) async fn update_thread_metadata(
-    store: &LocalThreadStore,
-    params: UpdateThreadMetadataParams,
-) -> ThreadStoreResult<StoredChat> {
+pub(super) async fn update_chat_metadata(
+    store: &LocalChatStore,
+    params: UpdateChatMetadataParams,
+) -> ChatStoreResult<StoredChat> {
     let chat_id = params.chat_id;
     let patch = params.patch;
     if patch.is_empty() {
-        return read_thread::read_thread(
+        return read_chat::read_chat(
             store,
-            ReadThreadParams {
+            ReadChatParams {
                 chat_id,
                 include_archived: params.include_archived,
                 include_history: false,
@@ -67,7 +67,7 @@ pub(super) async fn update_thread_metadata(
     }
 
     if live_writer::rollout_path(store, chat_id).await.is_ok() {
-        live_writer::persist_thread(store, chat_id).await?;
+        live_writer::persist_chat(store, chat_id).await?;
     }
     let mut resolved_rollout_path =
         resolve_rollout_path(store, chat_id, params.include_archived).await?;
@@ -98,7 +98,7 @@ pub(super) async fn update_thread_metadata(
     let resolved_git_info = match git_info {
         Some(git_info) => {
             let Some(state_db) = store.state_db().await else {
-                return Err(ThreadStoreError::Internal {
+                return Err(ChatStoreError::Internal {
                     message: format!("sqlite state db unavailable for thread {chat_id}"),
                 });
             };
@@ -106,20 +106,20 @@ pub(super) async fn update_thread_metadata(
                 state_db
                     .get_thread(chat_id)
                     .await
-                    .map_err(|err| ThreadStoreError::Internal {
+                    .map_err(|err| ChatStoreError::Internal {
                         message: format!(
                             "failed to read git metadata for thread {chat_id}: {err}"
                         ),
                     })?;
             let Some(metadata) = metadata else {
-                return Err(ThreadStoreError::Internal {
-                    message: format!("thread metadata unavailable before git update: {chat_id}"),
+                return Err(ChatStoreError::Internal {
+                    message: format!("chat metadata unavailable before git update: {chat_id}"),
                 });
             };
             let memory_mode = state_db
                 .get_thread_memory_mode(chat_id)
                 .await
-                .map_err(|err| ThreadStoreError::Internal {
+                .map_err(|err| ChatStoreError::Internal {
                     message: format!("failed to read memory mode for thread {chat_id}: {err}"),
                 })?;
             let existing_git_info = git_info_from_parts(
@@ -148,9 +148,9 @@ pub(super) async fn update_thread_metadata(
         apply_thread_git_info(store, chat_id, sha, branch, origin_url).await?;
     }
 
-    let mut thread = match read_thread::read_thread(
+    let mut thread = match read_chat::read_chat(
         store,
-        ReadThreadParams {
+        ReadChatParams {
             chat_id,
             include_archived: params.include_archived,
             include_history: false,
@@ -160,7 +160,7 @@ pub(super) async fn update_thread_metadata(
     {
         Ok(thread) => thread,
         Err(_) => {
-            read_thread::read_thread_by_rollout_path(
+            read_chat::read_chat_by_rollout_path(
                 store,
                 resolved_rollout_path.path,
                 params.include_archived,
@@ -182,27 +182,27 @@ async fn refresh_resolved_rollout_path(resolved: &mut ResolvedRolloutPath) {
 }
 
 async fn apply_metadata_update(
-    store: &LocalThreadStore,
+    store: &LocalChatStore,
     chat_id: ChatId,
-    patch: ThreadMetadataPatch,
+    patch: ChatMetadataPatch,
     include_archived: bool,
     require_sqlite_write: bool,
-) -> ThreadStoreResult<StoredChat> {
+) -> ChatStoreResult<StoredChat> {
     let live_rollout_path = live_writer::rollout_path(store, chat_id).await.ok();
     let mut rollout_path = patch.rollout_path.clone().or(live_rollout_path);
     let mut rollout_path_archived = rollout_path
         .as_deref()
         .is_some_and(|path| rollout_path_is_archived(store, path));
     let state_db = store.state_db().await;
-    let sqlite_write_result: ThreadStoreResult<()> = if let Some(state_db) = state_db.as_ref() {
+    let sqlite_write_result: ChatStoreResult<()> = if let Some(state_db) = state_db.as_ref() {
         let patch = patch.clone();
         async {
             let existing =
                 state_db
                     .get_thread(chat_id)
                     .await
-                    .map_err(|err| ThreadStoreError::Internal {
-                        message: format!("failed to read thread metadata for {chat_id}: {err}"),
+                    .map_err(|err| ChatStoreError::Internal {
+                        message: format!("failed to read chat metadata for {chat_id}: {err}"),
                     })?;
             let advance_recency_at = patch.advance_recency_at;
             if existing.is_none() && rollout_path.is_none() {
@@ -311,10 +311,10 @@ async fn apply_metadata_update(
                 metadata.git_origin_url = origin_url;
             }
             state_db
-                .upsert_thread(&metadata)
+                .upsert_chat(&metadata)
                 .await
-                .map_err(|err| ThreadStoreError::Internal {
-                    message: format!("failed to update thread metadata for {chat_id}: {err}"),
+                .map_err(|err| ChatStoreError::Internal {
+                    message: format!("failed to update chat metadata for {chat_id}: {err}"),
                 })?;
             if existing.is_some()
                 && let Some(recency_at) = advance_recency_at
@@ -322,7 +322,7 @@ async fn apply_metadata_update(
                 state_db
                     .touch_thread_recency_at(chat_id, recency_at)
                     .await
-                    .map_err(|err| ThreadStoreError::Internal {
+                    .map_err(|err| ChatStoreError::Internal {
                         message: format!(
                             "failed to advance thread recency_at for {chat_id}: {err}"
                         ),
@@ -332,7 +332,7 @@ async fn apply_metadata_update(
                 state_db
                     .set_thread_memory_mode(chat_id, memory_mode_as_str(memory_mode))
                     .await
-                    .map_err(|err| ThreadStoreError::Internal {
+                    .map_err(|err| ChatStoreError::Internal {
                         message: format!("failed to update memory mode for {chat_id}: {err}"),
                     })?;
             }
@@ -348,20 +348,20 @@ async fn apply_metadata_update(
             return Err(err);
         }
         (true, Err(err)) => {
-            warn!("state db update_thread_metadata failed for {chat_id}: {err}");
+            warn!("state db update_chat_metadata failed for {chat_id}: {err}");
         }
         (false, Ok(())) => {}
         (false, Err(err)) if require_sqlite_write || !sqlite_write_error_is_best_effort(&err) => {
             return Err(err);
         }
         (false, Err(err)) => {
-            warn!("state db update_thread_metadata failed for {chat_id}: {err}");
+            warn!("state db update_chat_metadata failed for {chat_id}: {err}");
         }
     }
 
-    read_thread::read_thread(
+    read_chat::read_chat(
         store,
-        ReadThreadParams {
+        ReadChatParams {
             chat_id,
             include_archived,
             include_history: false,
@@ -370,7 +370,7 @@ async fn apply_metadata_update(
     .await
 }
 
-fn needs_rollout_compatibility_update(patch: &ThreadMetadataPatch) -> bool {
+fn needs_rollout_compatibility_update(patch: &ChatMetadataPatch) -> bool {
     if patch.name.is_some() {
         return true;
     }
@@ -380,7 +380,7 @@ fn needs_rollout_compatibility_update(patch: &ThreadMetadataPatch) -> bool {
     !has_observed_metadata_facts(patch)
 }
 
-fn sqlite_write_failure_should_block(patch: &ThreadMetadataPatch) -> bool {
+fn sqlite_write_failure_should_block(patch: &ChatMetadataPatch) -> bool {
     // Before live metadata sync moved above the rollout writer, SQLite sync failures for
     // transcript-derived metadata, thread names, and memory-mode indexing were log-only. Keep that
     // failure isolation so a corrupted optional state DB does not make JSONL transcript durability
@@ -389,11 +389,11 @@ fn sqlite_write_failure_should_block(patch: &ThreadMetadataPatch) -> bool {
     patch.git_info.is_some() && !has_observed_metadata_facts(patch)
 }
 
-fn sqlite_write_error_is_best_effort(err: &ThreadStoreError) -> bool {
-    matches!(err, ThreadStoreError::Internal { .. })
+fn sqlite_write_error_is_best_effort(err: &ChatStoreError) -> bool {
+    matches!(err, ChatStoreError::Internal { .. })
 }
 
-fn has_observed_metadata_facts(patch: &ThreadMetadataPatch) -> bool {
+fn has_observed_metadata_facts(patch: &ChatMetadataPatch) -> bool {
     patch.rollout_path.is_some()
         || patch.preview.is_some()
         || patch.title.is_some()
@@ -427,14 +427,14 @@ fn normalize_cwd(cwd: PathBuf) -> PathBuf {
 }
 
 async fn apply_thread_git_info(
-    store: &LocalThreadStore,
+    store: &LocalChatStore,
     chat_id: ChatId,
     sha: &Option<String>,
     branch: &Option<String>,
     origin_url: &Option<String>,
-) -> ThreadStoreResult<()> {
+) -> ChatStoreResult<()> {
     let Some(state_db) = store.state_db().await else {
-        return Err(ThreadStoreError::Internal {
+        return Err(ChatStoreError::Internal {
             message: format!("sqlite state db unavailable for thread {chat_id}"),
         });
     };
@@ -446,14 +446,14 @@ async fn apply_thread_git_info(
             Some(origin_url.as_deref()),
         )
         .await
-        .map_err(|err| ThreadStoreError::Internal {
+        .map_err(|err| ChatStoreError::Internal {
             message: format!("failed to update git metadata for thread {chat_id}: {err}"),
         })?;
     if updated {
         Ok(())
     } else {
-        Err(ThreadStoreError::Internal {
-            message: format!("thread metadata disappeared before update completed: {chat_id}"),
+        Err(ChatStoreError::Internal {
+            message: format!("chat metadata disappeared before update completed: {chat_id}"),
         })
     }
 }
@@ -483,15 +483,15 @@ async fn apply_thread_git_info_to_rollout(
     branch: &Option<String>,
     origin_url: &Option<String>,
     memory_mode: Option<&str>,
-) -> ThreadStoreResult<()> {
+) -> ChatStoreResult<()> {
     let mut session_meta =
         read_session_meta_line(rollout_path)
             .await
-            .map_err(|err| ThreadStoreError::Internal {
+            .map_err(|err| ChatStoreError::Internal {
                 message: format!("failed to set thread git metadata: {err}"),
             })?;
     if session_meta.meta.id != chat_id {
-        return Err(ThreadStoreError::Internal {
+        return Err(ChatStoreError::Internal {
             message: format!(
                 "failed to set thread git metadata: rollout session metadata id mismatch: expected {chat_id}, found {}",
                 session_meta.meta.id
@@ -507,33 +507,33 @@ async fn apply_thread_git_info_to_rollout(
     session_meta.meta.memory_mode = memory_mode.map(str::to_string);
     append_rollout_item_to_path(rollout_path, &RolloutMessage::SessionMeta(session_meta))
         .await
-        .map_err(|err| ThreadStoreError::Internal {
+        .map_err(|err| ChatStoreError::Internal {
             message: format!("failed to set thread git metadata: {err}"),
         })
 }
 
 async fn apply_thread_name(
-    store: &LocalThreadStore,
+    store: &LocalChatStore,
     chat_id: ChatId,
     name: String,
-) -> ThreadStoreResult<()> {
+) -> ChatStoreResult<()> {
     if let Some(state_db) = store.state_db().await {
         let updated = state_db
             .update_thread_title(chat_id, &name)
             .await
-            .map_err(|err| ThreadStoreError::Internal {
+            .map_err(|err| ChatStoreError::Internal {
                 message: format!("failed to set thread name: {err}"),
             })?;
         if !updated {
-            return Err(ThreadStoreError::Internal {
-                message: format!("thread metadata unavailable before name update: {chat_id}"),
+            return Err(ChatStoreError::Internal {
+                message: format!("chat metadata unavailable before name update: {chat_id}"),
             });
         }
     }
 
     append_thread_name(store.config.codex_home.as_path(), chat_id, &name)
         .await
-        .map_err(|err| ThreadStoreError::Internal {
+        .map_err(|err| ChatStoreError::Internal {
             message: format!("failed to index thread name: {err}"),
         })
 }
@@ -542,15 +542,15 @@ async fn apply_thread_memory_mode(
     rollout_path: &Path,
     chat_id: ChatId,
     memory_mode: ThreadMemoryMode,
-) -> ThreadStoreResult<()> {
+) -> ChatStoreResult<()> {
     let mut session_meta =
         read_session_meta_line(rollout_path)
             .await
-            .map_err(|err| ThreadStoreError::Internal {
+            .map_err(|err| ChatStoreError::Internal {
                 message: format!("failed to set thread memory mode: {err}"),
             })?;
     if session_meta.meta.id != chat_id {
-        return Err(ThreadStoreError::Internal {
+        return Err(ChatStoreError::Internal {
             message: format!(
                 "failed to set thread memory mode: rollout session metadata id mismatch: expected {chat_id}, found {}",
                 session_meta.meta.id
@@ -564,7 +564,7 @@ async fn apply_thread_memory_mode(
     session_meta.meta.memory_mode = Some(memory_mode_as_str(memory_mode).to_string());
     append_rollout_item_to_path(rollout_path, &RolloutMessage::SessionMeta(session_meta))
         .await
-        .map_err(|err| ThreadStoreError::Internal {
+        .map_err(|err| ChatStoreError::Internal {
             message: format!("failed to set thread memory mode: {err}"),
         })
 }
@@ -577,10 +577,10 @@ fn memory_mode_as_str(mode: ThreadMemoryMode) -> &'static str {
 }
 
 async fn resolve_rollout_path(
-    store: &LocalThreadStore,
+    store: &LocalChatStore,
     chat_id: ChatId,
     include_archived: bool,
-) -> ThreadStoreResult<ResolvedRolloutPath> {
+) -> ChatStoreResult<ResolvedRolloutPath> {
     if let Ok(path) = live_writer::rollout_path(store, chat_id).await {
         let archived = rollout_path_is_archived(store, path.as_path());
         return Ok(ResolvedRolloutPath { path, archived });
@@ -593,7 +593,7 @@ async fn resolve_rollout_path(
         state_db_ctx.as_deref(),
     )
     .await
-    .map_err(|err| ThreadStoreError::InvalidRequest {
+    .map_err(|err| ChatStoreError::InvalidRequest {
         message: format!("failed to locate thread id {chat_id}: {err}"),
     })?;
     if let Some(path) = active_path {
@@ -603,7 +603,7 @@ async fn resolve_rollout_path(
         });
     }
     if !include_archived {
-        return Err(ThreadStoreError::InvalidRequest {
+        return Err(ChatStoreError::InvalidRequest {
             message: format!("thread not found: {chat_id}"),
         });
     }
@@ -613,19 +613,19 @@ async fn resolve_rollout_path(
         state_db_ctx.as_deref(),
     )
     .await
-    .map_err(|err| ThreadStoreError::InvalidRequest {
+    .map_err(|err| ChatStoreError::InvalidRequest {
         message: format!("failed to locate archived thread id {chat_id}: {err}"),
     })?
     .map(|path| ResolvedRolloutPath {
         path,
         archived: true,
     })
-    .ok_or_else(|| ThreadStoreError::InvalidRequest {
+    .ok_or_else(|| ChatStoreError::InvalidRequest {
         message: format!("thread not found: {chat_id}"),
     })
 }
 
-fn rollout_path_is_archived(store: &LocalThreadStore, path: &Path) -> bool {
+fn rollout_path_is_archived(store: &LocalChatStore, path: &Path) -> bool {
     path.starts_with(store.config.codex_home.join(ARCHIVED_SESSIONS_SUBDIR))
 }
 
@@ -640,30 +640,30 @@ mod tests {
 
     use super::*;
     use crate::GitInfoPatch;
-    use crate::ListThreadsParams;
-    use crate::ResumeThreadParams;
+    use crate::ListChatsParams;
+    use crate::ResumeChatParams;
     use crate::SortDirection;
-    use crate::ThreadMetadataPatch;
-    use crate::ThreadPersistenceMetadata;
-    use crate::ThreadSortKey;
-    use crate::ThreadStore;
-    use crate::local::LocalThreadStore;
+    use crate::ChatMetadataPatch;
+    use crate::ChatPersistenceMetadata;
+    use crate::ChatSortKey;
+    use crate::ChatStore;
+    use crate::local::LocalChatStore;
     use crate::local::test_support::test_config;
     use crate::local::test_support::write_archived_session_file;
     use crate::local::test_support::write_session_file;
 
     #[tokio::test]
-    async fn update_thread_metadata_sets_name_on_active_rollout_and_indexes_name() {
+    async fn update_chat_metadata_sets_name_on_active_rollout_and_indexes_name() {
         let home = TempDir::new().expect("temp dir");
-        let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
+        let store = LocalChatStore::new(test_config(home.path()), /*state_db*/ None);
         let uuid = Uuid::from_u128(301);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         write_session_file(home.path(), "2025-01-03T14-00-00", uuid).expect("session file");
 
         let thread = store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     name: Some(Some("A sharper name".to_string())),
                     ..Default::default()
                 },
@@ -680,7 +680,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn update_thread_metadata_sets_memory_mode_on_active_rollout() {
+    async fn update_chat_metadata_sets_memory_mode_on_active_rollout() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let uuid = Uuid::from_u128(302);
@@ -693,12 +693,12 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config.clone(), Some(runtime.clone()));
+        let store = LocalChatStore::new(config.clone(), Some(runtime.clone()));
 
         let thread = store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     memory_mode: Some(ThreadMemoryMode::Disabled),
                     ..Default::default()
                 },
@@ -720,7 +720,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn update_thread_metadata_preserves_memory_mode_when_updating_git_info() {
+    async fn update_chat_metadata_preserves_memory_mode_when_updating_git_info() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let uuid = Uuid::from_u128(312);
@@ -733,12 +733,12 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config.clone(), Some(runtime.clone()));
+        let store = LocalChatStore::new(config.clone(), Some(runtime.clone()));
 
         store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     memory_mode: Some(ThreadMemoryMode::Disabled),
                     ..Default::default()
                 },
@@ -748,9 +748,9 @@ mod tests {
             .expect("set memory mode");
 
         let thread = store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     git_info: Some(GitInfoPatch {
                         branch: Some(Some("feature".to_string())),
                         ..Default::default()
@@ -789,30 +789,30 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn update_thread_metadata_uses_live_rollout_path_for_external_resume() {
+    async fn update_chat_metadata_uses_live_rollout_path_for_external_resume() {
         let home = TempDir::new().expect("temp dir");
         let external_home = TempDir::new().expect("external temp dir");
-        let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
+        let store = LocalChatStore::new(test_config(home.path()), /*state_db*/ None);
         let uuid = Uuid::from_u128(307);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let path = write_session_file(external_home.path(), "2025-01-03T14-45-00", uuid)
             .expect("external session file");
 
         store
-            .resume_thread(ResumeThreadParams {
+            .resume_chat(ResumeChatParams {
                 chat_id,
                 rollout_path: Some(path.clone()),
                 history: None,
                 include_archived: true,
-                metadata: test_thread_metadata(),
+                metadata: test_chat_metadata(),
             })
             .await
             .expect("resume external live thread");
 
         let thread = store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     memory_mode: Some(ThreadMemoryMode::Disabled),
                     ..Default::default()
                 },
@@ -829,7 +829,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn update_thread_metadata_sets_git_info() {
+    async fn update_chat_metadata_sets_git_info() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let runtime = datax_state::StateRuntime::init(
@@ -838,15 +838,15 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config, Some(runtime));
+        let store = LocalChatStore::new(config, Some(runtime));
         let uuid = Uuid::from_u128(309);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         write_session_file(home.path(), "2025-01-03T17-00-00", uuid).expect("session file");
 
         let thread = store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     git_info: Some(GitInfoPatch {
                         sha: Some(Some("abc123".to_string())),
                         branch: Some(Some("main".to_string())),
@@ -872,7 +872,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn update_thread_metadata_sets_permission_profile() {
+    async fn update_chat_metadata_sets_permission_profile() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let runtime = datax_state::StateRuntime::init(
@@ -881,15 +881,15 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config, Some(runtime.clone()));
+        let store = LocalChatStore::new(config, Some(runtime.clone()));
         let uuid = Uuid::from_u128(317);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         write_session_file(home.path(), "2025-01-03T20-30-00", uuid).expect("session file");
 
         let thread = store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     permission_profile: Some(PermissionProfile::Disabled),
                     ..Default::default()
                 },
@@ -912,7 +912,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn update_thread_metadata_partially_updates_git_info() {
+    async fn update_chat_metadata_partially_updates_git_info() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let runtime = datax_state::StateRuntime::init(
@@ -921,15 +921,15 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config, Some(runtime));
+        let store = LocalChatStore::new(config, Some(runtime));
         let uuid = Uuid::from_u128(310);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         write_session_file(home.path(), "2025-01-03T17-30-00", uuid).expect("session file");
 
         store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     git_info: Some(GitInfoPatch {
                         sha: Some(Some("abc123".to_string())),
                         branch: Some(Some("main".to_string())),
@@ -943,9 +943,9 @@ mod tests {
             .expect("seed git metadata");
 
         let thread = store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     git_info: Some(GitInfoPatch {
                         branch: Some(Some("feature".to_string())),
                         ..Default::default()
@@ -970,7 +970,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn update_thread_metadata_clears_git_info_fields() {
+    async fn update_chat_metadata_clears_git_info_fields() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let runtime = datax_state::StateRuntime::init(
@@ -979,16 +979,16 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config.clone(), Some(runtime.clone()));
+        let store = LocalChatStore::new(config.clone(), Some(runtime.clone()));
         let uuid = Uuid::from_u128(311);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let path =
             write_session_file(home.path(), "2025-01-03T18-00-00", uuid).expect("session file");
 
         store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     git_info: Some(GitInfoPatch {
                         sha: Some(Some("abc123".to_string())),
                         branch: Some(Some("main".to_string())),
@@ -1002,9 +1002,9 @@ mod tests {
             .expect("seed git metadata");
 
         let thread = store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     git_info: Some(GitInfoPatch {
                         sha: Some(None),
                         branch: Some(None),
@@ -1033,7 +1033,7 @@ mod tests {
         )
         .await;
         let thread = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: false,
                 include_history: false,
@@ -1043,9 +1043,9 @@ mod tests {
         assert!(thread.git_info.is_none());
 
         store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     memory_mode: Some(ThreadMemoryMode::Disabled),
                     ..Default::default()
                 },
@@ -1067,7 +1067,7 @@ mod tests {
         )
         .await;
         let thread = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: false,
                 include_history: false,
@@ -1078,15 +1078,15 @@ mod tests {
 
         assert_eq!(
             runtime
-                .delete_thread(chat_id)
+                .delete_chat(chat_id)
                 .await
                 .expect("delete sqlite thread row"),
             1
         );
         let thread = store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     git_info: Some(GitInfoPatch {
                         branch: Some(Some("feature".to_string())),
                         ..Default::default()
@@ -1103,9 +1103,9 @@ mod tests {
         assert_eq!(git_info.repository_url, None);
 
         store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     memory_mode: Some(ThreadMemoryMode::Disabled),
                     ..Default::default()
                 },
@@ -1127,7 +1127,7 @@ mod tests {
         )
         .await;
         let thread = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: false,
                 include_history: false,
@@ -1141,9 +1141,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn update_thread_metadata_rejects_mismatched_session_meta_id() {
+    async fn update_chat_metadata_rejects_mismatched_session_meta_id() {
         let home = TempDir::new().expect("temp dir");
-        let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
+        let store = LocalChatStore::new(test_config(home.path()), /*state_db*/ None);
         let filename_uuid = Uuid::from_u128(303);
         let metadata_uuid = Uuid::from_u128(304);
         let chat_id = ChatId::from_string(&filename_uuid.to_string()).expect("valid thread id");
@@ -1157,9 +1157,9 @@ mod tests {
         .expect("rewrite rollout");
 
         let err = store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     memory_mode: Some(ThreadMemoryMode::Enabled),
                     ..Default::default()
                 },
@@ -1168,12 +1168,12 @@ mod tests {
             .await
             .expect_err("mismatch should fail");
 
-        assert!(matches!(err, ThreadStoreError::Internal { .. }));
+        assert!(matches!(err, ChatStoreError::Internal { .. }));
         assert!(err.to_string().contains("metadata id mismatch"));
     }
 
     #[tokio::test]
-    async fn update_thread_metadata_applies_combined_explicit_patch() {
+    async fn update_chat_metadata_applies_combined_explicit_patch() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let runtime = datax_state::StateRuntime::init(
@@ -1182,16 +1182,16 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config, Some(runtime.clone()));
+        let store = LocalChatStore::new(config, Some(runtime.clone()));
         let uuid = Uuid::from_u128(305);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let path =
             write_session_file(home.path(), "2025-01-03T15-30-00", uuid).expect("session file");
 
         let thread = store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     name: Some(Some("Combined metadata".to_string())),
                     memory_mode: Some(ThreadMemoryMode::Disabled),
                     git_info: Some(GitInfoPatch {
@@ -1227,11 +1227,11 @@ mod tests {
 
     #[test]
     fn sqlite_failures_are_best_effort_for_legacy_rollout_compat_updates() {
-        assert!(!sqlite_write_failure_should_block(&ThreadMetadataPatch {
+        assert!(!sqlite_write_failure_should_block(&ChatMetadataPatch {
             name: Some(Some("User chosen name".to_string())),
             ..Default::default()
         }));
-        assert!(!sqlite_write_failure_should_block(&ThreadMetadataPatch {
+        assert!(!sqlite_write_failure_should_block(&ChatMetadataPatch {
             memory_mode: Some(ThreadMemoryMode::Disabled),
             ..Default::default()
         }));
@@ -1239,11 +1239,11 @@ mod tests {
 
     #[test]
     fn sqlite_failures_are_best_effort_for_observed_metadata_updates() {
-        assert!(!sqlite_write_failure_should_block(&ThreadMetadataPatch {
+        assert!(!sqlite_write_failure_should_block(&ChatMetadataPatch {
             updated_at: Some(Utc::now()),
             ..Default::default()
         }));
-        assert!(!sqlite_write_failure_should_block(&ThreadMetadataPatch {
+        assert!(!sqlite_write_failure_should_block(&ChatMetadataPatch {
             preview: Some("Observed preview".to_string()),
             git_info: Some(GitInfoPatch {
                 branch: Some(Some("main".to_string())),
@@ -1256,7 +1256,7 @@ mod tests {
 
     #[test]
     fn sqlite_failures_still_block_for_explicit_git_only_updates() {
-        assert!(sqlite_write_failure_should_block(&ThreadMetadataPatch {
+        assert!(sqlite_write_failure_should_block(&ChatMetadataPatch {
             git_info: Some(GitInfoPatch {
                 branch: Some(Some("main".to_string())),
                 ..Default::default()
@@ -1275,15 +1275,15 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config, Some(runtime));
+        let store = LocalChatStore::new(config, Some(runtime));
         let uuid = Uuid::from_u128(306);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         write_session_file(home.path(), "2025-01-03T15-45-00", uuid).expect("session file");
 
         store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     name: Some(Some("User chosen name".to_string())),
                     ..Default::default()
                 },
@@ -1293,9 +1293,9 @@ mod tests {
             .expect("set explicit name");
 
         let thread = store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     title: Some("Derived first message".to_string()),
                     preview: Some("Derived first message".to_string()),
                     ..Default::default()
@@ -1318,15 +1318,15 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config, Some(runtime.clone()));
+        let store = LocalChatStore::new(config, Some(runtime.clone()));
         let uuid = Uuid::from_u128(313);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         write_session_file(home.path(), "2025-01-03T19-00-00", uuid).expect("session file");
 
         store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     preview: Some("Original preview".to_string()),
                     first_user_message: Some("Original first message".to_string()),
                     ..Default::default()
@@ -1337,9 +1337,9 @@ mod tests {
             .expect("set observed metadata");
 
         let thread = store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     preview: Some("Later preview".to_string()),
                     first_user_message: Some("Later first message".to_string()),
                     ..Default::default()
@@ -1376,14 +1376,14 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config, Some(runtime.clone()));
+        let store = LocalChatStore::new(config, Some(runtime.clone()));
         let uuid = Uuid::from_u128(314);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
 
         let err = store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     preview: Some("phantom".to_string()),
                     ..Default::default()
                 },
@@ -1394,7 +1394,7 @@ mod tests {
 
         assert!(matches!(
             err,
-            ThreadStoreError::InvalidRequest { message }
+            ChatStoreError::InvalidRequest { message }
                 if message == format!("thread not found: {chat_id}")
         ));
         let metadata = runtime
@@ -1405,7 +1405,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn update_thread_metadata_recreates_missing_archived_sqlite_row_as_archived() {
+    async fn update_chat_metadata_recreates_missing_archived_sqlite_row_as_archived() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let uuid = Uuid::from_u128(315);
@@ -1418,12 +1418,12 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config, Some(runtime.clone()));
+        let store = LocalChatStore::new(config, Some(runtime.clone()));
 
         let thread = store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     preview: Some("Archived missing sqlite row".to_string()),
                     ..Default::default()
                 },
@@ -1454,7 +1454,7 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config, Some(runtime.clone()));
+        let store = LocalChatStore::new(config, Some(runtime.clone()));
         let uuid = Uuid::from_u128(316);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         write_session_file(home.path(), "2025-01-03T20-00-00", uuid).expect("session file");
@@ -1466,9 +1466,9 @@ mod tests {
             .expect("normalize cwd");
 
         store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     cwd: Some(unnormalized_cwd),
                     preview: Some("cwd preview".to_string()),
                     ..Default::default()
@@ -1485,10 +1485,10 @@ mod tests {
             .expect("metadata");
         assert_eq!(metadata.cwd, normalized_cwd);
         let page = store
-            .list_threads(ListThreadsParams {
+            .list_chats(ListChatsParams {
                 page_size: 10,
                 cursor: None,
-                sort_key: ThreadSortKey::UpdatedAt,
+                sort_key: ChatSortKey::UpdatedAt,
                 sort_direction: SortDirection::Desc,
                 allowed_sources: Vec::new(),
                 model_providers: Some(Vec::new()),
@@ -1510,7 +1510,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn update_thread_metadata_keeps_archived_thread_archived_in_sqlite() {
+    async fn update_chat_metadata_keeps_archived_thread_archived_in_sqlite() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let uuid = Uuid::from_u128(307);
@@ -1523,7 +1523,7 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config.clone(), Some(runtime.clone()));
+        let store = LocalChatStore::new(config.clone(), Some(runtime.clone()));
         runtime
             .mark_backfill_complete(/*last_watermark*/ None)
             .await
@@ -1549,9 +1549,9 @@ mod tests {
         );
 
         let thread = store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     name: Some(Some("Archived title".to_string())),
                     ..Default::default()
                 },
@@ -1573,7 +1573,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn update_thread_metadata_keeps_live_archived_thread_archived_in_sqlite() {
+    async fn update_chat_metadata_keeps_live_archived_thread_archived_in_sqlite() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let uuid = Uuid::from_u128(308);
@@ -1586,7 +1586,7 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config.clone(), Some(runtime.clone()));
+        let store = LocalChatStore::new(config.clone(), Some(runtime.clone()));
         runtime
             .mark_backfill_complete(/*last_watermark*/ None)
             .await
@@ -1602,20 +1602,20 @@ mod tests {
         )
         .await;
         store
-            .resume_thread(ResumeThreadParams {
+            .resume_chat(ResumeChatParams {
                 chat_id,
                 rollout_path: Some(archived_path.clone()),
                 history: None,
                 include_archived: true,
-                metadata: test_thread_metadata(),
+                metadata: test_chat_metadata(),
             })
             .await
             .expect("resume archived live thread");
 
         let thread = store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
-                patch: ThreadMetadataPatch {
+                patch: ChatMetadataPatch {
                     name: Some(Some("Live archived title".to_string())),
                     ..Default::default()
                 },
@@ -1636,8 +1636,8 @@ mod tests {
         );
     }
 
-    fn test_thread_metadata() -> ThreadPersistenceMetadata {
-        ThreadPersistenceMetadata {
+    fn test_chat_metadata() -> ChatPersistenceMetadata {
+        ChatPersistenceMetadata {
             cwd: Some(std::env::current_dir().expect("cwd")),
             model_provider: "test-provider".to_string(),
             memory_mode: ThreadMemoryMode::Enabled,

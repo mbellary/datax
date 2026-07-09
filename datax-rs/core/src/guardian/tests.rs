@@ -99,7 +99,7 @@ impl datax_extension_api::ThreadLifecycleContributor<Config> for GuardianMemoryC
         input: datax_extension_api::ThreadStartInput<'a, Config>,
     ) -> datax_extension_api::ExtensionFuture<'a, ()> {
         Box::pin(async move {
-            input.thread_store.insert(GuardianMemoryContextEnabled(
+            input.chat_store.insert(GuardianMemoryContextEnabled(
                 input.config.memories.use_memories,
             ));
         })
@@ -110,10 +110,10 @@ impl datax_extension_api::ContextContributor for GuardianMemoryContextProbe {
     fn contribute_thread_context<'a>(
         &'a self,
         _session_store: &'a datax_extension_api::ExtensionData,
-        thread_store: &'a datax_extension_api::ExtensionData,
+        chat_store: &'a datax_extension_api::ExtensionData,
     ) -> datax_extension_api::ExtensionFuture<'a, Vec<datax_extension_api::PromptFragment>> {
         Box::pin(async move {
-            if thread_store
+            if chat_store
                 .get::<GuardianMemoryContextEnabled>()
                 .is_some_and(|enabled| enabled.0)
             {

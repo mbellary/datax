@@ -6,21 +6,21 @@ use datax_goal_extension::GoalSetRequest;
 use datax_goal_extension::GoalTokenBudgetUpdate;
 
 #[derive(Clone)]
-pub(crate) struct ThreadGoalRequestProcessor {
+pub(crate) struct ChatGoalRequestProcessor {
     chat_manager: Arc<ChatManager>,
     outgoing: Arc<OutgoingMessageSender>,
     config: Arc<Config>,
-    thread_state_manager: ThreadStateManager,
+    chat_state_manager: ChatStateManager,
     state_db: Option<StateDbHandle>,
     goal_service: Arc<GoalService>,
 }
 
-impl ThreadGoalRequestProcessor {
+impl ChatGoalRequestProcessor {
     pub(crate) fn new(
         chat_manager: Arc<ChatManager>,
         outgoing: Arc<OutgoingMessageSender>,
         config: Arc<Config>,
-        thread_state_manager: ThreadStateManager,
+        chat_state_manager: ChatStateManager,
         state_db: Option<StateDbHandle>,
         goal_service: Arc<GoalService>,
     ) -> Self {
@@ -28,37 +28,37 @@ impl ThreadGoalRequestProcessor {
             chat_manager,
             outgoing,
             config,
-            thread_state_manager,
+            chat_state_manager,
             state_db,
             goal_service,
         }
     }
 
-    pub(crate) async fn thread_goal_set(
+    pub(crate) async fn chat_goal_set(
         &self,
         request_id: ConnectionRequestId,
         params: ChatGoalSetParams,
     ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
-        self.thread_goal_set_inner(request_id, params)
+        self.chat_goal_set_inner(request_id, params)
             .await
             .map(|()| None)
     }
 
-    pub(crate) async fn thread_goal_get(
+    pub(crate) async fn chat_goal_get(
         &self,
         params: ChatGoalGetParams,
     ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
-        self.thread_goal_get_inner(params)
+        self.chat_goal_get_inner(params)
             .await
             .map(|response| Some(response.into()))
     }
 
-    pub(crate) async fn thread_goal_clear(
+    pub(crate) async fn chat_goal_clear(
         &self,
         request_id: ConnectionRequestId,
         params: ChatGoalClearParams,
     ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
-        self.thread_goal_clear_inner(request_id, params)
+        self.chat_goal_clear_inner(request_id, params)
             .await
             .map(|()| None)
     }
@@ -71,7 +71,7 @@ impl ThreadGoalRequestProcessor {
         if !self.config.features.enabled(Feature::Goals) {
             return;
         }
-        self.emit_thread_goal_snapshot(chat_id).await;
+        self.emit_chat_goal_snapshot(chat_id).await;
         // App-server owns resume response and snapshot ordering, so wait until
         // those are sent before letting extensions react to the idle thread.
         thread.emit_chat_idle_lifecycle_if_idle().await;
@@ -81,8 +81,8 @@ impl ThreadGoalRequestProcessor {
         &self,
         thread: &DataxChat,
     ) -> (bool, Option<StateDbHandle>) {
-        let emit_thread_goal_update = self.config.features.enabled(Feature::Goals);
-        let thread_goal_state_db = if emit_thread_goal_update {
+        let emit_chat_goal_update = self.config.features.enabled(Feature::Goals);
+        let chat_goal_state_db = if emit_chat_goal_update {
             if let Some(state_db) = thread.state_db() {
                 Some(state_db)
             } else {
@@ -91,10 +91,10 @@ impl ThreadGoalRequestProcessor {
         } else {
             None
         };
-        (emit_thread_goal_update, thread_goal_state_db)
+        (emit_chat_goal_update, chat_goal_state_db)
     }
 
-    async fn thread_goal_set_inner(
+    async fn chat_goal_set_inner(
         &self,
         request_id: ConnectionRequestId,
         params: ChatGoalSetParams,
@@ -105,13 +105,13 @@ impl ThreadGoalRequestProcessor {
 
         let chat_id = parse_chat_id_for_request(params.chat_id.as_str())?;
         let state_db = self.state_db_for_materialized_thread(chat_id).await?;
-        self.reconcile_thread_goal_rollout(chat_id, &state_db)
+        self.reconcile_chat_goal_rollout(chat_id, &state_db)
             .await?;
 
         let listener_command_tx = {
-            let thread_state = self.thread_state_manager.thread_state(chat_id).await;
-            let thread_state = thread_state.lock().await;
-            thread_state.listener_command_tx()
+            let chat_state = self.chat_state_manager.chat_state(chat_id).await;
+            let chat_state = chat_state.lock().await;
+            chat_state.listener_command_tx()
         };
         let status = params.status.map(ChatGoalStatus::to_core);
         let objective = params.objective.as_deref();
@@ -156,13 +156,13 @@ impl ThreadGoalRequestProcessor {
                 ChatGoalSetResponse { goal: goal.clone() },
             )
             .await;
-        self.emit_thread_goal_updated_ordered(chat_id, goal, listener_command_tx)
+        self.emit_chat_goal_updated_ordered(chat_id, goal, listener_command_tx)
             .await;
         outcome.apply_runtime_effects(&self.goal_service).await;
         Ok(())
     }
 
-    async fn thread_goal_get_inner(
+    async fn chat_goal_get_inner(
         &self,
         params: ChatGoalGetParams,
     ) -> Result<ChatGoalGetResponse, JSONRPCErrorError> {
@@ -181,7 +181,7 @@ impl ThreadGoalRequestProcessor {
         Ok(ChatGoalGetResponse { goal })
     }
 
-    async fn thread_goal_clear_inner(
+    async fn chat_goal_clear_inner(
         &self,
         request_id: ConnectionRequestId,
         params: ChatGoalClearParams,
@@ -192,13 +192,13 @@ impl ThreadGoalRequestProcessor {
 
         let chat_id = parse_chat_id_for_request(params.chat_id.as_str())?;
         let state_db = self.state_db_for_materialized_thread(chat_id).await?;
-        self.reconcile_thread_goal_rollout(chat_id, &state_db)
+        self.reconcile_chat_goal_rollout(chat_id, &state_db)
             .await?;
 
         let listener_command_tx = {
-            let thread_state = self.thread_state_manager.thread_state(chat_id).await;
-            let thread_state = thread_state.lock().await;
-            thread_state.listener_command_tx()
+            let chat_state = self.chat_state_manager.chat_state(chat_id).await;
+            let chat_state = chat_state.lock().await;
+            chat_state.listener_command_tx()
         };
         let cleared = self
             .goal_service
@@ -210,7 +210,7 @@ impl ThreadGoalRequestProcessor {
             .send_response(request_id, ChatGoalClearResponse { cleared })
             .await;
         if cleared {
-            self.emit_thread_goal_cleared_ordered(chat_id, listener_command_tx)
+            self.emit_chat_goal_cleared_ordered(chat_id, listener_command_tx)
                 .await;
         }
         Ok(())
@@ -242,10 +242,10 @@ impl ThreadGoalRequestProcessor {
 
         self.state_db
             .clone()
-            .ok_or_else(|| internal_error("sqlite state db unavailable for thread goals"))
+            .ok_or_else(|| internal_error("sqlite state db unavailable for chat goals"))
     }
 
-    async fn reconcile_thread_goal_rollout(
+    async fn reconcile_chat_goal_rollout(
         &self,
         chat_id: ChatId,
         state_db: &StateDbHandle,
@@ -279,44 +279,44 @@ impl ThreadGoalRequestProcessor {
         Ok(())
     }
 
-    async fn emit_thread_goal_snapshot(&self, chat_id: ChatId) {
+    async fn emit_chat_goal_snapshot(&self, chat_id: ChatId) {
         let state_db = match self.state_db_for_materialized_thread(chat_id).await {
             Ok(state_db) => state_db,
             Err(err) => {
                 warn!(
-                    "failed to open state db before emitting thread goal resume snapshot for {chat_id}: {}",
+                    "failed to open state db before emitting chat goal resume snapshot for {chat_id}: {}",
                     err.message
                 );
                 return;
             }
         };
         let listener_command_tx = {
-            let thread_state = self.thread_state_manager.thread_state(chat_id).await;
-            let thread_state = thread_state.lock().await;
-            thread_state.listener_command_tx()
+            let chat_state = self.chat_state_manager.chat_state(chat_id).await;
+            let chat_state = chat_state.lock().await;
+            chat_state.listener_command_tx()
         };
         if let Some(listener_command_tx) = listener_command_tx {
-            let command = crate::thread_state::ThreadListenerCommand::EmitThreadGoalSnapshot {
+            let command = crate::chat_state::ChatListenerCommand::EmitChatGoalSnapshot {
                 state_db: state_db.clone(),
             };
             if listener_command_tx.send(command).is_ok() {
                 return;
             }
             warn!(
-                "failed to enqueue thread goal snapshot for {chat_id}: listener command channel is closed"
+                "failed to enqueue chat goal snapshot for {chat_id}: listener command channel is closed"
             );
         }
-        send_thread_goal_snapshot_notification(&self.outgoing, chat_id, &state_db).await;
+        send_chat_goal_snapshot_notification(&self.outgoing, chat_id, &state_db).await;
     }
 
-    async fn emit_thread_goal_updated_ordered(
+    async fn emit_chat_goal_updated_ordered(
         &self,
         chat_id: ChatId,
         goal: ChatGoal,
-        listener_command_tx: Option<tokio::sync::mpsc::UnboundedSender<ThreadListenerCommand>>,
+        listener_command_tx: Option<tokio::sync::mpsc::UnboundedSender<ChatListenerCommand>>,
     ) {
         if let Some(listener_command_tx) = listener_command_tx {
-            let command = crate::thread_state::ThreadListenerCommand::EmitThreadGoalUpdated {
+            let command = crate::chat_state::ChatListenerCommand::EmitChatGoalUpdated {
                 interaction_id: None,
                 goal: goal.clone(),
             };
@@ -324,7 +324,7 @@ impl ThreadGoalRequestProcessor {
                 return;
             }
             warn!(
-                "failed to enqueue thread goal update for {chat_id}: listener command channel is closed"
+                "failed to enqueue chat goal update for {chat_id}: listener command channel is closed"
             );
         }
         self.outgoing
@@ -336,18 +336,18 @@ impl ThreadGoalRequestProcessor {
             .await;
     }
 
-    async fn emit_thread_goal_cleared_ordered(
+    async fn emit_chat_goal_cleared_ordered(
         &self,
         chat_id: ChatId,
-        listener_command_tx: Option<tokio::sync::mpsc::UnboundedSender<ThreadListenerCommand>>,
+        listener_command_tx: Option<tokio::sync::mpsc::UnboundedSender<ChatListenerCommand>>,
     ) {
         if let Some(listener_command_tx) = listener_command_tx {
-            let command = crate::thread_state::ThreadListenerCommand::EmitThreadGoalCleared;
+            let command = crate::chat_state::ChatListenerCommand::EmitChatGoalCleared;
             if listener_command_tx.send(command).is_ok() {
                 return;
             }
             warn!(
-                "failed to enqueue thread goal clear for {chat_id}: listener command channel is closed"
+                "failed to enqueue chat goal clear for {chat_id}: listener command channel is closed"
             );
         }
         self.outgoing
@@ -358,11 +358,11 @@ impl ThreadGoalRequestProcessor {
     }
 }
 
-pub(super) fn api_thread_goal_from_state(goal: datax_state::ThreadGoal) -> ChatGoal {
+pub(super) fn api_chat_goal_from_state(goal: datax_state::ThreadGoal) -> ChatGoal {
     ChatGoal {
         chat_id: goal.chat_id.to_string(),
         objective: goal.objective,
-        status: api_thread_goal_status_from_state(goal.status),
+        status: api_chat_goal_status_from_state(goal.status),
         token_budget: goal.token_budget,
         tokens_used: goal.tokens_used,
         time_used_seconds: goal.time_used_seconds,
@@ -371,7 +371,7 @@ pub(super) fn api_thread_goal_from_state(goal: datax_state::ThreadGoal) -> ChatG
     }
 }
 
-fn api_thread_goal_status_from_state(status: datax_state::ThreadGoalStatus) -> ChatGoalStatus {
+fn api_chat_goal_status_from_state(status: datax_state::ThreadGoalStatus) -> ChatGoalStatus {
     match status {
         datax_state::ThreadGoalStatus::Active => ChatGoalStatus::Active,
         datax_state::ThreadGoalStatus::Paused => ChatGoalStatus::Paused,

@@ -125,23 +125,23 @@ impl AgentControl {
             return Err(CodexErr::ThreadNotFound(chat_id));
         }
 
-        let stored_thread = state
-            .read_stored_thread(ReadThreadParams {
+        let stored_chat = state
+            .read_stored_chat(ReadChatParams {
                 chat_id,
                 include_archived: true,
                 include_history: true,
             })
             .await?;
-        let stored_source = stored_thread.source.clone();
-        let stored_parent_chat_id = stored_thread.parent_chat_id;
-        let history = stored_thread
+        let stored_source = stored_chat.source.clone();
+        let stored_parent_chat_id = stored_chat.parent_chat_id;
+        let history = stored_chat
             .history
             .ok_or(CodexErr::ThreadNotFound(chat_id))?
             .items;
         let initial_history = InitialHistory::Resumed(ResumedHistory {
             conversation_id: chat_id,
             history,
-            rollout_path: stored_thread.rollout_path,
+            rollout_path: stored_chat.rollout_path,
         });
         if initial_history.get_multi_agent_version() != Some(MultiAgentVersion::V2) {
             return Err(CodexErr::ThreadNotFound(chat_id));
@@ -415,7 +415,7 @@ impl AgentControl {
         }
 
         let parent_history = state
-            .read_stored_thread(ReadThreadParams {
+            .read_stored_chat(ReadChatParams {
                 chat_id: parent_chat_id,
                 include_archived: true,
                 include_history: true,
@@ -603,23 +603,23 @@ impl AgentControl {
     ) -> CodexResult<(ChatId, MultiAgentVersion)> {
         let state = self.upgrade()?;
         let state_db_ctx = state.state_db();
-        let stored_thread = state
-            .read_stored_thread(ReadThreadParams {
+        let stored_chat = state
+            .read_stored_chat(ReadChatParams {
                 chat_id,
                 include_archived: true,
                 include_history: true,
             })
             .await?;
-        let history = stored_thread
+        let history = stored_chat
             .history
             .ok_or_else(|| CodexErr::ThreadNotFound(chat_id))?
             .items;
         let initial_history = InitialHistory::Resumed(ResumedHistory {
             conversation_id: chat_id,
             history,
-            rollout_path: stored_thread.rollout_path,
+            rollout_path: stored_chat.rollout_path,
         });
-        let parent_chat_id = stored_thread.parent_chat_id;
+        let parent_chat_id = stored_chat.parent_chat_id;
         let multi_agent_version = state
             .effective_multi_agent_version_for_spawn(
                 &initial_history,

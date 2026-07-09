@@ -19,7 +19,7 @@ pub(crate) async fn notify_tool_start(invocation: &ToolInvocation) {
         contributor
             .on_tool_start(ToolStartInput {
                 session_store: &invocation.session.services.session_extension_data,
-                thread_store: &invocation.session.services.thread_extension_data,
+                chat_store: &invocation.session.services.thread_extension_data,
                 turn_store: invocation.turn.extension_data.as_ref(),
                 interaction_id: invocation.turn.sub_id.as_str(),
                 call_id: invocation.call_id.as_str(),
@@ -72,7 +72,7 @@ async fn notify_tool_finish_parts(
         contributor
             .on_tool_finish(ToolFinishInput {
                 session_store: &session.services.session_extension_data,
-                thread_store: &session.services.thread_extension_data,
+                chat_store: &session.services.thread_extension_data,
                 turn_store: turn.extension_data.as_ref(),
                 interaction_id: turn.sub_id.as_str(),
                 call_id,

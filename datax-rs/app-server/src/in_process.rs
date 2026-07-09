@@ -498,7 +498,7 @@ async fn start_uninitialized(args: InProcessStartArgs) -> IoResult<InProcessClie
                                     Vec::<ConnectionId>::new()
                                 };
                                 processor
-                                    .try_attach_thread_listener(chat_id, connection_ids)
+                                    .try_attach_chat_listener(chat_id, connection_ids)
                                     .await;
                             }
                             Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
@@ -517,9 +517,9 @@ async fn start_uninitialized(args: InProcessStartArgs) -> IoResult<InProcessClie
             processor
                 .connection_closed(IN_PROCESS_CONNECTION_ID, &session)
                 .await;
-            processor.clear_all_thread_listeners().await;
+            processor.clear_all_chat_listeners().await;
             processor.drain_background_tasks().await;
-            processor.shutdown_threads().await;
+            processor.shutdown_chats().await;
         });
         let mut pending_request_responses =
             HashMap::<RequestId, oneshot::Sender<PendingClientRequestResponse>>::new();

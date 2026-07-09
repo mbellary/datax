@@ -63,7 +63,7 @@ async fn thread_memory_mode_set_updates_loaded_thread_state() -> Result<()> {
 }
 
 #[tokio::test]
-async fn thread_memory_mode_set_updates_stored_thread_state() -> Result<()> {
+async fn thread_memory_mode_set_updates_stored_chat_state() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
     let codex_home = TempDir::new()?;
     create_config_toml(codex_home.path(), &server.uri())?;

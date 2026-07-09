@@ -4,7 +4,7 @@ use pretty_assertions::assert_eq;
 
 use super::ThreadSearchItem;
 use super::cursor_from_thread_search_item;
-use crate::ThreadSortKey;
+use crate::ChatSortKey;
 
 #[test]
 fn recency_cursor_includes_chat_id_tie_breaker() {
@@ -19,7 +19,7 @@ fn recency_cursor_includes_chat_id_tie_breaker() {
         snippet: String::new(),
     };
 
-    let cursor = cursor_from_thread_search_item(&item, ThreadSortKey::RecencyAt)
+    let cursor = cursor_from_thread_search_item(&item, ChatSortKey::RecencyAt)
         .expect("cursor should build");
 
     assert_eq!(

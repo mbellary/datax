@@ -22,11 +22,11 @@ use datax_protocol::error::CodexErr;
 use datax_protocol::protocol::Event;
 use datax_protocol::protocol::EventMsg;
 use datax_rollout::state_db::StateDbHandle;
-use datax_thread_store::ThreadStore;
+use datax_thread_store::ChatStore;
 
 use crate::outgoing_message::OutgoingMessageSender;
-use crate::thread_state::ThreadListenerCommand;
-use crate::thread_state::ThreadStateManager;
+use crate::chat_state::ChatListenerCommand;
+use crate::chat_state::ChatStateManager;
 
 pub(crate) struct ThreadExtensionDependencies {
     pub(crate) event_sink: Arc<dyn ExtensionEventSink>,
@@ -38,7 +38,7 @@ pub(crate) struct ThreadExtensionDependencies {
     pub(crate) environment_manager: Arc<EnvironmentManager>,
     pub(crate) executor_skill_provider: Arc<dyn datax_skills_extension::SkillProvider>,
     /// Process-scoped persistence backend for extensions that need stored thread history.
-    pub(crate) thread_store: Arc<dyn ThreadStore>,
+    pub(crate) chat_store: Arc<dyn ChatStore>,
 }
 
 pub(crate) fn thread_extensions<S>(
@@ -57,7 +57,7 @@ where
         goal_service,
         environment_manager,
         executor_skill_provider,
-        thread_store: _thread_store,
+        chat_store: _chat_store,
     } = dependencies;
     let mut builder = ExtensionRegistryBuilder::<Config>::with_event_sink(event_sink);
     if let Some(state_db) = state_db {
@@ -96,31 +96,31 @@ where
 
 pub(crate) fn app_server_extension_event_sink(
     outgoing: Arc<OutgoingMessageSender>,
-    thread_state_manager: ThreadStateManager,
+    chat_state_manager: ChatStateManager,
 ) -> Arc<dyn ExtensionEventSink> {
     Arc::new(AppServerExtensionEventSink {
         outgoing,
-        thread_state_manager,
+        chat_state_manager,
     })
 }
 
 struct AppServerExtensionEventSink {
     outgoing: Arc<OutgoingMessageSender>,
-    thread_state_manager: ThreadStateManager,
+    chat_state_manager: ChatStateManager,
 }
 
 impl ExtensionEventSink for AppServerExtensionEventSink {
     fn emit(&self, event: Event) {
         match event.msg {
-            EventMsg::ThreadGoalUpdated(thread_goal_event) => {
-                let chat_id = thread_goal_event.chat_id;
-                let interaction_id = thread_goal_event.interaction_id;
-                let goal: ChatGoal = thread_goal_event.goal.into();
+            EventMsg::ThreadGoalUpdated(chat_goal_event) => {
+                let chat_id = chat_goal_event.chat_id;
+                let interaction_id = chat_goal_event.interaction_id;
+                let goal: ChatGoal = chat_goal_event.goal.into();
                 if let Some(listener_command_tx) = self
-                    .thread_state_manager
+                    .chat_state_manager
                     .current_listener_command_tx(chat_id)
                 {
-                    let command = ThreadListenerCommand::EmitThreadGoalUpdated {
+                    let command = ChatListenerCommand::EmitChatGoalUpdated {
                         interaction_id: interaction_id.clone(),
                         goal: goal.clone(),
                     };
@@ -187,17 +187,17 @@ mod tests {
             outgoing_tx,
             AnalyticsEventsClient::disabled(),
         ));
-        let thread_state_manager = ThreadStateManager::new();
+        let chat_state_manager = ChatStateManager::new();
         let chat_id = ChatId::default();
         let (listener_command_tx, mut listener_command_rx) = mpsc::unbounded_channel();
-        thread_state_manager.register_listener_command_tx(chat_id, listener_command_tx.clone());
-        let sink = app_server_extension_event_sink(outgoing, thread_state_manager);
+        chat_state_manager.register_listener_command_tx(chat_id, listener_command_tx.clone());
+        let sink = app_server_extension_event_sink(outgoing, chat_state_manager);
 
         for interaction_id in ["turn-1", "turn-2"] {
-            sink.emit(thread_goal_updated_event(chat_id, interaction_id));
+            sink.emit(chat_goal_updated_event(chat_id, interaction_id));
         }
         listener_command_tx
-            .send(ThreadListenerCommand::EmitThreadGoalCleared)
+            .send(ChatListenerCommand::EmitChatGoalCleared)
             .expect("listener command channel should be open");
 
         let mut observed = Vec::new();
@@ -207,12 +207,12 @@ mod tests {
                 .expect("timed out waiting for listener command")
                 .expect("listener command channel closed unexpectedly");
             match command {
-                ThreadListenerCommand::EmitThreadGoalUpdated { interaction_id, .. } => {
+                ChatListenerCommand::EmitChatGoalUpdated { interaction_id, .. } => {
                     observed.push(
                         interaction_id.expect("extension goal updates should include turn ids"),
                     );
                 }
-                ThreadListenerCommand::EmitThreadGoalCleared => {
+                ChatListenerCommand::EmitChatGoalCleared => {
                     observed.push("cleared".to_string())
                 }
                 _ => panic!("unexpected listener command"),
@@ -229,7 +229,7 @@ mod tests {
         );
     }
 
-    fn thread_goal_updated_event(chat_id: ChatId, interaction_id: &str) -> Event {
+    fn chat_goal_updated_event(chat_id: ChatId, interaction_id: &str) -> Event {
         Event {
             id: interaction_id.to_string(),
             msg: EventMsg::ThreadGoalUpdated(ThreadGoalUpdatedEvent {

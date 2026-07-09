@@ -1,22 +1,22 @@
-use super::LocalThreadStore;
-use crate::CreateThreadParams;
-use crate::ThreadStoreError;
-use crate::ThreadStoreResult;
+use super::LocalChatStore;
+use crate::CreateChatParams;
+use crate::ChatStoreError;
+use crate::ChatStoreResult;
 use datax_protocol::protocol::ThreadMemoryMode;
 use datax_rollout::RolloutConfig;
 use datax_rollout::RolloutRecorder;
 use datax_rollout::RolloutRecorderParams;
 
-pub(super) async fn create_thread(
-    store: &LocalThreadStore,
-    params: CreateThreadParams,
-) -> ThreadStoreResult<RolloutRecorder> {
+pub(super) async fn create_chat(
+    store: &LocalChatStore,
+    params: CreateChatParams,
+) -> ChatStoreResult<RolloutRecorder> {
     let cwd = params
         .metadata
         .cwd
         .clone()
-        .ok_or_else(|| ThreadStoreError::InvalidRequest {
-            message: "local thread store requires a cwd".to_string(),
+        .ok_or_else(|| ChatStoreError::InvalidRequest {
+            message: "local chat store requires a cwd".to_string(),
         })?;
     let config = RolloutConfig {
         codex_home: store.config.codex_home.clone(),
@@ -40,7 +40,7 @@ pub(super) async fn create_thread(
         .with_multi_agent_version(params.multi_agent_version),
     )
     .await
-    .map_err(|err| ThreadStoreError::Internal {
+    .map_err(|err| ChatStoreError::Internal {
         message: format!("failed to initialize local thread recorder: {err}"),
     })
 }

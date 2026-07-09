@@ -6,10 +6,10 @@ use datax_exec_server::LOCAL_FS;
 use datax_git_utils::resolve_root_git_project_for_trust;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::models::plaintext_agent_message_content;
-use datax_thread_store::ListThreadsParams;
+use datax_thread_store::ListChatsParams;
 use datax_thread_store::SortDirection;
 use datax_thread_store::StoredChat;
-use datax_thread_store::ThreadSortKey;
+use datax_thread_store::ChatSortKey;
 use datax_utils_absolute_path::AbsolutePathBuf;
 use datax_utils_output_truncation::TruncationPolicy;
 use datax_utils_output_truncation::truncate_text;
@@ -128,11 +128,11 @@ pub(crate) async fn build_realtime_startup_context(
 async fn load_recent_threads(sess: &Session) -> Vec<StoredChat> {
     match sess
         .services
-        .thread_store
-        .list_threads(ListThreadsParams {
+        .chat_store
+        .list_chats(ListChatsParams {
             page_size: MAX_RECENT_THREADS,
             cursor: None,
-            sort_key: ThreadSortKey::UpdatedAt,
+            sort_key: ChatSortKey::UpdatedAt,
             sort_direction: SortDirection::Desc,
             allowed_sources: Vec::new(),
             model_providers: None,

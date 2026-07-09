@@ -12,7 +12,7 @@ use datax_protocol::user_input::UserInput;
 use tokio_util::sync::CancellationToken;
 
 use crate::chat_manager::ChatManager;
-use crate::chat_manager::thread_store_from_config;
+use crate::chat_manager::chat_store_from_config;
 use crate::config::Config;
 use crate::resolve_installation_id;
 use crate::session::session::Session;
@@ -39,7 +39,7 @@ pub async fn build_prompt_input(
         config.codex_linux_sandbox_exe.clone(),
     )?;
 
-    let thread_store = thread_store_from_config(&config, state_db.clone());
+    let chat_store = chat_store_from_config(&config, state_db.clone());
     let installation_id = resolve_installation_id(&config.codex_home).await?;
     let chat_manager = ChatManager::new(
         &config,
@@ -56,7 +56,7 @@ pub async fn build_prompt_input(
         empty_extension_registry(),
         user_instructions_provider,
         /*analytics_events_client*/ None,
-        thread_store,
+        chat_store,
         state_db.clone(),
         installation_id,
         /*attestation_provider*/ None,

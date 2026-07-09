@@ -55,7 +55,7 @@ async fn init_mcp(codex_home: &Path) -> Result<TestAppServer> {
     Ok(mcp)
 }
 
-async fn list_threads(
+async fn list_chats(
     mcp: &mut TestAppServer,
     cursor: Option<String>,
     limit: Option<u32>,
@@ -63,7 +63,7 @@ async fn list_threads(
     source_kinds: Option<Vec<ChatSourceKind>>,
     archived: Option<bool>,
 ) -> Result<ChatListResponse> {
-    list_threads_with_sort(
+    list_chats_with_sort(
         mcp,
         cursor,
         limit,
@@ -75,7 +75,7 @@ async fn list_threads(
     .await
 }
 
-async fn list_threads_with_sort(
+async fn list_chats_with_sort(
     mcp: &mut TestAppServer,
     cursor: Option<String>,
     limit: Option<u32>,
@@ -107,7 +107,7 @@ async fn list_threads_with_sort(
     to_response::<ChatListResponse>(resp)
 }
 
-async fn list_threads_for_parent(
+async fn list_chats_for_parent(
     mcp: &mut TestAppServer,
     parent_chat_id: ChatId,
     cursor: Option<String>,
@@ -218,7 +218,7 @@ async fn thread_list_basic_empty() -> Result<()> {
 
     let ChatListResponse {
         data, next_cursor, ..
-    } = list_threads(
+    } = list_chats(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -304,7 +304,7 @@ async fn thread_list_reports_system_error_idle_flag_after_failed_turn() -> Resul
     )
     .await??;
 
-    let ChatListResponse { data, .. } = list_threads(
+    let ChatListResponse { data, .. } = list_chats(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -399,7 +399,7 @@ async fn thread_list_pagination_next_cursor_none_on_last_page() -> Result<()> {
         data: data1,
         next_cursor: cursor1,
         ..
-    } = list_threads(
+    } = list_chats(
         &mut mcp,
         /*cursor*/ None,
         Some(2),
@@ -427,7 +427,7 @@ async fn thread_list_pagination_next_cursor_none_on_last_page() -> Result<()> {
         data: data2,
         next_cursor: cursor2,
         ..
-    } = list_threads(
+    } = list_chats(
         &mut mcp,
         Some(cursor1),
         Some(2),
@@ -481,7 +481,7 @@ async fn thread_list_respects_provider_filter() -> Result<()> {
     // Filter to only other_provider; expect 1 item, nextCursor None.
     let ChatListResponse {
         data, next_cursor, ..
-    } = list_threads(
+    } = list_chats(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -651,12 +651,12 @@ sqlite = true
         model_provider_id: "mock_provider".to_string(),
         generate_memories: false,
     };
-    let repaired_page = datax_core::RolloutRecorder::list_threads(
+    let repaired_page = datax_core::RolloutRecorder::list_chats(
         Some(state_db.clone()),
         &rollout_config,
         /*page_size*/ 10,
         /*cursor*/ None,
-        datax_core::ThreadSortKey::CreatedAt,
+        datax_core::ChatSortKey::CreatedAt,
         datax_core::SortDirection::Desc,
         &[],
         /*model_providers*/ None,
@@ -1040,12 +1040,12 @@ async fn thread_list_parent_filter_reads_direct_children_from_state_db() -> Resu
         .await?;
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let first_page = list_threads_for_parent(
+    let first_page = list_chats_for_parent(
         &mut mcp, parent_id, /*cursor*/ None, /*limit*/ 1, /*model_providers*/ None,
         /*source_kinds*/ None,
     )
     .await?;
-    let second_page = list_threads_for_parent(
+    let second_page = list_chats_for_parent(
         &mut mcp,
         parent_id,
         first_page.next_cursor.clone(),
@@ -1080,7 +1080,7 @@ async fn thread_list_parent_filter_reads_direct_children_from_state_db() -> Resu
             .chain(&second_page.data)
             .all(|thread| thread.parent_chat_id.as_deref() == Some(expected_parent_id.as_str()))
     );
-    let interactive_only = list_threads_for_parent(
+    let interactive_only = list_chats_for_parent(
         &mut mcp,
         parent_id,
         /*cursor*/ None,
@@ -1157,7 +1157,7 @@ async fn thread_list_empty_source_kinds_defaults_to_interactive_only() -> Result
 
     let ChatListResponse {
         data, next_cursor, ..
-    } = list_threads(
+    } = list_chats(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -1211,7 +1211,7 @@ async fn thread_list_filters_by_source_kind_subagent_thread_spawn() -> Result<()
 
     let ChatListResponse {
         data, next_cursor, ..
-    } = list_threads(
+    } = list_chats(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -1285,7 +1285,7 @@ async fn thread_list_filters_by_subagent_variant() -> Result<()> {
 
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let review = list_threads(
+    let review = list_chats(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -1305,7 +1305,7 @@ async fn thread_list_filters_by_subagent_variant() -> Result<()> {
         Some(parent_chat_id.to_string())
     );
 
-    let compact = list_threads(
+    let compact = list_chats(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -1321,7 +1321,7 @@ async fn thread_list_filters_by_subagent_variant() -> Result<()> {
         .collect();
     assert_eq!(compact_ids, vec![compact_id.as_str()]);
 
-    let spawn = list_threads(
+    let spawn = list_chats(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -1333,7 +1333,7 @@ async fn thread_list_filters_by_subagent_variant() -> Result<()> {
     let spawn_ids: Vec<_> = spawn.data.iter().map(|thread| thread.id.as_str()).collect();
     assert_eq!(spawn_ids, vec![spawn_id.as_str()]);
 
-    let other = list_threads(
+    let other = list_chats(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -1385,7 +1385,7 @@ async fn thread_list_fetches_until_limit_or_exhausted() -> Result<()> {
     // third page so we rely on pagination to reach the limit.
     let ChatListResponse {
         data, next_cursor, ..
-    } = list_threads(
+    } = list_chats(
         &mut mcp,
         /*cursor*/ None,
         Some(8),
@@ -1440,7 +1440,7 @@ async fn thread_list_enforces_max_limit() -> Result<()> {
 
     let ChatListResponse {
         data, next_cursor, ..
-    } = list_threads(
+    } = list_chats(
         &mut mcp,
         /*cursor*/ None,
         Some(200),
@@ -1498,7 +1498,7 @@ async fn thread_list_stops_when_not_enough_filtered_results_exist() -> Result<()
     // returned with nextCursor None.
     let ChatListResponse {
         data, next_cursor, ..
-    } = list_threads(
+    } = list_chats(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -1546,7 +1546,7 @@ async fn thread_list_includes_git_info() -> Result<()> {
 
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let ChatListResponse { data, .. } = list_threads(
+    let ChatListResponse { data, .. } = list_chats(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -1605,7 +1605,7 @@ async fn thread_list_default_sorts_by_created_at() -> Result<()> {
 
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let ChatListResponse { data, .. } = list_threads_with_sort(
+    let ChatListResponse { data, .. } = list_chats_with_sort(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -1667,7 +1667,7 @@ async fn thread_list_sort_updated_at_orders_by_mtime() -> Result<()> {
 
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let ChatListResponse { data, .. } = list_threads_with_sort(
+    let ChatListResponse { data, .. } = list_chats_with_sort(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -1723,12 +1723,12 @@ async fn thread_list_sort_recency_at_uses_state_db_order_with_provider_filter() 
         model_provider_id: "mock_provider".to_string(),
         generate_memories: false,
     };
-    datax_core::RolloutRecorder::list_threads(
+    datax_core::RolloutRecorder::list_chats(
         Some(state_db.clone()),
         &rollout_config,
         /*page_size*/ 10,
         /*cursor*/ None,
-        datax_core::ThreadSortKey::CreatedAt,
+        datax_core::ChatSortKey::CreatedAt,
         datax_core::SortDirection::Desc,
         datax_core::INTERACTIVE_SESSION_SOURCES.as_slice(),
         /*model_providers*/ None,
@@ -1745,7 +1745,7 @@ async fn thread_list_sort_recency_at_uses_state_db_order_with_provider_filter() 
         .await?;
 
     let mut mcp = init_mcp(codex_home.path()).await?;
-    let ChatListResponse { data, .. } = list_threads_with_sort(
+    let ChatListResponse { data, .. } = list_chats_with_sort(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -1816,7 +1816,7 @@ async fn thread_list_updated_at_paginates_with_cursor() -> Result<()> {
         data: page1,
         next_cursor: cursor1,
         ..
-    } = list_threads_with_sort(
+    } = list_chats_with_sort(
         &mut mcp,
         /*cursor*/ None,
         Some(2),
@@ -1834,7 +1834,7 @@ async fn thread_list_updated_at_paginates_with_cursor() -> Result<()> {
         data: page2,
         next_cursor: cursor2,
         ..
-    } = list_threads_with_sort(
+    } = list_chats_with_sort(
         &mut mcp,
         Some(cursor1),
         Some(2),
@@ -1984,7 +1984,7 @@ async fn thread_list_created_at_tie_breaks_by_uuid() -> Result<()> {
 
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let ChatListResponse { data, .. } = list_threads(
+    let ChatListResponse { data, .. } = list_chats(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -2037,7 +2037,7 @@ async fn thread_list_updated_at_tie_breaks_by_uuid() -> Result<()> {
 
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let ChatListResponse { data, .. } = list_threads_with_sort(
+    let ChatListResponse { data, .. } = list_chats_with_sort(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -2078,7 +2078,7 @@ async fn thread_list_updated_at_uses_mtime() -> Result<()> {
 
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let ChatListResponse { data, .. } = list_threads_with_sort(
+    let ChatListResponse { data, .. } = list_chats_with_sort(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -2137,7 +2137,7 @@ async fn thread_list_archived_filter() -> Result<()> {
 
     let mut mcp = init_mcp(codex_home.path()).await?;
 
-    let ChatListResponse { data, .. } = list_threads(
+    let ChatListResponse { data, .. } = list_chats(
         &mut mcp,
         /*cursor*/ None,
         Some(10),
@@ -2149,7 +2149,7 @@ async fn thread_list_archived_filter() -> Result<()> {
     assert_eq!(data.len(), 1);
     assert_eq!(data[0].id, active_id);
 
-    let ChatListResponse { data, .. } = list_threads(
+    let ChatListResponse { data, .. } = list_chats(
         &mut mcp,
         /*cursor*/ None,
         Some(10),

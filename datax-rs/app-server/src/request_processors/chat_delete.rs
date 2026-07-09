@@ -1,11 +1,11 @@
 //! `chat/delete` request handling.
 
 use super::chat_processor::core_thread_write_error;
-use super::chat_processor::unsupported_thread_store_operation;
+use super::chat_processor::unsupported_chat_store_operation;
 use super::*;
 
 impl ChatRequestProcessor {
-    pub(crate) async fn thread_delete(
+    pub(crate) async fn chat_delete(
         &self,
         request_id: ConnectionRequestId,
         params: ChatDeleteParams,
@@ -13,7 +13,7 @@ impl ChatRequestProcessor {
         let mut deleted_chat_ids = Vec::new();
         let result = {
             let _thread_list_state_permit = self.acquire_thread_list_state_permit().await?;
-            self.thread_delete_response(params, &mut deleted_chat_ids)
+            self.chat_delete_response(params, &mut deleted_chat_ids)
                 .await
         };
         match result {
@@ -21,7 +21,7 @@ impl ChatRequestProcessor {
                 self.outgoing
                     .send_response(request_id.clone(), response)
                     .await;
-                self.send_thread_deleted_notifications(deleted_chat_ids)
+                self.send_chat_deleted_notifications(deleted_chat_ids)
                     .await;
                 Ok(None)
             }
@@ -29,7 +29,7 @@ impl ChatRequestProcessor {
         }
     }
 
-    async fn thread_delete_response(
+    async fn chat_delete_response(
         &self,
         params: ChatDeleteParams,
         deleted_chat_ids: &mut Vec<String>,
@@ -51,7 +51,7 @@ impl ChatRequestProcessor {
             Err(err) => return Err(core_thread_write_error("delete thread", err)),
         }
 
-        self.validate_root_thread_delete(chat_id, chat_ids.len() > 1)
+        self.validate_root_chat_delete(chat_id, chat_ids.len() > 1)
             .await?;
         for chat_id_to_delete in chat_ids.iter().copied() {
             self.prepare_thread_for_delete(chat_id_to_delete).await;
@@ -62,27 +62,27 @@ impl ChatRequestProcessor {
 
         for chat_id_to_delete in delete_order.iter().copied() {
             match self
-                .thread_store
-                .delete_thread(StoreDeleteThreadParams {
+                .chat_store
+                .delete_chat(StoreDeleteChatParams {
                     chat_id: chat_id_to_delete,
                 })
                 .await
             {
                 Ok(()) => {}
-                Err(ThreadStoreError::ThreadNotFound { .. }) => {
+                Err(ChatStoreError::ChatNotFound { .. }) => {
                     warn!(
                         "thread {chat_id_to_delete} was already missing while deleting {chat_id}"
                     );
                 }
                 Err(err) => {
-                    return Err(thread_store_delete_error(err));
+                    return Err(chat_store_delete_error(err));
                 }
             }
         }
 
         if let Some(state_db) = self.state_db.as_ref() {
             state_db
-                .delete_threads_strict(chat_ids.as_slice())
+                .delete_chats_strict(chat_ids.as_slice())
                 .await
                 .map_err(|err| {
                     internal_error(format!(
@@ -95,7 +95,7 @@ impl ChatRequestProcessor {
         Ok(ChatDeleteResponse {})
     }
 
-    async fn send_thread_deleted_notifications(&self, deleted_chat_ids: Vec<String>) {
+    async fn send_chat_deleted_notifications(&self, deleted_chat_ids: Vec<String>) {
         for chat_id in deleted_chat_ids {
             self.outgoing
                 .send_server_notification(ChatDeleted(ChatDeletedNotification { chat_id }))
@@ -103,7 +103,7 @@ impl ChatRequestProcessor {
         }
     }
 
-    async fn validate_root_thread_delete(
+    async fn validate_root_chat_delete(
         &self,
         chat_id: ChatId,
         has_descendants: bool,
@@ -117,8 +117,8 @@ impl ChatRequestProcessor {
             )));
         }
         match self
-            .thread_store
-            .read_thread(StoreReadThreadParams {
+            .chat_store
+            .read_chat(StoreReadChatParams {
                 chat_id: chat_id,
                 include_archived: true,
                 include_history: false,
@@ -126,13 +126,13 @@ impl ChatRequestProcessor {
             .await
         {
             Ok(_) => Ok(()),
-            Err(ThreadStoreError::ThreadNotFound { .. }) => {
+            Err(ChatStoreError::ChatNotFound { .. }) => {
                 if has_descendants {
                     return Ok(());
                 }
                 let Some(state_db) = self.state_db.as_ref() else {
-                    return Err(thread_store_delete_error(
-                        ThreadStoreError::ThreadNotFound { chat_id: chat_id },
+                    return Err(chat_store_delete_error(
+                        ChatStoreError::ChatNotFound { chat_id: chat_id },
                     ));
                 };
                 if state_db
@@ -147,12 +147,12 @@ impl ChatRequestProcessor {
                 {
                     Ok(())
                 } else {
-                    Err(thread_store_delete_error(
-                        ThreadStoreError::ThreadNotFound { chat_id: chat_id },
+                    Err(chat_store_delete_error(
+                        ChatStoreError::ChatNotFound { chat_id: chat_id },
                     ))
                 }
             }
-            Err(err) => Err(thread_store_delete_error(err)),
+            Err(err) => Err(chat_store_delete_error(err)),
         }
     }
 
@@ -164,14 +164,14 @@ impl ChatRequestProcessor {
     }
 }
 
-fn thread_store_delete_error(err: ThreadStoreError) -> JSONRPCErrorError {
+fn chat_store_delete_error(err: ChatStoreError) -> JSONRPCErrorError {
     match err {
-        ThreadStoreError::ThreadNotFound { chat_id: chat_id } => {
+        ChatStoreError::ChatNotFound { chat_id: chat_id } => {
             invalid_request(format!("thread not found: {chat_id}"))
         }
-        ThreadStoreError::InvalidRequest { message } => invalid_request(message),
-        ThreadStoreError::Unsupported { operation } => {
-            unsupported_thread_store_operation(operation)
+        ChatStoreError::InvalidRequest { message } => invalid_request(message),
+        ChatStoreError::Unsupported { operation } => {
+            unsupported_chat_store_operation(operation)
         }
         err => internal_error(format!("failed to delete thread: {err}")),
     }

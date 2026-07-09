@@ -59,7 +59,7 @@ const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 #[cfg(not(windows))]
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 
-async fn list_threads(mcp: &mut TestAppServer) -> Result<ChatListResponse> {
+async fn list_chats(mcp: &mut TestAppServer) -> Result<ChatListResponse> {
     let list_id = mcp
         .send_chat_list_request(ChatListParams {
             cursor: None,
@@ -285,7 +285,7 @@ async fn thread_fork_inherits_explicit_source_name_from_session_index() -> Resul
     .await??;
     let ChatForkResponse { chat: thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
 
-    let ChatListResponse { data, .. } = list_threads(&mut mcp).await?;
+    let ChatListResponse { data, .. } = list_chats(&mut mcp).await?;
     let listed = data
         .iter()
         .find(|candidate| candidate.id == thread.id)
@@ -801,7 +801,7 @@ async fn thread_fork_ephemeral_remains_pathless_and_omits_listing() -> Result<()
     expected_started_thread.interactions.clear();
     assert_eq!(started.chat, expected_started_thread);
 
-    let ChatListResponse { data, .. } = list_threads(&mut mcp).await?;
+    let ChatListResponse { data, .. } = list_chats(&mut mcp).await?;
     assert!(
         data.iter().all(|candidate| candidate.id != fork_chat_id),
         "ephemeral forks should not appear in chat/list"

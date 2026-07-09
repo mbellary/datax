@@ -27,7 +27,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use tempfile::TempDir;
 
-fn stored_thread(cwd: &str, title: &str, first_user_message: &str) -> StoredChat {
+fn stored_chat(cwd: &str, title: &str, first_user_message: &str) -> StoredChat {
     StoredChat {
         chat_id: ChatId::new(),
         extra_config: None,
@@ -306,17 +306,17 @@ async fn recent_work_section_groups_threads_by_cwd() {
     fs::create_dir_all(&outside).expect("create outside dir");
 
     let recent_threads = vec![
-        stored_thread(
+        stored_chat(
             workspace_a.to_string_lossy().as_ref(),
             "Investigate realtime startup context",
             "Log the startup context before sending it",
         ),
-        stored_thread(
+        stored_chat(
             workspace_b.to_string_lossy().as_ref(),
             "Trim websocket startup payload",
             "Remove memories from the realtime startup context",
         ),
-        stored_thread(outside.to_string_lossy().as_ref(), "", "Inspect flaky test"),
+        stored_chat(outside.to_string_lossy().as_ref(), "", "Inspect flaky test"),
     ];
     let current_cwd = workspace_a;
     let repo = repo.abs();

@@ -10,11 +10,11 @@ const REDACTED_PAYLOAD: &str = "[redacted]";
 const CHATGPT_REMOTE_CLIENT_NAMES: &[&str] =
     &["codex_chatgpt_android_remote", "codex_chatgpt_ios_remote"];
 
-pub(super) fn should_redact_thread_resume_payloads(client_name: Option<&str>) -> bool {
+pub(super) fn should_redact_chat_resume_payloads(client_name: Option<&str>) -> bool {
     client_name.is_some_and(|client_name| CHATGPT_REMOTE_CLIENT_NAMES.contains(&client_name))
 }
 
-pub(super) fn redact_thread_resume_payloads(interactions: &mut [Interaction]) {
+pub(super) fn redact_chat_resume_payloads(interactions: &mut [Interaction]) {
     for turn in interactions {
         turn.messages.retain_mut(|item| match item {
             Message::McpToolCall {
@@ -106,7 +106,7 @@ mod tests {
             },
         ]);
 
-        redact_thread_resume_payloads(&mut thread.interactions);
+        redact_chat_resume_payloads(&mut thread.interactions);
 
         assert_eq!(thread.interactions[0].messages.len(), 2);
         assert_eq!(
@@ -158,7 +158,7 @@ mod tests {
             duration_ms: Some(8),
         }]);
 
-        redact_thread_resume_payloads(&mut thread.interactions);
+        redact_chat_resume_payloads(&mut thread.interactions);
 
         assert_eq!(
             thread.interactions[0].messages[0],

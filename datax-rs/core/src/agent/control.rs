@@ -36,7 +36,7 @@ use datax_protocol::protocol::ThreadSource;
 use datax_protocol::protocol::TurnEnvironmentSelection;
 use datax_protocol::user_input::UserInput;
 use datax_state::DirectionalThreadSpawnEdgeStatus;
-use datax_thread_store::ReadThreadParams;
+use datax_thread_store::ReadChatParams;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::collections::VecDeque;
@@ -264,7 +264,7 @@ impl AgentControl {
         agent_id: ChatId,
     ) -> CodexResult<Vec<ChatId>> {
         let mut chat_ids = vec![agent_id];
-        chat_ids.extend(self.live_thread_spawn_descendants(agent_id).await?);
+        chat_ids.extend(self.live_chat_spawn_descendants(agent_id).await?);
         Ok(chat_ids)
     }
 
@@ -591,19 +591,19 @@ impl AgentControl {
         &self,
         parent_chat_id: ChatId,
     ) -> CodexResult<Vec<(ChatId, AgentMetadata)>> {
-        let mut children_by_parent = self.live_thread_spawn_children().await?;
+        let mut children_by_parent = self.live_chat_spawn_children().await?;
         Ok(children_by_parent
             .remove(&parent_chat_id)
             .unwrap_or_default())
     }
 
-    async fn live_thread_spawn_children(
+    async fn live_chat_spawn_children(
         &self,
     ) -> CodexResult<HashMap<ChatId, Vec<(ChatId, AgentMetadata)>>> {
         let state = self.upgrade()?;
         let mut children_by_parent = HashMap::<ChatId, Vec<(ChatId, AgentMetadata)>>::new();
 
-        for (parent_chat_id, child_chat_id) in state.list_live_thread_spawn_edges().await {
+        for (parent_chat_id, child_chat_id) in state.list_live_chat_spawn_edges().await {
             children_by_parent.entry(parent_chat_id).or_default().push((
                 child_chat_id,
                 self.state
@@ -629,7 +629,7 @@ impl AgentControl {
         Ok(children_by_parent)
     }
 
-    async fn persist_thread_spawn_edge_for_source(
+    async fn persist_chat_spawn_edge_for_source(
         &self,
         thread: &crate::DataxChat,
         child_chat_id: ChatId,
@@ -653,11 +653,11 @@ impl AgentControl {
         }
     }
 
-    async fn live_thread_spawn_descendants(
+    async fn live_chat_spawn_descendants(
         &self,
         root_chat_id: ChatId,
     ) -> CodexResult<Vec<ChatId>> {
-        let mut children_by_parent = self.live_thread_spawn_children().await?;
+        let mut children_by_parent = self.live_chat_spawn_children().await?;
         let mut descendants = Vec::new();
         let mut stack = children_by_parent
             .remove(&root_chat_id)

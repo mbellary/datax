@@ -44,7 +44,7 @@ use datax_external_agent_sessions::ExternalAgentSessionMigration as CoreSessionM
 use datax_rollout::StateDbHandle;
 use datax_state::ExternalAgentConfigImportFailureRecord;
 use datax_state::ExternalAgentConfigImportSuccessRecord;
-use datax_thread_store::ThreadStore;
+use datax_thread_store::ChatStore;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
@@ -66,7 +66,7 @@ pub(crate) struct ExternalAgentConfigRequestProcessor {
 pub(crate) struct ExternalAgentConfigRequestProcessorArgs {
     pub(crate) outgoing: Arc<OutgoingMessageSender>,
     pub(crate) chat_manager: Arc<ChatManager>,
-    pub(crate) thread_store: Arc<dyn ThreadStore>,
+    pub(crate) chat_store: Arc<dyn ChatStore>,
     pub(crate) config_manager: ConfigManager,
     pub(crate) config_processor: ConfigRequestProcessor,
     pub(crate) state_db: Option<StateDbHandle>,
@@ -80,7 +80,7 @@ impl ExternalAgentConfigRequestProcessor {
         let ExternalAgentConfigRequestProcessorArgs {
             outgoing,
             chat_manager,
-            thread_store,
+            chat_store,
             config_manager,
             config_processor,
             state_db,
@@ -91,7 +91,7 @@ impl ExternalAgentConfigRequestProcessor {
         let session_importer = ExternalAgentSessionImporter::new(
             codex_home.clone(),
             Arc::clone(&chat_manager),
-            thread_store,
+            chat_store,
             config_manager,
             arg0_paths,
         );

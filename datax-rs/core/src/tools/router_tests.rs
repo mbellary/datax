@@ -39,7 +39,7 @@ impl datax_extension_api::ToolContributor for ExtensionEchoContributor {
     fn tools(
         &self,
         _session_store: &ExtensionData,
-        _thread_store: &ExtensionData,
+        _chat_store: &ExtensionData,
     ) -> Vec<Arc<dyn ToolExecutor<ExtensionToolCall>>> {
         vec![Arc::new(ExtensionEchoExecutor)]
     }

@@ -22,7 +22,7 @@ use datax_core::config::Config;
 use datax_core::resolve_installation_id;
 use datax_core::shell::Shell;
 use datax_core::shell::get_shell_by_model_provided_path;
-use datax_core::thread_store_from_config;
+use datax_core::chat_store_from_config;
 use datax_exec_server::CreateDirectoryOptions;
 use datax_exec_server::ExecutorFileSystem;
 use datax_exec_server::RemoveOptions;
@@ -569,7 +569,7 @@ impl TestCodexBuilder {
     ) -> anyhow::Result<TestCodex> {
         let auth = self.auth.clone();
         let state_db = datax_core::init_state_db(&config).await;
-        let thread_store = thread_store_from_config(&config, state_db.clone());
+        let thread_store = chat_store_from_config(&config, state_db.clone());
         let installation_id = resolve_installation_id(&config.codex_home).await?;
         let user_instructions_provider =
             self.user_instructions_provider.clone().unwrap_or_else(|| {

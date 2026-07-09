@@ -28,7 +28,7 @@ use datax_config::config_toml::DEFAULT_PROJECT_DOC_MAX_BYTES;
 use datax_config::config_toml::ProjectConfig;
 use datax_config::config_toml::RealtimeAudioConfig;
 use datax_config::config_toml::RealtimeConfig;
-use datax_config::config_toml::ThreadStoreToml;
+use datax_config::config_toml::ChatStoreToml;
 use datax_config::config_toml::validate_model_providers;
 use datax_config::loader::load_config_layers_state;
 use datax_config::loader::project_trust_key;
@@ -596,7 +596,7 @@ fn build_network_proxy_spec(
 
 /// Configured thread persistence backend.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub enum ThreadStoreConfig {
+pub enum ChatStoreConfig {
     /// Persist threads locally using rollout JSONL files and sqlite metadata.
     #[default]
     Local,
@@ -999,7 +999,7 @@ pub struct Config {
     pub experimental_thread_config_endpoint: Option<String>,
 
     /// Experimental / do not use. Selects the thread persistence backend.
-    pub experimental_thread_store: ThreadStoreConfig,
+    pub experimental_chat_store: ChatStoreConfig,
     /// When set, restricts ChatGPT login to one or more workspace identifiers.
     pub forced_chatgpt_workspace_id: Option<Vec<String>>,
 
@@ -2236,11 +2236,11 @@ fn resolve_tool_suggest_config_from_config(
     }
 }
 
-fn thread_store_config(thread_store: Option<ThreadStoreToml>) -> ThreadStoreConfig {
-    match thread_store {
-        Some(ThreadStoreToml::Local {}) => ThreadStoreConfig::Local,
-        Some(ThreadStoreToml::InMemory { id }) => ThreadStoreConfig::InMemory { id },
-        None => ThreadStoreConfig::Local,
+fn chat_store_config(chat_store: Option<ChatStoreToml>) -> ChatStoreConfig {
+    match chat_store {
+        Some(ChatStoreToml::Local {}) => ChatStoreConfig::Local,
+        Some(ChatStoreToml::InMemory { id }) => ChatStoreConfig::InMemory { id },
+        None => ChatStoreConfig::Local,
     }
 }
 
@@ -2909,10 +2909,10 @@ impl Config {
     ) -> std::io::Result<Self> {
         // Keep the large config-construction future off small test thread stacks.
         Box::pin(async move {
-        if cfg.experimental_thread_store_endpoint.is_some() {
+        if cfg.experimental_chat_store_endpoint.is_some() {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
-                "`experimental_thread_store_endpoint` is no longer supported; remove it from config.toml",
+                "`experimental_chat_store_endpoint` is no longer supported; remove it from config.toml",
             ));
         }
 
@@ -3897,7 +3897,7 @@ impl Config {
             experimental_realtime_ws_startup_context: cfg.experimental_realtime_ws_startup_context,
             experimental_realtime_start_instructions: cfg.experimental_realtime_start_instructions,
             experimental_thread_config_endpoint: cfg.experimental_thread_config_endpoint,
-            experimental_thread_store: thread_store_config(cfg.experimental_thread_store),
+            experimental_chat_store: chat_store_config(cfg.experimental_chat_store),
             forced_chatgpt_workspace_id,
             forced_login_method,
             web_search_mode: constrained_web_search_mode.value,

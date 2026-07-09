@@ -9,27 +9,27 @@ use datax_rollout::find_archived_thread_path_by_id_str;
 use datax_rollout::find_thread_name_by_id;
 use datax_rollout::find_thread_path_by_id_str;
 use datax_rollout::read_session_meta_line;
-use datax_rollout::read_thread_item_from_rollout;
+use datax_rollout::read_chat_item_from_rollout;
 use datax_state::ThreadMetadata;
 
-use super::LocalThreadStore;
-use super::helpers::distinct_thread_metadata_title;
+use super::LocalChatStore;
+use super::helpers::distinct_chat_metadata_title;
 use super::helpers::git_info_from_parts;
 use super::helpers::permission_profile_from_metadata_value;
 use super::helpers::rollout_path_is_archived;
 use super::helpers::set_thread_name_from_title;
-use super::helpers::stored_thread_from_rollout_item;
+use super::helpers::stored_chat_from_rollout_item;
 use super::live_writer;
-use crate::ReadThreadParams;
+use crate::ReadChatParams;
 use crate::StoredChat;
 use crate::StoredChatHistory;
-use crate::ThreadStoreError;
-use crate::ThreadStoreResult;
+use crate::ChatStoreError;
+use crate::ChatStoreResult;
 
-pub(super) async fn read_thread(
-    store: &LocalThreadStore,
-    params: ReadThreadParams,
-) -> ThreadStoreResult<StoredChat> {
+pub(super) async fn read_chat(
+    store: &LocalChatStore,
+    params: ReadChatParams,
+) -> ChatStoreResult<StoredChat> {
     let chat_id = params.chat_id;
     if let Some(metadata) = read_sqlite_metadata(store, chat_id).await
         && (params.include_archived
@@ -47,10 +47,10 @@ pub(super) async fn read_thread(
             .await)
     {
         let metadata_sandbox_policy = metadata.sandbox_policy.clone();
-        let mut thread = stored_thread_from_sqlite_metadata(store, metadata).await;
+        let mut thread = stored_chat_from_sqlite_metadata(store, metadata).await;
         if !params.include_history
             && let Some(rollout_path) = thread.rollout_path.clone()
-            && let Ok(mut rollout_thread) = read_thread_from_rollout_path(store, rollout_path).await
+            && let Ok(mut rollout_thread) = read_chat_from_rollout_path(store, rollout_path).await
             && rollout_thread.chat_id == chat_id
             && (params.include_archived || rollout_thread.archived_at.is_none())
             && !rollout_thread.preview.is_empty()
@@ -72,13 +72,13 @@ pub(super) async fn read_thread(
 
     let path = resolve_rollout_path(store, chat_id, params.include_archived)
         .await?
-        .ok_or_else(|| ThreadStoreError::InvalidRequest {
+        .ok_or_else(|| ChatStoreError::InvalidRequest {
             message: format!("no rollout found for thread id {chat_id}"),
         })?;
 
-    let mut thread = read_thread_from_rollout_path(store, path).await?;
+    let mut thread = read_chat_from_rollout_path(store, path).await?;
     if !params.include_archived && thread.archived_at.is_some() {
-        return Err(ThreadStoreError::InvalidRequest {
+        return Err(ChatStoreError::InvalidRequest {
             message: format!("thread {} is archived", thread.chat_id),
         });
     }
@@ -87,7 +87,7 @@ pub(super) async fn read_thread(
 }
 
 async fn sqlite_rollout_path_can_load_history_for_thread(
-    store: &LocalThreadStore,
+    store: &LocalChatStore,
     path: &std::path::Path,
     chat_id: datax_protocol::ChatId,
 ) -> bool {
@@ -97,21 +97,21 @@ async fn sqlite_rollout_path_can_load_history_for_thread(
     // SQLite metadata can outlive a moved/recreated rollout path. When history is
     // requested, verify the path still resolves to the requested thread before
     // trusting it as the source replay.
-    read_thread_from_rollout_path(store, path.to_path_buf())
+    read_chat_from_rollout_path(store, path.to_path_buf())
         .await
         .is_ok_and(|thread| thread.chat_id == chat_id)
 }
 
-pub(super) async fn read_thread_by_rollout_path(
-    store: &LocalThreadStore,
+pub(super) async fn read_chat_by_rollout_path(
+    store: &LocalChatStore,
     rollout_path: std::path::PathBuf,
     include_archived: bool,
     include_history: bool,
-) -> ThreadStoreResult<StoredChat> {
+) -> ChatStoreResult<StoredChat> {
     let path = resolve_requested_rollout_path(store, rollout_path).await?;
-    let mut thread = read_thread_from_rollout_path(store, path).await?;
+    let mut thread = read_chat_from_rollout_path(store, path).await?;
     if !include_archived && thread.archived_at.is_some() {
-        return Err(ThreadStoreError::InvalidRequest {
+        return Err(ChatStoreError::InvalidRequest {
             message: format!("thread {} is archived", thread.chat_id),
         });
     }
@@ -137,9 +137,9 @@ pub(super) async fn read_thread_by_rollout_path(
 }
 
 async fn resolve_requested_rollout_path(
-    store: &LocalThreadStore,
+    store: &LocalChatStore,
     rollout_path: std::path::PathBuf,
-) -> ThreadStoreResult<std::path::PathBuf> {
+) -> ChatStoreResult<std::path::PathBuf> {
     let path = if rollout_path.is_relative() {
         store.config.codex_home.join(rollout_path)
     } else {
@@ -147,7 +147,7 @@ async fn resolve_requested_rollout_path(
     };
     match tokio::fs::metadata(path.as_path()).await {
         Ok(metadata) if metadata.is_dir() => {
-            return Err(ThreadStoreError::InvalidRequest {
+            return Err(ChatStoreError::InvalidRequest {
                 message: format!(
                     "failed to resolve rollout path `{}`: path is a directory",
                     path.display()
@@ -155,7 +155,7 @@ async fn resolve_requested_rollout_path(
             });
         }
         Ok(metadata) if !metadata.is_file() => {
-            return Err(ThreadStoreError::InvalidRequest {
+            return Err(ChatStoreError::InvalidRequest {
                 message: format!(
                     "failed to resolve rollout path `{}`: path is not a file",
                     path.display()
@@ -165,14 +165,14 @@ async fn resolve_requested_rollout_path(
         _ => {}
     }
     let Some(path) = datax_rollout::existing_rollout_path(path.as_path()).await else {
-        return Err(ThreadStoreError::InvalidRequest {
+        return Err(ChatStoreError::InvalidRequest {
             message: format!(
                 "failed to resolve rollout path `{}`: file does not exist",
                 path.display()
             ),
         });
     };
-    std::fs::canonicalize(path.as_path()).map_err(|err| ThreadStoreError::InvalidRequest {
+    std::fs::canonicalize(path.as_path()).map_err(|err| ChatStoreError::InvalidRequest {
         message: format!("failed to resolve rollout path `{}`: {err}", path.display()),
     })
 }
@@ -180,13 +180,13 @@ async fn resolve_requested_rollout_path(
 async fn attach_history_if_requested(
     thread: &mut StoredChat,
     include_history: bool,
-) -> ThreadStoreResult<()> {
+) -> ChatStoreResult<()> {
     if !include_history {
         return Ok(());
     }
     let chat_id = thread.chat_id;
     let Some(path) = thread.rollout_path.clone() else {
-        return Err(ThreadStoreError::Internal {
+        return Err(ChatStoreError::Internal {
             message: format!("failed to load thread history for thread {chat_id}"),
         });
     };
@@ -196,10 +196,10 @@ async fn attach_history_if_requested(
 }
 
 async fn resolve_rollout_path(
-    store: &LocalThreadStore,
+    store: &LocalChatStore,
     chat_id: datax_protocol::ChatId,
     include_archived: bool,
-) -> ThreadStoreResult<Option<std::path::PathBuf>> {
+) -> ChatStoreResult<Option<std::path::PathBuf>> {
     if let Ok(path) = live_writer::rollout_path(store, chat_id).await
         && datax_rollout::existing_rollout_path(path.as_path())
             .await
@@ -217,7 +217,7 @@ async fn resolve_rollout_path(
             state_db_ctx.as_deref(),
         )
         .await
-        .map_err(|err| ThreadStoreError::InvalidRequest {
+        .map_err(|err| ChatStoreError::InvalidRequest {
             message: format!("failed to locate thread id {chat_id}: {err}"),
         })? {
             Some(path) => Ok(Some(path)),
@@ -227,7 +227,7 @@ async fn resolve_rollout_path(
                 state_db_ctx.as_deref(),
             )
             .await
-            .map_err(|err| ThreadStoreError::InvalidRequest {
+            .map_err(|err| ChatStoreError::InvalidRequest {
                 message: format!("failed to locate archived thread id {chat_id}: {err}"),
             }),
         }
@@ -238,26 +238,26 @@ async fn resolve_rollout_path(
             state_db_ctx.as_deref(),
         )
         .await
-        .map_err(|err| ThreadStoreError::InvalidRequest {
+        .map_err(|err| ChatStoreError::InvalidRequest {
             message: format!("failed to locate thread id {chat_id}: {err}"),
         })
     }
 }
 
-async fn read_thread_from_rollout_path(
-    store: &LocalThreadStore,
+async fn read_chat_from_rollout_path(
+    store: &LocalChatStore,
     path: std::path::PathBuf,
-) -> ThreadStoreResult<StoredChat> {
-    let Some(item) = read_thread_item_from_rollout(path.clone()).await else {
-        return stored_thread_from_session_meta(store, path).await;
+) -> ChatStoreResult<StoredChat> {
+    let Some(item) = read_chat_item_from_rollout(path.clone()).await else {
+        return stored_chat_from_session_meta(store, path).await;
     };
     let archived = rollout_path_is_archived(store.config.codex_home.as_path(), path.as_path());
-    let mut thread = stored_thread_from_rollout_item(
+    let mut thread = stored_chat_from_rollout_item(
         item,
         archived,
         store.config.default_model_provider_id.as_str(),
     )
-    .ok_or_else(|| ThreadStoreError::Internal {
+    .ok_or_else(|| ChatStoreError::Internal {
         message: format!("failed to read thread id from {}", path.display()),
     })?;
     thread.rollout_path = Some(datax_rollout::plain_rollout_path(path.as_path()));
@@ -282,28 +282,28 @@ async fn read_thread_from_rollout_path(
 
 async fn load_history_items(
     path: &std::path::Path,
-) -> ThreadStoreResult<Vec<datax_protocol::protocol::RolloutMessage>> {
+) -> ChatStoreResult<Vec<datax_protocol::protocol::RolloutMessage>> {
     let (items, _, _) = RolloutRecorder::load_rollout_items(path)
         .await
-        .map_err(|err| ThreadStoreError::Internal {
+        .map_err(|err| ChatStoreError::Internal {
             message: format!("failed to load thread history {}: {err}", path.display()),
         })?;
     Ok(items)
 }
 
 async fn read_sqlite_metadata(
-    store: &LocalThreadStore,
+    store: &LocalChatStore,
     chat_id: datax_protocol::ChatId,
 ) -> Option<ThreadMetadata> {
     let runtime = store.state_db().await?;
     runtime.get_thread(chat_id).await.ok().flatten()
 }
 
-async fn stored_thread_from_sqlite_metadata(
-    store: &LocalThreadStore,
+async fn stored_chat_from_sqlite_metadata(
+    store: &LocalChatStore,
     metadata: ThreadMetadata,
 ) -> StoredChat {
-    let name = match distinct_thread_metadata_title(&metadata) {
+    let name = match distinct_chat_metadata_title(&metadata) {
         Some(title) => Some(title),
         None => find_thread_name_by_id(store.config.codex_home.as_path(), &metadata.id)
             .await
@@ -364,23 +364,23 @@ async fn stored_thread_from_sqlite_metadata(
     }
 }
 
-async fn stored_thread_from_session_meta(
-    store: &LocalThreadStore,
+async fn stored_chat_from_session_meta(
+    store: &LocalChatStore,
     path: std::path::PathBuf,
-) -> ThreadStoreResult<StoredChat> {
+) -> ChatStoreResult<StoredChat> {
     let meta_line = read_session_meta_line(path.as_path())
         .await
-        .map_err(|err| ThreadStoreError::Internal {
+        .map_err(|err| ChatStoreError::Internal {
             message: format!("failed to read thread {}: {err}", path.display()),
         })?;
     let archived = rollout_path_is_archived(store.config.codex_home.as_path(), path.as_path());
-    Ok(stored_thread_from_meta_line(
+    Ok(stored_chat_from_meta_line(
         store, meta_line, path, archived,
     ))
 }
 
-fn stored_thread_from_meta_line(
-    store: &LocalThreadStore,
+fn stored_chat_from_meta_line(
+    store: &LocalChatStore,
     meta_line: SessionMetaLine,
     path: std::path::PathBuf,
     archived: bool,
@@ -463,24 +463,24 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
-    use crate::ThreadStore;
-    use crate::local::LocalThreadStore;
+    use crate::ChatStore;
+    use crate::local::LocalChatStore;
     use crate::local::test_support::test_config;
     use crate::local::test_support::write_archived_session_file;
     use crate::local::test_support::write_session_file;
     use crate::local::test_support::write_session_file_with_fork;
 
     #[tokio::test]
-    async fn read_thread_returns_active_rollout_summary() {
+    async fn read_chat_returns_active_rollout_summary() {
         let home = TempDir::new().expect("temp dir");
-        let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
+        let store = LocalChatStore::new(test_config(home.path()), /*state_db*/ None);
         let uuid = Uuid::from_u128(205);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let active_path =
             write_session_file(home.path(), "2025-01-03T12-00-00", uuid).expect("session file");
 
         let thread = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: false,
                 include_history: true,
@@ -499,9 +499,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn read_thread_returns_rollout_path_summary() {
+    async fn read_chat_returns_rollout_path_summary() {
         let home = TempDir::new().expect("temp dir");
-        let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
+        let store = LocalChatStore::new(test_config(home.path()), /*state_db*/ None);
         let uuid = Uuid::from_u128(211);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let active_path =
@@ -512,7 +512,7 @@ mod tests {
             .to_path_buf();
 
         let thread = store
-            .read_thread_by_rollout_path(
+            .read_chat_by_rollout_path(
                 relative_path,
                 /*include_archived*/ false,
                 /*include_history*/ false,
@@ -529,7 +529,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn read_thread_by_rollout_path_prefers_sqlite_git_info() {
+    async fn read_chat_by_rollout_path_prefers_sqlite_git_info() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let uuid = Uuid::from_u128(223);
@@ -542,7 +542,7 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config.clone(), Some(runtime.clone()));
+        let store = LocalChatStore::new(config.clone(), Some(runtime.clone()));
         let mut builder = ThreadMetadataBuilder::new(
             chat_id,
             active_path.clone(),
@@ -556,12 +556,12 @@ mod tests {
             .with_timezone(&Utc);
         builder.recency_at = Some(recency_at);
         runtime
-            .upsert_thread(&builder.build(config.default_model_provider_id.as_str()))
+            .upsert_chat(&builder.build(config.default_model_provider_id.as_str()))
             .await
             .expect("state db upsert should succeed");
 
         let thread = store
-            .read_thread_by_rollout_path(
+            .read_chat_by_rollout_path(
                 active_path,
                 /*include_archived*/ false,
                 /*include_history*/ false,
@@ -583,23 +583,23 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn read_thread_returns_archived_rollout_when_requested() {
+    async fn read_chat_returns_archived_rollout_when_requested() {
         let home = TempDir::new().expect("temp dir");
-        let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
+        let store = LocalChatStore::new(test_config(home.path()), /*state_db*/ None);
         let uuid = Uuid::from_u128(207);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let archived_path = write_archived_session_file(home.path(), "2025-01-03T12-00-00", uuid)
             .expect("archived session file");
 
         let active_only_err = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: false,
                 include_history: false,
             })
             .await
             .expect_err("active-only read should fail for archived rollout");
-        let ThreadStoreError::InvalidRequest { message } = active_only_err else {
+        let ChatStoreError::InvalidRequest { message } = active_only_err else {
             panic!("expected invalid request error");
         };
         assert_eq!(
@@ -608,7 +608,7 @@ mod tests {
         );
 
         let thread = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: true,
                 include_history: false,
@@ -624,9 +624,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn read_thread_prefers_active_rollout_over_archived() {
+    async fn read_chat_prefers_active_rollout_over_archived() {
         let home = TempDir::new().expect("temp dir");
-        let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
+        let store = LocalChatStore::new(test_config(home.path()), /*state_db*/ None);
         let uuid = Uuid::from_u128(208);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let active_path =
@@ -635,7 +635,7 @@ mod tests {
             .expect("archived session file");
 
         let thread = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: true,
                 include_history: false,
@@ -649,9 +649,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn read_thread_returns_forked_from_id() {
+    async fn read_chat_returns_forked_from_id() {
         let home = TempDir::new().expect("temp dir");
-        let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
+        let store = LocalChatStore::new(test_config(home.path()), /*state_db*/ None);
         let uuid = Uuid::from_u128(209);
         let parent_uuid = Uuid::from_u128(210);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
@@ -669,7 +669,7 @@ mod tests {
         .expect("forked session file");
 
         let thread = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: false,
                 include_history: false,
@@ -681,7 +681,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn read_thread_applies_sqlite_thread_name() {
+    async fn read_chat_applies_sqlite_thread_name() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let uuid = Uuid::from_u128(212);
@@ -694,7 +694,7 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config.clone(), Some(runtime.clone()));
+        let store = LocalChatStore::new(config.clone(), Some(runtime.clone()));
         let mut builder =
             ThreadMetadataBuilder::new(chat_id, rollout_path, Utc::now(), SessionSource::Cli);
         builder.model_provider = Some(config.default_model_provider_id.clone());
@@ -704,12 +704,12 @@ mod tests {
         metadata.title = "Saved title".to_string();
         metadata.first_user_message = Some("Hello from user".to_string());
         runtime
-            .upsert_thread(&metadata)
+            .upsert_chat(&metadata)
             .await
             .expect("state db upsert should succeed");
 
         let thread = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: false,
                 include_history: false,
@@ -721,7 +721,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn read_thread_returns_permission_profile_from_sqlite_metadata() {
+    async fn read_chat_returns_permission_profile_from_sqlite_metadata() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let uuid = Uuid::from_u128(225);
@@ -734,7 +734,7 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config.clone(), Some(runtime.clone()));
+        let store = LocalChatStore::new(config.clone(), Some(runtime.clone()));
         let mut builder =
             ThreadMetadataBuilder::new(chat_id, rollout_path, Utc::now(), SessionSource::Cli);
         builder.model_provider = Some(config.default_model_provider_id.clone());
@@ -744,12 +744,12 @@ mod tests {
         metadata.sandbox_policy =
             serde_json::to_string(&permission_profile).expect("serialize profile");
         runtime
-            .upsert_thread(&metadata)
+            .upsert_chat(&metadata)
             .await
             .expect("state db upsert should succeed");
 
         let thread = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: false,
                 include_history: false,
@@ -762,7 +762,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn read_thread_accepts_legacy_sandbox_policy_metadata() {
+    async fn read_chat_accepts_legacy_sandbox_policy_metadata() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let uuid = Uuid::from_u128(226);
@@ -775,7 +775,7 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config.clone(), Some(runtime.clone()));
+        let store = LocalChatStore::new(config.clone(), Some(runtime.clone()));
         let mut builder =
             ThreadMetadataBuilder::new(chat_id, rollout_path, Utc::now(), SessionSource::Cli);
         builder.model_provider = Some(config.default_model_provider_id.clone());
@@ -783,12 +783,12 @@ mod tests {
         let mut metadata = builder.build(config.default_model_provider_id.as_str());
         metadata.sandbox_policy = "danger-full-access".to_string();
         runtime
-            .upsert_thread(&metadata)
+            .upsert_chat(&metadata)
             .await
             .expect("state db upsert should succeed");
 
         let thread = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: false,
                 include_history: true,
@@ -800,7 +800,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn read_thread_preserves_rollout_cwd_when_sqlite_metadata_exists() {
+    async fn read_chat_preserves_rollout_cwd_when_sqlite_metadata_exists() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let runtime = datax_state::StateRuntime::init(
@@ -809,7 +809,7 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config.clone(), Some(runtime.clone()));
+        let store = LocalChatStore::new(config.clone(), Some(runtime.clone()));
         let uuid = Uuid::from_u128(224);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let day_dir = home.path().join("sessions/2025/01/03");
@@ -856,12 +856,12 @@ mod tests {
         metadata.first_user_message = Some("Hello from sqlite".to_string());
         metadata.sandbox_policy = "workspace-write".to_string();
         runtime
-            .upsert_thread(&metadata)
+            .upsert_chat(&metadata)
             .await
             .expect("state db upsert should succeed");
 
         let thread = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: false,
                 include_history: false,
@@ -891,9 +891,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn read_thread_uses_legacy_thread_name_when_sqlite_title_is_missing() {
+    async fn read_chat_uses_legacy_thread_name_when_sqlite_title_is_missing() {
         let home = TempDir::new().expect("temp dir");
-        let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
+        let store = LocalChatStore::new(test_config(home.path()), /*state_db*/ None);
         let uuid = Uuid::from_u128(213);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         write_session_file(home.path(), "2025-01-03T12-00-00", uuid).expect("session file");
@@ -902,7 +902,7 @@ mod tests {
             .expect("append legacy thread name");
 
         let thread = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: false,
                 include_history: false,
@@ -914,7 +914,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn read_thread_uses_sqlite_metadata_for_rollout_without_user_preview() {
+    async fn read_chat_uses_sqlite_metadata_for_rollout_without_user_preview() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let uuid = Uuid::from_u128(217);
@@ -945,7 +945,7 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config.clone(), Some(runtime.clone()));
+        let store = LocalChatStore::new(config.clone(), Some(runtime.clone()));
         let mut builder = ThreadMetadataBuilder::new(
             chat_id,
             rollout_path.clone(),
@@ -958,12 +958,12 @@ mod tests {
         let mut metadata = builder.build(config.default_model_provider_id.as_str());
         metadata.title = "Command-only thread".to_string();
         runtime
-            .upsert_thread(&metadata)
+            .upsert_chat(&metadata)
             .await
             .expect("state db upsert should succeed");
 
         let thread = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: false,
                 include_history: true,
@@ -984,7 +984,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn read_thread_falls_back_to_rollout_search_when_sqlite_path_is_stale() {
+    async fn read_chat_falls_back_to_rollout_search_when_sqlite_path_is_stale() {
         let home = TempDir::new().expect("temp dir");
         let external = TempDir::new().expect("external temp dir");
         let config = test_config(home.path());
@@ -999,7 +999,7 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config.clone(), Some(runtime.clone()));
+        let store = LocalChatStore::new(config.clone(), Some(runtime.clone()));
         let mut builder = ThreadMetadataBuilder::new(
             chat_id,
             stale_path.clone(),
@@ -1010,12 +1010,12 @@ mod tests {
         let mut metadata = builder.build(config.default_model_provider_id.as_str());
         metadata.first_user_message = Some("stale sqlite preview".to_string());
         runtime
-            .upsert_thread(&metadata)
+            .upsert_chat(&metadata)
             .await
             .expect("state db upsert should succeed");
 
         let thread = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: true,
                 include_history: true,
@@ -1033,7 +1033,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn read_thread_falls_back_when_sqlite_path_points_to_another_thread() {
+    async fn read_chat_falls_back_when_sqlite_path_points_to_another_thread() {
         let home = TempDir::new().expect("temp dir");
         let external = TempDir::new().expect("external temp dir");
         let config = test_config(home.path());
@@ -1050,19 +1050,19 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config.clone(), Some(runtime.clone()));
+        let store = LocalChatStore::new(config.clone(), Some(runtime.clone()));
         let mut builder =
             ThreadMetadataBuilder::new(chat_id, stale_path, Utc::now(), SessionSource::Cli);
         builder.model_provider = Some("wrong-sqlite-provider".to_string());
         let mut metadata = builder.build(config.default_model_provider_id.as_str());
         metadata.first_user_message = Some("wrong sqlite preview".to_string());
         runtime
-            .upsert_thread(&metadata)
+            .upsert_chat(&metadata)
             .await
             .expect("state db upsert should succeed");
 
         let thread = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: true,
                 include_history: true,
@@ -1080,9 +1080,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn read_thread_uses_session_meta_for_rollout_without_user_preview_or_sqlite_metadata() {
+    async fn read_chat_uses_session_meta_for_rollout_without_user_preview_or_sqlite_metadata() {
         let home = TempDir::new().expect("temp dir");
-        let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
+        let store = LocalChatStore::new(test_config(home.path()), /*state_db*/ None);
         let uuid = Uuid::from_u128(218);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let day_dir = home.path().join("sessions/2025/01/03");
@@ -1106,7 +1106,7 @@ mod tests {
         writeln!(file, "{meta}").expect("write session meta");
 
         let thread = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: false,
                 include_history: true,
@@ -1134,7 +1134,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn read_thread_falls_back_to_sqlite_summary() {
+    async fn read_chat_falls_back_to_sqlite_summary() {
         let home = TempDir::new().expect("temp dir");
         let external = TempDir::new().expect("external temp dir");
         let config = test_config(home.path());
@@ -1149,7 +1149,7 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config.clone(), Some(runtime.clone()));
+        let store = LocalChatStore::new(config.clone(), Some(runtime.clone()));
         let mut builder = ThreadMetadataBuilder::new(
             chat_id,
             rollout_path.clone(),
@@ -1165,12 +1165,12 @@ mod tests {
         metadata.title = "next normal prompt".to_string();
         metadata.model = Some("sqlite-model".to_string());
         runtime
-            .upsert_thread(&metadata)
+            .upsert_chat(&metadata)
             .await
             .expect("state db upsert should succeed");
 
         let thread = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: false,
                 include_history: false,
@@ -1196,7 +1196,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn read_thread_sqlite_fallback_respects_include_archived() {
+    async fn read_chat_sqlite_fallback_respects_include_archived() {
         let home = TempDir::new().expect("temp dir");
         let external = TempDir::new().expect("external temp dir");
         let config = test_config(home.path());
@@ -1213,24 +1213,24 @@ mod tests {
         .expect("state db should initialize");
         let mut builder =
             ThreadMetadataBuilder::new(chat_id, rollout_path, Utc::now(), SessionSource::Cli);
-        let store = LocalThreadStore::new(config.clone(), Some(runtime.clone()));
+        let store = LocalChatStore::new(config.clone(), Some(runtime.clone()));
         builder.archived_at = Some(Utc::now());
         let mut metadata = builder.build(config.default_model_provider_id.as_str());
         metadata.first_user_message = Some("Archived SQLite preview".to_string());
         runtime
-            .upsert_thread(&metadata)
+            .upsert_chat(&metadata)
             .await
             .expect("state db upsert should succeed");
 
         let active_only_err = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: false,
                 include_history: false,
             })
             .await
             .expect_err("active-only read should fail for archived metadata");
-        let ThreadStoreError::InvalidRequest { message } = active_only_err else {
+        let ChatStoreError::InvalidRequest { message } = active_only_err else {
             panic!("expected invalid request error");
         };
         assert_eq!(
@@ -1239,7 +1239,7 @@ mod tests {
         );
 
         let thread = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: true,
                 include_history: false,
@@ -1253,7 +1253,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn read_thread_sqlite_fallback_loads_archived_history() {
+    async fn read_chat_sqlite_fallback_loads_archived_history() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let uuid = Uuid::from_u128(219);
@@ -1266,7 +1266,7 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config.clone(), Some(runtime.clone()));
+        let store = LocalChatStore::new(config.clone(), Some(runtime.clone()));
         let mut builder = ThreadMetadataBuilder::new(
             chat_id,
             archived_path.clone(),
@@ -1277,12 +1277,12 @@ mod tests {
         let mut metadata = builder.build(config.default_model_provider_id.as_str());
         metadata.first_user_message = Some("Archived SQLite preview".to_string());
         runtime
-            .upsert_thread(&metadata)
+            .upsert_chat(&metadata)
             .await
             .expect("state db upsert should succeed");
 
         let thread = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: true,
                 include_history: true,
@@ -1300,14 +1300,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn read_thread_fails_without_rollout() {
+    async fn read_chat_fails_without_rollout() {
         let home = TempDir::new().expect("temp dir");
-        let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
+        let store = LocalChatStore::new(test_config(home.path()), /*state_db*/ None);
         let uuid = Uuid::from_u128(206);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
 
         let err = store
-            .read_thread(ReadThreadParams {
+            .read_chat(ReadChatParams {
                 chat_id,
                 include_archived: false,
                 include_history: false,
@@ -1315,7 +1315,7 @@ mod tests {
             .await
             .expect_err("read should fail without rollout");
 
-        let ThreadStoreError::InvalidRequest { message } = err else {
+        let ChatStoreError::InvalidRequest { message } = err else {
             panic!("expected invalid request error");
         };
         assert_eq!(

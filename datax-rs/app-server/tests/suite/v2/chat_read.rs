@@ -59,12 +59,12 @@ use datax_protocol::protocol::UserMessageEvent;
 use datax_protocol::user_input::ByteRange;
 use datax_protocol::user_input::TextElement;
 use datax_thread_store::AppendChatMessagesParams;
-use datax_thread_store::CreateThreadParams;
-use datax_thread_store::InMemoryThreadStore;
-use datax_thread_store::ThreadMetadataPatch;
-use datax_thread_store::ThreadPersistenceMetadata;
-use datax_thread_store::ThreadStore;
-use datax_thread_store::UpdateThreadMetadataParams;
+use datax_thread_store::CreateChatParams;
+use datax_thread_store::InMemoryChatStore;
+use datax_thread_store::ChatMetadataPatch;
+use datax_thread_store::ChatPersistenceMetadata;
+use datax_thread_store::ChatStore;
+use datax_thread_store::UpdateChatMetadataParams;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
@@ -289,7 +289,7 @@ async fn thread_turns_list_can_page_backward_and_forward() -> Result<()> {
 }
 
 #[tokio::test]
-async fn thread_turns_list_supports_requested_items_view() -> Result<()> {
+async fn thread_turns_list_supports_requested_messages_view() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
     let codex_home = TempDir::new()?;
     create_config_toml(codex_home.path(), &server.uri())?;
@@ -311,7 +311,7 @@ async fn thread_turns_list_supports_requested_items_view() -> Result<()> {
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let full = read_single_turn_items_view(
+    let full = read_single_turn_messages_view(
         &mut mcp,
         conversation_id.as_str(),
         Some(InteractionMessagesView::Full),
@@ -323,7 +323,7 @@ async fn thread_turns_list_supports_requested_items_view() -> Result<()> {
         vec!["draft", "final"]
     );
 
-    let summary = read_single_turn_items_view(
+    let summary = read_single_turn_messages_view(
         &mut mcp,
         conversation_id.as_str(),
         Some(InteractionMessagesView::Summary),
@@ -339,7 +339,7 @@ async fn thread_turns_list_supports_requested_items_view() -> Result<()> {
         vec!["final"]
     );
 
-    let not_loaded = read_single_turn_items_view(
+    let not_loaded = read_single_turn_messages_view(
         &mut mcp,
         conversation_id.as_str(),
         Some(InteractionMessagesView::NotLoaded),
@@ -362,8 +362,8 @@ async fn thread_turns_list_reads_store_history_without_rollout_path() -> Result<
     let chat_id = datax_protocol::ChatId::from_string("00000000-0000-4000-8000-000000000123")?;
     let store_id = Uuid::new_v4().to_string();
     create_config_toml_with_thread_store(codex_home.path(), &store_id)?;
-    let store = InMemoryThreadStore::for_id(store_id.clone());
-    let _in_memory_store = InMemoryThreadStoreId { store_id };
+    let store = InMemoryChatStore::for_id(store_id.clone());
+    let _in_memory_store = InMemoryChatStoreId { store_id };
     seed_pathless_store_thread(&store, chat_id).await?;
 
     let loader_overrides = LoaderOverrides::without_managed_config_for_tests();
@@ -429,8 +429,8 @@ async fn thread_read_loaded_include_turns_reads_store_history_without_rollout_pa
     let codex_home = TempDir::new()?;
     let store_id = Uuid::new_v4().to_string();
     create_config_toml_with_thread_store(codex_home.path(), &store_id)?;
-    let store = InMemoryThreadStore::for_id(store_id.clone());
-    let _in_memory_store = InMemoryThreadStoreId { store_id };
+    let store = InMemoryChatStore::for_id(store_id.clone());
+    let _in_memory_store = InMemoryChatStoreId { store_id };
 
     let loader_overrides = LoaderOverrides::without_managed_config_for_tests();
     let config = ConfigBuilder::default()
@@ -517,8 +517,8 @@ async fn thread_list_includes_store_thread_without_rollout_path() -> Result<()> 
     let chat_id = datax_protocol::ChatId::from_string("00000000-0000-4000-8000-000000000124")?;
     let store_id = Uuid::new_v4().to_string();
     create_config_toml_with_thread_store(codex_home.path(), &store_id)?;
-    let store = InMemoryThreadStore::for_id(store_id.clone());
-    let _in_memory_store = InMemoryThreadStoreId { store_id };
+    let store = InMemoryChatStore::for_id(store_id.clone());
+    let _in_memory_store = InMemoryChatStoreId { store_id };
     seed_pathless_store_thread(&store, chat_id).await?;
 
     let loader_overrides = LoaderOverrides::without_managed_config_for_tests();
@@ -1295,7 +1295,7 @@ fn append_thread_rollback(path: &Path, timestamp: &str, num_turns: u32) -> std::
     )
 }
 
-async fn read_single_turn_items_view(
+async fn read_single_turn_messages_view(
     mcp: &mut TestAppServer,
     chat_id: &str,
     messages_view: Option<InteractionMessagesView>,
@@ -1347,22 +1347,22 @@ fn turn_agent_texts(interactions: &[datax_app_server_protocol::Interaction]) -> 
         .collect()
 }
 
-struct InMemoryThreadStoreId {
+struct InMemoryChatStoreId {
     store_id: String,
 }
 
-impl Drop for InMemoryThreadStoreId {
+impl Drop for InMemoryChatStoreId {
     fn drop(&mut self) {
-        InMemoryThreadStore::remove_id(&self.store_id);
+        InMemoryChatStore::remove_id(&self.store_id);
     }
 }
 
 async fn seed_pathless_store_thread(
-    store: &InMemoryThreadStore,
+    store: &InMemoryChatStore,
     chat_id: datax_protocol::ChatId,
 ) -> Result<()> {
     store
-        .create_thread(CreateThreadParams {
+        .create_chat(CreateChatParams {
             session_id: chat_id.into(),
             chat_id: chat_id,
             extra_config: None,
@@ -1373,7 +1373,7 @@ async fn seed_pathless_store_thread(
             base_instructions: BaseInstructions::default(),
             dynamic_tools: Vec::new(),
             multi_agent_version: None,
-            metadata: ThreadPersistenceMetadata {
+            metadata: ChatPersistenceMetadata {
                 cwd: None,
                 model_provider: "test-provider".to_string(),
                 memory_mode: ThreadMemoryMode::Disabled,
@@ -1387,9 +1387,9 @@ async fn seed_pathless_store_thread(
         })
         .await?;
     store
-        .update_thread_metadata(UpdateThreadMetadataParams {
+        .update_chat_metadata(UpdateChatMetadataParams {
             chat_id: chat_id,
-            patch: ThreadMetadataPatch {
+            patch: ChatMetadataPatch {
                 name: Some(Some("named pathless thread".to_string())),
                 ..Default::default()
             },
@@ -1421,7 +1421,7 @@ fn create_config_toml_with_thread_store(codex_home: &Path, store_id: &str) -> st
 model = "mock-model"
 approval_policy = "never"
 sandbox_mode = "read-only"
-experimental_thread_store = {{ type = "in_memory", id = "{store_id}" }}
+experimental_chat_store = {{ type = "in_memory", id = "{store_id}" }}
 
 model_provider = "mock_provider"
 

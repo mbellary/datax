@@ -228,7 +228,7 @@ async fn thread_metadata_update_rejects_ephemeral_thread() -> Result<()> {
 }
 
 #[tokio::test]
-async fn thread_metadata_update_repairs_missing_sqlite_row_for_stored_thread() -> Result<()> {
+async fn thread_metadata_update_repairs_missing_sqlite_row_for_stored_chat() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
     let codex_home = TempDir::new()?;
     create_config_toml(codex_home.path(), &server.uri())?;
@@ -325,7 +325,7 @@ async fn thread_metadata_update_repairs_loaded_thread_without_resetting_summary(
     .await??;
     let _: ChatResumeResponse = to_response::<ChatResumeResponse>(resume_resp)?;
 
-    assert_eq!(state_db.delete_thread(thread_uuid).await?, 1);
+    assert_eq!(state_db.delete_chat(thread_uuid).await?, 1);
 
     let update_id = mcp
         .send_chat_metadata_update_request(ChatMetadataUpdateParams {

@@ -38,14 +38,14 @@ use crate::request_processors::PluginRequestProcessor;
 use crate::request_processors::ProcessExecRequestProcessor;
 use crate::request_processors::RemoteControlRequestProcessor;
 use crate::request_processors::SearchRequestProcessor;
-use crate::request_processors::ThreadGoalRequestProcessor;
+use crate::request_processors::ChatGoalRequestProcessor;
 use crate::request_processors::WindowsSandboxRequestProcessor;
 use crate::request_serialization::QueuedInitializedRequest;
 use crate::request_serialization::RequestSerializationQueueKey;
 use crate::request_serialization::RequestSerializationQueues;
 use crate::skills_watcher::SkillsWatcher;
-use crate::thread_state::ConnectionCapabilities;
-use crate::thread_state::ThreadStateManager;
+use crate::chat_state::ConnectionCapabilities;
+use crate::chat_state::ChatStateManager;
 use crate::transport::AppServerTransport;
 use crate::transport::RemoteControlHandle;
 use datax_analytics::AnalyticsEventsClient;
@@ -205,7 +205,7 @@ pub(crate) struct MessageProcessor {
     plugin_processor: PluginRequestProcessor,
     remote_control_processor: RemoteControlRequestProcessor,
     search_processor: SearchRequestProcessor,
-    thread_goal_processor: ThreadGoalRequestProcessor,
+    chat_goal_processor: ChatGoalRequestProcessor,
     chat_processor: ChatRequestProcessor,
     interaction_processor: InteractionRequestProcessor,
     windows_sandbox_processor: WindowsSandboxRequestProcessor,
@@ -331,11 +331,11 @@ impl MessageProcessor {
         auth_manager.set_external_auth(Arc::new(ExternalAuthRefreshBridge {
             outgoing: outgoing.clone(),
         }));
-        let thread_state_manager = ThreadStateManager::new();
-        // The thread store is intentionally process-scoped. Config reloads can
-        // affect per-thread behavior, but they must not move newly started,
+        let chat_state_manager = ChatStateManager::new();
+        // The chat store is intentionally process-scoped. Config reloads can
+        // affect per-chat behavior, but they must not move newly started,
         // resumed, or forked threads to a different persistence backend/root.
-        let thread_store = datax_core::thread_store_from_config(config.as_ref(), state_db.clone());
+        let chat_store = datax_core::chat_store_from_config(config.as_ref(), state_db.clone());
         let environment_manager_for_requests = Arc::clone(&environment_manager);
         let environment_manager_for_extensions = Arc::clone(&environment_manager);
         let restriction_product = session_source.restriction_product();
@@ -357,7 +357,7 @@ impl MessageProcessor {
                     ThreadExtensionDependencies {
                         event_sink: app_server_extension_event_sink(
                             outgoing.clone(),
-                            thread_state_manager.clone(),
+                            chat_state_manager.clone(),
                         ),
                         auth_manager: auth_manager.clone(),
                         state_db: state_db.clone(),
@@ -366,23 +366,23 @@ impl MessageProcessor {
                         goal_service: Arc::clone(&goal_service),
                         environment_manager: Arc::clone(&environment_manager_for_extensions),
                         executor_skill_provider: Arc::clone(&executor_skill_provider),
-                        thread_store: Arc::clone(&thread_store),
+                        chat_store: Arc::clone(&chat_store),
                     },
                 ),
                 Arc::new(CodexHomeUserInstructionsProvider::new(
                     config.codex_home.clone(),
                 )),
                 Some(analytics_events_client.clone()),
-                Arc::clone(&thread_store),
+                Arc::clone(&chat_store),
                 state_db.clone(),
                 installation_id,
                 Some(app_server_attestation_provider(
                     outgoing.clone(),
-                    thread_state_manager.clone(),
+                    chat_state_manager.clone(),
                 )),
                 Some(app_server_time_provider(
                     outgoing.clone(),
-                    thread_state_manager.clone(),
+                    chat_state_manager.clone(),
                 )),
             )
         });
@@ -393,9 +393,9 @@ impl MessageProcessor {
             .set_analytics_events_client(analytics_events_client.clone());
         let skills_watcher = SkillsWatcher::new(chat_manager.skills_service(), outgoing.clone());
 
-        let pending_thread_unloads = Arc::new(Mutex::new(HashSet::new()));
-        let thread_watch_manager =
-            crate::thread_status::ThreadWatchManager::new_with_outgoing(outgoing.clone());
+        let pending_chat_unloads = Arc::new(Mutex::new(HashSet::new()));
+        let chat_watch_manager =
+            crate::chat_status::ChatWatchManager::new_with_outgoing(outgoing.clone());
         let thread_list_state_permit = Arc::new(Semaphore::new(/*permits*/ 1));
         let workspace_settings_cache =
             Arc::new(workspace_settings::WorkspaceSettingsCache::default());
@@ -472,11 +472,11 @@ impl MessageProcessor {
         );
         let remote_control_processor = RemoteControlRequestProcessor::new(remote_control_handle);
         let search_processor = SearchRequestProcessor::new(outgoing.clone());
-        let thread_goal_processor = ThreadGoalRequestProcessor::new(
+        let chat_goal_processor = ChatGoalRequestProcessor::new(
             Arc::clone(&chat_manager),
             outgoing.clone(),
             Arc::clone(&config),
-            thread_state_manager.clone(),
+            chat_state_manager.clone(),
             state_db.clone(),
             Arc::clone(&goal_service),
         );
@@ -487,12 +487,12 @@ impl MessageProcessor {
             arg0_paths.clone(),
             Arc::clone(&config),
             config_manager.clone(),
-            Arc::clone(&thread_store),
-            Arc::clone(&pending_thread_unloads),
-            thread_state_manager.clone(),
-            thread_watch_manager.clone(),
+            Arc::clone(&chat_store),
+            Arc::clone(&pending_chat_unloads),
+            chat_state_manager.clone(),
+            chat_watch_manager.clone(),
             Arc::clone(&thread_list_state_permit),
-            thread_goal_processor.clone(),
+            chat_goal_processor.clone(),
             state_db.clone(),
             log_db,
             Arc::clone(&skills_watcher),
@@ -505,9 +505,9 @@ impl MessageProcessor {
             arg0_paths.clone(),
             Arc::clone(&config),
             config_manager.clone(),
-            pending_thread_unloads,
-            thread_state_manager,
-            thread_watch_manager,
+            pending_chat_unloads,
+            chat_state_manager,
+            chat_watch_manager,
             thread_list_state_permit,
             Arc::clone(&skills_watcher),
         );
@@ -533,7 +533,7 @@ impl MessageProcessor {
             ExternalAgentConfigRequestProcessor::new(ExternalAgentConfigRequestProcessorArgs {
                 outgoing: outgoing.clone(),
                 chat_manager: Arc::clone(&chat_manager),
-                thread_store: Arc::clone(&thread_store),
+                chat_store: Arc::clone(&chat_store),
                 config_manager: config_manager.clone(),
                 config_processor: config_processor.clone(),
                 state_db,
@@ -574,7 +574,7 @@ impl MessageProcessor {
             plugin_processor,
             remote_control_processor,
             search_processor,
-            thread_goal_processor,
+            chat_goal_processor,
             chat_processor,
             interaction_processor,
             windows_sandbox_processor,
@@ -751,13 +751,13 @@ impl MessageProcessor {
             .await;
     }
 
-    pub(crate) async fn try_attach_thread_listener(
+    pub(crate) async fn try_attach_chat_listener(
         &self,
         chat_id: ChatId,
         connection_ids: Vec<ConnectionId>,
     ) {
         self.chat_processor
-            .try_attach_thread_listener(chat_id, connection_ids)
+            .try_attach_chat_listener(chat_id, connection_ids)
             .await;
     }
 
@@ -770,12 +770,12 @@ impl MessageProcessor {
         self.account_processor.cancel_active_login().await;
     }
 
-    pub(crate) async fn clear_all_thread_listeners(&self) {
-        self.chat_processor.clear_all_thread_listeners().await;
+    pub(crate) async fn clear_all_chat_listeners(&self) {
+        self.chat_processor.clear_all_chat_listeners().await;
     }
 
-    pub(crate) async fn shutdown_threads(&self) {
-        self.chat_processor.shutdown_threads().await;
+    pub(crate) async fn shutdown_chats(&self) {
+        self.chat_processor.shutdown_chats().await;
     }
 
     pub(crate) async fn connection_closed(
@@ -1106,7 +1106,7 @@ impl MessageProcessor {
             }
             ChatResume { params, .. } => {
                 self.chat_processor
-                    .thread_resume(
+                    .chat_resume(
                         request_id.clone(),
                         params,
                         app_server_client_name.clone(),
@@ -1135,7 +1135,7 @@ impl MessageProcessor {
             }
             ChatDelete { params, .. } => {
                 self.chat_processor
-                    .thread_delete(request_id.clone(), params)
+                    .chat_delete(request_id.clone(), params)
                     .await
             }
             ChatIncrementElicitation { params, .. } => {
@@ -1154,22 +1154,22 @@ impl MessageProcessor {
                     .await
             }
             ChatGoalSet { params, .. } => {
-                self.thread_goal_processor
-                    .thread_goal_set(request_id.clone(), params)
+                self.chat_goal_processor
+                    .chat_goal_set(request_id.clone(), params)
                     .await
             }
-            ChatGoalGet { params, .. } => self.thread_goal_processor.thread_goal_get(params).await,
+            ChatGoalGet { params, .. } => self.chat_goal_processor.chat_goal_get(params).await,
             ChatGoalClear { params, .. } => {
-                self.thread_goal_processor
-                    .thread_goal_clear(request_id.clone(), params)
+                self.chat_goal_processor
+                    .chat_goal_clear(request_id.clone(), params)
                     .await
             }
             ChatMetadataUpdate { params, .. } => {
-                self.chat_processor.thread_metadata_update(params).await
+                self.chat_processor.chat_metadata_update(params).await
             }
             ChatSettingsUpdate { params, .. } => {
                 self.interaction_processor
-                    .thread_settings_update(&request_id, params)
+                    .chat_settings_update(&request_id, params)
                     .await
             }
             ChatMemoryModeSet { params, .. } => {
@@ -1211,10 +1211,10 @@ impl MessageProcessor {
             ChatLoadedList { params, .. } => self.chat_processor.thread_loaded_list(params).await,
             ChatRead { params, .. } => self.chat_processor.thread_read(params).await,
             ChatInteractionsList { params, .. } => {
-                self.chat_processor.thread_turns_list(params).await
+                self.chat_processor.thread_interactions_list(params).await
             }
             ChatInteractionsMessagesList { params, .. } => {
-                self.chat_processor.thread_turns_items_list(params).await
+                self.chat_processor.chat_interactions_items_list(params).await
             }
             ChatShellCommand { params, .. } => {
                 self.chat_processor

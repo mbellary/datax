@@ -12,8 +12,8 @@ use crate::outgoing_message::OutgoingMessageSender;
 use crate::outgoing_message::RequestContext;
 use crate::outgoing_message::ThreadScopedOutgoingMessageSender;
 use crate::skills_watcher::SkillsWatcher;
-use crate::thread_status::ThreadWatchManager;
-use crate::thread_status::resolve_thread_status;
+use crate::chat_status::ChatWatchManager;
+use crate::chat_status::resolve_chat_status;
 use chrono::Duration as ChronoDuration;
 use chrono::SecondsFormat;
 use datax_analytics::AnalyticsEventsClient;
@@ -434,20 +434,20 @@ use datax_rollout::state_db::StateDbHandle;
 use datax_rollout::state_db::reconcile_rollout;
 use datax_state::ThreadMetadata;
 use datax_state::log_db::LogDbLayer;
-use datax_thread_store::ArchiveThreadParams as StoreArchiveThreadParams;
-use datax_thread_store::DeleteThreadParams as StoreDeleteThreadParams;
+use datax_thread_store::ArchiveChatParams as StoreArchiveChatParams;
+use datax_thread_store::DeleteChatParams as StoreDeleteChatParams;
 use datax_thread_store::GitInfoPatch as StoreGitInfoPatch;
-use datax_thread_store::ListThreadsParams as StoreListThreadsParams;
-use datax_thread_store::LocalThreadStore;
-use datax_thread_store::ReadThreadByRolloutPathParams as StoreReadThreadByRolloutPathParams;
-use datax_thread_store::ReadThreadParams as StoreReadThreadParams;
-use datax_thread_store::SearchThreadsParams as StoreSearchThreadsParams;
+use datax_thread_store::ListChatsParams as StoreListChatsParams;
+use datax_thread_store::LocalChatStore;
+use datax_thread_store::ReadChatByRolloutPathParams as StoreReadChatByRolloutPathParams;
+use datax_thread_store::ReadChatParams as StoreReadChatParams;
+use datax_thread_store::SearchChatsParams as StoreSearchChatsParams;
 use datax_thread_store::SortDirection as StoreSortDirection;
 use datax_thread_store::StoredChat;
-use datax_thread_store::ThreadMetadataPatch as StoreThreadMetadataPatch;
-use datax_thread_store::ThreadSortKey as StoreThreadSortKey;
-use datax_thread_store::ThreadStore;
-use datax_thread_store::ThreadStoreError;
+use datax_thread_store::ChatMetadataPatch as StoreChatMetadataPatch;
+use datax_thread_store::ChatSortKey as StoreChatSortKey;
+use datax_thread_store::ChatStore;
+use datax_thread_store::ChatStoreError;
 use datax_utils_absolute_path::AbsolutePathBuf;
 use datax_utils_pty::DEFAULT_OUTPUT_BYTES_CAP;
 use std::collections::BTreeMap;
@@ -523,17 +523,17 @@ pub(crate) use plugins::PluginRequestProcessor;
 pub(crate) use process_exec_processor::ProcessExecRequestProcessor;
 pub(crate) use remote_control_processor::RemoteControlRequestProcessor;
 pub(crate) use search::SearchRequestProcessor;
-pub(crate) use thread_goal_processor::ThreadGoalRequestProcessor;
+pub(crate) use chat_goal_processor::ChatGoalRequestProcessor;
 pub(crate) use windows_sandbox_processor::WindowsSandboxRequestProcessor;
 
 use crate::error_code::internal_error;
 use crate::error_code::invalid_request;
 use crate::filters::compute_source_filters;
 use crate::filters::source_kind_matches;
-use crate::thread_state::ConnectionCapabilities;
-use crate::thread_state::ThreadListenerCommand;
-use crate::thread_state::ThreadState;
-use crate::thread_state::ThreadStateManager;
+use crate::chat_state::ConnectionCapabilities;
+use crate::chat_state::ChatListenerCommand;
+use crate::chat_state::ChatState;
+use crate::chat_state::ChatStateManager;
 use token_usage_replay::latest_token_usage_interaction_id_from_rollout_items;
 use token_usage_replay::send_thread_token_usage_update_to_connection;
 
@@ -587,27 +587,27 @@ fn resolve_runtime_workspace_roots(workspace_roots: Vec<AbsolutePathBuf>) -> Vec
 
 mod config_errors;
 mod request_errors;
-mod thread_delete;
-mod thread_goal_processor;
-mod thread_lifecycle;
-mod thread_resume_redaction;
-mod thread_summary;
+mod chat_delete;
+mod chat_goal_processor;
+mod chat_lifecycle;
+mod chat_resume_redaction;
+mod chat_summary;
 
 use self::config_errors::*;
 use self::request_errors::*;
-use self::thread_goal_processor::api_thread_goal_from_state;
-use self::thread_lifecycle::*;
-use self::thread_resume_redaction::*;
-use self::thread_summary::*;
+use self::chat_goal_processor::api_chat_goal_from_state;
+use self::chat_lifecycle::*;
+use self::chat_resume_redaction::*;
+use self::chat_summary::*;
 
-pub(crate) use self::chat_processor::chat_from_stored_thread;
-pub(crate) use self::thread_lifecycle::populate_thread_turns_from_history;
+pub(crate) use self::chat_processor::chat_from_stored_chat;
+pub(crate) use self::chat_lifecycle::populate_chat_interactions_from_history;
 #[cfg(test)]
-pub(crate) use self::thread_summary::read_summary_from_rollout;
+pub(crate) use self::chat_summary::read_summary_from_rollout;
 #[cfg(test)]
-pub(crate) use self::thread_summary::summary_to_thread;
-pub(crate) use self::thread_summary::thread_settings_from_config_snapshot;
-pub(crate) use self::thread_summary::thread_settings_from_core_snapshot;
+pub(crate) use self::chat_summary::summary_to_thread;
+pub(crate) use self::chat_summary::chat_settings_from_config_snapshot;
+pub(crate) use self::chat_summary::chat_settings_from_core_snapshot;
 
 pub(crate) fn build_api_turns_from_rollout_items(messages: &[RolloutMessage]) -> Vec<Interaction> {
     let mut builder = ChatHistoryBuilder::new();

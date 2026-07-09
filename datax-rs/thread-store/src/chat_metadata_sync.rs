@@ -14,10 +14,10 @@ use datax_protocol::protocol::ThreadMemoryMode;
 use datax_protocol::protocol::USER_MESSAGE_BEGIN;
 use datax_protocol::protocol::UserMessageEvent;
 
-use crate::CreateThreadParams;
+use crate::CreateChatParams;
 use crate::GitInfoPatch;
-use crate::ResumeThreadParams;
-use crate::ThreadMetadataPatch;
+use crate::ResumeChatParams;
+use crate::ChatMetadataPatch;
 
 const IMAGE_ONLY_USER_MESSAGE_PLACEHOLDER: &str = "[Image]";
 #[cfg(not(test))]
@@ -29,27 +29,27 @@ const THREAD_UPDATED_AT_TOUCH_INTERVAL: Duration = Duration::from_millis(50);
 ///
 /// Stores receive raw history plus explicit metadata patches. This helper keeps append-derived
 /// metadata observation in the live layer without owning persistence-policy filtering or making
-/// `append_items` infer metadata inside a `ThreadStore` implementation.
-pub(crate) struct ThreadMetadataSync {
+/// `append_items` infer metadata inside a `ChatStore` implementation.
+pub(crate) struct ChatMetadataSync {
     chat_id: ChatId,
     cwd_seen: bool,
     preview_seen: bool,
     first_user_message_seen: bool,
     title_seen: bool,
-    pending_update: Option<ThreadMetadataPatch>,
+    pending_update: Option<ChatMetadataPatch>,
     pending_update_generation: u64,
     last_touch_persisted_at: Option<Instant>,
     defer_create_update_until_history_exists: bool,
     defer_resume_update_until_append: bool,
 }
 
-pub(crate) struct PendingThreadMetadataPatch {
-    pub(crate) patch: ThreadMetadataPatch,
+pub(crate) struct PendingChatMetadataPatch {
+    pub(crate) patch: ChatMetadataPatch,
     generation: u64,
 }
 
-impl ThreadMetadataSync {
-    pub(crate) async fn for_create(params: &CreateThreadParams) -> Self {
+impl ChatMetadataSync {
+    pub(crate) async fn for_create(params: &CreateChatParams) -> Self {
         let created_at = Utc::now();
         let cwd = params.metadata.cwd.clone().unwrap_or_default();
         let git_info = if get_git_repo_root(cwd.as_path()).is_some() {
@@ -61,7 +61,7 @@ impl ThreadMetadataSync {
         } else {
             None
         };
-        let update = ThreadMetadataPatch {
+        let update = ChatMetadataPatch {
             model_provider: Some(params.metadata.model_provider.clone()),
             created_at: Some(created_at),
             updated_at: Some(created_at),
@@ -90,7 +90,7 @@ impl ThreadMetadataSync {
         }
     }
 
-    pub(crate) fn for_resume(params: &ResumeThreadParams) -> Self {
+    pub(crate) fn for_resume(params: &ResumeChatParams) -> Self {
         let mut sync = Self {
             chat_id: params.chat_id,
             cwd_seen: params
@@ -115,10 +115,10 @@ impl ThreadMetadataSync {
         sync
     }
 
-    pub(crate) fn take_pending_update(&self) -> Option<PendingThreadMetadataPatch> {
+    pub(crate) fn take_pending_update(&self) -> Option<PendingChatMetadataPatch> {
         self.pending_update
             .clone()
-            .map(|patch| PendingThreadMetadataPatch {
+            .map(|patch| PendingChatMetadataPatch {
                 patch,
                 generation: self.pending_update_generation,
             })
@@ -126,7 +126,7 @@ impl ThreadMetadataSync {
 
     pub(crate) fn take_pending_update_for_existing_history(
         &self,
-    ) -> Option<PendingThreadMetadataPatch> {
+    ) -> Option<PendingChatMetadataPatch> {
         if self.defer_create_update_until_history_exists {
             return None;
         }
@@ -136,7 +136,7 @@ impl ThreadMetadataSync {
         self.take_pending_update()
     }
 
-    pub(crate) fn mark_pending_update_applied(&mut self, update: &PendingThreadMetadataPatch) {
+    pub(crate) fn mark_pending_update_applied(&mut self, update: &PendingChatMetadataPatch) {
         if self.pending_update_generation == update.generation {
             self.pending_update = None;
         }
@@ -148,7 +148,7 @@ impl ThreadMetadataSync {
     pub(crate) fn observe_appended_items(
         &mut self,
         items: &[RolloutMessage],
-    ) -> Option<PendingThreadMetadataPatch> {
+    ) -> Option<PendingChatMetadataPatch> {
         self.defer_create_update_until_history_exists = false;
         self.defer_resume_update_until_append = false;
         let affects_metadata = items
@@ -180,25 +180,25 @@ impl ThreadMetadataSync {
         self.take_pending_update()
     }
 
-    fn observe_items(&mut self, items: &[RolloutMessage]) -> Option<ThreadMetadataPatch> {
+    fn observe_items(&mut self, items: &[RolloutMessage]) -> Option<ChatMetadataPatch> {
         self.observe_items_with_update(
             items,
-            ThreadMetadataPatch {
+            ChatMetadataPatch {
                 updated_at: Some(Utc::now()),
                 ..Default::default()
             },
         )
     }
 
-    fn observe_resume_history(&mut self, items: &[RolloutMessage]) -> Option<ThreadMetadataPatch> {
-        self.observe_items_with_update(items, ThreadMetadataPatch::default())
+    fn observe_resume_history(&mut self, items: &[RolloutMessage]) -> Option<ChatMetadataPatch> {
+        self.observe_items_with_update(items, ChatMetadataPatch::default())
     }
 
     fn observe_items_with_update(
         &mut self,
         items: &[RolloutMessage],
-        mut update: ThreadMetadataPatch,
-    ) -> Option<ThreadMetadataPatch> {
+        mut update: ChatMetadataPatch,
+    ) -> Option<ChatMetadataPatch> {
         if items.is_empty() {
             return None;
         }
@@ -285,7 +285,7 @@ impl ThreadMetadataSync {
         Some(update)
     }
 
-    fn merge_pending_update(&mut self, update: Option<ThreadMetadataPatch>) {
+    fn merge_pending_update(&mut self, update: Option<ChatMetadataPatch>) {
         let Some(update) = update else {
             return;
         };
@@ -338,14 +338,14 @@ fn user_message_preview(user: &UserMessageEvent) -> Option<String> {
     None
 }
 
-fn thread_updated_at_touch() -> ThreadMetadataPatch {
-    ThreadMetadataPatch {
+fn thread_updated_at_touch() -> ChatMetadataPatch {
+    ChatMetadataPatch {
         updated_at: Some(Utc::now()),
         ..Default::default()
     }
 }
 
-fn update_has_metadata_facts(update: &ThreadMetadataPatch) -> bool {
+fn update_has_metadata_facts(update: &ChatMetadataPatch) -> bool {
     update.rollout_path.is_some()
         || update.preview.is_some()
         || update.title.is_some()
@@ -391,12 +391,12 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::ThreadPersistenceMetadata;
+    use crate::ChatPersistenceMetadata;
 
     #[test]
     fn resume_history_keeps_derived_metadata_pending_until_applied() {
         let chat_id = ChatId::new();
-        let mut sync = ThreadMetadataSync::for_resume(&resume_params(
+        let mut sync = ChatMetadataSync::for_resume(&resume_params(
             chat_id,
             vec![
                 RolloutMessage::SessionMeta(session_meta(chat_id)),
@@ -432,7 +432,7 @@ mod tests {
     #[test]
     fn goal_update_sets_preview_without_overriding_existing_preview() {
         let chat_id = ChatId::new();
-        let sync = ThreadMetadataSync::for_resume(&resume_params(
+        let sync = ChatMetadataSync::for_resume(&resume_params(
             chat_id,
             vec![
                 RolloutMessage::EventMsg(EventMsg::ThreadGoalUpdated(goal_update(
@@ -455,7 +455,7 @@ mod tests {
     #[test]
     fn later_user_messages_do_not_emit_existing_preview_fields() {
         let chat_id = ChatId::new();
-        let mut sync = ThreadMetadataSync::for_resume(&resume_params(
+        let mut sync = ChatMetadataSync::for_resume(&resume_params(
             chat_id,
             vec![RolloutMessage::EventMsg(EventMsg::UserMessage(user_message(
                 "first user text",
@@ -479,7 +479,7 @@ mod tests {
     #[test]
     fn metadata_irrelevant_items_coalesce_updated_at_touches() {
         let chat_id = ChatId::new();
-        let mut sync = ThreadMetadataSync::for_resume(&resume_params(chat_id, Vec::new()));
+        let mut sync = ChatMetadataSync::for_resume(&resume_params(chat_id, Vec::new()));
         let item = RolloutMessage::Compacted(CompactedItem {
             message: "compacted".to_string(),
             replacement_history: None,
@@ -509,7 +509,7 @@ mod tests {
     #[test]
     fn turn_start_advances_recency_at_without_changing_updated_at_behavior() {
         let chat_id = ChatId::new();
-        let mut sync = ThreadMetadataSync::for_resume(&resume_params(chat_id, Vec::new()));
+        let mut sync = ChatMetadataSync::for_resume(&resume_params(chat_id, Vec::new()));
 
         let update = sync
             .observe_appended_items(&[RolloutMessage::EventMsg(EventMsg::InteractionStarted(
@@ -530,7 +530,7 @@ mod tests {
     #[test]
     fn resume_history_waits_for_append_before_flushing_metadata() {
         let chat_id = ChatId::new();
-        let mut sync = ThreadMetadataSync::for_resume(&resume_params(
+        let mut sync = ChatMetadataSync::for_resume(&resume_params(
             chat_id,
             vec![
                 RolloutMessage::SessionMeta(session_meta(chat_id)),
@@ -551,13 +551,13 @@ mod tests {
         );
     }
 
-    fn resume_params(chat_id: ChatId, history: Vec<RolloutMessage>) -> ResumeThreadParams {
-        ResumeThreadParams {
+    fn resume_params(chat_id: ChatId, history: Vec<RolloutMessage>) -> ResumeChatParams {
+        ResumeChatParams {
             chat_id,
             rollout_path: None,
             history: Some(history),
             include_archived: false,
-            metadata: ThreadPersistenceMetadata {
+            metadata: ChatPersistenceMetadata {
                 cwd: None,
                 model_provider: "test-provider".to_string(),
                 memory_mode: ThreadMemoryMode::Enabled,

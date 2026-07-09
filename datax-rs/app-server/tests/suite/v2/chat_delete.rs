@@ -133,7 +133,7 @@ async fn thread_delete_handles_live_threads_before_rollout_exists() -> Result<()
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let persisted_thread = to_response::<ChatStartResponse>(start_resp)?.thread;
+    let persisted_thread = to_response::<ChatStartResponse>(start_resp)?.chat;
     let rollout_path = find_thread_path_by_id_str(
         codex_home.path(),
         &persisted_thread.id,
@@ -165,7 +165,7 @@ async fn thread_delete_handles_live_threads_before_rollout_exists() -> Result<()
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let delete_id = mcp
         .send_chat_delete_request(ChatDeleteParams {

@@ -170,7 +170,7 @@ async fn thread_resume_rejects_unmaterialized_thread() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     // Resume should fail before the first user message materializes rollout storage.
     let resume_id = mcp
@@ -216,7 +216,7 @@ async fn thread_resume_with_empty_path_uses_running_thread_id() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -253,9 +253,7 @@ async fn thread_resume_with_empty_path_uses_running_thread_id() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ChatResumeResponse {
-        thread: resumed, ..
-    } = to_response::<ChatResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { chat: resumed, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(resumed.id, thread.id);
     Ok(())
@@ -362,7 +360,7 @@ async fn turn_start_updates_runtime_workspace_roots_for_loaded_thread() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -442,7 +440,7 @@ async fn thread_goal_get_rejects_unmaterialized_thread() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let goal_id = mcp
         .send_raw_request(
@@ -504,7 +502,9 @@ async fn goal_first_live_thread_appears_in_state_db_thread_list() -> Result<()> 
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, cwd, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse {
+        chat: thread, cwd, ..
+    } = to_response::<ChatStartResponse>(start_resp)?;
 
     let goal_id = mcp
         .send_raw_request(
@@ -595,7 +595,7 @@ async fn thread_resume_tracks_thread_initialized_analytics() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { chat: thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
     assert!(
         !thread.session_id.is_empty(),
         "session id should not be empty"
@@ -673,7 +673,7 @@ async fn thread_resume_returns_rollout_history() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { chat: thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(thread.id, conversation_id);
     assert_eq!(thread.preview, preview);
@@ -714,12 +714,12 @@ async fn thread_resume_redacts_payloads_for_chatgpt_remote_clients() -> Result<(
     for client_name in ["codex_chatgpt_android_remote", "codex_chatgpt_ios_remote"] {
         let remote_resume = resume_redaction_fixture(Some(client_name)).await?;
         let remote_turn = remote_resume
-            .thread
+            .chat
             .interactions
             .first()
             .expect("remote resume should include a turn");
         let remote_page_turn = remote_resume
-            .initial_turns_page
+            .initial_interactions_page
             .as_ref()
             .expect("remote resume should include the requested initial interactions page")
             .data
@@ -773,7 +773,7 @@ async fn thread_resume_redacts_payloads_for_chatgpt_remote_clients() -> Result<(
 
     let normal_resume = resume_redaction_fixture(Some("some_other_client")).await?;
     let normal_turn = normal_resume
-        .thread
+        .chat
         .interactions
         .first()
         .expect("normal resume should include a turn");
@@ -869,7 +869,7 @@ async fn resume_redaction_fixture(client_name: Option<&str>) -> Result<ChatResum
     let resume_id = mcp
         .send_chat_resume_request(ChatResumeParams {
             chat_id: conversation_id,
-            initial_turns_page: Some(ChatResumeInitialInteractionsPageParams {
+            initial_interactions_page: Some(ChatResumeInitialInteractionsPageParams {
                 limit: None,
                 sort_direction: None,
                 messages_view: Some(InteractionMessagesView::Full),
@@ -973,7 +973,7 @@ async fn thread_resume_can_skip_turns_for_metadata_only_resume() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { chat: thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(thread.id, conversation_id);
     assert!(thread.interactions.is_empty());
@@ -1058,7 +1058,7 @@ async fn thread_resume_keeps_paused_goal_paused() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -1163,7 +1163,7 @@ async fn thread_goal_set_preserves_budget_limited_same_objective() -> Result<()>
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -1262,7 +1262,7 @@ async fn thread_goal_set_persists_resumable_stopped_statuses() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -1469,7 +1469,7 @@ async fn thread_goal_lifecycle_emits_analytics_and_clear_deletes_goal() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -1660,7 +1660,7 @@ async fn thread_resume_emits_restored_token_usage_before_next_turn() -> Result<(
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { chat: thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     let note = timeout(
         DEFAULT_READ_TIMEOUT,
@@ -1713,8 +1713,9 @@ async fn thread_resume_skips_restored_token_usage_when_turns_are_excluded() -> R
         mcp.read_stream_until_response_message(RequestId::Integer(first_resume_id)),
     )
     .await??;
-    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(first_resume_resp)?;
-    let expected_turn_id = thread.interactions[0].id.clone();
+    let ChatResumeResponse { chat: thread, .. } =
+        to_response::<ChatResumeResponse>(first_resume_resp)?;
+    let expected_interaction_id = thread.interactions[0].id.clone();
 
     let first_note = timeout(
         DEFAULT_READ_TIMEOUT,
@@ -1725,7 +1726,7 @@ async fn thread_resume_skips_restored_token_usage_when_turns_are_excluded() -> R
     let ChatTokenUsageUpdated(notification) = parsed else {
         panic!("expected chat/tokenUsage/updated notification");
     };
-    assert_eq!(notification.interaction_id, expected_turn_id);
+    assert_eq!(notification.interaction_id, expected_interaction_id);
 
     let second_resume_id = mcp
         .send_chat_resume_request(ChatResumeParams {
@@ -1740,7 +1741,7 @@ async fn thread_resume_skips_restored_token_usage_when_turns_are_excluded() -> R
     )
     .await??;
     let ChatResumeResponse {
-        thread: resumed_again,
+        chat: resumed_again,
         ..
     } = to_response::<ChatResumeResponse>(second_resume_resp)?;
     assert!(resumed_again.interactions.is_empty());
@@ -1820,7 +1821,7 @@ async fn thread_resume_token_usage_replay_ignores_stale_interrupted_tail_turn() 
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { chat: thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(thread.interactions.len(), 2);
     assert_eq!(thread.interactions[0].status, InteractionStatus::Completed);
@@ -1947,7 +1948,7 @@ async fn thread_resume_token_usage_replay_can_belong_to_interrupted_turn() -> Re
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { chat: thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(thread.interactions.len(), 2);
     assert_eq!(thread.interactions[0].status, InteractionStatus::Completed);
@@ -2157,7 +2158,7 @@ stream_max_retries = 0
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { chat: thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(
         thread
@@ -2235,7 +2236,7 @@ async fn thread_resume_and_read_interrupt_incomplete_rollout_turn_when_thread_is
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { chat: thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(thread.status, ChatStatus::Idle);
     assert_eq!(thread.interactions.len(), 2);
@@ -2258,7 +2259,7 @@ async fn thread_resume_and_read_interrupt_incomplete_rollout_turn_when_thread_is
     )
     .await??;
     let ChatResumeResponse {
-        thread: resumed_again,
+        chat: resumed_again,
         ..
     } = to_response::<ChatResumeResponse>(second_resume_resp)?;
 
@@ -2282,8 +2283,7 @@ async fn thread_resume_and_read_interrupt_incomplete_rollout_turn_when_thread_is
     )
     .await??;
     let ChatReadResponse {
-        thread: read_thread,
-        ..
+        chat: read_thread, ..
     } = to_response::<ChatReadResponse>(read_resp)?;
 
     assert_eq!(read_thread.status, ChatStatus::Idle);
@@ -2319,7 +2319,7 @@ async fn thread_resume_defers_updated_at_until_turn_start() -> Result<()> {
     )
     .await??;
     let ChatReadResponse {
-        thread: before_resume,
+        chat: before_resume,
         ..
     } = to_response::<ChatReadResponse>(read_resp)?;
 
@@ -2334,7 +2334,7 @@ async fn thread_resume_defers_updated_at_until_turn_start() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { chat: thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(thread.updated_at, before_resume.updated_at);
     assert_eq!(thread.recency_at, before_resume.recency_at);
@@ -2403,7 +2403,7 @@ async fn thread_resume_defers_updated_at_until_turn_start() -> Result<()> {
     )
     .await??;
     let ChatReadResponse {
-        thread: after_turn_start,
+        chat: after_turn_start,
         ..
     } = to_response::<ChatReadResponse>(read_resp)?;
     assert!(after_turn_start.recency_at > before_resume.recency_at);
@@ -2440,7 +2440,7 @@ async fn thread_resume_keeps_in_flight_turn_streaming() -> Result<()> {
         primary.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let seed_turn_id = primary
         .send_interaction_start_request(InteractionStartParams {
@@ -2502,7 +2502,7 @@ async fn thread_resume_keeps_in_flight_turn_streaming() -> Result<()> {
     )
     .await??;
     let ChatResumeResponse {
-        thread: resumed_thread,
+        chat: resumed_thread,
         ..
     } = to_response::<ChatResumeResponse>(resume_resp)?;
     assert_ne!(resumed_thread.status, ChatStatus::NotLoaded);
@@ -2549,7 +2549,7 @@ async fn thread_resume_rejects_history_when_thread_is_running() -> Result<()> {
         primary.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let seed_turn_id = primary
         .send_interaction_start_request(InteractionStartParams {
@@ -2591,8 +2591,9 @@ async fn thread_resume_rejects_history_when_thread_is_running() -> Result<()> {
         primary.read_stream_until_response_message(RequestId::Integer(running_turn_request_id)),
     )
     .await??;
-    let InteractionStartResponse { turn: running_turn } =
-        to_response::<InteractionStartResponse>(running_turn_resp)?;
+    let InteractionStartResponse {
+        interaction: running_turn,
+    } = to_response::<InteractionStartResponse>(running_turn_resp)?;
     assert_eq!(
         running_turn.messages_view,
         InteractionMessagesView::NotLoaded
@@ -2671,7 +2672,7 @@ async fn thread_resume_rejects_mismatched_path_for_running_thread_id() -> Result
         primary.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let seed_turn_id = primary
         .send_interaction_start_request(InteractionStartParams {
@@ -2713,8 +2714,9 @@ async fn thread_resume_rejects_mismatched_path_for_running_thread_id() -> Result
         primary.read_stream_until_response_message(RequestId::Integer(running_turn_request_id)),
     )
     .await??;
-    let InteractionStartResponse { turn: running_turn } =
-        to_response::<InteractionStartResponse>(running_turn_resp)?;
+    let InteractionStartResponse {
+        interaction: running_turn,
+    } = to_response::<InteractionStartResponse>(running_turn_resp)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
         primary.read_stream_until_notification_message("interaction/started"),
@@ -2746,7 +2748,7 @@ async fn thread_resume_rejects_mismatched_path_for_running_thread_id() -> Result
             primary.read_stream_until_response_message(RequestId::Integer(normalized_resume_id)),
         )
         .await??;
-        let ChatResumeResponse { thread, .. } =
+        let ChatResumeResponse { chat: thread, .. } =
             to_response::<ChatResumeResponse>(normalized_resume_resp)?;
         assert_eq!(thread.id, chat_id);
     }
@@ -2840,7 +2842,7 @@ async fn thread_resume_rejoins_running_thread_even_with_override_mismatch() -> R
         primary.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let seed_turn_id = primary
         .send_interaction_start_request(InteractionStartParams {
@@ -2881,8 +2883,9 @@ async fn thread_resume_rejoins_running_thread_even_with_override_mismatch() -> R
         primary.read_stream_until_response_message(RequestId::Integer(running_turn_id)),
     )
     .await??;
-    let InteractionStartResponse { turn: running_turn } =
-        to_response::<InteractionStartResponse>(running_turn_resp)?;
+    let InteractionStartResponse {
+        interaction: running_turn,
+    } = to_response::<InteractionStartResponse>(running_turn_resp)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
         primary.read_stream_until_notification_message("interaction/started"),
@@ -2894,7 +2897,7 @@ async fn thread_resume_rejoins_running_thread_even_with_override_mismatch() -> R
             chat_id: thread.id.clone(),
             model: Some("not-the-running-model".to_string()),
             cwd: Some("/tmp".to_string()),
-            initial_turns_page: Some(ChatResumeInitialInteractionsPageParams {
+            initial_interactions_page: Some(ChatResumeInitialInteractionsPageParams {
                 limit: None,
                 sort_direction: None,
                 messages_view: None,
@@ -2908,15 +2911,15 @@ async fn thread_resume_rejoins_running_thread_even_with_override_mismatch() -> R
     )
     .await??;
     let ChatResumeResponse {
-        thread,
+        chat: thread,
         model,
-        initial_turns_page,
+        initial_interactions_page,
         ..
     } = to_response::<ChatResumeResponse>(resume_resp)?;
     assert_eq!(model, "gpt-5.4");
-    let initial_turns_page =
-        initial_turns_page.expect("resume should include initial interactions page");
-    let resumed_running_turn = initial_turns_page
+    let initial_interactions_page =
+        initial_interactions_page.expect("resume should include initial interactions page");
+    let resumed_running_turn = initial_interactions_page
         .data
         .first()
         .expect("resume page should include the running turn");
@@ -2926,8 +2929,8 @@ async fn thread_resume_rejoins_running_thread_even_with_override_mismatch() -> R
         InteractionMessagesView::Summary
     );
     assert_eq!(resumed_running_turn.status, InteractionStatus::InProgress);
-    assert!(initial_turns_page.backwards_cursor.is_some());
-    assert_eq!(initial_turns_page.next_cursor, None);
+    assert!(initial_interactions_page.backwards_cursor.is_some());
+    assert_eq!(initial_interactions_page.next_cursor, None);
     // The running-thread resume response is queued onto the thread listener task.
     // If the in-flight turn completes before that queued command runs, the response
     // can legitimately observe the thread as idle.
@@ -2975,7 +2978,7 @@ async fn thread_resume_can_skip_turns_when_thread_is_running() -> Result<()> {
         primary.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let interaction_id = primary
         .send_interaction_start_request(InteractionStartParams {
@@ -3014,9 +3017,7 @@ async fn thread_resume_can_skip_turns_when_thread_is_running() -> Result<()> {
         secondary.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ChatResumeResponse {
-        thread: resumed, ..
-    } = to_response::<ChatResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { chat: resumed, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(resumed.id, thread.id);
     assert_eq!(resumed.status, ChatStatus::Idle);
@@ -3059,7 +3060,7 @@ async fn thread_resume_replays_pending_command_execution_request_approval() -> R
         primary.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let seed_turn_id = primary
         .send_interaction_start_request(InteractionStartParams {
@@ -3123,7 +3124,7 @@ async fn thread_resume_replays_pending_command_execution_request_approval() -> R
     )
     .await??;
     let ChatResumeResponse {
-        thread: resumed_thread,
+        chat: resumed_thread,
         ..
     } = to_response::<ChatResumeResponse>(resume_resp)?;
     assert_eq!(resumed_thread.id, thread.id);
@@ -3199,7 +3200,7 @@ async fn thread_resume_replays_pending_file_change_request_approval() -> Result<
         primary.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let seed_turn_id = primary
         .send_interaction_start_request(InteractionStartParams {
@@ -3292,7 +3293,7 @@ async fn thread_resume_replays_pending_file_change_request_approval() -> Result<
     )
     .await??;
     let ChatResumeResponse {
-        thread: resumed_thread,
+        chat: resumed_thread,
         ..
     } = to_response::<ChatResumeResponse>(resume_resp)?;
     assert_eq!(resumed_thread.id, thread.id);
@@ -3361,7 +3362,7 @@ async fn thread_resume_with_overrides_defers_updated_at_until_turn_start() -> Re
     )
     .await??;
     let ChatResumeResponse {
-        thread: resumed_thread,
+        chat: resumed_thread,
         ..
     } = to_response::<ChatResumeResponse>(resume_resp)?;
 
@@ -3555,9 +3556,7 @@ async fn thread_resume_uses_path_over_non_running_thread_id() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ChatResumeResponse {
-        thread: resumed, ..
-    } = to_response::<ChatResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { chat: resumed, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
     assert_eq!(resumed.id, chat_id);
 
     Ok(())
@@ -3594,9 +3593,7 @@ async fn thread_resume_can_load_source_by_external_path() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ChatResumeResponse {
-        thread: resumed, ..
-    } = to_response::<ChatResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { chat: resumed, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
     assert_eq!(resumed.id, chat_id);
     let resumed_path = resumed.path.as_ref().expect("resumed thread path");
     assert_eq!(
@@ -3646,7 +3643,7 @@ async fn thread_resume_supports_history_and_overrides() -> Result<()> {
     )
     .await??;
     let ChatResumeResponse {
-        thread: resumed,
+        chat: resumed,
         model_provider,
         ..
     } = to_response::<ChatResumeResponse>(resume_resp)?;
@@ -3683,7 +3680,7 @@ async fn start_materialized_thread_and_restart(
         first_mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let materialize_turn_id = first_mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -3718,7 +3715,7 @@ async fn start_materialized_thread_and_restart(
         first_mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ChatReadResponse { thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
+    let ChatReadResponse { chat: thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
 
     let chat_id = thread.id;
     let rollout_file_path = thread
@@ -3773,7 +3770,7 @@ async fn thread_resume_accepts_personality_override() -> Result<()> {
         primary.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let materialize_id = primary
         .send_interaction_start_request(InteractionStartParams {
@@ -3814,11 +3811,11 @@ async fn thread_resume_accepts_personality_override() -> Result<()> {
     )
     .await??;
     let resume: ChatResumeResponse = to_response::<ChatResumeResponse>(resume_resp)?;
-    assert_eq!(resume.thread.status, ChatStatus::Idle);
+    assert_eq!(resume.chat.status, ChatStatus::Idle);
 
     let interaction_id = secondary
         .send_interaction_start_request(InteractionStartParams {
-            chat_id: resume.thread.id,
+            chat_id: resume.chat.id,
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "Hello".to_string(),

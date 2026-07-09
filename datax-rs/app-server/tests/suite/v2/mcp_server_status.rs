@@ -146,7 +146,7 @@ async fn mcp_server_status_list_uses_thread_project_local_config() -> Result<()>
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response(thread_start_response)?;
+    let ChatStartResponse { chat: thread, .. } = to_response(thread_start_response)?;
 
     let project_config_dir = workspace.path().join(".datax");
     std::fs::create_dir_all(&project_config_dir)?;

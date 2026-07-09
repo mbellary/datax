@@ -272,7 +272,7 @@ async fn read_updated_at(path: &Path, created_at: Option<&str>) -> Option<String
 
 pub(super) fn thread_started_notification(mut thread: Chat) -> ChatStartedNotification {
     thread.interactions.clear();
-    ChatStartedNotification { thread }
+    ChatStartedNotification { chat: thread }
 }
 
 #[cfg(test)]

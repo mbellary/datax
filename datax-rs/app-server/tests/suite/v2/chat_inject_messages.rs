@@ -50,7 +50,7 @@ async fn thread_inject_items_adds_raw_response_items_to_thread_history() -> Resu
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let injected_text = "Injected assistant context";
     let injected_item = ResponseItem::Message {
@@ -167,7 +167,7 @@ async fn thread_inject_items_adds_raw_response_items_after_a_turn() -> Result<()
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let first_turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {

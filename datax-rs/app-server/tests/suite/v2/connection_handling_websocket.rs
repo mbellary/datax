@@ -621,7 +621,7 @@ async fn start_thread(stream: &mut WsClient, id: i64) -> Result<String> {
     )
     .await?;
     let response = read_response_for_id(stream, id).await?;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(response)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(response)?;
     Ok(thread.id)
 }
 

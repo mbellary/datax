@@ -146,7 +146,7 @@ async fn run_local_image_turn(detail: Option<ImageDetail>) -> Result<Vec<Value>>
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let image_path = codex_home.path().join("image.png");
     std::fs::write(&image_path, TINY_PNG_BYTES)?;
@@ -167,7 +167,8 @@ async fn run_local_image_turn(detail: Option<ImageDetail>) -> Result<Vec<Value>>
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
     assert!(!turn.id.is_empty());
 
     timeout(
@@ -244,7 +245,7 @@ async fn turn_start_with_empty_input_runs_model_request() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -259,7 +260,8 @@ async fn turn_start_with_empty_input_runs_model_request() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
     assert!(!turn.id.is_empty());
 
     let started_notif: JSONRPCNotification = timeout(
@@ -270,8 +272,8 @@ async fn turn_start_with_empty_input_runs_model_request() -> Result<()> {
     let started: InteractionStartedNotification =
         serde_json::from_value(started_notif.params.expect("params must be present"))?;
     assert_eq!(started.chat_id, thread.id);
-    assert_eq!(started.turn.id, turn.id);
-    assert_eq!(started.turn.status, InteractionStatus::InProgress);
+    assert_eq!(started.interaction.id, turn.id);
+    assert_eq!(started.interaction.status, InteractionStatus::InProgress);
 
     let completed_notif: JSONRPCNotification = timeout(
         DEFAULT_READ_TIMEOUT,
@@ -284,8 +286,8 @@ async fn turn_start_with_empty_input_runs_model_request() -> Result<()> {
             .expect("interaction/completed params must be present"),
     )?;
     assert_eq!(completed.chat_id, thread.id);
-    assert_eq!(completed.turn.id, turn.id);
-    assert_eq!(completed.turn.status, InteractionStatus::Completed);
+    assert_eq!(completed.interaction.id, turn.id);
+    assert_eq!(completed.interaction.status, InteractionStatus::Completed);
 
     let requests = server
         .received_requests()
@@ -345,7 +347,7 @@ async fn turn_start_additional_context_flows_to_model_input() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -431,7 +433,7 @@ async fn turn_start_sends_originator_header() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -500,7 +502,7 @@ async fn turn_start_emits_user_message_item_with_text_elements() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let text_elements = vec![TextElement::new(
         ByteRange { start: 0, end: 5 },
@@ -619,7 +621,7 @@ async fn turn_start_emits_thread_scoped_warning_notification_for_trimmed_skills(
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -715,7 +717,7 @@ async fn turn_start_sends_service_tier_id_to_model_request() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -786,7 +788,7 @@ async fn thread_start_omits_empty_instruction_overrides_from_model_request() -> 
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -882,7 +884,7 @@ async fn turn_start_tracks_turn_event_analytics() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -904,7 +906,8 @@ async fn turn_start_tracks_turn_event_analytics() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     timeout(
         DEFAULT_READ_TIMEOUT,
@@ -1005,7 +1008,7 @@ async fn turn_profile_tracks_blocking_tool_and_follow_up_sampling() -> Result<()
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -1106,7 +1109,7 @@ async fn turn_start_accepts_text_at_limit_with_mention_item() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -1130,7 +1133,8 @@ async fn turn_start_accepts_text_at_limit_with_mention_item() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
     assert_eq!(turn.status, InteractionStatus::InProgress);
 
     timeout(
@@ -1166,7 +1170,7 @@ async fn turn_start_rejects_combined_oversized_text_input() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let first = "x".repeat(MAX_USER_INPUT_TEXT_CHARS / 2);
     let second = "y".repeat(MAX_USER_INPUT_TEXT_CHARS / 2 + 1);
@@ -1246,7 +1250,7 @@ async fn turn_start_rejects_invalid_permission_selection_before_starting_turn() 
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id,
@@ -1318,7 +1322,7 @@ async fn turn_start_rejects_unknown_environment_before_starting_turn() -> Result
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -1394,7 +1398,7 @@ async fn turn_start_emits_notifications_and_accepts_model_override() -> Result<(
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     // Start a turn with only input and chat_id set (no overrides).
     let turn_req = mcp
@@ -1413,7 +1417,8 @@ async fn turn_start_emits_notifications_and_accepts_model_override() -> Result<(
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
     assert!(!turn.id.is_empty());
 
     // Expect a interaction/started notification.
@@ -1426,15 +1431,15 @@ async fn turn_start_emits_notifications_and_accepts_model_override() -> Result<(
         serde_json::from_value(notif.params.expect("params must be present"))?;
     assert_eq!(started.chat_id, thread.id);
     assert_eq!(
-        started.turn.status,
+        started.interaction.status,
         datax_app_server_protocol::InteractionStatus::InProgress
     );
-    assert_eq!(started.turn.id, turn.id);
+    assert_eq!(started.interaction.id, turn.id);
     assert_eq!(
-        started.turn.messages_view,
+        started.interaction.messages_view,
         InteractionMessagesView::NotLoaded
     );
-    assert!(started.turn.messages.is_empty());
+    assert!(started.interaction.messages.is_empty());
 
     let completed_notif: JSONRPCNotification = timeout(
         DEFAULT_READ_TIMEOUT,
@@ -1447,13 +1452,13 @@ async fn turn_start_emits_notifications_and_accepts_model_override() -> Result<(
             .expect("interaction/completed params must be present"),
     )?;
     assert_eq!(completed.chat_id, thread.id);
-    assert_eq!(completed.turn.id, turn.id);
-    assert_eq!(completed.turn.status, InteractionStatus::Completed);
+    assert_eq!(completed.interaction.id, turn.id);
+    assert_eq!(completed.interaction.status, InteractionStatus::Completed);
     assert_eq!(
-        completed.turn.messages_view,
+        completed.interaction.messages_view,
         InteractionMessagesView::NotLoaded
     );
-    assert!(completed.turn.messages.is_empty());
+    assert!(completed.interaction.messages.is_empty());
 
     // Send a second turn that exercises the overrides path: change the model.
     let turn_req2 = mcp
@@ -1473,7 +1478,7 @@ async fn turn_start_emits_notifications_and_accepts_model_override() -> Result<(
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req2)),
     )
     .await??;
-    let InteractionStartResponse { turn: turn2 } =
+    let InteractionStartResponse { interaction: turn2 } =
         to_response::<InteractionStartResponse>(turn_resp2)?;
     assert!(!turn2.id.is_empty());
     // Ensure the second turn has a different id than the first.
@@ -1487,13 +1492,13 @@ async fn turn_start_emits_notifications_and_accepts_model_override() -> Result<(
     let started2: InteractionStartedNotification =
         serde_json::from_value(notif2.params.expect("params must be present"))?;
     assert_eq!(started2.chat_id, thread.id);
-    assert_eq!(started2.turn.id, turn2.id);
-    assert_eq!(started2.turn.status, InteractionStatus::InProgress);
+    assert_eq!(started2.interaction.id, turn2.id);
+    assert_eq!(started2.interaction.status, InteractionStatus::InProgress);
     assert_eq!(
-        started2.turn.messages_view,
+        started2.interaction.messages_view,
         InteractionMessagesView::NotLoaded
     );
-    assert!(started2.turn.messages.is_empty());
+    assert!(started2.interaction.messages.is_empty());
 
     let completed_notif2: JSONRPCNotification = timeout(
         DEFAULT_READ_TIMEOUT,
@@ -1506,13 +1511,13 @@ async fn turn_start_emits_notifications_and_accepts_model_override() -> Result<(
             .expect("interaction/completed params must be present"),
     )?;
     assert_eq!(completed2.chat_id, thread.id);
-    assert_eq!(completed2.turn.id, turn2.id);
-    assert_eq!(completed2.turn.status, InteractionStatus::Completed);
+    assert_eq!(completed2.interaction.id, turn2.id);
+    assert_eq!(completed2.interaction.status, InteractionStatus::Completed);
     assert_eq!(
-        completed2.turn.messages_view,
+        completed2.interaction.messages_view,
         InteractionMessagesView::NotLoaded
     );
-    assert!(completed2.turn.messages.is_empty());
+    assert!(completed2.interaction.messages.is_empty());
 
     Ok(())
 }
@@ -1551,7 +1556,7 @@ async fn turn_start_accepts_collaboration_mode_override_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let collaboration_mode = CollaborationMode {
         mode: ModeKind::Default,
@@ -1641,7 +1646,7 @@ async fn turn_start_uses_thread_feature_overrides_for_request_user_input_tool_de
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let collaboration_mode = CollaborationMode {
         mode: ModeKind::Default,
@@ -1722,7 +1727,7 @@ async fn turn_start_accepts_personality_override_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -1799,7 +1804,7 @@ async fn turn_start_ignores_deprecated_multi_agent_mode() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -1961,7 +1966,7 @@ async fn turn_start_change_personality_mid_thread_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -2089,7 +2094,7 @@ async fn turn_start_uses_migrated_pragmatic_personality_without_override_v2() ->
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -2209,7 +2214,7 @@ async fn turn_start_exec_approval_toggle_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     // interaction/start — expect CommandExecutionRequestApproval request from server
     let first_turn_id = mcp
@@ -2354,7 +2359,7 @@ async fn turn_start_exec_approval_decline_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -2373,7 +2378,8 @@ async fn turn_start_exec_approval_decline_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     let started_command_execution = timeout(DEFAULT_READ_TIMEOUT, async {
         loop {
@@ -2512,7 +2518,7 @@ async fn turn_start_updates_sandbox_and_cwd_between_turns_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     // first turn with workspace-write sandbox and first_cwd
     let first_turn = mcp
@@ -2705,7 +2711,7 @@ stream_max_retries = 0
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let first_turn_id = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -2809,27 +2815,27 @@ url = "ws://127.0.0.1:1"
         EnvironmentSelectionCase {
             name: "sticky_unset_turn_unset",
             sticky: None,
-            turn: None,
+            interaction: None,
         },
         EnvironmentSelectionCase {
             name: "sticky_empty_turn_unset",
             sticky: Some(&[]),
-            turn: None,
+            interaction: None,
         },
         EnvironmentSelectionCase {
             name: "sticky_local_turn_unset",
             sticky: Some(&["local"]),
-            turn: None,
+            interaction: None,
         },
         EnvironmentSelectionCase {
             name: "sticky_local_turn_empty",
             sticky: Some(&["local"]),
-            turn: Some(&[]),
+            interaction: Some(&[]),
         },
         EnvironmentSelectionCase {
             name: "sticky_empty_turn_local",
             sticky: Some(&[]),
-            turn: Some(&["local"]),
+            interaction: Some(&["local"]),
         },
     ] {
         run_environment_selection_case(&mut mcp, &workspace, case).await?;
@@ -2841,7 +2847,7 @@ url = "ws://127.0.0.1:1"
 struct EnvironmentSelectionCase {
     name: &'static str,
     sticky: Option<&'static [&'static str]>,
-    turn: Option<&'static [&'static str]>,
+    interaction: Option<&'static [&'static str]>,
 }
 
 async fn run_environment_selection_case(
@@ -2862,7 +2868,7 @@ async fn run_environment_selection_case(
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -2883,7 +2889,8 @@ async fn run_environment_selection_case(
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     let started_notification = timeout(
         DEFAULT_READ_TIMEOUT,
@@ -2894,7 +2901,7 @@ async fn run_environment_selection_case(
         serde_json::from_value(started_notification.params.ok_or_else(|| {
             anyhow::anyhow!("interaction/started notification should include params")
         })?)?;
-    assert_eq!(started.turn.id, turn.id, "{}", case.name);
+    assert_eq!(started.interaction.id, turn.id, "{}", case.name);
 
     let completed_notification = timeout(
         DEFAULT_READ_TIMEOUT,
@@ -2905,9 +2912,9 @@ async fn run_environment_selection_case(
         serde_json::from_value(completed_notification.params.ok_or_else(|| {
             anyhow::anyhow!("interaction/completed notification should include params")
         })?)?;
-    assert_eq!(completed.turn.id, turn.id, "{}", case.name);
+    assert_eq!(completed.interaction.id, turn.id, "{}", case.name);
     assert_eq!(
-        completed.turn.status,
+        completed.interaction.status,
         InteractionStatus::Completed,
         "{}",
         case.name
@@ -2974,7 +2981,7 @@ async fn turn_start_file_change_approval_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -2993,7 +3000,8 @@ async fn turn_start_file_change_approval_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     let started_file_change = timeout(DEFAULT_READ_TIMEOUT, async {
         loop {
@@ -3172,7 +3180,7 @@ async fn turn_start_does_not_stream_apply_patch_change_updates_without_feature_v
         mcp.read_stream_until_response_message(RequestId::Integer(start_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -3310,7 +3318,7 @@ async fn turn_start_streams_apply_patch_change_updates_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -3329,7 +3337,8 @@ async fn turn_start_streams_apply_patch_change_updates_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     let mut streamed_content = String::new();
     while streamed_content != "live line\n" {
@@ -3441,7 +3450,7 @@ async fn turn_start_emits_spawn_agent_item_with_model_metadata_v2() -> Result<()
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -3555,14 +3564,16 @@ async fn turn_start_emits_spawn_agent_item_with_model_metadata_v2() -> Result<()
                     .params
                     .expect("interaction/completed params"),
             )?;
-            if turn_completed.chat_id == thread.id && turn_completed.turn.id == turn.turn.id {
+            if turn_completed.chat_id == thread.id
+                && turn_completed.interaction.id == turn.interaction.id
+            {
                 return Ok::<InteractionCompletedNotification, anyhow::Error>(turn_completed);
             }
         }
     })
     .await??;
     assert_eq!(turn_completed.chat_id, thread.id);
-    assert_eq!(turn_completed.turn.id, turn.turn.id);
+    assert_eq!(turn_completed.interaction.id, turn.interaction.id);
 
     // Reuse this live spawn setup to cover chat/delete's ThreadManager descendant path.
     let delete_req = mcp
@@ -3656,7 +3667,7 @@ async fn direct_input_to_multi_agent_v2_subagent_is_rejected() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -3724,7 +3735,7 @@ async fn direct_input_to_multi_agent_v2_subagent_is_rejected() -> Result<()> {
             }],
             responsesapi_client_metadata: None,
             additional_context: None,
-            expected_turn_id: "any-active-turn".to_string(),
+            expected_interaction_id: "any-active-turn".to_string(),
         })
         .await?;
     let direct_steer_error: JSONRPCError = timeout(
@@ -3834,7 +3845,7 @@ config_file = "./custom-role.toml"
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -3918,7 +3929,9 @@ config_file = "./custom-role.toml"
                     .params
                     .expect("interaction/completed params"),
             )?;
-            if turn_completed.chat_id == thread.id && turn_completed.turn.id == turn.turn.id {
+            if turn_completed.chat_id == thread.id
+                && turn_completed.interaction.id == turn.interaction.id
+            {
                 return Ok::<InteractionCompletedNotification, anyhow::Error>(turn_completed);
             }
         }
@@ -3981,9 +3994,9 @@ async fn turn_start_file_change_approval_accept_for_session_persists_v2() -> Res
         mcp.read_stream_until_response_message(RequestId::Integer(start_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    // First turn: expect FileChangeRequestApproval, respond with AcceptForSession, and verify the file exists.
+    // First interaction: expect FileChangeRequestApproval, respond with AcceptForSession, and verify the file exists.
     let turn_1_req = mcp
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id.clone(),
@@ -4001,8 +4014,9 @@ async fn turn_start_file_change_approval_accept_for_session_persists_v2() -> Res
         mcp.read_stream_until_response_message(RequestId::Integer(turn_1_req)),
     )
     .await??;
-    let InteractionStartResponse { turn: turn_1 } =
-        to_response::<InteractionStartResponse>(turn_1_resp)?;
+    let InteractionStartResponse {
+        interaction: turn_1,
+    } = to_response::<InteractionStartResponse>(turn_1_resp)?;
 
     let started_file_change_1 = timeout(DEFAULT_READ_TIMEOUT, async {
         loop {
@@ -4163,7 +4177,7 @@ async fn turn_start_file_change_approval_decline_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -4182,7 +4196,8 @@ async fn turn_start_file_change_approval_decline_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     let started_file_change = timeout(DEFAULT_READ_TIMEOUT, async {
         loop {
@@ -4313,7 +4328,7 @@ async fn command_execution_notifications_include_process_id() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -4332,7 +4347,7 @@ async fn command_execution_notifications_include_process_id() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
-    let InteractionStartResponse { turn: _turn } =
+    let InteractionStartResponse { interaction: _turn } =
         to_response::<InteractionStartResponse>(turn_resp)?;
 
     let started_command = timeout(DEFAULT_READ_TIMEOUT, async {
@@ -4448,7 +4463,7 @@ async fn turn_start_with_elevated_override_does_not_persist_project_trust() -> R
         mcp.read_stream_until_response_message(RequestId::Integer(thread_request)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_response)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_response)?;
 
     let turn_request = mcp
         .send_interaction_start_request(InteractionStartParams {

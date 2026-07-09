@@ -76,7 +76,7 @@ async fn request_user_input_round_trip() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response(thread_start_resp)?;
 
     let turn_start_id = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -104,7 +104,9 @@ async fn request_user_input_round_trip() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_start_id)),
     )
     .await??;
-    let InteractionStartResponse { turn, .. } = to_response(turn_start_resp)?;
+    let InteractionStartResponse {
+        interaction: turn, ..
+    } = to_response(turn_start_resp)?;
 
     let server_req = timeout(
         DEFAULT_READ_TIMEOUT,

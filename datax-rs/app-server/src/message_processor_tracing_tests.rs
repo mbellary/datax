@@ -632,7 +632,7 @@ fn thread_start_jsonrpc_span_exports_server_span_and_parents_children() -> Resul
 async fn turn_start_jsonrpc_span_parents_core_turn_spans() -> Result<()> {
     let mut harness = TracingHarness::new().await?;
     let thread_start_response = harness.start_thread(/*request_id*/ 2, /*trace*/ None).await;
-    let chat_id = thread_start_response.thread.id.clone();
+    let chat_id = thread_start_response.chat.id.clone();
 
     harness.reset_tracing();
 
@@ -702,7 +702,7 @@ async fn turn_start_jsonrpc_span_parents_core_turn_spans() -> Result<()> {
     assert_eq!(server_request_span.span_context.trace_id(), remote_trace_id);
     assert_eq!(
         span_attr(server_request_span, "turn.id"),
-        Some(turn_start_response.turn.id.as_str())
+        Some(turn_start_response.interaction.id.as_str())
     );
     assert_span_descends_from(&spans, core_turn_span, server_request_span);
     harness.shutdown().await;

@@ -73,7 +73,7 @@ async fn turn_start_forwards_client_metadata_to_responses_request_v2() -> Result
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let client_metadata = HashMap::from([
         ("fiber_run_id".to_string(), "fiber-start-123".to_string()),
@@ -96,7 +96,8 @@ async fn turn_start_forwards_client_metadata_to_responses_request_v2() -> Result
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     timeout(
         DEFAULT_READ_TIMEOUT,
@@ -158,7 +159,7 @@ async fn turn_start_sends_fork_lineage_in_turn_metadata_for_thread_fork_v2() -> 
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let ChatForkResponse { thread, .. } =
+    let ChatForkResponse { chat: thread, .. } =
         fork_fake_rollout_thread(&mut mcp, source_thread_id.clone()).await?;
 
     let turn_req = mcp
@@ -177,7 +178,8 @@ async fn turn_start_sends_fork_lineage_in_turn_metadata_for_thread_fork_v2() -> 
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     timeout(
         DEFAULT_READ_TIMEOUT,
@@ -242,7 +244,7 @@ async fn review_start_sends_parent_lineage_in_turn_metadata_for_thread_fork_v2()
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let ChatForkResponse { thread, .. } =
+    let ChatForkResponse { chat: thread, .. } =
         fork_fake_rollout_thread(&mut mcp, source_thread_id.clone()).await?;
 
     let review_req = mcp
@@ -259,10 +261,9 @@ async fn review_start_sends_parent_lineage_in_turn_metadata_for_thread_fork_v2()
         mcp.read_stream_until_response_message(RequestId::Integer(review_req)),
     )
     .await??;
-    let ReviewStartResponse {
-        review_thread_id, ..
-    } = to_response::<ReviewStartResponse>(review_resp)?;
-    assert_eq!(review_thread_id, thread.id);
+    let ReviewStartResponse { review_chat_id, .. } =
+        to_response::<ReviewStartResponse>(review_resp)?;
+    assert_eq!(review_chat_id, thread.id);
 
     timeout(
         DEFAULT_READ_TIMEOUT,
@@ -283,12 +284,12 @@ async fn review_start_sends_parent_lineage_in_turn_metadata_for_thread_fork_v2()
     assert!(metadata.get("forked_from_chat_id").is_none());
     assert_eq!(
         metadata["parent_chat_id"].as_str(),
-        Some(review_thread_id.as_str())
+        Some(review_chat_id.as_str())
     );
     let review_request_thread_id = metadata["chat_id"]
         .as_str()
         .expect("review request chat_id should be present");
-    assert!(review_request_thread_id != review_thread_id.as_str());
+    assert!(review_request_thread_id != review_chat_id.as_str());
     assert_eq!(
         request
             .header("x-codex-window-id")
@@ -353,7 +354,7 @@ async fn turn_start_sends_nested_subagent_lineage_after_cold_thread_resume_v2() 
         mcp.read_stream_until_response_message(RequestId::Integer(resume_req)),
     )
     .await??;
-    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { chat: thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
     assert_eq!(thread.id, subagent_thread_id);
     assert_eq!(thread.session_id, root_thread_id_str);
     assert_eq!(thread.parent_chat_id, Some(parent_thread_id_str.clone()));
@@ -377,7 +378,8 @@ async fn turn_start_sends_nested_subagent_lineage_after_cold_thread_resume_v2() 
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     timeout(
         DEFAULT_READ_TIMEOUT,
@@ -445,7 +447,7 @@ async fn turn_steer_updates_client_metadata_on_follow_up_responses_request_v2() 
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let start_metadata =
         HashMap::from([("fiber_run_id".to_string(), "fiber-start-123".to_string())]);
@@ -466,7 +468,8 @@ async fn turn_steer_updates_client_metadata_on_follow_up_responses_request_v2() 
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
     let interaction_id = turn.id.clone();
 
     timeout(
@@ -490,7 +493,7 @@ async fn turn_steer_updates_client_metadata_on_follow_up_responses_request_v2() 
             }],
             responsesapi_client_metadata: Some(steer_metadata.clone()),
             additional_context: None,
-            expected_turn_id: interaction_id.clone(),
+            expected_interaction_id: interaction_id.clone(),
         })
         .await?;
     let steer_resp: JSONRPCResponse = timeout(
@@ -579,7 +582,7 @@ async fn turn_start_forwards_client_metadata_to_responses_websocket_request_body
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let client_metadata = HashMap::from([
         ("fiber_run_id".to_string(), "fiber-start-123".to_string()),
@@ -602,7 +605,8 @@ async fn turn_start_forwards_client_metadata_to_responses_websocket_request_body
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     timeout(
         DEFAULT_READ_TIMEOUT,

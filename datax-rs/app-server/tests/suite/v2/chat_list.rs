@@ -256,7 +256,7 @@ async fn thread_list_reports_system_error_idle_flag_after_failed_turn() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let seed_turn_id = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -751,10 +751,7 @@ async fn thread_search_returns_content_matches() -> Result<()> {
     } = to_response::<ChatSearchResponse>(resp)?;
 
     assert_eq!(next_cursor, None);
-    let ids: Vec<_> = data
-        .iter()
-        .map(|result| result.thread.id.as_str())
-        .collect();
+    let ids: Vec<_> = data.iter().map(|result| result.chat.id.as_str()).collect();
     assert_eq!(ids, vec![newer_match, older_match]);
     assert_eq!(data[0].snippet, "mixed NEEDLE suffix");
 
@@ -796,7 +793,7 @@ async fn thread_search_matches_json_escaped_content() -> Result<()> {
     let ChatSearchResponse { data, .. } = to_response::<ChatSearchResponse>(resp)?;
 
     assert_eq!(data.len(), 1);
-    assert_eq!(data[0].thread.id, chat_id);
+    assert_eq!(data[0].chat.id, chat_id);
     assert_eq!(data[0].snippet, search_term);
 
     Ok(())
@@ -844,10 +841,7 @@ async fn thread_search_filters_by_source_kind() -> Result<()> {
     .await??;
     let ChatSearchResponse { data, .. } = to_response::<ChatSearchResponse>(resp)?;
 
-    let ids: Vec<_> = data
-        .iter()
-        .map(|result| result.thread.id.as_str())
-        .collect();
+    let ids: Vec<_> = data.iter().map(|result| result.chat.id.as_str()).collect();
     assert_eq!(ids, vec![exec_id.as_str()]);
     assert_ne!(cli_id, exec_id);
 

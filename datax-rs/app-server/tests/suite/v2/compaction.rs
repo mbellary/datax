@@ -388,7 +388,7 @@ async fn start_thread(mcp: &mut TestAppServer) -> Result<String> {
         mcp.read_stream_until_response_message(RequestId::Integer(chat_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
     Ok(thread.id)
 }
 
@@ -409,7 +409,8 @@ async fn send_turn_and_wait(mcp: &mut TestAppServer, chat_id: &str, text: &str) 
         mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
     wait_for_turn_completed(mcp, &turn.id).await?;
     Ok(turn.id)
 }
@@ -427,7 +428,7 @@ async fn wait_for_turn_completed(mcp: &mut TestAppServer, interaction_id: &str) 
                 .clone()
                 .expect("interaction/completed params"),
         )?;
-        if completed.turn.id == interaction_id {
+        if completed.interaction.id == interaction_id {
             return Ok(());
         }
     }

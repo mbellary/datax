@@ -41,7 +41,7 @@ async fn request_handlers_reject_remote_image_urls() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_request_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_response)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_response)?;
     let chat_id = thread.id;
 
     let remote_tool_output = serde_json::to_value(ResponseItem::FunctionCallOutput {

@@ -145,7 +145,7 @@ async fn thread_unsubscribe_during_turn_keeps_turn_running() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
     let chat_id = thread.id;
 
     let turn_req = mcp
@@ -292,7 +292,7 @@ async fn thread_unsubscribe_preserves_cached_status_before_idle_unload() -> Resu
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ChatReadResponse { thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
+    let ChatReadResponse { chat: thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
     assert_eq!(thread.status, ChatStatus::SystemError);
 
     let unsubscribe_id = mcp
@@ -329,7 +329,7 @@ async fn thread_unsubscribe_preserves_cached_status_before_idle_unload() -> Resu
     )
     .await??;
     let resume: ChatResumeResponse = to_response::<ChatResumeResponse>(resume_resp)?;
-    assert_eq!(resume.thread.status, ChatStatus::SystemError);
+    assert_eq!(resume.chat.status, ChatStatus::SystemError);
 
     Ok(())
 }
@@ -431,6 +431,6 @@ async fn start_thread(mcp: &mut TestAppServer) -> Result<String> {
         mcp.read_stream_until_response_message(RequestId::Integer(req_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(resp)?;
     Ok(thread.id)
 }

@@ -134,13 +134,13 @@ async fn thread_fork_creates_new_thread_and_emits_started() -> Result<()> {
     )
     .await??;
     let fork_result = fork_resp.result.clone();
-    let ChatForkResponse { thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
+    let ChatForkResponse { chat: thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
 
     // Wire contract: thread title field is `name`, serialized as null when unset.
     let thread_json = fork_result
         .get("thread")
         .and_then(Value::as_object)
-        .expect("chat/fork result.thread must be an object");
+        .expect("chat/fork result.chat must be an object");
     assert_eq!(
         thread_json.get("sessionId").and_then(Value::as_str),
         Some(thread.session_id.as_str()),
@@ -224,7 +224,7 @@ async fn thread_fork_creates_new_thread_and_emits_started() -> Result<()> {
     let started_thread_json = started_params
         .get("thread")
         .and_then(Value::as_object)
-        .expect("chat/started params.thread must be an object");
+        .expect("chat/started params.chat must be an object");
     assert_eq!(
         started_thread_json.get("name"),
         Some(&Value::Null),
@@ -246,7 +246,7 @@ async fn thread_fork_creates_new_thread_and_emits_started() -> Result<()> {
         serde_json::from_value(notif.params.expect("params must be present"))?;
     let mut expected_started_thread = thread;
     expected_started_thread.interactions.clear();
-    assert_eq!(started.thread, expected_started_thread);
+    assert_eq!(started.chat, expected_started_thread);
 
     Ok(())
 }
@@ -283,7 +283,7 @@ async fn thread_fork_inherits_explicit_source_name_from_session_index() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(fork_id)),
     )
     .await??;
-    let ChatForkResponse { thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
+    let ChatForkResponse { chat: thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
 
     let ChatListResponse { data, .. } = list_threads(&mut mcp).await?;
     let listed = data
@@ -335,7 +335,7 @@ async fn thread_fork_can_load_source_by_path() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(fork_id)),
     )
     .await??;
-    let ChatForkResponse { thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
+    let ChatForkResponse { chat: thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
 
     assert_ne!(thread.id, conversation_id);
     assert_eq!(thread.forked_from_id, Some(conversation_id));
@@ -375,7 +375,7 @@ async fn thread_fork_emits_restored_token_usage_before_next_turn() -> Result<()>
         mcp.read_stream_until_response_message(RequestId::Integer(fork_id)),
     )
     .await??;
-    let ChatForkResponse { thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
+    let ChatForkResponse { chat: thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
 
     let note = timeout(
         DEFAULT_READ_TIMEOUT,
@@ -429,7 +429,7 @@ async fn thread_fork_can_exclude_turns_and_skip_restored_token_usage() -> Result
         mcp.read_stream_until_response_message(RequestId::Integer(fork_id)),
     )
     .await??;
-    let ChatForkResponse { thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
+    let ChatForkResponse { chat: thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
 
     assert_eq!(thread.forked_from_id, Some(conversation_id));
     assert_eq!(thread.preview, "Saved user message");
@@ -480,7 +480,7 @@ async fn thread_fork_tracks_thread_initialized_analytics() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(fork_id)),
     )
     .await??;
-    let ChatForkResponse { thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
+    let ChatForkResponse { chat: thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
 
     let payload = wait_for_analytics_payload(&server, DEFAULT_READ_TIMEOUT).await?;
     let event = thread_initialized_event(&payload)?;
@@ -522,7 +522,7 @@ async fn thread_fork_rejects_unmaterialized_thread() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let fork_id = mcp
         .send_chat_fork_request(ChatForkParams {
@@ -578,7 +578,7 @@ async fn thread_fork_with_empty_path_uses_thread_id() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(fork_id)),
     )
     .await??;
-    let ChatForkResponse { thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
+    let ChatForkResponse { chat: thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
 
     assert_eq!(
         thread.forked_from_id.as_deref(),
@@ -715,7 +715,7 @@ async fn thread_fork_ephemeral_remains_pathless_and_omits_listing() -> Result<()
     )
     .await??;
     let fork_result = fork_resp.result.clone();
-    let ChatForkResponse { thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
+    let ChatForkResponse { chat: thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
     let fork_thread_id = thread.id.clone();
 
     assert!(
@@ -750,7 +750,7 @@ async fn thread_fork_ephemeral_remains_pathless_and_omits_listing() -> Result<()
     let thread_json = fork_result
         .get("thread")
         .and_then(Value::as_object)
-        .expect("chat/fork result.thread must be an object");
+        .expect("chat/fork result.chat must be an object");
     assert_eq!(
         thread_json.get("ephemeral").and_then(Value::as_bool),
         Some(true),
@@ -782,7 +782,7 @@ async fn thread_fork_ephemeral_remains_pathless_and_omits_listing() -> Result<()
     let started_thread_json = started_params
         .get("thread")
         .and_then(Value::as_object)
-        .expect("chat/started params.thread must be an object");
+        .expect("chat/started params.chat must be an object");
     assert_eq!(
         started_thread_json
             .get("ephemeral")
@@ -799,7 +799,7 @@ async fn thread_fork_ephemeral_remains_pathless_and_omits_listing() -> Result<()
         serde_json::from_value(notif.params.expect("params must be present"))?;
     let mut expected_started_thread = thread;
     expected_started_thread.interactions.clear();
-    assert_eq!(started.thread, expected_started_thread);
+    assert_eq!(started.chat, expected_started_thread);
 
     let ChatListResponse { data, .. } = list_threads(&mut mcp).await?;
     assert!(
@@ -868,7 +868,7 @@ async fn pathless_ephemeral_thread_rejects_codex_home_path_after_reload() -> Res
             app_server.read_stream_until_response_message(RequestId::Integer(fork_id)),
         )
         .await??;
-        let ChatForkResponse { thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
+        let ChatForkResponse { chat: thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
         assert!(thread.ephemeral);
         assert_eq!(thread.path, None);
 

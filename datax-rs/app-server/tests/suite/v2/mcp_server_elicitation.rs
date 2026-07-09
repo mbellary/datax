@@ -202,7 +202,7 @@ async fn openai_form_capability_follows_the_turn_starting_connection() -> Result
         })?),
     )
     .await?;
-    let ChatStartResponse { thread, .. } =
+    let ChatStartResponse { chat: thread, .. } =
         to_response(read_response_for_id(&mut supported_client, /*id*/ 2).await?)?;
 
     send_request(
@@ -264,7 +264,7 @@ async fn openai_form_capability_follows_the_turn_starting_connection() -> Result
         })?),
     )
     .await?;
-    let InteractionStartResponse { turn } =
+    let InteractionStartResponse { interaction: turn } =
         to_response(read_response_for_id(&mut supported_client, /*id*/ 6).await?)?;
 
     let (request_id, params) = loop {
@@ -320,8 +320,8 @@ async fn openai_form_capability_follows_the_turn_starting_connection() -> Result
             .expect("interaction/completed params"),
     )?;
     assert_eq!(completed.chat_id, thread.id);
-    assert_eq!(completed.turn.id, turn.id);
-    assert_eq!(completed.turn.status, InteractionStatus::Completed);
+    assert_eq!(completed.interaction.id, turn.id);
+    assert_eq!(completed.interaction.status, InteractionStatus::Completed);
     assert_eq!(response_mock.requests().len(), 3);
 
     process.kill().await?;
@@ -451,7 +451,7 @@ impl ElicitationRoundTripFixture {
             mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
         )
         .await??;
-        let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
+        let ChatStartResponse { chat: thread, .. } = to_response(thread_start_resp)?;
 
         let warmup_turn_start_id = mcp
             .send_interaction_start_request(InteractionStartParams {
@@ -483,7 +483,10 @@ impl ElicitationRoundTripFixture {
                 .expect("warmup interaction/completed params"),
         )?;
         assert_eq!(warmup_completed.chat_id, thread.id);
-        assert_eq!(warmup_completed.turn.status, InteractionStatus::Completed);
+        assert_eq!(
+            warmup_completed.interaction.status,
+            InteractionStatus::Completed
+        );
 
         let turn_start_id = mcp
             .send_interaction_start_request(InteractionStartParams {
@@ -502,7 +505,7 @@ impl ElicitationRoundTripFixture {
             mcp.read_stream_until_response_message(RequestId::Integer(turn_start_id)),
         )
         .await??;
-        let InteractionStartResponse { turn } = to_response(turn_start_resp)?;
+        let InteractionStartResponse { interaction: turn } = to_response(turn_start_resp)?;
 
         Ok(Self {
             mcp,
@@ -570,8 +573,11 @@ impl ElicitationRoundTripFixture {
                         "server request should resolve before turn completion"
                     );
                     assert_eq!(notification.chat_id, self.chat_id);
-                    assert_eq!(notification.turn.id, self.interaction_id);
-                    assert_eq!(notification.turn.status, InteractionStatus::Completed);
+                    assert_eq!(notification.interaction.id, self.interaction_id);
+                    assert_eq!(
+                        notification.interaction.status,
+                        InteractionStatus::Completed
+                    );
                     break;
                 }
                 _ => {}

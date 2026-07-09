@@ -31,14 +31,14 @@ pub struct ReviewStartParams {
 pub struct ReviewStartResponse {
     #[serde(rename = "interaction")]
     #[ts(rename = "interaction")]
-    pub turn: Interaction,
+    pub interaction: Interaction,
     /// Identifies the thread where the review runs.
     ///
-    /// For inline reviews, this is the original thread id.
-    /// For detached reviews, this is the id of the new review thread.
+    /// For inline reviews, this is the original chat id.
+    /// For detached reviews, this is the id of the new review chat.
     #[serde(rename = "reviewChatId")]
     #[ts(rename = "reviewChatId")]
-    pub review_thread_id: String,
+    pub review_chat_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]

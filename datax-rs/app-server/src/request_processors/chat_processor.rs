@@ -747,7 +747,7 @@ impl ChatRequestProcessor {
     }
 
     async fn set_app_server_client_info(
-        thread: &CodexThread,
+        chat: &CodexThread,
         app_server_client_name: Option<String>,
         app_server_client_version: Option<String>,
     ) -> Result<(), JSONRPCErrorError> {
@@ -1009,7 +1009,7 @@ impl ChatRequestProcessor {
     async fn submit_core_op(
         &self,
         request_id: &ConnectionRequestId,
-        thread: &CodexThread,
+        chat: &CodexThread,
         op: Op,
     ) -> CodexResult<String> {
         thread
@@ -1071,7 +1071,7 @@ impl ChatRequestProcessor {
                     TrustLevel::Trusted,
                 ) {
                 warn!(
-                    "failed to persist trusted project state for {}; continuing with in-memory trust for this thread: {err}",
+                    "failed to persist trusted project state for {}; continuing with in-memory trust for this chat: {err}",
                     trust_target.display()
                 );
                 let mut project = toml::map::Map::new();
@@ -1163,7 +1163,7 @@ impl ChatRequestProcessor {
             .await
             .map_err(|err| match err {
                 CodexErr::InvalidRequest(message) => invalid_request(message),
-                err => internal_error(format!("error creating thread: {err}")),
+                err => internal_error(format!("error creating chat: {err}")),
             })?;
         let session_telemetry = thread.session_telemetry();
         session_telemetry.record_startup_phase(
@@ -1243,7 +1243,7 @@ impl ChatRequestProcessor {
             thread_response_active_permission_profile(config_snapshot.active_permission_profile);
 
         let response = ChatStartResponse {
-            thread: thread.clone(),
+            chat: thread.clone(),
             model: config_snapshot.model,
             model_provider: config_snapshot.model_provider_id,
             service_tier: config_snapshot.service_tier,
@@ -1624,7 +1624,7 @@ impl ChatRequestProcessor {
             /*has_in_progress_turn*/ false,
         );
 
-        Ok(ChatMetadataUpdateResponse { thread })
+        Ok(ChatMetadataUpdateResponse { chat: thread })
     }
 
     fn normalize_thread_metadata_git_field(
@@ -1677,7 +1677,7 @@ impl ChatRequestProcessor {
         );
         self.attach_thread_name(chat_id, &mut thread).await;
         let chat_id = thread.id.clone();
-        Ok((ChatUnarchiveResponse { thread }, chat_id))
+        Ok((ChatUnarchiveResponse { chat: thread }, chat_id))
     }
 
     async fn thread_rollback_inner(
@@ -2021,9 +2021,9 @@ impl ChatRequestProcessor {
 
             for result in page.items {
                 let source = with_thread_spawn_agent_metadata(
-                    result.thread.source.clone(),
-                    result.thread.agent_nickname.clone(),
-                    result.thread.agent_role.clone(),
+                    result.chat.source.clone(),
+                    result.chat.agent_nickname.clone(),
+                    result.chat.agent_role.clone(),
                 );
                 if source_kind_filter
                     .as_ref()
@@ -2054,21 +2054,14 @@ impl ChatRequestProcessor {
         }
 
         let backwards_cursor = search_results.first().and_then(|result| {
-            thread_backwards_cursor_for_sort_key(
-                &result.thread,
-                store_sort_key,
-                store_sort_direction,
-            )
+            thread_backwards_cursor_for_sort_key(&result.chat, store_sort_key, store_sort_direction)
         });
         let fallback_provider = self.config.model_provider_id.clone();
         let mut results = Vec::with_capacity(search_results.len());
         let mut status_ids = Vec::with_capacity(search_results.len());
         for result in search_results {
-            let (thread, _) = chat_from_stored_thread(
-                result.thread,
-                fallback_provider.as_str(),
-                &self.config.cwd,
-            );
+            let (thread, _) =
+                chat_from_stored_thread(result.chat, fallback_provider.as_str(), &self.config.cwd);
             status_ids.push(thread.id.clone());
             results.push((thread, result.snippet));
         }
@@ -2156,7 +2149,7 @@ impl ChatRequestProcessor {
             .read_thread_view(thread_uuid, include_interactions)
             .await
             .map_err(thread_read_view_error)?;
-        Ok(ChatReadResponse { thread })
+        Ok(ChatReadResponse { chat: thread })
     }
 
     /// Builds the API view for `chat/read` from persisted metadata plus optional live state.
@@ -2268,7 +2261,7 @@ impl ChatRequestProcessor {
                 Err(ThreadReadViewError::InvalidRequest(message))
             }
             Err(err) => Err(ThreadReadViewError::Internal(format!(
-                "failed to read thread: {err}"
+                "failed to read chat: {err}"
             ))),
         }
     }
@@ -2312,7 +2305,7 @@ impl ChatRequestProcessor {
     async fn apply_thread_read_store_fields(
         &self,
         chat_id: ThreadId,
-        thread: &mut Chat,
+        chat: &mut Chat,
         include_interactions: bool,
         loaded_thread: &CodexThread,
     ) -> Result<(), ThreadReadViewError> {
@@ -2414,7 +2407,7 @@ impl ChatRequestProcessor {
             }
             Err(err) => {
                 return Err(ThreadReadViewError::Internal(format!(
-                    "failed to read thread: {err}"
+                    "failed to read chat: {err}"
                 )));
             }
         }
@@ -2583,7 +2576,7 @@ impl ChatRequestProcessor {
             developer_instructions,
             personality,
             exclude_interactions,
-            initial_turns_page,
+            initial_interactions_page,
         } = params;
         let include_interactions = !exclude_interactions;
 
@@ -2660,7 +2653,7 @@ impl ChatRequestProcessor {
         {
             Ok(NewThread {
                 thread_id: chat_id,
-                thread: codex_thread,
+                chat: codex_thread,
                 session_configured,
                 ..
             }) => {
@@ -2743,32 +2736,33 @@ impl ChatRequestProcessor {
                     config_snapshot.active_permission_profile,
                 );
                 let token_usage_thread = include_interactions.then(|| thread.clone());
-                let mut initial_turns_page = if let Some(params) = initial_turns_page.as_ref() {
-                    match build_thread_resume_initial_turns_page(
-                        &response_history.get_rollout_items(),
-                        thread.status.clone(),
-                        /*has_live_running_thread*/ false,
-                        /*active_turn*/ None,
-                        params,
-                    ) {
-                        Ok(page) => Some(page),
-                        Err(error) => {
-                            self.outgoing.send_error(request_id, error).await;
-                            return Ok(());
+                let mut initial_interactions_page =
+                    if let Some(params) = initial_interactions_page.as_ref() {
+                        match build_thread_resume_initial_turns_page(
+                            &response_history.get_rollout_items(),
+                            thread.status.clone(),
+                            /*has_live_running_thread*/ false,
+                            /*active_turn*/ None,
+                            params,
+                        ) {
+                            Ok(page) => Some(page),
+                            Err(error) => {
+                                self.outgoing.send_error(request_id, error).await;
+                                return Ok(());
+                            }
                         }
-                    }
-                } else {
-                    None
-                };
+                    } else {
+                        None
+                    };
                 if redact_resume_payloads {
                     redact_thread_resume_payloads(&mut thread.interactions);
-                    if let Some(initial_turns_page) = initial_turns_page.as_mut() {
-                        redact_thread_resume_payloads(&mut initial_turns_page.data);
+                    if let Some(initial_interactions_page) = initial_interactions_page.as_mut() {
+                        redact_thread_resume_payloads(&mut initial_interactions_page.data);
                     }
                 }
 
                 let response = ChatResumeResponse {
-                    thread,
+                    chat: thread,
                     model: session_configured.model,
                     model_provider: session_configured.model_provider_id,
                     service_tier: session_configured.service_tier,
@@ -2781,7 +2775,7 @@ impl ChatRequestProcessor {
                     active_permission_profile,
                     reasoning_effort: session_configured.reasoning_effort,
                     multi_agent_mode: MultiAgentMode::ExplicitRequestOnly,
-                    initial_turns_page,
+                    initial_interactions_page,
                 };
 
                 let connection_id = request_id.connection_id;
@@ -2811,7 +2805,7 @@ impl ChatRequestProcessor {
                     .await;
             }
             Err(err) => {
-                let error = internal_error(format!("error resuming thread: {err}"));
+                let error = internal_error(format!("error resuming chat: {err}"));
                 self.outgoing.send_error(request_id, error).await;
             }
         }
@@ -3010,7 +3004,7 @@ impl ChatRequestProcessor {
                     emit_thread_goal_update,
                     thread_goal_state_db,
                     include_interactions: !params.exclude_interactions,
-                    initial_turns_page: params.initial_turns_page.clone(),
+                    initial_turns_page: params.initial_interactions_page.clone(),
                     redact_resume_payloads,
                 }),
             );
@@ -3154,7 +3148,7 @@ impl ChatRequestProcessor {
     async fn load_thread_from_resume_source_or_send_internal(
         &self,
         chat_id: ThreadId,
-        thread: &CodexThread,
+        chat: &CodexThread,
         thread_history: &InitialHistory,
         rollout_path: &Path,
         resume_source_thread: Option<StoredThread>,
@@ -3366,7 +3360,7 @@ impl ChatRequestProcessor {
 
         let NewThread {
             thread_id: chat_id,
-            thread: forked_thread,
+            chat: forked_thread,
             session_configured,
             ..
         } = self
@@ -3389,7 +3383,7 @@ impl ChatRequestProcessor {
                     invalid_request(format!("failed to load thread {source_thread_id}: {err}"))
                 }
                 CodexErr::InvalidRequest(message) => invalid_request(message),
-                err => internal_error(format!("error forking thread: {err}")),
+                err => internal_error(format!("error forking chat: {err}")),
             })?;
 
         Self::set_app_server_client_info(
@@ -3488,7 +3482,7 @@ impl ChatRequestProcessor {
             thread_response_active_permission_profile(config_snapshot.active_permission_profile);
 
         let response = ChatForkResponse {
-            thread: thread.clone(),
+            chat: thread.clone(),
             model: session_configured.model,
             model_provider: session_configured.model_provider_id,
             service_tier: session_configured.service_tier,
@@ -3505,7 +3499,7 @@ impl ChatRequestProcessor {
 
         let notif = thread_started_notification(thread);
         let connection_id = request_id.connection_id;
-        let token_usage_thread = include_interactions.then(|| response.thread.clone());
+        let token_usage_thread = include_interactions.then(|| response.chat.clone());
         self.outgoing.send_response(request_id, response).await;
         // `excludeTurns` is the cheap fork path, so skip restored usage replay
         // instead of rebuilding history only to attribute a historical update.
@@ -3703,7 +3697,7 @@ const THREAD_TURNS_DEFAULT_LIMIT: usize = 25;
 const THREAD_TURNS_MAX_LIMIT: usize = 100;
 
 fn thread_backwards_cursor_for_sort_key(
-    thread: &StoredThread,
+    chat: &StoredThread,
     sort_key: StoreThreadSortKey,
     sort_direction: SortDirection,
 ) -> Option<String> {
@@ -4002,7 +3996,7 @@ fn thread_store_resume_read_error(err: ThreadStoreError) -> JSONRPCErrorError {
         ThreadStoreError::ThreadNotFound { thread_id: chat_id } => {
             invalid_request(format!("no rollout found for thread id {chat_id}"))
         }
-        err => internal_error(format!("failed to read thread: {err}")),
+        err => internal_error(format!("failed to read chat: {err}")),
     }
 }
 
@@ -4118,7 +4112,7 @@ fn thread_store_archive_error(operation: &str, err: ThreadStoreError) -> JSONRPC
     }
 }
 
-fn set_thread_name_from_title(thread: &mut Chat, title: String) {
+fn set_thread_name_from_title(chat: &mut Chat, title: String) {
     if title.trim().is_empty() || thread.preview.trim() == title.trim() {
         return;
     }
@@ -4126,7 +4120,7 @@ fn set_thread_name_from_title(thread: &mut Chat, title: String) {
 }
 
 pub(crate) fn chat_from_stored_thread(
-    thread: StoredThread,
+    chat: StoredThread,
     fallback_provider: &str,
     fallback_cwd: &AbsolutePathBuf,
 ) -> (Chat, Option<datax_thread_store::StoredThreadHistory>) {
@@ -4140,7 +4134,7 @@ pub(crate) fn chat_from_stored_thread(
         thread.cwd,
     ))
     .unwrap_or_else(|err| {
-        warn!("failed to normalize thread cwd while reading stored thread: {err}");
+        warn!("failed to normalize thread cwd while reading stored chat: {err}");
         fallback_cwd.clone()
     });
     let source = with_thread_spawn_agent_metadata(
@@ -4180,10 +4174,7 @@ pub(crate) fn chat_from_stored_thread(
     (thread, history)
 }
 
-fn summary_from_stored_thread(
-    thread: StoredThread,
-    fallback_provider: &str,
-) -> ConversationSummary {
+fn summary_from_stored_thread(chat: StoredThread, fallback_provider: &str) -> ConversationSummary {
     let path = thread.rollout_path.unwrap_or_default();
     let source = with_thread_spawn_agent_metadata(
         thread.source,

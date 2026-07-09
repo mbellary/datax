@@ -163,7 +163,7 @@ pub struct InteractionStartParams {
 pub struct InteractionStartResponse {
     #[serde(rename = "interaction")]
     #[ts(rename = "interaction")]
-    pub turn: Interaction,
+    pub interaction: Interaction,
 }
 
 #[derive(
@@ -194,7 +194,7 @@ pub struct InteractionSteerParams {
     /// match the currently active interaction.
     #[serde(rename = "expectedInteractionId")]
     #[ts(rename = "expectedInteractionId")]
-    pub expected_turn_id: String,
+    pub expected_interaction_id: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
@@ -380,7 +380,7 @@ pub struct InteractionStartedNotification {
     pub chat_id: String,
     #[serde(rename = "interaction")]
     #[ts(rename = "interaction")]
-    pub turn: Interaction,
+    pub interaction: Interaction,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
@@ -399,7 +399,7 @@ pub struct InteractionCompletedNotification {
     pub chat_id: String,
     #[serde(rename = "interaction")]
     #[ts(rename = "interaction")]
-    pub turn: Interaction,
+    pub interaction: Interaction,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]

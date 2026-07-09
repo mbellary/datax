@@ -46,7 +46,7 @@ async fn thread_settings_update_emits_notification_and_updates_future_turns() ->
 
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
-    let thread = start_thread(&mut mcp).await?.thread;
+    let thread = start_thread(&mut mcp).await?.chat;
 
     send_thread_settings_update(
         &mut mcp,
@@ -80,7 +80,7 @@ async fn thread_settings_update_emits_notification_and_updates_future_turns() ->
     .await??;
 
     let read = read_thread_with_turns(&mut mcp, &thread.id).await?;
-    assert_eq!(read.thread.interactions.len(), 1);
+    assert_eq!(read.chat.interactions.len(), 1);
 
     let request_bodies = received_response_bodies(&server).await?;
     assert!(
@@ -109,7 +109,7 @@ async fn thread_settings_update_cwd_retargets_default_environment() -> Result<()
 
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
-    let thread = start_thread(&mut mcp).await?.thread;
+    let thread = start_thread(&mut mcp).await?.chat;
 
     send_thread_settings_update(
         &mut mcp,
@@ -159,7 +159,7 @@ async fn thread_settings_update_while_turn_is_active_emits_notification() -> Res
 
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
-    let thread = start_thread(&mut mcp).await?.thread;
+    let thread = start_thread(&mut mcp).await?.chat;
     start_text_turn(&mut mcp, thread.id.clone()).await?;
     timeout(
         DEFAULT_TIMEOUT,
@@ -202,7 +202,7 @@ async fn thread_settings_update_null_service_tier_uses_default() -> Result<()> {
 
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
-    let thread = start_thread(&mut mcp).await?.thread;
+    let thread = start_thread(&mut mcp).await?.chat;
 
     send_thread_settings_update(
         &mut mcp,
@@ -268,7 +268,7 @@ async fn thread_settings_update_rejects_sandbox_policy_with_permissions() -> Res
 
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
-    let thread = start_thread(&mut mcp).await?.thread;
+    let thread = start_thread(&mut mcp).await?.chat;
 
     let request_id = mcp
         .send_chat_settings_update_request(ChatSettingsUpdateParams {
@@ -302,7 +302,7 @@ async fn turn_start_settings_override_emits_thread_settings_updated() -> Result<
 
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
-    let thread = start_thread(&mut mcp).await?.thread;
+    let thread = start_thread(&mut mcp).await?.chat;
     timeout(
         DEFAULT_TIMEOUT,
         mcp.read_stream_until_notification_message("chat/started"),
@@ -326,7 +326,7 @@ async fn turn_start_settings_override_emits_thread_settings_updated() -> Result<
         mcp.read_stream_until_response_message(RequestId::Integer(turn_request_id)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response(turn_response)?;
+    let InteractionStartResponse { interaction: turn } = to_response(turn_response)?;
     assert!(!turn.id.is_empty());
 
     let updated = read_thread_settings_updated(&mut mcp).await?;
@@ -371,7 +371,7 @@ async fn start_text_turn(mcp: &mut TestAppServer, chat_id: String) -> Result<()>
         mcp.read_stream_until_response_message(RequestId::Integer(turn_request_id)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response(turn_response)?;
+    let InteractionStartResponse { interaction: turn } = to_response(turn_response)?;
     assert!(!turn.id.is_empty());
     Ok(())
 }

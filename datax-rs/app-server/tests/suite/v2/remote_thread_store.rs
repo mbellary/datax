@@ -83,7 +83,7 @@ async fn thread_delete_with_non_local_thread_store_does_not_create_local_persist
         })
         .await?
         .expect("chat/start should succeed");
-    let ChatStartResponse { thread, .. } =
+    let ChatStartResponse { chat: thread, .. } =
         serde_json::from_value(response).expect("chat/start response should parse");
     assert_eq!(thread.path, None);
 
@@ -217,7 +217,7 @@ async fn cold_thread_resume_reuses_non_local_history_probe() -> Result<()> {
         })
         .await?
         .expect("chat/start should succeed");
-    let ChatStartResponse { thread, .. } = serde_json::from_value(response)?;
+    let ChatStartResponse { chat: thread, .. } = serde_json::from_value(response)?;
 
     client
         .request(InteractionStart {

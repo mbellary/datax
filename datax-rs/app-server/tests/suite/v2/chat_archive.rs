@@ -53,7 +53,7 @@ async fn thread_archive_requires_materialized_rollout() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
     assert!(!thread.id.is_empty());
 
     let rollout_path = thread.path.clone().expect("thread path");
@@ -513,7 +513,7 @@ async fn thread_archive_clears_stale_subscriptions_before_resume() -> Result<()>
         primary.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let turn_start_id = primary
         .send_interaction_start_request(InteractionStartParams {
@@ -589,7 +589,7 @@ async fn thread_archive_clears_stale_subscriptions_before_resume() -> Result<()>
     )
     .await??;
     let resume: ChatResumeResponse = to_response::<ChatResumeResponse>(resume_resp)?;
-    assert_eq!(resume.thread.status, ChatStatus::Idle);
+    assert_eq!(resume.chat.status, ChatStatus::Idle);
     primary.clear_message_buffer();
     secondary.clear_message_buffer();
 

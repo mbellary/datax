@@ -50,7 +50,7 @@ async fn thread_rollback_drops_last_turns_and_persists_to_rollout() -> Result<()
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     // Two interactions.
     let first_text = "First";
@@ -112,14 +112,14 @@ async fn thread_rollback_drops_last_turns_and_persists_to_rollout() -> Result<()
     .await??;
     let rollback_result = rollback_resp.result.clone();
     let ChatRollbackResponse {
-        thread: rolled_back_thread,
+        chat: rolled_back_thread,
     } = to_response::<ChatRollbackResponse>(rollback_resp)?;
 
     // Wire contract: thread title field is `name`, serialized as null when unset.
     let thread_json = rollback_result
         .get("thread")
         .and_then(Value::as_object)
-        .expect("chat/rollback result.thread must be an object");
+        .expect("chat/rollback result.chat must be an object");
     assert_eq!(rolled_back_thread.name, None);
     assert_eq!(rolled_back_thread.session_id, thread.session_id);
     assert_eq!(
@@ -160,7 +160,7 @@ async fn thread_rollback_drops_last_turns_and_persists_to_rollout() -> Result<()
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ChatResumeResponse { thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { chat: thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(thread.interactions.len(), 1);
     assert_eq!(thread.status, ChatStatus::Idle);

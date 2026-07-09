@@ -118,7 +118,7 @@ async fn thread_read_returns_summary_without_turns() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ChatReadResponse { thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
+    let ChatReadResponse { chat: thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
 
     assert_eq!(thread.id, conversation_id);
     assert_eq!(thread.preview, preview);
@@ -173,7 +173,7 @@ async fn thread_read_can_include_turns() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ChatReadResponse { thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
+    let ChatReadResponse { chat: thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
 
     assert_eq!(thread.interactions.len(), 1);
     let turn = &thread.interactions[0];
@@ -479,7 +479,7 @@ async fn thread_read_loaded_include_turns_reads_store_history_without_rollout_pa
         })
         .await?
         .expect("chat/start should succeed");
-    let ChatStartResponse { thread, .. } = serde_json::from_value(result)?;
+    let ChatStartResponse { chat: thread, .. } = serde_json::from_value(result)?;
     assert_eq!(thread.path, None);
 
     let chat_id = datax_protocol::ThreadId::from_string(&thread.id)?;
@@ -500,7 +500,7 @@ async fn thread_read_loaded_include_turns_reads_store_history_without_rollout_pa
         })
         .await?
         .expect("chat/read should succeed");
-    let ChatReadResponse { thread, .. } = serde_json::from_value(result)?;
+    let ChatReadResponse { chat: thread, .. } = serde_json::from_value(result)?;
 
     assert_eq!(
         turn_user_texts(&thread.interactions),
@@ -628,7 +628,7 @@ async fn thread_read_can_return_archived_threads_by_id() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ChatReadResponse { thread } = to_response::<ChatReadResponse>(read_resp)?;
+    let ChatReadResponse { chat: thread } = to_response::<ChatReadResponse>(read_resp)?;
 
     assert_eq!(thread.id, conversation_id);
     assert_eq!(thread.preview, preview);
@@ -681,7 +681,7 @@ async fn thread_resume_initial_turns_page_matches_requested_turns_list_page() ->
         .send_chat_resume_request(ChatResumeParams {
             chat_id: conversation_id,
             exclude_interactions: true,
-            initial_turns_page: Some(ChatResumeInitialInteractionsPageParams {
+            initial_interactions_page: Some(ChatResumeInitialInteractionsPageParams {
                 limit: Some(2),
                 sort_direction: Some(SortDirection::Asc),
                 messages_view: Some(InteractionMessagesView::NotLoaded),
@@ -696,13 +696,13 @@ async fn thread_resume_initial_turns_page_matches_requested_turns_list_page() ->
     .await??;
     let ChatResumeResponse {
         thread,
-        initial_turns_page,
+        initial_interactions_page,
         ..
     } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert!(thread.interactions.is_empty());
     assert_eq!(
-        initial_turns_page,
+        initial_interactions_page,
         Some(datax_app_server_protocol::InteractionsPage::from(
             expected_page
         ))
@@ -812,7 +812,7 @@ async fn thread_read_returns_forked_from_id_for_forked_threads() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(fork_id)),
     )
     .await??;
-    let ChatForkResponse { thread: forked, .. } = to_response::<ChatForkResponse>(fork_resp)?;
+    let ChatForkResponse { chat: forked, .. } = to_response::<ChatForkResponse>(fork_resp)?;
 
     let read_id = mcp
         .send_chat_read_request(ChatReadParams {
@@ -825,7 +825,7 @@ async fn thread_read_returns_forked_from_id_for_forked_threads() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ChatReadResponse { thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
+    let ChatReadResponse { chat: thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
 
     assert_eq!(thread.forked_from_id, Some(conversation_id));
 
@@ -852,7 +852,7 @@ async fn thread_read_loaded_thread_returns_precomputed_path_before_materializati
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
     let thread_path = thread.path.clone().expect("thread path");
     assert!(
         !thread_path.exists(),
@@ -870,7 +870,7 @@ async fn thread_read_loaded_thread_returns_precomputed_path_before_materializati
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ChatReadResponse { thread: read, .. } = to_response::<ChatReadResponse>(read_resp)?;
+    let ChatReadResponse { chat: read, .. } = to_response::<ChatReadResponse>(read_resp)?;
 
     assert_eq!(read.id, thread.id);
     assert_eq!(read.path, Some(thread_path));
@@ -938,13 +938,13 @@ async fn thread_name_set_is_reflected_in_read_list_and_resume() -> Result<()> {
     )
     .await??;
     let read_result = read_resp.result.clone();
-    let ChatReadResponse { thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
+    let ChatReadResponse { chat: thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
     assert_eq!(thread.id, conversation_id);
     assert_eq!(thread.name.as_deref(), Some(new_name));
     let thread_json = read_result
         .get("thread")
         .and_then(Value::as_object)
-        .expect("chat/read result.thread must be an object");
+        .expect("chat/read result.chat must be an object");
     assert_eq!(
         thread_json.get("name").and_then(Value::as_str),
         Some(new_name),
@@ -1016,15 +1016,13 @@ async fn thread_name_set_is_reflected_in_read_list_and_resume() -> Result<()> {
     )
     .await??;
     let resume_result = resume_resp.result.clone();
-    let ChatResumeResponse {
-        thread: resumed, ..
-    } = to_response::<ChatResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { chat: resumed, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
     assert_eq!(resumed.id, conversation_id);
     assert_eq!(resumed.name.as_deref(), Some(new_name));
     let resumed_json = resume_result
         .get("thread")
         .and_then(Value::as_object)
-        .expect("chat/resume result.thread must be an object");
+        .expect("chat/resume result.chat must be an object");
     assert_eq!(
         resumed_json.get("name").and_then(Value::as_str),
         Some(new_name),
@@ -1059,7 +1057,7 @@ async fn thread_read_include_turns_rejects_unmaterialized_loaded_thread() -> Res
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
     let thread_path = thread.path.clone().expect("thread path");
     assert!(
         !thread_path.exists(),
@@ -1110,7 +1108,7 @@ async fn thread_turns_list_rejects_unmaterialized_loaded_thread() -> Result<()> 
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
     let thread_path = thread.path.clone().expect("thread path");
     assert!(
         !thread_path.exists(),
@@ -1202,7 +1200,7 @@ async fn thread_read_reports_system_error_idle_flag_after_failed_turn() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let turn_start_id = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -1238,7 +1236,7 @@ async fn thread_read_reports_system_error_idle_flag_after_failed_turn() -> Resul
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ChatReadResponse { thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
+    let ChatReadResponse { chat: thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
 
     assert_eq!(thread.status, ChatStatus::SystemError,);
 

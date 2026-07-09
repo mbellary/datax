@@ -845,7 +845,7 @@ mod tests {
                 .expect("chat/start should succeed");
             let parsed: ChatStartResponse =
                 serde_json::from_value(response).expect("chat/start response should parse");
-            assert_eq!(parsed.thread.source, expected_source);
+            assert_eq!(parsed.chat.source, expected_source);
             client
                 .shutdown()
                 .await

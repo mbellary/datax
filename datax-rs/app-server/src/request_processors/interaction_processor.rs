@@ -316,7 +316,7 @@ impl InteractionRequestProcessor {
     async fn ensure_direct_input_allowed(
         &self,
         request_id: &ConnectionRequestId,
-        thread: &CodexThread,
+        chat: &CodexThread,
     ) -> Result<(), JSONRPCErrorError> {
         if thread.multi_agent_version() == Some(MultiAgentVersion::V2)
             && matches!(
@@ -410,7 +410,7 @@ impl InteractionRequestProcessor {
     async fn submit_core_op(
         &self,
         request_id: &ConnectionRequestId,
-        thread: &CodexThread,
+        chat: &CodexThread,
         op: Op,
     ) -> CodexResult<String> {
         thread
@@ -533,7 +533,7 @@ impl InteractionRequestProcessor {
             )
             .await
             .map_err(|err| {
-                let error = internal_error(format!("failed to start turn: {err}"));
+                let error = internal_error(format!("failed to start interaction: {err}"));
                 self.track_error_response(&request_id, &error, /*error_type*/ None);
                 error
             })?;
@@ -564,12 +564,12 @@ impl InteractionRequestProcessor {
             duration_ms: None,
         };
 
-        Ok(InteractionStartResponse { turn })
+        Ok(InteractionStartResponse { interaction: turn })
     }
 
     async fn build_environment_override(
         &self,
-        thread: &CodexThread,
+        chat: &CodexThread,
         cwd: Option<AbsolutePathBuf>,
         environment_selections: Option<Vec<TurnEnvironmentSelection>>,
     ) -> Option<TurnEnvironmentSelections> {
@@ -602,7 +602,7 @@ impl InteractionRequestProcessor {
 
     async fn build_thread_settings_overrides(
         &self,
-        thread: &CodexThread,
+        chat: &CodexThread,
         params: ThreadSettingsBuildParams,
     ) -> Result<datax_protocol::protocol::ThreadSettingsOverrides, JSONRPCErrorError> {
         let ThreadSettingsBuildParams {
@@ -827,7 +827,7 @@ impl InteractionRequestProcessor {
     }
 
     async fn set_app_server_client_info(
-        thread: &CodexThread,
+        chat: &CodexThread,
         app_server_client_name: Option<String>,
         app_server_client_version: Option<String>,
     ) -> Result<(), JSONRPCErrorError> {
@@ -859,11 +859,11 @@ impl InteractionRequestProcessor {
         self.ensure_direct_input_allowed(request_id, thread.as_ref())
             .await?;
 
-        if params.expected_turn_id.is_empty() {
+        if params.expected_interaction_id.is_empty() {
             return Err(invalid_request("expectedTurnId must not be empty"));
         }
         self.outgoing
-            .record_request_turn_id(request_id, &params.expected_turn_id)
+            .record_request_turn_id(request_id, &params.expected_interaction_id)
             .await;
         if let Err(error) = Self::validate_v2_input_limit(&params.input) {
             self.track_error_response(
@@ -885,7 +885,7 @@ impl InteractionRequestProcessor {
             .steer_input(
                 mapped_items,
                 additional_context,
-                Some(&params.expected_turn_id),
+                Some(&params.expected_interaction_id),
                 params.client_user_message_id,
                 params.responsesapi_client_metadata,
             )
@@ -1153,12 +1153,12 @@ impl InteractionRequestProcessor {
     async fn emit_review_started(
         &self,
         request_id: &ConnectionRequestId,
-        turn: Interaction,
-        review_thread_id: String,
+        interaction: Interaction,
+        review_chat_id: String,
     ) {
         let response = ReviewStartResponse {
-            turn,
-            review_thread_id,
+            interaction: turn,
+            review_chat_id,
         };
         self.outgoing
             .send_response(request_id.clone(), response)
@@ -1217,7 +1217,7 @@ impl InteractionRequestProcessor {
 
         let NewThread {
             thread_id: chat_id,
-            thread: review_thread,
+            chat: review_thread,
             ..
         } = self
             .thread_manager
@@ -1234,9 +1234,7 @@ impl InteractionRequestProcessor {
                 /*supports_openai_form_elicitation*/ false,
             )
             .await
-            .map_err(|err| {
-                internal_error(format!("error creating detached review thread: {err}"))
-            })?;
+            .map_err(|err| internal_error(format!("error creating detached review chat: {err}")))?;
 
         log_listener_attach_result(
             self.ensure_conversation_listener(
@@ -1288,12 +1286,14 @@ impl InteractionRequestProcessor {
             )
             .await
             .map_err(|err| {
-                internal_error(format!("failed to start detached review turn: {err}"))
+                internal_error(format!(
+                    "failed to start detached review interaction: {err}"
+                ))
             })?;
 
         let turn = Self::build_review_turn(interaction_id, display_text);
-        let review_thread_id = chat_id.to_string();
-        self.emit_review_started(request_id, turn, review_thread_id)
+        let review_chat_id = chat_id.to_string();
+        self.emit_review_started(request_id, turn, review_chat_id)
             .await;
 
         Ok(())

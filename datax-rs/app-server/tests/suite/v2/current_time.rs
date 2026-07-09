@@ -51,7 +51,7 @@ async fn current_time_read_round_trip_adds_reminder_to_model_input() -> Result<(
         app_server.read_stream_until_response_message(RequestId::Integer(thread_request_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response(thread_response)?;
+    let ChatStartResponse { chat: thread, .. } = to_response(thread_response)?;
 
     let turn_request_id = app_server
         .send_interaction_start_request(InteractionStartParams {

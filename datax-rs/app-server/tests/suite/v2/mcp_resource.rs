@@ -103,7 +103,7 @@ async fn mcp_resource_read_returns_resource_contents() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response(thread_start_resp)?;
 
     let read_request_id = mcp
         .send_mcp_resource_read_request(McpResourceReadParams {
@@ -148,7 +148,7 @@ async fn orchestrator_skill_can_read_referenced_resource_without_an_executor() -
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response(thread_start_resp)?;
 
     let response_mock = responses::mount_sse_sequence(
         &responses_server,
@@ -383,7 +383,7 @@ async fn local_executor_does_not_expose_orchestrator_skills() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response(thread_start_resp)?;
 
     let response_mock = responses::mount_sse_once(
         &responses_server,
@@ -464,7 +464,7 @@ enabled = false
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response(thread_start_resp)?;
 
     let response_mock = responses::mount_sse_once(
         &responses_server,

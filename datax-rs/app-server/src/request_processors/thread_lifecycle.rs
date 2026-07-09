@@ -662,7 +662,7 @@ pub(super) async fn handle_pending_thread_resume_request(
         active_permission_profile,
         reasoning_effort,
         multi_agent_mode: MultiAgentMode::ExplicitRequestOnly,
-        initial_turns_page,
+        initial_interactions_page: initial_turns_page,
     };
     outgoing.send_response(request_id, response).await;
     // Match cold resume: metadata-only resume should attach the listener without

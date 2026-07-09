@@ -41,7 +41,7 @@ async fn thread_memory_mode_set_updates_loaded_thread_state() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
     let thread_uuid = ThreadId::from_string(&thread.id)?;
 
     let set_id = mcp

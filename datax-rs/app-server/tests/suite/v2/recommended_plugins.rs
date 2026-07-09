@@ -115,7 +115,7 @@ async fn first_turn_after_external_login_waits_for_recommended_plugins() -> Resu
         app_server.read_stream_until_response_message(RequestId::Integer(chat_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response(thread_response)?;
+    let ChatStartResponse { chat: thread, .. } = to_response(thread_response)?;
 
     let interaction_id = app_server
         .send_interaction_start_request(InteractionStartParams {

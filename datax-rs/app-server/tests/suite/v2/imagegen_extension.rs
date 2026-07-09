@@ -485,7 +485,7 @@ async fn start_turn(mcp: &mut TestAppServer, input: Vec<V2UserInput>) -> Result<
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {

@@ -98,7 +98,7 @@ async fn attestation_generate_round_trip_adds_header_to_responses_websocket_hand
         mcp.read_stream_until_response_message(RequestId::Integer(thread_request_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response(thread_response)?;
+    let ChatStartResponse { chat: thread, .. } = to_response(thread_response)?;
 
     let turn_request_id = mcp
         .send_interaction_start_request(InteractionStartParams {

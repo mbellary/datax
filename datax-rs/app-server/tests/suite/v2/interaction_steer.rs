@@ -64,7 +64,7 @@ async fn turn_steer_requires_active_turn() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let steer_req = mcp
         .send_interaction_steer_request(InteractionSteerParams {
@@ -76,7 +76,7 @@ async fn turn_steer_requires_active_turn() -> Result<()> {
             }],
             responsesapi_client_metadata: None,
             additional_context: None,
-            expected_turn_id: "turn-does-not-exist".to_string(),
+            expected_interaction_id: "turn-does-not-exist".to_string(),
         })
         .await?;
     let steer_err: JSONRPCError = timeout(
@@ -92,7 +92,7 @@ async fn turn_steer_requires_active_turn() -> Result<()> {
     assert_eq!(event["event_params"]["result"], "rejected");
     assert_eq!(event["event_params"]["num_input_images"], 0);
     assert_eq!(
-        event["event_params"]["expected_turn_id"],
+        event["event_params"]["expected_interaction_id"],
         "turn-does-not-exist"
     );
     assert_eq!(
@@ -150,7 +150,7 @@ async fn turn_steer_rejects_oversized_text_input() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -169,7 +169,8 @@ async fn turn_steer_rejects_oversized_text_input() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     let _task_started: JSONRPCNotification = timeout(
         DEFAULT_READ_TIMEOUT,
@@ -188,7 +189,7 @@ async fn turn_steer_rejects_oversized_text_input() -> Result<()> {
             }],
             responsesapi_client_metadata: None,
             additional_context: None,
-            expected_turn_id: turn.id.clone(),
+            expected_interaction_id: turn.id.clone(),
         })
         .await?;
     let steer_err: JSONRPCError = timeout(
@@ -264,7 +265,7 @@ async fn turn_steer_returns_active_turn_id() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -283,7 +284,8 @@ async fn turn_steer_returns_active_turn_id() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     let _task_started: JSONRPCNotification = timeout(
         DEFAULT_READ_TIMEOUT,
@@ -301,7 +303,7 @@ async fn turn_steer_returns_active_turn_id() -> Result<()> {
             }],
             responsesapi_client_metadata: None,
             additional_context: None,
-            expected_turn_id: turn.id.clone(),
+            expected_interaction_id: turn.id.clone(),
         })
         .await?;
     let steer_resp: JSONRPCResponse = timeout(
@@ -346,7 +348,7 @@ async fn turn_steer_returns_active_turn_id() -> Result<()> {
     assert_eq!(event["event_params"]["session_id"], thread.session_id);
     assert_eq!(event["event_params"]["result"], "accepted");
     assert_eq!(event["event_params"]["num_input_images"], 0);
-    assert_eq!(event["event_params"]["expected_turn_id"], turn.id);
+    assert_eq!(event["event_params"]["expected_interaction_id"], turn.id);
     assert_eq!(event["event_params"]["accepted_turn_id"], turn.id);
     assert_eq!(
         event["event_params"]["rejection_reason"],
@@ -401,7 +403,7 @@ async fn turn_steer_rejects_context_only_input_without_merging_context() -> Resu
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -420,7 +422,8 @@ async fn turn_steer_rejects_context_only_input_without_merging_context() -> Resu
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.read_stream_until_notification_message("interaction/started"),
@@ -441,7 +444,7 @@ async fn turn_steer_rejects_context_only_input_without_merging_context() -> Resu
             input: Vec::new(),
             responsesapi_client_metadata: None,
             additional_context,
-            expected_turn_id: turn.id,
+            expected_interaction_id: turn.id,
         })
         .await?;
     let steer_error: JSONRPCError = timeout(

@@ -83,7 +83,7 @@ async fn thread_start_creates_thread_and_emits_started() -> Result<()> {
     .await??;
     let resp_result = resp.result.clone();
     let ChatStartResponse {
-        thread,
+        chat: thread,
         model_provider,
         ..
     } = to_response::<ChatStartResponse>(resp)?;
@@ -118,7 +118,7 @@ async fn thread_start_creates_thread_and_emits_started() -> Result<()> {
     let thread_json = resp_result
         .get("thread")
         .and_then(Value::as_object)
-        .expect("chat/start result.thread must be an object");
+        .expect("chat/start result.chat must be an object");
     assert_eq!(
         thread_json.get("sessionId").and_then(Value::as_str),
         Some(thread.session_id.as_str()),
@@ -172,7 +172,7 @@ async fn thread_start_creates_thread_and_emits_started() -> Result<()> {
     let started_thread_json = started_params
         .get("thread")
         .and_then(Value::as_object)
-        .expect("chat/started params.thread must be an object");
+        .expect("chat/started params.chat must be an object");
     assert_eq!(
         started_thread_json.get("name"),
         Some(&Value::Null),
@@ -194,7 +194,7 @@ async fn thread_start_creates_thread_and_emits_started() -> Result<()> {
     );
     let started: ChatStartedNotification =
         serde_json::from_value(notif.params.expect("params must be present"))?;
-    assert_eq!(started.thread, thread);
+    assert_eq!(started.chat, thread);
 
     Ok(())
 }
@@ -554,7 +554,7 @@ async fn thread_start_tracks_thread_initialized_analytics() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(req_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(resp)?;
 
     let payload = wait_for_analytics_payload(&server, DEFAULT_READ_TIMEOUT).await?;
     assert_eq!(payload["events"].as_array().expect("events array").len(), 1);
@@ -694,7 +694,7 @@ async fn thread_start_accepts_metrics_service_name() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(req_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(resp)?;
     assert!(!thread.id.is_empty(), "thread id should not be empty");
 
     Ok(())
@@ -723,7 +723,7 @@ async fn thread_start_ephemeral_remains_pathless() -> Result<()> {
     )
     .await??;
     let resp_result = resp.result.clone();
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(resp)?;
     assert!(
         thread.ephemeral,
         "ephemeral threads should be marked explicitly"
@@ -735,7 +735,7 @@ async fn thread_start_ephemeral_remains_pathless() -> Result<()> {
     let thread_json = resp_result
         .get("thread")
         .and_then(Value::as_object)
-        .expect("chat/start result.thread must be an object");
+        .expect("chat/start result.chat must be an object");
     assert_eq!(
         thread_json.get("ephemeral").and_then(Value::as_bool),
         Some(true),
@@ -832,7 +832,7 @@ async fn thread_start_emits_mcp_server_status_updated_notifications() -> Result<
     assert_eq!(
         starting,
         McpServerStatusUpdatedNotification {
-            chat_id: Some(start_response.thread.id.clone()),
+            chat_id: Some(start_response.chat.id.clone()),
             name: "optional_broken".to_string(),
             status: McpServerStartupState::Starting,
             error: None,
@@ -865,7 +865,7 @@ async fn thread_start_emits_mcp_server_status_updated_notifications() -> Result<
     let ServerNotification::McpServerStatusUpdated(failed) = failed else {
         anyhow::bail!("unexpected notification variant");
     };
-    assert_eq!(failed.chat_id, Some(start_response.thread.id));
+    assert_eq!(failed.chat_id, Some(start_response.chat.id));
     assert_eq!(failed.name, "optional_broken");
     assert_eq!(failed.status, McpServerStartupState::Failed);
     assert!(

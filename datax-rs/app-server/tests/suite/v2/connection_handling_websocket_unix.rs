@@ -190,7 +190,7 @@ async fn start_ctrl_c_restart_fixture(turn_delay: Duration) -> Result<GracefulCt
 
     send_chat_start_request(&mut ws, /*id*/ 2).await?;
     let thread_start_response = read_response_for_id(&mut ws, /*id*/ 2).await?;
-    let ChatStartResponse { thread, .. } = to_response(thread_start_response)?;
+    let ChatStartResponse { chat: thread, .. } = to_response(thread_start_response)?;
 
     send_interaction_start_request(&mut ws, /*id*/ 3, &thread.id).await?;
     let turn_start_response = read_response_for_id(&mut ws, /*id*/ 3).await?;

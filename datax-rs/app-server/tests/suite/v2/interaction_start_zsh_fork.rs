@@ -112,7 +112,7 @@ async fn turn_start_shell_zsh_fork_executes_command_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -136,7 +136,8 @@ async fn turn_start_shell_zsh_fork_executes_command_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     let started_command_execution = timeout(DEFAULT_READ_TIMEOUT, async {
         loop {
@@ -235,7 +236,7 @@ async fn turn_start_shell_zsh_fork_exec_approval_decline_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -368,7 +369,7 @@ async fn turn_start_shell_zsh_fork_exec_approval_cancel_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -441,7 +442,7 @@ async fn turn_start_shell_zsh_fork_exec_approval_cancel_v2() -> Result<()> {
             .expect("interaction/completed params must be present"),
     )?;
     assert_eq!(completed.chat_id, thread.id);
-    assert_eq!(completed.turn.status, InteractionStatus::Interrupted);
+    assert_eq!(completed.interaction.status, InteractionStatus::Interrupted);
 
     Ok(())
 }
@@ -527,7 +528,7 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -555,7 +556,8 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
         mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     let mut approved_subcommand_strings = Vec::new();
     let mut approved_subcommand_ids = Vec::new();
@@ -698,9 +700,9 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
                             .expect("interaction/completed params must be present"),
                     )?;
                     assert_eq!(completed.chat_id, thread.id);
-                    assert_eq!(completed.turn.id, turn.id);
+                    assert_eq!(completed.interaction.id, turn.id);
                     assert!(matches!(
-                        completed.turn.status,
+                        completed.interaction.status,
                         InteractionStatus::Interrupted | InteractionStatus::Completed
                     ));
                 }
@@ -732,9 +734,9 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
                     .expect("interaction/completed params must be present"),
             )?;
             assert_eq!(completed.chat_id, thread.id);
-            assert_eq!(completed.turn.id, turn.id);
+            assert_eq!(completed.interaction.id, turn.id);
             assert!(matches!(
-                completed.turn.status,
+                completed.interaction.status,
                 InteractionStatus::Interrupted | InteractionStatus::Completed
             ));
         }

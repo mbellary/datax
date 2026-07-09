@@ -302,7 +302,7 @@ async fn turn_start_notify_payload_includes_initialize_client_name() -> Result<(
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {

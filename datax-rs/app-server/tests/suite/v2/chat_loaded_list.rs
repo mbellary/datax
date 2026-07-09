@@ -134,6 +134,6 @@ async fn start_thread(mcp: &mut TestAppServer) -> Result<String> {
         mcp.read_stream_until_response_message(RequestId::Integer(req_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(resp)?;
     Ok(thread.id)
 }

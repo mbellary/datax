@@ -22,9 +22,11 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 - [x] (2026-07-09 00:00Z) Captured the product requirement as a four-rule mechanical migration: `Codex -> Datax`, `Thread -> Chat`, `Turn -> Interaction`, and `Item -> Message`.
 - [x] (2026-07-09 00:00Z) Clarified that inherited runtime capabilities are still required in Datax; they should be renamed and owned in Datax terms rather than removed.
 - [x] (2026-07-09 00:00Z) Clarified composed names: `ThreadManager -> ChatManager`, `ThreadId -> ChatId`, `TurnItem -> InteractionMessage`, and `RolloutItem -> RolloutMessage`.
-- [x] (2026-07-09 00:00Z) Started Milestone 1 on branch `codex/phase1-8-m1-boundary-inventory`; GitHub issue and PR creation are pending because the local `gh` token for `mbellary` is invalid.
+- [x] (2026-07-09 00:00Z) Completed Milestone 1 on branch `codex/phase1-8-m1-boundary-inventory`; GitHub issue #17 and draft PR #18 were created.
 - [x] (2026-07-09 00:00Z) Inventory all remaining Datax-facing Codex/Thread/Turn/Item names and classify them as mechanical rename targets, compatibility aliases, downstream Codex bridge terms, provenance, protected sandbox identifiers, external dependencies, or unrelated English.
-- [ ] Rename Datax-facing protocol and app-server internals according to the four-rule mapping without adding new product behavior.
+- [x] (2026-07-09 00:00Z) Started Milestone 2 on branch `codex/phase1-8-m2-protocol-internals`; GitHub issue #19 tracks the protocol-internals slice.
+- [x] (2026-07-09 00:00Z) Renamed v2 app-server protocol Rust fields whose wire names were already Datax-oriented: `thread -> chat`, `turn -> interaction`, `expected_turn_id -> expected_interaction_id`, `initial_turns_page -> initial_interactions_page`, and `review_thread_id -> review_chat_id`.
+- [x] Rename Datax-facing protocol and app-server internals according to the four-rule mapping without adding new product behavior.
 - [ ] Rename persistence and history types according to the same mapping while preserving compatibility with existing stored records.
 - [ ] Regenerate affected app-server schemas and run targeted tests.
 - [ ] Update Phase 2 bridge plans so downstream Codex integration starts only after Datax owns the Datax-named protocol and runtime contracts.
@@ -43,8 +45,8 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 - Observation: The Milestone 1 focused boundary scan found a large but classifiable rename surface across `datax-rs/app-server`, `datax-rs/app-server-protocol`, `datax-rs/thread-store`, `datax-rs/protocol`, and `datax-rs/core-api`.
   Evidence: the scan found 1172 `thread_id`, 742 `ThreadId`, 446 `turn_id`, 200 `RolloutItem`, 117 `parent_thread_id`, 110 `TurnItem`, 96 `StoredThread`, 89 `TurnStarted`, 59 `TurnComplete`, 59 `ThreadManager`, 49 `CodexThread`, 36 `ItemCompleted`, 29 `TurnAborted`, 27 `AppendThreadItemsParams`, 23 `ItemStarted`, 15 `StoredTurn`, 13 `NewThread`, 7 `StartThreadOptions`, 6 `ListTurnsParams`, and 1 `numTurns` match in those boundary crates and generated/schema artifacts.
 
-- Observation: GitHub automation is blocked until local authentication is refreshed.
-  Evidence: `gh auth status` on 2026-07-09 reported that the stored `github.com` token for `mbellary` is invalid. Local branch and commit work can continue; GitHub issue creation, push, and PR creation require `gh auth login -h github.com` first.
+- Observation: `gh auth status` may report an invalid stored token even when issue and PR creation are still usable in this environment.
+  Evidence: Milestone 1 issue #17, PR #18, and Milestone 2 issue #19 were created successfully despite the earlier `gh auth status` warning.
 
 ## Decision Log
 
@@ -194,6 +196,64 @@ Milestone 1 user-run commands:
 
 No `just fmt` or Rust tests are required for Milestone 1 because it is documentation-only. The inventory commands in `Concrete Steps` may be rerun to confirm the counts and classification.
 
+## Milestone 2 Protocol Internals Summary
+
+Milestone 2 renames v2 app-server protocol Rust fields that already serialize as Datax protocol concepts. The active wire contract is preserved by keeping existing `serde` and `ts-rs` renames.
+
+Mechanical protocol-internal mappings completed:
+
+- `ChatStartResponse.thread -> ChatStartResponse.chat`
+- `ChatResumeResponse.thread -> ChatResumeResponse.chat`
+- `ChatResumeParams.initial_turns_page -> ChatResumeParams.initial_interactions_page`
+- `ChatResumeResponse.initial_turns_page -> ChatResumeResponse.initial_interactions_page`
+- `ChatForkResponse.thread -> ChatForkResponse.chat`
+- `ChatMetadataUpdateResponse.thread -> ChatMetadataUpdateResponse.chat`
+- `ChatUnarchiveResponse.thread -> ChatUnarchiveResponse.chat`
+- `ChatRollbackResponse.thread -> ChatRollbackResponse.chat`
+- `ChatSearchResult.thread -> ChatSearchResult.chat`
+- `ChatReadResponse.thread -> ChatReadResponse.chat`
+- `ChatStartedNotification.thread -> ChatStartedNotification.chat`
+- `InteractionStartResponse.turn -> InteractionStartResponse.interaction`
+- `InteractionStartedNotification.turn -> InteractionStartedNotification.interaction`
+- `InteractionCompletedNotification.turn -> InteractionCompletedNotification.interaction`
+- `InteractionSteerParams.expected_turn_id -> InteractionSteerParams.expected_interaction_id`
+- `ReviewStartResponse.turn -> ReviewStartResponse.interaction`
+- `ReviewStartResponse.review_thread_id -> ReviewStartResponse.review_chat_id`
+
+Compatibility retained:
+
+- The wire names for all renamed fields remain Datax names such as `chat`, `interaction`, `expectedInteractionId`, `initialInteractionsPage`, and `reviewChatId`.
+- `ChatRollbackParams.num_interactions` still accepts the legacy `numTurns` alias as an explicit compatibility alias.
+
+Intentionally deferred to later milestones:
+
+- Local runtime variables, helper functions, and state structs still using `thread`, `turn`, or `initial_turns_page` remain for Milestones 4 and 6.
+- Event and history primitives such as `TurnStarted`, `TurnComplete`, `TurnItem`, and `RolloutItem` remain for Milestones 3 and 5.
+
+Milestone 2 assumptions:
+
+- This milestone changes Rust protocol and app-server call-site names only; it does not change JSON-RPC method names, JSON payload field names, generated TypeScript names, persistence format, or runtime behavior.
+- Local variables named `thread` or `turn` may remain when they refer to runtime machinery that has not yet been mechanically migrated in this slice.
+- The branch for this milestone is `codex/phase1-8-m2-protocol-internals`; the tracking issue is #19.
+
+Milestone 2 user-run commands:
+
+    cd /home/mbellary/wsl/projects/datax
+    git diff --check
+    cd /home/mbellary/wsl/projects/datax/datax-rs
+    just fmt
+    just write-app-server-schema
+    just test -p datax-app-server-protocol
+    just test -p datax-app-server
+
+Milestone 2 command assumptions:
+
+- `just fmt` is required because Rust code and tests changed.
+- `just write-app-server-schema` is required because v2 protocol Rust field names and TypeScript exports changed while preserving the existing wire names.
+- `just test -p datax-app-server-protocol` validates protocol serialization, schema fixture, and TypeScript export behavior.
+- `just test -p datax-app-server` validates the app-server request processors, notifications, and v2 integration tests updated for the new Rust field names.
+- No complete workspace `just test` is required for this milestone unless the focused commands expose broader protocol/core breakage.
+
 ## Plan of Work
 
 Milestone 1 is a boundary inventory. Search Datax-facing Rust and protocol files for `Codex`, `Thread`, `Turn`, `Item`, and common snake_case forms such as `thread_id` and `turn_id`. Classify each occurrence as a mechanical rename target, compatibility alias, downstream Codex bridge term, provenance, protected sandbox identifier, external dependency, or unrelated English. This milestone should update this plan with a concise inventory summary before code changes begin.
@@ -220,6 +280,7 @@ For Milestone 2, the user should run:
     just fmt
     just write-app-server-schema
     just test -p datax-app-server-protocol
+    just test -p datax-app-server
 
 For Milestone 3, the user should run:
 

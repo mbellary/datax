@@ -483,7 +483,10 @@ impl ElicitationRoundTripFixture {
                 .expect("warmup interaction/completed params"),
         )?;
         assert_eq!(warmup_completed.chat_id, thread.id);
-        assert_eq!(warmup_completed.interaction.status, InteractionStatus::Completed);
+        assert_eq!(
+            warmup_completed.interaction.status,
+            InteractionStatus::Completed
+        );
 
         let turn_start_id = mcp
             .send_interaction_start_request(InteractionStartParams {
@@ -571,7 +574,10 @@ impl ElicitationRoundTripFixture {
                     );
                     assert_eq!(notification.chat_id, self.chat_id);
                     assert_eq!(notification.interaction.id, self.interaction_id);
-                    assert_eq!(notification.interaction.status, InteractionStatus::Completed);
+                    assert_eq!(
+                        notification.interaction.status,
+                        InteractionStatus::Completed
+                    );
                     break;
                 }
                 _ => {}

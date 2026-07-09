@@ -1016,9 +1016,7 @@ async fn thread_name_set_is_reflected_in_read_list_and_resume() -> Result<()> {
     )
     .await??;
     let resume_result = resume_resp.result.clone();
-    let ChatResumeResponse {
-        chat: resumed, ..
-    } = to_response::<ChatResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { chat: resumed, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
     assert_eq!(resumed.id, conversation_id);
     assert_eq!(resumed.name.as_deref(), Some(new_name));
     let resumed_json = resume_result

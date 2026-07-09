@@ -1156,7 +1156,8 @@ impl InteractionRequestProcessor {
         interaction: Interaction,
         review_chat_id: String,
     ) {
-        let response = ReviewStartResponse { interaction: turn,
+        let response = ReviewStartResponse {
+            interaction: turn,
             review_chat_id,
         };
         self.outgoing
@@ -1233,9 +1234,7 @@ impl InteractionRequestProcessor {
                 /*supports_openai_form_elicitation*/ false,
             )
             .await
-            .map_err(|err| {
-                internal_error(format!("error creating detached review chat: {err}"))
-            })?;
+            .map_err(|err| internal_error(format!("error creating detached review chat: {err}")))?;
 
         log_listener_attach_result(
             self.ensure_conversation_listener(
@@ -1287,7 +1286,9 @@ impl InteractionRequestProcessor {
             )
             .await
             .map_err(|err| {
-                internal_error(format!("failed to start detached review interaction: {err}"))
+                internal_error(format!(
+                    "failed to start detached review interaction: {err}"
+                ))
             })?;
 
         let turn = Self::build_review_turn(interaction_id, display_text);

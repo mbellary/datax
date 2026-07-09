@@ -409,7 +409,8 @@ async fn send_turn_and_wait(mcp: &mut TestAppServer, chat_id: &str, text: &str) 
         mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
-    let InteractionStartResponse { interaction: turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
     wait_for_turn_completed(mcp, &turn.id).await?;
     Ok(turn.id)
 }

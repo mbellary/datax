@@ -283,7 +283,8 @@ async fn thread_shell_command_uses_existing_active_turn() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
-    let InteractionStartResponse { interaction: turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     let agent_started = wait_for_command_execution_started(&mut mcp, Some("call-approve")).await?;
     let Message::CommandExecution {

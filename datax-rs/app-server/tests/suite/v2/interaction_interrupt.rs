@@ -92,7 +92,8 @@ async fn turn_interrupt_aborts_running_turn() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { interaction: turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
     let interaction_id = turn.id.clone();
 
     // Give the command a brief moment to start.
@@ -174,7 +175,8 @@ async fn turn_interrupt_rejects_completed_turn() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { interaction: turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     let completed_notif: JSONRPCNotification = timeout(
         DEFAULT_READ_TIMEOUT,
@@ -271,7 +273,8 @@ async fn turn_interrupt_resolves_pending_command_approval_request() -> Result<()
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { interaction: turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     let request = timeout(
         DEFAULT_READ_TIMEOUT,

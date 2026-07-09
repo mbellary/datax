@@ -751,10 +751,7 @@ async fn thread_search_returns_content_matches() -> Result<()> {
     } = to_response::<ChatSearchResponse>(resp)?;
 
     assert_eq!(next_cursor, None);
-    let ids: Vec<_> = data
-        .iter()
-        .map(|result| result.chat.id.as_str())
-        .collect();
+    let ids: Vec<_> = data.iter().map(|result| result.chat.id.as_str()).collect();
     assert_eq!(ids, vec![newer_match, older_match]);
     assert_eq!(data[0].snippet, "mixed NEEDLE suffix");
 
@@ -844,10 +841,7 @@ async fn thread_search_filters_by_source_kind() -> Result<()> {
     .await??;
     let ChatSearchResponse { data, .. } = to_response::<ChatSearchResponse>(resp)?;
 
-    let ids: Vec<_> = data
-        .iter()
-        .map(|result| result.chat.id.as_str())
-        .collect();
+    let ids: Vec<_> = data.iter().map(|result| result.chat.id.as_str()).collect();
     assert_eq!(ids, vec![exec_id.as_str()]);
     assert_ne!(cli_id, exec_id);
 

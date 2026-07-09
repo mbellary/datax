@@ -167,7 +167,8 @@ async fn run_local_image_turn(detail: Option<ImageDetail>) -> Result<Vec<Value>>
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { interaction: turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
     assert!(!turn.id.is_empty());
 
     timeout(
@@ -259,7 +260,8 @@ async fn turn_start_with_empty_input_runs_model_request() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { interaction: turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
     assert!(!turn.id.is_empty());
 
     let started_notif: JSONRPCNotification = timeout(
@@ -904,7 +906,8 @@ async fn turn_start_tracks_turn_event_analytics() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { interaction: turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     timeout(
         DEFAULT_READ_TIMEOUT,
@@ -1130,7 +1133,8 @@ async fn turn_start_accepts_text_at_limit_with_mention_item() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { interaction: turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
     assert_eq!(turn.status, InteractionStatus::InProgress);
 
     timeout(
@@ -1413,7 +1417,8 @@ async fn turn_start_emits_notifications_and_accepts_model_override() -> Result<(
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { interaction: turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
     assert!(!turn.id.is_empty());
 
     // Expect a interaction/started notification.
@@ -2373,7 +2378,8 @@ async fn turn_start_exec_approval_decline_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
-    let InteractionStartResponse { interaction: turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     let started_command_execution = timeout(DEFAULT_READ_TIMEOUT, async {
         loop {
@@ -2883,7 +2889,8 @@ async fn run_environment_selection_case(
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { interaction: turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     let started_notification = timeout(
         DEFAULT_READ_TIMEOUT,
@@ -2993,7 +3000,8 @@ async fn turn_start_file_change_approval_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { interaction: turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     let started_file_change = timeout(DEFAULT_READ_TIMEOUT, async {
         loop {
@@ -3329,7 +3337,8 @@ async fn turn_start_streams_apply_patch_change_updates_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { interaction: turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     let mut streamed_content = String::new();
     while streamed_content != "live line\n" {
@@ -3555,7 +3564,9 @@ async fn turn_start_emits_spawn_agent_item_with_model_metadata_v2() -> Result<()
                     .params
                     .expect("interaction/completed params"),
             )?;
-            if turn_completed.chat_id == thread.id && turn_completed.interaction.id == turn.interaction.id {
+            if turn_completed.chat_id == thread.id
+                && turn_completed.interaction.id == turn.interaction.id
+            {
                 return Ok::<InteractionCompletedNotification, anyhow::Error>(turn_completed);
             }
         }
@@ -3918,7 +3929,9 @@ config_file = "./custom-role.toml"
                     .params
                     .expect("interaction/completed params"),
             )?;
-            if turn_completed.chat_id == thread.id && turn_completed.interaction.id == turn.interaction.id {
+            if turn_completed.chat_id == thread.id
+                && turn_completed.interaction.id == turn.interaction.id
+            {
                 return Ok::<InteractionCompletedNotification, anyhow::Error>(turn_completed);
             }
         }
@@ -4001,8 +4014,9 @@ async fn turn_start_file_change_approval_accept_for_session_persists_v2() -> Res
         mcp.read_stream_until_response_message(RequestId::Integer(turn_1_req)),
     )
     .await??;
-    let InteractionStartResponse { interaction: turn_1 } =
-        to_response::<InteractionStartResponse>(turn_1_resp)?;
+    let InteractionStartResponse {
+        interaction: turn_1,
+    } = to_response::<InteractionStartResponse>(turn_1_resp)?;
 
     let started_file_change_1 = timeout(DEFAULT_READ_TIMEOUT, async {
         loop {
@@ -4182,7 +4196,8 @@ async fn turn_start_file_change_approval_decline_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { interaction: turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
 
     let started_file_change = timeout(DEFAULT_READ_TIMEOUT, async {
         loop {

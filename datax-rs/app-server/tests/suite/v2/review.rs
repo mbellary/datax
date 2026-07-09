@@ -79,7 +79,8 @@ async fn review_start_runs_review_turn_and_emits_code_review_item() -> Result<()
         mcp.read_stream_until_response_message(RequestId::Integer(review_req)),
     )
     .await??;
-    let ReviewStartResponse { interaction: turn,
+    let ReviewStartResponse {
+        interaction: turn,
         review_chat_id,
     } = to_response::<ReviewStartResponse>(review_resp)?;
     assert_eq!(review_chat_id, chat_id.clone());
@@ -192,7 +193,9 @@ async fn review_start_exec_approval_item_id_matches_command_execution_item() -> 
         mcp.read_stream_until_response_message(RequestId::Integer(review_req)),
     )
     .await??;
-    let ReviewStartResponse { interaction: turn, .. } = to_response::<ReviewStartResponse>(review_resp)?;
+    let ReviewStartResponse {
+        interaction: turn, ..
+    } = to_response::<ReviewStartResponse>(review_resp)?;
     let interaction_id = turn.id.clone();
     assert_eq!(turn.messages_view, InteractionMessagesView::NotLoaded);
     assert_eq!(
@@ -318,7 +321,8 @@ async fn review_start_with_detached_delivery_returns_new_thread_id() -> Result<(
         mcp.read_stream_until_response_message(RequestId::Integer(review_req)),
     )
     .await??;
-    let ReviewStartResponse { interaction: turn,
+    let ReviewStartResponse {
+        interaction: turn,
         review_chat_id,
     } = to_response::<ReviewStartResponse>(review_resp)?;
 

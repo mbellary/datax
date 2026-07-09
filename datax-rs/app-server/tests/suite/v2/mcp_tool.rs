@@ -474,7 +474,9 @@ url = "{mcp_server_url}/mcp"
         mcp.read_stream_until_response_message(RequestId::Integer(turn_start_id)),
     )
     .await??;
-    let InteractionStartResponse { interaction: turn, .. } = to_response(turn_start_resp)?;
+    let InteractionStartResponse {
+        interaction: turn, ..
+    } = to_response(turn_start_resp)?;
 
     let completed = wait_for_mcp_tool_call_completed(&mut mcp, call_id).await?;
     assert_eq!(completed.interaction_id, turn.id);

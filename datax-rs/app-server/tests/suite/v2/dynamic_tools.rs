@@ -419,7 +419,8 @@ async fn dynamic_tool_call_round_trip_sends_text_content_items_to_model() -> Res
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { interaction: turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
     let interaction_id = turn.id.clone();
 
     let started = wait_for_dynamic_tool_started(&mut mcp, call_id).await?;
@@ -623,7 +624,8 @@ async fn start_function_dynamic_tool_call(call_id: &str) -> Result<PendingDynami
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { interaction: turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } =
+        to_response::<InteractionStartResponse>(turn_resp)?;
     let interaction_id = turn.id.clone();
 
     let started = wait_for_dynamic_tool_started(&mut mcp, call_id).await?;

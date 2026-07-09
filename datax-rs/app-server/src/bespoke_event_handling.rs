@@ -3389,7 +3389,10 @@ mod tests {
         match msg {
             OutgoingMessage::AppServerNotification(InteractionStarted(n)) => {
                 assert_eq!(n.interaction.id, "turn-1");
-                assert_eq!(n.interaction.messages_view, InteractionMessagesView::NotLoaded);
+                assert_eq!(
+                    n.interaction.messages_view,
+                    InteractionMessagesView::NotLoaded
+                );
                 assert!(n.interaction.messages.is_empty());
             }
             other => bail!("unexpected message: {other:?}"),
@@ -3530,7 +3533,10 @@ mod tests {
             OutgoingMessage::AppServerNotification(InteractionCompleted(n)) => {
                 assert_eq!(n.interaction.id, event_turn_id);
                 assert_eq!(n.interaction.status, InteractionStatus::Completed);
-                assert_eq!(n.interaction.messages_view, InteractionMessagesView::NotLoaded);
+                assert_eq!(
+                    n.interaction.messages_view,
+                    InteractionMessagesView::NotLoaded
+                );
                 assert!(n.interaction.messages.is_empty());
                 assert_eq!(n.interaction.error, None);
                 assert_eq!(n.interaction.started_at, Some(42));

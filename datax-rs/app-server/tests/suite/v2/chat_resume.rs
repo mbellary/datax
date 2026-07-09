@@ -253,9 +253,7 @@ async fn thread_resume_with_empty_path_uses_running_thread_id() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ChatResumeResponse {
-        chat: resumed, ..
-    } = to_response::<ChatResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { chat: resumed, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(resumed.id, thread.id);
     Ok(())
@@ -504,7 +502,9 @@ async fn goal_first_live_thread_appears_in_state_db_thread_list() -> Result<()> 
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { chat: thread, cwd, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse {
+        chat: thread, cwd, ..
+    } = to_response::<ChatStartResponse>(start_resp)?;
 
     let goal_id = mcp
         .send_raw_request(
@@ -1713,7 +1713,8 @@ async fn thread_resume_skips_restored_token_usage_when_turns_are_excluded() -> R
         mcp.read_stream_until_response_message(RequestId::Integer(first_resume_id)),
     )
     .await??;
-    let ChatResumeResponse { chat: thread, .. } = to_response::<ChatResumeResponse>(first_resume_resp)?;
+    let ChatResumeResponse { chat: thread, .. } =
+        to_response::<ChatResumeResponse>(first_resume_resp)?;
     let expected_interaction_id = thread.interactions[0].id.clone();
 
     let first_note = timeout(
@@ -2282,8 +2283,7 @@ async fn thread_resume_and_read_interrupt_incomplete_rollout_turn_when_thread_is
     )
     .await??;
     let ChatReadResponse {
-        chat: read_thread,
-        ..
+        chat: read_thread, ..
     } = to_response::<ChatReadResponse>(read_resp)?;
 
     assert_eq!(read_thread.status, ChatStatus::Idle);
@@ -2591,8 +2591,9 @@ async fn thread_resume_rejects_history_when_thread_is_running() -> Result<()> {
         primary.read_stream_until_response_message(RequestId::Integer(running_turn_request_id)),
     )
     .await??;
-    let InteractionStartResponse { interaction: running_turn } =
-        to_response::<InteractionStartResponse>(running_turn_resp)?;
+    let InteractionStartResponse {
+        interaction: running_turn,
+    } = to_response::<InteractionStartResponse>(running_turn_resp)?;
     assert_eq!(
         running_turn.messages_view,
         InteractionMessagesView::NotLoaded
@@ -2713,8 +2714,9 @@ async fn thread_resume_rejects_mismatched_path_for_running_thread_id() -> Result
         primary.read_stream_until_response_message(RequestId::Integer(running_turn_request_id)),
     )
     .await??;
-    let InteractionStartResponse { interaction: running_turn } =
-        to_response::<InteractionStartResponse>(running_turn_resp)?;
+    let InteractionStartResponse {
+        interaction: running_turn,
+    } = to_response::<InteractionStartResponse>(running_turn_resp)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
         primary.read_stream_until_notification_message("interaction/started"),
@@ -2881,8 +2883,9 @@ async fn thread_resume_rejoins_running_thread_even_with_override_mismatch() -> R
         primary.read_stream_until_response_message(RequestId::Integer(running_turn_id)),
     )
     .await??;
-    let InteractionStartResponse { interaction: running_turn } =
-        to_response::<InteractionStartResponse>(running_turn_resp)?;
+    let InteractionStartResponse {
+        interaction: running_turn,
+    } = to_response::<InteractionStartResponse>(running_turn_resp)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
         primary.read_stream_until_notification_message("interaction/started"),
@@ -3014,9 +3017,7 @@ async fn thread_resume_can_skip_turns_when_thread_is_running() -> Result<()> {
         secondary.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ChatResumeResponse {
-        chat: resumed, ..
-    } = to_response::<ChatResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { chat: resumed, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
 
     assert_eq!(resumed.id, thread.id);
     assert_eq!(resumed.status, ChatStatus::Idle);
@@ -3555,9 +3556,7 @@ async fn thread_resume_uses_path_over_non_running_thread_id() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ChatResumeResponse {
-        chat: resumed, ..
-    } = to_response::<ChatResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { chat: resumed, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
     assert_eq!(resumed.id, chat_id);
 
     Ok(())
@@ -3594,9 +3593,7 @@ async fn thread_resume_can_load_source_by_external_path() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(resume_id)),
     )
     .await??;
-    let ChatResumeResponse {
-        chat: resumed, ..
-    } = to_response::<ChatResumeResponse>(resume_resp)?;
+    let ChatResumeResponse { chat: resumed, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
     assert_eq!(resumed.id, chat_id);
     let resumed_path = resumed.path.as_ref().expect("resumed thread path");
     assert_eq!(

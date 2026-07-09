@@ -2054,21 +2054,14 @@ impl ChatRequestProcessor {
         }
 
         let backwards_cursor = search_results.first().and_then(|result| {
-            thread_backwards_cursor_for_sort_key(
-                &result.chat,
-                store_sort_key,
-                store_sort_direction,
-            )
+            thread_backwards_cursor_for_sort_key(&result.chat, store_sort_key, store_sort_direction)
         });
         let fallback_provider = self.config.model_provider_id.clone();
         let mut results = Vec::with_capacity(search_results.len());
         let mut status_ids = Vec::with_capacity(search_results.len());
         for result in search_results {
-            let (thread, _) = chat_from_stored_thread(
-                result.chat,
-                fallback_provider.as_str(),
-                &self.config.cwd,
-            );
+            let (thread, _) =
+                chat_from_stored_thread(result.chat, fallback_provider.as_str(), &self.config.cwd);
             status_ids.push(thread.id.clone());
             results.push((thread, result.snippet));
         }
@@ -2743,23 +2736,24 @@ impl ChatRequestProcessor {
                     config_snapshot.active_permission_profile,
                 );
                 let token_usage_thread = include_interactions.then(|| thread.clone());
-                let mut initial_interactions_page = if let Some(params) = initial_interactions_page.as_ref() {
-                    match build_thread_resume_initial_turns_page(
-                        &response_history.get_rollout_items(),
-                        thread.status.clone(),
-                        /*has_live_running_thread*/ false,
-                        /*active_turn*/ None,
-                        params,
-                    ) {
-                        Ok(page) => Some(page),
-                        Err(error) => {
-                            self.outgoing.send_error(request_id, error).await;
-                            return Ok(());
+                let mut initial_interactions_page =
+                    if let Some(params) = initial_interactions_page.as_ref() {
+                        match build_thread_resume_initial_turns_page(
+                            &response_history.get_rollout_items(),
+                            thread.status.clone(),
+                            /*has_live_running_thread*/ false,
+                            /*active_turn*/ None,
+                            params,
+                        ) {
+                            Ok(page) => Some(page),
+                            Err(error) => {
+                                self.outgoing.send_error(request_id, error).await;
+                                return Ok(());
+                            }
                         }
-                    }
-                } else {
-                    None
-                };
+                    } else {
+                        None
+                    };
                 if redact_resume_payloads {
                     redact_thread_resume_payloads(&mut thread.interactions);
                     if let Some(initial_interactions_page) = initial_interactions_page.as_mut() {
@@ -4180,10 +4174,7 @@ pub(crate) fn chat_from_stored_thread(
     (thread, history)
 }
 
-fn summary_from_stored_thread(
-    chat: StoredThread,
-    fallback_provider: &str,
-) -> ConversationSummary {
+fn summary_from_stored_thread(chat: StoredThread, fallback_provider: &str) -> ConversationSummary {
     let path = thread.rollout_path.unwrap_or_default();
     let source = with_thread_spawn_agent_metadata(
         thread.source,

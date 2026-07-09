@@ -62,7 +62,10 @@ async fn plan_mode_uses_proposed_plan_block_for_plan_item() -> Result<()> {
     wait_for_responses_request_count(&server, /*expected_count*/ 1).await?;
 
     assert_eq!(turn_completed.interaction.id, turn.id);
-    assert_eq!(turn_completed.interaction.status, InteractionStatus::Completed);
+    assert_eq!(
+        turn_completed.interaction.status,
+        InteractionStatus::Completed
+    );
 
     let expected_plan = Message::Plan {
         id: format!("{}-plan", turn.id),

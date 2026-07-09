@@ -82,7 +82,9 @@ async fn sleep_emits_started_and_completed_items() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_start_id)),
     )
     .await??;
-    let InteractionStartResponse { interaction: turn, .. } = to_response(turn_start_response)?;
+    let InteractionStartResponse {
+        interaction: turn, ..
+    } = to_response(turn_start_response)?;
 
     let (started, completed) = timeout(DEFAULT_READ_TIMEOUT, async {
         let mut started = None;

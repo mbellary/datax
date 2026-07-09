@@ -22,7 +22,8 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 - [x] (2026-07-09 00:00Z) Captured the product requirement as a four-rule mechanical migration: `Codex -> Datax`, `Thread -> Chat`, `Turn -> Interaction`, and `Item -> Message`.
 - [x] (2026-07-09 00:00Z) Clarified that inherited runtime capabilities are still required in Datax; they should be renamed and owned in Datax terms rather than removed.
 - [x] (2026-07-09 00:00Z) Clarified composed names: `ThreadManager -> ChatManager`, `ThreadId -> ChatId`, `TurnItem -> InteractionMessage`, and `RolloutItem -> RolloutMessage`.
-- [ ] Inventory all remaining Datax-facing Codex/Thread/Turn/Item names and classify them as mechanical rename targets, compatibility aliases, downstream Codex bridge terms, provenance, or unrelated English.
+- [x] (2026-07-09 00:00Z) Started Milestone 1 on branch `codex/phase1-8-m1-boundary-inventory`; GitHub issue and PR creation are pending because the local `gh` token for `mbellary` is invalid.
+- [x] (2026-07-09 00:00Z) Inventory all remaining Datax-facing Codex/Thread/Turn/Item names and classify them as mechanical rename targets, compatibility aliases, downstream Codex bridge terms, provenance, protected sandbox identifiers, external dependencies, or unrelated English.
 - [ ] Rename Datax-facing protocol and app-server internals according to the four-rule mapping without adding new product behavior.
 - [ ] Rename persistence and history types according to the same mapping while preserving compatibility with existing stored records.
 - [ ] Regenerate affected app-server schemas and run targeted tests.
@@ -38,6 +39,12 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 
 - Observation: Persistence still uses Thread/Turn/Item vocabulary as first-class Datax-facing store names.
   Evidence: `datax-rs/thread-store/src/types.rs` defines `CreateThreadParams`, `StoredThread`, `StoredTurn`, `StoredThreadHistory`, and `AppendThreadItemsParams`; `datax-rs/protocol/src/protocol.rs` defines `RolloutItem` and event fields such as `turn_id`.
+
+- Observation: The Milestone 1 focused boundary scan found a large but classifiable rename surface across `datax-rs/app-server`, `datax-rs/app-server-protocol`, `datax-rs/thread-store`, `datax-rs/protocol`, and `datax-rs/core-api`.
+  Evidence: the scan found 1172 `thread_id`, 742 `ThreadId`, 446 `turn_id`, 200 `RolloutItem`, 117 `parent_thread_id`, 110 `TurnItem`, 96 `StoredThread`, 89 `TurnStarted`, 59 `TurnComplete`, 59 `ThreadManager`, 49 `CodexThread`, 36 `ItemCompleted`, 29 `TurnAborted`, 27 `AppendThreadItemsParams`, 23 `ItemStarted`, 15 `StoredTurn`, 13 `NewThread`, 7 `StartThreadOptions`, 6 `ListTurnsParams`, and 1 `numTurns` match in those boundary crates and generated/schema artifacts.
+
+- Observation: GitHub automation is blocked until local authentication is refreshed.
+  Evidence: `gh auth status` on 2026-07-09 reported that the stored `github.com` token for `mbellary` is invalid. Local branch and commit work can continue; GitHub issue creation, push, and PR creation require `gh auth login -h github.com` first.
 
 ## Decision Log
 
@@ -55,6 +62,14 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 
 - Decision: Do not add data-engineering product features during this migration.
   Rationale: Product features should be built on stable Datax vocabulary after the mechanical migration is complete.
+  Date/Author: 2026-07-09 / Codex
+
+- Decision: Implement this ExecPlan one milestone per GitHub branch, issue, and pull request.
+  Rationale: The rename is mechanical but broad. One milestone per branch/issue/PR keeps review scope clear, lets long-running tests be owned by the user, and prevents later runtime or persistence changes from being mixed into the inventory/protocol slices.
+  Date/Author: 2026-07-09 / Codex
+
+- Decision: Treat `docs/plans/datax_mechanical_protocol_migration/mechanical_protocol_migration_execplan.md` as the canonical plan path.
+  Rationale: The plan was moved out of the Phase 2 folder because this migration is now Phase 1.8 work. Any shorthand reference to `docs/plans/mechanical_protocol_migration_execplan.md` should resolve to this file unless a future repository move updates the path.
   Date/Author: 2026-07-09 / Codex
 
 ## Outcomes & Retrospective
@@ -120,6 +135,65 @@ Known important files:
 
 `datax-rs/core-api/src/lib.rs` re-exports inherited thread-management APIs.
 
+## Milestone Operating Model
+
+Each milestone is implemented as a separate GitHub unit:
+
+    branch: codex/phase1-8-mN-short-name
+    issue: Phase 1.8 Milestone N: short name
+    pull request: Phase 1.8 Milestone N: short name
+
+Before starting a milestone, create or switch to the milestone branch from a clean `main`, create the GitHub issue, and link the issue in the pull request body. The branch must contain only that milestone's intended files. Commit and push the branch after local edits. Open the PR as a draft unless the user asks for ready-for-review.
+
+The user will run the long build, format, and test commands. For each milestone, update this plan with the exact commands the user should run, the assumptions behind the milestone, and any compatibility exceptions discovered. If a command is not applicable because the milestone is documentation-only or inventory-only, say so explicitly in the milestone notes.
+
+When GitHub CLI authentication is unavailable, continue local milestone work only if the scope is still clear. Record the blocker in this plan, then create the issue, push, and open the PR after authentication is restored.
+
+## Milestone 1 Inventory Summary
+
+Milestone 1 classified the current rename surface without changing Rust behavior.
+
+Mechanical rename targets:
+
+- App-server live runtime and state: `ThreadManager`, `CodexThread`, `NewThread`, `StartThreadOptions`, `ThreadId`, `thread_id`, `parent_thread_id`, and related helper names in `datax-rs/app-server/src/request_processors/chat_processor.rs`, `datax-rs/app-server/src/request_processors/interaction_processor.rs`, `datax-rs/app-server/src/thread_state.rs`, `datax-rs/app-server/src/thread_status.rs`, and adjacent request processors.
+- App-server protocol internals: Rust fields named `thread` in Datax chat responses, Rust fields named `turn` in Datax interaction responses, `expected_turn_id`, and generated schema/type names such as `ThreadId.ts`.
+- Core protocol primitives and events: `datax-rs/protocol/src/thread_id.rs`, `EventMsg::TurnStarted`, `EventMsg::TurnComplete`, `EventMsg::TurnAborted`, `EventMsg::ItemStarted`, `EventMsg::ItemCompleted`, event structs using `thread_id` and `turn_id`, `TurnItem`, and `RolloutItem`.
+- Persistence and history: `StoredThread`, `StoredTurn`, `StoredThreadHistory`, `StoredTurnStatus`, `StoredTurnItemsView`, `AppendThreadItemsParams`, `ListTurnsParams`, local store modules under `datax-rs/thread-store/src/local`, and the thread-store README.
+- Core re-export boundary: `datax-rs/core-api/src/lib.rs` re-exports `CodexThread`, `NewThread`, `StartThreadOptions`, `ThreadManager`, and `ThreadId`.
+
+Compatibility aliases:
+
+- `numTurns` in `datax-rs/app-server-protocol/src/protocol/v2/chat.rs` is already an explicit serde alias for `numInteractions`; keep it documented as compatibility while active.
+- Legacy rollout compatibility in `datax-rs/protocol/src/protocol.rs` may need old event or field names behind explicit conversion/deserialization code so existing stored records remain readable.
+- Existing generated schema files reflect current source names and should change only in the same milestone as the source protocol rename that generates them.
+
+Downstream Codex bridge terms:
+
+- Future Phase 2 names such as `AgentAdapter`, `codex-runtime`, and downstream Codex `Thread`/`Turn`/`Item` are allowed only in bridge planning or bridge implementation. No such bridge should be introduced during Phase 1.8.
+
+Provenance and external dependency terms:
+
+- Documentation or comments referring to upstream Codex services, Codex-managed auth, ChatGPT/Codex backend behavior, or upstream compatibility should be reviewed case by case. If the term describes Datax's product behavior, rename it. If it describes an external upstream dependency or historical source, classify it explicitly.
+- `toml_edit::Item` in `datax-rs/app-server/src/config_manager_service.rs` and generic Rust iterator `Item` associated types are unrelated English/API terms and are not protocol migration targets.
+
+Protected sandbox identifiers:
+
+- Do not modify `CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR`, `CODEX_SANDBOX_ENV_VAR`, or code/comments whose only purpose is the protected sandbox environment contract.
+
+Milestone 1 assumptions:
+
+- This milestone is inventory and planning only; it does not rename code, regenerate schema, or alter runtime behavior.
+- The canonical mapping remains `Codex -> Datax`, `Thread -> Chat`, `Turn -> Interaction`, and `Item -> Message`, applied compositionally.
+- Datax still needs active chat management, live chat/session handles, persistence, history, event streams, resumability, and request processors.
+- The branch for this milestone is `codex/phase1-8-m1-boundary-inventory`.
+
+Milestone 1 user-run commands:
+
+    cd /home/mbellary/wsl/projects/datax
+    git diff --check
+
+No `just fmt` or Rust tests are required for Milestone 1 because it is documentation-only. The inventory commands in `Concrete Steps` may be rerun to confirm the counts and classification.
+
 ## Plan of Work
 
 Milestone 1 is a boundary inventory. Search Datax-facing Rust and protocol files for `Codex`, `Thread`, `Turn`, `Item`, and common snake_case forms such as `thread_id` and `turn_id`. Classify each occurrence as a mechanical rename target, compatibility alias, downstream Codex bridge term, provenance, protected sandbox identifier, external dependency, or unrelated English. This milestone should update this plan with a concise inventory summary before code changes begin.
@@ -137,6 +211,75 @@ Milestone 6 updates app-server request processors and state tracking to depend o
 Milestone 7 validates generated protocol and tests. Regenerate app-server schema fixtures if protocol shapes or TypeScript exports change. Run focused tests for every changed crate. If common, core, or protocol crates are changed broadly, ask before running the complete workspace test suite.
 
 Milestone 8 updates Phase 2 bridge planning. Only after Datax-facing code owns Datax vocabulary should later plans introduce `AgentAdapter` and `codex-runtime` to map Datax `Chat`/`Interaction`/`Message` back to downstream Codex `Thread`/`Turn`/`Item`.
+
+For Milestone 2, the user should run:
+
+    cd /home/mbellary/wsl/projects/datax
+    git diff --check
+    cd /home/mbellary/wsl/projects/datax/datax-rs
+    just fmt
+    just write-app-server-schema
+    just test -p datax-app-server-protocol
+
+For Milestone 3, the user should run:
+
+    cd /home/mbellary/wsl/projects/datax
+    git diff --check
+    cd /home/mbellary/wsl/projects/datax/datax-rs
+    just fmt
+    just test -p datax-protocol
+    just test -p datax-app-server-protocol
+
+For Milestone 4, the user should run:
+
+    cd /home/mbellary/wsl/projects/datax
+    git diff --check
+    cd /home/mbellary/wsl/projects/datax/datax-rs
+    just fmt
+    just fix -p datax-core
+    just test -p datax-core
+    just test -p datax-app-server
+
+For Milestone 5, the user should run:
+
+    cd /home/mbellary/wsl/projects/datax
+    git diff --check
+    cd /home/mbellary/wsl/projects/datax/datax-rs
+    just fmt
+    just test -p datax-protocol
+    just test -p datax-thread-store
+    just test -p datax-app-server
+
+For Milestone 6, the user should run:
+
+    cd /home/mbellary/wsl/projects/datax
+    git diff --check
+    cd /home/mbellary/wsl/projects/datax/datax-rs
+    just fmt
+    just fix -p datax-app-server
+    just test -p datax-app-server
+
+For Milestone 7, the user should run the focused commands from the changed crates, plus schema generation when protocol shapes changed:
+
+    cd /home/mbellary/wsl/projects/datax
+    git diff --check
+    cd /home/mbellary/wsl/projects/datax/datax-rs
+    just fmt
+    just write-app-server-schema
+    just test -p datax-app-server-protocol
+    just test -p datax-app-server
+
+If Milestone 7 changes common, core, or protocol broadly, ask before running the complete workspace test suite:
+
+    cd /home/mbellary/wsl/projects/datax/datax-rs
+    just test
+
+For Milestone 8, the user should run:
+
+    cd /home/mbellary/wsl/projects/datax
+    git diff --check
+
+No Rust tests are required for Milestone 8 unless the bridge planning update includes code or generated artifacts.
 
 ## Concrete Steps
 
@@ -161,23 +304,23 @@ After Rust edits, format from `datax-rs`:
 For app-server protocol changes, run:
 
     cd /home/mbellary/wsl/projects/datax/datax-rs
-    just test -p codex-app-server-protocol
+    just test -p datax-app-server-protocol
 
 For app-server implementation changes, run:
 
     cd /home/mbellary/wsl/projects/datax/datax-rs
-    just test -p codex-app-server
+    just test -p datax-app-server
 
 For protocol schema changes, run:
 
     cd /home/mbellary/wsl/projects/datax/datax-rs
     just write-app-server-schema
-    just test -p codex-app-server-protocol
+    just test -p datax-app-server-protocol
 
 Before finalizing a large app-server change, run:
 
     cd /home/mbellary/wsl/projects/datax/datax-rs
-    just fix -p codex-app-server
+    just fix -p datax-app-server
 
 Do not run `cargo test` directly in `datax-rs`. Use `just test` according to repository instructions.
 
@@ -195,8 +338,8 @@ Expected final result: remaining matches are only in explicitly named compatibil
 Run:
 
     cd /home/mbellary/wsl/projects/datax/datax-rs
-    just test -p codex-app-server-protocol
-    just test -p codex-app-server
+    just test -p datax-app-server-protocol
+    just test -p datax-app-server
 
 Expected result: both commands pass. A Datax client should still be able to use `chat/*`, `interaction/*`, and `message/*` app-server methods, with Datax protocol payloads and events.
 

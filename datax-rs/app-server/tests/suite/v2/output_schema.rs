@@ -45,7 +45,7 @@ async fn turn_start_accepts_output_schema_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let output_schema = serde_json::json!({
         "type": "object",
@@ -128,7 +128,7 @@ async fn turn_start_output_schema_is_per_turn_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let output_schema = serde_json::json!({
         "type": "object",

@@ -154,7 +154,7 @@ fn thread_resume_params_accept_turns_page_bootstrap() {
 
     assert_eq!(params.chat_id, "thr_123");
     assert_eq!(
-        params.initial_turns_page,
+        params.initial_interactions_page,
         Some(ChatResumeInitialInteractionsPageParams {
             limit: Some(25),
             sort_direction: Some(SortDirection::Asc),
@@ -201,7 +201,7 @@ fn thread_resume_response_round_trips_initial_turns_page() {
         active_permission_profile: None,
         reasoning_effort: None,
         multi_agent_mode: Default::default(),
-        initial_turns_page: Some(InteractionsPage {
+        initial_interactions_page: Some(InteractionsPage {
             data: Vec::new(),
             next_cursor: Some("cursor_next".to_string()),
             backwards_cursor: Some("cursor_back".to_string()),
@@ -3703,8 +3703,8 @@ fn thread_lifecycle_responses_default_missing_optional_fields() {
         serde_json::from_value(response.clone()).expect("chat/fork response");
 
     assert_eq!(start.instruction_sources, Vec::<LegacyAppPathString>::new());
-    assert_eq!(start.thread.parent_chat_id, None);
-    assert_eq!(start.thread.recency_at, None);
+    assert_eq!(start.chat.parent_chat_id, None);
+    assert_eq!(start.chat.recency_at, None);
     assert_eq!(
         resume.instruction_sources,
         Vec::<LegacyAppPathString>::new()
@@ -3712,7 +3712,7 @@ fn thread_lifecycle_responses_default_missing_optional_fields() {
     assert_eq!(fork.instruction_sources, Vec::<LegacyAppPathString>::new());
     assert_eq!(start.active_permission_profile, None);
     assert_eq!(resume.active_permission_profile, None);
-    assert_eq!(resume.initial_turns_page, None);
+    assert_eq!(resume.initial_interactions_page, None);
     assert_eq!(fork.active_permission_profile, None);
     assert_eq!(
         (

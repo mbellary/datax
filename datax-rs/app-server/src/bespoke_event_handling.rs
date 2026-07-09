@@ -1608,7 +1608,7 @@ fn thread_rollback_response_from_stored_thread(
     };
     populate_thread_turns_from_history(&mut thread, &history.items, /*active_turn*/ None);
     thread.status = loaded_status;
-    Ok(ChatRollbackResponse { thread })
+    Ok(ChatRollbackResponse { chat: thread })
 }
 
 async fn respond_to_pending_interrupts(
@@ -2311,13 +2311,13 @@ mod tests {
         )
         .expect("rollback response should rebuild from stored history");
 
-        assert_eq!(response.thread.id, chat_id.to_string());
-        assert_eq!(response.thread.path, None);
-        assert_eq!(response.thread.preview, "fallback preview");
-        assert_eq!(response.thread.name.as_deref(), Some("Rollback thread"));
-        assert_eq!(response.thread.status, ChatStatus::NotLoaded);
-        assert_eq!(response.thread.interactions.len(), 1);
-        assert_eq!(response.thread.interactions[0].messages.len(), 2);
+        assert_eq!(response.chat.id, chat_id.to_string());
+        assert_eq!(response.chat.path, None);
+        assert_eq!(response.chat.preview, "fallback preview");
+        assert_eq!(response.chat.name.as_deref(), Some("Rollback thread"));
+        assert_eq!(response.chat.status, ChatStatus::NotLoaded);
+        assert_eq!(response.chat.interactions.len(), 1);
+        assert_eq!(response.chat.interactions[0].messages.len(), 2);
         Ok(())
     }
 
@@ -2737,7 +2737,7 @@ mod tests {
         );
         let datax_core::NewThread {
             thread_id: conversation_id,
-            thread: conversation,
+            chat: conversation,
             ..
         } = thread_manager.start_thread(config.clone()).await?;
         let thread_state = new_thread_state();
@@ -3323,7 +3323,7 @@ mod tests {
         );
         let datax_core::NewThread {
             thread_id: conversation_id,
-            thread: conversation,
+            chat: conversation,
             ..
         } = thread_manager.start_thread(config.clone()).await?;
         let thread_state = new_thread_state();
@@ -3388,9 +3388,9 @@ mod tests {
         let msg = recv_broadcast_message(&mut rx).await?;
         match msg {
             OutgoingMessage::AppServerNotification(InteractionStarted(n)) => {
-                assert_eq!(n.turn.id, "turn-1");
-                assert_eq!(n.turn.messages_view, InteractionMessagesView::NotLoaded);
-                assert!(n.turn.messages.is_empty());
+                assert_eq!(n.interaction.id, "turn-1");
+                assert_eq!(n.interaction.messages_view, InteractionMessagesView::NotLoaded);
+                assert!(n.interaction.messages.is_empty());
             }
             other => bail!("unexpected message: {other:?}"),
         }
@@ -3411,7 +3411,7 @@ mod tests {
         );
         let datax_core::NewThread {
             thread_id: conversation_id,
-            thread: conversation,
+            chat: conversation,
             ..
         } = thread_manager.start_thread(config).await?;
         let child_thread_id = ThreadId::new();
@@ -3528,14 +3528,14 @@ mod tests {
         let msg = recv_broadcast_message(&mut rx).await?;
         match msg {
             OutgoingMessage::AppServerNotification(InteractionCompleted(n)) => {
-                assert_eq!(n.turn.id, event_turn_id);
-                assert_eq!(n.turn.status, InteractionStatus::Completed);
-                assert_eq!(n.turn.messages_view, InteractionMessagesView::NotLoaded);
-                assert!(n.turn.messages.is_empty());
-                assert_eq!(n.turn.error, None);
-                assert_eq!(n.turn.started_at, Some(42));
-                assert_eq!(n.turn.completed_at, Some(TEST_TURN_COMPLETED_AT));
-                assert_eq!(n.turn.duration_ms, Some(TEST_TURN_DURATION_MS));
+                assert_eq!(n.interaction.id, event_turn_id);
+                assert_eq!(n.interaction.status, InteractionStatus::Completed);
+                assert_eq!(n.interaction.messages_view, InteractionMessagesView::NotLoaded);
+                assert!(n.interaction.messages.is_empty());
+                assert_eq!(n.interaction.error, None);
+                assert_eq!(n.interaction.started_at, Some(42));
+                assert_eq!(n.interaction.completed_at, Some(TEST_TURN_COMPLETED_AT));
+                assert_eq!(n.interaction.duration_ms, Some(TEST_TURN_DURATION_MS));
             }
             other => bail!("unexpected message: {other:?}"),
         }
@@ -3581,11 +3581,11 @@ mod tests {
         let msg = recv_broadcast_message(&mut rx).await?;
         match msg {
             OutgoingMessage::AppServerNotification(InteractionCompleted(n)) => {
-                assert_eq!(n.turn.id, event_turn_id);
-                assert_eq!(n.turn.status, InteractionStatus::Interrupted);
-                assert_eq!(n.turn.error, None);
-                assert_eq!(n.turn.completed_at, Some(TEST_TURN_COMPLETED_AT));
-                assert_eq!(n.turn.duration_ms, Some(TEST_TURN_DURATION_MS));
+                assert_eq!(n.interaction.id, event_turn_id);
+                assert_eq!(n.interaction.status, InteractionStatus::Interrupted);
+                assert_eq!(n.interaction.error, None);
+                assert_eq!(n.interaction.completed_at, Some(TEST_TURN_COMPLETED_AT));
+                assert_eq!(n.interaction.duration_ms, Some(TEST_TURN_DURATION_MS));
             }
             other => bail!("unexpected message: {other:?}"),
         }
@@ -3631,18 +3631,18 @@ mod tests {
         let msg = recv_broadcast_message(&mut rx).await?;
         match msg {
             OutgoingMessage::AppServerNotification(InteractionCompleted(n)) => {
-                assert_eq!(n.turn.id, event_turn_id);
-                assert_eq!(n.turn.status, InteractionStatus::Failed);
+                assert_eq!(n.interaction.id, event_turn_id);
+                assert_eq!(n.interaction.status, InteractionStatus::Failed);
                 assert_eq!(
-                    n.turn.error,
+                    n.interaction.error,
                     Some(InteractionError {
                         message: "bad".to_string(),
                         codex_error_info: Some(V2CodexErrorInfo::Other),
                         additional_details: None,
                     })
                 );
-                assert_eq!(n.turn.completed_at, Some(TEST_TURN_COMPLETED_AT));
-                assert_eq!(n.turn.duration_ms, Some(TEST_TURN_DURATION_MS));
+                assert_eq!(n.interaction.completed_at, Some(TEST_TURN_COMPLETED_AT));
+                assert_eq!(n.interaction.duration_ms, Some(TEST_TURN_DURATION_MS));
             }
             other => bail!("unexpected message: {other:?}"),
         }
@@ -3897,10 +3897,10 @@ mod tests {
         let msg = recv_broadcast_message(&mut rx).await?;
         match msg {
             OutgoingMessage::AppServerNotification(InteractionCompleted(n)) => {
-                assert_eq!(n.turn.id, a_turn1);
-                assert_eq!(n.turn.status, InteractionStatus::Failed);
+                assert_eq!(n.interaction.id, a_turn1);
+                assert_eq!(n.interaction.status, InteractionStatus::Failed);
                 assert_eq!(
-                    n.turn.error,
+                    n.interaction.error,
                     Some(InteractionError {
                         message: "a1".to_string(),
                         codex_error_info: Some(V2CodexErrorInfo::BadRequest),
@@ -3915,10 +3915,10 @@ mod tests {
         let msg = recv_broadcast_message(&mut rx).await?;
         match msg {
             OutgoingMessage::AppServerNotification(InteractionCompleted(n)) => {
-                assert_eq!(n.turn.id, b_turn1);
-                assert_eq!(n.turn.status, InteractionStatus::Failed);
+                assert_eq!(n.interaction.id, b_turn1);
+                assert_eq!(n.interaction.status, InteractionStatus::Failed);
                 assert_eq!(
-                    n.turn.error,
+                    n.interaction.error,
                     Some(InteractionError {
                         message: "b1".to_string(),
                         codex_error_info: None,
@@ -3933,9 +3933,9 @@ mod tests {
         let msg = recv_broadcast_message(&mut rx).await?;
         match msg {
             OutgoingMessage::AppServerNotification(InteractionCompleted(n)) => {
-                assert_eq!(n.turn.id, a_turn2);
-                assert_eq!(n.turn.status, InteractionStatus::Completed);
-                assert_eq!(n.turn.error, None);
+                assert_eq!(n.interaction.id, a_turn2);
+                assert_eq!(n.interaction.status, InteractionStatus::Completed);
+                assert_eq!(n.interaction.error, None);
             }
             other => bail!("unexpected message: {other:?}"),
         }

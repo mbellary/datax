@@ -311,7 +311,7 @@ impl RealtimeE2eHarness {
             main_loop_responses_server,
             realtime_server,
             call_capture,
-            chat_id: thread_start.thread.id,
+            chat_id: thread_start.chat.id,
         })
     }
 
@@ -675,7 +675,7 @@ async fn realtime_conversation_streams_v2_notifications() -> Result<()> {
             codex_responses_as_messages: None,
             codex_response_message_prefix: None,
             codex_response_handoff_prefix: None,
-            chat_id: thread_start.thread.id.clone(),
+            chat_id: thread_start.chat.id.clone(),
             model: Some("realtime-treatment-model".to_string()),
             output_modality: RealtimeOutputModality::Audio,
             include_startup_context: None,
@@ -696,7 +696,7 @@ async fn realtime_conversation_streams_v2_notifications() -> Result<()> {
     let started =
         read_notification::<ChatRealtimeStartedNotification>(&mut mcp, "chat/realtime/started")
             .await?;
-    assert_eq!(started.chat_id, thread_start.thread.id);
+    assert_eq!(started.chat_id, thread_start.chat.id);
     assert!(started.realtime_session_id.is_some());
     assert_eq!(started.version, RealtimeConversationVersion::V2);
 
@@ -965,7 +965,7 @@ async fn realtime_start_can_skip_startup_context() -> Result<()> {
             codex_responses_as_messages: None,
             codex_response_message_prefix: None,
             codex_response_handoff_prefix: None,
-            chat_id: thread_start.thread.id.clone(),
+            chat_id: thread_start.chat.id.clone(),
             model: None,
             output_modality: RealtimeOutputModality::Audio,
             include_startup_context: Some(false),
@@ -1062,7 +1062,7 @@ async fn realtime_text_output_modality_requests_text_output_and_final_transcript
             codex_responses_as_messages: None,
             codex_response_message_prefix: None,
             codex_response_handoff_prefix: None,
-            chat_id: thread_start.thread.id.clone(),
+            chat_id: thread_start.chat.id.clone(),
             model: None,
             output_modality: RealtimeOutputModality::Text,
             include_startup_context: None,
@@ -1107,12 +1107,12 @@ async fn realtime_text_output_modality_requests_text_output_and_final_transcript
         vec![first_delta, second_delta],
         vec![
             ChatRealtimeTranscriptDeltaNotification {
-                chat_id: thread_start.thread.id.clone(),
+                chat_id: thread_start.chat.id.clone(),
                 role: "assistant".to_string(),
                 delta: "hello ".to_string(),
             },
             ChatRealtimeTranscriptDeltaNotification {
-                chat_id: thread_start.thread.id.clone(),
+                chat_id: thread_start.chat.id.clone(),
                 role: "assistant".to_string(),
                 delta: "world".to_string(),
             },
@@ -1121,7 +1121,7 @@ async fn realtime_text_output_modality_requests_text_output_and_final_transcript
     assert_eq!(
         done,
         ChatRealtimeTranscriptDoneNotification {
-            chat_id: thread_start.thread.id,
+            chat_id: thread_start.chat.id,
             role: "assistant".to_string(),
             text: "hello world".to_string(),
         }
@@ -1243,7 +1243,7 @@ async fn realtime_conversation_stop_emits_closed_notification() -> Result<()> {
             codex_responses_as_messages: None,
             codex_response_message_prefix: None,
             codex_response_handoff_prefix: None,
-            chat_id: thread_start.thread.id.clone(),
+            chat_id: thread_start.chat.id.clone(),
             model: None,
             output_modality: RealtimeOutputModality::Audio,
             include_startup_context: None,
@@ -1340,7 +1340,7 @@ async fn realtime_webrtc_start_emits_sdp_notification() -> Result<()> {
     .await??;
     let thread_start: ChatStartResponse = to_response(thread_start_response)?;
 
-    let chat_id = thread_start.thread.id;
+    let chat_id = thread_start.chat.id;
     let start_request_id = mcp
         .send_chat_realtime_start_request(ChatRealtimeStartParams {
             client_managed_handoffs: None,
@@ -2702,7 +2702,7 @@ async fn realtime_webrtc_start_surfaces_backend_error() -> Result<()> {
             codex_responses_as_messages: None,
             codex_response_message_prefix: None,
             codex_response_handoff_prefix: None,
-            chat_id: thread_start.thread.id,
+            chat_id: thread_start.chat.id,
             model: None,
             output_modality: RealtimeOutputModality::Audio,
             include_startup_context: None,
@@ -2767,7 +2767,7 @@ async fn realtime_conversation_requires_feature_flag() -> Result<()> {
             codex_responses_as_messages: None,
             codex_response_message_prefix: None,
             codex_response_handoff_prefix: None,
-            chat_id: thread_start.thread.id.clone(),
+            chat_id: thread_start.chat.id.clone(),
             model: None,
             output_modality: RealtimeOutputModality::Audio,
             include_startup_context: None,
@@ -2787,7 +2787,7 @@ async fn realtime_conversation_requires_feature_flag() -> Result<()> {
         error,
         format!(
             "thread {} does not support realtime conversation",
-            thread_start.thread.id
+            thread_start.chat.id
         ),
     );
 

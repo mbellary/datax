@@ -256,6 +256,6 @@ async fn start_thread(
         app_server.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response(response)?;
+    let ChatStartResponse { chat: thread, .. } = to_response(response)?;
     Ok(thread.id)
 }

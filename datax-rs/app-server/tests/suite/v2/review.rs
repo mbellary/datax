@@ -79,11 +79,10 @@ async fn review_start_runs_review_turn_and_emits_code_review_item() -> Result<()
         mcp.read_stream_until_response_message(RequestId::Integer(review_req)),
     )
     .await??;
-    let ReviewStartResponse {
-        turn,
-        review_thread_id,
+    let ReviewStartResponse { interaction: turn,
+        review_chat_id,
     } = to_response::<ReviewStartResponse>(review_resp)?;
-    assert_eq!(review_thread_id, chat_id.clone());
+    assert_eq!(review_chat_id, chat_id.clone());
     let interaction_id = turn.id.clone();
     assert_eq!(turn.status, InteractionStatus::InProgress);
     assert_eq!(turn.messages_view, InteractionMessagesView::NotLoaded);
@@ -193,7 +192,7 @@ async fn review_start_exec_approval_item_id_matches_command_execution_item() -> 
         mcp.read_stream_until_response_message(RequestId::Integer(review_req)),
     )
     .await??;
-    let ReviewStartResponse { turn, .. } = to_response::<ReviewStartResponse>(review_resp)?;
+    let ReviewStartResponse { interaction: turn, .. } = to_response::<ReviewStartResponse>(review_resp)?;
     let interaction_id = turn.id.clone();
     assert_eq!(turn.messages_view, InteractionMessagesView::NotLoaded);
     assert_eq!(
@@ -319,9 +318,8 @@ async fn review_start_with_detached_delivery_returns_new_thread_id() -> Result<(
         mcp.read_stream_until_response_message(RequestId::Integer(review_req)),
     )
     .await??;
-    let ReviewStartResponse {
-        turn,
-        review_thread_id,
+    let ReviewStartResponse { interaction: turn,
+        review_chat_id,
     } = to_response::<ReviewStartResponse>(review_resp)?;
 
     assert_eq!(turn.status, InteractionStatus::InProgress);
@@ -338,7 +336,7 @@ async fn review_start_with_detached_delivery_returns_new_thread_id() -> Result<(
         }]
     );
     assert_ne!(
-        review_thread_id, chat_id,
+        review_chat_id, chat_id,
         "detached review should run on a different thread"
     );
 
@@ -352,7 +350,7 @@ async fn review_start_with_detached_delivery_returns_new_thread_id() -> Result<(
         if notification.method == "chat/status/changed" {
             let status_changed: ChatStatusChangedNotification =
                 serde_json::from_value(notification.params.expect("params must be present"))?;
-            if status_changed.chat_id == review_thread_id {
+            if status_changed.chat_id == review_chat_id {
                 anyhow::bail!(
                     "detached review threads should be introduced without a preceding chat/status/changed"
                 );
@@ -365,8 +363,8 @@ async fn review_start_with_detached_delivery_returns_new_thread_id() -> Result<(
     };
     let started: ChatStartedNotification =
         serde_json::from_value(notification.params.expect("params must be present"))?;
-    assert_eq!(started.thread.id, review_thread_id);
-    assert_eq!(started.thread.session_id, review_thread_id);
+    assert_eq!(started.chat.id, review_chat_id);
+    assert_eq!(started.chat.session_id, review_chat_id);
 
     Ok(())
 }
@@ -455,7 +453,7 @@ async fn start_default_thread(mcp: &mut TestAppServer) -> Result<String> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
     timeout(
         DEFAULT_READ_TIMEOUT,
         mcp.read_stream_until_notification_message("chat/started"),

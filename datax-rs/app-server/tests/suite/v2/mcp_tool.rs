@@ -108,7 +108,7 @@ url = "{mcp_server_url}/mcp"
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response(thread_start_resp)?;
     let chat_id = thread.id.clone();
 
     let tool_call_request_id = mcp
@@ -227,7 +227,7 @@ url = "{mcp_server_url}/mcp"
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response(thread_start_resp)?;
 
     let tool_call_request_id = mcp
         .send_mcp_server_tool_call_request(McpServerToolCallParams {
@@ -337,7 +337,7 @@ url = "{mcp_server_url}/mcp"
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response(thread_start_resp)?;
 
     let tool_call_request_id = mcp
         .send_mcp_server_tool_call_request(McpServerToolCallParams {
@@ -456,7 +456,7 @@ url = "{mcp_server_url}/mcp"
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response(thread_start_resp)?;
 
     let turn_start_id = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -474,7 +474,7 @@ url = "{mcp_server_url}/mcp"
         mcp.read_stream_until_response_message(RequestId::Integer(turn_start_id)),
     )
     .await??;
-    let InteractionStartResponse { turn, .. } = to_response(turn_start_resp)?;
+    let InteractionStartResponse { interaction: turn, .. } = to_response(turn_start_resp)?;
 
     let completed = wait_for_mcp_tool_call_completed(&mut mcp, call_id).await?;
     assert_eq!(completed.interaction_id, turn.id);

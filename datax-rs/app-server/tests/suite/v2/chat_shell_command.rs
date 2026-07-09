@@ -71,7 +71,7 @@ async fn thread_shell_command_history_responses_exclude_persisted_command_execut
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
     let (shell_command, expected_output) = current_shell_output_command("hello from bang")?;
 
     let shell_id = mcp
@@ -139,7 +139,7 @@ async fn thread_shell_command_history_responses_exclude_persisted_command_execut
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ChatReadResponse { thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
+    let ChatReadResponse { chat: thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
     assert_eq!(thread.interactions.len(), 1);
     assert_no_command_executions(&thread.interactions[0].messages, "chat/read");
 
@@ -173,7 +173,7 @@ async fn thread_shell_command_history_responses_exclude_persisted_command_execut
         mcp.read_stream_until_response_message(RequestId::Integer(fork_id)),
     )
     .await??;
-    let ChatForkResponse { thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
+    let ChatForkResponse { chat: thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
     assert_eq!(thread.interactions.len(), 1);
     assert_no_command_executions(&thread.interactions[0].messages, "chat/fork");
 
@@ -208,7 +208,7 @@ async fn thread_shell_command_returns_error_when_local_environment_is_disabled()
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
     let shell_id = mcp
         .send_chat_shell_command_request(ChatShellCommandParams {
             chat_id: thread.id,
@@ -263,7 +263,7 @@ async fn thread_shell_command_uses_existing_active_turn() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
     let (shell_command, expected_output) = current_shell_output_command("active turn bang")?;
 
     let interaction_id = mcp
@@ -283,7 +283,7 @@ async fn thread_shell_command_uses_existing_active_turn() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(interaction_id)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } = to_response::<InteractionStartResponse>(turn_resp)?;
 
     let agent_started = wait_for_command_execution_started(&mut mcp, Some("call-approve")).await?;
     let Message::CommandExecution {
@@ -369,7 +369,7 @@ async fn thread_shell_command_uses_existing_active_turn() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ChatReadResponse { thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
+    let ChatReadResponse { chat: thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
     assert_eq!(thread.interactions.len(), 1);
     assert_no_command_executions(&thread.interactions[0].messages, "chat/read");
 

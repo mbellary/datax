@@ -64,7 +64,7 @@ async fn sleep_emits_started_and_completed_items() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response(thread_start_response)?;
+    let ChatStartResponse { chat: thread, .. } = to_response(thread_start_response)?;
 
     let turn_start_id = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -82,7 +82,7 @@ async fn sleep_emits_started_and_completed_items() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_start_id)),
     )
     .await??;
-    let InteractionStartResponse { turn, .. } = to_response(turn_start_response)?;
+    let InteractionStartResponse { interaction: turn, .. } = to_response(turn_start_response)?;
 
     let (started, completed) = timeout(DEFAULT_READ_TIMEOUT, async {
         let mut started = None;

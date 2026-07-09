@@ -90,7 +90,7 @@ async fn standalone_web_search_round_trips_output() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
     let chat_id = thread.id.clone();
 
     let turn_req = mcp
@@ -210,7 +210,7 @@ async fn standalone_web_search_round_trips_output() -> Result<()> {
         reloaded_mcp.read_stream_until_response_message(RequestId::Integer(read_req)),
     )
     .await??;
-    let ChatReadResponse { thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
+    let ChatReadResponse { chat: thread, .. } = to_response::<ChatReadResponse>(read_resp)?;
     let persisted_web_searches: Vec<&Message> = thread
         .interactions
         .iter()

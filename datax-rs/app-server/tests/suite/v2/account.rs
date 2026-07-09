@@ -514,7 +514,7 @@ async fn external_auth_refreshes_on_unauthorized() -> Result<()> {
 
     let turn_req = mcp
         .send_interaction_start_request(datax_app_server_protocol::InteractionStartParams {
-            chat_id: thread.thread.id,
+            chat_id: thread.chat.id,
             client_user_message_id: None,
             input: vec![datax_app_server_protocol::UserInput::Text {
                 text: "Hello".to_string(),
@@ -622,7 +622,7 @@ async fn external_auth_refresh_error_fails_turn() -> Result<()> {
 
     let turn_req = mcp
         .send_interaction_start_request(datax_app_server_protocol::InteractionStartParams {
-            chat_id: thread.thread.id.clone(),
+            chat_id: thread.chat.id.clone(),
             client_user_message_id: None,
             input: vec![datax_app_server_protocol::UserInput::Text {
                 text: "Hello".to_string(),
@@ -666,8 +666,8 @@ async fn external_auth_refresh_error_fails_turn() -> Result<()> {
             .params
             .expect("interaction/completed params must be present"),
     )?;
-    assert_eq!(completed.turn.status, InteractionStatus::Failed);
-    assert!(completed.turn.error.is_some());
+    assert_eq!(completed.interaction.status, InteractionStatus::Failed);
+    assert!(completed.interaction.error.is_some());
 
     Ok(())
 }
@@ -746,7 +746,7 @@ async fn external_auth_refresh_mismatched_workspace_fails_turn() -> Result<()> {
 
     let turn_req = mcp
         .send_interaction_start_request(datax_app_server_protocol::InteractionStartParams {
-            chat_id: thread.thread.id.clone(),
+            chat_id: thread.chat.id.clone(),
             client_user_message_id: None,
             input: vec![datax_app_server_protocol::UserInput::Text {
                 text: "Hello".to_string(),
@@ -790,8 +790,8 @@ async fn external_auth_refresh_mismatched_workspace_fails_turn() -> Result<()> {
             .params
             .expect("interaction/completed params must be present"),
     )?;
-    assert_eq!(completed.turn.status, InteractionStatus::Failed);
-    assert!(completed.turn.error.is_some());
+    assert_eq!(completed.interaction.status, InteractionStatus::Failed);
+    assert!(completed.interaction.error.is_some());
 
     Ok(())
 }
@@ -863,7 +863,7 @@ async fn external_auth_refresh_invalid_access_token_fails_turn() -> Result<()> {
 
     let turn_req = mcp
         .send_interaction_start_request(datax_app_server_protocol::InteractionStartParams {
-            chat_id: thread.thread.id.clone(),
+            chat_id: thread.chat.id.clone(),
             client_user_message_id: None,
             input: vec![datax_app_server_protocol::UserInput::Text {
                 text: "Hello".to_string(),
@@ -907,8 +907,8 @@ async fn external_auth_refresh_invalid_access_token_fails_turn() -> Result<()> {
             .params
             .expect("interaction/completed params must be present"),
     )?;
-    assert_eq!(completed.turn.status, InteractionStatus::Failed);
-    assert!(completed.turn.error.is_some());
+    assert_eq!(completed.interaction.status, InteractionStatus::Failed);
+    assert!(completed.interaction.error.is_some());
 
     Ok(())
 }

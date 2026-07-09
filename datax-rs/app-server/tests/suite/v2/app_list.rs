@@ -303,7 +303,7 @@ async fn list_apps_uses_thread_feature_flag_when_thread_id_is_provided() -> Resu
         mcp.read_stream_until_response_message(RequestId::Integer(start_request)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response(start_response)?;
+    let ChatStartResponse { chat: thread, .. } = to_response(start_response)?;
 
     std::fs::write(
         codex_home.path().join("config.toml"),

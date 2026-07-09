@@ -160,7 +160,7 @@ pub struct MockExperimentalMethodResponse {
 pub struct ChatStartResponse {
     #[serde(rename = "chat")]
     #[ts(rename = "chat")]
-    pub thread: Chat,
+    pub chat: Chat,
     pub model: String,
     pub model_provider: String,
     pub service_tier: Option<String>,
@@ -390,7 +390,7 @@ pub struct ChatResumeParams {
     #[ts(optional = nullable)]
     #[serde(rename = "initialInteractionsPage")]
     #[ts(rename = "initialInteractionsPage")]
-    pub initial_turns_page: Option<ChatResumeInitialInteractionsPageParams>,
+    pub initial_interactions_page: Option<ChatResumeInitialInteractionsPageParams>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS, ExperimentalApi)]
@@ -399,7 +399,7 @@ pub struct ChatResumeParams {
 pub struct ChatResumeResponse {
     #[serde(rename = "chat")]
     #[ts(rename = "chat")]
-    pub thread: Chat,
+    pub chat: Chat,
     pub model: String,
     pub model_provider: String,
     pub service_tier: Option<String>,
@@ -434,7 +434,7 @@ pub struct ChatResumeResponse {
     #[serde(default)]
     #[serde(rename = "initialInteractionsPage")]
     #[ts(rename = "initialInteractionsPage")]
-    pub initial_turns_page: Option<InteractionsPage>,
+    pub initial_interactions_page: Option<InteractionsPage>,
 }
 
 impl ChatResumeResponse {
@@ -562,7 +562,7 @@ pub struct ChatForkParams {
 pub struct ChatForkResponse {
     #[serde(rename = "chat")]
     #[ts(rename = "chat")]
-    pub thread: Chat,
+    pub chat: Chat,
     pub model: String,
     pub model_provider: String,
     pub service_tier: Option<String>,
@@ -878,7 +878,7 @@ pub struct ChatMetadataGitInfoUpdateParams {
 pub struct ChatMetadataUpdateResponse {
     #[serde(rename = "chat")]
     #[ts(rename = "chat")]
-    pub thread: Chat,
+    pub chat: Chat,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema, TS)]
@@ -929,7 +929,7 @@ pub struct MemoryResetResponse {}
 pub struct ChatUnarchiveResponse {
     #[serde(rename = "chat")]
     #[ts(rename = "chat")]
-    pub thread: Chat,
+    pub chat: Chat,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
@@ -1063,7 +1063,7 @@ pub struct ChatRollbackResponse {
     /// behavior as `chat/resume`.
     #[serde(rename = "chat")]
     #[ts(rename = "chat")]
-    pub thread: Chat,
+    pub chat: Chat,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS, ExperimentalApi)]
@@ -1203,7 +1203,7 @@ pub struct ChatListResponse {
 pub struct ChatSearchResult {
     #[serde(rename = "chat")]
     #[ts(rename = "chat")]
-    pub thread: Chat,
+    pub chat: Chat,
     pub snippet: String,
 }
 
@@ -1284,7 +1284,7 @@ pub struct ChatReadParams {
 pub struct ChatReadResponse {
     #[serde(rename = "chat")]
     #[ts(rename = "chat")]
-    pub thread: Chat,
+    pub chat: Chat,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
@@ -1430,7 +1430,7 @@ impl From<CoreTokenUsage> for TokenUsageBreakdown {
 pub struct ChatStartedNotification {
     #[serde(rename = "chat")]
     #[ts(rename = "chat")]
-    pub thread: Chat,
+    pub chat: Chat,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]

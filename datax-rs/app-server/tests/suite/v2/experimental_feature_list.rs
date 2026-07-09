@@ -204,7 +204,7 @@ memories = true
             ..Default::default()
         })
         .await?;
-    let ChatStartResponse { thread, .. } =
+    let ChatStartResponse { chat: thread, .. } =
         read_response::<ChatStartResponse>(&mut mcp, thread_start_id).await?;
 
     let request_id = mcp

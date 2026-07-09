@@ -43,7 +43,7 @@ async fn thread_status_changed_emits_runtime_updates() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response(thread_start_resp)?;
 
     let turn_start_id = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -168,7 +168,7 @@ async fn thread_status_changed_can_be_opted_out() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response(thread_start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response(thread_start_resp)?;
 
     let turn_start_id = mcp
         .send_interaction_start_request(InteractionStartParams {

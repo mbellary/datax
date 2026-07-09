@@ -63,7 +63,7 @@ async fn openai_model_header_mismatch_emits_model_rerouted_notification_v2() -> 
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -88,7 +88,7 @@ async fn openai_model_header_mismatch_emits_model_rerouted_notification_v2() -> 
         rerouted,
         ModelReroutedNotification {
             chat_id: thread.id,
-            interaction_id: turn_start.turn.id,
+            interaction_id: turn_start.interaction.id,
             from_model: REQUESTED_MODEL.to_string(),
             to_model: SERVER_MODEL.to_string(),
             reason: ModelRerouteReason::HighRiskCyberActivity,
@@ -130,7 +130,7 @@ async fn cyber_policy_response_emits_typed_error_notification_v2() -> Result<()>
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -161,7 +161,7 @@ async fn cyber_policy_response_emits_typed_error_notification_v2() -> Result<()>
             },
             will_retry: false,
             chat_id: thread.id,
-            interaction_id: turn_start.turn.id,
+            interaction_id: turn_start.interaction.id,
         }
     );
 
@@ -207,7 +207,7 @@ async fn response_model_field_mismatch_emits_model_rerouted_notification_v2_when
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -232,7 +232,7 @@ async fn response_model_field_mismatch_emits_model_rerouted_notification_v2_when
         rerouted,
         ModelReroutedNotification {
             chat_id: thread.id,
-            interaction_id: turn_start.turn.id,
+            interaction_id: turn_start.interaction.id,
             from_model: REQUESTED_MODEL.to_string(),
             to_model: SERVER_MODEL.to_string(),
             reason: ModelRerouteReason::HighRiskCyberActivity,
@@ -276,7 +276,7 @@ async fn model_verification_emits_typed_notification_and_warning_v2() -> Result<
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -302,7 +302,7 @@ async fn model_verification_emits_typed_notification_and_warning_v2() -> Result<
         verification,
         ModelVerificationNotification {
             chat_id: thread.id,
-            interaction_id: turn_start.turn.id,
+            interaction_id: turn_start.interaction.id,
             verifications: vec![ModelVerification::TrustedAccessForCyber],
         }
     );
@@ -350,7 +350,7 @@ async fn turn_moderation_metadata_emits_typed_notification_v2() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -383,7 +383,7 @@ async fn turn_moderation_metadata_emits_typed_notification_v2() -> Result<()> {
         metadata,
         InteractionModerationMetadataNotification {
             chat_id: thread.id,
-            interaction_id: turn_start.turn.id,
+            interaction_id: turn_start.interaction.id,
             metadata: serde_json::json!({"presentation": "inline"}),
         }
     );

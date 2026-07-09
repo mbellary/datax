@@ -61,8 +61,8 @@ async fn plan_mode_uses_proposed_plan_block_for_plan_item() -> Result<()> {
         collect_turn_notifications(&mut mcp).await?;
     wait_for_responses_request_count(&server, /*expected_count*/ 1).await?;
 
-    assert_eq!(turn_completed.turn.id, turn.id);
-    assert_eq!(turn_completed.turn.status, InteractionStatus::Completed);
+    assert_eq!(turn_completed.interaction.id, turn.id);
+    assert_eq!(turn_completed.interaction.status, InteractionStatus::Completed);
 
     let expected_plan = Message::Plan {
         id: format!("{}-plan", turn.id),
@@ -141,7 +141,7 @@ async fn start_plan_mode_turn(
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let thread = to_response::<ChatStartResponse>(thread_resp)?.thread;
+    let thread = to_response::<ChatStartResponse>(thread_resp)?.chat;
 
     let collaboration_mode = CollaborationMode {
         mode: ModeKind::Plan,
@@ -168,7 +168,7 @@ async fn start_plan_mode_turn(
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    Ok(to_response::<InteractionStartResponse>(turn_resp)?.turn)
+    Ok(to_response::<InteractionStartResponse>(turn_resp)?.interaction)
 }
 
 async fn collect_turn_notifications(

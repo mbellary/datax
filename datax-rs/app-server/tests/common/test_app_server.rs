@@ -1594,7 +1594,7 @@ impl TestAppServer {
             else {
                 return false;
             };
-            payload.chat_id == chat_id && payload.turn.id == interaction_id
+            payload.chat_id == chat_id && payload.interaction.id == interaction_id
         })
     }
 

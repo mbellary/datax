@@ -74,7 +74,7 @@ async fn thread_unarchive_moves_rollout_back_into_sessions_directory() -> Result
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let rollout_path = thread.path.clone().expect("thread path");
 
@@ -154,7 +154,7 @@ async fn thread_unarchive_moves_rollout_back_into_sessions_directory() -> Result
     .await??;
     let unarchive_result = unarchive_resp.result.clone();
     let ChatUnarchiveResponse {
-        thread: unarchived_thread,
+        chat: unarchived_thread,
     } = to_response::<ChatUnarchiveResponse>(unarchive_resp)?;
     let unarchive_notification = timeout(
         DEFAULT_READ_TIMEOUT,
@@ -177,7 +177,7 @@ async fn thread_unarchive_moves_rollout_back_into_sessions_directory() -> Result
     let thread_json = unarchive_result
         .get("thread")
         .and_then(Value::as_object)
-        .expect("chat/unarchive result.thread must be an object");
+        .expect("chat/unarchive result.chat must be an object");
     assert_eq!(unarchived_thread.name, None);
     assert_eq!(
         thread_json.get("name"),
@@ -283,7 +283,7 @@ async fn thread_unarchive_preserves_pathless_store_metadata() -> Result<()> {
         })
         .await?
         .expect("chat/unarchive should succeed");
-    let ChatUnarchiveResponse { thread } = serde_json::from_value(result)?;
+    let ChatUnarchiveResponse { chat: thread } = serde_json::from_value(result)?;
 
     assert_eq!(thread.id, chat_id.to_string());
     assert_eq!(thread.path, None);

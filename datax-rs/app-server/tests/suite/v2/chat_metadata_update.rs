@@ -55,7 +55,7 @@ async fn thread_metadata_update_patches_git_branch_and_returns_updated_thread() 
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let update_id = mcp
         .send_chat_metadata_update_request(ChatMetadataUpdateParams {
@@ -73,7 +73,7 @@ async fn thread_metadata_update_patches_git_branch_and_returns_updated_thread() 
     )
     .await??;
     let update_result = update_resp.result.clone();
-    let ChatMetadataUpdateResponse { thread: updated } =
+    let ChatMetadataUpdateResponse { chat: updated } =
         to_response::<ChatMetadataUpdateResponse>(update_resp)?;
 
     assert_eq!(updated.id, thread.id);
@@ -90,7 +90,7 @@ async fn thread_metadata_update_patches_git_branch_and_returns_updated_thread() 
     let updated_thread_json = update_result
         .get("thread")
         .and_then(Value::as_object)
-        .expect("chat/metadata/update result.thread must be an object");
+        .expect("chat/metadata/update result.chat must be an object");
     assert_eq!(
         updated_thread_json.get("sessionId").and_then(Value::as_str),
         Some(thread.session_id.as_str())
@@ -115,7 +115,7 @@ async fn thread_metadata_update_patches_git_branch_and_returns_updated_thread() 
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ChatReadResponse { thread: read, .. } = to_response::<ChatReadResponse>(read_resp)?;
+    let ChatReadResponse { chat: read, .. } = to_response::<ChatReadResponse>(read_resp)?;
 
     assert_eq!(
         read.git_info,
@@ -150,7 +150,7 @@ async fn thread_metadata_update_rejects_empty_git_info_patch() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let update_id = mcp
         .send_chat_metadata_update_request(ChatMetadataUpdateParams {
@@ -197,7 +197,7 @@ async fn thread_metadata_update_rejects_ephemeral_thread() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(start_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     let update_id = mcp
         .send_chat_metadata_update_request(ChatMetadataUpdateParams {
@@ -262,7 +262,7 @@ async fn thread_metadata_update_repairs_missing_sqlite_row_for_stored_thread() -
         mcp.read_stream_until_response_message(RequestId::Integer(update_id)),
     )
     .await??;
-    let ChatMetadataUpdateResponse { thread: updated } =
+    let ChatMetadataUpdateResponse { chat: updated } =
         to_response::<ChatMetadataUpdateResponse>(update_resp)?;
 
     assert_eq!(updated.id, chat_id);
@@ -342,7 +342,7 @@ async fn thread_metadata_update_repairs_loaded_thread_without_resetting_summary(
         mcp.read_stream_until_response_message(RequestId::Integer(update_id)),
     )
     .await??;
-    let ChatMetadataUpdateResponse { thread: updated } =
+    let ChatMetadataUpdateResponse { chat: updated } =
         to_response::<ChatMetadataUpdateResponse>(update_resp)?;
 
     assert_eq!(updated.id, chat_id);
@@ -405,7 +405,7 @@ async fn thread_metadata_update_repairs_missing_sqlite_row_for_archived_thread()
         mcp.read_stream_until_response_message(RequestId::Integer(update_id)),
     )
     .await??;
-    let ChatMetadataUpdateResponse { thread: updated } =
+    let ChatMetadataUpdateResponse { chat: updated } =
         to_response::<ChatMetadataUpdateResponse>(update_resp)?;
 
     assert_eq!(updated.id, chat_id);
@@ -461,7 +461,7 @@ async fn thread_metadata_update_can_clear_stored_git_fields() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(update_id)),
     )
     .await??;
-    let ChatMetadataUpdateResponse { thread: updated } =
+    let ChatMetadataUpdateResponse { chat: updated } =
         to_response::<ChatMetadataUpdateResponse>(update_resp)?;
 
     assert_eq!(updated.id, chat_id.clone());
@@ -478,7 +478,7 @@ async fn thread_metadata_update_can_clear_stored_git_fields() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(read_id)),
     )
     .await??;
-    let ChatReadResponse { thread: read, .. } = to_response::<ChatReadResponse>(read_resp)?;
+    let ChatReadResponse { chat: read, .. } = to_response::<ChatReadResponse>(read_resp)?;
 
     assert_eq!(read.git_info, None);
 

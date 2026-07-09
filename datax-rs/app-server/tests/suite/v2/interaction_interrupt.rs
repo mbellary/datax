@@ -72,7 +72,7 @@ async fn turn_interrupt_aborts_running_turn() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     // Start a turn that triggers a long-running command.
     let turn_req = mcp
@@ -92,7 +92,7 @@ async fn turn_interrupt_aborts_running_turn() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } = to_response::<InteractionStartResponse>(turn_resp)?;
     let interaction_id = turn.id.clone();
 
     // Give the command a brief moment to start.
@@ -125,7 +125,7 @@ async fn turn_interrupt_aborts_running_turn() -> Result<()> {
             .expect("interaction/completed params must be present"),
     )?;
     assert_eq!(completed.chat_id, chat_id);
-    assert_eq!(completed.turn.status, InteractionStatus::Interrupted);
+    assert_eq!(completed.interaction.status, InteractionStatus::Interrupted);
 
     Ok(())
 }
@@ -156,7 +156,7 @@ async fn turn_interrupt_rejects_completed_turn() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -174,7 +174,7 @@ async fn turn_interrupt_rejects_completed_turn() -> Result<()> {
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } = to_response::<InteractionStartResponse>(turn_resp)?;
 
     let completed_notif: JSONRPCNotification = timeout(
         DEFAULT_READ_TIMEOUT,
@@ -187,8 +187,8 @@ async fn turn_interrupt_rejects_completed_turn() -> Result<()> {
             .expect("interaction/completed params must be present"),
     )?;
     assert_eq!(completed.chat_id, thread.id);
-    assert_eq!(completed.turn.id, turn.id);
-    assert_eq!(completed.turn.status, InteractionStatus::Completed);
+    assert_eq!(completed.interaction.id, turn.id);
+    assert_eq!(completed.interaction.status, InteractionStatus::Completed);
 
     let interrupt_id = mcp
         .send_interaction_interrupt_request(InteractionInterruptParams {
@@ -251,7 +251,7 @@ async fn turn_interrupt_resolves_pending_command_approval_request() -> Result<()
         mcp.read_stream_until_response_message(RequestId::Integer(thread_req)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
+    let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(thread_resp)?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -271,7 +271,7 @@ async fn turn_interrupt_resolves_pending_command_approval_request() -> Result<()
         mcp.read_stream_until_response_message(RequestId::Integer(turn_req)),
     )
     .await??;
-    let InteractionStartResponse { turn } = to_response::<InteractionStartResponse>(turn_resp)?;
+    let InteractionStartResponse { interaction: turn } = to_response::<InteractionStartResponse>(turn_resp)?;
 
     let request = timeout(
         DEFAULT_READ_TIMEOUT,
@@ -324,7 +324,7 @@ async fn turn_interrupt_resolves_pending_command_approval_request() -> Result<()
             .expect("interaction/completed params must be present"),
     )?;
     assert_eq!(completed.chat_id, thread.id);
-    assert_eq!(completed.turn.status, InteractionStatus::Interrupted);
+    assert_eq!(completed.interaction.status, InteractionStatus::Interrupted);
 
     Ok(())
 }

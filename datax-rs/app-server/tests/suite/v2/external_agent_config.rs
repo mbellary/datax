@@ -743,8 +743,8 @@ async fn external_agent_config_import_creates_session_rollouts() -> Result<()> {
     )
     .await??;
     let response: ChatReadResponse = to_response(response)?;
-    assert_eq!(response.thread.interactions.len(), 1);
-    let messages = &response.thread.interactions[0].messages;
+    assert_eq!(response.chat.interactions.len(), 1);
+    let messages = &response.chat.interactions[0].messages;
     assert_eq!(messages.len(), 3);
     assert_eq!(
         messages.last(),
@@ -803,8 +803,8 @@ async fn external_agent_config_import_creates_session_rollouts() -> Result<()> {
     )
     .await??;
     let response: ChatReadResponse = to_response(response)?;
-    assert_eq!(response.thread.interactions.len(), 2);
-    match &response.thread.interactions[1].messages[1] {
+    assert_eq!(response.chat.interactions.len(), 2);
+    match &response.chat.interactions[1].messages[1] {
         Message::AgentMessage { text, .. } => assert_eq!(text, "follow-up answer"),
         other => panic!("expected agent message item, got {other:?}"),
     }

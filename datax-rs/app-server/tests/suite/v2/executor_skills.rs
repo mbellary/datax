@@ -101,7 +101,7 @@ stream_max_retries = 0
         app_server.read_stream_until_response_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let ChatStartResponse { thread, .. } = to_response(response)?;
+    let ChatStartResponse { chat: thread, .. } = to_response(response)?;
 
     let request_id = app_server
         .send_interaction_start_request(InteractionStartParams {

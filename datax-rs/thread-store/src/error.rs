@@ -1,4 +1,4 @@
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 
 /// Result type returned by thread-store operations.
 pub type ThreadStoreResult<T> = Result<T, ThreadStoreError>;
@@ -7,10 +7,10 @@ pub type ThreadStoreResult<T> = Result<T, ThreadStoreError>;
 #[derive(Debug, thiserror::Error)]
 pub enum ThreadStoreError {
     /// The requested thread does not exist in this store.
-    #[error("thread {thread_id} not found")]
+    #[error("thread {chat_id} not found")]
     ThreadNotFound {
         /// Thread id requested by the caller.
-        thread_id: ThreadId,
+        chat_id: ChatId,
     },
 
     /// The caller supplied invalid request data.

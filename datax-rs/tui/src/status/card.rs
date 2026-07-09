@@ -11,7 +11,7 @@ use chrono::DateTime;
 use chrono::Local;
 use datax_app_server_protocol::AskForApproval;
 use datax_model_provider_info::WireApi;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::account::PlanType;
 use datax_protocol::config_types::ApprovalsReviewer;
 use datax_protocol::models::ActivePermissionProfile;
@@ -128,9 +128,9 @@ pub(crate) fn new_status_output(
     account_display: Option<&StatusAccountDisplay>,
     token_info: Option<&TokenUsageInfo>,
     total_usage: &TokenUsage,
-    session_id: &Option<ThreadId>,
+    session_id: &Option<ChatId>,
     thread_name: Option<String>,
-    forked_from: Option<ThreadId>,
+    forked_from: Option<ChatId>,
     rate_limits: Option<&RateLimitSnapshotDisplay>,
     _plan_type: Option<PlanType>,
     now: DateTime<Local>,
@@ -164,9 +164,9 @@ pub(crate) fn new_status_output_with_rate_limits(
     account_display: Option<&StatusAccountDisplay>,
     token_info: Option<&TokenUsageInfo>,
     total_usage: &TokenUsage,
-    session_id: &Option<ThreadId>,
+    session_id: &Option<ChatId>,
     thread_name: Option<String>,
-    forked_from: Option<ThreadId>,
+    forked_from: Option<ChatId>,
     rate_limits: &[RateLimitSnapshotDisplay],
     _plan_type: Option<PlanType>,
     now: DateTime<Local>,
@@ -205,9 +205,9 @@ pub(crate) fn new_status_output_with_rate_limits_handle(
     account_display: Option<&StatusAccountDisplay>,
     token_info: Option<&TokenUsageInfo>,
     total_usage: &TokenUsage,
-    session_id: &Option<ThreadId>,
+    session_id: &Option<ChatId>,
     thread_name: Option<String>,
-    forked_from: Option<ThreadId>,
+    forked_from: Option<ChatId>,
     rate_limits: &[RateLimitSnapshotDisplay],
     _plan_type: Option<PlanType>,
     now: DateTime<Local>,
@@ -253,9 +253,9 @@ impl StatusHistoryCell {
         account_display: Option<&StatusAccountDisplay>,
         token_info: Option<&TokenUsageInfo>,
         total_usage: &TokenUsage,
-        session_id: &Option<ThreadId>,
+        session_id: &Option<ChatId>,
         thread_name: Option<String>,
-        forked_from: Option<ThreadId>,
+        forked_from: Option<ChatId>,
         rate_limits: &[RateLimitSnapshotDisplay],
         _plan_type: Option<PlanType>,
         now: DateTime<Local>,

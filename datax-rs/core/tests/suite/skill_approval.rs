@@ -118,7 +118,7 @@ fn skill_script_command(test: &TestCodex, script_name: &str) -> Result<String> {
 async fn wait_for_exec_approval_request(test: &TestCodex) -> Option<ExecApprovalRequestEvent> {
     wait_for_event_match(test.codex.as_ref(), |event| match event {
         EventMsg::ExecApprovalRequest(request) => Some(Some(request.clone())),
-        EventMsg::TurnComplete(_) => Some(None),
+        EventMsg::InteractionComplete(_) => Some(None),
         _ => None,
     })
     .await
@@ -126,7 +126,7 @@ async fn wait_for_exec_approval_request(test: &TestCodex) -> Option<ExecApproval
 
 async fn wait_for_turn_complete(test: &TestCodex) {
     wait_for_event(test.codex.as_ref(), |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 }

@@ -46,7 +46,7 @@ use datax_core::config::Config;
 use datax_core::config::ConfigBuilder;
 use datax_exec_server::EnvironmentManager;
 use datax_feedback::CodexFeedback;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::models::BaseInstructions;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::ThreadMemoryMode;
@@ -143,14 +143,14 @@ async fn thread_delete_with_non_local_thread_store_does_not_create_local_persist
     assert_eq!(data[0].path, None);
 
     delete_thread(&client, /*request_id*/ 4, thread.id.clone()).await?;
-    let unloaded_thread_id = ThreadId::from_string(&Uuid::new_v4().to_string())?;
+    let unloaded_chat_id = ChatId::from_string(&Uuid::new_v4().to_string())?;
     thread_store
         .create_thread(StoreCreateThreadParams {
-            session_id: unloaded_thread_id.into(),
-            thread_id: unloaded_thread_id,
+            session_id: unloaded_chat_id.into(),
+            chat_id: unloaded_chat_id,
             extra_config: None,
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             source: SessionSource::Cli,
             thread_source: None,
             base_instructions: BaseInstructions::default(),
@@ -166,7 +166,7 @@ async fn thread_delete_with_non_local_thread_store_does_not_create_local_persist
     delete_thread(
         &client,
         /*request_id*/ 5,
-        unloaded_thread_id.to_string(),
+        unloaded_chat_id.to_string(),
     )
     .await?;
 

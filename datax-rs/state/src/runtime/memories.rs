@@ -54,9 +54,9 @@ impl MemoryStore {
     /// the current Unix timestamp. Missing rows are ignored.
     pub async fn record_stage1_output_usage(
         &self,
-        thread_ids: &[ThreadId],
+        chat_ids: &[ChatId],
     ) -> anyhow::Result<usize> {
-        if thread_ids.is_empty() {
+        if chat_ids.is_empty() {
             return Ok(0);
         }
 
@@ -64,18 +64,18 @@ impl MemoryStore {
         let mut tx = self.pool.begin().await?;
         let mut updated_rows = 0;
 
-        for thread_id in thread_ids {
+        for chat_id in chat_ids {
             updated_rows += sqlx::query(
                 r#"
 UPDATE stage1_outputs
 SET
     usage_count = COALESCE(usage_count, 0) + 1,
     last_usage = ?
-WHERE thread_id = ?
+WHERE chat_id = ?
                 "#,
             )
             .bind(now)
-            .bind(thread_id.to_string())
+            .bind(chat_id.to_string())
             .execute(&mut *tx)
             .await?
             .rows_affected() as usize;
@@ -87,18 +87,18 @@ WHERE thread_id = ?
 
     async fn stage1_source_needs_update(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         source_updated_at: i64,
     ) -> anyhow::Result<bool> {
-        let thread_id = thread_id.to_string();
+        let chat_id = chat_id.to_string();
         let existing_output = sqlx::query(
             r#"
 SELECT source_updated_at
 FROM stage1_outputs
-WHERE thread_id = ?
+WHERE chat_id = ?
             "#,
         )
-        .bind(thread_id.as_str())
+        .bind(chat_id.as_str())
         .fetch_optional(self.pool.as_ref())
         .await?;
         if let Some(existing_output) = existing_output {
@@ -116,7 +116,7 @@ WHERE kind = ? AND job_key = ?
             "#,
         )
         .bind(JOB_KIND_MEMORY_STAGE1)
-        .bind(thread_id.as_str())
+        .bind(chat_id.as_str())
         .fetch_optional(self.pool.as_ref())
         .await?;
         if let Some(existing_job) = existing_job {
@@ -147,7 +147,7 @@ WHERE kind = ? AND job_key = ?
     /// `max_claimed` successful claims.
     pub async fn claim_stage1_jobs_for_startup(
         &self,
-        current_thread_id: ThreadId,
+        current_chat_id: ChatId,
         params: Stage1StartupClaimParams<'_>,
     ) -> anyhow::Result<Vec<Stage1JobClaim>> {
         let Stage1StartupClaimParams {
@@ -162,8 +162,8 @@ WHERE kind = ? AND job_key = ?
             return Ok(Vec::new());
         }
 
-        let worker_id = current_thread_id;
-        let current_thread_id = worker_id.to_string();
+        let worker_id = current_chat_id;
+        let current_chat_id = worker_id.to_string();
         let max_age_cutoff = (Utc::now() - Duration::days(max_age_days.max(0))).timestamp_millis();
         let idle_cutoff =
             (Utc::now() - Duration::hours(min_rollout_idle_hours.max(0))).timestamp_millis();
@@ -215,7 +215,7 @@ FROM threads
         builder.push(" AND threads.memory_mode = 'enabled'");
         builder
             .push(" AND threads.id != ")
-            .push_bind(current_thread_id.as_str());
+            .push_bind(current_chat_id.as_str());
         builder
             .push(" AND ")
             .push("threads.updated_at_ms")
@@ -270,19 +270,19 @@ FROM threads
         Ok(claimed)
     }
 
-    pub(super) async fn delete_thread_memory(&self, thread_id: ThreadId) -> anyhow::Result<()> {
+    pub(super) async fn delete_thread_memory(&self, chat_id: ChatId) -> anyhow::Result<()> {
         let now = Utc::now().timestamp();
-        let thread_id = thread_id.to_string();
+        let chat_id = chat_id.to_string();
         let mut tx = self.pool.begin().await?;
 
         let existing_output = sqlx::query(
             r#"
 SELECT selected_for_phase2
 FROM stage1_outputs
-WHERE thread_id = ?
+WHERE chat_id = ?
             "#,
         )
-        .bind(thread_id.as_str())
+        .bind(chat_id.as_str())
         .fetch_optional(&mut *tx)
         .await?;
         let was_selected_for_phase2 = existing_output
@@ -293,10 +293,10 @@ WHERE thread_id = ?
         let deleted_rows = sqlx::query(
             r#"
 DELETE FROM stage1_outputs
-WHERE thread_id = ?
+WHERE chat_id = ?
             "#,
         )
-        .bind(thread_id.as_str())
+        .bind(chat_id.as_str())
         .execute(&mut *tx)
         .await?
         .rows_affected();
@@ -308,7 +308,7 @@ WHERE kind = ? AND job_key = ?
             "#,
         )
         .bind(JOB_KIND_MEMORY_STAGE1)
-        .bind(thread_id.as_str())
+        .bind(chat_id.as_str())
         .execute(&mut *tx)
         .await?;
 
@@ -326,7 +326,7 @@ WHERE kind = ? AND job_key = ?
     /// - filters out rows where both `raw_memory` and `rollout_summary` are blank
     /// - hydrates thread `cwd`, `rollout_path`, and `git_branch` from the state DB
     /// - filters out missing or non-enabled threads
-    /// - orders by `source_updated_at DESC, thread_id DESC`
+    /// - orders by `source_updated_at DESC, chat_id DESC`
     /// - returns the first `n` visible outputs
     pub async fn list_stage1_outputs_for_global(
         &self,
@@ -339,7 +339,7 @@ WHERE kind = ? AND job_key = ?
         let rows = sqlx::query(
             r#"
 SELECT
-    so.thread_id,
+    so.chat_id,
     so.source_updated_at,
     so.raw_memory,
     so.rollout_summary,
@@ -347,7 +347,7 @@ SELECT
     so.generated_at
 FROM stage1_outputs AS so
 WHERE length(trim(so.raw_memory)) > 0 OR length(trim(so.rollout_summary)) > 0
-ORDER BY so.source_updated_at DESC, so.thread_id DESC
+ORDER BY so.source_updated_at DESC, so.chat_id DESC
             "#,
         )
         .fetch_all(self.pool.as_ref())
@@ -387,15 +387,15 @@ ORDER BY so.source_updated_at DESC, so.thread_id DESC
         let rows_affected = sqlx::query(
             r#"
 DELETE FROM stage1_outputs
-WHERE thread_id IN (
-    SELECT thread_id
+WHERE chat_id IN (
+    SELECT chat_id
     FROM stage1_outputs
     WHERE selected_for_phase2 = 0
       AND COALESCE(last_usage, source_updated_at) < ?
     ORDER BY
       COALESCE(last_usage, source_updated_at) ASC,
       source_updated_at ASC,
-      thread_id ASC
+      chat_id ASC
     LIMIT ?
 )
             "#,
@@ -418,8 +418,8 @@ WHERE thread_id IN (
     ///   been used
     /// - eligible rows are ranked by `usage_count DESC`,
     ///   `COALESCE(last_usage, source_updated_at) DESC`, `source_updated_at DESC`,
-    ///   `thread_id DESC`
-    /// - the selected top-N rows are returned in stable `thread_id ASC` order
+    ///   `chat_id DESC`
+    /// - the selected top-N rows are returned in stable `chat_id ASC` order
     ///
     /// The returned rows are the complete Phase 2 filesystem input. Phase 2
     /// syncs these rows directly; deletions are represented by the workspace
@@ -443,7 +443,7 @@ WHERE thread_id IN (
             let candidate_rows = sqlx::query(
                 r#"
 SELECT
-    so.thread_id,
+    so.chat_id,
     so.source_updated_at
 FROM stage1_outputs AS so
 WHERE (length(trim(so.raw_memory)) > 0 OR length(trim(so.rollout_summary)) > 0)
@@ -455,7 +455,7 @@ ORDER BY
     COALESCE(so.usage_count, 0) DESC,
     COALESCE(so.last_usage, so.source_updated_at) DESC,
     so.source_updated_at DESC,
-    so.thread_id DESC
+    so.chat_id DESC
 LIMIT ? OFFSET ?
             "#,
             )
@@ -472,14 +472,14 @@ LIMIT ? OFFSET ?
 
             let candidate_count = i64::try_from(candidate_rows.len()).unwrap_or(i64::MAX);
             for row in candidate_rows {
-                let thread_id: String = row.try_get("thread_id")?;
+                let chat_id: String = row.try_get("chat_id")?;
                 let source_updated_at: i64 = row.try_get("source_updated_at")?;
                 if self
-                    .enabled_thread_metadata(ThreadId::try_from(thread_id.as_str())?)
+                    .enabled_thread_metadata(ChatId::try_from(chat_id.as_str())?)
                     .await?
                     .is_some()
                 {
-                    selected_keys.push((thread_id, source_updated_at));
+                    selected_keys.push((chat_id, source_updated_at));
                     if selected_keys.len() >= n {
                         break;
                     }
@@ -490,21 +490,21 @@ LIMIT ? OFFSET ?
         }
 
         let mut selected = Vec::with_capacity(selected_keys.len());
-        for (thread_id, source_updated_at) in selected_keys {
+        for (chat_id, source_updated_at) in selected_keys {
             let Some(row) = sqlx::query(
                 r#"
 SELECT
-    so.thread_id,
+    so.chat_id,
     so.source_updated_at,
     so.raw_memory,
     so.rollout_summary,
     so.rollout_slug,
     so.generated_at
 FROM stage1_outputs AS so
-WHERE so.thread_id = ? AND so.source_updated_at = ?
+WHERE so.chat_id = ? AND so.source_updated_at = ?
             "#,
             )
-            .bind(thread_id.as_str())
+            .bind(chat_id.as_str())
             .bind(source_updated_at)
             .fetch_optional(self.pool.as_ref())
             .await?
@@ -516,7 +516,7 @@ WHERE so.thread_id = ? AND so.source_updated_at = ?
             }
         }
 
-        selected.sort_by_key(|entry| entry.thread_id.to_string());
+        selected.sort_by_key(|entry| entry.chat_id.to_string());
 
         Ok(selected)
     }
@@ -525,9 +525,9 @@ WHERE so.thread_id = ? AND so.source_updated_at = ?
         &self,
         row: &sqlx::sqlite::SqliteRow,
     ) -> anyhow::Result<Option<Stage1Output>> {
-        let thread_id: String = row.try_get("thread_id")?;
+        let chat_id: String = row.try_get("chat_id")?;
         let Some(thread) = self
-            .enabled_thread_metadata(ThreadId::try_from(thread_id.as_str())?)
+            .enabled_thread_metadata(ChatId::try_from(chat_id.as_str())?)
             .await?
         else {
             return Ok(None);
@@ -537,7 +537,7 @@ WHERE so.thread_id = ? AND so.source_updated_at = ?
 
     async fn enabled_thread_metadata(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
     ) -> anyhow::Result<Option<ThreadMetadata>> {
         let row = sqlx::query(
             r#"
@@ -571,7 +571,7 @@ FROM threads
 WHERE threads.id = ? AND threads.memory_mode = 'enabled'
             "#,
         )
-        .bind(thread_id.to_string())
+        .bind(chat_id.to_string())
         .fetch_optional(self.state_pool.as_ref())
         .await?;
 
@@ -583,18 +583,18 @@ WHERE threads.id = ? AND threads.memory_mode = 'enabled'
     /// thread participated in the last successful phase-2 baseline.
     pub async fn mark_thread_memory_mode_polluted(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
     ) -> anyhow::Result<bool> {
         let now = Utc::now().timestamp();
-        let thread_id = thread_id.to_string();
+        let chat_id = chat_id.to_string();
         let selected_for_phase2 = sqlx::query_scalar::<_, i64>(
             r#"
 SELECT selected_for_phase2
 FROM stage1_outputs
-WHERE thread_id = ?
+WHERE chat_id = ?
             "#,
         )
-        .bind(thread_id.as_str())
+        .bind(chat_id.as_str())
         .fetch_optional(self.pool.as_ref())
         .await?
         .unwrap_or(0);
@@ -605,7 +605,7 @@ SET memory_mode = 'polluted'
 WHERE id = ? AND memory_mode != 'polluted'
             "#,
         )
-        .bind(thread_id.as_str())
+        .bind(chat_id.as_str())
         .execute(self.state_pool.as_ref())
         .await?
         .rows_affected();
@@ -635,8 +635,8 @@ WHERE id = ? AND memory_mode != 'polluted'
     /// `SkippedRetryExhausted`).
     pub async fn try_claim_stage1_job(
         &self,
-        thread_id: ThreadId,
-        worker_id: ThreadId,
+        chat_id: ChatId,
+        worker_id: ChatId,
         source_updated_at: i64,
         lease_seconds: i64,
         max_running_jobs: usize,
@@ -645,7 +645,7 @@ WHERE id = ? AND memory_mode != 'polluted'
         let lease_until = now.saturating_add(lease_seconds.max(0));
         let max_running_jobs = max_running_jobs as i64;
         let ownership_token = Uuid::new_v4().to_string();
-        let thread_id = thread_id.to_string();
+        let chat_id = chat_id.to_string();
         let worker_id = worker_id.to_string();
 
         let mut tx = self.pool.begin_with("BEGIN IMMEDIATE").await?;
@@ -654,10 +654,10 @@ WHERE id = ? AND memory_mode != 'polluted'
             r#"
 SELECT source_updated_at
 FROM stage1_outputs
-WHERE thread_id = ?
+WHERE chat_id = ?
             "#,
         )
-        .bind(thread_id.as_str())
+        .bind(chat_id.as_str())
         .fetch_optional(&mut *tx)
         .await?;
         if let Some(existing_output) = existing_output {
@@ -675,7 +675,7 @@ WHERE kind = ? AND job_key = ?
             "#,
         )
         .bind(JOB_KIND_MEMORY_STAGE1)
-        .bind(thread_id.as_str())
+        .bind(chat_id.as_str())
         .fetch_optional(&mut *tx)
         .await?;
         if let Some(existing_job) = existing_job {
@@ -750,7 +750,7 @@ WHERE
             "#,
         )
         .bind(JOB_KIND_MEMORY_STAGE1)
-        .bind(thread_id.as_str())
+        .bind(chat_id.as_str())
         .bind(worker_id.as_str())
         .bind(ownership_token.as_str())
         .bind(now)
@@ -779,7 +779,7 @@ WHERE kind = ? AND job_key = ?
             "#,
         )
         .bind(JOB_KIND_MEMORY_STAGE1)
-        .bind(thread_id.as_str())
+        .bind(chat_id.as_str())
         .fetch_optional(&mut *tx)
         .await?;
 
@@ -822,7 +822,7 @@ WHERE kind = ? AND job_key = ?
     ///   `source_updated_at`
     pub async fn mark_stage1_job_succeeded(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         ownership_token: &str,
         source_updated_at: i64,
         raw_memory: &str,
@@ -830,7 +830,7 @@ WHERE kind = ? AND job_key = ?
         rollout_slug: Option<&str>,
     ) -> anyhow::Result<bool> {
         let now = Utc::now().timestamp();
-        let thread_id = thread_id.to_string();
+        let chat_id = chat_id.to_string();
 
         let mut tx = self.pool.begin().await?;
         let rows_affected = sqlx::query(
@@ -848,7 +848,7 @@ WHERE kind = ? AND job_key = ?
         )
         .bind(now)
         .bind(JOB_KIND_MEMORY_STAGE1)
-        .bind(thread_id.as_str())
+        .bind(chat_id.as_str())
         .bind(ownership_token)
         .execute(&mut *tx)
         .await?
@@ -862,14 +862,14 @@ WHERE kind = ? AND job_key = ?
         sqlx::query(
             r#"
 INSERT INTO stage1_outputs (
-    thread_id,
+    chat_id,
     source_updated_at,
     raw_memory,
     rollout_summary,
     rollout_slug,
     generated_at
 ) VALUES (?, ?, ?, ?, ?, ?)
-ON CONFLICT(thread_id) DO UPDATE SET
+ON CONFLICT(chat_id) DO UPDATE SET
     source_updated_at = excluded.source_updated_at,
     raw_memory = excluded.raw_memory,
     rollout_summary = excluded.rollout_summary,
@@ -878,7 +878,7 @@ ON CONFLICT(thread_id) DO UPDATE SET
 WHERE excluded.source_updated_at >= stage1_outputs.source_updated_at
             "#,
         )
-        .bind(thread_id.as_str())
+        .bind(chat_id.as_str())
         .bind(source_updated_at)
         .bind(raw_memory)
         .bind(rollout_summary)
@@ -903,11 +903,11 @@ WHERE excluded.source_updated_at >= stage1_outputs.source_updated_at
     ///   `input_watermark` only when deleting an existing `stage1_outputs` row
     pub async fn mark_stage1_job_succeeded_no_output(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         ownership_token: &str,
     ) -> anyhow::Result<bool> {
         let now = Utc::now().timestamp();
-        let thread_id = thread_id.to_string();
+        let chat_id = chat_id.to_string();
 
         let mut tx = self.pool.begin().await?;
         let rows_affected = sqlx::query(
@@ -925,7 +925,7 @@ WHERE kind = ? AND job_key = ?
         )
         .bind(now)
         .bind(JOB_KIND_MEMORY_STAGE1)
-        .bind(thread_id.as_str())
+        .bind(chat_id.as_str())
         .bind(ownership_token)
         .execute(&mut *tx)
         .await?
@@ -944,7 +944,7 @@ WHERE kind = ? AND job_key = ? AND ownership_token = ?
             "#,
         )
         .bind(JOB_KIND_MEMORY_STAGE1)
-        .bind(thread_id.as_str())
+        .bind(chat_id.as_str())
         .bind(ownership_token)
         .fetch_one(&mut *tx)
         .await?
@@ -953,10 +953,10 @@ WHERE kind = ? AND job_key = ? AND ownership_token = ?
         let deleted_rows = sqlx::query(
             r#"
 DELETE FROM stage1_outputs
-WHERE thread_id = ?
+WHERE chat_id = ?
             "#,
         )
-        .bind(thread_id.as_str())
+        .bind(chat_id.as_str())
         .execute(&mut *tx)
         .await?
         .rows_affected();
@@ -978,14 +978,14 @@ WHERE thread_id = ?
     /// - sets `retry_at = now + retry_delay_seconds`
     pub async fn mark_stage1_job_failed(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         ownership_token: &str,
         failure_reason: &str,
         retry_delay_seconds: i64,
     ) -> anyhow::Result<bool> {
         let now = Utc::now().timestamp();
         let retry_at = now.saturating_add(retry_delay_seconds.max(0));
-        let thread_id = thread_id.to_string();
+        let chat_id = chat_id.to_string();
 
         let rows_affected = sqlx::query(
             r#"
@@ -1005,7 +1005,7 @@ WHERE kind = ? AND job_key = ?
         .bind(retry_at)
         .bind(failure_reason)
         .bind(JOB_KIND_MEMORY_STAGE1)
-        .bind(thread_id.as_str())
+        .bind(chat_id.as_str())
         .bind(ownership_token)
         .execute(self.pool.as_ref())
         .await?
@@ -1040,7 +1040,7 @@ WHERE kind = ? AND job_key = ?
     ///   returns `Claimed`
     pub async fn try_claim_global_phase2_job(
         &self,
-        worker_id: ThreadId,
+        worker_id: ChatId,
         lease_seconds: i64,
     ) -> anyhow::Result<Phase2JobClaimOutcome> {
         let now = Utc::now().timestamp();
@@ -1246,11 +1246,11 @@ UPDATE stage1_outputs
 SET
     selected_for_phase2 = 1,
     selected_for_phase2_source_updated_at = ?
-WHERE thread_id = ? AND source_updated_at = ?
+WHERE chat_id = ? AND source_updated_at = ?
                 "#,
             )
             .bind(output.source_updated_at.timestamp())
-            .bind(output.thread_id.to_string())
+            .bind(output.chat_id.to_string())
             .bind(output.source_updated_at.timestamp())
             .execute(&mut *tx)
             .await?;
@@ -1414,7 +1414,7 @@ fn stage1_output_from_row_and_thread(
     let source_updated_at = datetime_from_epoch_seconds(source_updated_at)?;
     let generated_at = datetime_from_epoch_seconds(generated_at)?;
     Ok(Stage1Output {
-        thread_id: thread.id,
+        chat_id: thread.id,
         rollout_path: thread.rollout_path,
         source_updated_at,
         raw_memory: row.try_get("raw_memory")?,
@@ -1488,17 +1488,17 @@ impl StateRuntime {
         self.memories.clear_memory_data().await
     }
 
-    async fn record_stage1_output_usage(&self, thread_ids: &[ThreadId]) -> anyhow::Result<usize> {
-        self.memories.record_stage1_output_usage(thread_ids).await
+    async fn record_stage1_output_usage(&self, chat_ids: &[ChatId]) -> anyhow::Result<usize> {
+        self.memories.record_stage1_output_usage(chat_ids).await
     }
 
     async fn claim_stage1_jobs_for_startup(
         &self,
-        current_thread_id: ThreadId,
+        current_chat_id: ChatId,
         params: Stage1StartupClaimParams<'_>,
     ) -> anyhow::Result<Vec<Stage1JobClaim>> {
         self.memories
-            .claim_stage1_jobs_for_startup(current_thread_id, params)
+            .claim_stage1_jobs_for_startup(current_chat_id, params)
             .await
     }
 
@@ -1526,23 +1526,23 @@ impl StateRuntime {
             .await
     }
 
-    async fn mark_thread_memory_mode_polluted(&self, thread_id: ThreadId) -> anyhow::Result<bool> {
+    async fn mark_thread_memory_mode_polluted(&self, chat_id: ChatId) -> anyhow::Result<bool> {
         self.memories
-            .mark_thread_memory_mode_polluted(thread_id)
+            .mark_thread_memory_mode_polluted(chat_id)
             .await
     }
 
     async fn try_claim_stage1_job(
         &self,
-        thread_id: ThreadId,
-        worker_id: ThreadId,
+        chat_id: ChatId,
+        worker_id: ChatId,
         source_updated_at: i64,
         lease_seconds: i64,
         max_running_jobs: usize,
     ) -> anyhow::Result<Stage1JobClaimOutcome> {
         self.memories
             .try_claim_stage1_job(
-                thread_id,
+                chat_id,
                 worker_id,
                 source_updated_at,
                 lease_seconds,
@@ -1553,7 +1553,7 @@ impl StateRuntime {
 
     async fn mark_stage1_job_succeeded(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         ownership_token: &str,
         source_updated_at: i64,
         raw_memory: &str,
@@ -1562,7 +1562,7 @@ impl StateRuntime {
     ) -> anyhow::Result<bool> {
         self.memories
             .mark_stage1_job_succeeded(
-                thread_id,
+                chat_id,
                 ownership_token,
                 source_updated_at,
                 raw_memory,
@@ -1574,24 +1574,24 @@ impl StateRuntime {
 
     async fn mark_stage1_job_succeeded_no_output(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         ownership_token: &str,
     ) -> anyhow::Result<bool> {
         self.memories
-            .mark_stage1_job_succeeded_no_output(thread_id, ownership_token)
+            .mark_stage1_job_succeeded_no_output(chat_id, ownership_token)
             .await
     }
 
     async fn mark_stage1_job_failed(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         ownership_token: &str,
         failure_reason: &str,
         retry_delay_seconds: i64,
     ) -> anyhow::Result<bool> {
         self.memories
             .mark_stage1_job_failed(
-                thread_id,
+                chat_id,
                 ownership_token,
                 failure_reason,
                 retry_delay_seconds,
@@ -1607,7 +1607,7 @@ impl StateRuntime {
 
     async fn try_claim_global_phase2_job(
         &self,
-        worker_id: ThreadId,
+        worker_id: ChatId,
         lease_seconds: i64,
     ) -> anyhow::Result<Phase2JobClaimOutcome> {
         self.memories
@@ -1671,14 +1671,14 @@ mod tests {
     use crate::model::Stage1StartupClaimParams;
     use chrono::Duration;
     use chrono::Utc;
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use pretty_assertions::assert_eq;
     use sqlx::Row;
     use std::sync::Arc;
     use uuid::Uuid;
 
-    fn stable_thread_id(value: &str) -> ThreadId {
-        ThreadId::from_string(value).expect("thread id")
+    fn stable_chat_id(value: &str) -> ChatId {
+        ChatId::from_string(value).expect("thread id")
     }
 
     fn memory_pool(runtime: &StateRuntime) -> &sqlx::SqlitePool {
@@ -1702,19 +1702,19 @@ mod tests {
             .await
             .expect("initialize runtime");
 
-        let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
-        let metadata = test_thread_metadata(&codex_home, thread_id, codex_home.join("a"));
+        let chat_id = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let metadata = test_thread_metadata(&codex_home, chat_id, codex_home.join("a"));
         runtime
             .upsert_thread(&metadata)
             .await
             .expect("upsert thread");
 
-        let owner_a = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
-        let owner_b = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let owner_a = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let owner_b = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
 
         let claim = runtime
             .try_claim_stage1_job(
-                thread_id, owner_a, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
+                chat_id, owner_a, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
                 /*max_running_jobs*/ 64,
             )
             .await
@@ -1727,7 +1727,7 @@ mod tests {
         assert!(
             runtime
                 .mark_stage1_job_succeeded(
-                    thread_id,
+                    chat_id,
                     ownership_token.as_str(),
                     /*source_updated_at*/ 100,
                     "raw",
@@ -1741,7 +1741,7 @@ mod tests {
 
         let up_to_date = runtime
             .try_claim_stage1_job(
-                thread_id, owner_b, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
+                chat_id, owner_b, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
                 /*max_running_jobs*/ 64,
             )
             .await
@@ -1750,7 +1750,7 @@ mod tests {
 
         let needs_rerun = runtime
             .try_claim_stage1_job(
-                thread_id, owner_b, /*source_updated_at*/ 101, /*lease_seconds*/ 3600,
+                chat_id, owner_b, /*source_updated_at*/ 101, /*lease_seconds*/ 3600,
                 /*max_running_jobs*/ 64,
             )
             .await
@@ -1770,18 +1770,18 @@ mod tests {
             .await
             .expect("initialize runtime");
 
-        let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
-        let owner_a = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
-        let owner_b = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let chat_id = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let owner_a = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let owner_b = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         let cwd = codex_home.join("workspace");
         runtime
-            .upsert_thread(&test_thread_metadata(&codex_home, thread_id, cwd))
+            .upsert_thread(&test_thread_metadata(&codex_home, chat_id, cwd))
             .await
             .expect("upsert thread");
 
         let claim_a = runtime
             .try_claim_stage1_job(
-                thread_id, owner_a, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
+                chat_id, owner_a, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
                 /*max_running_jobs*/ 64,
             )
             .await
@@ -1790,7 +1790,7 @@ mod tests {
 
         let claim_b_fresh = runtime
             .try_claim_stage1_job(
-                thread_id, owner_b, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
+                chat_id, owner_b, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
                 /*max_running_jobs*/ 64,
             )
             .await
@@ -1798,14 +1798,14 @@ mod tests {
         assert_eq!(claim_b_fresh, Stage1JobClaimOutcome::SkippedRunning);
 
         sqlx::query("UPDATE jobs SET lease_until = 0 WHERE kind = 'memory_stage1' AND job_key = ?")
-            .bind(thread_id.to_string())
+            .bind(chat_id.to_string())
             .execute(memory_pool(&runtime))
             .await
             .expect("force stale lease");
 
         let claim_b_stale = runtime
             .try_claim_stage1_job(
-                thread_id, owner_b, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
+                chat_id, owner_b, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
                 /*max_running_jobs*/ 64,
             )
             .await
@@ -1825,29 +1825,29 @@ mod tests {
             .await
             .expect("initialize runtime");
 
-        let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let chat_id = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
         runtime
             .upsert_thread(&test_thread_metadata(
                 &codex_home,
-                thread_id,
+                chat_id,
                 codex_home.join("workspace"),
             ))
             .await
             .expect("upsert thread");
 
-        let owner_a = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
-        let owner_b = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
-        let thread_id_a = thread_id;
-        let thread_id_b = thread_id;
+        let owner_a = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let owner_b = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let chat_id_a = chat_id;
+        let chat_id_b = chat_id;
         let runtime_a = Arc::clone(&runtime);
         let runtime_b = Arc::clone(&runtime);
         let claim_with_retry = |runtime: Arc<StateRuntime>,
-                                thread_id: ThreadId,
-                                owner: ThreadId| async move {
+                                chat_id: ChatId,
+                                owner: ChatId| async move {
             for attempt in 0..5 {
                 match runtime
                     .try_claim_stage1_job(
-                        thread_id, owner, /*source_updated_at*/ 100,
+                        chat_id, owner, /*source_updated_at*/ 100,
                         /*lease_seconds*/ 3_600, /*max_running_jobs*/ 64,
                     )
                     .await
@@ -1863,8 +1863,8 @@ mod tests {
         };
 
         let (claim_a, claim_b) = tokio::join!(
-            claim_with_retry(runtime_a, thread_id_a, owner_a),
-            claim_with_retry(runtime_b, thread_id_b, owner_b),
+            claim_with_retry(runtime_a, chat_id_a, owner_a),
+            claim_with_retry(runtime_b, chat_id_b, owner_b),
         );
 
         let claim_outcomes = vec![claim_a, claim_b];
@@ -1893,8 +1893,8 @@ mod tests {
             .await
             .expect("initialize runtime");
 
-        let thread_a = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
-        let thread_b = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let thread_a = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let thread_b = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
         runtime
             .upsert_thread(&test_thread_metadata(
                 &codex_home,
@@ -1912,8 +1912,8 @@ mod tests {
             .await
             .expect("upsert thread b");
 
-        let owner_a = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
-        let owner_b = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let owner_a = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let owner_b = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         let runtime_a = Arc::clone(&runtime);
         let runtime_b = Arc::clone(&runtime);
 
@@ -1967,19 +1967,19 @@ mod tests {
         let eligible_idle_at = now - Duration::hours(12) - Duration::minutes(1);
         let old_at = now - Duration::days(31);
 
-        let current_thread_id =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("current thread id");
-        let fresh_thread_id =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("fresh thread id");
-        let just_under_idle_thread_id =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("just under idle thread id");
-        let eligible_idle_thread_id =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("eligible idle thread id");
-        let old_thread_id =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("old thread id");
+        let current_chat_id =
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("current thread id");
+        let fresh_chat_id =
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("fresh thread id");
+        let just_under_idle_chat_id =
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("just under idle thread id");
+        let eligible_idle_chat_id =
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("eligible idle thread id");
+        let old_chat_id =
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("old thread id");
 
         let mut current =
-            test_thread_metadata(&codex_home, current_thread_id, codex_home.join("current"));
+            test_thread_metadata(&codex_home, current_chat_id, codex_home.join("current"));
         current.created_at = now;
         current.updated_at = now;
         runtime
@@ -1988,14 +1988,14 @@ mod tests {
             .expect("upsert current");
 
         let mut fresh =
-            test_thread_metadata(&codex_home, fresh_thread_id, codex_home.join("fresh"));
+            test_thread_metadata(&codex_home, fresh_chat_id, codex_home.join("fresh"));
         fresh.created_at = fresh_at;
         fresh.updated_at = fresh_at;
         runtime.upsert_thread(&fresh).await.expect("upsert fresh");
 
         let mut just_under_idle = test_thread_metadata(
             &codex_home,
-            just_under_idle_thread_id,
+            just_under_idle_chat_id,
             codex_home.join("just-under-idle"),
         );
         just_under_idle.created_at = just_under_idle_at;
@@ -2007,7 +2007,7 @@ mod tests {
 
         let mut eligible_idle = test_thread_metadata(
             &codex_home,
-            eligible_idle_thread_id,
+            eligible_idle_chat_id,
             codex_home.join("eligible-idle"),
         );
         eligible_idle.created_at = eligible_idle_at;
@@ -2017,7 +2017,7 @@ mod tests {
             .await
             .expect("upsert eligible-idle");
 
-        let mut old = test_thread_metadata(&codex_home, old_thread_id, codex_home.join("old"));
+        let mut old = test_thread_metadata(&codex_home, old_chat_id, codex_home.join("old"));
         old.created_at = old_at;
         old.updated_at = old_at;
         runtime.upsert_thread(&old).await.expect("upsert old");
@@ -2025,7 +2025,7 @@ mod tests {
         let allowed_sources = vec!["cli".to_string()];
         let claims = runtime
             .claim_stage1_jobs_for_startup(
-                current_thread_id,
+                current_chat_id,
                 Stage1StartupClaimParams {
                     scan_limit: 1,
                     max_claimed: 5,
@@ -2039,7 +2039,7 @@ mod tests {
             .expect("claim stage1 jobs");
 
         assert_eq!(claims.len(), 1);
-        assert_eq!(claims[0].thread.id, eligible_idle_thread_id);
+        assert_eq!(claims[0].thread.id, eligible_idle_chat_id);
 
         let _ = tokio::fs::remove_dir_all(codex_home).await;
     }
@@ -2055,16 +2055,16 @@ mod tests {
         let eligible_newer_at = now - Duration::hours(13);
         let eligible_older_at = now - Duration::hours(14);
 
-        let current_thread_id =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("current thread id");
-        let up_to_date_thread_id =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("up-to-date thread id");
-        let stale_thread_id =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("stale thread id");
-        let worker_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("worker id");
+        let current_chat_id =
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("current thread id");
+        let up_to_date_chat_id =
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("up-to-date thread id");
+        let stale_chat_id =
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("stale thread id");
+        let worker_id = ChatId::from_string(&Uuid::new_v4().to_string()).expect("worker id");
 
         let mut current =
-            test_thread_metadata(&codex_home, current_thread_id, codex_home.join("current"));
+            test_thread_metadata(&codex_home, current_chat_id, codex_home.join("current"));
         current.created_at = now;
         current.updated_at = now;
         runtime
@@ -2074,7 +2074,7 @@ mod tests {
 
         let mut up_to_date = test_thread_metadata(
             &codex_home,
-            up_to_date_thread_id,
+            up_to_date_chat_id,
             codex_home.join("up-to-date"),
         );
         up_to_date.created_at = eligible_newer_at;
@@ -2086,7 +2086,7 @@ mod tests {
 
         let up_to_date_claim = runtime
             .try_claim_stage1_job(
-                up_to_date_thread_id,
+                up_to_date_chat_id,
                 worker_id,
                 up_to_date.updated_at.timestamp(),
                 /*lease_seconds*/ 3600,
@@ -2101,7 +2101,7 @@ mod tests {
         assert!(
             runtime
                 .mark_stage1_job_succeeded(
-                    up_to_date_thread_id,
+                    up_to_date_chat_id,
                     up_to_date_token.as_str(),
                     up_to_date.updated_at.timestamp(),
                     "raw",
@@ -2114,7 +2114,7 @@ mod tests {
         );
 
         let mut stale =
-            test_thread_metadata(&codex_home, stale_thread_id, codex_home.join("stale"));
+            test_thread_metadata(&codex_home, stale_chat_id, codex_home.join("stale"));
         stale.created_at = eligible_older_at;
         stale.updated_at = eligible_older_at;
         runtime
@@ -2125,7 +2125,7 @@ mod tests {
         let allowed_sources = vec!["cli".to_string()];
         let claims_with_one_scanned_thread = runtime
             .claim_stage1_jobs_for_startup(
-                current_thread_id,
+                current_chat_id,
                 Stage1StartupClaimParams {
                     scan_limit: 1,
                     max_claimed: 1,
@@ -2141,7 +2141,7 @@ mod tests {
 
         let claims = runtime
             .claim_stage1_jobs_for_startup(
-                current_thread_id,
+                current_chat_id,
                 Stage1StartupClaimParams {
                     scan_limit: 2,
                     max_claimed: 1,
@@ -2154,7 +2154,7 @@ mod tests {
             .await
             .expect("claim stage1 startup jobs with wider scan");
         assert_eq!(claims.len(), 1);
-        assert_eq!(claims[0].thread.id, stale_thread_id);
+        assert_eq!(claims[0].thread.id, stale_chat_id);
 
         let _ = tokio::fs::remove_dir_all(codex_home).await;
     }
@@ -2169,15 +2169,15 @@ mod tests {
         let now = Utc::now();
         let eligible_at = now - Duration::hours(13);
 
-        let current_thread_id =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("current thread id");
-        let disabled_thread_id =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("disabled thread id");
-        let enabled_thread_id =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("enabled thread id");
+        let current_chat_id =
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("current thread id");
+        let disabled_chat_id =
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("disabled thread id");
+        let enabled_chat_id =
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("enabled thread id");
 
         let mut current =
-            test_thread_metadata(&codex_home, current_thread_id, codex_home.join("current"));
+            test_thread_metadata(&codex_home, current_chat_id, codex_home.join("current"));
         current.created_at = now;
         current.updated_at = now;
         runtime
@@ -2186,7 +2186,7 @@ mod tests {
             .expect("upsert current thread");
 
         let mut disabled =
-            test_thread_metadata(&codex_home, disabled_thread_id, codex_home.join("disabled"));
+            test_thread_metadata(&codex_home, disabled_chat_id, codex_home.join("disabled"));
         disabled.created_at = eligible_at;
         disabled.updated_at = eligible_at;
         runtime
@@ -2194,13 +2194,13 @@ mod tests {
             .await
             .expect("upsert disabled thread");
         sqlx::query("UPDATE threads SET memory_mode = 'disabled' WHERE id = ?")
-            .bind(disabled_thread_id.to_string())
+            .bind(disabled_chat_id.to_string())
             .execute(runtime.pool.as_ref())
             .await
             .expect("disable thread memory mode");
 
         let mut enabled =
-            test_thread_metadata(&codex_home, enabled_thread_id, codex_home.join("enabled"));
+            test_thread_metadata(&codex_home, enabled_chat_id, codex_home.join("enabled"));
         enabled.created_at = eligible_at;
         enabled.updated_at = eligible_at;
         runtime
@@ -2211,7 +2211,7 @@ mod tests {
         let allowed_sources = vec!["cli".to_string()];
         let claims = runtime
             .claim_stage1_jobs_for_startup(
-                current_thread_id,
+                current_chat_id,
                 Stage1StartupClaimParams {
                     scan_limit: 10,
                     max_claimed: 10,
@@ -2225,7 +2225,7 @@ mod tests {
             .expect("claim stage1 startup jobs");
 
         assert_eq!(claims.len(), 1);
-        assert_eq!(claims[0].thread.id, enabled_thread_id);
+        assert_eq!(claims[0].thread.id, enabled_chat_id);
 
         let _ = tokio::fs::remove_dir_all(codex_home).await;
     }
@@ -2238,14 +2238,14 @@ mod tests {
             .expect("initialize runtime");
 
         let now = Utc::now() - Duration::hours(13);
-        let worker_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("worker id");
-        let enabled_thread_id =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("enabled thread id");
-        let disabled_thread_id =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("disabled thread id");
+        let worker_id = ChatId::from_string(&Uuid::new_v4().to_string()).expect("worker id");
+        let enabled_chat_id =
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("enabled thread id");
+        let disabled_chat_id =
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("disabled thread id");
 
         let mut enabled =
-            test_thread_metadata(&codex_home, enabled_thread_id, codex_home.join("enabled"));
+            test_thread_metadata(&codex_home, enabled_chat_id, codex_home.join("enabled"));
         enabled.created_at = now;
         enabled.updated_at = now;
         runtime
@@ -2255,7 +2255,7 @@ mod tests {
 
         let claim = runtime
             .try_claim_stage1_job(
-                enabled_thread_id,
+                enabled_chat_id,
                 worker_id,
                 enabled.updated_at.timestamp(),
                 /*lease_seconds*/ 3600,
@@ -2270,7 +2270,7 @@ mod tests {
         assert!(
             runtime
                 .mark_stage1_job_succeeded(
-                    enabled_thread_id,
+                    enabled_chat_id,
                     ownership_token.as_str(),
                     enabled.updated_at.timestamp(),
                     "raw",
@@ -2287,7 +2287,7 @@ mod tests {
             .expect("enqueue global consolidation");
 
         let mut disabled =
-            test_thread_metadata(&codex_home, disabled_thread_id, codex_home.join("disabled"));
+            test_thread_metadata(&codex_home, disabled_chat_id, codex_home.join("disabled"));
         disabled.created_at = now;
         disabled.updated_at = now;
         runtime
@@ -2295,7 +2295,7 @@ mod tests {
             .await
             .expect("upsert disabled thread");
         sqlx::query("UPDATE threads SET memory_mode = 'disabled' WHERE id = ?")
-            .bind(disabled_thread_id.to_string())
+            .bind(disabled_chat_id.to_string())
             .execute(runtime.pool.as_ref())
             .await
             .expect("disable existing thread");
@@ -2322,7 +2322,7 @@ mod tests {
 
         let enabled_memory_mode: String =
             sqlx::query_scalar("SELECT memory_mode FROM threads WHERE id = ?")
-                .bind(enabled_thread_id.to_string())
+                .bind(enabled_chat_id.to_string())
                 .fetch_one(runtime.pool.as_ref())
                 .await
                 .expect("read enabled thread memory mode");
@@ -2330,7 +2330,7 @@ mod tests {
 
         let disabled_memory_mode: String =
             sqlx::query_scalar("SELECT memory_mode FROM threads WHERE id = ?")
-                .bind(disabled_thread_id.to_string())
+                .bind(disabled_chat_id.to_string())
                 .fetch_one(runtime.pool.as_ref())
                 .await
                 .expect("read disabled thread memory mode");
@@ -2346,12 +2346,12 @@ mod tests {
             .await
             .expect("initialize runtime");
 
-        let current_thread_id =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("current thread id");
+        let current_chat_id =
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("current thread id");
         runtime
             .upsert_thread(&test_thread_metadata(
                 &codex_home,
-                current_thread_id,
+                current_chat_id,
                 codex_home.join("current"),
             ))
             .await
@@ -2365,10 +2365,10 @@ mod tests {
         let total_candidates = 80usize;
 
         for idx in 0..total_candidates {
-            let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+            let chat_id = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
             let mut metadata = test_thread_metadata(
                 &codex_home,
-                thread_id,
+                chat_id,
                 codex_home.join(format!("thread-{idx}")),
             );
             metadata.created_at = eligible_at - Duration::seconds(idx as i64);
@@ -2399,8 +2399,8 @@ INSERT INTO jobs (
                     "#,
                 )
                 .bind("memory_stage1")
-                .bind(thread_id.to_string())
-                .bind(current_thread_id.to_string())
+                .bind(chat_id.to_string())
+                .bind(current_chat_id.to_string())
                 .bind(Uuid::new_v4().to_string())
                 .bind(started_at)
                 .bind(lease_until)
@@ -2415,7 +2415,7 @@ INSERT INTO jobs (
         let allowed_sources = vec!["cli".to_string()];
         let claims = runtime
             .claim_stage1_jobs_for_startup(
-                current_thread_id,
+                current_chat_id,
                 Stage1StartupClaimParams {
                     scan_limit: 200,
                     max_claimed: 64,
@@ -2449,7 +2449,7 @@ WHERE kind = 'memory_stage1'
 
         let more_claims = runtime
             .claim_stage1_jobs_for_startup(
-                current_thread_id,
+                current_chat_id,
                 Stage1StartupClaimParams {
                     scan_limit: 200,
                     max_claimed: 64,
@@ -2473,10 +2473,10 @@ WHERE kind = 'memory_stage1'
             .await
             .expect("initialize runtime");
 
-        let current_thread_id =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("current thread id");
+        let current_chat_id =
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("current thread id");
         let mut current =
-            test_thread_metadata(&codex_home, current_thread_id, codex_home.join("current"));
+            test_thread_metadata(&codex_home, current_chat_id, codex_home.join("current"));
         current.created_at = Utc::now();
         current.updated_at = Utc::now();
         runtime
@@ -2486,10 +2486,10 @@ WHERE kind = 'memory_stage1'
 
         let eligible_at = Utc::now() - Duration::hours(13);
         for idx in 0..200 {
-            let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+            let chat_id = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
             let mut metadata = test_thread_metadata(
                 &codex_home,
-                thread_id,
+                chat_id,
                 codex_home.join(format!("thread-{idx}")),
             );
             metadata.created_at = eligible_at - Duration::seconds(idx as i64);
@@ -2503,7 +2503,7 @@ WHERE kind = 'memory_stage1'
         let allowed_sources = vec!["cli".to_string()];
         let first_claims = runtime
             .claim_stage1_jobs_for_startup(
-                current_thread_id,
+                current_chat_id,
                 Stage1StartupClaimParams {
                     scan_limit: 5_000,
                     max_claimed: 64,
@@ -2536,7 +2536,7 @@ WHERE kind = 'memory_stage1'
 
         let second_claims = runtime
             .claim_stage1_jobs_for_startup(
-                current_thread_id,
+                current_chat_id,
                 Stage1StartupClaimParams {
                     scan_limit: 5_000,
                     max_claimed: 64,
@@ -2560,17 +2560,17 @@ WHERE kind = 'memory_stage1'
             .await
             .expect("initialize runtime");
 
-        let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let chat_id = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         let cwd = codex_home.join("workspace");
         runtime
-            .upsert_thread(&test_thread_metadata(&codex_home, thread_id, cwd))
+            .upsert_thread(&test_thread_metadata(&codex_home, chat_id, cwd))
             .await
             .expect("upsert thread");
 
         let claim = runtime
             .try_claim_stage1_job(
-                thread_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
+                chat_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
                 /*max_running_jobs*/ 64,
             )
             .await
@@ -2582,7 +2582,7 @@ WHERE kind = 'memory_stage1'
         assert!(
             runtime
                 .mark_stage1_job_succeeded(
-                    thread_id,
+                    chat_id,
                     ownership_token.as_str(),
                     /*source_updated_at*/ 100,
                     "raw",
@@ -2595,8 +2595,8 @@ WHERE kind = 'memory_stage1'
         );
 
         let count_before =
-            sqlx::query("SELECT COUNT(*) AS count FROM stage1_outputs WHERE thread_id = ?")
-                .bind(thread_id.to_string())
+            sqlx::query("SELECT COUNT(*) AS count FROM stage1_outputs WHERE chat_id = ?")
+                .bind(chat_id.to_string())
                 .fetch_one(memory_pool(&runtime))
                 .await
                 .expect("count before delete")
@@ -2634,15 +2634,15 @@ WHERE kind = 'memory_stage1'
         let before_delete = Utc::now().timestamp();
         assert_eq!(
             runtime
-                .delete_thread(thread_id)
+                .delete_thread(chat_id)
                 .await
                 .expect("delete thread"),
             1
         );
 
         let count_after =
-            sqlx::query("SELECT COUNT(*) AS count FROM stage1_outputs WHERE thread_id = ?")
-                .bind(thread_id.to_string())
+            sqlx::query("SELECT COUNT(*) AS count FROM stage1_outputs WHERE chat_id = ?")
+                .bind(chat_id.to_string())
                 .fetch_one(memory_pool(&runtime))
                 .await
                 .expect("count after delete")
@@ -2685,13 +2685,13 @@ WHERE kind = ? AND job_key = ?
             .await
             .expect("initialize runtime");
 
-        let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
-        let owner_b = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let chat_id = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let owner_b = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         runtime
             .upsert_thread(&test_thread_metadata(
                 &codex_home,
-                thread_id,
+                chat_id,
                 codex_home.join("workspace"),
             ))
             .await
@@ -2699,7 +2699,7 @@ WHERE kind = ? AND job_key = ?
 
         let claim = runtime
             .try_claim_stage1_job(
-                thread_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
+                chat_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
                 /*max_running_jobs*/ 64,
             )
             .await
@@ -2710,15 +2710,15 @@ WHERE kind = ? AND job_key = ?
         };
         assert!(
             runtime
-                .mark_stage1_job_succeeded_no_output(thread_id, ownership_token.as_str())
+                .mark_stage1_job_succeeded_no_output(chat_id, ownership_token.as_str())
                 .await
                 .expect("mark stage1 succeeded without output"),
             "stage1 no-output success should complete the job"
         );
 
         let output_row_count =
-            sqlx::query("SELECT COUNT(*) AS count FROM stage1_outputs WHERE thread_id = ?")
-                .bind(thread_id.to_string())
+            sqlx::query("SELECT COUNT(*) AS count FROM stage1_outputs WHERE chat_id = ?")
+                .bind(chat_id.to_string())
                 .fetch_one(memory_pool(&runtime))
                 .await
                 .expect("load stage1 output count")
@@ -2731,7 +2731,7 @@ WHERE kind = ? AND job_key = ?
 
         let up_to_date = runtime
             .try_claim_stage1_job(
-                thread_id, owner_b, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
+                chat_id, owner_b, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
                 /*max_running_jobs*/ 64,
             )
             .await
@@ -2760,13 +2760,13 @@ WHERE kind = ? AND job_key = ?
             .await
             .expect("initialize runtime");
 
-        let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
-        let owner_b = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let chat_id = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let owner_b = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         runtime
             .upsert_thread(&test_thread_metadata(
                 &codex_home,
-                thread_id,
+                chat_id,
                 codex_home.join("workspace"),
             ))
             .await
@@ -2774,7 +2774,7 @@ WHERE kind = ? AND job_key = ?
 
         let first_claim = runtime
             .try_claim_stage1_job(
-                thread_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
+                chat_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
                 /*max_running_jobs*/ 64,
             )
             .await
@@ -2786,7 +2786,7 @@ WHERE kind = ? AND job_key = ?
         assert!(
             runtime
                 .mark_stage1_job_succeeded(
-                    thread_id,
+                    chat_id,
                     first_token.as_str(),
                     /*source_updated_at*/ 100,
                     "raw",
@@ -2824,7 +2824,7 @@ WHERE kind = ? AND job_key = ?
 
         let no_output_claim = runtime
             .try_claim_stage1_job(
-                thread_id, owner_b, /*source_updated_at*/ 101, /*lease_seconds*/ 3600,
+                chat_id, owner_b, /*source_updated_at*/ 101, /*lease_seconds*/ 3600,
                 /*max_running_jobs*/ 64,
             )
             .await
@@ -2835,15 +2835,15 @@ WHERE kind = ? AND job_key = ?
         };
         assert!(
             runtime
-                .mark_stage1_job_succeeded_no_output(thread_id, no_output_token.as_str())
+                .mark_stage1_job_succeeded_no_output(chat_id, no_output_token.as_str())
                 .await
                 .expect("mark stage1 no-output after existing output"),
             "no-output should succeed when deleting an existing stage1 output"
         );
 
         let output_row_count =
-            sqlx::query("SELECT COUNT(*) AS count FROM stage1_outputs WHERE thread_id = ?")
-                .bind(thread_id.to_string())
+            sqlx::query("SELECT COUNT(*) AS count FROM stage1_outputs WHERE chat_id = ?")
+                .bind(chat_id.to_string())
                 .fetch_one(memory_pool(&runtime))
                 .await
                 .expect("load stage1 output count after delete")
@@ -2885,12 +2885,12 @@ WHERE kind = ? AND job_key = ?
             .await
             .expect("initialize runtime");
 
-        let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let chat_id = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         runtime
             .upsert_thread(&test_thread_metadata(
                 &codex_home,
-                thread_id,
+                chat_id,
                 codex_home.join("workspace"),
             ))
             .await
@@ -2899,7 +2899,7 @@ WHERE kind = ? AND job_key = ?
         for attempt in 0..3 {
             let claim = runtime
                 .try_claim_stage1_job(
-                    thread_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3_600,
+                    chat_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3_600,
                     /*max_running_jobs*/ 64,
                 )
                 .await
@@ -2914,7 +2914,7 @@ WHERE kind = ? AND job_key = ?
             assert!(
                 runtime
                     .mark_stage1_job_failed(
-                        thread_id,
+                        chat_id,
                         ownership_token.as_str(),
                         "boom",
                         /*retry_delay_seconds*/ 0
@@ -2928,7 +2928,7 @@ WHERE kind = ? AND job_key = ?
 
         let exhausted_claim = runtime
             .try_claim_stage1_job(
-                thread_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3_600,
+                chat_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3_600,
                 /*max_running_jobs*/ 64,
             )
             .await
@@ -2940,7 +2940,7 @@ WHERE kind = ? AND job_key = ?
 
         let newer_source_claim = runtime
             .try_claim_stage1_job(
-                thread_id, owner, /*source_updated_at*/ 101, /*lease_seconds*/ 3_600,
+                chat_id, owner, /*source_updated_at*/ 101, /*lease_seconds*/ 3_600,
                 /*max_running_jobs*/ 64,
             )
             .await
@@ -2954,7 +2954,7 @@ WHERE kind = ? AND job_key = ?
             "SELECT retry_remaining, input_watermark FROM jobs WHERE kind = ? AND job_key = ?",
         )
         .bind("memory_stage1")
-        .bind(thread_id.to_string())
+        .bind(chat_id.to_string())
         .fetch_one(memory_pool(&runtime))
         .await
         .expect("load stage1 job row after newer-source claim");
@@ -2981,7 +2981,7 @@ WHERE kind = ? AND job_key = ?
             .await
             .expect("initialize runtime");
 
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
 
         runtime
             .enqueue_global_consolidation(/*input_watermark*/ 100)
@@ -3048,7 +3048,7 @@ WHERE kind = ? AND job_key = ?
             .await
             .expect("enqueue global consolidation");
 
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         for attempt in 0..3 {
             let claim = runtime
                 .try_claim_global_phase2_job(owner, /*lease_seconds*/ 3_600)
@@ -3113,19 +3113,19 @@ WHERE kind = ? AND job_key = ?
             .await
             .expect("initialize runtime");
 
-        let thread_id_a = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
-        let thread_id_b = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let chat_id_a = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let chat_id_b = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         runtime
             .upsert_thread(&test_thread_metadata(
                 &codex_home,
-                thread_id_a,
+                chat_id_a,
                 codex_home.join("workspace-a"),
             ))
             .await
             .expect("upsert thread a");
         let mut metadata_b =
-            test_thread_metadata(&codex_home, thread_id_b, codex_home.join("workspace-b"));
+            test_thread_metadata(&codex_home, chat_id_b, codex_home.join("workspace-b"));
         metadata_b.git_branch = Some("feature/stage1-b".to_string());
         runtime
             .upsert_thread(&metadata_b)
@@ -3134,7 +3134,7 @@ WHERE kind = ? AND job_key = ?
 
         let claim = runtime
             .try_claim_stage1_job(
-                thread_id_a,
+                chat_id_a,
                 owner,
                 /*source_updated_at*/ 100,
                 /*lease_seconds*/ 3600,
@@ -3149,7 +3149,7 @@ WHERE kind = ? AND job_key = ?
         assert!(
             runtime
                 .mark_stage1_job_succeeded(
-                    thread_id_a,
+                    chat_id_a,
                     ownership_token.as_str(),
                     /*source_updated_at*/ 100,
                     "raw memory a",
@@ -3163,7 +3163,7 @@ WHERE kind = ? AND job_key = ?
 
         let claim = runtime
             .try_claim_stage1_job(
-                thread_id_b,
+                chat_id_b,
                 owner,
                 /*source_updated_at*/ 101,
                 /*lease_seconds*/ 3600,
@@ -3178,7 +3178,7 @@ WHERE kind = ? AND job_key = ?
         assert!(
             runtime
                 .mark_stage1_job_succeeded(
-                    thread_id_b,
+                    chat_id_b,
                     ownership_token.as_str(),
                     /*source_updated_at*/ 101,
                     "raw memory b",
@@ -3195,12 +3195,12 @@ WHERE kind = ? AND job_key = ?
             .await
             .expect("list stage1 outputs for global");
         assert_eq!(outputs.len(), 2);
-        assert_eq!(outputs[0].thread_id, thread_id_b);
+        assert_eq!(outputs[0].chat_id, chat_id_b);
         assert_eq!(outputs[0].rollout_summary, "summary b");
         assert_eq!(outputs[0].rollout_slug.as_deref(), Some("rollout-b"));
         assert_eq!(outputs[0].cwd, codex_home.join("workspace-b"));
         assert_eq!(outputs[0].git_branch.as_deref(), Some("feature/stage1-b"));
-        assert_eq!(outputs[1].thread_id, thread_id_a);
+        assert_eq!(outputs[1].chat_id, chat_id_a);
         assert_eq!(outputs[1].rollout_summary, "summary a");
         assert_eq!(outputs[1].rollout_slug, None);
         assert_eq!(outputs[1].cwd, codex_home.join("workspace-a"));
@@ -3216,14 +3216,14 @@ WHERE kind = ? AND job_key = ?
             .await
             .expect("initialize runtime");
 
-        let thread_id_non_empty =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
-        let thread_id_empty =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let chat_id_non_empty =
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let chat_id_empty =
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
         runtime
             .upsert_thread(&test_thread_metadata(
                 &codex_home,
-                thread_id_non_empty,
+                chat_id_non_empty,
                 codex_home.join("workspace-non-empty"),
             ))
             .await
@@ -3231,7 +3231,7 @@ WHERE kind = ? AND job_key = ?
         runtime
             .upsert_thread(&test_thread_metadata(
                 &codex_home,
-                thread_id_empty,
+                chat_id_empty,
                 codex_home.join("workspace-empty"),
             ))
             .await
@@ -3239,11 +3239,11 @@ WHERE kind = ? AND job_key = ?
 
         sqlx::query(
             r#"
-INSERT INTO stage1_outputs (thread_id, source_updated_at, raw_memory, rollout_summary, generated_at)
+INSERT INTO stage1_outputs (chat_id, source_updated_at, raw_memory, rollout_summary, generated_at)
 VALUES (?, ?, ?, ?, ?)
             "#,
         )
-        .bind(thread_id_non_empty.to_string())
+        .bind(chat_id_non_empty.to_string())
         .bind(100_i64)
         .bind("raw memory")
         .bind("summary")
@@ -3253,11 +3253,11 @@ VALUES (?, ?, ?, ?, ?)
         .expect("insert non-empty stage1 output");
         sqlx::query(
             r#"
-INSERT INTO stage1_outputs (thread_id, source_updated_at, raw_memory, rollout_summary, generated_at)
+INSERT INTO stage1_outputs (chat_id, source_updated_at, raw_memory, rollout_summary, generated_at)
 VALUES (?, ?, ?, ?, ?)
             "#,
         )
-        .bind(thread_id_empty.to_string())
+        .bind(chat_id_empty.to_string())
         .bind(101_i64)
         .bind("")
         .bind("")
@@ -3271,7 +3271,7 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("list stage1 outputs for global");
         assert_eq!(outputs.len(), 1);
-        assert_eq!(outputs[0].thread_id, thread_id_non_empty);
+        assert_eq!(outputs[0].chat_id, chat_id_non_empty);
         assert_eq!(outputs[0].rollout_summary, "summary");
         assert_eq!(outputs[0].cwd, codex_home.join("workspace-non-empty"));
 
@@ -3285,20 +3285,20 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("initialize runtime");
 
-        let thread_id_enabled =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
-        let thread_id_polluted =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let chat_id_enabled =
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let chat_id_polluted =
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
 
-        for (thread_id, workspace) in [
-            (thread_id_enabled, "workspace-enabled"),
-            (thread_id_polluted, "workspace-polluted"),
+        for (chat_id, workspace) in [
+            (chat_id_enabled, "workspace-enabled"),
+            (chat_id_polluted, "workspace-polluted"),
         ] {
             runtime
                 .upsert_thread(&test_thread_metadata(
                     &codex_home,
-                    thread_id,
+                    chat_id,
                     codex_home.join(workspace),
                 ))
                 .await
@@ -3306,7 +3306,7 @@ VALUES (?, ?, ?, ?, ?)
 
             let claim = runtime
                 .try_claim_stage1_job(
-                    thread_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
+                    chat_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
                     /*max_running_jobs*/ 64,
                 )
                 .await
@@ -3318,7 +3318,7 @@ VALUES (?, ?, ?, ?, ?)
             assert!(
                 runtime
                     .mark_stage1_job_succeeded(
-                        thread_id,
+                        chat_id,
                         ownership_token.as_str(),
                         /*source_updated_at*/ 100,
                         "raw memory",
@@ -3332,7 +3332,7 @@ VALUES (?, ?, ?, ?, ?)
         }
 
         runtime
-            .set_thread_memory_mode(thread_id_polluted, "polluted")
+            .set_thread_memory_mode(chat_id_polluted, "polluted")
             .await
             .expect("mark thread polluted");
 
@@ -3341,7 +3341,7 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("list stage1 outputs for global");
         assert_eq!(outputs.len(), 1);
-        assert_eq!(outputs[0].thread_id, thread_id_enabled);
+        assert_eq!(outputs[0].chat_id, chat_id_enabled);
 
         let _ = tokio::fs::remove_dir_all(codex_home).await;
     }
@@ -3353,34 +3353,34 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("initialize runtime");
 
-        let thread_id_a = stable_thread_id("00000000-0000-4000-8000-000000000001");
-        let thread_id_b = stable_thread_id("00000000-0000-4000-8000-000000000002");
-        let thread_id_c = stable_thread_id("00000000-0000-4000-8000-000000000003");
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let chat_id_a = stable_chat_id("00000000-0000-4000-8000-000000000001");
+        let chat_id_b = stable_chat_id("00000000-0000-4000-8000-000000000002");
+        let chat_id_c = stable_chat_id("00000000-0000-4000-8000-000000000003");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
 
-        for (thread_id, workspace) in [
-            (thread_id_a, "workspace-a"),
-            (thread_id_b, "workspace-b"),
-            (thread_id_c, "workspace-c"),
+        for (chat_id, workspace) in [
+            (chat_id_a, "workspace-a"),
+            (chat_id_b, "workspace-b"),
+            (chat_id_c, "workspace-c"),
         ] {
             runtime
                 .upsert_thread(&test_thread_metadata(
                     &codex_home,
-                    thread_id,
+                    chat_id,
                     codex_home.join(workspace),
                 ))
                 .await
                 .expect("upsert thread");
         }
 
-        for (thread_id, updated_at, slug) in [
-            (thread_id_a, 100, Some("rollout-a")),
-            (thread_id_b, 101, Some("rollout-b")),
-            (thread_id_c, 102, Some("rollout-c")),
+        for (chat_id, updated_at, slug) in [
+            (chat_id_a, 100, Some("rollout-a")),
+            (chat_id_b, 101, Some("rollout-b")),
+            (chat_id_c, 102, Some("rollout-c")),
         ] {
             let claim = runtime
                 .try_claim_stage1_job(
-                    thread_id, owner, updated_at, /*lease_seconds*/ 3600,
+                    chat_id, owner, updated_at, /*lease_seconds*/ 3600,
                     /*max_running_jobs*/ 64,
                 )
                 .await
@@ -3392,7 +3392,7 @@ VALUES (?, ?, ?, ?, ?)
             assert!(
                 runtime
                     .mark_stage1_job_succeeded(
-                        thread_id,
+                        chat_id,
                         ownership_token.as_str(),
                         updated_at,
                         &format!("raw-{updated_at}"),
@@ -3422,7 +3422,7 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("list stage1 outputs for global")
             .into_iter()
-            .filter(|output| output.thread_id == thread_id_c || output.thread_id == thread_id_a)
+            .filter(|output| output.chat_id == chat_id_c || output.chat_id == chat_id_a)
             .collect::<Vec<_>>();
         assert!(
             runtime
@@ -3445,17 +3445,17 @@ VALUES (?, ?, ?, ?, ?)
         assert_eq!(
             selection
                 .iter()
-                .map(|output| output.thread_id)
+                .map(|output| output.chat_id)
                 .collect::<Vec<_>>(),
-            vec![thread_id_b, thread_id_c]
+            vec![chat_id_b, chat_id_c]
         );
         let selected_c = selection
             .iter()
-            .find(|output| output.thread_id == thread_id_c)
+            .find(|output| output.chat_id == chat_id_c)
             .expect("thread c should be selected");
         assert_eq!(
             selected_c.rollout_path,
-            codex_home.join(format!("rollout-{thread_id_c}.jsonl"))
+            codex_home.join(format!("rollout-{chat_id_c}.jsonl"))
         );
 
         let _ = tokio::fs::remove_dir_all(codex_home).await;
@@ -3468,25 +3468,25 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("initialize runtime");
 
-        let thread_id_enabled =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
-        let thread_id_polluted =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let chat_id_enabled =
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let chat_id_polluted =
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
 
-        for (thread_id, updated_at) in [(thread_id_enabled, 100), (thread_id_polluted, 101)] {
+        for (chat_id, updated_at) in [(chat_id_enabled, 100), (chat_id_polluted, 101)] {
             runtime
                 .upsert_thread(&test_thread_metadata(
                     &codex_home,
-                    thread_id,
-                    codex_home.join(thread_id.to_string()),
+                    chat_id,
+                    codex_home.join(chat_id.to_string()),
                 ))
                 .await
                 .expect("upsert thread");
 
             let claim = runtime
                 .try_claim_stage1_job(
-                    thread_id, owner, updated_at, /*lease_seconds*/ 3600,
+                    chat_id, owner, updated_at, /*lease_seconds*/ 3600,
                     /*max_running_jobs*/ 64,
                 )
                 .await
@@ -3498,7 +3498,7 @@ VALUES (?, ?, ?, ?, ?)
             assert!(
                 runtime
                     .mark_stage1_job_succeeded(
-                        thread_id,
+                        chat_id,
                         ownership_token.as_str(),
                         updated_at,
                         &format!("raw-{updated_at}"),
@@ -3539,7 +3539,7 @@ VALUES (?, ?, ?, ?, ?)
         );
 
         runtime
-            .set_thread_memory_mode(thread_id_polluted, "polluted")
+            .set_thread_memory_mode(chat_id_polluted, "polluted")
             .await
             .expect("mark thread polluted");
 
@@ -3549,7 +3549,7 @@ VALUES (?, ?, ?, ?, ?)
             .expect("load phase2 input selection");
 
         assert_eq!(selection.len(), 1);
-        assert_eq!(selection[0].thread_id, thread_id_enabled);
+        assert_eq!(selection[0].chat_id, chat_id_enabled);
 
         let _ = tokio::fs::remove_dir_all(codex_home).await;
     }
@@ -3561,12 +3561,12 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("initialize runtime");
 
-        let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let chat_id = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         runtime
             .upsert_thread(&test_thread_metadata(
                 &codex_home,
-                thread_id,
+                chat_id,
                 codex_home.join("workspace"),
             ))
             .await
@@ -3574,7 +3574,7 @@ VALUES (?, ?, ?, ?, ?)
 
         let claim = runtime
             .try_claim_stage1_job(
-                thread_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
+                chat_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
                 /*max_running_jobs*/ 64,
             )
             .await
@@ -3586,7 +3586,7 @@ VALUES (?, ?, ?, ?, ?)
         assert!(
             runtime
                 .mark_stage1_job_succeeded(
-                    thread_id,
+                    chat_id,
                     ownership_token.as_str(),
                     /*source_updated_at*/ 100,
                     "raw",
@@ -3627,7 +3627,7 @@ VALUES (?, ?, ?, ?, ?)
 
         assert!(
             runtime
-                .mark_thread_memory_mode_polluted(thread_id)
+                .mark_thread_memory_mode_polluted(chat_id)
                 .await
                 .expect("mark thread polluted"),
             "thread should transition to polluted"
@@ -3650,12 +3650,12 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("initialize runtime");
 
-        let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let chat_id = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         runtime
             .upsert_thread(&test_thread_metadata(
                 &codex_home,
-                thread_id,
+                chat_id,
                 codex_home.join("workspace"),
             ))
             .await
@@ -3663,7 +3663,7 @@ VALUES (?, ?, ?, ?, ?)
 
         let claim = runtime
             .try_claim_stage1_job(
-                thread_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
+                chat_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
                 /*max_running_jobs*/ 64,
             )
             .await
@@ -3675,7 +3675,7 @@ VALUES (?, ?, ?, ?, ?)
         assert!(
             runtime
                 .mark_stage1_job_succeeded(
-                    thread_id,
+                    chat_id,
                     ownership_token.as_str(),
                     /*source_updated_at*/ 100,
                     "raw",
@@ -3715,14 +3715,14 @@ VALUES (?, ?, ?, ?, ?)
         );
 
         sqlx::query("UPDATE threads SET memory_mode = 'polluted' WHERE id = ?")
-            .bind(thread_id.to_string())
+            .bind(chat_id.to_string())
             .execute(runtime.pool.as_ref())
             .await
             .expect("mark thread polluted before memory enqueue");
 
         assert!(
             !runtime
-                .mark_thread_memory_mode_polluted(thread_id)
+                .mark_thread_memory_mode_polluted(chat_id)
                 .await
                 .expect("mark already polluted thread"),
             "already polluted thread should not report a state transition"
@@ -3745,12 +3745,12 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("initialize runtime");
 
-        let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let chat_id = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         runtime
             .upsert_thread(&test_thread_metadata(
                 &codex_home,
-                thread_id,
+                chat_id,
                 codex_home.join("workspace"),
             ))
             .await
@@ -3758,7 +3758,7 @@ VALUES (?, ?, ?, ?, ?)
 
         let first_claim = runtime
             .try_claim_stage1_job(
-                thread_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
+                chat_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
                 /*max_running_jobs*/ 64,
             )
             .await
@@ -3770,7 +3770,7 @@ VALUES (?, ?, ?, ?, ?)
         assert!(
             runtime
                 .mark_stage1_job_succeeded(
-                    thread_id,
+                    chat_id,
                     first_token.as_str(),
                     /*source_updated_at*/ 100,
                     "raw-100",
@@ -3811,7 +3811,7 @@ VALUES (?, ?, ?, ?, ?)
 
         let refreshed_claim = runtime
             .try_claim_stage1_job(
-                thread_id, owner, /*source_updated_at*/ 101, /*lease_seconds*/ 3600,
+                chat_id, owner, /*source_updated_at*/ 101, /*lease_seconds*/ 3600,
                 /*max_running_jobs*/ 64,
             )
             .await
@@ -3823,7 +3823,7 @@ VALUES (?, ?, ?, ?, ?)
         assert!(
             runtime
                 .mark_stage1_job_succeeded(
-                    thread_id,
+                    chat_id,
                     refreshed_token.as_str(),
                     /*source_updated_at*/ 101,
                     "raw-101",
@@ -3840,14 +3840,14 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("load phase2 input selection");
         assert_eq!(selection.len(), 1);
-        assert_eq!(selection[0].thread_id, thread_id);
+        assert_eq!(selection[0].chat_id, chat_id);
         assert_eq!(selection[0].source_updated_at.timestamp(), 101);
 
         let (selected_for_phase2, selected_for_phase2_source_updated_at) =
             sqlx::query_as::<_, (i64, Option<i64>)>(
-                "SELECT selected_for_phase2, selected_for_phase2_source_updated_at FROM stage1_outputs WHERE thread_id = ?",
+                "SELECT selected_for_phase2, selected_for_phase2_source_updated_at FROM stage1_outputs WHERE chat_id = ?",
             )
-        .bind(thread_id.to_string())
+        .bind(chat_id.to_string())
         .fetch_one(memory_pool(&runtime))
         .await
         .expect("load selected_for_phase2");
@@ -3864,37 +3864,37 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("initialize runtime");
 
-        let thread_id_a = stable_thread_id("00000000-0000-4000-8000-000000000001");
-        let thread_id_b = stable_thread_id("00000000-0000-4000-8000-000000000002");
-        let thread_id_c = stable_thread_id("00000000-0000-4000-8000-000000000003");
-        let thread_id_d = stable_thread_id("00000000-0000-4000-8000-000000000004");
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let chat_id_a = stable_chat_id("00000000-0000-4000-8000-000000000001");
+        let chat_id_b = stable_chat_id("00000000-0000-4000-8000-000000000002");
+        let chat_id_c = stable_chat_id("00000000-0000-4000-8000-000000000003");
+        let chat_id_d = stable_chat_id("00000000-0000-4000-8000-000000000004");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
 
-        for (thread_id, workspace) in [
-            (thread_id_a, "workspace-a"),
-            (thread_id_b, "workspace-b"),
-            (thread_id_c, "workspace-c"),
-            (thread_id_d, "workspace-d"),
+        for (chat_id, workspace) in [
+            (chat_id_a, "workspace-a"),
+            (chat_id_b, "workspace-b"),
+            (chat_id_c, "workspace-c"),
+            (chat_id_d, "workspace-d"),
         ] {
             runtime
                 .upsert_thread(&test_thread_metadata(
                     &codex_home,
-                    thread_id,
+                    chat_id,
                     codex_home.join(workspace),
                 ))
                 .await
                 .expect("upsert thread");
         }
 
-        for (thread_id, updated_at, slug) in [
-            (thread_id_a, 100, Some("rollout-a-100")),
-            (thread_id_b, 101, Some("rollout-b-101")),
-            (thread_id_c, 99, Some("rollout-c-99")),
-            (thread_id_d, 98, Some("rollout-d-98")),
+        for (chat_id, updated_at, slug) in [
+            (chat_id_a, 100, Some("rollout-a-100")),
+            (chat_id_b, 101, Some("rollout-b-101")),
+            (chat_id_c, 99, Some("rollout-c-99")),
+            (chat_id_d, 98, Some("rollout-d-98")),
         ] {
             let claim = runtime
                 .try_claim_stage1_job(
-                    thread_id, owner, updated_at, /*lease_seconds*/ 3600,
+                    chat_id, owner, updated_at, /*lease_seconds*/ 3600,
                     /*max_running_jobs*/ 64,
                 )
                 .await
@@ -3906,7 +3906,7 @@ VALUES (?, ?, ?, ?, ?)
             assert!(
                 runtime
                     .mark_stage1_job_succeeded(
-                        thread_id,
+                        chat_id,
                         ownership_token.as_str(),
                         updated_at,
                         &format!("raw-{updated_at}"),
@@ -3937,9 +3937,9 @@ VALUES (?, ?, ?, ?, ?)
         assert_eq!(
             selected_outputs
                 .iter()
-                .map(|output| output.thread_id)
+                .map(|output| output.chat_id)
                 .collect::<Vec<_>>(),
-            vec![thread_id_b, thread_id_a]
+            vec![chat_id_b, chat_id_a]
         );
         assert!(
             runtime
@@ -3953,14 +3953,14 @@ VALUES (?, ?, ?, ?, ?)
             "phase2 success should persist selected rows"
         );
 
-        for (thread_id, updated_at, slug) in [
-            (thread_id_a, 102, Some("rollout-a-102")),
-            (thread_id_c, 103, Some("rollout-c-103")),
-            (thread_id_d, 104, Some("rollout-d-104")),
+        for (chat_id, updated_at, slug) in [
+            (chat_id_a, 102, Some("rollout-a-102")),
+            (chat_id_c, 103, Some("rollout-c-103")),
+            (chat_id_d, 104, Some("rollout-d-104")),
         ] {
             let claim = runtime
                 .try_claim_stage1_job(
-                    thread_id, owner, updated_at, /*lease_seconds*/ 3600,
+                    chat_id, owner, updated_at, /*lease_seconds*/ 3600,
                     /*max_running_jobs*/ 64,
                 )
                 .await
@@ -3972,7 +3972,7 @@ VALUES (?, ?, ?, ?, ?)
             assert!(
                 runtime
                     .mark_stage1_job_succeeded(
-                        thread_id,
+                        chat_id,
                         ownership_token.as_str(),
                         updated_at,
                         &format!("raw-{updated_at}"),
@@ -3992,9 +3992,9 @@ VALUES (?, ?, ?, ?, ?)
         assert_eq!(
             selection
                 .iter()
-                .map(|output| output.thread_id)
+                .map(|output| output.chat_id)
                 .collect::<Vec<_>>(),
-            vec![thread_id_c, thread_id_d]
+            vec![chat_id_c, chat_id_d]
         );
 
         let _ = tokio::fs::remove_dir_all(codex_home).await;
@@ -4007,12 +4007,12 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("initialize runtime");
 
-        let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let chat_id = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         runtime
             .upsert_thread(&test_thread_metadata(
                 &codex_home,
-                thread_id,
+                chat_id,
                 codex_home.join("workspace"),
             ))
             .await
@@ -4020,7 +4020,7 @@ VALUES (?, ?, ?, ?, ?)
 
         let initial_claim = runtime
             .try_claim_stage1_job(
-                thread_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
+                chat_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
                 /*max_running_jobs*/ 64,
             )
             .await
@@ -4032,7 +4032,7 @@ VALUES (?, ?, ?, ?, ?)
         assert!(
             runtime
                 .mark_stage1_job_succeeded(
-                    thread_id,
+                    chat_id,
                     initial_token.as_str(),
                     /*source_updated_at*/ 100,
                     "raw-100",
@@ -4073,7 +4073,7 @@ VALUES (?, ?, ?, ?, ?)
 
         let refreshed_claim = runtime
             .try_claim_stage1_job(
-                thread_id, owner, /*source_updated_at*/ 101, /*lease_seconds*/ 3600,
+                chat_id, owner, /*source_updated_at*/ 101, /*lease_seconds*/ 3600,
                 /*max_running_jobs*/ 64,
             )
             .await
@@ -4085,7 +4085,7 @@ VALUES (?, ?, ?, ?, ?)
         assert!(
             runtime
                 .mark_stage1_job_succeeded(
-                    thread_id,
+                    chat_id,
                     refreshed_token.as_str(),
                     /*source_updated_at*/ 101,
                     "raw-101",
@@ -4134,13 +4134,13 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("load phase2 input selection after refresh");
         assert_eq!(selection.len(), 1);
-        assert_eq!(selection[0].thread_id, thread_id);
+        assert_eq!(selection[0].chat_id, chat_id);
 
         let (selected_for_phase2, selected_for_phase2_source_updated_at) =
             sqlx::query_as::<_, (i64, Option<i64>)>(
-                "SELECT selected_for_phase2, selected_for_phase2_source_updated_at FROM stage1_outputs WHERE thread_id = ?",
+                "SELECT selected_for_phase2, selected_for_phase2_source_updated_at FROM stage1_outputs WHERE chat_id = ?",
             )
-            .bind(thread_id.to_string())
+            .bind(chat_id.to_string())
             .fetch_one(memory_pool(&runtime))
             .await
             .expect("load selected snapshot after phase2");
@@ -4157,12 +4157,12 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("initialize runtime");
 
-        let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let chat_id = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         runtime
             .upsert_thread(&test_thread_metadata(
                 &codex_home,
-                thread_id,
+                chat_id,
                 codex_home.join("workspace"),
             ))
             .await
@@ -4170,7 +4170,7 @@ VALUES (?, ?, ?, ?, ?)
 
         let initial_claim = runtime
             .try_claim_stage1_job(
-                thread_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
+                chat_id, owner, /*source_updated_at*/ 100, /*lease_seconds*/ 3600,
                 /*max_running_jobs*/ 64,
             )
             .await
@@ -4182,7 +4182,7 @@ VALUES (?, ?, ?, ?, ?)
         assert!(
             runtime
                 .mark_stage1_job_succeeded(
-                    thread_id,
+                    chat_id,
                     initial_token.as_str(),
                     /*source_updated_at*/ 100,
                     "raw-100",
@@ -4213,7 +4213,7 @@ VALUES (?, ?, ?, ?, ?)
 
         let refreshed_claim = runtime
             .try_claim_stage1_job(
-                thread_id, owner, /*source_updated_at*/ 101, /*lease_seconds*/ 3600,
+                chat_id, owner, /*source_updated_at*/ 101, /*lease_seconds*/ 3600,
                 /*max_running_jobs*/ 64,
             )
             .await
@@ -4225,7 +4225,7 @@ VALUES (?, ?, ?, ?, ?)
         assert!(
             runtime
                 .mark_stage1_job_succeeded(
-                    thread_id,
+                    chat_id,
                     refreshed_token.as_str(),
                     /*source_updated_at*/ 101,
                     "raw-101",
@@ -4251,9 +4251,9 @@ VALUES (?, ?, ?, ?, ?)
 
         let (selected_for_phase2, selected_for_phase2_source_updated_at) =
             sqlx::query_as::<_, (i64, Option<i64>)>(
-                "SELECT selected_for_phase2, selected_for_phase2_source_updated_at FROM stage1_outputs WHERE thread_id = ?",
+                "SELECT selected_for_phase2, selected_for_phase2_source_updated_at FROM stage1_outputs WHERE chat_id = ?",
             )
-            .bind(thread_id.to_string())
+            .bind(chat_id.to_string())
             .fetch_one(memory_pool(&runtime))
             .await
             .expect("load selected_for_phase2");
@@ -4277,10 +4277,10 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("initialize runtime");
 
-        let thread_a = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id a");
-        let thread_b = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id b");
-        let missing = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("missing id");
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let thread_a = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id a");
+        let thread_b = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id b");
+        let missing = ChatId::from_string(&Uuid::new_v4().to_string()).expect("missing id");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
 
         runtime
             .upsert_thread(&test_thread_metadata(
@@ -4356,13 +4356,13 @@ VALUES (?, ?, ?, ?, ?)
         assert_eq!(updated_rows, 3);
 
         let row_a =
-            sqlx::query("SELECT usage_count, last_usage FROM stage1_outputs WHERE thread_id = ?")
+            sqlx::query("SELECT usage_count, last_usage FROM stage1_outputs WHERE chat_id = ?")
                 .bind(thread_a.to_string())
                 .fetch_one(memory_pool(&runtime))
                 .await
                 .expect("load stage1 usage row a");
         let row_b =
-            sqlx::query("SELECT usage_count, last_usage FROM stage1_outputs WHERE thread_id = ?")
+            sqlx::query("SELECT usage_count, last_usage FROM stage1_outputs WHERE chat_id = ?")
                 .bind(thread_b.to_string())
                 .fetch_one(memory_pool(&runtime))
                 .await
@@ -4397,12 +4397,12 @@ VALUES (?, ?, ?, ?, ?)
             .expect("initialize runtime");
 
         let now = Utc::now();
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
-        let thread_a = stable_thread_id("00000000-0000-4000-8000-000000000001");
-        let thread_b = stable_thread_id("00000000-0000-4000-8000-000000000002");
-        let thread_c = stable_thread_id("00000000-0000-4000-8000-000000000003");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let thread_a = stable_chat_id("00000000-0000-4000-8000-000000000001");
+        let thread_b = stable_chat_id("00000000-0000-4000-8000-000000000002");
+        let thread_c = stable_chat_id("00000000-0000-4000-8000-000000000003");
 
-        for (thread_id, workspace) in [
+        for (chat_id, workspace) in [
             (thread_a, "workspace-a"),
             (thread_b, "workspace-b"),
             (thread_c, "workspace-c"),
@@ -4410,14 +4410,14 @@ VALUES (?, ?, ?, ?, ?)
             runtime
                 .upsert_thread(&test_thread_metadata(
                     &codex_home,
-                    thread_id,
+                    chat_id,
                     codex_home.join(workspace),
                 ))
                 .await
                 .expect("upsert thread");
         }
 
-        for (thread_id, generated_at, summary) in [
+        for (chat_id, generated_at, summary) in [
             (thread_a, now - Duration::days(3), "summary-a"),
             (thread_b, now - Duration::days(2), "summary-b"),
             (thread_c, now - Duration::days(1), "summary-c"),
@@ -4425,7 +4425,7 @@ VALUES (?, ?, ?, ?, ?)
             let source_updated_at = generated_at.timestamp();
             let claim = runtime
                 .try_claim_stage1_job(
-                    thread_id,
+                    chat_id,
                     owner,
                     source_updated_at,
                     /*lease_seconds*/ 3600,
@@ -4440,7 +4440,7 @@ VALUES (?, ?, ?, ?, ?)
             assert!(
                 runtime
                     .mark_stage1_job_succeeded(
-                        thread_id,
+                        chat_id,
                         ownership_token.as_str(),
                         source_updated_at,
                         &format!("raw-{summary}"),
@@ -4453,17 +4453,17 @@ VALUES (?, ?, ?, ?, ?)
             );
         }
 
-        for (thread_id, usage_count, last_usage) in [
+        for (chat_id, usage_count, last_usage) in [
             (thread_a, 5_i64, now - Duration::days(10)),
             (thread_b, 5_i64, now - Duration::days(1)),
             (thread_c, 1_i64, now - Duration::hours(1)),
         ] {
             sqlx::query(
-                "UPDATE stage1_outputs SET usage_count = ?, last_usage = ? WHERE thread_id = ?",
+                "UPDATE stage1_outputs SET usage_count = ?, last_usage = ? WHERE chat_id = ?",
             )
             .bind(usage_count)
             .bind(last_usage.timestamp())
-            .bind(thread_id.to_string())
+            .bind(chat_id.to_string())
             .execute(memory_pool(&runtime))
             .await
             .expect("update usage metadata");
@@ -4477,7 +4477,7 @@ VALUES (?, ?, ?, ?, ?)
         assert_eq!(
             selection
                 .iter()
-                .map(|output| output.thread_id)
+                .map(|output| output.chat_id)
                 .collect::<Vec<_>>(),
             vec![thread_b]
         );
@@ -4493,12 +4493,12 @@ VALUES (?, ?, ?, ?, ?)
             .expect("initialize runtime");
 
         let now = Utc::now();
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
-        let thread_a = stable_thread_id("00000000-0000-4000-8000-000000000001");
-        let thread_b = stable_thread_id("00000000-0000-4000-8000-000000000002");
-        let thread_c = stable_thread_id("00000000-0000-4000-8000-000000000003");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let thread_a = stable_chat_id("00000000-0000-4000-8000-000000000001");
+        let thread_b = stable_chat_id("00000000-0000-4000-8000-000000000002");
+        let thread_c = stable_chat_id("00000000-0000-4000-8000-000000000003");
 
-        for (thread_id, workspace) in [
+        for (chat_id, workspace) in [
             (thread_a, "workspace-a"),
             (thread_b, "workspace-b"),
             (thread_c, "workspace-c"),
@@ -4506,14 +4506,14 @@ VALUES (?, ?, ?, ?, ?)
             runtime
                 .upsert_thread(&test_thread_metadata(
                     &codex_home,
-                    thread_id,
+                    chat_id,
                     codex_home.join(workspace),
                 ))
                 .await
                 .expect("upsert thread");
         }
 
-        for (thread_id, generated_at, summary) in [
+        for (chat_id, generated_at, summary) in [
             (thread_a, now - Duration::days(40), "summary-a"),
             (thread_b, now - Duration::days(2), "summary-b"),
             (thread_c, now - Duration::days(50), "summary-c"),
@@ -4521,7 +4521,7 @@ VALUES (?, ?, ?, ?, ?)
             let source_updated_at = generated_at.timestamp();
             let claim = runtime
                 .try_claim_stage1_job(
-                    thread_id,
+                    chat_id,
                     owner,
                     source_updated_at,
                     /*lease_seconds*/ 3600,
@@ -4536,7 +4536,7 @@ VALUES (?, ?, ?, ?, ?)
             assert!(
                 runtime
                     .mark_stage1_job_succeeded(
-                        thread_id,
+                        chat_id,
                         ownership_token.as_str(),
                         source_updated_at,
                         &format!("raw-{summary}"),
@@ -4549,17 +4549,17 @@ VALUES (?, ?, ?, ?, ?)
             );
         }
 
-        for (thread_id, usage_count, last_usage) in [
+        for (chat_id, usage_count, last_usage) in [
             (thread_a, Some(9_i64), Some(now - Duration::days(31))),
             (thread_b, None, None),
             (thread_c, Some(1_i64), Some(now - Duration::days(1))),
         ] {
             sqlx::query(
-                "UPDATE stage1_outputs SET usage_count = ?, last_usage = ? WHERE thread_id = ?",
+                "UPDATE stage1_outputs SET usage_count = ?, last_usage = ? WHERE chat_id = ?",
             )
             .bind(usage_count)
             .bind(last_usage.map(|value| value.timestamp()))
-            .bind(thread_id.to_string())
+            .bind(chat_id.to_string())
             .execute(memory_pool(&runtime))
             .await
             .expect("update usage metadata");
@@ -4573,7 +4573,7 @@ VALUES (?, ?, ?, ?, ?)
         assert_eq!(
             selection
                 .iter()
-                .map(|output| output.thread_id)
+                .map(|output| output.chat_id)
                 .collect::<Vec<_>>(),
             vec![thread_b, thread_c]
         );
@@ -4588,33 +4588,33 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("initialize runtime");
 
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         let older_thread =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("older thread id");
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("older thread id");
         let newer_thread =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("newer thread id");
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("newer thread id");
 
-        for (thread_id, workspace) in [
+        for (chat_id, workspace) in [
             (older_thread, "workspace-older"),
             (newer_thread, "workspace-newer"),
         ] {
             runtime
                 .upsert_thread(&test_thread_metadata(
                     &codex_home,
-                    thread_id,
+                    chat_id,
                     codex_home.join(workspace),
                 ))
                 .await
                 .expect("upsert thread");
         }
 
-        for (thread_id, source_updated_at, summary) in [
+        for (chat_id, source_updated_at, summary) in [
             (older_thread, 100_i64, "summary-older"),
             (newer_thread, 200_i64, "summary-newer"),
         ] {
             let claim = runtime
                 .try_claim_stage1_job(
-                    thread_id,
+                    chat_id,
                     owner,
                     source_updated_at,
                     /*lease_seconds*/ 3600,
@@ -4629,7 +4629,7 @@ VALUES (?, ?, ?, ?, ?)
             assert!(
                 runtime
                     .mark_stage1_job_succeeded(
-                        thread_id,
+                        chat_id,
                         ownership_token.as_str(),
                         source_updated_at,
                         &format!("raw-{summary}"),
@@ -4642,13 +4642,13 @@ VALUES (?, ?, ?, ?, ?)
             );
         }
 
-        sqlx::query("UPDATE stage1_outputs SET generated_at = ? WHERE thread_id = ?")
+        sqlx::query("UPDATE stage1_outputs SET generated_at = ? WHERE chat_id = ?")
             .bind(300_i64)
             .bind(older_thread.to_string())
             .execute(memory_pool(&runtime))
             .await
             .expect("update older generated_at");
-        sqlx::query("UPDATE stage1_outputs SET generated_at = ? WHERE thread_id = ?")
+        sqlx::query("UPDATE stage1_outputs SET generated_at = ? WHERE chat_id = ?")
             .bind(150_i64)
             .bind(newer_thread.to_string())
             .execute(memory_pool(&runtime))
@@ -4661,7 +4661,7 @@ VALUES (?, ?, ?, ?, ?)
             .expect("load phase2 input selection");
 
         assert_eq!(selection.len(), 1);
-        assert_eq!(selection[0].thread_id, newer_thread);
+        assert_eq!(selection[0].chat_id, newer_thread);
         assert_eq!(selection[0].source_updated_at.timestamp(), 200);
 
         let _ = tokio::fs::remove_dir_all(codex_home).await;
@@ -4674,15 +4674,15 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("initialize runtime");
 
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
         let stale_unused =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("stale unused");
-        let stale_used = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("stale used");
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("stale unused");
+        let stale_used = ChatId::from_string(&Uuid::new_v4().to_string()).expect("stale used");
         let stale_selected =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("stale selected");
-        let fresh_used = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("fresh used");
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("stale selected");
+        let fresh_used = ChatId::from_string(&Uuid::new_v4().to_string()).expect("fresh used");
 
-        for (thread_id, workspace) in [
+        for (chat_id, workspace) in [
             (stale_unused, "workspace-stale-unused"),
             (stale_used, "workspace-stale-used"),
             (stale_selected, "workspace-stale-selected"),
@@ -4691,7 +4691,7 @@ VALUES (?, ?, ?, ?, ?)
             runtime
                 .upsert_thread(&test_thread_metadata(
                     &codex_home,
-                    thread_id,
+                    chat_id,
                     codex_home.join(workspace),
                 ))
                 .await
@@ -4699,7 +4699,7 @@ VALUES (?, ?, ?, ?, ?)
         }
 
         let now = Utc::now().timestamp();
-        for (thread_id, source_updated_at, summary) in [
+        for (chat_id, source_updated_at, summary) in [
             (
                 stale_unused,
                 now - Duration::days(60).num_seconds(),
@@ -4723,7 +4723,7 @@ VALUES (?, ?, ?, ?, ?)
         ] {
             let claim = runtime
                 .try_claim_stage1_job(
-                    thread_id,
+                    chat_id,
                     owner,
                     source_updated_at,
                     /*lease_seconds*/ 3600,
@@ -4738,7 +4738,7 @@ VALUES (?, ?, ?, ?, ?)
             assert!(
                 runtime
                     .mark_stage1_job_succeeded(
-                        thread_id,
+                        chat_id,
                         ownership_token.as_str(),
                         source_updated_at,
                         &format!("raw-{summary}"),
@@ -4752,7 +4752,7 @@ VALUES (?, ?, ?, ?, ?)
         }
 
         sqlx::query(
-            "UPDATE stage1_outputs SET usage_count = ?, last_usage = ? WHERE thread_id = ?",
+            "UPDATE stage1_outputs SET usage_count = ?, last_usage = ? WHERE chat_id = ?",
         )
         .bind(3_i64)
         .bind(now - Duration::days(40).num_seconds())
@@ -4761,14 +4761,14 @@ VALUES (?, ?, ?, ?, ?)
         .await
         .expect("set stale used metadata");
         sqlx::query(
-            "UPDATE stage1_outputs SET selected_for_phase2 = 1, selected_for_phase2_source_updated_at = source_updated_at WHERE thread_id = ?",
+            "UPDATE stage1_outputs SET selected_for_phase2 = 1, selected_for_phase2_source_updated_at = source_updated_at WHERE chat_id = ?",
         )
         .bind(stale_selected.to_string())
         .execute(memory_pool(&runtime))
         .await
         .expect("mark selected for phase2");
         sqlx::query(
-            "UPDATE stage1_outputs SET usage_count = ?, last_usage = ? WHERE thread_id = ?",
+            "UPDATE stage1_outputs SET usage_count = ?, last_usage = ? WHERE chat_id = ?",
         )
         .bind(8_i64)
         .bind(now - Duration::days(2).num_seconds())
@@ -4790,7 +4790,7 @@ VALUES (?, ?, ?, ?, ?)
         assert_eq!(pruned, 2);
 
         let remaining = sqlx::query_scalar::<_, String>(
-            "SELECT thread_id FROM stage1_outputs ORDER BY thread_id",
+            "SELECT chat_id FROM stage1_outputs ORDER BY chat_id",
         )
         .fetch_all(memory_pool(&runtime))
         .await
@@ -4816,12 +4816,12 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("initialize runtime");
 
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
-        let thread_a = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread a");
-        let thread_b = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread b");
-        let thread_c = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread c");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let thread_a = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread a");
+        let thread_b = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread b");
+        let thread_c = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread c");
 
-        for (thread_id, workspace) in [
+        for (chat_id, workspace) in [
             (thread_a, "workspace-a"),
             (thread_b, "workspace-b"),
             (thread_c, "workspace-c"),
@@ -4829,7 +4829,7 @@ VALUES (?, ?, ?, ?, ?)
             runtime
                 .upsert_thread(&test_thread_metadata(
                     &codex_home,
-                    thread_id,
+                    chat_id,
                     codex_home.join(workspace),
                 ))
                 .await
@@ -4837,14 +4837,14 @@ VALUES (?, ?, ?, ?, ?)
         }
 
         let now = Utc::now().timestamp();
-        for (thread_id, source_updated_at, summary) in [
+        for (chat_id, source_updated_at, summary) in [
             (thread_a, now - Duration::days(60).num_seconds(), "stale-a"),
             (thread_b, now - Duration::days(50).num_seconds(), "stale-b"),
             (thread_c, now - Duration::days(40).num_seconds(), "stale-c"),
         ] {
             let claim = runtime
                 .try_claim_stage1_job(
-                    thread_id,
+                    chat_id,
                     owner,
                     source_updated_at,
                     /*lease_seconds*/ 3600,
@@ -4859,7 +4859,7 @@ VALUES (?, ?, ?, ?, ?)
             assert!(
                 runtime
                     .mark_stage1_job_succeeded(
-                        thread_id,
+                        chat_id,
                         ownership_token.as_str(),
                         source_updated_at,
                         &format!("raw-{summary}"),
@@ -4894,9 +4894,9 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("initialize runtime");
 
-        let thread_a = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id a");
-        let thread_b = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("thread id b");
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
+        let thread_a = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id a");
+        let thread_b = ChatId::from_string(&Uuid::new_v4().to_string()).expect("thread id b");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner id");
 
         runtime
             .upsert_thread(&test_thread_metadata(
@@ -4994,8 +4994,8 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("enqueue global consolidation");
 
-        let owner_a = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner a");
-        let owner_b = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner b");
+        let owner_a = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner a");
+        let owner_b = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner b");
 
         let running_claim = runtime
             .try_claim_global_phase2_job(owner_a, /*lease_seconds*/ 3600)
@@ -5022,8 +5022,8 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("initialize runtime");
 
-        let owner_a = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner a");
-        let owner_b = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner b");
+        let owner_a = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner a");
+        let owner_b = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner b");
 
         let claim = runtime
             .try_claim_global_phase2_job(owner_a, /*lease_seconds*/ 3_600)
@@ -5077,8 +5077,8 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("enqueue global consolidation");
 
-        let owner_a = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner a");
-        let owner_b = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner b");
+        let owner_a = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner a");
+        let owner_b = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner b");
 
         let initial_claim = runtime
             .try_claim_global_phase2_job(owner_a, /*lease_seconds*/ 3600)
@@ -5151,7 +5151,7 @@ VALUES (?, ?, ?, ?, ?)
             .enqueue_global_consolidation(/*input_watermark*/ 500)
             .await
             .expect("enqueue initial consolidation");
-        let owner_a = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner a");
+        let owner_a = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner a");
         let claim_a = runtime
             .try_claim_global_phase2_job(owner_a, /*lease_seconds*/ 3_600)
             .await
@@ -5184,7 +5184,7 @@ VALUES (?, ?, ?, ?, ?)
             .expect("enqueue lower-watermark consolidation");
 
         age_phase2_success_beyond_cooldown(&runtime).await;
-        let owner_b = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner b");
+        let owner_b = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner b");
         let claim_b = runtime
             .try_claim_global_phase2_job(owner_b, /*lease_seconds*/ 3_600)
             .await
@@ -5216,7 +5216,7 @@ VALUES (?, ?, ?, ?, ?)
             .await
             .expect("enqueue global consolidation");
 
-        let owner = ThreadId::from_string(&Uuid::new_v4().to_string()).expect("owner");
+        let owner = ChatId::from_string(&Uuid::new_v4().to_string()).expect("owner");
         let claim = runtime
             .try_claim_global_phase2_job(owner, /*lease_seconds*/ 3_600)
             .await
@@ -5260,7 +5260,7 @@ VALUES (?, ?, ?, ?, ?)
         );
 
         let claim = runtime
-            .try_claim_global_phase2_job(ThreadId::new(), /*lease_seconds*/ 3_600)
+            .try_claim_global_phase2_job(ChatId::new(), /*lease_seconds*/ 3_600)
             .await
             .expect("claim after fallback failure");
         assert_eq!(claim, Phase2JobClaimOutcome::SkippedRetryUnavailable);

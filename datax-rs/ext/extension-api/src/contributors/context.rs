@@ -1,4 +1,4 @@
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 
 use crate::ExtensionData;
 
@@ -6,9 +6,9 @@ use crate::ExtensionData;
 #[derive(Clone, Copy)]
 pub struct TurnContextContributionInput<'a> {
     /// Stable host-owned thread identifier.
-    pub thread_id: ThreadId,
+    pub chat_id: ChatId,
     /// Stable host-owned turn identifier.
-    pub turn_id: &'a str,
+    pub interaction_id: &'a str,
     /// Store scoped to the host session runtime.
     pub session_store: &'a ExtensionData,
     /// Store scoped to this thread runtime.

@@ -117,7 +117,7 @@ fn now_unix_seconds() -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use sha2::Digest;
     use sha2::Sha256;
     use tempfile::TempDir;
@@ -128,7 +128,7 @@ mod tests {
         let codex_home = root.path().join("datax-home");
         let source_path = root.path().join("session.jsonl");
         std::fs::write(&source_path, "{}\n").expect("session");
-        ledger::record_imported_session(&codex_home, &source_path, ThreadId::new())
+        ledger::record_imported_session(&codex_home, &source_path, ChatId::new())
             .expect("record import");
 
         let pending =

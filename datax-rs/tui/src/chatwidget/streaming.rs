@@ -280,7 +280,7 @@ impl ChatWidget {
         }
         if !from_replay
             && let Some(cwd) = parsed.last_created_branch_cwd()
-            && let Some(thread_id) = self.thread_id
+            && let Some(chat_id) = self.chat_id
             && let Some(runner) = self.workspace_command_runner.clone()
         {
             let cwd = PathBuf::from(cwd);
@@ -289,7 +289,7 @@ impl ChatWidget {
                 if let Some(branch) =
                     crate::branch_summary::current_branch_name(runner.as_ref(), &cwd).await
                 {
-                    tx.send(AppEvent::SyncThreadGitBranch { thread_id, branch });
+                    tx.send(AppEvent::SyncThreadGitBranch { chat_id, branch });
                 }
             });
         }

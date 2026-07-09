@@ -35,7 +35,7 @@ use datax_protocol::protocol::ExecCommandBeginEvent;
 use datax_protocol::protocol::ExecCommandEndEvent;
 use datax_protocol::protocol::ExecCommandSource;
 use datax_protocol::protocol::ExecCommandStatus;
-use datax_protocol::protocol::TurnStartedEvent;
+use datax_protocol::protocol::InteractionStartedEvent;
 use datax_sandboxing::SandboxType;
 use datax_shell_command::parse_command::parse_command;
 
@@ -49,11 +49,11 @@ const USER_SHELL_TIMEOUT_MS: u64 = 60 * 60 * 1000; // 1 hour
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum UserShellCommandMode {
-    /// Executes as an independent turn lifecycle (emits TurnStarted/TurnComplete
+    /// Executes as an independent turn lifecycle (emits InteractionStarted/InteractionComplete
     /// via task lifecycle plumbing).
     StandaloneTurn,
     /// Executes while another turn is already active. This mode must not emit a
-    /// second TurnStarted/TurnComplete pair for the same active turn.
+    /// second InteractionStarted/InteractionComplete pair for the same active turn.
     ActiveTurnAuxiliary,
 }
 
@@ -110,14 +110,14 @@ pub(crate) async fn execute_user_shell_command(
 
     if mode == UserShellCommandMode::StandaloneTurn {
         // Auxiliary mode runs within an existing active turn. That turn already
-        // emitted TurnStarted, so emitting another TurnStarted here would create
+        // emitted InteractionStarted, so emitting another InteractionStarted here would create
         // duplicate turn lifecycle events and confuse clients.
-        // TODO(ccunningham): After TurnStarted, emit model-visible turn context diffs for
-        // standalone lifecycle tasks (for example /shell, and review once it emits TurnStarted).
+        // TODO(ccunningham): After InteractionStarted, emit model-visible turn context diffs for
+        // standalone lifecycle tasks (for example /shell, and review once it emits InteractionStarted).
         // `/compact` is an intentional exception because compaction requests should not include
         // freshly reinjected context before the summary/replacement history is applied.
-        let event = EventMsg::TurnStarted(TurnStartedEvent {
-            turn_id: turn_context.sub_id.clone(),
+        let event = EventMsg::InteractionStarted(InteractionStartedEvent {
+            interaction_id: turn_context.sub_id.clone(),
             trace_id: turn_context.trace_id.clone(),
             started_at: turn_context.turn_timing_state.started_at_unix_secs().await,
             model_context_window: turn_context.model_context_window(),
@@ -159,7 +159,7 @@ pub(crate) async fn execute_user_shell_command(
     let shell_snapshot_location = turn_environment.shell_snapshot(&cwd);
     let mut exec_env_map = create_env(
         &turn_context.config.permissions.shell_environment_policy,
-        Some(session.thread_id),
+        Some(session.chat_id),
     );
     if exec_env_map.contains_key(PROXY_ACTIVE_ENV_KEY) {
         strip_managed_proxy_env(&mut exec_env_map);
@@ -186,7 +186,7 @@ pub(crate) async fn execute_user_shell_command(
             EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
                 call_id: call_id.clone(),
                 process_id: None,
-                turn_id: turn_context.sub_id.clone(),
+                interaction_id: turn_context.sub_id.clone(),
                 started_at_ms: now_unix_timestamp_ms(),
                 command: display_command.clone(),
                 cwd: cwd.clone().into(),
@@ -263,7 +263,7 @@ pub(crate) async fn execute_user_shell_command(
                     EventMsg::ExecCommandEnd(ExecCommandEndEvent {
                         call_id,
                         process_id: None,
-                        turn_id: turn_context.sub_id.clone(),
+                        interaction_id: turn_context.sub_id.clone(),
                         completed_at_ms: now_unix_timestamp_ms(),
                         command: display_command.clone(),
                         cwd: cwd.clone().into(),
@@ -288,7 +288,7 @@ pub(crate) async fn execute_user_shell_command(
                     EventMsg::ExecCommandEnd(ExecCommandEndEvent {
                         call_id: call_id.clone(),
                         process_id: None,
-                        turn_id: turn_context.sub_id.clone(),
+                        interaction_id: turn_context.sub_id.clone(),
                         completed_at_ms: now_unix_timestamp_ms(),
                         command: display_command.clone(),
                         cwd: cwd.clone().into(),
@@ -333,7 +333,7 @@ pub(crate) async fn execute_user_shell_command(
                     EventMsg::ExecCommandEnd(ExecCommandEndEvent {
                         call_id,
                         process_id: None,
-                        turn_id: turn_context.sub_id.clone(),
+                        interaction_id: turn_context.sub_id.clone(),
                         completed_at_ms: now_unix_timestamp_ms(),
                         command: display_command,
                         cwd: cwd.into(),

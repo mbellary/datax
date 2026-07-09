@@ -178,7 +178,7 @@ async fn request_dynamic_tool(
 ) -> Option<DynamicToolResponse> {
     let namespace = tool_name.namespace;
     let tool = tool_name.name;
-    let turn_id = turn_context.sub_id.clone();
+    let interaction_id = turn_context.sub_id.clone();
     let (tx_response, rx_response) = oneshot::channel();
     let event_id = call_id.clone();
     let prev_entry = {
@@ -199,7 +199,7 @@ async fn request_dynamic_tool(
     let started_at_ms = now_unix_timestamp_ms();
     let event = EventMsg::DynamicToolCallRequest(DynamicToolCallRequest {
         call_id: call_id.clone(),
-        turn_id: turn_id.clone(),
+        interaction_id: interaction_id.clone(),
         started_at_ms,
         namespace: namespace.clone(),
         tool: tool.clone(),
@@ -211,7 +211,7 @@ async fn request_dynamic_tool(
     let response_event = match &response {
         Some(response) => EventMsg::DynamicToolCallResponse(DynamicToolCallResponseEvent {
             call_id,
-            turn_id,
+            interaction_id,
             completed_at_ms: now_unix_timestamp_ms(),
             namespace,
             tool,
@@ -223,7 +223,7 @@ async fn request_dynamic_tool(
         }),
         None => EventMsg::DynamicToolCallResponse(DynamicToolCallResponseEvent {
             call_id,
-            turn_id,
+            interaction_id,
             completed_at_ms: now_unix_timestamp_ms(),
             namespace,
             tool,

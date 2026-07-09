@@ -5,7 +5,7 @@ use chrono::DateTime;
 use chrono::NaiveDateTime;
 use chrono::Timelike;
 use chrono::Utc;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::CompactedItem;
 use datax_protocol::protocol::GitInfo;
 use datax_protocol::protocol::RolloutItem;
@@ -27,7 +27,7 @@ use uuid::Uuid;
 async fn extract_metadata_from_rollout_uses_session_meta() {
     let dir = tempdir().expect("tempdir");
     let uuid = Uuid::new_v4();
-    let id = ThreadId::from_string(&uuid.to_string()).expect("thread id");
+    let id = ChatId::from_string(&uuid.to_string()).expect("thread id");
     let path = dir
         .path()
         .join(format!("rollout-2026-01-27T12-34-56-{uuid}.jsonl"));
@@ -36,7 +36,7 @@ async fn extract_metadata_from_rollout_uses_session_meta() {
         session_id: id.into(),
         id,
         forked_from_id: None,
-        parent_thread_id: None,
+        parent_chat_id: None,
         timestamp: "2026-01-27T12:34:56Z".to_string(),
         cwd: dir.path().to_path_buf(),
         originator: "cli".to_string(),
@@ -83,7 +83,7 @@ async fn extract_metadata_from_rollout_uses_session_meta() {
 async fn extract_metadata_from_rollout_returns_latest_memory_mode() {
     let dir = tempdir().expect("tempdir");
     let uuid = Uuid::new_v4();
-    let id = ThreadId::from_string(&uuid.to_string()).expect("thread id");
+    let id = ChatId::from_string(&uuid.to_string()).expect("thread id");
     let path = dir
         .path()
         .join(format!("rollout-2026-01-27T12-34-56-{uuid}.jsonl"));
@@ -92,7 +92,7 @@ async fn extract_metadata_from_rollout_returns_latest_memory_mode() {
         session_id: id.into(),
         id,
         forked_from_id: None,
-        parent_thread_id: None,
+        parent_chat_id: None,
         timestamp: "2026-01-27T12:34:56Z".to_string(),
         cwd: dir.path().to_path_buf(),
         originator: "cli".to_string(),
@@ -169,7 +169,7 @@ fn builder_from_items_falls_back_to_filename() {
         .with_nanosecond(0)
         .expect("nanosecond");
     let expected = ThreadMetadataBuilder::new(
-        ThreadId::from_string(&uuid.to_string()).expect("thread id"),
+        ChatId::from_string(&uuid.to_string()).expect("thread id"),
         path,
         created_at,
         SessionSource::default(),
@@ -215,8 +215,8 @@ async fn backfill_sessions_resumes_from_watermark_and_marks_complete() {
 
     backfill_sessions(runtime.as_ref(), codex_home.as_path(), "test-provider").await;
 
-    let first_id = ThreadId::from_string(&first_uuid.to_string()).expect("first thread id");
-    let second_id = ThreadId::from_string(&second_uuid.to_string()).expect("second thread id");
+    let first_id = ChatId::from_string(&first_uuid.to_string()).expect("first thread id");
+    let second_id = ChatId::from_string(&second_uuid.to_string()).expect("second thread id");
     assert_eq!(
         runtime
             .get_thread(first_id)
@@ -267,7 +267,7 @@ async fn backfill_sessions_preserves_existing_git_branch_and_fills_missing_git_f
     let runtime = datax_state::StateRuntime::init(codex_home.clone(), "test-provider".to_string())
         .await
         .expect("initialize runtime");
-    let thread_id = ThreadId::from_string(&thread_uuid.to_string()).expect("thread id");
+    let chat_id = ChatId::from_string(&thread_uuid.to_string()).expect("thread id");
     let mut existing = extract_metadata_from_rollout(&rollout_path, "test-provider")
         .await
         .expect("extract")
@@ -283,7 +283,7 @@ async fn backfill_sessions_preserves_existing_git_branch_and_fills_missing_git_f
     backfill_sessions(runtime.as_ref(), codex_home.as_path(), "test-provider").await;
 
     let persisted = runtime
-        .get_thread(thread_id)
+        .get_thread(chat_id)
         .await
         .expect("get thread")
         .expect("thread exists");
@@ -316,9 +316,9 @@ async fn backfill_sessions_normalizes_cwd_before_upsert() {
 
     backfill_sessions(runtime.as_ref(), codex_home.as_path(), "test-provider").await;
 
-    let thread_id = ThreadId::from_string(&thread_uuid.to_string()).expect("thread id");
+    let chat_id = ChatId::from_string(&thread_uuid.to_string()).expect("thread id");
     let stored = runtime
-        .get_thread(thread_id)
+        .get_thread(chat_id)
         .await
         .expect("get thread")
         .expect("thread should be backfilled");
@@ -352,7 +352,7 @@ fn write_rollout_in_sessions_with_cwd(
     cwd: PathBuf,
     git: Option<GitInfo>,
 ) -> PathBuf {
-    let id = ThreadId::from_string(&thread_uuid.to_string()).expect("thread id");
+    let id = ChatId::from_string(&thread_uuid.to_string()).expect("thread id");
     let sessions_dir = codex_home.join("sessions");
     std::fs::create_dir_all(sessions_dir.as_path()).expect("create sessions dir");
     let path = sessions_dir.join(format!("rollout-{filename_ts}-{thread_uuid}.jsonl"));
@@ -360,7 +360,7 @@ fn write_rollout_in_sessions_with_cwd(
         session_id: id.into(),
         id,
         forked_from_id: None,
-        parent_thread_id: None,
+        parent_chat_id: None,
         timestamp: event_ts.to_string(),
         cwd,
         originator: "cli".to_string(),

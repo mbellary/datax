@@ -51,7 +51,7 @@ pub fn replay_bundle(bundle_dir: impl AsRef<Path>) -> Result<RolloutTrace> {
             REDUCED_TRACE_SCHEMA_VERSION,
             manifest.trace_id,
             manifest.rollout_id,
-            manifest.root_thread_id,
+            manifest.root_chat_id,
             manifest.started_at_unix_ms,
         ),
         bundle_dir: bundle_dir.to_path_buf(),
@@ -157,58 +157,58 @@ impl TraceReducer {
         match event.payload {
             RawTraceEventPayload::RolloutStarted {
                 trace_id,
-                root_thread_id,
+                root_chat_id,
             } => {
                 self.rollout.trace_id = trace_id;
-                self.rollout.root_thread_id = root_thread_id;
+                self.rollout.root_chat_id = root_chat_id;
             }
             RawTraceEventPayload::RolloutEnded { status } => {
                 self.rollout.status = status;
                 self.rollout.ended_at_unix_ms = Some(event.wall_time_unix_ms);
             }
             RawTraceEventPayload::ThreadStarted {
-                thread_id,
+                chat_id,
                 agent_path,
                 metadata_payload,
             } => {
                 self.start_thread(
                     event.seq,
                     event.wall_time_unix_ms,
-                    thread_id,
+                    chat_id,
                     agent_path,
                     metadata_payload,
                 )?;
             }
-            RawTraceEventPayload::ThreadEnded { thread_id, status } => {
-                self.end_thread(event.seq, event.wall_time_unix_ms, thread_id, status)?;
+            RawTraceEventPayload::ThreadEnded { chat_id, status } => {
+                self.end_thread(event.seq, event.wall_time_unix_ms, chat_id, status)?;
             }
-            RawTraceEventPayload::CodexTurnStarted {
-                codex_turn_id,
-                thread_id,
+            RawTraceEventPayload::CodexInteractionStarted {
+                codex_interaction_id,
+                chat_id,
             } => {
                 self.start_codex_turn(
                     event.seq,
                     event.wall_time_unix_ms,
-                    codex_turn_id,
-                    thread_id,
+                    codex_interaction_id,
+                    chat_id,
                 )?;
             }
             RawTraceEventPayload::CodexTurnEnded {
-                codex_turn_id,
+                codex_interaction_id,
                 status,
             } => {
                 self.end_codex_turn(
                     event.seq,
                     event.wall_time_unix_ms,
-                    event.thread_id,
-                    codex_turn_id,
+                    event.chat_id,
+                    codex_interaction_id,
                     status,
                 )?;
             }
             RawTraceEventPayload::InferenceStarted {
                 inference_call_id,
-                thread_id,
-                codex_turn_id,
+                chat_id,
+                codex_interaction_id,
                 model,
                 provider_name,
                 request_payload,
@@ -218,8 +218,8 @@ impl TraceReducer {
                     event.wall_time_unix_ms,
                     StartedInferenceCall {
                         inference_call_id,
-                        thread_id,
-                        codex_turn_id,
+                        chat_id,
+                        codex_interaction_id,
                         model,
                         provider_name,
                         request_payload,
@@ -248,8 +248,8 @@ impl TraceReducer {
                 self.start_tool_call(
                     event.seq,
                     event.wall_time_unix_ms,
-                    event.thread_id,
-                    event.codex_turn_id,
+                    event.chat_id,
+                    event.codex_interaction_id,
                     ToolCallStarted {
                         tool_call_id,
                         model_visible_call_id,
@@ -309,24 +309,24 @@ impl TraceReducer {
                 model_visible_call_id,
                 source_js,
             } => {
-                let thread_id = self.code_cell_event_thread_id(
-                    event.thread_id,
-                    event.codex_turn_id.as_deref(),
+                let chat_id = self.code_cell_event_chat_id(
+                    event.chat_id,
+                    event.codex_interaction_id.as_deref(),
                     &runtime_cell_id,
                     "code cell start",
                 )?;
                 let reduced_code_cell_id =
                     self.reduced_code_cell_id_for_model_visible_call(&model_visible_call_id);
                 self.record_runtime_code_cell_id(
-                    &thread_id,
+                    &chat_id,
                     &runtime_cell_id,
                     &reduced_code_cell_id,
                 )?;
                 self.start_or_queue_code_cell(PendingCodeCellStart {
                     seq: event.seq,
                     wall_time_unix_ms: event.wall_time_unix_ms,
-                    thread_id,
-                    codex_turn_id: event.codex_turn_id,
+                    chat_id,
+                    codex_interaction_id: event.codex_interaction_id,
                     started: StartedCodeCell {
                         code_cell_id: reduced_code_cell_id,
                         runtime_cell_id,
@@ -340,14 +340,14 @@ impl TraceReducer {
                 status,
                 ..
             } => {
-                let thread_id = self.code_cell_event_thread_id(
-                    event.thread_id,
-                    event.codex_turn_id.as_deref(),
+                let chat_id = self.code_cell_event_chat_id(
+                    event.chat_id,
+                    event.codex_interaction_id.as_deref(),
                     &runtime_cell_id,
                     "code cell initial response",
                 )?;
                 let code_cell_id = self.code_cell_id_for_runtime_cell_id(
-                    &thread_id,
+                    &chat_id,
                     &runtime_cell_id,
                     "code cell initial response",
                 )?;
@@ -364,14 +364,14 @@ impl TraceReducer {
                 status,
                 ..
             } => {
-                let thread_id = self.code_cell_event_thread_id(
-                    event.thread_id,
-                    event.codex_turn_id.as_deref(),
+                let chat_id = self.code_cell_event_chat_id(
+                    event.chat_id,
+                    event.codex_interaction_id.as_deref(),
                     &runtime_cell_id,
                     "code cell end",
                 )?;
                 let code_cell_id = self.code_cell_id_for_runtime_cell_id(
-                    &thread_id,
+                    &chat_id,
                     &runtime_cell_id,
                     "code cell end",
                 )?;
@@ -385,8 +385,8 @@ impl TraceReducer {
             RawTraceEventPayload::CompactionRequestStarted {
                 compaction_id,
                 compaction_request_id,
-                thread_id,
-                codex_turn_id,
+                chat_id,
+                codex_interaction_id,
                 model,
                 provider_name,
                 request_payload,
@@ -397,8 +397,8 @@ impl TraceReducer {
                     StartedCompactionRequest {
                         compaction_id,
                         compaction_request_id,
-                        thread_id,
-                        codex_turn_id,
+                        chat_id,
+                        codex_interaction_id,
                         model,
                         provider_name,
                         request_payload,
@@ -437,36 +437,36 @@ impl TraceReducer {
                 compaction_id,
                 checkpoint_payload,
             } => {
-                let Some(thread_id) = event.thread_id else {
+                let Some(chat_id) = event.chat_id else {
                     bail!("compaction installed event {compaction_id} did not include a thread id");
                 };
-                let Some(codex_turn_id) = event.codex_turn_id else {
+                let Some(codex_interaction_id) = event.codex_interaction_id else {
                     bail!(
                         "compaction installed event {compaction_id} did not include a codex turn id"
                     );
                 };
                 self.reduce_compaction_installed_event(
                     event.wall_time_unix_ms,
-                    thread_id,
-                    codex_turn_id,
+                    chat_id,
+                    codex_interaction_id,
                     compaction_id,
                     checkpoint_payload,
                 )?;
             }
             RawTraceEventPayload::AgentResultObserved {
                 edge_id,
-                child_thread_id,
-                child_codex_turn_id,
-                parent_thread_id,
+                child_chat_id,
+                child_codex_interaction_id,
+                parent_chat_id,
                 message,
                 carried_payload,
             } => {
                 self.queue_agent_result_interaction_edge(ObservedAgentResultEdge {
                     wall_time_unix_ms: event.wall_time_unix_ms,
                     edge_id,
-                    child_thread_id,
-                    child_codex_turn_id,
-                    parent_thread_id,
+                    child_chat_id,
+                    child_codex_interaction_id,
+                    parent_chat_id,
                     message,
                     carried_payload,
                 })?;

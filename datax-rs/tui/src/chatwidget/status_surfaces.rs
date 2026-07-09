@@ -97,7 +97,7 @@ impl ChatWidget {
     }
 
     fn warn_invalid_status_line_items_once(&mut self, invalid_items: &[String]) {
-        if self.thread_id.is_some()
+        if self.chat_id.is_some()
             && !invalid_items.is_empty()
             && self
                 .status_line_invalid_items_warned
@@ -118,7 +118,7 @@ impl ChatWidget {
     }
 
     fn warn_invalid_terminal_title_items_once(&mut self, invalid_items: &[String]) {
-        if self.thread_id.is_some()
+        if self.chat_id.is_some()
             && !invalid_items.is_empty()
             && self
                 .terminal_title_invalid_items_warned
@@ -726,7 +726,7 @@ impl ChatWidget {
                 "{} out",
                 format_tokens_compact(self.status_line_total_usage().output_tokens)
             )),
-            StatusLineItem::SessionId => self.thread_id.map(|id| id.to_string()),
+            StatusLineItem::SessionId => self.chat_id.map(|id| id.to_string()),
             StatusLineItem::FastMode => Some(
                 if self.current_service_tier() == Some(ServiceTier::Fast.request_value()) {
                     "Fast on".to_string()
@@ -736,11 +736,11 @@ impl ChatWidget {
             ),
             StatusLineItem::RawOutput => self.raw_output_mode().then(|| "raw output".to_string()),
             StatusLineItem::ThreadTitle => self.thread_name.as_ref().map_or_else(
-                || self.thread_id.map(|id| id.to_string()),
+                || self.chat_id.map(|id| id.to_string()),
                 |name| {
                     let trimmed = name.trim();
                     if trimmed.is_empty() {
-                        self.thread_id.map(|id| id.to_string())
+                        self.chat_id.map(|id| id.to_string())
                     } else {
                         Some(trimmed.to_string())
                     }

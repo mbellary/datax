@@ -88,7 +88,7 @@ impl AgentControl {
         config: Config,
         initial_operation: Op,
         session_source: Option<SessionSource>,
-    ) -> CodexResult<ThreadId> {
+    ) -> CodexResult<ChatId> {
         let spawned_agent = Box::pin(self.spawn_agent_internal(
             config,
             initial_operation,
@@ -96,7 +96,7 @@ impl AgentControl {
             SpawnAgentOptions::default(),
         ))
         .await?;
-        Ok(spawned_agent.thread_id)
+        Ok(spawned_agent.chat_id)
     }
 
     /// Spawn an agent thread with some metadata.
@@ -114,48 +114,48 @@ impl AgentControl {
     pub(crate) async fn ensure_v2_agent_loaded(
         &self,
         config: Config,
-        thread_id: ThreadId,
+        chat_id: ChatId,
     ) -> CodexResult<()> {
         let state = self.upgrade()?;
-        if state.get_thread(thread_id).await.is_ok() {
-            self.touch_loaded_v2_residency(&state, thread_id).await;
+        if state.get_thread(chat_id).await.is_ok() {
+            self.touch_loaded_v2_residency(&state, chat_id).await;
             return Ok(());
         }
-        if self.state.agent_metadata_for_thread(thread_id).is_none() {
-            return Err(CodexErr::ThreadNotFound(thread_id));
+        if self.state.agent_metadata_for_thread(chat_id).is_none() {
+            return Err(CodexErr::ThreadNotFound(chat_id));
         }
 
         let stored_thread = state
             .read_stored_thread(ReadThreadParams {
-                thread_id,
+                chat_id,
                 include_archived: true,
                 include_history: true,
             })
             .await?;
         let stored_source = stored_thread.source.clone();
-        let stored_parent_thread_id = stored_thread.parent_thread_id;
+        let stored_parent_chat_id = stored_thread.parent_chat_id;
         let history = stored_thread
             .history
-            .ok_or(CodexErr::ThreadNotFound(thread_id))?
+            .ok_or(CodexErr::ThreadNotFound(chat_id))?
             .items;
         let initial_history = InitialHistory::Resumed(ResumedHistory {
-            conversation_id: thread_id,
+            conversation_id: chat_id,
             history,
             rollout_path: stored_thread.rollout_path,
         });
         if initial_history.get_multi_agent_version() != Some(MultiAgentVersion::V2) {
-            return Err(CodexErr::ThreadNotFound(thread_id));
+            return Err(CodexErr::ThreadNotFound(chat_id));
         }
         let residency_slot = self
-            .reserve_v2_residency_slot(&state, &config, Some(thread_id))
+            .reserve_v2_residency_slot(&state, &config, Some(chat_id))
             .await?;
 
         let (session_source, _) = initial_history
             .get_resumed_session_sources()
             .unwrap_or((stored_source, None));
-        let parent_thread_id = initial_history
-            .get_resumed_parent_thread_id()
-            .or(stored_parent_thread_id);
+        let parent_chat_id = initial_history
+            .get_resumed_parent_chat_id()
+            .or(stored_parent_chat_id);
         let inherited_environments = self
             .inherited_environments_for_source(&state, Some(&session_source))
             .await;
@@ -169,21 +169,21 @@ impl AgentControl {
                 initial_history,
                 agent_control: self.clone(),
                 session_source,
-                parent_thread_id,
+                parent_chat_id,
                 inherited_environments,
                 inherited_exec_policy,
             })
             .await
         {
             Ok(reloaded_thread) => {
-                residency_slot.commit(reloaded_thread.thread_id);
-                state.notify_thread_created(reloaded_thread.thread_id);
+                residency_slot.commit(reloaded_thread.chat_id);
+                state.notify_thread_created(reloaded_thread.chat_id);
                 Ok(())
             }
             Err(err) => {
-                if state.get_thread(thread_id).await.is_ok() {
+                if state.get_thread(chat_id).await.is_ok() {
                     drop(residency_slot);
-                    self.touch_loaded_v2_residency(&state, thread_id).await;
+                    self.touch_loaded_v2_residency(&state, chat_id).await;
                     return Ok(());
                 }
                 Err(err)
@@ -203,8 +203,8 @@ impl AgentControl {
             .effective_multi_agent_version_for_spawn(
                 &InitialHistory::New,
                 session_source.as_ref(),
-                options.parent_thread_id,
-                /*forked_from_thread_id*/ None,
+                options.parent_chat_id,
+                /*forked_from_chat_id*/ None,
                 &config,
             )
             .await;
@@ -218,7 +218,7 @@ impl AgentControl {
                 .is_some_and(is_v2_resident_session_source);
         let residency_slot = if spawn_uses_v2_residency {
             Some(
-                self.reserve_v2_residency_slot(&state, &config, /*protected_thread_id*/ None)
+                self.reserve_v2_residency_slot(&state, &config, /*protected_chat_id*/ None)
                     .await?,
             )
         } else {
@@ -240,7 +240,7 @@ impl AgentControl {
         };
         let (session_source, mut agent_metadata) = match session_source {
             Some(SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-                parent_thread_id,
+                parent_chat_id,
                 depth,
                 agent_path,
                 agent_role,
@@ -249,7 +249,7 @@ impl AgentControl {
                 let (session_source, agent_metadata) = self.prepare_thread_spawn(
                     &mut reservation,
                     &config,
-                    parent_thread_id,
+                    parent_chat_id,
                     depth,
                     agent_path,
                     agent_role,
@@ -279,8 +279,8 @@ impl AgentControl {
                     config.clone(),
                     self.clone(),
                     session_source,
-                    options.parent_thread_id,
-                    /*forked_from_thread_id*/ None,
+                    options.parent_chat_id,
+                    /*forked_from_chat_id*/ None,
                     /*thread_source*/ Some(ThreadSource::Subagent),
                     /*metrics_service_name*/ None,
                     inheritance.environments,
@@ -291,19 +291,19 @@ impl AgentControl {
             }
             (None, _, _) => Box::pin(state.spawn_new_thread(config.clone(), self.clone())).await?,
         };
-        agent_metadata.agent_id = Some(new_thread.thread_id);
+        agent_metadata.agent_id = Some(new_thread.chat_id);
         reservation.commit(agent_metadata.clone());
         if let Some(residency_slot) = residency_slot {
-            residency_slot.commit(new_thread.thread_id);
+            residency_slot.commit(new_thread.chat_id);
         }
 
         if let Some(SessionSource::SubAgent(
             subagent_source @ SubAgentSource::ThreadSpawn {
-                parent_thread_id, ..
+                parent_chat_id, ..
             },
         )) = notification_source.as_ref()
         {
-            let client_metadata = match state.get_thread(*parent_thread_id).await {
+            let client_metadata = match state.get_thread(*parent_chat_id).await {
                 Ok(parent_thread) => {
                     parent_thread
                         .codex
@@ -314,7 +314,7 @@ impl AgentControl {
                 Err(error) => {
                     tracing::warn!(
                         error = %error,
-                        parent_thread_id = %parent_thread_id,
+                        parent_chat_id = %parent_chat_id,
                         "skipping subagent thread analytics: failed to load parent thread metadata"
                     );
                     crate::session::session::AppServerClientMetadata {
@@ -324,7 +324,7 @@ impl AgentControl {
                 }
             };
             let thread_config = new_thread.thread.codex.thread_config_snapshot().await;
-            let parent_thread_id = thread_config.parent_thread_id;
+            let parent_chat_id = thread_config.parent_chat_id;
             emit_subagent_session_started(
                 &new_thread
                     .thread
@@ -334,8 +334,8 @@ impl AgentControl {
                     .analytics_events_client,
                 client_metadata,
                 new_thread.thread.codex.session.session_id(),
-                new_thread.thread_id,
-                parent_thread_id,
+                new_thread.chat_id,
+                parent_chat_id,
                 thread_config,
                 subagent_source.clone(),
             );
@@ -344,25 +344,25 @@ impl AgentControl {
         // Notify a new thread has been created. This notification will be processed by clients
         // to subscribe or drain this newly created thread.
         // TODO(jif) add helper for drain
-        state.notify_thread_created(new_thread.thread_id);
+        state.notify_thread_created(new_thread.chat_id);
 
         self.persist_thread_spawn_edge_for_source(
             new_thread.thread.as_ref(),
-            new_thread.thread_id,
+            new_thread.chat_id,
             notification_source.as_ref(),
         )
         .await;
 
-        self.send_input_after_capacity_check(new_thread.thread_id, &state, initial_operation)
+        self.send_input_after_capacity_check(new_thread.chat_id, &state, initial_operation)
             .await?;
         if multi_agent_version != MultiAgentVersion::V2 {
             let child_reference = agent_metadata
                 .agent_path
                 .as_ref()
                 .map(ToString::to_string)
-                .unwrap_or_else(|| new_thread.thread_id.to_string());
+                .unwrap_or_else(|| new_thread.chat_id.to_string());
             self.maybe_start_completion_watcher(
-                new_thread.thread_id,
+                new_thread.chat_id,
                 notification_source,
                 child_reference,
                 agent_metadata.agent_path.clone(),
@@ -370,9 +370,9 @@ impl AgentControl {
         }
 
         Ok(LiveAgent {
-            thread_id: new_thread.thread_id,
+            chat_id: new_thread.chat_id,
             metadata: agent_metadata,
-            status: self.get_status(new_thread.thread_id).await,
+            status: self.get_status(new_thread.chat_id).await,
         })
     }
 
@@ -400,7 +400,7 @@ impl AgentControl {
             ));
         };
         let SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-            parent_thread_id, ..
+            parent_chat_id, ..
         }) = &session_source
         else {
             return Err(CodexErr::Fatal(
@@ -408,8 +408,8 @@ impl AgentControl {
             ));
         };
 
-        let parent_thread_id = *parent_thread_id;
-        let parent_thread = state.get_thread(parent_thread_id).await.ok();
+        let parent_chat_id = *parent_chat_id;
+        let parent_thread = state.get_thread(parent_chat_id).await.ok();
         if let Some(parent_thread) = parent_thread.as_ref() {
             // `record_conversation_items` only queues persistence writes asynchronously.
             // Flush before snapshotting store history for a fork.
@@ -419,7 +419,7 @@ impl AgentControl {
 
         let parent_history = state
             .read_stored_thread(ReadThreadParams {
-                thread_id: parent_thread_id,
+                chat_id: parent_chat_id,
                 include_archived: true,
                 include_history: true,
             })
@@ -427,7 +427,7 @@ impl AgentControl {
             .history
             .ok_or_else(|| {
                 CodexErr::Fatal(format!(
-                    "parent thread history unavailable for fork: {parent_thread_id}"
+                    "parent thread history unavailable for fork: {parent_chat_id}"
                 ))
             })?;
 
@@ -510,8 +510,8 @@ impl AgentControl {
                 self.clone(),
                 session_source,
                 /*thread_source*/ Some(ThreadSource::Subagent),
-                /*parent_thread_id*/ Some(parent_thread_id),
-                /*forked_from_thread_id*/ Some(parent_thread_id),
+                /*parent_chat_id*/ Some(parent_chat_id),
+                /*forked_from_chat_id*/ Some(parent_chat_id),
                 inherited_environments,
                 inherited_exec_policy,
                 options.environments.clone(),
@@ -523,32 +523,32 @@ impl AgentControl {
     pub(crate) async fn resume_agent_from_rollout(
         &self,
         config: Config,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         session_source: SessionSource,
-    ) -> CodexResult<ThreadId> {
+    ) -> CodexResult<ChatId> {
         let root_depth = thread_spawn_depth(&session_source).unwrap_or(0);
-        let (resumed_thread_id, resumed_multi_agent_version) = Box::pin(
-            self.resume_single_agent_from_rollout(config.clone(), thread_id, session_source),
+        let (resumed_chat_id, resumed_multi_agent_version) = Box::pin(
+            self.resume_single_agent_from_rollout(config.clone(), chat_id, session_source),
         )
         .await?;
         let state = self.upgrade()?;
         if config.multi_agent_version_from_features() == MultiAgentVersion::V2
             || resumed_multi_agent_version == MultiAgentVersion::V2
         {
-            return Ok(resumed_thread_id);
+            return Ok(resumed_chat_id);
         }
-        let Ok(resumed_thread) = state.get_thread(resumed_thread_id).await else {
-            return Ok(resumed_thread_id);
+        let Ok(resumed_thread) = state.get_thread(resumed_chat_id).await else {
+            return Ok(resumed_chat_id);
         };
         let Some(state_db_ctx) = resumed_thread.state_db() else {
-            return Ok(resumed_thread_id);
+            return Ok(resumed_chat_id);
         };
 
-        let mut resume_queue = VecDeque::from([(thread_id, root_depth)]);
-        while let Some((parent_thread_id, parent_depth)) = resume_queue.pop_front() {
+        let mut resume_queue = VecDeque::from([(chat_id, root_depth)]);
+        while let Some((parent_chat_id, parent_depth)) = resume_queue.pop_front() {
             let child_ids = match state_db_ctx
                 .list_thread_spawn_children_with_status(
-                    parent_thread_id,
+                    parent_chat_id,
                     DirectionalThreadSpawnEdgeStatus::Open,
                 )
                 .await
@@ -556,20 +556,20 @@ impl AgentControl {
                 Ok(child_ids) => child_ids,
                 Err(err) => {
                     warn!(
-                        "failed to load persisted thread-spawn children for {parent_thread_id}: {err}"
+                        "failed to load persisted thread-spawn children for {parent_chat_id}: {err}"
                     );
                     continue;
                 }
             };
 
-            for child_thread_id in child_ids {
+            for child_chat_id in child_ids {
                 let child_depth = parent_depth + 1;
-                let child_resumed = if state.get_thread(child_thread_id).await.is_ok() {
+                let child_resumed = if state.get_thread(child_chat_id).await.is_ok() {
                     true
                 } else {
                     let child_session_source =
                         SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-                            parent_thread_id,
+                            parent_chat_id,
                             depth: child_depth,
                             agent_path: None,
                             agent_nickname: None,
@@ -577,58 +577,58 @@ impl AgentControl {
                         });
                     match Box::pin(self.resume_single_agent_from_rollout(
                         config.clone(),
-                        child_thread_id,
+                        child_chat_id,
                         child_session_source,
                     ))
                     .await
                     {
                         Ok((_, _)) => true,
                         Err(err) => {
-                            warn!("failed to resume descendant thread {child_thread_id}: {err}");
+                            warn!("failed to resume descendant thread {child_chat_id}: {err}");
                             false
                         }
                     }
                 };
                 if child_resumed {
-                    resume_queue.push_back((child_thread_id, child_depth));
+                    resume_queue.push_back((child_chat_id, child_depth));
                 }
             }
         }
 
-        Ok(resumed_thread_id)
+        Ok(resumed_chat_id)
     }
 
     async fn resume_single_agent_from_rollout(
         &self,
         config: Config,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         session_source: SessionSource,
-    ) -> CodexResult<(ThreadId, MultiAgentVersion)> {
+    ) -> CodexResult<(ChatId, MultiAgentVersion)> {
         let state = self.upgrade()?;
         let state_db_ctx = state.state_db();
         let stored_thread = state
             .read_stored_thread(ReadThreadParams {
-                thread_id,
+                chat_id,
                 include_archived: true,
                 include_history: true,
             })
             .await?;
         let history = stored_thread
             .history
-            .ok_or_else(|| CodexErr::ThreadNotFound(thread_id))?
+            .ok_or_else(|| CodexErr::ThreadNotFound(chat_id))?
             .items;
         let initial_history = InitialHistory::Resumed(ResumedHistory {
-            conversation_id: thread_id,
+            conversation_id: chat_id,
             history,
             rollout_path: stored_thread.rollout_path,
         });
-        let parent_thread_id = stored_thread.parent_thread_id;
+        let parent_chat_id = stored_thread.parent_chat_id;
         let multi_agent_version = state
             .effective_multi_agent_version_for_spawn(
                 &initial_history,
                 Some(&session_source),
-                parent_thread_id,
-                /*forked_from_thread_id*/ None,
+                parent_chat_id,
+                /*forked_from_chat_id*/ None,
                 &config,
             )
             .await;
@@ -636,7 +636,7 @@ impl AgentControl {
         let mut reservation = self.state.reserve_spawn_slot(agent_max_threads)?;
         let (session_source, agent_metadata) = match session_source {
             SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-                parent_thread_id,
+                parent_chat_id,
                 depth,
                 agent_path,
                 agent_role: _,
@@ -644,7 +644,7 @@ impl AgentControl {
             }) => {
                 let (resumed_agent_nickname, resumed_agent_role) =
                     if let Some(state_db_ctx) = state_db_ctx.as_ref() {
-                        match state_db_ctx.get_thread(thread_id).await {
+                        match state_db_ctx.get_thread(chat_id).await {
                             Ok(Some(metadata)) => (metadata.agent_nickname, metadata.agent_role),
                             Ok(None) | Err(_) => (None, None),
                         }
@@ -654,7 +654,7 @@ impl AgentControl {
                 self.prepare_thread_spawn(
                     &mut reservation,
                     &config,
-                    parent_thread_id,
+                    parent_chat_id,
                     depth,
                     agent_path,
                     resumed_agent_role,
@@ -677,25 +677,25 @@ impl AgentControl {
                 initial_history,
                 agent_control: self.clone(),
                 session_source,
-                parent_thread_id,
+                parent_chat_id,
                 inherited_environments,
                 inherited_exec_policy,
             })
             .await?;
         let mut agent_metadata = agent_metadata;
-        agent_metadata.agent_id = Some(resumed_thread.thread_id);
+        agent_metadata.agent_id = Some(resumed_thread.chat_id);
         reservation.commit(agent_metadata.clone());
         // Resumed threads are re-registered in-memory and need the same listener
         // attachment path as freshly spawned threads.
-        state.notify_thread_created(resumed_thread.thread_id);
+        state.notify_thread_created(resumed_thread.chat_id);
         if multi_agent_version != MultiAgentVersion::V2 {
             let child_reference = agent_metadata
                 .agent_path
                 .as_ref()
                 .map(ToString::to_string)
-                .unwrap_or_else(|| resumed_thread.thread_id.to_string());
+                .unwrap_or_else(|| resumed_thread.chat_id.to_string());
             self.maybe_start_completion_watcher(
-                resumed_thread.thread_id,
+                resumed_thread.chat_id,
                 Some(notification_source.clone()),
                 child_reference,
                 agent_metadata.agent_path.clone(),
@@ -703,11 +703,11 @@ impl AgentControl {
         }
         self.persist_thread_spawn_edge_for_source(
             resumed_thread.thread.as_ref(),
-            resumed_thread.thread_id,
+            resumed_thread.chat_id,
             Some(&notification_source),
         )
         .await;
 
-        Ok((resumed_thread.thread_id, multi_agent_version))
+        Ok((resumed_thread.chat_id, multi_agent_version))
     }
 }

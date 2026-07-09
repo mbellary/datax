@@ -386,7 +386,7 @@ use datax_mcp::resolve_oauth_scopes;
 use datax_memories_write::clear_memory_roots_contents;
 use datax_model_provider::create_model_provider;
 use datax_models_manager::collaboration_mode_presets::builtin_collaboration_mode_presets;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::CollaborationMode;
 use datax_protocol::config_types::ForcedLoginMethod;
 use datax_protocol::config_types::Personality;
@@ -534,7 +534,7 @@ use crate::thread_state::ConnectionCapabilities;
 use crate::thread_state::ThreadListenerCommand;
 use crate::thread_state::ThreadState;
 use crate::thread_state::ThreadStateManager;
-use token_usage_replay::latest_token_usage_turn_id_from_rollout_items;
+use token_usage_replay::latest_token_usage_interaction_id_from_rollout_items;
 use token_usage_replay::send_thread_token_usage_update_to_connection;
 
 fn resolve_request_cwd(cwd: Option<PathBuf>) -> Result<Option<AbsolutePathBuf>, JSONRPCErrorError> {

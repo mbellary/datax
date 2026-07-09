@@ -206,7 +206,7 @@ async fn submit_turn(
 
 async fn wait_for_completion(test: &TestCodex) {
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 }
@@ -218,7 +218,7 @@ async fn expect_exec_approval(
     let event = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
+            EventMsg::ExecApprovalRequest(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await;
@@ -233,7 +233,7 @@ async fn expect_exec_approval(
             assert_eq!(last_arg, expected_command);
             approval
         }
-        EventMsg::TurnComplete(_) => panic!("expected approval request before completion"),
+        EventMsg::InteractionComplete(_) => panic!("expected approval request before completion"),
         other => panic!("unexpected event: {other:?}"),
     }
 }
@@ -244,14 +244,14 @@ async fn wait_for_exec_approval_or_completion(
     let event = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
+            EventMsg::ExecApprovalRequest(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await;
 
     match event {
         EventMsg::ExecApprovalRequest(approval) => Some(approval),
-        EventMsg::TurnComplete(_) => None,
+        EventMsg::InteractionComplete(_) => None,
         other => panic!("unexpected event: {other:?}"),
     }
 }
@@ -263,7 +263,7 @@ async fn expect_request_permissions_event(
     let event = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::RequestPermissions(_) | EventMsg::TurnComplete(_)
+            EventMsg::RequestPermissions(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await;
@@ -273,7 +273,7 @@ async fn expect_request_permissions_event(
             assert_eq!(request.call_id, expected_call_id);
             request.permissions
         }
-        EventMsg::TurnComplete(_) => panic!("expected request_permissions before completion"),
+        EventMsg::InteractionComplete(_) => panic!("expected request_permissions before completion"),
         other => panic!("unexpected event: {other:?}"),
     }
 }
@@ -377,7 +377,7 @@ async fn with_additional_permissions_requires_approval_under_on_request() -> Res
     test.codex
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
-            turn_id: None,
+            interaction_id: None,
             decision: ReviewDecision::Approved,
         })
         .await?;
@@ -467,12 +467,12 @@ async fn request_permissions_tool_is_auto_denied_when_granular_request_permissio
     let event = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::RequestPermissions(_) | EventMsg::TurnComplete(_)
+            EventMsg::RequestPermissions(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await;
     assert!(
-        matches!(event, EventMsg::TurnComplete(_)),
+        matches!(event, EventMsg::InteractionComplete(_)),
         "request_permissions should not emit a prompt when granular.request_permissions is false: {event:?}"
     );
 
@@ -599,7 +599,7 @@ async fn relative_additional_permissions_resolve_against_tool_workdir(
     test.codex
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
-            turn_id: None,
+            interaction_id: None,
             decision: ReviewDecision::Approved,
         })
         .await?;
@@ -696,7 +696,7 @@ async fn read_only_with_additional_permissions_does_not_widen_to_unrequested_cwd
     test.codex
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
-            turn_id: None,
+            interaction_id: None,
             decision: ReviewDecision::Approved,
         })
         .await?;
@@ -800,7 +800,7 @@ async fn read_only_with_additional_permissions_does_not_widen_to_unrequested_tmp
     test.codex
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
-            turn_id: None,
+            interaction_id: None,
             decision: ReviewDecision::Approved,
         })
         .await?;
@@ -911,7 +911,7 @@ async fn workspace_write_with_additional_permissions_can_write_outside_cwd() -> 
     test.codex
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
-            turn_id: None,
+            interaction_id: None,
             decision: ReviewDecision::Approved,
         })
         .await?;
@@ -1016,7 +1016,7 @@ async fn with_additional_permissions_denied_approval_blocks_execution() -> Resul
     test.codex
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
-            turn_id: None,
+            interaction_id: None,
             decision: ReviewDecision::Denied,
         })
         .await?;
@@ -1149,7 +1149,7 @@ async fn request_permissions_grants_apply_to_later_exec_command_calls() -> Resul
         test.codex
             .submit(Op::ExecApproval {
                 id: approval.effective_approval_id(),
-                turn_id: None,
+                interaction_id: None,
                 decision: ReviewDecision::Approved,
             })
             .await?;
@@ -1263,7 +1263,7 @@ async fn request_permissions_preapprove_explicit_exec_permissions_outside_on_req
         test.codex
             .submit(Op::ExecApproval {
                 id: approval.effective_approval_id(),
-                turn_id: None,
+                interaction_id: None,
                 decision: ReviewDecision::Approved,
             })
             .await?;
@@ -1380,7 +1380,7 @@ async fn request_permissions_grants_apply_to_later_shell_command_calls() -> Resu
         test.codex
             .submit(Op::ExecApproval {
                 id: approval.effective_approval_id(),
-                turn_id: None,
+                interaction_id: None,
                 decision: ReviewDecision::Approved,
             })
             .await?;
@@ -1493,7 +1493,7 @@ async fn request_permissions_grants_apply_to_later_shell_command_calls_without_i
         test.codex
             .submit(Op::ExecApproval {
                 id: approval.effective_approval_id(),
-                turn_id: None,
+                interaction_id: None,
                 decision: ReviewDecision::Approved,
             })
             .await?;
@@ -1669,7 +1669,7 @@ async fn partial_request_permissions_grants_do_not_preapprove_new_permissions() 
     test.codex
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
-            turn_id: None,
+            interaction_id: None,
             decision: ReviewDecision::Approved,
         })
         .await?;
@@ -1914,7 +1914,7 @@ async fn request_permissions_session_grants_carry_across_turns() -> Result<()> {
     let completion_event = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
+            EventMsg::ExecApprovalRequest(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await;
@@ -1922,7 +1922,7 @@ async fn request_permissions_session_grants_carry_across_turns() -> Result<()> {
         test.codex
             .submit(Op::ExecApproval {
                 id: approval.effective_approval_id(),
-                turn_id: None,
+                interaction_id: None,
                 decision: ReviewDecision::Approved,
             })
             .await?;

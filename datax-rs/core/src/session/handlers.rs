@@ -44,7 +44,7 @@ use datax_protocol::protocol::ThreadRolledBackEvent;
 use datax_protocol::protocol::ThreadSettingsAppliedEvent;
 use datax_protocol::protocol::ThreadSettingsOverrides;
 use datax_protocol::protocol::ThreadSettingsSnapshot;
-use datax_protocol::protocol::TurnAbortReason;
+use datax_protocol::protocol::InteractionAbortReason;
 use datax_protocol::protocol::WarningEvent;
 use datax_protocol::request_permissions::RequestPermissionsResponse;
 use datax_protocol::request_user_input::RequestUserInputResponse;
@@ -221,7 +221,7 @@ pub(super) async fn user_input_or_turn_inner(
         .steer_input(
             items.clone(),
             additional_context.clone(),
-            /*expected_turn_id*/ None,
+            /*expected_interaction_id*/ None,
             client_user_message_id.clone(),
             responsesapi_client_metadata.clone(),
         )
@@ -363,10 +363,10 @@ pub async fn resolve_elicitation(
 pub async fn exec_approval(
     sess: &Arc<Session>,
     approval_id: String,
-    turn_id: Option<String>,
+    interaction_id: Option<String>,
     decision: ReviewDecision,
 ) {
-    let event_turn_id = turn_id.unwrap_or_else(|| approval_id.clone());
+    let event_interaction_id = interaction_id.unwrap_or_else(|| approval_id.clone());
     if let ReviewDecision::ApprovedExecpolicyAmendment {
         proposed_execpolicy_amendment,
     } = &decision
@@ -377,7 +377,7 @@ pub async fn exec_approval(
         {
             Ok(()) => {
                 sess.record_execpolicy_amendment_message(
-                    &event_turn_id,
+                    &event_interaction_id,
                     proposed_execpolicy_amendment,
                 )
                 .await;
@@ -387,7 +387,7 @@ pub async fn exec_approval(
                 tracing::warn!("{message}");
                 let warning = EventMsg::Warning(WarningEvent { message });
                 sess.send_event_raw(Event {
-                    id: event_turn_id.clone(),
+                    id: event_interaction_id.clone(),
                     msg: warning,
                 })
                 .await;
@@ -528,7 +528,7 @@ pub async fn thread_rollback(sess: &Arc<Session>, sub_id: String, num_turns: u32
     sess.services
         .agent_control
         .rollout_budget()
-        .rearm_reminder(sess.thread_id());
+        .rearm_reminder(sess.chat_id());
     sess.recompute_token_usage(turn_context.as_ref()).await;
 
     sess.persist_rollout_items(&[RolloutItem::EventMsg(rollback_msg.clone())])
@@ -588,7 +588,7 @@ async fn shutdown_session_runtime(sess: &Arc<Session>) {
     if let Some(startup_prewarm) = sess.take_session_startup_prewarm().await {
         startup_prewarm.abort().await;
     }
-    sess.abort_all_tasks(TurnAbortReason::Interrupted).await;
+    sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
     let _ = sess.conversation.shutdown().await;
     sess.services
         .unified_exec_manager
@@ -769,10 +769,10 @@ pub(super) async fn submission_loop(
                 }
                 Op::ExecApproval {
                     id: approval_id,
-                    turn_id,
+                    interaction_id,
                     decision,
                 } => {
-                    exec_approval(&sess, approval_id, turn_id, decision).await;
+                    exec_approval(&sess, approval_id, interaction_id, decision).await;
                     false
                 }
                 Op::PatchApproval { id, decision } => {

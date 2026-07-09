@@ -269,15 +269,15 @@ fn lagged_event_warning_message_is_explicit() {
 
 #[test]
 fn runtime_warnings_are_filtered_to_the_primary_thread() {
-    let primary_thread_id = "thread-1";
-    let turn_id = "turn-1";
+    let primary_chat_id = "thread-1";
+    let interaction_id = "turn-1";
     let outcomes = [
         datax_app_server_protocol::WarningNotification {
             chat_id: None,
             message: "global warning".to_string(),
         },
         datax_app_server_protocol::WarningNotification {
-            chat_id: Some(primary_thread_id.to_string()),
+            chat_id: Some(primary_chat_id.to_string()),
             message: "primary warning".to_string(),
         },
         datax_app_server_protocol::WarningNotification {
@@ -288,8 +288,8 @@ fn runtime_warnings_are_filtered_to_the_primary_thread() {
     .map(|warning| {
         should_process_notification(
             &ServerNotification::Warning(warning),
-            primary_thread_id,
-            turn_id,
+            primary_chat_id,
+            interaction_id,
         )
     });
 
@@ -682,7 +682,7 @@ async fn session_configured_from_thread_response_uses_review_policy_from_respons
         "67e55044-10b1-426f-9247-bb680e5fe0c7"
     );
     assert_eq!(
-        event.thread_id.to_string(),
+        event.chat_id.to_string(),
         "67e55044-10b1-426f-9247-bb680e5fe0c8"
     );
     assert_eq!(event.approvals_reviewer, ApprovalsReviewer::AutoReview);
@@ -731,7 +731,7 @@ async fn session_configured_from_thread_response_preserves_thread_source() {
 }
 
 #[tokio::test]
-async fn session_configured_from_thread_response_preserves_parent_thread_id() {
+async fn session_configured_from_thread_response_preserves_parent_chat_id() {
     let codex_home = tempdir().expect("create temp codex home");
     let cwd = tempdir().expect("create temp cwd");
     let config = ConfigBuilder::default()
@@ -740,14 +740,14 @@ async fn session_configured_from_thread_response_preserves_parent_thread_id() {
         .build()
         .await
         .expect("build config");
-    let parent_thread_id = ThreadId::new();
+    let parent_chat_id = ChatId::new();
     let mut response = sample_thread_start_response();
-    response.thread.parent_chat_id = Some(parent_thread_id.to_string());
+    response.thread.parent_chat_id = Some(parent_chat_id.to_string());
 
     let event = session_configured_from_thread_start_response(&response, &config)
         .expect("build bootstrap session configured event");
 
-    assert_eq!(event.parent_thread_id, Some(parent_thread_id));
+    assert_eq!(event.parent_chat_id, Some(parent_chat_id));
 }
 
 fn sample_thread_start_response() -> ChatStartResponse {

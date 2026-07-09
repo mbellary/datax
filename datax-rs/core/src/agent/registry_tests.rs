@@ -7,9 +7,9 @@ fn agent_path(path: &str) -> AgentPath {
     AgentPath::try_from(path).expect("valid agent path")
 }
 
-fn agent_metadata(thread_id: ThreadId) -> AgentMetadata {
+fn agent_metadata(chat_id: ChatId) -> AgentMetadata {
     AgentMetadata {
-        agent_id: Some(thread_id),
+        agent_id: Some(chat_id),
         ..Default::default()
     }
 }
@@ -46,7 +46,7 @@ fn session_depth_defaults_to_zero_for_root_sources() {
 #[test]
 fn thread_spawn_depth_increments_and_enforces_limit() {
     let session_source = SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-        parent_thread_id: ThreadId::new(),
+        parent_chat_id: ChatId::new(),
         depth: 1,
         agent_path: None,
         agent_nickname: None,
@@ -84,8 +84,8 @@ fn reservation_drop_releases_slot() {
 fn commit_holds_slot_until_release() {
     let registry = Arc::new(AgentRegistry::default());
     let reservation = registry.reserve_spawn_slot(Some(1)).expect("reserve slot");
-    let thread_id = ThreadId::new();
-    reservation.commit(agent_metadata(thread_id));
+    let chat_id = ChatId::new();
+    reservation.commit(agent_metadata(chat_id));
 
     let err = match registry.reserve_spawn_slot(Some(1)) {
         Ok(_) => panic!("limit should be enforced"),
@@ -96,7 +96,7 @@ fn commit_holds_slot_until_release() {
     };
     assert_eq!(max_threads, 1);
 
-    registry.release_spawned_thread(thread_id);
+    registry.release_spawned_thread(chat_id);
     let reservation = registry
         .reserve_spawn_slot(Some(1))
         .expect("slot released after thread removal");
@@ -104,13 +104,13 @@ fn commit_holds_slot_until_release() {
 }
 
 #[test]
-fn release_ignores_unknown_thread_id() {
+fn release_ignores_unknown_chat_id() {
     let registry = Arc::new(AgentRegistry::default());
     let reservation = registry.reserve_spawn_slot(Some(1)).expect("reserve slot");
-    let thread_id = ThreadId::new();
-    reservation.commit(agent_metadata(thread_id));
+    let chat_id = ChatId::new();
+    reservation.commit(agent_metadata(chat_id));
 
-    registry.release_spawned_thread(ThreadId::new());
+    registry.release_spawned_thread(ChatId::new());
 
     let err = match registry.reserve_spawn_slot(Some(1)) {
         Ok(_) => panic!("limit should still be enforced"),
@@ -121,7 +121,7 @@ fn release_ignores_unknown_thread_id() {
     };
     assert_eq!(max_threads, 1);
 
-    registry.release_spawned_thread(thread_id);
+    registry.release_spawned_thread(chat_id);
     let reservation = registry
         .reserve_spawn_slot(Some(1))
         .expect("slot released after real thread removal");
@@ -132,13 +132,13 @@ fn release_ignores_unknown_thread_id() {
 fn release_is_idempotent_for_registered_threads() {
     let registry = Arc::new(AgentRegistry::default());
     let reservation = registry.reserve_spawn_slot(Some(1)).expect("reserve slot");
-    let first_id = ThreadId::new();
+    let first_id = ChatId::new();
     reservation.commit(agent_metadata(first_id));
 
     registry.release_spawned_thread(first_id);
 
     let reservation = registry.reserve_spawn_slot(Some(1)).expect("slot reused");
-    let second_id = ThreadId::new();
+    let second_id = ChatId::new();
     reservation.commit(agent_metadata(second_id));
 
     registry.release_spawned_thread(first_id);
@@ -189,7 +189,7 @@ fn agent_nickname_resets_used_pool_when_exhausted() {
     let first_name = first
         .reserve_agent_nickname_with_preference(&["alpha"], /*preferred*/ None)
         .expect("reserve first agent name");
-    let first_id = ThreadId::new();
+    let first_id = ChatId::new();
     first.commit(agent_metadata(first_id));
     assert_eq!(first_name, "alpha");
 
@@ -217,7 +217,7 @@ fn released_nickname_stays_used_until_pool_reset() {
     let first_name = first
         .reserve_agent_nickname_with_preference(&["alpha"], /*preferred*/ None)
         .expect("reserve first agent name");
-    let first_id = ThreadId::new();
+    let first_id = ChatId::new();
     first.commit(agent_metadata(first_id));
     assert_eq!(first_name, "alpha");
 
@@ -230,7 +230,7 @@ fn released_nickname_stays_used_until_pool_reset() {
         .reserve_agent_nickname_with_preference(&["alpha", "beta"], /*preferred*/ None)
         .expect("released name should still be marked used");
     assert_eq!(second_name, "beta");
-    let second_id = ThreadId::new();
+    let second_id = ChatId::new();
     second.commit(agent_metadata(second_id));
     registry.release_spawned_thread(second_id);
 
@@ -259,7 +259,7 @@ fn repeated_resets_advance_the_ordinal_suffix() {
     let first_name = first
         .reserve_agent_nickname_with_preference(&["Plato"], /*preferred*/ None)
         .expect("reserve first agent name");
-    let first_id = ThreadId::new();
+    let first_id = ChatId::new();
     first.commit(agent_metadata(first_id));
     assert_eq!(first_name, "Plato");
     registry.release_spawned_thread(first_id);
@@ -270,7 +270,7 @@ fn repeated_resets_advance_the_ordinal_suffix() {
     let second_name = second
         .reserve_agent_nickname_with_preference(&["Plato"], /*preferred*/ None)
         .expect("reserve second agent name");
-    let second_id = ThreadId::new();
+    let second_id = ChatId::new();
     second.commit(agent_metadata(second_id));
     assert_eq!(second_name, "Plato the 2nd");
     registry.release_spawned_thread(second_id);
@@ -292,13 +292,13 @@ fn repeated_resets_advance_the_ordinal_suffix() {
 #[test]
 fn register_root_thread_indexes_root_path() {
     let registry = Arc::new(AgentRegistry::default());
-    let root_thread_id = ThreadId::new();
+    let root_chat_id = ChatId::new();
 
-    registry.register_root_thread(root_thread_id);
+    registry.register_root_thread(root_chat_id);
 
     assert_eq!(
         registry.agent_id_for_path(&AgentPath::root()),
-        Some(root_thread_id)
+        Some(root_chat_id)
     );
 }
 
@@ -324,7 +324,7 @@ fn reserved_agent_path_is_released_when_spawn_fails() {
 #[test]
 fn committed_agent_path_is_indexed_until_release() {
     let registry = Arc::new(AgentRegistry::default());
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let mut reservation = registry
         .reserve_spawn_slot(/*max_threads*/ None)
         .expect("reserve slot");
@@ -332,17 +332,17 @@ fn committed_agent_path_is_indexed_until_release() {
         .reserve_agent_path(&agent_path("/root/researcher"))
         .expect("reserve path");
     reservation.commit(AgentMetadata {
-        agent_id: Some(thread_id),
+        agent_id: Some(chat_id),
         agent_path: Some(agent_path("/root/researcher")),
         ..Default::default()
     });
 
     assert_eq!(
         registry.agent_id_for_path(&agent_path("/root/researcher")),
-        Some(thread_id)
+        Some(chat_id)
     );
 
-    registry.release_spawned_thread(thread_id);
+    registry.release_spawned_thread(chat_id);
     assert_eq!(
         registry.agent_id_for_path(&agent_path("/root/researcher")),
         None

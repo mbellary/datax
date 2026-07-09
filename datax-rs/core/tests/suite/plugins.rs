@@ -240,7 +240,7 @@ async fn capability_sections_render_in_developer_message_in_order() -> Result<()
         })
         .await?;
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = resp_mock.single_request();
     let developer_messages = request.message_input_texts("developer");
@@ -311,7 +311,7 @@ async fn explicit_plugin_mentions_use_apps_for_chatgpt_dual_surface_plugins() ->
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let requests = mock.requests();
     let request = &requests[0];
@@ -388,7 +388,7 @@ async fn explicit_plugin_mentions_keep_non_conflicting_mcp_for_chatgpt_auth() ->
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let requests = mock.requests();
     let request = &requests[0];
@@ -462,7 +462,7 @@ async fn explicit_plugin_mentions_use_mcp_for_api_key_dual_surface_plugins() -> 
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let requests = mock.requests();
     let request = &requests[0];
@@ -529,7 +529,7 @@ async fn explicit_plugin_mentions_track_plugin_used_analytics() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let deadline = Instant::now() + Duration::from_secs(10);
     let plugin_event = loop {
@@ -574,8 +574,8 @@ async fn explicit_plugin_mentions_track_plugin_used_analytics() -> Result<()> {
         serde_json::json!(datax_login::default_client::originator().value)
     );
     assert_eq!(event["event_params"]["model_slug"], "gpt-5.2");
-    assert!(event["event_params"]["thread_id"].as_str().is_some());
-    assert!(event["event_params"]["turn_id"].as_str().is_some());
+    assert!(event["event_params"]["chat_id"].as_str().is_some());
+    assert!(event["event_params"]["interaction_id"].as_str().is_some());
 
     Ok(())
 }

@@ -55,7 +55,7 @@ use datax_app_server_protocol::NetworkApprovalProtocol;
 use datax_app_server_protocol::NetworkPolicyRuleAction;
 use datax_app_server_protocol::RequestId;
 use datax_features::Features;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::request_permissions::PermissionGrantScope;
 use datax_protocol::request_permissions::RequestPermissionProfile;
 use datax_utils_absolute_path::AbsolutePathBuf;
@@ -71,7 +71,7 @@ use ratatui::widgets::Wrap;
 #[derive(Clone, Debug)]
 pub(crate) enum ApprovalRequest {
     Exec {
-        thread_id: ThreadId,
+        chat_id: ChatId,
         thread_label: Option<String>,
         id: String,
         environment_id: Option<String>,
@@ -82,7 +82,7 @@ pub(crate) enum ApprovalRequest {
         additional_permissions: Option<AdditionalPermissionProfile>,
     },
     Permissions {
-        thread_id: ThreadId,
+        chat_id: ChatId,
         thread_label: Option<String>,
         call_id: String,
         environment_id: Option<String>,
@@ -90,7 +90,7 @@ pub(crate) enum ApprovalRequest {
         permissions: RequestPermissionProfile,
     },
     ApplyPatch {
-        thread_id: ThreadId,
+        chat_id: ChatId,
         thread_label: Option<String>,
         id: String,
         reason: Option<String>,
@@ -98,7 +98,7 @@ pub(crate) enum ApprovalRequest {
         changes: HashMap<PathBuf, FileChange>,
     },
     McpElicitation {
-        thread_id: ThreadId,
+        chat_id: ChatId,
         thread_label: Option<String>,
         server_name: String,
         request_id: RequestId,
@@ -107,12 +107,12 @@ pub(crate) enum ApprovalRequest {
 }
 
 impl ApprovalRequest {
-    fn thread_id(&self) -> ThreadId {
+    fn chat_id(&self) -> ChatId {
         match self {
-            ApprovalRequest::Exec { thread_id, .. }
-            | ApprovalRequest::Permissions { thread_id, .. }
-            | ApprovalRequest::ApplyPatch { thread_id, .. }
-            | ApprovalRequest::McpElicitation { thread_id, .. } => *thread_id,
+            ApprovalRequest::Exec { chat_id, .. }
+            | ApprovalRequest::Permissions { chat_id, .. }
+            | ApprovalRequest::ApplyPatch { chat_id, .. }
+            | ApprovalRequest::McpElicitation { chat_id, .. } => *chat_id,
         }
     }
 
@@ -381,9 +381,9 @@ impl ApprovalOverlay {
             );
             self.app_event_tx.send(AppEvent::InsertHistoryCell(cell));
         }
-        let thread_id = request.thread_id();
+        let chat_id = request.chat_id();
         self.app_event_tx
-            .exec_approval(thread_id, id.to_string(), decision);
+            .exec_approval(chat_id, id.to_string(), decision);
     }
 
     fn handle_permissions_decision(
@@ -424,9 +424,9 @@ impl ApprovalOverlay {
                 crate::history_cell::PlainHistoryCell::new(vec![message.into()]),
             )));
         }
-        let thread_id = request.thread_id();
+        let chat_id = request.chat_id();
         self.app_event_tx.request_permissions_response(
-            thread_id,
+            chat_id,
             call_id.to_string(),
             datax_protocol::request_permissions::RequestPermissionsResponse {
                 permissions: granted_permissions,
@@ -437,15 +437,15 @@ impl ApprovalOverlay {
     }
 
     fn handle_patch_decision(&self, id: &str, decision: FileChangeApprovalDecision) {
-        let Some(thread_id) = self
+        let Some(chat_id) = self
             .current_request
             .as_ref()
-            .map(ApprovalRequest::thread_id)
+            .map(ApprovalRequest::chat_id)
         else {
             return;
         };
         self.app_event_tx
-            .patch_approval(thread_id, id.to_string(), decision);
+            .patch_approval(chat_id, id.to_string(), decision);
     }
 
     fn handle_elicitation_decision(
@@ -454,15 +454,15 @@ impl ApprovalOverlay {
         request_id: &RequestId,
         decision: McpServerElicitationAction,
     ) {
-        let Some(thread_id) = self
+        let Some(chat_id) = self
             .current_request
             .as_ref()
-            .map(ApprovalRequest::thread_id)
+            .map(ApprovalRequest::chat_id)
         else {
             return;
         };
         self.app_event_tx.resolve_elicitation(
-            thread_id,
+            chat_id,
             server_name.to_string(),
             request_id.clone(),
             decision,
@@ -545,7 +545,7 @@ impl ApprovalOverlay {
             && request.thread_label().is_some()
         {
             self.app_event_tx
-                .send(AppEvent::SelectAgentThread(request.thread_id()));
+                .send(AppEvent::SelectAgentThread(request.chat_id()));
             return true;
         }
 
@@ -1226,7 +1226,7 @@ mod tests {
 
     fn make_exec_request() -> ApprovalRequest {
         ApprovalRequest::Exec {
-            thread_id: ThreadId::new(),
+            chat_id: ChatId::new(),
             thread_label: None,
             id: "test".to_string(),
             environment_id: None,
@@ -1243,7 +1243,7 @@ mod tests {
 
     fn make_permissions_request() -> ApprovalRequest {
         ApprovalRequest::Permissions {
-            thread_id: ThreadId::new(),
+            chat_id: ChatId::new(),
             thread_label: None,
             call_id: "test".to_string(),
             environment_id: None,
@@ -1262,7 +1262,7 @@ mod tests {
 
     fn make_elicitation_request() -> ApprovalRequest {
         ApprovalRequest::McpElicitation {
-            thread_id: ThreadId::new(),
+            chat_id: ChatId::new(),
             thread_label: None,
             server_name: "test-server".to_string(),
             request_id: RequestId::String("request-1".to_string()),
@@ -1367,7 +1367,7 @@ mod tests {
         let tx = AppEventSender::new(tx);
         let mut view = make_overlay(
             ApprovalRequest::Exec {
-                thread_id: ThreadId::new(),
+                chat_id: ChatId::new(),
                 thread_label: None,
                 id: "test".to_string(),
                 environment_id: None,
@@ -1411,7 +1411,7 @@ mod tests {
         };
         let mut view = make_overlay(
             ApprovalRequest::Exec {
-                thread_id: ThreadId::new(),
+                chat_id: ChatId::new(),
                 thread_label: None,
                 id: "test".to_string(),
                 environment_id: None,
@@ -1483,10 +1483,10 @@ mod tests {
     fn o_opens_source_thread_for_cross_thread_approval() {
         let (tx, mut rx) = unbounded_channel::<AppEvent>();
         let tx = AppEventSender::new(tx);
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let mut view = make_overlay(
             ApprovalRequest::Exec {
-                thread_id,
+                chat_id,
                 thread_label: Some("Robie [explorer]".to_string()),
                 id: "test".to_string(),
                 environment_id: None,
@@ -1507,7 +1507,7 @@ mod tests {
 
         let event = rx.try_recv().expect("expected select-agent-thread event");
         assert_eq!(
-            matches!(event, AppEvent::SelectAgentThread(id) if id == thread_id),
+            matches!(event, AppEvent::SelectAgentThread(id) if id == chat_id),
             true
         );
     }
@@ -1516,12 +1516,12 @@ mod tests {
     fn configured_open_thread_shortcut_opens_source_thread() {
         let (tx, mut rx) = unbounded_channel::<AppEvent>();
         let tx = AppEventSender::new(tx);
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let mut keymap = crate::keymap::RuntimeKeymap::defaults();
         keymap.approval.open_thread = vec![key_hint::plain(KeyCode::Char('x'))];
         let mut view = make_overlay_with_keymap(
             ApprovalRequest::Exec {
-                thread_id,
+                chat_id,
                 thread_label: Some("Robie [explorer]".to_string()),
                 id: "test".to_string(),
                 environment_id: None,
@@ -1551,7 +1551,7 @@ mod tests {
             /*modifiers*/ KeyModifiers::NONE,
         ));
         let event = rx.try_recv().expect("expected select-agent-thread event");
-        assert!(matches!(event, AppEvent::SelectAgentThread(id) if id == thread_id));
+        assert!(matches!(event, AppEvent::SelectAgentThread(id) if id == chat_id));
     }
 
     #[test]
@@ -1560,7 +1560,7 @@ mod tests {
         let tx = AppEventSender::new(tx);
         let view = make_overlay(
             ApprovalRequest::Exec {
-                thread_id: ThreadId::new(),
+                chat_id: ChatId::new(),
                 thread_label: Some("Robie [explorer]".to_string()),
                 id: "test".to_string(),
                 environment_id: None,
@@ -1589,7 +1589,7 @@ mod tests {
         let tx = AppEventSender::new(tx);
         let mut view = make_overlay(
             ApprovalRequest::Exec {
-                thread_id: ThreadId::new(),
+                chat_id: ChatId::new(),
                 thread_label: None,
                 id: "test".to_string(),
                 environment_id: None,
@@ -1642,7 +1642,7 @@ mod tests {
         let tx = AppEventSender::new(tx);
         let mut view = make_overlay(
             ApprovalRequest::Exec {
-                thread_id: ThreadId::new(),
+                chat_id: ChatId::new(),
                 thread_label: None,
                 id: "test".to_string(),
                 environment_id: None,
@@ -1682,7 +1682,7 @@ mod tests {
         let tx = AppEventSender::new(tx);
         let command = vec!["echo".into(), "hello".into(), "world".into()];
         let exec_request = ApprovalRequest::Exec {
-            thread_id: ThreadId::new(),
+            chat_id: ChatId::new(),
             thread_label: None,
             id: "test".into(),
             environment_id: None,
@@ -1981,7 +1981,7 @@ mod tests {
         let (tx, _rx) = unbounded_channel::<AppEvent>();
         let tx = AppEventSender::new(tx);
         let exec_request = ApprovalRequest::Exec {
-            thread_id: ThreadId::new(),
+            chat_id: ChatId::new(),
             thread_label: None,
             id: "test".into(),
             environment_id: None,
@@ -2038,7 +2038,7 @@ mod tests {
         let (tx, _rx) = unbounded_channel::<AppEvent>();
         let tx = AppEventSender::new(tx);
         let exec_request = ApprovalRequest::Exec {
-            thread_id: ThreadId::new(),
+            chat_id: ChatId::new(),
             thread_label: None,
             id: "test".into(),
             environment_id: None,
@@ -2093,7 +2093,7 @@ mod tests {
             },
         );
         let request = ApprovalRequest::ApplyPatch {
-            thread_id: ThreadId::new(),
+            chat_id: ChatId::new(),
             thread_label: Some("Banach [worker]".to_string()),
             id: "test".to_string(),
             reason: None,
@@ -2119,7 +2119,7 @@ mod tests {
         let (tx, _rx) = unbounded_channel::<AppEvent>();
         let tx = AppEventSender::new(tx);
         let exec_request = ApprovalRequest::Exec {
-            thread_id: ThreadId::new(),
+            chat_id: ChatId::new(),
             thread_label: None,
             id: "test".into(),
             environment_id: None,
@@ -2256,7 +2256,7 @@ mod tests {
         let tx = AppEventSender::new(tx_raw);
         let mut view = make_overlay(
             ApprovalRequest::Exec {
-                thread_id: ThreadId::new(),
+                chat_id: ChatId::new(),
                 thread_label: None,
                 id: "test".into(),
                 environment_id: None,

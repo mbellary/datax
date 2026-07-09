@@ -25,7 +25,7 @@ impl ChatWidget {
 
 #[derive(Debug)]
 pub(super) enum Notification {
-    AgentTurnComplete { response: String },
+    AgentInteractionComplete { response: String },
     ExecApprovalRequested { command: String },
     EditApprovalRequested { cwd: PathBuf, changes: Vec<PathBuf> },
     ElicitationRequested { server_name: String },
@@ -35,7 +35,7 @@ pub(super) enum Notification {
 impl Notification {
     pub(super) fn display(&self) -> String {
         match self {
-            Notification::AgentTurnComplete { response } => {
+            Notification::AgentInteractionComplete { response } => {
                 Notification::agent_turn_preview(response)
                     .unwrap_or_else(|| "Agent turn complete".to_string())
             }
@@ -67,7 +67,7 @@ impl Notification {
 
     fn type_name(&self) -> &str {
         match self {
-            Notification::AgentTurnComplete { .. } => "agent-turn-complete",
+            Notification::AgentInteractionComplete { .. } => "agent-turn-complete",
             Notification::ExecApprovalRequested { .. }
             | Notification::EditApprovalRequested { .. }
             | Notification::ElicitationRequested { .. } => "approval-requested",
@@ -77,7 +77,7 @@ impl Notification {
 
     fn priority(&self) -> u8 {
         match self {
-            Notification::AgentTurnComplete { .. } => 0,
+            Notification::AgentInteractionComplete { .. } => 0,
             Notification::ExecApprovalRequested { .. }
             | Notification::EditApprovalRequested { .. }
             | Notification::ElicitationRequested { .. }

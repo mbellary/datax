@@ -83,7 +83,7 @@ use datax_model_provider_info::OLLAMA_OSS_PROVIDER_ID;
 use datax_otel::set_parent_from_context;
 use datax_otel::traceparent_context_from_env;
 use datax_protocol::SessionId;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::ApprovalsReviewer;
 use datax_protocol::config_types::SandboxMode;
 use datax_protocol::models::ActivePermissionProfile;
@@ -133,9 +133,9 @@ pub use exec_events::ThreadItemDetails;
 pub use exec_events::ThreadStartedEvent;
 pub use exec_events::TodoItem;
 pub use exec_events::TodoListItem;
-pub use exec_events::TurnCompletedEvent;
+pub use exec_events::InteractionCompletedEvent;
 pub use exec_events::TurnFailedEvent;
-pub use exec_events::TurnStartedEvent;
+pub use exec_events::InteractionStartedEvent;
 pub use exec_events::Usage;
 pub use exec_events::WebSearchItem;
 use serde_json::Value;
@@ -794,17 +794,17 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
 
     // Handle resume subcommand through existing `thread/list` + `thread/resume`
     // APIs so exec no longer reaches into rollout storage directly.
-    let (primary_thread_id, fallback_session_configured) = if let Some(ExecCommand::Resume(args)) =
+    let (primary_chat_id, fallback_session_configured) = if let Some(ExecCommand::Resume(args)) =
         command.as_ref()
     {
-        if let Some(thread_id) =
-            resolve_resume_thread_id(&client, &config, state_db.as_ref(), args).await?
+        if let Some(chat_id) =
+            resolve_resume_chat_id(&client, &config, state_db.as_ref(), args).await?
         {
             let response: ChatResumeResponse = send_request_with_response(
                 &client,
                 ClientRequest::ChatResume {
                     request_id: request_ids.next(),
-                    params: thread_resume_params_from_config(&config, thread_id),
+                    params: thread_resume_params_from_config(&config, chat_id),
                 },
                 "thread/resume",
             )
@@ -813,7 +813,7 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
             let session_configured =
                 session_configured_from_thread_resume_response(&response, &config)
                     .map_err(anyhow::Error::msg)?;
-            (session_configured.thread_id, session_configured)
+            (session_configured.chat_id, session_configured)
         } else {
             let response: ChatStartResponse = send_request_with_response(
                 &client,
@@ -828,7 +828,7 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
             let session_configured =
                 session_configured_from_thread_start_response(&response, &config)
                     .map_err(anyhow::Error::msg)?;
-            (session_configured.thread_id, session_configured)
+            (session_configured.chat_id, session_configured)
         }
     } else {
         let response: ChatStartResponse = send_request_with_response(
@@ -843,16 +843,16 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
         .map_err(anyhow::Error::msg)?;
         let session_configured = session_configured_from_thread_start_response(&response, &config)
             .map_err(anyhow::Error::msg)?;
-        (session_configured.thread_id, session_configured)
+        (session_configured.chat_id, session_configured)
     };
 
-    let primary_thread_id_for_span = primary_thread_id.to_string();
+    let primary_chat_id_for_span = primary_chat_id.to_string();
     // Use the start/resume response as the authoritative bootstrap payload.
     // Waiting for a later streamed `SessionConfigured` event adds up to 10s of
     // avoidable startup latency on the in-process path.
     let session_configured = fallback_session_configured;
 
-    exec_span.record("thread.id", primary_thread_id_for_span.as_str());
+    exec_span.record("thread.id", primary_chat_id_for_span.as_str());
 
     // Print the effective configuration and initial request so users can see what Codex
     // is using.
@@ -884,7 +884,7 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
                 ClientRequest::InteractionStart {
                     request_id: request_ids.next(),
                     params: InteractionStartParams {
-                        chat_id: primary_thread_id_for_span.clone(),
+                        chat_id: primary_chat_id_for_span.clone(),
                         client_user_message_id: None,
                         input: items.into_iter().map(Into::into).collect(),
                         responsesapi_client_metadata: None,
@@ -920,7 +920,7 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
                 ClientRequest::ReviewStart {
                     request_id: request_ids.next(),
                     params: ReviewStartParams {
-                        chat_id: primary_thread_id_for_span.clone(),
+                        chat_id: primary_chat_id_for_span.clone(),
                         target: review_target_to_api(review_request.target),
                         delivery: None,
                     },
@@ -931,7 +931,7 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
             .map_err(anyhow::Error::msg)?;
             let _ = event_processor.process_server_notification(
                 ServerNotification::InteractionStarted(InteractionStartedNotification {
-                    chat_id: response.review_thread_id.clone(),
+                    chat_id: response.review_chat_id.clone(),
                     turn: response.turn.clone(),
                 }),
             );
@@ -947,7 +947,7 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
     // exit with a non-zero status for automation-friendly signaling.
     let mut error_seen = false;
     let mut interrupt_channel_open = true;
-    let primary_thread_id_for_requests = primary_thread_id.to_string();
+    let primary_chat_id_for_requests = primary_chat_id.to_string();
     loop {
         let server_event = tokio::select! {
             maybe_interrupt = interrupt_rx.recv(), if interrupt_channel_open => {
@@ -960,7 +960,7 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
                     ClientRequest::InteractionInterrupt {
                         request_id: request_ids.next(),
                         params: InteractionInterruptParams {
-                            chat_id: primary_thread_id_for_requests.clone(),
+                            chat_id: primary_chat_id_for_requests.clone(),
                             interaction_id: task_id.clone(),
                         },
                     },
@@ -985,14 +985,14 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
             }
             InProcessServerEvent::ServerNotification(mut notification) => {
                 if let ServerNotification::Error(payload) = &notification {
-                    if payload.chat_id == primary_thread_id_for_requests
+                    if payload.chat_id == primary_chat_id_for_requests
                         && payload.interaction_id == task_id
                         && !payload.will_retry
                     {
                         error_seen = true;
                     }
                 } else if let ServerNotification::InteractionCompleted(payload) = &notification
-                    && payload.chat_id == primary_thread_id_for_requests
+                    && payload.chat_id == primary_chat_id_for_requests
                     && payload.turn.id == task_id
                     && matches!(
                         payload.turn.status,
@@ -1013,7 +1013,7 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
 
                 if should_process_notification(
                     &notification,
-                    &primary_thread_id_for_requests,
+                    &primary_chat_id_for_requests,
                     &task_id,
                 ) {
                     match event_processor.process_server_notification(notification) {
@@ -1022,7 +1022,7 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
                             if let Err(err) = request_shutdown(
                                 &client,
                                 &mut request_ids,
-                                &primary_thread_id_for_requests,
+                                &primary_chat_id_for_requests,
                             )
                             .await
                             {
@@ -1076,7 +1076,7 @@ fn thread_start_params_from_config(config: &Config) -> ChatStartParams {
     }
 }
 
-fn thread_resume_params_from_config(config: &Config, thread_id: String) -> ChatResumeParams {
+fn thread_resume_params_from_config(config: &Config, chat_id: String) -> ChatResumeParams {
     let permissions = permissions_selection_from_config(config);
     let sandbox = permissions.is_none().then(|| {
         sandbox_mode_from_permission_profile(
@@ -1085,7 +1085,7 @@ fn thread_resume_params_from_config(config: &Config, thread_id: String) -> ChatR
         )
     });
     ChatResumeParams {
-        chat_id: thread_id,
+        chat_id: chat_id,
         model: config.model.clone(),
         model_provider: Some(config.model_provider_id.clone()),
         cwd: Some(config.cwd.to_string_lossy().to_string()),
@@ -1225,8 +1225,8 @@ fn review_target_to_api(target: ReviewTarget) -> ApiReviewTarget {
 )]
 fn session_configured_from_thread_response(
     session_id: &str,
-    thread_id: &str,
-    parent_thread_id: Option<&str>,
+    chat_id: &str,
+    parent_chat_id: Option<&str>,
     thread_source: Option<datax_protocol::protocol::ThreadSource>,
     thread_name: Option<String>,
     rollout_path: Option<PathBuf>,
@@ -1242,18 +1242,18 @@ fn session_configured_from_thread_response(
 ) -> Result<SessionConfiguredEvent, String> {
     let session_id = SessionId::from_string(session_id)
         .map_err(|err| format!("session id `{session_id}` is invalid: {err}"))?;
-    let thread_id = ThreadId::from_string(thread_id)
-        .map_err(|err| format!("thread id `{thread_id}` is invalid: {err}"))?;
-    let parent_thread_id = parent_thread_id
-        .map(ThreadId::from_string)
+    let chat_id = ChatId::from_string(chat_id)
+        .map_err(|err| format!("thread id `{chat_id}` is invalid: {err}"))?;
+    let parent_chat_id = parent_chat_id
+        .map(ChatId::from_string)
         .transpose()
         .map_err(|err| format!("parent thread id is invalid: {err}"))?;
 
     Ok(SessionConfiguredEvent {
         session_id,
-        thread_id,
+        chat_id,
         forked_from_id: None,
-        parent_thread_id,
+        parent_chat_id,
         thread_source,
         thread_name,
         model,
@@ -1277,8 +1277,8 @@ fn lagged_event_warning_message(skipped: usize) -> String {
 
 fn should_process_notification(
     notification: &ServerNotification,
-    thread_id: &str,
-    turn_id: &str,
+    chat_id: &str,
+    interaction_id: &str,
 ) -> bool {
     match notification {
         ServerNotification::ConfigWarning(_) | ServerNotification::DeprecationNotice(_) => true,
@@ -1286,50 +1286,50 @@ fn should_process_notification(
         ServerNotification::Warning(notification) => notification
             .chat_id
             .as_deref()
-            .is_none_or(|candidate| candidate == thread_id),
+            .is_none_or(|candidate| candidate == chat_id),
         ServerNotification::Error(notification) => {
-            notification.chat_id == thread_id && notification.interaction_id == turn_id
+            notification.chat_id == chat_id && notification.interaction_id == interaction_id
         }
         ServerNotification::HookCompleted(notification) => {
-            notification.chat_id == thread_id
+            notification.chat_id == chat_id
                 && notification
                     .interaction_id
                     .as_deref()
-                    .is_none_or(|candidate| candidate == turn_id)
+                    .is_none_or(|candidate| candidate == interaction_id)
         }
         ServerNotification::HookStarted(notification) => {
-            notification.chat_id == thread_id
+            notification.chat_id == chat_id
                 && notification
                     .interaction_id
                     .as_deref()
-                    .is_none_or(|candidate| candidate == turn_id)
+                    .is_none_or(|candidate| candidate == interaction_id)
         }
         ServerNotification::MessageCompleted(notification) => {
-            notification.chat_id == thread_id && notification.interaction_id == turn_id
+            notification.chat_id == chat_id && notification.interaction_id == interaction_id
         }
         ServerNotification::MessageStarted(notification) => {
-            notification.chat_id == thread_id && notification.interaction_id == turn_id
+            notification.chat_id == chat_id && notification.interaction_id == interaction_id
         }
         ServerNotification::ModelRerouted(notification) => {
-            notification.chat_id == thread_id && notification.interaction_id == turn_id
+            notification.chat_id == chat_id && notification.interaction_id == interaction_id
         }
         ServerNotification::ModelVerification(notification) => {
-            notification.chat_id == thread_id && notification.interaction_id == turn_id
+            notification.chat_id == chat_id && notification.interaction_id == interaction_id
         }
         ServerNotification::ChatTokenUsageUpdated(notification) => {
-            notification.chat_id == thread_id && notification.interaction_id == turn_id
+            notification.chat_id == chat_id && notification.interaction_id == interaction_id
         }
         ServerNotification::InteractionCompleted(notification) => {
-            notification.chat_id == thread_id && notification.turn.id == turn_id
+            notification.chat_id == chat_id && notification.turn.id == interaction_id
         }
         ServerNotification::InteractionDiffUpdated(notification) => {
-            notification.chat_id == thread_id && notification.interaction_id == turn_id
+            notification.chat_id == chat_id && notification.interaction_id == interaction_id
         }
         ServerNotification::InteractionPlanUpdated(notification) => {
-            notification.chat_id == thread_id && notification.interaction_id == turn_id
+            notification.chat_id == chat_id && notification.interaction_id == interaction_id
         }
         ServerNotification::InteractionStarted(notification) => {
-            notification.chat_id == thread_id && notification.turn.id == turn_id
+            notification.chat_id == chat_id && notification.turn.id == interaction_id
         }
         _ => false,
     }
@@ -1393,12 +1393,12 @@ fn should_backfill_turn_completed_items(
 
 fn turn_items_for_thread(
     thread: &AppServerThread,
-    turn_id: &str,
+    interaction_id: &str,
 ) -> Option<Vec<AppServerThreadItem>> {
     thread
         .interactions
         .iter()
-        .find(|turn| turn.id == turn_id)
+        .find(|turn| turn.id == interaction_id)
         .map(|turn| turn.messages.clone())
 }
 
@@ -1447,7 +1447,7 @@ fn cwds_match(current_cwd: &Path, session_cwd: &Path) -> bool {
     path_utils::paths_match_after_normalization(current_cwd, session_cwd)
 }
 
-async fn resolve_resume_thread_id(
+async fn resolve_resume_chat_id(
     client: &InProcessAppServerClient,
     config: &Config,
     state_db: Option<&StateDbHandle>,
@@ -1585,12 +1585,12 @@ fn canceled_mcp_server_elicitation_response() -> Result<Value, String> {
 async fn request_shutdown(
     client: &InProcessAppServerClient,
     request_ids: &mut RequestIdSequencer,
-    thread_id: &str,
+    chat_id: &str,
 ) -> Result<(), String> {
     let request = ClientRequest::ChatUnsubscribe {
         request_id: request_ids.next(),
         params: ChatUnsubscribeParams {
-            chat_id: thread_id.to_string(),
+            chat_id: chat_id.to_string(),
         },
     };
     send_request_with_response::<ChatUnsubscribeResponse>(client, request, "thread/unsubscribe")

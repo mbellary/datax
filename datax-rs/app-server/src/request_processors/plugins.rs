@@ -479,7 +479,7 @@ impl PluginRequestProcessor {
         tokio::spawn(async move {
             thread_manager.plugins_manager().clear_cache();
             thread_manager.skills_service().clear_cache();
-            if thread_manager.list_thread_ids().await.is_empty() {
+            if thread_manager.list_chat_ids().await.is_empty() {
                 return;
             }
             crate::mcp_refresh::queue_best_effort_refresh(&thread_manager, &config_manager).await;

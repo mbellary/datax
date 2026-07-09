@@ -88,9 +88,9 @@ pub fn should_persist_event_msg(ev: &EventMsg) -> bool {
         | EventMsg::ExitedReviewMode(_)
         | EventMsg::McpToolCallEnd(_)
         | EventMsg::ThreadRolledBack(_)
-        | EventMsg::TurnAborted(_)
-        | EventMsg::TurnStarted(_)
-        | EventMsg::TurnComplete(_)
+        | EventMsg::InteractionAborted(_)
+        | EventMsg::InteractionStarted(_)
+        | EventMsg::InteractionComplete(_)
         | EventMsg::WebSearchEnd(_)
         | EventMsg::ImageGenerationEnd(_)
         | EventMsg::SubAgentActivity(_) => true,

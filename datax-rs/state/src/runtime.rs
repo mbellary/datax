@@ -33,7 +33,7 @@ use crate::telemetry::DbKind;
 use crate::telemetry::DbTelemetry;
 use chrono::DateTime;
 use chrono::Utc;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::RolloutItem;
 use log::LevelFilter;
 use serde_json::Value;
@@ -89,8 +89,8 @@ pub use remote_control::RemoteControlEnrollmentRecord;
 pub use threads::ThreadFilterOptions;
 
 // "Partition" is the retained-log-content bucket we cap at 10 MiB:
-// - one bucket per non-null thread_id
-// - one bucket per threadless (thread_id IS NULL) non-null process_uuid
+// - one bucket per non-null chat_id
+// - one bucket per threadless (chat_id IS NULL) non-null process_uuid
 // - one bucket for threadless rows with process_uuid IS NULL
 // This budget tracks each row's persisted rendered log body plus non-body
 // metadata, rather than the exact sum of all persisted SQLite column bytes.

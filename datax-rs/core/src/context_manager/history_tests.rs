@@ -147,7 +147,7 @@ fn developer_msg_with_fragments(texts: &[&str]) -> ResponseItem {
 
 fn reference_context_item() -> TurnContextItem {
     TurnContextItem {
-        turn_id: Some("reference-turn".to_string()),
+        interaction_id: Some("reference-turn".to_string()),
         cwd: AbsolutePathBuf::try_from(
             std::env::current_dir()
                 .expect("current directory")
@@ -1089,7 +1089,7 @@ fn record_items_truncates_function_call_output_content() {
             success: Some(true),
         },
         internal_chat_message_metadata_passthrough: Some(InternalChatMessageMetadataPassthrough {
-            turn_id: Some("turn-1".to_string()),
+            interaction_id: Some("turn-1".to_string()),
         }),
     };
 
@@ -1111,7 +1111,7 @@ fn record_items_truncates_function_call_output_content() {
         }
         other => panic!("unexpected history item: {other:?}"),
     }
-    assert_eq!(history.items[0].turn_id(), Some("turn-1"));
+    assert_eq!(history.items[0].interaction_id(), Some("turn-1"));
 }
 
 #[test]

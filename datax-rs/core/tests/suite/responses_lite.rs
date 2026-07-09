@@ -94,7 +94,7 @@ async fn responses_lite_prepares_images() -> Result<()> {
         })
         .await?;
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -204,7 +204,7 @@ async fn responses_lite_compact_request_uses_lite_transport_contract() -> Result
     test.submit_turn("Compact this conversation").await?;
     test.codex.submit(Op::Compact).await?;
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 

@@ -17,7 +17,7 @@ use datax_config::Constrained;
 use datax_core::config::Config;
 use datax_features::Feature;
 use datax_model_provider::ModelProvider;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::AgentStatus;
 use datax_protocol::protocol::AskForApproval;
 use datax_protocol::protocol::SandboxPolicy;
@@ -220,7 +220,7 @@ mod job {
     ) -> Result<Claim, &'static str> {
         let claim = db
             .memories()
-            .try_claim_global_phase2_job(context.thread_id(), crate::stage_two::JOB_LEASE_SECONDS)
+            .try_claim_global_phase2_job(context.chat_id(), crate::stage_two::JOB_LEASE_SECONDS)
             .await
             .map_err(|e| {
                 tracing::error!("failed to claim job: {e}");
@@ -372,11 +372,11 @@ mod agent {
 
         tokio::spawn(async move {
             let _phase_two_e2e_timer = phase_two_e2e_timer;
-            let SpawnedConsolidationAgent { thread_id, thread } = agent;
+            let SpawnedConsolidationAgent { chat_id, thread } = agent;
 
             // Loop the agent until we have the final status.
             let final_status =
-                loop_agent(db.clone(), claim.token.clone(), thread_id, &thread).await;
+                loop_agent(db.clone(), claim.token.clone(), chat_id, &thread).await;
 
             if matches!(final_status, AgentStatus::Completed(_)) {
                 if let Some(token_usage) = thread
@@ -438,11 +438,11 @@ mod agent {
             let cleanup_context = Arc::clone(&context);
             tokio::spawn(async move {
                 if let Err(err) = cleanup_context
-                    .shutdown_consolidation_agent(SpawnedConsolidationAgent { thread_id, thread })
+                    .shutdown_consolidation_agent(SpawnedConsolidationAgent { chat_id, thread })
                     .await
                 {
                     warn!(
-                        "failed to auto-close global memory consolidation agent {thread_id}: {err}"
+                        "failed to auto-close global memory consolidation agent {chat_id}: {err}"
                     );
                 }
             });
@@ -452,7 +452,7 @@ mod agent {
     async fn loop_agent(
         db: Arc<StateRuntime>,
         token: String,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         thread: &datax_core::CodexThread,
     ) -> AgentStatus {
         let mut heartbeat_interval =
@@ -476,7 +476,7 @@ mod agent {
                         break status;
                     }
                     tracing::warn!(
-                        "memory consolidation agent {thread_id} exited before final status; last status was {status:?}"
+                        "memory consolidation agent {chat_id} exited before final status; last status was {status:?}"
                     );
                     break AgentStatus::Errored(format!(
                         "memory consolidation agent exited before final status: {status:?}"
@@ -496,7 +496,7 @@ mod agent {
                         Ok(true) => {}
                         Ok(false) => {
                             tracing::warn!(
-                                "lost global phase-2 ownership during heartbeat for memory consolidation agent {thread_id}"
+                                "lost global phase-2 ownership during heartbeat for memory consolidation agent {chat_id}"
                             );
                             break AgentStatus::Errored(
                                 "lost global phase-2 ownership during heartbeat".to_string(),
@@ -504,7 +504,7 @@ mod agent {
                         }
                         Err(err) => {
                             tracing::warn!(
-                                "phase-2 heartbeat update failed for memory consolidation agent {thread_id}: {err}"
+                                "phase-2 heartbeat update failed for memory consolidation agent {chat_id}: {err}"
                             );
                             break AgentStatus::Errored(format!(
                                 "phase-2 heartbeat update failed: {err}"

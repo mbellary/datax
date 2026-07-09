@@ -191,7 +191,7 @@ pub async fn load_config_layers_state(
     let config_requirements_toml = compose_requirements(requirements_layers)?.unwrap_or_default();
 
     let thread_config_context = ThreadConfigContext {
-        thread_id: None,
+        chat_id: None,
         cwd: cwd.clone(),
     };
     let thread_config_layers = thread_config_loader

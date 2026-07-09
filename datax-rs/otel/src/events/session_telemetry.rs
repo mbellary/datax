@@ -34,7 +34,7 @@ use crate::provider::OtelProvider;
 use crate::sanitize_metric_tag_value;
 use datax_api::ApiError;
 use datax_api::ResponseEvent;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::ReasoningSummary;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::openai_models::ReasoningEffort;
@@ -84,7 +84,7 @@ pub struct AuthEnvTelemetryMetadata {
 
 #[derive(Debug, Clone)]
 pub struct SessionTelemetryMetadata {
-    pub(crate) conversation_id: ThreadId,
+    pub(crate) conversation_id: ChatId,
     pub(crate) auth_mode: Option<String>,
     pub(crate) auth_env: AuthEnvTelemetryMetadata,
     pub(crate) account_id: Option<String>,
@@ -366,7 +366,7 @@ impl SessionTelemetry {
 
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        conversation_id: ThreadId,
+        conversation_id: ChatId,
         model: &str,
         slug: &str,
         account_id: Option<String>,

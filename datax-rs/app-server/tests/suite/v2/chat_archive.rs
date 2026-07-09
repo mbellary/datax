@@ -22,7 +22,7 @@ use datax_app_server_protocol::UserInput;
 use datax_core::ARCHIVED_SESSIONS_SUBDIR;
 use datax_core::find_archived_thread_path_by_id_str;
 use datax_core::find_thread_path_by_id_str;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_state::DirectionalThreadSpawnEdgeStatus;
 use datax_state::StateRuntime;
 use pretty_assertions::assert_eq;
@@ -198,9 +198,9 @@ async fn thread_archive_archives_spawned_descendants() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let parent_chat_id = ThreadId::from_string(&parent_id)?;
-    let child_thread_id = ThreadId::from_string(&child_id)?;
-    let grandchild_thread_id = ThreadId::from_string(&grandchild_id)?;
+    let parent_chat_id = ChatId::from_string(&parent_id)?;
+    let child_chat_id = ChatId::from_string(&child_id)?;
+    let grandchild_chat_id = ChatId::from_string(&grandchild_id)?;
     let state_db =
         StateRuntime::init(codex_home.path().to_path_buf(), "mock_provider".into()).await?;
     state_db
@@ -209,14 +209,14 @@ async fn thread_archive_archives_spawned_descendants() -> Result<()> {
     state_db
         .upsert_thread_spawn_edge(
             parent_chat_id,
-            child_thread_id,
+            child_chat_id,
             DirectionalThreadSpawnEdgeStatus::Closed,
         )
         .await?;
     state_db
         .upsert_thread_spawn_edge(
-            child_thread_id,
-            grandchild_thread_id,
+            child_chat_id,
+            grandchild_chat_id,
             DirectionalThreadSpawnEdgeStatus::Open,
         )
         .await?;
@@ -252,7 +252,7 @@ async fn thread_archive_archives_spawned_descendants() -> Result<()> {
     }
     assert_eq!(archived_ids, vec![parent_id, grandchild_id, child_id]);
 
-    for chat_id in [parent_chat_id, child_thread_id, grandchild_thread_id] {
+    for chat_id in [parent_chat_id, child_chat_id, grandchild_chat_id] {
         assert!(
             find_thread_path_by_id_str(
                 codex_home.path(),
@@ -309,9 +309,9 @@ async fn thread_archive_succeeds_when_descendant_archive_fails() -> Result<()> {
         /*git_info*/ None,
     )?;
 
-    let parent_chat_id = ThreadId::from_string(&parent_id)?;
-    let child_thread_id = ThreadId::from_string(&child_id)?;
-    let grandchild_thread_id = ThreadId::from_string(&grandchild_id)?;
+    let parent_chat_id = ChatId::from_string(&parent_id)?;
+    let child_chat_id = ChatId::from_string(&child_id)?;
+    let grandchild_chat_id = ChatId::from_string(&grandchild_id)?;
     let state_db =
         StateRuntime::init(codex_home.path().to_path_buf(), "mock_provider".into()).await?;
     state_db
@@ -320,14 +320,14 @@ async fn thread_archive_succeeds_when_descendant_archive_fails() -> Result<()> {
     state_db
         .upsert_thread_spawn_edge(
             parent_chat_id,
-            child_thread_id,
+            child_chat_id,
             DirectionalThreadSpawnEdgeStatus::Closed,
         )
         .await?;
     state_db
         .upsert_thread_spawn_edge(
-            child_thread_id,
-            grandchild_thread_id,
+            child_chat_id,
+            grandchild_chat_id,
             DirectionalThreadSpawnEdgeStatus::Open,
         )
         .await?;
@@ -390,7 +390,7 @@ async fn thread_archive_succeeds_when_descendant_archive_fails() -> Result<()> {
         archived_child_path.is_dir(),
         "test conflict should remain in archived sessions"
     );
-    for chat_id in [parent_chat_id, grandchild_thread_id] {
+    for chat_id in [parent_chat_id, grandchild_chat_id] {
         assert!(
             find_thread_path_by_id_str(
                 codex_home.path(),
@@ -430,8 +430,8 @@ async fn thread_archive_succeeds_when_spawned_descendant_is_missing() -> Result<
         Some("mock_provider"),
         /*git_info*/ None,
     )?;
-    let parent_chat_id = ThreadId::from_string(&parent_id)?;
-    let missing_child_thread_id = ThreadId::from_string("00000000-0000-0000-0000-000000000901")?;
+    let parent_chat_id = ChatId::from_string(&parent_id)?;
+    let missing_child_chat_id = ChatId::from_string("00000000-0000-0000-0000-000000000901")?;
 
     let state_db =
         StateRuntime::init(codex_home.path().to_path_buf(), "mock_provider".into()).await?;
@@ -441,7 +441,7 @@ async fn thread_archive_succeeds_when_spawned_descendant_is_missing() -> Result<
     state_db
         .upsert_thread_spawn_edge(
             parent_chat_id,
-            missing_child_thread_id,
+            missing_child_chat_id,
             DirectionalThreadSpawnEdgeStatus::Closed,
         )
         .await?;
@@ -593,7 +593,7 @@ async fn thread_archive_clears_stale_subscriptions_before_resume() -> Result<()>
     primary.clear_message_buffer();
     secondary.clear_message_buffer();
 
-    let resumed_turn_id = secondary
+    let resumed_interaction_id = secondary
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id,
             client_user_message_id: None,
@@ -606,7 +606,7 @@ async fn thread_archive_clears_stale_subscriptions_before_resume() -> Result<()>
         .await?;
     let resumed_turn_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
-        secondary.read_stream_until_response_message(RequestId::Integer(resumed_turn_id)),
+        secondary.read_stream_until_response_message(RequestId::Integer(resumed_interaction_id)),
     )
     .await??;
     let _: InteractionStartResponse = to_response::<InteractionStartResponse>(resumed_turn_resp)?;

@@ -51,7 +51,7 @@ async fn handle_interrupt_agent(
             "root is not a spawned agent".to_string(),
         ));
     }
-    if agent_id == session.thread_id {
+    if agent_id == session.chat_id {
         return Err(FunctionCallError::RespondToModel(
             "an agent cannot interrupt itself; return your result and let the parent interrupt you if needed"
                 .to_string(),
@@ -77,7 +77,7 @@ async fn handle_interrupt_agent(
             SubAgentActivityEvent {
                 event_id: call_id,
                 occurred_at_ms: now_unix_timestamp_ms(),
-                agent_thread_id: agent_id,
+                agent_chat_id: agent_id,
                 agent_path: receiver_agent_path,
                 kind: SubAgentActivityKind::Interrupted,
             }

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use datax_core::CodexThread;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::parse_command::ParsedCommand;
 use datax_protocol::protocol::Op;
 use datax_protocol::protocol::ReviewDecision;
@@ -28,7 +28,7 @@ pub struct ExecApprovalElicitRequestParams {
     // These are additional fields the client can use to
     // correlate the request with the codex tool call.
     #[serde(rename = "threadId")]
-    pub thread_id: ThreadId,
+    pub chat_id: ChatId,
     pub codex_elicitation: String,
     pub codex_mcp_tool_call_id: String,
     pub codex_event_id: String,
@@ -59,7 +59,7 @@ pub(crate) async fn handle_exec_approval_request(
     call_id: String,
     approval_id: String,
     codex_parsed_cmd: Vec<ParsedCommand>,
-    thread_id: ThreadId,
+    chat_id: ChatId,
 ) {
     let escaped_command =
         shlex::try_join(command.iter().map(String::as_str)).unwrap_or_else(|_| command.join(" "));
@@ -71,7 +71,7 @@ pub(crate) async fn handle_exec_approval_request(
     let params = ExecApprovalElicitRequestParams {
         message,
         requested_schema: json!({"type":"object","properties":{}}),
-        thread_id,
+        chat_id,
         codex_elicitation: "exec-approval".to_string(),
         codex_mcp_tool_call_id: tool_call_id.clone(),
         codex_event_id: event_id.clone(),
@@ -137,7 +137,7 @@ async fn on_exec_approval_response(
     if let Err(err) = codex
         .submit(Op::ExecApproval {
             id: approval_id,
-            turn_id: Some(event_id),
+            interaction_id: Some(event_id),
             decision: response.decision,
         })
         .await

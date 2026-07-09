@@ -187,7 +187,7 @@ pub(crate) async fn build_guardian_prompt_items_with_parent_turn(
     push_text(headings.transcript_end.to_string());
     push_text(format!(
         "Reviewed Codex session id: {}\n",
-        session.thread_id
+        session.chat_id
     ));
     if let Some(note) = omission_note {
         push_text(format!("\n{note}\n"));

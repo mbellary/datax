@@ -17,7 +17,7 @@ use datax_extension_api::ExtensionRegistry;
 use datax_extension_api::ExtensionRegistryBuilder;
 use datax_goal_extension::GoalService;
 use datax_login::AuthManager;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::error::CodexErr;
 use datax_protocol::protocol::Event;
 use datax_protocol::protocol::EventMsg;
@@ -113,8 +113,8 @@ impl ExtensionEventSink for AppServerExtensionEventSink {
     fn emit(&self, event: Event) {
         match event.msg {
             EventMsg::ThreadGoalUpdated(thread_goal_event) => {
-                let chat_id = thread_goal_event.thread_id;
-                let interaction_id = thread_goal_event.turn_id;
+                let chat_id = thread_goal_event.chat_id;
+                let interaction_id = thread_goal_event.interaction_id;
                 let goal: ChatGoal = thread_goal_event.goal.into();
                 if let Some(listener_command_tx) = self
                     .thread_state_manager
@@ -152,7 +152,7 @@ impl ExtensionEventSink for AppServerExtensionEventSink {
 pub(crate) fn guardian_agent_spawner(
     thread_manager: Weak<ThreadManager>,
 ) -> impl AgentSpawner<StartThreadOptions, Spawned = NewThread, Error = CodexErr> {
-    move |forked_from_chat_id: ThreadId,
+    move |forked_from_chat_id: ChatId,
           options: StartThreadOptions|
           -> AgentSpawnFuture<'static, NewThread, CodexErr> {
         let thread_manager = thread_manager.clone();
@@ -188,7 +188,7 @@ mod tests {
             AnalyticsEventsClient::disabled(),
         ));
         let thread_state_manager = ThreadStateManager::new();
-        let chat_id = ThreadId::default();
+        let chat_id = ChatId::default();
         let (listener_command_tx, mut listener_command_rx) = mpsc::unbounded_channel();
         thread_state_manager.register_listener_command_tx(chat_id, listener_command_tx.clone());
         let sink = app_server_extension_event_sink(outgoing, thread_state_manager);
@@ -229,14 +229,14 @@ mod tests {
         );
     }
 
-    fn thread_goal_updated_event(chat_id: ThreadId, interaction_id: &str) -> Event {
+    fn thread_goal_updated_event(chat_id: ChatId, interaction_id: &str) -> Event {
         Event {
             id: interaction_id.to_string(),
             msg: EventMsg::ThreadGoalUpdated(ThreadGoalUpdatedEvent {
-                thread_id: chat_id,
-                turn_id: Some(interaction_id.to_string()),
+                chat_id: chat_id,
+                interaction_id: Some(interaction_id.to_string()),
                 goal: CoreThreadGoal {
-                    thread_id: chat_id,
+                    chat_id: chat_id,
                     objective: "wire extension events".to_string(),
                     status: ThreadGoalStatus::Active,
                     token_budget: Some(123),

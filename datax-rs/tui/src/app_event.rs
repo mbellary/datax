@@ -30,7 +30,7 @@ use datax_app_server_protocol::PluginReadResponse;
 use datax_app_server_protocol::PluginUninstallResponse;
 use datax_app_server_protocol::SkillsListResponse;
 use datax_file_search::FileMatch;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::openai_models::ModelPreset;
 use datax_utils_absolute_path::AbsolutePathBuf;
 use datax_utils_approval_presets::ApprovalPreset;
@@ -147,41 +147,41 @@ pub(crate) enum AppEvent {
     /// Open the agent picker for switching active threads.
     OpenAgentPicker,
     /// Switch the active thread to the selected agent.
-    SelectAgentThread(ThreadId),
+    SelectAgentThread(ChatId),
 
     /// Fork the current thread into a transient side conversation.
     StartSide {
-        parent_thread_id: ThreadId,
+        parent_chat_id: ChatId,
         user_message: Option<UserMessage>,
     },
 
     /// Submit an op to the specified thread, regardless of current focus.
     SubmitThreadOp {
-        thread_id: ThreadId,
+        chat_id: ChatId,
         op: AppCommand,
     },
 
     /// Deliver a synthetic history lookup response to a specific thread channel.
     ThreadHistoryEntryResponse {
-        thread_id: ThreadId,
+        chat_id: ChatId,
         event: HistoryLookupResponse,
     },
 
     /// Persist a submitted prompt in the cross-session message history.
     AppendMessageHistoryEntry {
-        thread_id: ThreadId,
+        chat_id: ChatId,
         text: String,
     },
 
     /// Persist a branch discovered from an App git-action directive into thread metadata.
     SyncThreadGitBranch {
-        thread_id: ThreadId,
+        chat_id: ChatId,
         branch: String,
     },
 
     /// Fetch a persistent cross-session message history entry by offset.
     LookupMessageHistoryEntry {
-        thread_id: ThreadId,
+        chat_id: ChatId,
         offset: usize,
         log_id: u64,
     },
@@ -253,7 +253,7 @@ pub(crate) enum AppEvent {
 
     /// Approve one retry of a recent auto-review denial selected in the TUI.
     ApproveRecentAutoReviewDenial {
-        thread_id: ThreadId,
+        chat_id: ChatId,
         id: String,
     },
 
@@ -277,30 +277,30 @@ pub(crate) enum AppEvent {
 
     /// Open the current thread goal summary/action menu.
     OpenThreadGoalMenu {
-        thread_id: ThreadId,
+        chat_id: ChatId,
     },
 
     /// Open an editor for the current thread goal objective.
     OpenThreadGoalEditor {
-        thread_id: Option<ThreadId>,
+        chat_id: Option<ChatId>,
     },
 
     /// Materialize and set or replace the current thread goal objective.
     SetThreadGoalDraft {
-        thread_id: ThreadId,
+        chat_id: ChatId,
         draft: GoalDraft,
         mode: ThreadGoalSetMode,
     },
 
     /// Pause or resume the current thread goal.
     SetThreadGoalStatus {
-        thread_id: ThreadId,
+        chat_id: ChatId,
         status: ChatGoalStatus,
     },
 
     /// Clear the current thread goal.
     ClearThreadGoal {
-        thread_id: ThreadId,
+        chat_id: ChatId,
     },
 
     /// Result of refreshing rate limits.
@@ -392,7 +392,7 @@ pub(crate) enum AppEvent {
 
     /// Open the current thread in Codex Desktop.
     OpenDesktopThread {
-        thread_id: ThreadId,
+        chat_id: ChatId,
     },
 
     /// Persist a pet selection and reload the ambient pet.
@@ -629,14 +629,14 @@ pub(crate) enum AppEvent {
     /// Fetch MCP inventory via app-server RPCs and render it into history.
     FetchMcpInventory {
         detail: McpServerStatusDetail,
-        thread_id: Option<ThreadId>,
+        chat_id: Option<ChatId>,
     },
 
     /// Result of fetching MCP inventory via app-server RPCs.
     McpInventoryLoaded {
         result: Result<Vec<McpServerStatus>, String>,
         detail: McpServerStatusDetail,
-        thread_id: Option<ThreadId>,
+        chat_id: Option<ChatId>,
     },
 
     /// Result of the startup skills refresh that runs after the first frame is scheduled.
@@ -971,13 +971,13 @@ pub(crate) enum AppEvent {
     SubmitFeedback {
         category: FeedbackCategory,
         reason: Option<String>,
-        turn_id: Option<String>,
+        interaction_id: Option<String>,
         include_logs: bool,
     },
 
     /// Result of a feedback upload request initiated by the TUI.
     FeedbackSubmitted {
-        origin_thread_id: Option<ThreadId>,
+        origin_chat_id: Option<ChatId>,
         category: FeedbackCategory,
         include_logs: bool,
         result: Result<String, String>,

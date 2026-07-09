@@ -50,10 +50,10 @@ pub struct RequestUserInputResponse {
 pub struct RequestUserInputEvent {
     /// Responses API call id for the associated tool call, if available.
     pub call_id: String,
-    /// Turn ID that this request belongs to.
+    /// Interaction ID that this request belongs to.
     /// Uses `#[serde(default)]` for backwards compatibility.
-    #[serde(default)]
-    pub turn_id: String,
+    #[serde(default, alias = "turn_id")]
+    pub interaction_id: String,
     pub questions: Vec<RequestUserInputQuestion>,
     #[serde(rename = "autoResolutionMs", skip_serializing_if = "Option::is_none")]
     #[schemars(rename = "autoResolutionMs")]

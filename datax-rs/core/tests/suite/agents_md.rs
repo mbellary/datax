@@ -112,7 +112,7 @@ async fn submit_thread_turn(thread: &Arc<datax_core::CodexThread>, prompt: &str)
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(thread, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(thread, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
     Ok(())
 }
 
@@ -468,7 +468,7 @@ async fn loads_user_instructions_without_a_primary_environment() -> Result<()> {
         })
         .await?;
     wait_for_event(&no_environment_thread.thread, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -924,7 +924,7 @@ async fn fork_replays_rendered_instructions_from_shared_history() -> Result<()> 
         })
         .await?;
     wait_for_event(&forked.thread, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -1051,10 +1051,10 @@ async fn run_subagent_global_instruction_case(fork_context: bool) -> Result<()> 
     assert_ne!(source, new_source);
     let mut created_threads = test.thread_manager.subscribe_thread_created();
     test.submit_turn(parent_prompt).await?;
-    let child_thread_id = tokio::time::timeout(Duration::from_secs(10), created_threads.recv())
+    let child_chat_id = tokio::time::timeout(Duration::from_secs(10), created_threads.recv())
         .await
         .map_err(|_| anyhow!("timed out waiting for the subagent thread"))??;
-    let child_thread = test.thread_manager.get_thread(child_thread_id).await?;
+    let child_thread = test.thread_manager.get_thread(child_chat_id).await?;
     let spawn_request = spawn_mock.single_request();
     let child_request = tokio::time::timeout(Duration::from_secs(10), async {
         loop {

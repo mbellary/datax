@@ -6,7 +6,7 @@ use datax_analytics::CompactionPhase;
 use datax_analytics::CompactionReason;
 use datax_analytics::CompactionStrategy;
 use datax_analytics::CompactionTrigger;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::InternalSessionSource;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
@@ -25,15 +25,15 @@ use crate::client::X_OPENAI_SUBAGENT_HEADER;
 
 pub(crate) const INSTALLATION_ID_KEY: &str = "installation_id";
 pub(crate) const SESSION_ID_KEY: &str = "session_id";
-pub(crate) const THREAD_ID_KEY: &str = "thread_id";
-pub(crate) const TURN_ID_KEY: &str = "turn_id";
+pub(crate) const THREAD_ID_KEY: &str = "chat_id";
+pub(crate) const TURN_ID_KEY: &str = "interaction_id";
 pub(crate) const WINDOW_ID_KEY: &str = "window_id";
 pub(crate) const REQUEST_KIND_KEY: &str = "request_kind";
 pub(crate) const COMPACTION_KEY: &str = "compaction";
 pub(crate) const TURN_STARTED_AT_UNIX_MS_KEY: &str = "turn_started_at_unix_ms";
 
-pub(crate) const FORKED_FROM_THREAD_ID_KEY: &str = "forked_from_thread_id";
-pub(crate) const PARENT_THREAD_ID_KEY: &str = "parent_thread_id";
+pub(crate) const FORKED_FROM_THREAD_ID_KEY: &str = "forked_from_chat_id";
+pub(crate) const PARENT_THREAD_ID_KEY: &str = "parent_chat_id";
 pub(crate) const SUBAGENT_KIND_KEY: &str = "subagent_kind";
 pub(crate) const THREAD_SOURCE_KEY: &str = "thread_source";
 pub(crate) const SANDBOX_KEY: &str = "sandbox";
@@ -113,7 +113,7 @@ impl CodexResponsesRequestKind {
         }
     }
 
-    fn has_turn_identity(self) -> bool {
+    fn has_interaction_identity(self) -> bool {
         !matches!(self, CodexResponsesRequestKind::Memory)
     }
 }
@@ -138,12 +138,12 @@ pub(crate) struct TurnMetadataWorkspace {
 pub struct CodexResponsesMetadata {
     pub(crate) installation_id: String,
     pub(crate) session_id: String,
-    pub(crate) thread_id: String,
-    pub(crate) turn_id: Option<String>,
+    pub(crate) chat_id: String,
+    pub(crate) interaction_id: Option<String>,
     pub(crate) window_id: String,
     pub(crate) request_kind: Option<CodexResponsesRequestKind>,
-    pub(crate) forked_from_thread_id: Option<ThreadId>,
-    pub(crate) parent_thread_id: Option<ThreadId>,
+    pub(crate) forked_from_chat_id: Option<ChatId>,
+    pub(crate) parent_chat_id: Option<ChatId>,
     pub(crate) subagent_header: Option<String>,
     pub(crate) subagent_kind: Option<String>,
     pub(crate) thread_source: Option<ThreadSource>,
@@ -157,18 +157,18 @@ impl CodexResponsesMetadata {
     pub(crate) fn new(
         installation_id: String,
         session_id: String,
-        thread_id: String,
+        chat_id: String,
         window_id: String,
     ) -> Self {
         Self {
             installation_id,
             session_id,
-            thread_id,
-            turn_id: None,
+            chat_id,
+            interaction_id: None,
             window_id,
             request_kind: None,
-            forked_from_thread_id: None,
-            parent_thread_id: None,
+            forked_from_chat_id: None,
+            parent_chat_id: None,
             subagent_header: None,
             subagent_kind: None,
             thread_source: None,
@@ -198,11 +198,11 @@ impl CodexResponsesMetadata {
                 self.installation_id.clone(),
             ),
             (SESSION_ID_KEY.to_string(), self.session_id.clone()),
-            (THREAD_ID_KEY.to_string(), self.thread_id.clone()),
+            (THREAD_ID_KEY.to_string(), self.chat_id.clone()),
             (X_CODEX_WINDOW_ID_HEADER.to_string(), self.window_id.clone()),
         ]);
-        if let Some(turn_id) = &self.turn_id {
-            client_metadata.insert(TURN_ID_KEY.to_string(), turn_id.clone());
+        if let Some(interaction_id) = &self.interaction_id {
+            client_metadata.insert(TURN_ID_KEY.to_string(), interaction_id.clone());
         }
         if let Some(subagent_header) = &self.subagent_header {
             client_metadata.insert(
@@ -210,10 +210,10 @@ impl CodexResponsesMetadata {
                 subagent_header.clone(),
             );
         }
-        if let Some(parent_thread_id) = self.parent_thread_id {
+        if let Some(parent_chat_id) = self.parent_chat_id {
             client_metadata.insert(
                 X_CODEX_PARENT_THREAD_ID_HEADER.to_string(),
-                parent_thread_id.to_string(),
+                parent_chat_id.to_string(),
             );
         }
         if self.has_turn_metadata()
@@ -238,11 +238,11 @@ impl CodexResponsesMetadata {
                 &turn_metadata_json,
             );
         }
-        if let Some(parent_thread_id) = self.parent_thread_id {
+        if let Some(parent_chat_id) = self.parent_chat_id {
             insert_header(
                 &mut headers,
                 X_CODEX_PARENT_THREAD_ID_HEADER,
-                &parent_thread_id.to_string(),
+                &parent_chat_id.to_string(),
             );
         }
         if let Some(subagent_header) = &self.subagent_header {
@@ -257,21 +257,21 @@ impl CodexResponsesMetadata {
             let (request_kind, compaction) = request_kind.metadata();
             (Some(request_kind), compaction)
         });
-        let has_turn_identity =
-            request_kind.is_none_or(CodexResponsesRequestKind::has_turn_identity);
+        let has_interaction_identity =
+            request_kind.is_none_or(CodexResponsesRequestKind::has_interaction_identity);
         let has_request_identity =
-            request_kind.is_some_and(CodexResponsesRequestKind::has_turn_identity);
+            request_kind.is_some_and(CodexResponsesRequestKind::has_interaction_identity);
         CodexTurnMetadataPayload {
             installation_id: has_request_identity.then_some(self.installation_id.as_str()),
-            session_id: has_turn_identity.then_some(self.session_id.as_str()),
-            thread_id: has_turn_identity.then_some(self.thread_id.as_str()),
-            turn_id: has_turn_identity
-                .then_some(self.turn_id.as_deref())
+            session_id: has_interaction_identity.then_some(self.session_id.as_str()),
+            chat_id: has_interaction_identity.then_some(self.chat_id.as_str()),
+            interaction_id: has_interaction_identity
+                .then_some(self.interaction_id.as_deref())
                 .flatten(),
             window_id: has_request_identity.then_some(self.window_id.as_str()),
             request_kind: request_kind_value,
-            forked_from_thread_id: self.forked_from_thread_id,
-            parent_thread_id: self.parent_thread_id,
+            forked_from_chat_id: self.forked_from_chat_id,
+            parent_chat_id: self.parent_chat_id,
             subagent_kind: self.subagent_kind.as_deref(),
             thread_source: self.thread_source.as_ref(),
             sandbox: self.sandbox.as_deref(),
@@ -346,17 +346,17 @@ struct CodexTurnMetadataPayload<'a> {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     session_id: Option<&'a str>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    thread_id: Option<&'a str>,
+    chat_id: Option<&'a str>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    turn_id: Option<&'a str>,
+    interaction_id: Option<&'a str>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     window_id: Option<&'a str>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     request_kind: Option<&'static str>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    forked_from_thread_id: Option<ThreadId>,
+    forked_from_chat_id: Option<ChatId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    parent_thread_id: Option<ThreadId>,
+    parent_chat_id: Option<ChatId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     subagent_kind: Option<&'a str>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

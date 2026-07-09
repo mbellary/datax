@@ -1581,8 +1581,8 @@ fn rewrite_refs_to_namespace(value: &mut Value, ns: &str) {
 ///
 /// The mixed export contains shared root helper schemas that are intentionally
 /// left outside the `v2` namespace, but some of their extracted child
-/// definitions still contain refs like `#/definitions/ThreadId`. When the real
-/// schema only exists under `#/definitions/v2/ThreadId`, those refs become
+/// definitions still contain refs like `#/definitions/ChatId`. When the real
+/// schema only exists under `#/definitions/v2/ChatId`, those refs become
 /// dangling and downstream codegen falls back to placeholder `Any` models. This
 /// rewrite keeps the shared helpers at the root while retargeting their refs to
 /// the namespaced definitions that actually exist.
@@ -2427,14 +2427,14 @@ mod tests {
                     "title": "LegacyEnvelope",
                     "type": "object",
                     "properties": {
-                        "current_thread": { "$ref": "#/definitions/ThreadId" },
+                        "current_thread": { "$ref": "#/definitions/ChatId" },
                         "turn_item": { "$ref": "#/definitions/TurnItem" }
                     },
                     "definitions": {
                         "TurnItem": {
                             "type": "object",
                             "properties": {
-                                "chat_id": { "$ref": "#/definitions/ThreadId" },
+                                "chat_id": { "$ref": "#/definitions/ChatId" },
                                 "phase": { "$ref": "#/definitions/MessagePhase" },
                                 "content": {
                                     "type": "array",
@@ -2447,10 +2447,10 @@ mod tests {
             },
             GeneratedSchema {
                 namespace: Some("v2".to_string()),
-                logical_name: "ThreadId".to_string(),
+                logical_name: "ChatId".to_string(),
                 in_v1_dir: false,
                 value: serde_json::json!({
-                    "title": "ThreadId",
+                    "title": "ChatId",
                     "type": "string"
                 }),
             },
@@ -2476,7 +2476,7 @@ mod tests {
 
         assert_eq!(
             bundle["definitions"]["LegacyEnvelope"]["properties"]["current_thread"]["$ref"],
-            serde_json::json!("#/definitions/v2/ThreadId")
+            serde_json::json!("#/definitions/v2/ChatId")
         );
         assert_eq!(
             bundle["definitions"]["LegacyEnvelope"]["properties"]["turn_item"]["$ref"],
@@ -2484,7 +2484,7 @@ mod tests {
         );
         assert_eq!(
             bundle["definitions"]["TurnItem"]["properties"]["chat_id"]["$ref"],
-            serde_json::json!("#/definitions/v2/ThreadId")
+            serde_json::json!("#/definitions/v2/ChatId")
         );
         assert_eq!(
             bundle["definitions"]["TurnItem"]["properties"]["phase"]["$ref"],

@@ -737,7 +737,7 @@ command = "python3 {hook_script_path}"
     .await??;
     let ChatStartResponse { chat: thread, .. } = to_response(response)?;
 
-    let first_turn_id = mcp
+    let first_interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id.clone(),
             client_user_message_id: None,
@@ -750,7 +750,7 @@ command = "python3 {hook_script_path}"
         .await?;
     timeout(
         DEFAULT_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(first_turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(first_interaction_id)),
     )
     .await??;
     timeout(
@@ -799,7 +799,7 @@ command = "python3 {hook_script_path}"
     assert_eq!(trusted_hook.current_hash, hook.current_hash);
     assert_eq!(trusted_hook.trust_status, HookTrustStatus::Trusted);
 
-    let second_turn_id = mcp
+    let second_interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id.clone(),
             client_user_message_id: None,
@@ -812,7 +812,7 @@ command = "python3 {hook_script_path}"
         .await?;
     timeout(
         DEFAULT_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(second_turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(second_interaction_id)),
     )
     .await??;
     timeout(
@@ -869,7 +869,7 @@ command = "python3 {hook_script_path}"
     assert_ne!(modified_hook.current_hash, hook.current_hash);
     assert_eq!(modified_hook.trust_status, HookTrustStatus::Modified);
 
-    let third_turn_id = mcp
+    let third_interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id,
             client_user_message_id: None,
@@ -882,7 +882,7 @@ command = "python3 {hook_script_path}"
         .await?;
     timeout(
         DEFAULT_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(third_turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(third_interaction_id)),
     )
     .await??;
     timeout(
@@ -1010,7 +1010,7 @@ command = "python3 {hook_script_path}"
     .await??;
     let ChatStartResponse { chat: thread, .. } = to_response(response)?;
 
-    let first_turn_id = mcp
+    let first_interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id.clone(),
             client_user_message_id: None,
@@ -1023,7 +1023,7 @@ command = "python3 {hook_script_path}"
         .await?;
     timeout(
         DEFAULT_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(first_turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(first_interaction_id)),
     )
     .await??;
     timeout(
@@ -1062,7 +1062,7 @@ command = "python3 {hook_script_path}"
     .await??;
     let _: datax_app_server_protocol::ConfigWriteResponse = to_response(response)?;
 
-    let second_turn_id = mcp
+    let second_interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id,
             client_user_message_id: None,
@@ -1075,7 +1075,7 @@ command = "python3 {hook_script_path}"
         .await?;
     timeout(
         DEFAULT_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(second_turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(second_interaction_id)),
     )
     .await??;
     timeout(

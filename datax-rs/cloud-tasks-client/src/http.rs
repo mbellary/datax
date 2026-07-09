@@ -91,9 +91,9 @@ impl CloudBackend for HttpClient {
     fn list_sibling_attempts(
         &self,
         task: TaskId,
-        turn_id: String,
+        interaction_id: String,
     ) -> CloudBackendFuture<'_, Vec<TurnAttempt>> {
-        Box::pin(async move { self.attempts_api().list(task, turn_id).await })
+        Box::pin(async move { self.attempts_api().list(task, interaction_id).await })
     }
 
     fn apply_task(
@@ -308,9 +308,9 @@ mod api {
                 messages.extend(extract_assistant_messages_from_body(&body));
             }
             let assistant_turn = details.current_assistant_turn.as_ref();
-            let turn_id = assistant_turn.and_then(|turn| turn.id.clone());
-            let sibling_turn_ids = assistant_turn
-                .map(|turn| turn.sibling_turn_ids.clone())
+            let interaction_id = assistant_turn.and_then(|turn| turn.id.clone());
+            let sibling_interaction_ids = assistant_turn
+                .map(|turn| turn.sibling_interaction_ids.clone())
                 .unwrap_or_default();
             let attempt_placement = assistant_turn.and_then(|turn| turn.attempt_placement);
             let attempt_status = attempt_status_from_str(
@@ -319,8 +319,8 @@ mod api {
             Ok(TaskText {
                 prompt,
                 messages,
-                turn_id,
-                sibling_turn_ids,
+                interaction_id,
+                sibling_interaction_ids,
                 attempt_placement,
                 attempt_status,
             })
@@ -409,10 +409,10 @@ mod api {
             }
         }
 
-        pub(crate) async fn list(&self, task: TaskId, turn_id: String) -> Result<Vec<TurnAttempt>> {
+        pub(crate) async fn list(&self, task: TaskId, interaction_id: String) -> Result<Vec<TurnAttempt>> {
             let resp = self
                 .backend
-                .list_sibling_turns(&task.0, &turn_id)
+                .list_sibling_turns(&task.0, &interaction_id)
                 .await
                 .map_err(|e| CloudTaskError::Http(format!("list_sibling_turns failed: {e}")))?;
 
@@ -625,14 +625,14 @@ mod api {
     }
 
     fn turn_attempt_from_map(turn: &HashMap<String, Value>) -> Option<TurnAttempt> {
-        let turn_id = turn.get("id").and_then(Value::as_str)?.to_string();
+        let interaction_id = turn.get("id").and_then(Value::as_str)?.to_string();
         let attempt_placement = turn.get("attempt_placement").and_then(Value::as_i64);
         let created_at = parse_timestamp_value(turn.get("created_at"));
         let status = attempt_status_from_str(turn.get("turn_status").and_then(Value::as_str));
         let diff = extract_diff_from_turn(turn);
         let messages = extract_assistant_messages_from_turn(turn);
         Some(TurnAttempt {
-            turn_id,
+            interaction_id,
             attempt_placement,
             created_at,
             status,
@@ -650,7 +650,7 @@ mod api {
                 (Some(lhs), Some(rhs)) => lhs.cmp(&rhs),
                 (Some(_), None) => Ordering::Less,
                 (None, Some(_)) => Ordering::Greater,
-                (None, None) => a.turn_id.cmp(&b.turn_id),
+                (None, None) => a.interaction_id.cmp(&b.interaction_id),
             },
         }
     }
@@ -854,7 +854,7 @@ mod api {
         let latest = map
             .get("latest_turn_status_display")
             .and_then(Value::as_object)?;
-        let siblings = latest.get("sibling_turn_ids").and_then(Value::as_array)?;
+        let siblings = latest.get("sibling_interaction_ids").and_then(Value::as_array)?;
         Some(siblings.len().saturating_add(1))
     }
 

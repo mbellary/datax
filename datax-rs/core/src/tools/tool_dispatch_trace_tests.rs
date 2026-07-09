@@ -282,12 +282,12 @@ fn test_invocation_with_payload(
 }
 
 fn attach_test_trace(session: &mut Session, turn: &TurnContext, root: &Path) -> anyhow::Result<()> {
-    let thread_id = session.thread_id;
+    let chat_id = session.chat_id;
     let rollout_thread_trace =
         datax_rollout_trace::ThreadTraceContext::start_root_in_root_for_test(
             root,
             ThreadStartedTraceMetadata {
-                thread_id: thread_id.to_string(),
+                chat_id: chat_id.to_string(),
                 agent_path: "/root".to_string(),
                 task_name: None,
                 nickname: None,

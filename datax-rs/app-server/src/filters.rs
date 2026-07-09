@@ -84,7 +84,7 @@ pub(crate) fn source_kind_matches(source: &CoreSessionSource, filter: &[ChatSour
 #[cfg(test)]
 mod tests {
     use super::*;
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use pretty_assertions::assert_eq;
     use uuid::Uuid;
 
@@ -128,10 +128,10 @@ mod tests {
     #[test]
     fn source_kind_matches_distinguishes_subagent_variants() {
         let parent_chat_id =
-            ThreadId::from_string(&Uuid::new_v4().to_string()).expect("valid thread id");
+            ChatId::from_string(&Uuid::new_v4().to_string()).expect("valid thread id");
         let review = CoreSessionSource::SubAgent(CoreSubAgentSource::Review);
         let spawn = CoreSessionSource::SubAgent(CoreSubAgentSource::ThreadSpawn {
-            parent_thread_id: parent_chat_id,
+            parent_chat_id: parent_chat_id,
             depth: 1,
             agent_path: None,
             agent_nickname: None,

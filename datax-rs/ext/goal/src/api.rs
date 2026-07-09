@@ -5,7 +5,7 @@ use std::sync::Mutex;
 use std::sync::PoisonError;
 use std::sync::Weak;
 
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::RolloutItem;
 use datax_protocol::protocol::ThreadGoal;
@@ -50,7 +50,7 @@ pub enum GoalTokenBudgetUpdate {
 
 #[derive(Clone, Copy, Debug)]
 pub struct GoalSetRequest<'a> {
-    pub thread_id: ThreadId,
+    pub chat_id: ChatId,
     pub objective: GoalObjectiveUpdate<'a>,
     pub status: Option<ThreadGoalStatus>,
     pub token_budget: GoalTokenBudgetUpdate,
@@ -66,14 +66,14 @@ pub struct GoalSetOutcome {
 impl GoalSetOutcome {
     pub fn thread_goal_updated_item(&self) -> RolloutItem {
         RolloutItem::EventMsg(EventMsg::ThreadGoalUpdated(ThreadGoalUpdatedEvent {
-            thread_id: self.goal.thread_id,
-            turn_id: None,
+            chat_id: self.goal.chat_id,
+            interaction_id: None,
             goal: self.goal.clone(),
         }))
     }
 
     pub async fn apply_runtime_effects(&self, goal_service: &GoalService) {
-        if let Some(runtime) = goal_service.runtime_for_thread(self.goal.thread_id)
+        if let Some(runtime) = goal_service.runtime_for_thread(self.goal.chat_id)
             && let Err(err) = runtime
                 .apply_external_goal_set(self.state_goal.clone(), self.previous_goal.clone())
                 .await
@@ -96,11 +96,11 @@ impl GoalService {
     pub async fn get_thread_goal(
         &self,
         state_db: &datax_state::StateRuntime,
-        thread_id: ThreadId,
+        chat_id: ChatId,
     ) -> Result<Option<ThreadGoal>, GoalServiceError> {
         state_db
             .thread_goals()
-            .get_thread_goal(thread_id)
+            .get_thread_goal(chat_id)
             .await
             .map(|goal| goal.map(protocol_goal_from_state))
             .map_err(|err| GoalServiceError::Internal(format!("failed to read thread goal: {err}")))
@@ -112,7 +112,7 @@ impl GoalService {
         request: GoalSetRequest<'_>,
     ) -> Result<GoalSetOutcome, GoalServiceError> {
         let GoalSetRequest {
-            thread_id,
+            chat_id,
             objective,
             status,
             token_budget,
@@ -135,7 +135,7 @@ impl GoalService {
                 .map_err(GoalServiceError::InvalidRequest)?;
         }
 
-        let runtime = self.runtime_for_thread(thread_id);
+        let runtime = self.runtime_for_thread(chat_id);
         // Hold this through the prepare/write window so idle continuation cannot
         // launch from goal state that this external mutation is about to change.
         let _goal_state_permit = match runtime.as_ref() {
@@ -156,7 +156,7 @@ impl GoalService {
         let (goal, previous_goal) = if let Some(objective) = objective {
             let existing_goal = state_db
                 .thread_goals()
-                .get_thread_goal(thread_id)
+                .get_thread_goal(chat_id)
                 .await
                 .map_err(|err| {
                     GoalServiceError::Internal(format!("failed to read thread goal: {err}"))
@@ -166,7 +166,7 @@ impl GoalService {
                 state_db
                     .thread_goals()
                     .update_thread_goal(
-                        thread_id,
+                        chat_id,
                         datax_state::GoalUpdate {
                             objective: Some(objective.to_string()),
                             status,
@@ -180,7 +180,7 @@ impl GoalService {
                     })?
                     .ok_or_else(|| {
                         GoalServiceError::InvalidRequest(format!(
-                            "cannot update goal for thread {thread_id}: no goal exists"
+                            "cannot update goal for thread {chat_id}: no goal exists"
                         ))
                     })
                     .map(|goal| (goal, Some(previous_goal)))?
@@ -188,7 +188,7 @@ impl GoalService {
                 state_db
                     .thread_goals()
                     .replace_thread_goal(
-                        thread_id,
+                        chat_id,
                         objective,
                         status.unwrap_or(datax_state::ThreadGoalStatus::Active),
                         token_budget.flatten(),
@@ -202,14 +202,14 @@ impl GoalService {
         } else {
             let existing_goal = state_db
                 .thread_goals()
-                .get_thread_goal(thread_id)
+                .get_thread_goal(chat_id)
                 .await
                 .map_err(|err| {
                     GoalServiceError::Internal(format!("failed to read thread goal: {err}"))
                 })?
                 .ok_or_else(|| {
                     GoalServiceError::InvalidRequest(format!(
-                        "cannot update goal for thread {thread_id}: no goal exists"
+                        "cannot update goal for thread {chat_id}: no goal exists"
                     ))
                 })?;
             let previous_goal = PreviousGoalSnapshot::from(&existing_goal);
@@ -217,7 +217,7 @@ impl GoalService {
             state_db
                 .thread_goals()
                 .update_thread_goal(
-                    thread_id,
+                    chat_id,
                     datax_state::GoalUpdate {
                         objective: None,
                         status,
@@ -231,14 +231,14 @@ impl GoalService {
                 })?
                 .ok_or_else(|| {
                     GoalServiceError::InvalidRequest(format!(
-                        "cannot update goal for thread {thread_id}: no goal exists"
+                        "cannot update goal for thread {chat_id}: no goal exists"
                     ))
                 })
                 .map(|goal| (goal, Some(previous_goal)))?
         };
 
         if objective.is_some() {
-            fill_empty_thread_preview_if_possible(state_db, thread_id, &goal).await;
+            fill_empty_thread_preview_if_possible(state_db, chat_id, &goal).await;
         }
         Ok(GoalSetOutcome {
             goal: protocol_goal_from_state(goal.clone()),
@@ -250,9 +250,9 @@ impl GoalService {
     pub async fn clear_thread_goal(
         &self,
         state_db: &datax_state::StateRuntime,
-        thread_id: ThreadId,
+        chat_id: ChatId,
     ) -> Result<bool, GoalServiceError> {
-        let runtime = self.runtime_for_thread(thread_id);
+        let runtime = self.runtime_for_thread(chat_id);
         // Hold this through the prepare/write window so idle continuation cannot
         // launch from goal state that this external mutation is about to change.
         let goal_state_permit = match runtime.as_ref() {
@@ -272,7 +272,7 @@ impl GoalService {
 
         let cleared_goal = state_db
             .thread_goals()
-            .delete_thread_goal(thread_id)
+            .delete_thread_goal(chat_id)
             .await
             .map_err(|err| {
                 GoalServiceError::Internal(format!("failed to clear thread goal: {err}"))
@@ -281,7 +281,7 @@ impl GoalService {
         drop(goal_state_permit);
         drop(runtime);
 
-        if let (Some(runtime), Some(goal)) = (self.runtime_for_thread(thread_id), cleared_goal)
+        if let (Some(runtime), Some(goal)) = (self.runtime_for_thread(chat_id), cleared_goal)
             && let Err(err) = runtime.apply_external_goal_clear(goal).await
         {
             tracing::warn!("failed to apply external goal clear runtime effects: {err}");
@@ -292,11 +292,11 @@ impl GoalService {
 
     pub(crate) fn register_runtime(&self, runtime: &Arc<GoalRuntimeHandle>) {
         self.runtimes()
-            .insert(runtime.thread_id().to_string(), Arc::downgrade(runtime));
+            .insert(runtime.chat_id().to_string(), Arc::downgrade(runtime));
     }
 
     pub(crate) fn unregister_runtime(&self, runtime: &Arc<GoalRuntimeHandle>) {
-        let key = runtime.thread_id().to_string();
+        let key = runtime.chat_id().to_string();
         let runtime = Arc::downgrade(runtime);
         let mut runtimes = self.runtimes();
         if runtimes
@@ -307,8 +307,8 @@ impl GoalService {
         }
     }
 
-    fn runtime_for_thread(&self, thread_id: ThreadId) -> Option<Arc<GoalRuntimeHandle>> {
-        let key = thread_id.to_string();
+    fn runtime_for_thread(&self, chat_id: ChatId) -> Option<Arc<GoalRuntimeHandle>> {
+        let key = chat_id.to_string();
         let mut runtimes = self.runtimes();
         let runtime = runtimes.get(&key).and_then(Weak::upgrade);
         if runtime.is_none() {

@@ -16,7 +16,7 @@ use serde_json::Value as JsonValue;
 use tracing::warn;
 
 use crate::inference::trace_response_item_json;
-use crate::model::AgentThreadId;
+use crate::model::AgentChatId;
 use crate::model::CodexTurnId;
 use crate::model::CompactionId;
 use crate::model::CompactionRequestId;
@@ -45,8 +45,8 @@ enum CompactionTraceContextState {
 #[derive(Clone, Debug)]
 struct EnabledCompactionTraceContext {
     writer: Arc<TraceWriter>,
-    thread_id: AgentThreadId,
-    codex_turn_id: CodexTurnId,
+    chat_id: AgentChatId,
+    codex_interaction_id: CodexTurnId,
     compaction_id: CompactionId,
     model: String,
     provider_name: String,
@@ -97,8 +97,8 @@ impl CompactionTraceContext {
     /// Builds an enabled context for upstream attempts that compute one checkpoint.
     pub fn enabled(
         writer: Arc<TraceWriter>,
-        thread_id: AgentThreadId,
-        codex_turn_id: CodexTurnId,
+        chat_id: AgentChatId,
+        codex_interaction_id: CodexTurnId,
         compaction_id: CompactionId,
         model: String,
         provider_name: String,
@@ -106,8 +106,8 @@ impl CompactionTraceContext {
         Self {
             state: CompactionTraceContextState::Enabled(EnabledCompactionTraceContext {
                 writer,
-                thread_id,
-                codex_turn_id,
+                chat_id,
+                codex_interaction_id,
                 compaction_id,
                 model,
                 provider_name,
@@ -151,8 +151,8 @@ impl CompactionTraceContext {
         };
 
         let event_context = RawTraceEventContext {
-            thread_id: Some(context.thread_id.clone()),
-            codex_turn_id: Some(context.codex_turn_id.clone()),
+            chat_id: Some(context.chat_id.clone()),
+            codex_interaction_id: Some(context.codex_interaction_id.clone()),
         };
         if let Err(err) = context.writer.append_with_context(
             event_context,
@@ -191,8 +191,8 @@ impl CompactionTraceAttempt {
             RawTraceEventPayload::CompactionRequestStarted {
                 compaction_id: attempt.context.compaction_id.clone(),
                 compaction_request_id: attempt.compaction_request_id.clone(),
-                thread_id: attempt.context.thread_id.clone(),
-                codex_turn_id: attempt.context.codex_turn_id.clone(),
+                chat_id: attempt.context.chat_id.clone(),
+                codex_interaction_id: attempt.context.codex_interaction_id.clone(),
                 model: attempt.context.model.clone(),
                 provider_name: attempt.context.provider_name.clone(),
                 request_payload,
@@ -272,8 +272,8 @@ fn append_with_context_best_effort(
     payload: RawTraceEventPayload,
 ) {
     let event_context = RawTraceEventContext {
-        thread_id: Some(context.thread_id.clone()),
-        codex_turn_id: Some(context.codex_turn_id.clone()),
+        chat_id: Some(context.chat_id.clone()),
+        codex_interaction_id: Some(context.codex_interaction_id.clone()),
     };
     let _ = context.writer.append_with_context(event_context, payload);
 }

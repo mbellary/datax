@@ -1121,15 +1121,15 @@ pub async fn mount_compact_user_history_with_summary_sequence(
                         )
                 })
                 .collect::<Vec<Value>>();
-            let compaction_turn_id = body_json["client_metadata"]["turn_id"].as_str();
+            let compaction_interaction_id = body_json["client_metadata"]["interaction_id"].as_str();
             // Match Responses API: generated compaction items inherit the compact request turn.
             let mut compaction_item = serde_json::json!({
                 "type": "compaction",
                 "encrypted_content": summary_text,
             });
-            if let Some(turn_id) = compaction_turn_id {
+            if let Some(interaction_id) = compaction_interaction_id {
                 compaction_item["internal_chat_message_metadata_passthrough"] =
-                    serde_json::json!({ "turn_id": turn_id });
+                    serde_json::json!({ "interaction_id": interaction_id });
             }
             output.push(compaction_item);
             ResponseTemplate::new(200)

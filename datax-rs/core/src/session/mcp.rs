@@ -194,7 +194,7 @@ impl Session {
             }
         };
         let event = EventMsg::ElicitationRequest(ElicitationRequestEvent {
-            turn_id: params.interaction_id,
+            interaction_id: params.interaction_id,
             server_name,
             id,
             request,

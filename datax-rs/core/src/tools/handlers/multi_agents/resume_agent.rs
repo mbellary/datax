@@ -40,13 +40,13 @@ async fn handle_resume_agent(
     } = invocation;
     let arguments = function_arguments(payload)?;
     let args: ResumeAgentArgs = parse_arguments(&arguments)?;
-    let receiver_thread_id = ThreadId::from_string(&args.id).map_err(|err| {
+    let receiver_chat_id = ChatId::from_string(&args.id).map_err(|err| {
         FunctionCallError::RespondToModel(format!("invalid agent id {}: {err:?}", args.id))
     })?;
     let receiver_agent = session
         .services
         .agent_control
-        .get_agent_metadata(receiver_thread_id)
+        .get_agent_metadata(receiver_chat_id)
         .unwrap_or_default();
     let child_depth = next_thread_spawn_depth(&turn.session_source);
     let max_depth = turn.config.agent_max_depth;
@@ -62,8 +62,8 @@ async fn handle_resume_agent(
             CollabResumeBeginEvent {
                 call_id: call_id.clone(),
                 started_at_ms: now_unix_timestamp_ms(),
-                sender_thread_id: session.thread_id,
-                receiver_thread_id,
+                sender_chat_id: session.chat_id,
+                receiver_chat_id,
                 receiver_agent_nickname: receiver_agent.agent_nickname.clone(),
                 receiver_agent_role: receiver_agent.agent_role.clone(),
             }
@@ -74,13 +74,13 @@ async fn handle_resume_agent(
     let mut status = session
         .services
         .agent_control
-        .get_status(receiver_thread_id)
+        .get_status(receiver_chat_id)
         .await;
     let (receiver_agent, error) = if matches!(status, AgentStatus::NotFound) {
         match Box::pin(try_resume_closed_agent(
             &session,
             &turn,
-            receiver_thread_id,
+            receiver_chat_id,
             child_depth,
         ))
         .await
@@ -89,13 +89,13 @@ async fn handle_resume_agent(
                 status = session
                     .services
                     .agent_control
-                    .get_status(receiver_thread_id)
+                    .get_status(receiver_chat_id)
                     .await;
                 (
                     session
                         .services
                         .agent_control
-                        .get_agent_metadata(receiver_thread_id)
+                        .get_agent_metadata(receiver_chat_id)
                         .unwrap_or(receiver_agent),
                     None,
                 )
@@ -104,7 +104,7 @@ async fn handle_resume_agent(
                 status = session
                     .services
                     .agent_control
-                    .get_status(receiver_thread_id)
+                    .get_status(receiver_chat_id)
                     .await;
                 (receiver_agent, Some(err))
             }
@@ -118,8 +118,8 @@ async fn handle_resume_agent(
             CollabResumeEndEvent {
                 call_id,
                 completed_at_ms: now_unix_timestamp_ms(),
-                sender_thread_id: session.thread_id(),
-                receiver_thread_id,
+                sender_chat_id: session.chat_id(),
+                receiver_chat_id,
                 receiver_agent_nickname: receiver_agent.agent_nickname,
                 receiver_agent_role: receiver_agent.agent_role,
                 status: status.clone(),
@@ -174,15 +174,15 @@ impl ToolOutput for ResumeAgentResult {
 async fn try_resume_closed_agent(
     session: &Arc<Session>,
     turn: &Arc<TurnContext>,
-    receiver_thread_id: ThreadId,
+    receiver_chat_id: ChatId,
     child_depth: i32,
 ) -> Result<(), FunctionCallError> {
     let config = build_agent_resume_config(turn.as_ref())?;
     Box::pin(session.services.agent_control.resume_agent_from_rollout(
         config,
-        receiver_thread_id,
+        receiver_chat_id,
         thread_spawn_source(
-            session.thread_id(),
+            session.chat_id(),
             &turn.session_source,
             child_depth,
             /*agent_role*/ None,
@@ -191,5 +191,5 @@ async fn try_resume_closed_agent(
     ))
     .await
     .map(|_| ())
-    .map_err(|err| collab_agent_error(receiver_thread_id, err))
+    .map_err(|err| collab_agent_error(receiver_chat_id, err))
 }

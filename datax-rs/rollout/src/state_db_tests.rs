@@ -33,7 +33,7 @@ fn cursor_to_anchor_normalizes_timestamp_format() {
 
 #[test]
 fn cursor_to_anchor_preserves_recency_tie_breaker() {
-    let id = ThreadId::from_string("00000000-0000-0000-0000-000000000123")
+    let id = ChatId::from_string("00000000-0000-0000-0000-000000000123")
         .expect("thread id should parse");
     let token = format!("2026-01-27T12:34:56Z|{id}");
     let cursor = parse_cursor(&token).expect("cursor should parse");
@@ -110,8 +110,8 @@ async fn try_init_times_out_waiting_for_stuck_startup_backfill() -> anyhow::Resu
 #[tokio::test]
 async fn reconcile_rollout_preserves_existing_explicit_title() -> anyhow::Result<()> {
     let home = TempDir::new().expect("temp dir");
-    let thread_id = ThreadId::new();
-    let rollout_path = write_rollout_with_user_message(home.path(), thread_id, "Hey")?;
+    let chat_id = ChatId::new();
+    let rollout_path = write_rollout_with_user_message(home.path(), chat_id, "Hey")?;
     let runtime =
         datax_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".to_string())
             .await?;
@@ -137,7 +137,7 @@ async fn reconcile_rollout_preserves_existing_explicit_title() -> anyhow::Result
     .await;
 
     let persisted = runtime
-        .get_thread(thread_id)
+        .get_thread(chat_id)
         .await?
         .expect("thread should exist");
     assert_eq!(persisted.title, "math");
@@ -147,21 +147,21 @@ async fn reconcile_rollout_preserves_existing_explicit_title() -> anyhow::Result
 
 fn write_rollout_with_user_message(
     home: &Path,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     message: &str,
 ) -> anyhow::Result<std::path::PathBuf> {
     let dir = home.join("sessions/2026/06/01");
     std::fs::create_dir_all(dir.as_path())?;
-    let path = dir.join(format!("rollout-2026-06-01T14-26-25-{thread_id}.jsonl"));
+    let path = dir.join(format!("rollout-2026-06-01T14-26-25-{chat_id}.jsonl"));
     let lines = [
         RolloutLine {
             timestamp: "2026-06-01T14:26:25Z".to_string(),
             item: RolloutItem::SessionMeta(SessionMetaLine {
                 meta: SessionMeta {
-                    session_id: thread_id.into(),
-                    id: thread_id,
+                    session_id: chat_id.into(),
+                    id: chat_id,
                     forked_from_id: None,
-                    parent_thread_id: None,
+                    parent_chat_id: None,
                     timestamp: "2026-06-01T14:26:25Z".to_string(),
                     cwd: home.to_path_buf(),
                     originator: "test".to_string(),

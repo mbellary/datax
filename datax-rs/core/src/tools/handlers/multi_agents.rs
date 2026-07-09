@@ -19,7 +19,7 @@ use crate::tools::handlers::multi_agents_spec::MULTI_AGENT_V1_NAMESPACE;
 use crate::tools::handlers::parse_arguments;
 use crate::tools::registry::CoreToolRuntime;
 use crate::tools::registry::ToolExecutor;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::models::ResponseInputItem;
 use datax_protocol::openai_models::ReasoningEffort;
 use datax_protocol::protocol::CollabAgentInteractionBeginEvent;
@@ -44,15 +44,15 @@ use serde_json::Value as JsonValue;
 const MULTI_AGENT_TOOL_SEARCH_SOURCE_NAME: &str = "Multi-agent tools";
 const MULTI_AGENT_TOOL_SEARCH_SOURCE_DESCRIPTION: &str = "Spawn and manage sub-agents.";
 
-pub(crate) fn parse_agent_id_target(target: &str) -> Result<ThreadId, FunctionCallError> {
-    ThreadId::from_string(target).map_err(|err| {
+pub(crate) fn parse_agent_id_target(target: &str) -> Result<ChatId, FunctionCallError> {
+    ChatId::from_string(target).map_err(|err| {
         FunctionCallError::RespondToModel(format!("invalid agent id {target}: {err:?}"))
     })
 }
 
 pub(crate) fn parse_agent_id_targets(
     targets: Vec<String>,
-) -> Result<Vec<ThreadId>, FunctionCallError> {
+) -> Result<Vec<ChatId>, FunctionCallError> {
     if targets.is_empty() {
         return Err(FunctionCallError::RespondToModel(
             "agent ids must be non-empty".to_string(),

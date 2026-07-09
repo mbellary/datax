@@ -496,11 +496,11 @@ impl ChatWidget {
         {
             return;
         }
-        let Some(thread_id) = self.thread_id else {
+        let Some(chat_id) = self.chat_id else {
             return;
         };
         self.app_event_tx.send(AppEvent::SetThreadGoalStatus {
-            thread_id,
+            chat_id,
             status: AppThreadGoalStatus::Paused,
         });
     }

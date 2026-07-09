@@ -175,7 +175,7 @@ async fn remote_model_override_uses_catalog_model_for_strict_auto_review() -> Re
     let permissions_request = wait_for_event(&codex, |event| {
         matches!(
             event,
-            EventMsg::RequestPermissions(_) | EventMsg::TurnComplete(_)
+            EventMsg::RequestPermissions(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await;
@@ -194,7 +194,7 @@ async fn remote_model_override_uses_catalog_model_for_strict_auto_review() -> Re
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     let guardian_request = responses
         .requests()

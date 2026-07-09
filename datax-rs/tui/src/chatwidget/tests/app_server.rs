@@ -3,7 +3,7 @@ use pretty_assertions::assert_eq;
 
 fn thread_settings_for_test(
     model: &str,
-    chat_id: ThreadId,
+    chat_id: ChatId,
 ) -> datax_app_server_protocol::ChatSettingsUpdatedNotification {
     datax_app_server_protocol::ChatSettingsUpdatedNotification {
         chat_id: chat_id.to_string(),
@@ -36,9 +36,9 @@ fn thread_settings_for_test(
     }
 }
 
-fn configured_thread_session(chat_id: ThreadId) -> crate::session_state::ThreadSessionState {
+fn configured_thread_session(chat_id: ChatId) -> crate::session_state::ThreadSessionState {
     crate::session_state::ThreadSessionState {
-        thread_id: chat_id,
+        chat_id: chat_id,
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -64,14 +64,14 @@ fn configured_thread_session(chat_id: ThreadId) -> crate::session_state::ThreadS
 #[tokio::test]
 async fn invalid_url_elicitation_is_declined() {
     let (mut chat, _app_event_tx, mut rx, _op_rx) = make_chatwidget_manual_with_sender().await;
-    let visible_thread_id = ThreadId::new();
-    let request_thread_id = ThreadId::new();
-    chat.thread_id = Some(visible_thread_id);
+    let visible_chat_id = ChatId::new();
+    let request_chat_id = ChatId::new();
+    chat.chat_id = Some(visible_chat_id);
 
     chat.handle_elicitation_request_now(
         datax_app_server_protocol::RequestId::Integer(9),
         datax_app_server_protocol::McpServerElicitationRequestParams {
-            chat_id: request_thread_id.to_string(),
+            chat_id: request_chat_id.to_string(),
             interaction_id: Some("turn-auth".to_string()),
             server_name: "payments".to_string(),
             request: datax_app_server_protocol::McpServerElicitationRequest::Url {
@@ -86,7 +86,7 @@ async fn invalid_url_elicitation_is_declined() {
     assert_matches!(
         rx.try_recv(),
         Ok(AppEvent::SubmitThreadOp {
-            thread_id: op_thread_id,
+            chat_id: op_chat_id,
             op: Op::ResolveElicitation {
                 server_name,
                 request_id: datax_app_server_protocol::RequestId::Integer(9),
@@ -94,7 +94,7 @@ async fn invalid_url_elicitation_is_declined() {
                 content: None,
                 meta: None,
             },
-        }) if op_thread_id == request_thread_id && server_name == "payments"
+        }) if op_chat_id == request_chat_id && server_name == "payments"
     );
 }
 
@@ -102,12 +102,12 @@ async fn invalid_url_elicitation_is_declined() {
 async fn thread_settings_updated_updates_visible_state_without_transcript() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.3-codex")).await;
     set_fast_mode_test_catalog(&mut chat);
-    let thread_id = ThreadId::new();
-    chat.handle_thread_session(configured_thread_session(thread_id));
+    let chat_id = ChatId::new();
+    chat.handle_thread_session(configured_thread_session(chat_id));
     let _ = drain_insert_history(&mut rx);
 
     chat.handle_server_notification(
-        ServerNotification::ChatSettingsUpdated(thread_settings_for_test("gpt-5.4", thread_id)),
+        ServerNotification::ChatSettingsUpdated(thread_settings_for_test("gpt-5.4", chat_id)),
         /*replay_kind*/ None,
     );
 
@@ -146,7 +146,7 @@ async fn thread_settings_updated_updates_visible_state_without_transcript() {
     chat.handle_server_notification(
         ServerNotification::ChatSettingsUpdated(thread_settings_for_test(
             "gpt-5.2",
-            ThreadId::new(),
+            ChatId::new(),
         )),
         /*replay_kind*/ None,
     );
@@ -157,8 +157,8 @@ async fn thread_settings_updated_updates_visible_state_without_transcript() {
 #[tokio::test]
 async fn thread_settings_updated_preserves_default_settings_for_plan_mode() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.3-codex")).await;
-    let thread_id = ThreadId::new();
-    let mut session = configured_thread_session(thread_id);
+    let chat_id = ChatId::new();
+    let mut session = configured_thread_session(chat_id);
     session.model = "gpt-default".to_string();
     session.reasoning_effort = Some(ReasoningEffortConfig::Low);
     chat.handle_thread_session(session);
@@ -166,7 +166,7 @@ async fn thread_settings_updated_preserves_default_settings_for_plan_mode() {
     let default_mode = chat.current_collaboration_mode().clone();
 
     chat.handle_server_notification(
-        ServerNotification::ChatSettingsUpdated(thread_settings_for_test("gpt-plan", thread_id)),
+        ServerNotification::ChatSettingsUpdated(thread_settings_for_test("gpt-plan", chat_id)),
         /*replay_kind*/ None,
     );
 
@@ -193,10 +193,10 @@ async fn thread_settings_updated_preserves_default_settings_for_plan_mode() {
 #[tokio::test]
 async fn collab_spawn_end_shows_requested_model_and_effort() {
     let (mut chat, mut rx, _ops) = make_chatwidget_manual(/*model_override*/ None).await;
-    let sender_thread_id = ThreadId::new();
-    let spawned_thread_id = ThreadId::new();
+    let sender_chat_id = ChatId::new();
+    let spawned_chat_id = ChatId::new();
     chat.set_collab_agent_metadata(
-        spawned_thread_id,
+        spawned_chat_id,
         Some("Robie".to_string()),
         Some("explorer".to_string()),
     );
@@ -210,8 +210,8 @@ async fn collab_spawn_end_shows_requested_model_and_effort() {
                 id: "call-spawn".to_string(),
                 tool: AppServerCollabAgentTool::SpawnAgent,
                 status: AppServerCollabAgentToolCallStatus::InProgress,
-                sender_thread_id: sender_thread_id.to_string(),
-                receiver_thread_ids: Vec::new(),
+                sender_chat_id: sender_chat_id.to_string(),
+                receiver_chat_ids: Vec::new(),
                 prompt: Some("Explore the repo".to_string()),
                 model: Some("gpt-5".to_string()),
                 reasoning_effort: Some(ReasoningEffortConfig::High),
@@ -229,13 +229,13 @@ async fn collab_spawn_end_shows_requested_model_and_effort() {
                 id: "call-spawn".to_string(),
                 tool: AppServerCollabAgentTool::SpawnAgent,
                 status: AppServerCollabAgentToolCallStatus::Completed,
-                sender_thread_id: sender_thread_id.to_string(),
-                receiver_thread_ids: vec![spawned_thread_id.to_string()],
+                sender_chat_id: sender_chat_id.to_string(),
+                receiver_chat_ids: vec![spawned_chat_id.to_string()],
                 prompt: Some("Explore the repo".to_string()),
                 model: None,
                 reasoning_effort: None,
                 agents_states: HashMap::from([(
-                    spawned_thread_id.to_string(),
+                    spawned_chat_id.to_string(),
                     AppServerCollabAgentState {
                         status: AppServerCollabAgentStatus::PendingInit,
                         message: None,
@@ -262,7 +262,7 @@ async fn collab_spawn_end_shows_requested_model_and_effort() {
 #[tokio::test]
 async fn live_app_server_user_message_item_completed_does_not_duplicate_rendered_prompt() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
 
     chat.bottom_pane
         .set_composer_text("Hi, are you there?".to_string(), Vec::new(), Vec::new());
@@ -367,7 +367,7 @@ async fn live_app_server_turn_completed_clears_working_status_after_answer_item(
 }
 
 #[tokio::test]
-async fn live_app_server_turn_started_sets_feedback_turn_id() {
+async fn live_app_server_turn_started_sets_feedback_interaction_id() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     chat.handle_server_notification(
@@ -398,9 +398,9 @@ async fn live_app_server_turn_started_sets_feedback_turn_id() {
         Ok(AppEvent::SubmitFeedback {
             category: crate::app_event::FeedbackCategory::Bug,
             reason: None,
-            turn_id: Some(turn_id),
+            interaction_id: Some(interaction_id),
             include_logs: false,
-        }) if turn_id == "turn-1"
+        }) if interaction_id == "turn-1"
     );
 }
 
@@ -575,19 +575,19 @@ async fn live_app_server_command_execution_strips_shell_wrapper() {
 #[tokio::test]
 async fn live_app_server_collab_wait_items_render_history() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let sender_thread_id =
-        ThreadId::from_string("019cff70-2599-75e2-af72-b90000000001").expect("valid thread id");
-    let receiver_thread_id =
-        ThreadId::from_string("019cff70-2599-75e2-af72-b958ce5dc1cc").expect("valid thread id");
-    let other_receiver_thread_id =
-        ThreadId::from_string("019cff70-2599-75e2-af72-b96db334332d").expect("valid thread id");
+    let sender_chat_id =
+        ChatId::from_string("019cff70-2599-75e2-af72-b90000000001").expect("valid thread id");
+    let receiver_chat_id =
+        ChatId::from_string("019cff70-2599-75e2-af72-b958ce5dc1cc").expect("valid thread id");
+    let other_receiver_chat_id =
+        ChatId::from_string("019cff70-2599-75e2-af72-b96db334332d").expect("valid thread id");
     chat.set_collab_agent_metadata(
-        receiver_thread_id,
+        receiver_chat_id,
         Some("Robie".to_string()),
         Some("explorer".to_string()),
     );
     chat.set_collab_agent_metadata(
-        other_receiver_thread_id,
+        other_receiver_chat_id,
         Some("Ada".to_string()),
         Some("reviewer".to_string()),
     );
@@ -601,10 +601,10 @@ async fn live_app_server_collab_wait_items_render_history() {
                 id: "wait-1".to_string(),
                 tool: AppServerCollabAgentTool::Wait,
                 status: AppServerCollabAgentToolCallStatus::InProgress,
-                sender_thread_id: sender_thread_id.to_string(),
-                receiver_thread_ids: vec![
-                    receiver_thread_id.to_string(),
-                    other_receiver_thread_id.to_string(),
+                sender_chat_id: sender_chat_id.to_string(),
+                receiver_chat_ids: vec![
+                    receiver_chat_id.to_string(),
+                    other_receiver_chat_id.to_string(),
                 ],
                 prompt: None,
                 model: None,
@@ -624,24 +624,24 @@ async fn live_app_server_collab_wait_items_render_history() {
                 id: "wait-1".to_string(),
                 tool: AppServerCollabAgentTool::Wait,
                 status: AppServerCollabAgentToolCallStatus::Completed,
-                sender_thread_id: sender_thread_id.to_string(),
-                receiver_thread_ids: vec![
-                    receiver_thread_id.to_string(),
-                    other_receiver_thread_id.to_string(),
+                sender_chat_id: sender_chat_id.to_string(),
+                receiver_chat_ids: vec![
+                    receiver_chat_id.to_string(),
+                    other_receiver_chat_id.to_string(),
                 ],
                 prompt: None,
                 model: None,
                 reasoning_effort: None,
                 agents_states: HashMap::from([
                     (
-                        receiver_thread_id.to_string(),
+                        receiver_chat_id.to_string(),
                         AppServerCollabAgentState {
                             status: AppServerCollabAgentStatus::Completed,
                             message: Some("Done".to_string()),
                         },
                     ),
                     (
-                        other_receiver_thread_id.to_string(),
+                        other_receiver_chat_id.to_string(),
                         AppServerCollabAgentState {
                             status: AppServerCollabAgentStatus::Running,
                             message: None,
@@ -664,10 +664,10 @@ async fn live_app_server_collab_wait_items_render_history() {
 #[tokio::test]
 async fn live_app_server_collab_spawn_completed_renders_requested_model_and_effort() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let sender_thread_id =
-        ThreadId::from_string("019cff70-2599-75e2-af72-b90000000002").expect("valid thread id");
-    let spawned_thread_id =
-        ThreadId::from_string("019cff70-2599-75e2-af72-b91781b41a8e").expect("valid thread id");
+    let sender_chat_id =
+        ChatId::from_string("019cff70-2599-75e2-af72-b90000000002").expect("valid thread id");
+    let spawned_chat_id =
+        ChatId::from_string("019cff70-2599-75e2-af72-b91781b41a8e").expect("valid thread id");
 
     chat.handle_server_notification(
         ServerNotification::MessageStarted(MessageStartedNotification {
@@ -678,8 +678,8 @@ async fn live_app_server_collab_spawn_completed_renders_requested_model_and_effo
                 id: "spawn-1".to_string(),
                 tool: AppServerCollabAgentTool::SpawnAgent,
                 status: AppServerCollabAgentToolCallStatus::InProgress,
-                sender_thread_id: sender_thread_id.to_string(),
-                receiver_thread_ids: Vec::new(),
+                sender_chat_id: sender_chat_id.to_string(),
+                receiver_chat_ids: Vec::new(),
                 prompt: Some("Explore the repo".to_string()),
                 model: Some("gpt-5".to_string()),
                 reasoning_effort: Some(ReasoningEffortConfig::High),
@@ -698,13 +698,13 @@ async fn live_app_server_collab_spawn_completed_renders_requested_model_and_effo
                 id: "spawn-1".to_string(),
                 tool: AppServerCollabAgentTool::SpawnAgent,
                 status: AppServerCollabAgentToolCallStatus::Completed,
-                sender_thread_id: sender_thread_id.to_string(),
-                receiver_thread_ids: vec![spawned_thread_id.to_string()],
+                sender_chat_id: sender_chat_id.to_string(),
+                receiver_chat_ids: vec![spawned_chat_id.to_string()],
                 prompt: Some("Explore the repo".to_string()),
                 model: Some("gpt-5".to_string()),
                 reasoning_effort: Some(ReasoningEffortConfig::High),
                 agents_states: HashMap::from([(
-                    spawned_thread_id.to_string(),
+                    spawned_chat_id.to_string(),
                     AppServerCollabAgentState {
                         status: AppServerCollabAgentStatus::PendingInit,
                         message: None,
@@ -994,8 +994,8 @@ async fn live_app_server_model_verification_renders_warning() {
 #[tokio::test]
 async fn live_app_server_invalid_thread_name_update_is_ignored() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let thread_id = ThreadId::new();
-    chat.thread_id = Some(thread_id);
+    let chat_id = ChatId::new();
+    chat.chat_id = Some(chat_id);
     chat.thread_name = Some("original name".to_string());
 
     chat.handle_server_notification(
@@ -1008,21 +1008,21 @@ async fn live_app_server_invalid_thread_name_update_is_ignored() {
         /*replay_kind*/ None,
     );
 
-    assert_eq!(chat.thread_id, Some(thread_id));
+    assert_eq!(chat.chat_id, Some(chat_id));
     assert_eq!(chat.thread_name, Some("original name".to_string()));
 }
 
 #[tokio::test]
 async fn live_app_server_thread_name_update_shows_resume_hint() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let thread_id =
-        ThreadId::from_string("123e4567-e89b-12d3-a456-426614174000").expect("thread id");
-    chat.thread_id = Some(thread_id);
+    let chat_id =
+        ChatId::from_string("123e4567-e89b-12d3-a456-426614174000").expect("thread id");
+    chat.chat_id = Some(chat_id);
 
     chat.handle_server_notification(
         ServerNotification::ChatNameUpdated(
             datax_app_server_protocol::ChatNameUpdatedNotification {
-                chat_id: thread_id.to_string(),
+                chat_id: chat_id.to_string(),
                 thread_name: Some("review-fix".to_string()),
             },
         ),

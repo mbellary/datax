@@ -1,5 +1,5 @@
 use super::AgentControl;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::error::CodexErr;
 use datax_protocol::error::Result as CodexResult;
 use datax_protocol::protocol::MultiAgentVersion;
@@ -29,14 +29,14 @@ impl Drop for AgentExecutionGuard {
 impl AgentControl {
     pub(crate) async fn ensure_execution_capacity_for_op(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         op: &Op,
     ) -> CodexResult<()> {
         if !op_starts_turn(op) {
             return Ok(());
         }
         let state = self.upgrade()?;
-        let thread = state.get_thread(thread_id).await?;
+        let thread = state.get_thread(chat_id).await?;
         if thread.codex.session.active_turn.lock().await.is_some() {
             return Ok(());
         }

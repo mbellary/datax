@@ -591,7 +591,7 @@ async fn tool_search_returns_deferred_tools_without_follow_up_tool_injection() -
     );
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -615,15 +615,15 @@ async fn tool_search_returns_deferred_tools_without_follow_up_tool_injection() -
         Some(&json!(test.session_configured.session_id.to_string()))
     );
     assert_eq!(
-        apps_tool_call.pointer("/params/_meta/x-codex-turn-metadata/thread_id"),
-        Some(&json!(test.session_configured.thread_id.to_string()))
+        apps_tool_call.pointer("/params/_meta/x-codex-turn-metadata/chat_id"),
+        Some(&json!(test.session_configured.chat_id.to_string()))
     );
     assert!(
         apps_tool_call
-            .pointer("/params/_meta/x-codex-turn-metadata/turn_id")
+            .pointer("/params/_meta/x-codex-turn-metadata/interaction_id")
             .and_then(Value::as_str)
-            .is_some_and(|turn_id| !turn_id.is_empty()),
-        "apps tools/call should include turn metadata turn_id: {apps_tool_call:?}"
+            .is_some_and(|interaction_id| !interaction_id.is_empty()),
+        "apps tools/call should include turn metadata interaction_id: {apps_tool_call:?}"
     );
     assert_eq!(
         apps_tool_call
@@ -979,7 +979,7 @@ async fn tool_search_returns_deferred_dynamic_tool_and_routes_follow_up_call() -
         .await?;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -1281,7 +1281,7 @@ async fn tool_search_surfaced_mcp_tool_errors_are_returned_to_model() -> Result<
     );
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -1550,7 +1550,7 @@ async fn tool_search_matches_dynamic_tools_by_name_description_namespace_and_sch
                     "type": "object",
                     "properties": {
                         "chrono_spec": { "type": "string" },
-                        "targetThreadId": { "type": "string" },
+                        "targetChatId": { "type": "string" },
                     },
                     "required": ["chrono_spec"],
                     "additionalProperties": false,
@@ -1584,7 +1584,7 @@ async fn tool_search_matches_dynamic_tools_by_name_description_namespace_and_sch
         .await?;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 

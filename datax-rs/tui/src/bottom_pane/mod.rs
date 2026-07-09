@@ -42,7 +42,7 @@ use datax_core_skills::model::SkillMetadata;
 use datax_features::Features;
 use datax_file_search::FileMatch;
 use datax_plugin::PluginCapabilitySummary;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::user_input::TextElement;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
@@ -215,7 +215,7 @@ pub(crate) struct BottomPane {
 
     app_event_tx: AppEventSender,
     frame_requester: FrameRequester,
-    thread_id: Option<ThreadId>,
+    chat_id: Option<ChatId>,
 
     has_input_focus: bool,
     enhanced_keys_supported: bool,
@@ -281,7 +281,7 @@ impl BottomPane {
             last_composer_activity_at: None,
             app_event_tx,
             frame_requester,
-            thread_id: None,
+            chat_id: None,
             has_input_focus,
             enhanced_keys_supported,
             disable_paste_burst,
@@ -808,9 +808,9 @@ impl BottomPane {
 
     pub(crate) fn clear_composer_for_ctrl_c(&mut self) {
         if let Some(text) = self.composer.clear_for_ctrl_c() {
-            if let Some(thread_id) = self.thread_id {
+            if let Some(chat_id) = self.chat_id {
                 self.app_event_tx
-                    .send(AppEvent::AppendMessageHistoryEntry { thread_id, text });
+                    .send(AppEvent::AppendMessageHistoryEntry { chat_id, text });
             } else {
                 tracing::warn!(
                     "failed to append Ctrl+C-cleared draft to history: no active thread id"
@@ -1479,7 +1479,7 @@ impl BottomPane {
                     suggest_reason: Some(tool_suggestion.suggest_reason.clone()),
                     suggestion_type: Some(suggestion_type),
                     elicitation_target: Some(AppLinkElicitationTarget {
-                        thread_id: request.thread_id(),
+                        chat_id: request.chat_id(),
                         server_name: request.server_name().to_string(),
                         request_id: request.request_id().clone(),
                     }),
@@ -1581,13 +1581,13 @@ impl BottomPane {
 
     pub(crate) fn set_history_metadata(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         log_id: u64,
         entry_count: usize,
     ) {
-        self.thread_id = Some(thread_id);
+        self.chat_id = Some(chat_id);
         self.composer
-            .set_history_metadata(thread_id, log_id, entry_count);
+            .set_history_metadata(chat_id, log_id, entry_count);
     }
 
     pub(crate) fn flush_paste_burst_if_due(&mut self) -> bool {
@@ -1905,7 +1905,7 @@ mod tests {
 
     fn exec_request() -> ApprovalRequest {
         ApprovalRequest::Exec {
-            thread_id: datax_protocol::ThreadId::new(),
+            chat_id: datax_protocol::ChatId::new(),
             thread_label: None,
             id: "1".to_string(),
             environment_id: None,

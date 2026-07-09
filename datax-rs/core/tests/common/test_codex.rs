@@ -922,15 +922,15 @@ impl TestCodex {
             })
             .await?;
 
-        let turn_id = wait_for_event_match(&self.codex, |event| match event {
-            EventMsg::TurnStarted(event) => Some(event.turn_id.clone()),
+        let interaction_id = wait_for_event_match(&self.codex, |event| match event {
+            EventMsg::InteractionStarted(event) => Some(event.interaction_id.clone()),
             _ => None,
         })
         .await;
         wait_for_event_with_timeout(
             &self.codex,
             |event| match event {
-                EventMsg::TurnComplete(event) => event.turn_id == turn_id,
+                EventMsg::InteractionComplete(event) => event.interaction_id == interaction_id,
                 _ => false,
             },
             SUBMIT_TURN_COMPLETE_TIMEOUT,

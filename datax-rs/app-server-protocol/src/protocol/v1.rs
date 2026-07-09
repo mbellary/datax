@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::ForcedLoginMethod;
 use datax_protocol::config_types::ReasoningSummary;
 use datax_protocol::config_types::SandboxMode;
@@ -14,7 +14,7 @@ pub use datax_protocol::protocol::GitSha;
 use datax_protocol::protocol::ReviewDecision;
 use datax_protocol::protocol::SandboxPolicy;
 use datax_protocol::protocol::SessionSource;
-use datax_protocol::protocol::TurnAbortReason;
+use datax_protocol::protocol::InteractionAbortReason;
 use datax_utils_absolute_path::AbsolutePathBuf;
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -80,9 +80,9 @@ pub enum GetConversationSummaryParams {
         #[serde(rename = "rolloutPath")]
         rollout_path: PathBuf,
     },
-    ThreadId {
+    ChatId {
         #[serde(rename = "conversationId")]
-        conversation_id: ThreadId,
+        conversation_id: ChatId,
     },
 }
 
@@ -95,7 +95,7 @@ pub struct GetConversationSummaryResponse {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ConversationSummary {
-    pub conversation_id: ThreadId,
+    pub conversation_id: ChatId,
     pub path: PathBuf,
     pub preview: String,
     pub timestamp: Option<String>,
@@ -131,7 +131,7 @@ pub struct GitDiffToRemoteResponse {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplyPatchApprovalParams {
-    pub conversation_id: ThreadId,
+    pub conversation_id: ChatId,
     /// Use to correlate this with [datax_protocol::protocol::PatchApplyBeginEvent]
     /// and [datax_protocol::protocol::PatchApplyEndEvent].
     pub call_id: String,
@@ -152,7 +152,7 @@ pub struct ApplyPatchApprovalResponse {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ExecCommandApprovalParams {
-    pub conversation_id: ThreadId,
+    pub conversation_id: ChatId,
     /// Use to correlate this with [datax_protocol::protocol::ExecCommandBeginEvent]
     /// and [datax_protocol::protocol::ExecCommandEndEvent].
     pub call_id: String,
@@ -233,5 +233,5 @@ pub struct SandboxSettings {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct InterruptConversationResponse {
-    pub abort_reason: TurnAbortReason,
+    pub abort_reason: InteractionAbortReason,
 }

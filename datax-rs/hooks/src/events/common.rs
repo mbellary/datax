@@ -55,7 +55,7 @@ pub(crate) fn flatten_additional_contexts<'a>(
 
 pub(crate) fn serialization_failure_hook_events(
     handlers: Vec<ConfiguredHandler>,
-    turn_id: Option<String>,
+    interaction_id: Option<String>,
     error_message: String,
 ) -> Vec<HookCompletedEvent> {
     handlers
@@ -70,7 +70,7 @@ pub(crate) fn serialization_failure_hook_events(
                 text: error_message.clone(),
             }];
             HookCompletedEvent {
-                turn_id: turn_id.clone(),
+                interaction_id: interaction_id.clone(),
                 run,
             }
         })
@@ -79,11 +79,11 @@ pub(crate) fn serialization_failure_hook_events(
 
 pub(crate) fn serialization_failure_hook_events_for_tool_use(
     handlers: Vec<ConfiguredHandler>,
-    turn_id: Option<String>,
+    interaction_id: Option<String>,
     error_message: String,
     tool_use_id: &str,
 ) -> Vec<HookCompletedEvent> {
-    serialization_failure_hook_events(handlers, turn_id, error_message)
+    serialization_failure_hook_events(handlers, interaction_id, error_message)
         .into_iter()
         .map(|event| hook_completed_for_tool_use(event, tool_use_id))
         .collect()

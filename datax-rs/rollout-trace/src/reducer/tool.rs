@@ -49,8 +49,8 @@ impl TraceReducer {
         &mut self,
         seq: RawEventSeq,
         wall_time_unix_ms: i64,
-        thread_id: Option<String>,
-        codex_turn_id: Option<String>,
+        chat_id: Option<String>,
+        codex_interaction_id: Option<String>,
         started: ToolCallStarted,
     ) -> Result<()> {
         let tool_call_id = started.tool_call_id.clone();
@@ -62,16 +62,16 @@ impl TraceReducer {
             &tool_call_id,
         )?;
 
-        let thread_id = self.tool_thread_id(thread_id, codex_turn_id.as_deref())?;
-        self.validate_tool_turn(&thread_id, codex_turn_id.as_deref())?;
+        let chat_id = self.tool_chat_id(chat_id, codex_interaction_id.as_deref())?;
+        self.validate_tool_turn(&chat_id, codex_interaction_id.as_deref())?;
 
         let model_visible_call_id = started.model_visible_call_id.clone();
-        let requester = self.reduce_tool_call_requester(&thread_id, started.requester.clone())?;
+        let requester = self.reduce_tool_call_requester(&chat_id, started.requester.clone())?;
         let model_visible_call_item_ids = model_visible_call_id
             .as_deref()
             .map(|call_id| {
                 self.model_visible_tool_item_ids(
-                    &thread_id,
+                    &chat_id,
                     call_id,
                     &[
                         ConversationItemKind::FunctionCall,
@@ -84,7 +84,7 @@ impl TraceReducer {
             .as_deref()
             .map(|call_id| {
                 self.model_visible_tool_item_ids(
-                    &thread_id,
+                    &chat_id,
                     call_id,
                     &[
                         ConversationItemKind::FunctionCallOutput,
@@ -94,7 +94,7 @@ impl TraceReducer {
             })
             .unwrap_or_default();
 
-        self.thread_mut(&thread_id)?;
+        self.thread_mut(&chat_id)?;
 
         // Some terminal-like tools, notably write_stdin, do not emit a richer
         // runtime begin event. For those tools the canonical invocation is the
@@ -102,7 +102,7 @@ impl TraceReducer {
         let terminal_operation_id = self.start_terminal_operation_from_invocation(
             seq,
             wall_time_unix_ms,
-            &thread_id,
+            &chat_id,
             &tool_call_id,
             &started.kind,
             started.invocation_payload.as_ref(),
@@ -120,7 +120,7 @@ impl TraceReducer {
             .as_ref()
             .map(|payload| payload.raw_payload_id.clone());
         self.link_wait_tool_call_from_request_payload(
-            &thread_id,
+            &chat_id,
             &tool_call_id,
             started.invocation_payload.as_ref(),
         )?;
@@ -132,8 +132,8 @@ impl TraceReducer {
                 mcp_call_id: None,
                 model_visible_call_id,
                 code_mode_runtime_tool_id: started.code_mode_runtime_tool_id,
-                thread_id,
-                started_by_codex_turn_id: codex_turn_id,
+                chat_id,
+                started_by_codex_interaction_id: codex_interaction_id,
                 execution: ExecutionWindow {
                     started_at_unix_ms: wall_time_unix_ms,
                     started_seq: seq,
@@ -195,7 +195,7 @@ impl TraceReducer {
         status: ExecutionStatus,
         result_payload: Option<RawPayloadRef>,
     ) -> Result<()> {
-        let (terminal_operation_id, thread_id, end_terminal_from_result) = {
+        let (terminal_operation_id, chat_id, end_terminal_from_result) = {
             let Some(tool_call) = self.rollout.tool_calls.get_mut(&tool_call_id) else {
                 bail!("tool call end referenced unknown call {tool_call_id}");
             };
@@ -207,7 +207,7 @@ impl TraceReducer {
                 .map(|payload| payload.raw_payload_id.clone());
             (
                 tool_call.terminal_operation_id.clone(),
-                tool_call.thread_id.clone(),
+                tool_call.chat_id.clone(),
                 // Protocol-backed tools end terminal operations from
                 // runtime observations. Dispatch result payloads are still kept
                 // on ToolCall, but they are caller-facing and may be transformed
@@ -219,7 +219,7 @@ impl TraceReducer {
             self.end_terminal_operation(
                 seq,
                 wall_time_unix_ms,
-                &thread_id,
+                &chat_id,
                 &operation_id,
                 status,
                 result_payload.as_ref(),
@@ -240,7 +240,7 @@ impl TraceReducer {
         tool_call_id: ToolCallId,
         runtime_payload: RawPayloadRef,
     ) -> Result<()> {
-        let (thread_id, _requester, kind, existing_terminal_operation_id) = {
+        let (chat_id, _requester, kind, existing_terminal_operation_id) = {
             let Some(tool_call) = self.rollout.tool_calls.get_mut(&tool_call_id) else {
                 bail!("tool runtime start referenced unknown call {tool_call_id}");
             };
@@ -249,7 +249,7 @@ impl TraceReducer {
                 &runtime_payload.raw_payload_id,
             );
             (
-                tool_call.thread_id.clone(),
+                tool_call.chat_id.clone(),
                 tool_call.requester.clone(),
                 tool_call.kind.clone(),
                 tool_call.terminal_operation_id.clone(),
@@ -267,7 +267,7 @@ impl TraceReducer {
         let terminal_operation_id = self.start_terminal_operation_from_runtime(
             seq,
             wall_time_unix_ms,
-            &thread_id,
+            &chat_id,
             &tool_call_id,
             &kind,
             &runtime_payload,
@@ -301,7 +301,7 @@ impl TraceReducer {
         status: ExecutionStatus,
         runtime_payload: RawPayloadRef,
     ) -> Result<()> {
-        let (thread_id, terminal_operation_id) = {
+        let (chat_id, terminal_operation_id) = {
             let Some(tool_call) = self.rollout.tool_calls.get_mut(&tool_call_id) else {
                 bail!("tool runtime end referenced unknown call {tool_call_id}");
             };
@@ -310,7 +310,7 @@ impl TraceReducer {
                 &runtime_payload.raw_payload_id,
             );
             (
-                tool_call.thread_id.clone(),
+                tool_call.chat_id.clone(),
                 tool_call.terminal_operation_id.clone(),
             )
         };
@@ -319,7 +319,7 @@ impl TraceReducer {
             self.end_terminal_operation(
                 seq,
                 wall_time_unix_ms,
-                &thread_id,
+                &chat_id,
                 &operation_id,
                 status,
                 Some(&runtime_payload),
@@ -369,39 +369,39 @@ impl TraceReducer {
         Ok(())
     }
 
-    fn tool_thread_id(
+    fn tool_chat_id(
         &self,
-        thread_id: Option<String>,
-        codex_turn_id: Option<&str>,
+        chat_id: Option<String>,
+        codex_interaction_id: Option<&str>,
     ) -> Result<String> {
-        if let Some(thread_id) = thread_id {
-            return Ok(thread_id);
+        if let Some(chat_id) = chat_id {
+            return Ok(chat_id);
         }
-        let Some(codex_turn_id) = codex_turn_id else {
+        let Some(codex_interaction_id) = codex_interaction_id else {
             bail!("tool call start did not include thread or Codex turn context");
         };
         self.rollout
             .codex_turns
-            .get(codex_turn_id)
-            .map(|turn| turn.thread_id.clone())
+            .get(codex_interaction_id)
+            .map(|turn| turn.chat_id.clone())
             .with_context(|| {
-                format!("tool call start referenced unknown Codex turn {codex_turn_id}")
+                format!("tool call start referenced unknown Codex turn {codex_interaction_id}")
             })
     }
 
-    fn validate_tool_turn(&self, thread_id: &str, codex_turn_id: Option<&str>) -> Result<()> {
-        if !self.rollout.threads.contains_key(thread_id) {
-            bail!("tool call start referenced unknown thread {thread_id}");
+    fn validate_tool_turn(&self, chat_id: &str, codex_interaction_id: Option<&str>) -> Result<()> {
+        if !self.rollout.threads.contains_key(chat_id) {
+            bail!("tool call start referenced unknown thread {chat_id}");
         }
-        if let Some(codex_turn_id) = codex_turn_id {
-            let Some(turn) = self.rollout.codex_turns.get(codex_turn_id) else {
-                bail!("tool call start referenced unknown Codex turn {codex_turn_id}");
+        if let Some(codex_interaction_id) = codex_interaction_id {
+            let Some(turn) = self.rollout.codex_turns.get(codex_interaction_id) else {
+                bail!("tool call start referenced unknown Codex turn {codex_interaction_id}");
             };
-            if turn.thread_id != thread_id {
+            if turn.chat_id != chat_id {
                 bail!(
-                    "tool call start used thread {thread_id}, but Codex turn {codex_turn_id} \
+                    "tool call start used thread {chat_id}, but Codex turn {codex_interaction_id} \
                      belongs to {}",
-                    turn.thread_id
+                    turn.chat_id
                 );
             }
         }
@@ -443,7 +443,7 @@ impl TraceReducer {
 
     fn model_visible_tool_item_ids(
         &self,
-        thread_id: &str,
+        chat_id: &str,
         call_id: &str,
         kinds: &[ConversationItemKind],
     ) -> Vec<String> {
@@ -451,7 +451,7 @@ impl TraceReducer {
             .conversation_items
             .values()
             .filter(|item| {
-                item.thread_id == thread_id
+                item.chat_id == chat_id
                     && item.call_id.as_deref() == Some(call_id)
                     && kinds.contains(&item.kind)
             })

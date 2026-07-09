@@ -99,7 +99,7 @@ async fn openai_model_header_mismatch_emits_warning_event() -> Result<()> {
     assert!(warning.message.contains(SERVER_MODEL));
 
     let _ = wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -195,7 +195,7 @@ async fn response_model_field_mismatch_emits_warning_when_header_matches_request
     assert!(warning.message.contains(SERVER_MODEL));
 
     let _ = wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -244,7 +244,7 @@ async fn openai_model_header_mismatch_only_emits_one_warning_per_turn() -> Resul
             EventMsg::Warning(warning) if warning.message.contains(REQUESTED_MODEL) => {
                 warning_count += 1;
             }
-            EventMsg::TurnComplete(_) => break,
+            EventMsg::InteractionComplete(_) => break,
             _ => {}
         }
     }
@@ -284,7 +284,7 @@ async fn openai_model_header_casing_only_mismatch_does_not_warn() -> Result<()> 
             {
                 warning_count += 1;
             }
-            EventMsg::TurnComplete(_) => break,
+            EventMsg::InteractionComplete(_) => break,
             _ => {}
         }
     }
@@ -342,7 +342,7 @@ async fn model_verification_emits_structured_event_without_reroute_or_warning() 
             {
                 warning_item_count += 1;
             }
-            EventMsg::TurnComplete(_) => break,
+            EventMsg::InteractionComplete(_) => break,
             _ => {}
         }
     }
@@ -401,7 +401,7 @@ async fn model_verification_only_emits_once_per_turn() -> Result<()> {
             EventMsg::Warning(warning) if warning.message.contains("high-risk cyber activity") => {
                 panic!("model verification should not emit a warning event");
             }
-            EventMsg::TurnComplete(_) => break,
+            EventMsg::InteractionComplete(_) => break,
             _ => {}
         }
     }

@@ -7,7 +7,7 @@ use datax_otel::PLUGIN_INSTALL_SUGGESTION_METRIC;
 use datax_otel::Result;
 use datax_otel::SessionTelemetry;
 use datax_otel::TelemetryAuthMode;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::SessionSource;
 use opentelemetry_sdk::metrics::data::AggregatedMetrics;
 use opentelemetry_sdk::metrics::data::MetricData;
@@ -19,7 +19,7 @@ use std::collections::BTreeMap;
 fn manager_attaches_metadata_tags_to_metrics() -> Result<()> {
     let (metrics, exporter) = build_metrics_with_defaults(&[("service", "datax-cli")])?;
     let manager = SessionTelemetry::new(
-        ThreadId::new(),
+        ChatId::new(),
         "gpt-5.1",
         "gpt-5.1",
         Some("account-id".to_string()),
@@ -79,7 +79,7 @@ fn manager_attaches_metadata_tags_to_metrics() -> Result<()> {
 fn manager_allows_disabling_metadata_tags() -> Result<()> {
     let (metrics, exporter) = build_metrics_with_defaults(&[])?;
     let manager = SessionTelemetry::new(
-        ThreadId::new(),
+        ChatId::new(),
         "gpt-4o",
         "gpt-4o",
         Some("account-id".to_string()),
@@ -124,7 +124,7 @@ fn manager_allows_disabling_metadata_tags() -> Result<()> {
 fn manager_attaches_optional_service_name_tag() -> Result<()> {
     let (metrics, exporter) = build_metrics_with_defaults(&[])?;
     let manager = SessionTelemetry::new(
-        ThreadId::new(),
+        ChatId::new(),
         "gpt-5.1",
         "gpt-5.1",
         /*account_id*/ None,
@@ -168,7 +168,7 @@ fn manager_attaches_optional_service_name_tag() -> Result<()> {
 fn manager_records_plugin_install_suggestion_metric() -> Result<()> {
     let (metrics, exporter) = build_metrics_with_defaults(&[])?;
     let manager = SessionTelemetry::new(
-        ThreadId::new(),
+        ChatId::new(),
         "gpt-5.1",
         "gpt-5.1",
         Some("account-id".to_string()),
@@ -222,7 +222,7 @@ fn manager_records_plugin_install_suggestion_metric() -> Result<()> {
 fn manager_records_plugin_install_elicitation_sent_metric() -> Result<()> {
     let (metrics, exporter) = build_metrics_with_defaults(&[])?;
     let manager = SessionTelemetry::new(
-        ThreadId::new(),
+        ChatId::new(),
         "gpt-5.1",
         "gpt-5.1",
         Some("account-id".to_string()),

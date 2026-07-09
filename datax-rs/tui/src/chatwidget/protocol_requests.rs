@@ -66,7 +66,7 @@ impl ChatWidget {
     pub(super) fn on_guardian_review_notification(
         &mut self,
         id: String,
-        turn_id: String,
+        interaction_id: String,
         started_at_ms: i64,
         review: datax_app_server_protocol::GuardianApprovalReview,
         completion: Option<(i64, datax_app_server_protocol::AutoReviewDecisionSource)>,
@@ -93,7 +93,7 @@ impl ChatWidget {
         self.on_guardian_assessment(GuardianAssessmentEvent {
             id,
             target_item_id: None,
-            turn_id,
+            interaction_id,
             started_at_ms,
             completed_at_ms,
             status: match review.status {

@@ -6,7 +6,7 @@ async fn session_summary_skips_when_no_usage_or_resume_hint() {
     assert!(
         session_summary(
             TokenUsage::default(),
-            /*thread_id*/ None,
+            /*chat_id*/ None,
             /*thread_name*/ None,
             /*rollout_path*/ None,
         )
@@ -17,7 +17,7 @@ async fn session_summary_skips_when_no_usage_or_resume_hint() {
 #[tokio::test]
 async fn session_summary_skips_resume_hint_until_rollout_exists() {
     let usage = TokenUsage::default();
-    let conversation = ThreadId::from_string("123e4567-e89b-12d3-a456-426614174000").unwrap();
+    let conversation = ChatId::from_string("123e4567-e89b-12d3-a456-426614174000").unwrap();
     let temp_dir = tempdir().expect("temp dir");
     let rollout_path = temp_dir.path().join("rollout.jsonl");
 
@@ -40,7 +40,7 @@ async fn session_summary_includes_resume_hint_for_persisted_rollout() {
         total_tokens: 12,
         ..Default::default()
     };
-    let conversation = ThreadId::from_string("123e4567-e89b-12d3-a456-426614174000").unwrap();
+    let conversation = ChatId::from_string("123e4567-e89b-12d3-a456-426614174000").unwrap();
     let temp_dir = tempdir().expect("temp dir");
     let rollout_path = temp_dir.path().join("rollout.jsonl");
     std::fs::write(&rollout_path, "{}\n").expect("write rollout");
@@ -70,7 +70,7 @@ async fn session_summary_names_picker_item_when_thread_has_name() {
         total_tokens: 12,
         ..Default::default()
     };
-    let conversation = ThreadId::from_string("123e4567-e89b-12d3-a456-426614174000").unwrap();
+    let conversation = ChatId::from_string("123e4567-e89b-12d3-a456-426614174000").unwrap();
     let temp_dir = tempdir().expect("temp dir");
     let rollout_path = temp_dir.path().join("rollout.jsonl");
     std::fs::write(&rollout_path, "{}\n").expect("write rollout");

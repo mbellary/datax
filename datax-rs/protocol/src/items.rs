@@ -520,20 +520,20 @@ impl ImageGenerationItem {
 }
 
 impl FileChangeItem {
-    pub fn as_legacy_begin_event(&self, turn_id: String) -> EventMsg {
+    pub fn as_legacy_begin_event(&self, interaction_id: String) -> EventMsg {
         EventMsg::PatchApplyBegin(PatchApplyBeginEvent {
             call_id: self.id.clone(),
-            turn_id,
+            interaction_id,
             auto_approved: self.auto_approved.unwrap_or(false),
             changes: self.changes.clone(),
         })
     }
 
-    pub fn as_legacy_end_event(&self, turn_id: String) -> Option<EventMsg> {
+    pub fn as_legacy_end_event(&self, interaction_id: String) -> Option<EventMsg> {
         let status = self.status.clone()?;
         Some(EventMsg::PatchApplyEnd(PatchApplyEndEvent {
             call_id: self.id.clone(),
-            turn_id,
+            interaction_id,
             stdout: self.stdout.clone().unwrap_or_default(),
             stderr: self.stderr.clone().unwrap_or_default(),
             success: status == PatchApplyStatus::Completed,

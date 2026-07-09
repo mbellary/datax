@@ -1,4 +1,4 @@
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_state::StateRuntime;
 use std::sync::Arc;
 
@@ -31,60 +31,60 @@ impl LocalAgentGraphStore {
 impl AgentGraphStore for LocalAgentGraphStore {
     async fn upsert_thread_spawn_edge(
         &self,
-        parent_thread_id: ThreadId,
-        child_thread_id: ThreadId,
+        parent_chat_id: ChatId,
+        child_chat_id: ChatId,
         status: ThreadSpawnEdgeStatus,
     ) -> AgentGraphStoreResult<()> {
         self.state_db
-            .upsert_thread_spawn_edge(parent_thread_id, child_thread_id, to_state_status(status))
+            .upsert_thread_spawn_edge(parent_chat_id, child_chat_id, to_state_status(status))
             .await
             .map_err(internal_error)
     }
 
     async fn set_thread_spawn_edge_status(
         &self,
-        child_thread_id: ThreadId,
+        child_chat_id: ChatId,
         status: ThreadSpawnEdgeStatus,
     ) -> AgentGraphStoreResult<()> {
         self.state_db
-            .set_thread_spawn_edge_status(child_thread_id, to_state_status(status))
+            .set_thread_spawn_edge_status(child_chat_id, to_state_status(status))
             .await
             .map_err(internal_error)
     }
 
     async fn list_thread_spawn_children(
         &self,
-        parent_thread_id: ThreadId,
+        parent_chat_id: ChatId,
         status_filter: Option<ThreadSpawnEdgeStatus>,
-    ) -> AgentGraphStoreResult<Vec<ThreadId>> {
+    ) -> AgentGraphStoreResult<Vec<ChatId>> {
         if let Some(status) = status_filter {
             return self
                 .state_db
-                .list_thread_spawn_children_with_status(parent_thread_id, to_state_status(status))
+                .list_thread_spawn_children_with_status(parent_chat_id, to_state_status(status))
                 .await
                 .map_err(internal_error);
         }
 
         self.state_db
-            .list_thread_spawn_children(parent_thread_id)
+            .list_thread_spawn_children(parent_chat_id)
             .await
             .map_err(internal_error)
     }
 
     async fn list_thread_spawn_descendants(
         &self,
-        root_thread_id: ThreadId,
+        root_chat_id: ChatId,
         status_filter: Option<ThreadSpawnEdgeStatus>,
-    ) -> AgentGraphStoreResult<Vec<ThreadId>> {
+    ) -> AgentGraphStoreResult<Vec<ChatId>> {
         match status_filter {
             Some(status) => self
                 .state_db
-                .list_thread_spawn_descendants_with_status(root_thread_id, to_state_status(status))
+                .list_thread_spawn_descendants_with_status(root_chat_id, to_state_status(status))
                 .await
                 .map_err(internal_error),
             None => self
                 .state_db
-                .list_thread_spawn_descendants(root_thread_id)
+                .list_thread_spawn_descendants(root_chat_id)
                 .await
                 .map_err(internal_error),
         }
@@ -116,8 +116,8 @@ mod tests {
         _codex_home: TempDir,
     }
 
-    fn thread_id(suffix: u128) -> ThreadId {
-        ThreadId::from_string(&format!("00000000-0000-0000-0000-{suffix:012}"))
+    fn chat_id(suffix: u128) -> ChatId {
+        ChatId::from_string(&format!("00000000-0000-0000-0000-{suffix:012}"))
             .expect("valid thread id")
     }
 
@@ -138,55 +138,55 @@ mod tests {
         let fixture = state_runtime().await;
         let state_db = fixture.state_db;
         let store = LocalAgentGraphStore::new(state_db.clone());
-        let parent_thread_id = thread_id(/*suffix*/ 1);
-        let first_child_thread_id = thread_id(/*suffix*/ 2);
-        let second_child_thread_id = thread_id(/*suffix*/ 3);
+        let parent_chat_id = chat_id(/*suffix*/ 1);
+        let first_child_chat_id = chat_id(/*suffix*/ 2);
+        let second_child_chat_id = chat_id(/*suffix*/ 3);
 
         store
             .upsert_thread_spawn_edge(
-                parent_thread_id,
-                second_child_thread_id,
+                parent_chat_id,
+                second_child_chat_id,
                 ThreadSpawnEdgeStatus::Closed,
             )
             .await
             .expect("closed child edge should insert");
         store
             .upsert_thread_spawn_edge(
-                parent_thread_id,
-                first_child_thread_id,
+                parent_chat_id,
+                first_child_chat_id,
                 ThreadSpawnEdgeStatus::Open,
             )
             .await
             .expect("open child edge should insert");
 
         let all_children = store
-            .list_thread_spawn_children(parent_thread_id, /*status_filter*/ None)
+            .list_thread_spawn_children(parent_chat_id, /*status_filter*/ None)
             .await
             .expect("all children should load");
         assert_eq!(
             all_children,
-            vec![first_child_thread_id, second_child_thread_id]
+            vec![first_child_chat_id, second_child_chat_id]
         );
 
         let open_children = store
-            .list_thread_spawn_children(parent_thread_id, Some(ThreadSpawnEdgeStatus::Open))
+            .list_thread_spawn_children(parent_chat_id, Some(ThreadSpawnEdgeStatus::Open))
             .await
             .expect("open children should load");
         let state_open_children = state_db
             .list_thread_spawn_children_with_status(
-                parent_thread_id,
+                parent_chat_id,
                 DirectionalThreadSpawnEdgeStatus::Open,
             )
             .await
             .expect("state open children should load");
         assert_eq!(open_children, state_open_children);
-        assert_eq!(open_children, vec![first_child_thread_id]);
+        assert_eq!(open_children, vec![first_child_chat_id]);
 
         let closed_children = store
-            .list_thread_spawn_children(parent_thread_id, Some(ThreadSpawnEdgeStatus::Closed))
+            .list_thread_spawn_children(parent_chat_id, Some(ThreadSpawnEdgeStatus::Closed))
             .await
             .expect("closed children should load");
-        assert_eq!(closed_children, vec![second_child_thread_id]);
+        assert_eq!(closed_children, vec![second_child_chat_id]);
     }
 
     #[tokio::test]
@@ -194,33 +194,33 @@ mod tests {
         let fixture = state_runtime().await;
         let state_db = fixture.state_db;
         let store = LocalAgentGraphStore::new(state_db);
-        let parent_thread_id = thread_id(/*suffix*/ 10);
-        let child_thread_id = thread_id(/*suffix*/ 11);
+        let parent_chat_id = chat_id(/*suffix*/ 10);
+        let child_chat_id = chat_id(/*suffix*/ 11);
 
         store
             .upsert_thread_spawn_edge(
-                parent_thread_id,
-                child_thread_id,
+                parent_chat_id,
+                child_chat_id,
                 ThreadSpawnEdgeStatus::Open,
             )
             .await
             .expect("child edge should insert");
         store
-            .set_thread_spawn_edge_status(child_thread_id, ThreadSpawnEdgeStatus::Closed)
+            .set_thread_spawn_edge_status(child_chat_id, ThreadSpawnEdgeStatus::Closed)
             .await
             .expect("child edge should close");
 
         let open_children = store
-            .list_thread_spawn_children(parent_thread_id, Some(ThreadSpawnEdgeStatus::Open))
+            .list_thread_spawn_children(parent_chat_id, Some(ThreadSpawnEdgeStatus::Open))
             .await
             .expect("open children should load");
-        assert_eq!(open_children, Vec::<ThreadId>::new());
+        assert_eq!(open_children, Vec::<ChatId>::new());
 
         let closed_children = store
-            .list_thread_spawn_children(parent_thread_id, Some(ThreadSpawnEdgeStatus::Closed))
+            .list_thread_spawn_children(parent_chat_id, Some(ThreadSpawnEdgeStatus::Closed))
             .await
             .expect("closed children should load");
-        assert_eq!(closed_children, vec![child_thread_id]);
+        assert_eq!(closed_children, vec![child_chat_id]);
     }
 
     #[tokio::test]
@@ -228,75 +228,75 @@ mod tests {
         let fixture = state_runtime().await;
         let state_db = fixture.state_db;
         let store = LocalAgentGraphStore::new(state_db.clone());
-        let root_thread_id = thread_id(/*suffix*/ 20);
-        let later_child_thread_id = thread_id(/*suffix*/ 22);
-        let earlier_child_thread_id = thread_id(/*suffix*/ 21);
-        let closed_grandchild_thread_id = thread_id(/*suffix*/ 23);
-        let open_grandchild_thread_id = thread_id(/*suffix*/ 24);
-        let closed_child_thread_id = thread_id(/*suffix*/ 25);
-        let closed_great_grandchild_thread_id = thread_id(/*suffix*/ 26);
+        let root_chat_id = chat_id(/*suffix*/ 20);
+        let later_child_chat_id = chat_id(/*suffix*/ 22);
+        let earlier_child_chat_id = chat_id(/*suffix*/ 21);
+        let closed_grandchild_chat_id = chat_id(/*suffix*/ 23);
+        let open_grandchild_chat_id = chat_id(/*suffix*/ 24);
+        let closed_child_chat_id = chat_id(/*suffix*/ 25);
+        let closed_great_grandchild_chat_id = chat_id(/*suffix*/ 26);
 
-        for (parent_thread_id, child_thread_id, status) in [
+        for (parent_chat_id, child_chat_id, status) in [
             (
-                root_thread_id,
-                later_child_thread_id,
+                root_chat_id,
+                later_child_chat_id,
                 ThreadSpawnEdgeStatus::Open,
             ),
             (
-                root_thread_id,
-                earlier_child_thread_id,
+                root_chat_id,
+                earlier_child_chat_id,
                 ThreadSpawnEdgeStatus::Open,
             ),
             (
-                earlier_child_thread_id,
-                open_grandchild_thread_id,
+                earlier_child_chat_id,
+                open_grandchild_chat_id,
                 ThreadSpawnEdgeStatus::Open,
             ),
             (
-                later_child_thread_id,
-                closed_grandchild_thread_id,
+                later_child_chat_id,
+                closed_grandchild_chat_id,
                 ThreadSpawnEdgeStatus::Closed,
             ),
             (
-                root_thread_id,
-                closed_child_thread_id,
+                root_chat_id,
+                closed_child_chat_id,
                 ThreadSpawnEdgeStatus::Closed,
             ),
             (
-                closed_child_thread_id,
-                closed_great_grandchild_thread_id,
+                closed_child_chat_id,
+                closed_great_grandchild_chat_id,
                 ThreadSpawnEdgeStatus::Closed,
             ),
         ] {
             store
-                .upsert_thread_spawn_edge(parent_thread_id, child_thread_id, status)
+                .upsert_thread_spawn_edge(parent_chat_id, child_chat_id, status)
                 .await
                 .expect("edge should insert");
         }
 
         let all_descendants = store
-            .list_thread_spawn_descendants(root_thread_id, /*status_filter*/ None)
+            .list_thread_spawn_descendants(root_chat_id, /*status_filter*/ None)
             .await
             .expect("all descendants should load");
         assert_eq!(
             all_descendants,
             vec![
-                earlier_child_thread_id,
-                later_child_thread_id,
-                closed_child_thread_id,
-                closed_grandchild_thread_id,
-                open_grandchild_thread_id,
-                closed_great_grandchild_thread_id,
+                earlier_child_chat_id,
+                later_child_chat_id,
+                closed_child_chat_id,
+                closed_grandchild_chat_id,
+                open_grandchild_chat_id,
+                closed_great_grandchild_chat_id,
             ]
         );
 
         let open_descendants = store
-            .list_thread_spawn_descendants(root_thread_id, Some(ThreadSpawnEdgeStatus::Open))
+            .list_thread_spawn_descendants(root_chat_id, Some(ThreadSpawnEdgeStatus::Open))
             .await
             .expect("open descendants should load");
         let state_open_descendants = state_db
             .list_thread_spawn_descendants_with_status(
-                root_thread_id,
+                root_chat_id,
                 DirectionalThreadSpawnEdgeStatus::Open,
             )
             .await
@@ -305,19 +305,19 @@ mod tests {
         assert_eq!(
             open_descendants,
             vec![
-                earlier_child_thread_id,
-                later_child_thread_id,
-                open_grandchild_thread_id,
+                earlier_child_chat_id,
+                later_child_chat_id,
+                open_grandchild_chat_id,
             ]
         );
 
         let closed_descendants = store
-            .list_thread_spawn_descendants(root_thread_id, Some(ThreadSpawnEdgeStatus::Closed))
+            .list_thread_spawn_descendants(root_chat_id, Some(ThreadSpawnEdgeStatus::Closed))
             .await
             .expect("closed descendants should load");
         assert_eq!(
             closed_descendants,
-            vec![closed_child_thread_id, closed_great_grandchild_thread_id]
+            vec![closed_child_chat_id, closed_great_grandchild_chat_id]
         );
     }
 }

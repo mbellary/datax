@@ -26,7 +26,7 @@ use datax_core::config::CurrentTimeReminderConfig;
 use datax_features::CurrentTimeSource;
 use datax_features::Feature;
 use datax_model_provider_info::built_in_model_providers;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::models::PermissionProfile;
 use datax_protocol::protocol::CodexErrorInfo;
 use datax_protocol::protocol::EventMsg;
@@ -48,7 +48,7 @@ impl Default for TestTimeProvider {
 }
 
 impl TimeProvider for TestTimeProvider {
-    fn current_time(&self, _thread_id: ThreadId) -> TimeFuture<'_> {
+    fn current_time(&self, _chat_id: ChatId) -> TimeFuture<'_> {
         let timestamp = self.0.fetch_add(60, Ordering::Relaxed);
         Box::pin(async move {
             Ok(DateTime::<Utc>::from_timestamp(timestamp, 0)
@@ -60,7 +60,7 @@ impl TimeProvider for TestTimeProvider {
 struct FailingTimeProvider;
 
 impl TimeProvider for FailingTimeProvider {
-    fn current_time(&self, _thread_id: ThreadId) -> TimeFuture<'_> {
+    fn current_time(&self, _chat_id: ChatId) -> TimeFuture<'_> {
         Box::pin(async { Err(anyhow!("test clock unavailable")) })
     }
 }
@@ -204,7 +204,7 @@ async fn current_time_reminder_is_refreshed_after_compaction() -> Result<()> {
     test.submit_turn("before compact").await?;
     test.codex.submit(Op::Compact).await?;
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
     test.submit_turn("after compact").await?;
@@ -266,7 +266,7 @@ async fn time_provider_failure_stops_before_inference() -> Result<()> {
     assert_eq!(error.codex_error_info, Some(CodexErrorInfo::Other));
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
     assert!(responses.requests().is_empty());

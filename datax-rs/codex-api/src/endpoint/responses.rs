@@ -31,7 +31,7 @@ pub struct ResponsesClient<T: HttpTransport> {
 #[derive(Default)]
 pub struct ResponsesOptions {
     pub session_id: Option<String>,
-    pub thread_id: Option<String>,
+    pub chat_id: Option<String>,
     pub session_source: Option<SessionSource>,
     pub extra_headers: HeaderMap,
     pub compression: Compression,
@@ -74,7 +74,7 @@ impl<T: HttpTransport> ResponsesClient<T> {
     ) -> Result<ResponseStream, ApiError> {
         let ResponsesOptions {
             session_id,
-            thread_id,
+            chat_id,
             session_source,
             extra_headers,
             compression,
@@ -85,10 +85,10 @@ impl<T: HttpTransport> ResponsesClient<T> {
             .map_err(|e| ApiError::Stream(format!("failed to encode responses request: {e}")))?;
 
         let mut headers = extra_headers;
-        if let Some(ref thread_id) = thread_id {
-            insert_header(&mut headers, "x-client-request-id", thread_id);
+        if let Some(ref chat_id) = chat_id {
+            insert_header(&mut headers, "x-client-request-id", chat_id);
         }
-        headers.extend(build_session_headers(session_id, thread_id));
+        headers.extend(build_session_headers(session_id, chat_id));
         if let Some(subagent) = subagent_header(&session_source) {
             insert_header(&mut headers, "x-openai-subagent", &subagent);
         }

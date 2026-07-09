@@ -6,7 +6,7 @@ use chrono::NaiveDateTime;
 use chrono::Utc;
 use datax_git_utils::collect_git_info;
 use datax_git_utils::get_git_repo_root;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::GitInfo;
 use datax_protocol::protocol::RolloutItem;
@@ -31,7 +31,7 @@ const THREAD_UPDATED_AT_TOUCH_INTERVAL: Duration = Duration::from_millis(50);
 /// metadata observation in the live layer without owning persistence-policy filtering or making
 /// `append_items` infer metadata inside a `ThreadStore` implementation.
 pub(crate) struct ThreadMetadataSync {
-    thread_id: ThreadId,
+    chat_id: ChatId,
     cwd_seen: bool,
     preview_seen: bool,
     first_user_message_seen: bool,
@@ -77,7 +77,7 @@ impl ThreadMetadataSync {
             ..Default::default()
         };
         Self {
-            thread_id: params.thread_id,
+            chat_id: params.chat_id,
             cwd_seen: !cwd.as_os_str().is_empty(),
             preview_seen: false,
             first_user_message_seen: false,
@@ -92,7 +92,7 @@ impl ThreadMetadataSync {
 
     pub(crate) fn for_resume(params: &ResumeThreadParams) -> Self {
         let mut sync = Self {
-            thread_id: params.thread_id,
+            chat_id: params.chat_id,
             cwd_seen: params
                 .metadata
                 .cwd
@@ -156,7 +156,7 @@ impl ThreadMetadataSync {
             .any(datax_state::rollout_item_affects_thread_metadata);
         let advances_recency = items
             .iter()
-            .any(|item| matches!(item, RolloutItem::EventMsg(EventMsg::TurnStarted(_))));
+            .any(|item| matches!(item, RolloutItem::EventMsg(EventMsg::InteractionStarted(_))));
         let mut update = if affects_metadata {
             self.observe_items(items)?
         } else {
@@ -204,7 +204,7 @@ impl ThreadMetadataSync {
         }
         for item in items {
             match item {
-                RolloutItem::SessionMeta(meta_line) if meta_line.meta.id == self.thread_id => {
+                RolloutItem::SessionMeta(meta_line) if meta_line.meta.id == self.chat_id => {
                     update.created_at = parse_session_timestamp(meta_line.meta.timestamp.as_str());
                     update.source = Some(meta_line.meta.source.clone());
                     update.thread_source = Some(meta_line.meta.thread_source.clone());
@@ -386,7 +386,7 @@ mod tests {
     use datax_protocol::protocol::ThreadGoal;
     use datax_protocol::protocol::ThreadGoalStatus;
     use datax_protocol::protocol::ThreadGoalUpdatedEvent;
-    use datax_protocol::protocol::TurnStartedEvent;
+    use datax_protocol::protocol::InteractionStartedEvent;
     use datax_protocol::protocol::UserMessageEvent;
     use pretty_assertions::assert_eq;
 
@@ -395,11 +395,11 @@ mod tests {
 
     #[test]
     fn resume_history_keeps_derived_metadata_pending_until_applied() {
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let mut sync = ThreadMetadataSync::for_resume(&resume_params(
-            thread_id,
+            chat_id,
             vec![
-                RolloutItem::SessionMeta(session_meta(thread_id)),
+                RolloutItem::SessionMeta(session_meta(chat_id)),
                 RolloutItem::EventMsg(EventMsg::UserMessage(user_message("hello metadata"))),
             ],
         ));
@@ -431,12 +431,12 @@ mod tests {
 
     #[test]
     fn goal_update_sets_preview_without_overriding_existing_preview() {
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let sync = ThreadMetadataSync::for_resume(&resume_params(
-            thread_id,
+            chat_id,
             vec![
                 RolloutItem::EventMsg(EventMsg::ThreadGoalUpdated(goal_update(
-                    thread_id,
+                    chat_id,
                     "ship the refactor",
                 ))),
                 RolloutItem::EventMsg(EventMsg::UserMessage(user_message("first user text"))),
@@ -454,9 +454,9 @@ mod tests {
 
     #[test]
     fn later_user_messages_do_not_emit_existing_preview_fields() {
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let mut sync = ThreadMetadataSync::for_resume(&resume_params(
-            thread_id,
+            chat_id,
             vec![RolloutItem::EventMsg(EventMsg::UserMessage(user_message(
                 "first user text",
             )))],
@@ -478,8 +478,8 @@ mod tests {
 
     #[test]
     fn metadata_irrelevant_items_coalesce_updated_at_touches() {
-        let thread_id = ThreadId::new();
-        let mut sync = ThreadMetadataSync::for_resume(&resume_params(thread_id, Vec::new()));
+        let chat_id = ChatId::new();
+        let mut sync = ThreadMetadataSync::for_resume(&resume_params(chat_id, Vec::new()));
         let item = RolloutItem::Compacted(CompactedItem {
             message: "compacted".to_string(),
             replacement_history: None,
@@ -508,13 +508,13 @@ mod tests {
 
     #[test]
     fn turn_start_advances_recency_at_without_changing_updated_at_behavior() {
-        let thread_id = ThreadId::new();
-        let mut sync = ThreadMetadataSync::for_resume(&resume_params(thread_id, Vec::new()));
+        let chat_id = ChatId::new();
+        let mut sync = ThreadMetadataSync::for_resume(&resume_params(chat_id, Vec::new()));
 
         let update = sync
-            .observe_appended_items(&[RolloutItem::EventMsg(EventMsg::TurnStarted(
-                TurnStartedEvent {
-                    turn_id: "turn-1".to_string(),
+            .observe_appended_items(&[RolloutItem::EventMsg(EventMsg::InteractionStarted(
+                InteractionStartedEvent {
+                    interaction_id: "turn-1".to_string(),
                     trace_id: None,
                     started_at: None,
                     model_context_window: None,
@@ -529,11 +529,11 @@ mod tests {
 
     #[test]
     fn resume_history_waits_for_append_before_flushing_metadata() {
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let mut sync = ThreadMetadataSync::for_resume(&resume_params(
-            thread_id,
+            chat_id,
             vec![
-                RolloutItem::SessionMeta(session_meta(thread_id)),
+                RolloutItem::SessionMeta(session_meta(chat_id)),
                 RolloutItem::EventMsg(EventMsg::UserMessage(user_message("hello metadata"))),
             ],
         ));
@@ -551,9 +551,9 @@ mod tests {
         );
     }
 
-    fn resume_params(thread_id: ThreadId, history: Vec<RolloutItem>) -> ResumeThreadParams {
+    fn resume_params(chat_id: ChatId, history: Vec<RolloutItem>) -> ResumeThreadParams {
         ResumeThreadParams {
-            thread_id,
+            chat_id,
             rollout_path: None,
             history: Some(history),
             include_archived: false,
@@ -576,11 +576,11 @@ mod tests {
         }
     }
 
-    fn session_meta(thread_id: ThreadId) -> SessionMetaLine {
+    fn session_meta(chat_id: ChatId) -> SessionMetaLine {
         SessionMetaLine {
             meta: SessionMeta {
-                session_id: thread_id.into(),
-                id: thread_id,
+                session_id: chat_id.into(),
+                id: chat_id,
                 timestamp: "2025-01-03T12:00:00Z".to_string(),
                 source: SessionSource::Exec,
                 ..Default::default()
@@ -589,12 +589,12 @@ mod tests {
         }
     }
 
-    fn goal_update(thread_id: ThreadId, objective: &str) -> ThreadGoalUpdatedEvent {
+    fn goal_update(chat_id: ChatId, objective: &str) -> ThreadGoalUpdatedEvent {
         ThreadGoalUpdatedEvent {
-            thread_id,
-            turn_id: None,
+            chat_id,
+            interaction_id: None,
             goal: ThreadGoal {
-                thread_id,
+                chat_id,
                 objective: objective.to_string(),
                 status: ThreadGoalStatus::Active,
                 token_budget: None,

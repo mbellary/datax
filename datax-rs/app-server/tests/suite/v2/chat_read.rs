@@ -359,7 +359,7 @@ async fn thread_turns_list_supports_requested_items_view() -> Result<()> {
 #[tokio::test]
 async fn thread_turns_list_reads_store_history_without_rollout_path() -> Result<()> {
     let codex_home = TempDir::new()?;
-    let chat_id = datax_protocol::ThreadId::from_string("00000000-0000-4000-8000-000000000123")?;
+    let chat_id = datax_protocol::ChatId::from_string("00000000-0000-4000-8000-000000000123")?;
     let store_id = Uuid::new_v4().to_string();
     create_config_toml_with_thread_store(codex_home.path(), &store_id)?;
     let store = InMemoryThreadStore::for_id(store_id.clone());
@@ -482,10 +482,10 @@ async fn thread_read_loaded_include_turns_reads_store_history_without_rollout_pa
     let ChatStartResponse { chat: thread, .. } = serde_json::from_value(result)?;
     assert_eq!(thread.path, None);
 
-    let chat_id = datax_protocol::ThreadId::from_string(&thread.id)?;
+    let chat_id = datax_protocol::ChatId::from_string(&thread.id)?;
     store
         .append_items(AppendThreadItemsParams {
-            thread_id: chat_id,
+            chat_id: chat_id,
             items: store_history_items(),
         })
         .await?;
@@ -514,7 +514,7 @@ async fn thread_read_loaded_include_turns_reads_store_history_without_rollout_pa
 #[tokio::test]
 async fn thread_list_includes_store_thread_without_rollout_path() -> Result<()> {
     let codex_home = TempDir::new()?;
-    let chat_id = datax_protocol::ThreadId::from_string("00000000-0000-4000-8000-000000000124")?;
+    let chat_id = datax_protocol::ChatId::from_string("00000000-0000-4000-8000-000000000124")?;
     let store_id = Uuid::new_v4().to_string();
     create_config_toml_with_thread_store(codex_home.path(), &store_id)?;
     let store = InMemoryThreadStore::for_id(store_id.clone());
@@ -1359,15 +1359,15 @@ impl Drop for InMemoryThreadStoreId {
 
 async fn seed_pathless_store_thread(
     store: &InMemoryThreadStore,
-    chat_id: datax_protocol::ThreadId,
+    chat_id: datax_protocol::ChatId,
 ) -> Result<()> {
     store
         .create_thread(CreateThreadParams {
             session_id: chat_id.into(),
-            thread_id: chat_id,
+            chat_id: chat_id,
             extra_config: None,
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             source: ProtocolSessionSource::Cli,
             thread_source: None,
             base_instructions: BaseInstructions::default(),
@@ -1382,13 +1382,13 @@ async fn seed_pathless_store_thread(
         .await?;
     store
         .append_items(AppendThreadItemsParams {
-            thread_id: chat_id,
+            chat_id: chat_id,
             items: store_history_items(),
         })
         .await?;
     store
         .update_thread_metadata(UpdateThreadMetadataParams {
-            thread_id: chat_id,
+            chat_id: chat_id,
             patch: ThreadMetadataPatch {
                 name: Some(Some("named pathless thread".to_string())),
                 ..Default::default()

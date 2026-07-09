@@ -46,11 +46,11 @@ fn token_budget_contexts(request: &ResponsesRequest) -> Vec<String> {
 
 fn token_budget_window_ids(
     text: &str,
-    thread_id: datax_protocol::ThreadId,
+    chat_id: datax_protocol::ChatId,
 ) -> (String, Option<String>, String) {
     let captures = assert_regex_match(
         &format!(
-            r"^{CONTEXT_WINDOW_OPEN_TAG}\nThread id: {thread_id}\nFirst context window id: ([0-9a-f-]{{36}})\nCurrent context window id: ([0-9a-f-]{{36}})(?:\nPrevious context window id: ([0-9a-f-]{{36}}))?\n{CONTEXT_WINDOW_CLOSE_TAG}$"
+            r"^{CONTEXT_WINDOW_OPEN_TAG}\nThread id: {chat_id}\nFirst context window id: ([0-9a-f-]{{36}})\nCurrent context window id: ([0-9a-f-]{{36}})(?:\nPrevious context window id: ([0-9a-f-]{{36}}))?\n{CONTEXT_WINDOW_CLOSE_TAG}$"
         ),
         text,
     );
@@ -113,11 +113,11 @@ async fn token_budget_context_is_only_emitted_with_full_context() -> Result<()> 
     let requests = responses.requests();
     assert_eq!(requests.len(), 2);
 
-    let thread_id = test.session_configured.thread_id;
+    let chat_id = test.session_configured.chat_id;
     let initial_token_budget = token_budget_contexts(&requests[0]);
     assert_eq!(initial_token_budget.len(), 1);
     let (first_window_id, previous_window_id, window_id) =
-        token_budget_window_ids(&initial_token_budget[0], thread_id);
+        token_budget_window_ids(&initial_token_budget[0], chat_id);
     assert_eq!(previous_window_id, None);
     assert_eq!(first_window_id, window_id);
     assert_eq!(
@@ -189,12 +189,12 @@ async fn token_budget_context_injects_plain_thread_hint_text() -> Result<()> {
     test.submit_turn("inject the history hint").await?;
 
     let request = responses.single_request();
-    let thread_id = test.session_configured.thread_id;
+    let chat_id = test.session_configured.chat_id;
     let token_budgets = token_budget_contexts(&request);
     assert_eq!(token_budgets.len(), 1);
     let captures = assert_regex_match(
         &format!(
-            r"^{CONTEXT_WINDOW_OPEN_TAG}\nThread id: {thread_id}\nFirst context window id: ([0-9a-f-]{{36}})\nCurrent context window id: ([0-9a-f-]{{36}})\nmanual history hint for thread {thread_id}\nunstructured notes/thread_hint fixture result\n{CONTEXT_WINDOW_CLOSE_TAG}$"
+            r"^{CONTEXT_WINDOW_OPEN_TAG}\nThread id: {chat_id}\nFirst context window id: ([0-9a-f-]{{36}})\nCurrent context window id: ([0-9a-f-]{{36}})\nmanual history hint for thread {chat_id}\nunstructured notes/thread_hint fixture result\n{CONTEXT_WINDOW_CLOSE_TAG}$"
         ),
         &token_budgets[0],
     );
@@ -314,11 +314,11 @@ async fn get_context_remaining_returns_token_budget_remaining_fragment() -> Resu
         "get_context_remaining should be exposed when token budget is enabled"
     );
 
-    let thread_id = test.session_configured.thread_id;
+    let chat_id = test.session_configured.chat_id;
     let remaining_context = "You have 7000 tokens left in this context window.".to_string();
     let token_budgets = token_budget_contexts(&requests[1]);
     assert_eq!(token_budgets.len(), 1);
-    token_budget_window_ids(&token_budgets[0], thread_id);
+    token_budget_window_ids(&token_budgets[0], chat_id);
     assert_eq!(
         requests[2].function_call_output_content_and_success(call_id),
         Some((Some(remaining_context), None))
@@ -426,7 +426,7 @@ async fn token_budget_context_uses_new_window_after_compaction() -> Result<()> {
     test.submit_turn("before compact").await?;
     test.codex.submit(Op::Compact).await?;
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
     test.submit_turn("after compact").await?;
@@ -434,18 +434,18 @@ async fn token_budget_context_uses_new_window_after_compaction() -> Result<()> {
     let requests = responses.requests();
     assert_eq!(requests.len(), 3);
 
-    let thread_id = test.session_configured.thread_id;
+    let chat_id = test.session_configured.chat_id;
     let initial_token_budget = token_budget_contexts(&requests[0]);
     assert_eq!(initial_token_budget.len(), 1);
     let (initial_first_window_id, initial_previous_window_id, initial_window_id) =
-        token_budget_window_ids(&initial_token_budget[0], thread_id);
+        token_budget_window_ids(&initial_token_budget[0], chat_id);
     let post_compaction_token_budget = token_budget_contexts(&requests[2]);
     assert_eq!(post_compaction_token_budget.len(), 1);
     let (
         post_compaction_first_window_id,
         post_compaction_previous_window_id,
         post_compaction_window_id,
-    ) = token_budget_window_ids(&post_compaction_token_budget[0], thread_id);
+    ) = token_budget_window_ids(&post_compaction_token_budget[0], chat_id);
     assert_eq!(initial_previous_window_id, None);
     assert_eq!(initial_first_window_id, initial_window_id);
     assert_eq!(post_compaction_first_window_id, initial_first_window_id);
@@ -513,15 +513,15 @@ async fn new_context_tool_starts_new_window_before_follow_up() -> Result<()> {
             .any(|name| name == "new_context"),
         "new_context should be exposed when token budget is enabled"
     );
-    let thread_id = test.session_configured.thread_id;
+    let chat_id = test.session_configured.chat_id;
     let initial_token_budget = token_budget_contexts(&requests[0]);
     assert_eq!(initial_token_budget.len(), 1);
     let (initial_first_window_id, _, initial_window_id) =
-        token_budget_window_ids(&initial_token_budget[0], thread_id);
+        token_budget_window_ids(&initial_token_budget[0], chat_id);
     let new_window_token_budget = token_budget_contexts(&requests[2]);
     assert_eq!(new_window_token_budget.len(), 1);
     let (new_first_window_id, new_previous_window_id, new_window_id) =
-        token_budget_window_ids(&new_window_token_budget[0], thread_id);
+        token_budget_window_ids(&new_window_token_budget[0], chat_id);
     assert_eq!(new_first_window_id, initial_first_window_id);
     assert_eq!(
         new_previous_window_id.as_deref(),
@@ -542,7 +542,7 @@ async fn new_context_tool_starts_new_window_before_follow_up() -> Result<()> {
         &ContextSnapshotOptions::default(),
     );
     let snapshot = snapshot
-        .replace(&thread_id.to_string(), "<THREAD_ID>")
+        .replace(&chat_id.to_string(), "<THREAD_ID>")
         .replace(&new_first_window_id, "<FIRST_WINDOW_ID>")
         .replace(&new_window_id, "<WINDOW_ID>");
     insta::assert_snapshot!(

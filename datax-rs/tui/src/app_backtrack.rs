@@ -43,7 +43,7 @@ use color_eyre::eyre::Result;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::user_input::TextElement;
 
 const NO_PREVIOUS_MESSAGE_TO_EDIT: &str = "No previous message to edit.";
@@ -58,7 +58,7 @@ pub(crate) struct BacktrackState {
     /// Session id of the base thread to rollback.
     ///
     /// If the current thread changes, backtrack selections become invalid and must be ignored.
-    pub(crate) base_id: Option<ThreadId>,
+    pub(crate) base_id: Option<ChatId>,
     /// Index of the currently highlighted user message.
     ///
     /// This is an index into the filtered "user messages since the last session start" view,
@@ -101,7 +101,7 @@ pub(crate) struct BacktrackSelection {
 #[derive(Debug, Clone)]
 pub(crate) struct PendingBacktrackRollback {
     pub(crate) selection: BacktrackSelection,
-    pub(crate) thread_id: Option<ThreadId>,
+    pub(crate) chat_id: Option<ChatId>,
 }
 
 impl App {
@@ -224,7 +224,7 @@ impl App {
         let has_remote_image_urls = !remote_image_urls.is_empty();
         self.backtrack.pending_rollback = Some(PendingBacktrackRollback {
             selection,
-            thread_id: self.chat_widget.thread_id(),
+            chat_id: self.chat_widget.chat_id(),
         });
         self.chat_widget
             .submit_op(AppCommand::thread_rollback(num_turns));
@@ -260,7 +260,7 @@ impl App {
             }
             self.backtrack.pending_rollback = Some(PendingBacktrackRollback {
                 selection,
-                thread_id: self.chat_widget.thread_id(),
+                chat_id: self.chat_widget.chat_id(),
             });
             self.chat_widget
                 .submit_op(AppCommand::thread_rollback(/*num_turns*/ 1));
@@ -305,7 +305,7 @@ impl App {
     fn prime_backtrack(&mut self) {
         self.backtrack.primed = true;
         self.backtrack.nth_user_message = usize::MAX;
-        self.backtrack.base_id = self.chat_widget.thread_id();
+        self.backtrack.base_id = self.chat_widget.chat_id();
         if has_backtrack_target(&self.transcript_cells) {
             self.chat_widget.show_esc_backtrack_hint();
         }
@@ -339,7 +339,7 @@ impl App {
         }
 
         self.backtrack.primed = true;
-        self.backtrack.base_id = self.chat_widget.thread_id();
+        self.backtrack.base_id = self.chat_widget.chat_id();
         self.backtrack.overlay_preview_active = true;
         let count = user_count(&self.transcript_cells);
         if let Some(last) = count.checked_sub(1) {
@@ -557,7 +557,7 @@ impl App {
         let Some(pending) = self.backtrack.pending_rollback.take() else {
             return;
         };
-        if pending.thread_id != self.chat_widget.thread_id() {
+        if pending.chat_id != self.chat_widget.chat_id() {
             // Ignore rollbacks targeting a prior thread.
             return;
         }
@@ -576,7 +576,7 @@ impl App {
 
     fn backtrack_selection(&self, nth_user_message: usize) -> Option<BacktrackSelection> {
         let base_id = self.backtrack.base_id?;
-        if self.chat_widget.thread_id() != Some(base_id) {
+        if self.chat_widget.chat_id() != Some(base_id) {
             return None;
         }
 

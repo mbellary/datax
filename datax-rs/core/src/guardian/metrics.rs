@@ -237,7 +237,7 @@ mod tests {
 
     use datax_otel::MetricsClient;
     use datax_otel::MetricsConfig;
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use datax_protocol::protocol::SessionSource;
     use opentelemetry::KeyValue;
     use opentelemetry_sdk::metrics::InMemoryMetricExporter;
@@ -256,7 +256,7 @@ mod tests {
         )
         .expect("in-memory metrics client");
         SessionTelemetry::new(
-            ThreadId::new(),
+            ChatId::new(),
             "gpt-5.4",
             "gpt-5.4",
             /*account_id*/ None,

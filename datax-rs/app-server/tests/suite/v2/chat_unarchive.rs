@@ -30,7 +30,7 @@ use datax_core::find_archived_thread_path_by_id_str;
 use datax_core::find_thread_path_by_id_str;
 use datax_exec_server::EnvironmentManager;
 use datax_feedback::CodexFeedback;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::models::BaseInstructions;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::ThreadMemoryMode;
@@ -205,15 +205,15 @@ async fn thread_unarchive_preserves_pathless_store_metadata() -> Result<()> {
     create_config_toml_with_in_memory_thread_store(codex_home.path(), &store_id)?;
     let store = InMemoryThreadStore::for_id(store_id.clone());
     let _in_memory_store = InMemoryThreadStoreId { store_id };
-    let chat_id = ThreadId::from_string("00000000-0000-4000-8000-000000000126")?;
-    let parent_chat_id = ThreadId::from_string("00000000-0000-4000-8000-000000000127")?;
+    let chat_id = ChatId::from_string("00000000-0000-4000-8000-000000000126")?;
+    let parent_chat_id = ChatId::from_string("00000000-0000-4000-8000-000000000127")?;
     store
         .create_thread(CreateThreadParams {
             session_id: chat_id.into(),
-            thread_id: chat_id,
+            chat_id: chat_id,
             extra_config: None,
             forked_from_id: Some(parent_chat_id),
-            parent_thread_id: None,
+            parent_chat_id: None,
             source: SessionSource::Cli,
             thread_source: None,
             base_instructions: BaseInstructions::default(),
@@ -228,7 +228,7 @@ async fn thread_unarchive_preserves_pathless_store_metadata() -> Result<()> {
         .await?;
     store
         .update_thread_metadata(UpdateThreadMetadataParams {
-            thread_id: chat_id,
+            chat_id: chat_id,
             patch: ThreadMetadataPatch {
                 name: Some(Some("named pathless thread".to_string())),
                 ..Default::default()

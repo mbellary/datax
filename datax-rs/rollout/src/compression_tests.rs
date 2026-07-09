@@ -5,7 +5,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::time::Duration;
 use std::time::SystemTime;
 
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::InitialHistory;
 use datax_protocol::protocol::RolloutItem;
@@ -29,15 +29,15 @@ use crate::search_rollout_matches;
 async fn load_rollout_items_reads_compressed_rollout() -> anyhow::Result<()> {
     let home = TempDir::new()?;
     let uuid = Uuid::from_u128(1);
-    let thread_id = ThreadId::from_string(&uuid.to_string())?;
+    let chat_id = ChatId::from_string(&uuid.to_string())?;
     let rollout_path = rollout_path(home.path(), "2025-01-03T12-00-00", uuid);
-    write_rollout(&rollout_path, thread_id, "hello compressed")?;
+    write_rollout(&rollout_path, chat_id, "hello compressed")?;
     compress_now(&rollout_path)?;
 
-    let (items, loaded_thread_id, parse_errors) =
+    let (items, loaded_chat_id, parse_errors) =
         RolloutRecorder::load_rollout_items(&rollout_path).await?;
 
-    assert_eq!(loaded_thread_id, Some(thread_id));
+    assert_eq!(loaded_chat_id, Some(chat_id));
     assert_eq!(parse_errors, 0);
     assert_eq!(items.len(), 2);
     assert!(!rollout_path.exists());
@@ -66,9 +66,9 @@ fn rollout_file_from_path_normalizes_compressed_file_names() -> anyhow::Result<(
 fn rollout_file_from_path_hides_compressed_sibling_when_plain_exists() -> anyhow::Result<()> {
     let home = TempDir::new()?;
     let uuid = Uuid::from_u128(8);
-    let thread_id = ThreadId::from_string(&uuid.to_string())?;
+    let chat_id = ChatId::from_string(&uuid.to_string())?;
     let rollout_path = rollout_path(home.path(), "2025-01-03T12-00-00", uuid);
-    write_rollout(&rollout_path, thread_id, "plain wins")?;
+    write_rollout(&rollout_path, chat_id, "plain wins")?;
 
     assert_eq!(
         RolloutFile::from_path(compressed_rollout_path(&rollout_path)),
@@ -81,9 +81,9 @@ fn rollout_file_from_path_hides_compressed_sibling_when_plain_exists() -> anyhow
 async fn append_rollout_item_materializes_compressed_rollout() -> anyhow::Result<()> {
     let home = TempDir::new()?;
     let uuid = Uuid::from_u128(2);
-    let thread_id = ThreadId::from_string(&uuid.to_string())?;
+    let chat_id = ChatId::from_string(&uuid.to_string())?;
     let rollout_path = rollout_path(home.path(), "2025-01-03T12-00-00", uuid);
-    write_rollout(&rollout_path, thread_id, "hello before append")?;
+    write_rollout(&rollout_path, chat_id, "hello before append")?;
     compress_now(&rollout_path)?;
 
     append_rollout_item_to_path(
@@ -97,9 +97,9 @@ async fn append_rollout_item_materializes_compressed_rollout() -> anyhow::Result
 
     assert!(rollout_path.exists());
     assert!(!compressed_rollout_path(&rollout_path).exists());
-    let (items, loaded_thread_id, parse_errors) =
+    let (items, loaded_chat_id, parse_errors) =
         RolloutRecorder::load_rollout_items(&rollout_path).await?;
-    assert_eq!(loaded_thread_id, Some(thread_id));
+    assert_eq!(loaded_chat_id, Some(chat_id));
     assert_eq!(parse_errors, 0);
     assert_eq!(items.len(), 3);
     Ok(())
@@ -109,9 +109,9 @@ async fn append_rollout_item_materializes_compressed_rollout() -> anyhow::Result
 async fn search_rollout_matches_uses_logical_path_for_compressed_rollout() -> anyhow::Result<()> {
     let home = TempDir::new()?;
     let uuid = Uuid::from_u128(15);
-    let thread_id = ThreadId::from_string(&uuid.to_string())?;
+    let chat_id = ChatId::from_string(&uuid.to_string())?;
     let rollout_path = rollout_path(home.path(), "2025-01-03T12-00-00", uuid);
-    write_rollout(&rollout_path, thread_id, "targeted search term")?;
+    write_rollout(&rollout_path, chat_id, "targeted search term")?;
     compress_now(&rollout_path)?;
 
     let matches = search_rollout_matches(
@@ -133,19 +133,19 @@ async fn search_rollout_matches_uses_logical_path_for_compressed_rollout() -> an
 async fn worker_compresses_old_active_and_archived_rollouts() -> anyhow::Result<()> {
     let home = TempDir::new()?;
     let active_uuid = Uuid::from_u128(3);
-    let active_id = ThreadId::from_string(&active_uuid.to_string())?;
+    let active_id = ChatId::from_string(&active_uuid.to_string())?;
     let active_path = rollout_path(home.path(), "2025-01-03T12-00-00", active_uuid);
     write_rollout(&active_path, active_id, "old active")?;
     set_old_mtime(&active_path)?;
 
     let archived_uuid = Uuid::from_u128(4);
-    let archived_id = ThreadId::from_string(&archived_uuid.to_string())?;
+    let archived_id = ChatId::from_string(&archived_uuid.to_string())?;
     let archived_path = archived_rollout_path(home.path(), "2025-01-04T12-00-00", archived_uuid);
     write_rollout(&archived_path, archived_id, "old archived")?;
     set_old_mtime(&archived_path)?;
 
     let fresh_uuid = Uuid::from_u128(5);
-    let fresh_id = ThreadId::from_string(&fresh_uuid.to_string())?;
+    let fresh_id = ChatId::from_string(&fresh_uuid.to_string())?;
     let fresh_path = rollout_path(home.path(), "2025-01-05T12-00-00", fresh_uuid);
     write_rollout(&fresh_path, fresh_id, "fresh active")?;
 
@@ -186,9 +186,9 @@ async fn resume_materializes_compressed_rollout_path() -> anyhow::Result<()> {
         generate_memories: true,
     };
     let uuid = Uuid::from_u128(3);
-    let thread_id = ThreadId::from_string(&uuid.to_string())?;
+    let chat_id = ChatId::from_string(&uuid.to_string())?;
     let rollout_path = rollout_path(home.path(), "2025-01-03T12-00-00", uuid);
-    write_rollout(&rollout_path, thread_id, "hello before resume")?;
+    write_rollout(&rollout_path, chat_id, "hello before resume")?;
     compress_now(&rollout_path)?;
     let compressed_path = compressed_rollout_path(&rollout_path);
 
@@ -219,9 +219,9 @@ async fn resume_materializes_compressed_rollout_path() -> anyhow::Result<()> {
     recorder.flush().await?;
     recorder.shutdown().await?;
 
-    let (items, loaded_thread_id, parse_errors) =
+    let (items, loaded_chat_id, parse_errors) =
         RolloutRecorder::load_rollout_items(&rollout_path).await?;
-    assert_eq!(loaded_thread_id, Some(thread_id));
+    assert_eq!(loaded_chat_id, Some(chat_id));
     assert_eq!(parse_errors, 0);
     assert_eq!(items.len(), 3);
     Ok(())
@@ -232,9 +232,9 @@ async fn resume_materializes_compressed_rollout_path() -> anyhow::Result<()> {
 async fn compression_preserves_rollout_permissions() -> anyhow::Result<()> {
     let home = TempDir::new()?;
     let uuid = Uuid::from_u128(6);
-    let thread_id = ThreadId::from_string(&uuid.to_string())?;
+    let chat_id = ChatId::from_string(&uuid.to_string())?;
     let rollout_path = archived_rollout_path(home.path(), "2025-01-03T12-00-00", uuid);
-    write_rollout(&rollout_path, thread_id, "restricted transcript")?;
+    write_rollout(&rollout_path, chat_id, "restricted transcript")?;
     fs::set_permissions(&rollout_path, fs::Permissions::from_mode(0o600))?;
     set_old_mtime(&rollout_path)?;
 
@@ -254,9 +254,9 @@ async fn compression_preserves_rollout_permissions() -> anyhow::Result<()> {
 async fn append_materialization_preserves_compressed_rollout_permissions() -> anyhow::Result<()> {
     let home = TempDir::new()?;
     let uuid = Uuid::from_u128(6);
-    let thread_id = ThreadId::from_string(&uuid.to_string())?;
+    let chat_id = ChatId::from_string(&uuid.to_string())?;
     let rollout_path = rollout_path(home.path(), "2025-01-03T12-00-00", uuid);
-    write_rollout(&rollout_path, thread_id, "restricted transcript")?;
+    write_rollout(&rollout_path, chat_id, "restricted transcript")?;
     compress_now(&rollout_path)?;
     let compressed_path = compressed_rollout_path(&rollout_path);
     fs::set_permissions(&compressed_path, fs::Permissions::from_mode(0o600))?;
@@ -313,9 +313,9 @@ fn persist_temp_file_noclobber_does_not_replace_existing_destination() -> anyhow
 async fn compression_preserves_read_only_rollout_permissions() -> anyhow::Result<()> {
     let home = TempDir::new()?;
     let uuid = Uuid::from_u128(7);
-    let thread_id = ThreadId::from_string(&uuid.to_string())?;
+    let chat_id = ChatId::from_string(&uuid.to_string())?;
     let rollout_path = archived_rollout_path(home.path(), "2025-01-03T12-00-00", uuid);
-    write_rollout(&rollout_path, thread_id, "read-only transcript")?;
+    write_rollout(&rollout_path, chat_id, "read-only transcript")?;
     set_old_mtime(&rollout_path)?;
     fs::set_permissions(&rollout_path, fs::Permissions::from_mode(0o400))?;
     let source_modified = fs::metadata(&rollout_path)?.modified()?;
@@ -334,9 +334,9 @@ async fn compression_preserves_read_only_rollout_permissions() -> anyhow::Result
 async fn worker_skips_existing_compressed_archived_rollouts() -> anyhow::Result<()> {
     let home = TempDir::new()?;
     let uuid = Uuid::from_u128(10);
-    let thread_id = ThreadId::from_string(&uuid.to_string())?;
+    let chat_id = ChatId::from_string(&uuid.to_string())?;
     let rollout_path = archived_rollout_path(home.path(), "2025-01-03T12-00-00", uuid);
-    write_rollout(&rollout_path, thread_id, "already compressed")?;
+    write_rollout(&rollout_path, chat_id, "already compressed")?;
     compress_now(&rollout_path)?;
     let compressed_path = compressed_rollout_path(&rollout_path);
     set_old_mtime(&compressed_path)?;
@@ -345,9 +345,9 @@ async fn worker_skips_existing_compressed_archived_rollouts() -> anyhow::Result<
 
     assert!(!rollout_path.exists());
     assert!(compressed_path.exists());
-    let (items, loaded_thread_id, parse_errors) =
+    let (items, loaded_chat_id, parse_errors) =
         RolloutRecorder::load_rollout_items(&rollout_path).await?;
-    assert_eq!(loaded_thread_id, Some(thread_id));
+    assert_eq!(loaded_chat_id, Some(chat_id));
     assert_eq!(parse_errors, 0);
     assert_eq!(items.len(), 2);
     Ok(())
@@ -357,9 +357,9 @@ async fn worker_skips_existing_compressed_archived_rollouts() -> anyhow::Result<
 async fn worker_skips_when_fresh_run_marker_exists() -> anyhow::Result<()> {
     let home = TempDir::new()?;
     let uuid = Uuid::from_u128(11);
-    let thread_id = ThreadId::from_string(&uuid.to_string())?;
+    let chat_id = ChatId::from_string(&uuid.to_string())?;
     let rollout_path = archived_rollout_path(home.path(), "2025-01-03T12-00-00", uuid);
-    write_rollout(&rollout_path, thread_id, "throttled worker")?;
+    write_rollout(&rollout_path, chat_id, "throttled worker")?;
     set_old_mtime(&rollout_path)?;
     let marker_dir = home.path().join(".tmp");
     fs::create_dir_all(marker_dir.as_path())?;
@@ -397,9 +397,9 @@ fn run_marker_is_removed_unless_persisted() -> anyhow::Result<()> {
 async fn find_thread_path_by_id_handles_compressed_rollout_filenames() -> anyhow::Result<()> {
     let home = TempDir::new()?;
     let uuid = Uuid::from_u128(8);
-    let thread_id = ThreadId::from_string(&uuid.to_string())?;
+    let chat_id = ChatId::from_string(&uuid.to_string())?;
     let rollout_path = rollout_path(home.path(), "2025-01-03T12-00-00", uuid);
-    write_rollout(&rollout_path, thread_id, "compressed filename lookup")?;
+    write_rollout(&rollout_path, chat_id, "compressed filename lookup")?;
     compress_now(&rollout_path)?;
     let compressed_path = compressed_rollout_path(&rollout_path);
 
@@ -423,11 +423,11 @@ async fn find_thread_path_by_id_handles_compressed_rollout_filenames() -> anyhow
 async fn find_thread_path_by_id_ignores_compression_temp_matches() -> anyhow::Result<()> {
     let home = TempDir::new()?;
     let uuid = Uuid::from_u128(9);
-    let thread_id = ThreadId::from_string(&uuid.to_string())?;
+    let chat_id = ChatId::from_string(&uuid.to_string())?;
     let temp_path = rollout_path(home.path(), "2025-01-03T12-00-00", uuid).with_file_name(format!(
         "rollout-2025-01-03T12-00-00-{uuid}.jsonl.zst.compress.1.0.tmp"
     ));
-    write_rollout(&temp_path, thread_id, "temporary file should not resolve")?;
+    write_rollout(&temp_path, chat_id, "temporary file should not resolve")?;
 
     assert_eq!(
         crate::find_thread_path_by_id_str(
@@ -451,15 +451,15 @@ fn archived_rollout_path(home: &std::path::Path, ts: &str, uuid: Uuid) -> std::p
         .join(format!("rollout-{ts}-{uuid}.jsonl"))
 }
 
-fn write_rollout(path: &std::path::Path, thread_id: ThreadId, message: &str) -> anyhow::Result<()> {
+fn write_rollout(path: &std::path::Path, chat_id: ChatId, message: &str) -> anyhow::Result<()> {
     let parent = path.parent().expect("rollout path should have parent");
     fs::create_dir_all(parent)?;
     let session_meta_line = SessionMetaLine {
         meta: SessionMeta {
-            session_id: thread_id.into(),
-            id: thread_id,
+            session_id: chat_id.into(),
+            id: chat_id,
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             timestamp: "2025-01-03T12:00:00Z".to_string(),
             cwd: parent.to_path_buf(),
             originator: "test".to_string(),

@@ -142,8 +142,8 @@ async fn execute_mcp_tool_call_records_replayable_correlation() -> anyhow::Resul
         .rollout_thread_trace
         .start_tool_dispatch_trace(|| {
             Some(ToolDispatchInvocation {
-                thread_id: session.thread_id.to_string(),
-                codex_turn_id: turn_context.sub_id.clone(),
+                chat_id: session.chat_id.to_string(),
+                codex_interaction_id: turn_context.sub_id.clone(),
                 tool_call_id: "mcp-call".to_string(),
                 tool_name: "search".to_string(),
                 tool_namespace: Some("mcp__docs__".to_string()),
@@ -284,7 +284,7 @@ fn attach_trace_bundle(
         datax_rollout_trace::ThreadTraceContext::start_root_in_root_for_test(
             root,
             ThreadStartedTraceMetadata {
-                thread_id: session.thread_id.to_string(),
+                chat_id: session.chat_id.to_string(),
                 agent_path: "/root".to_string(),
                 task_name: None,
                 nickname: None,
@@ -650,7 +650,7 @@ async fn approval_elicitation_request_uses_message_override_and_preserves_tool_p
     assert_eq!(
         request,
         McpServerElicitationRequestParams {
-            chat_id: session.thread_id.to_string(),
+            chat_id: session.chat_id.to_string(),
             interaction_id: Some(turn_context.sub_id),
             server_name: CODEX_APPS_MCP_SERVER_NAME.to_string(),
             request: McpServerElicitationRequest::Form {
@@ -1553,9 +1553,9 @@ async fn codex_apps_auth_elicitation_feature_enabled_requests_elicitation() {
 }
 
 #[test]
-fn mcp_tool_call_thread_id_meta_is_added_to_request_meta() {
+fn mcp_tool_call_chat_id_meta_is_added_to_request_meta() {
     assert_eq!(
-        with_mcp_tool_call_thread_id_meta(
+        with_mcp_tool_call_chat_id_meta(
             Some(serde_json::json!({
                 "source": "test-client",
                 "threadId": "stale-thread",
@@ -1569,14 +1569,14 @@ fn mcp_tool_call_thread_id_meta_is_added_to_request_meta() {
     );
 
     assert_eq!(
-        with_mcp_tool_call_thread_id_meta(/*meta*/ None, "thread-live"),
+        with_mcp_tool_call_chat_id_meta(/*meta*/ None, "thread-live"),
         Some(serde_json::json!({
             "threadId": "thread-live",
         }))
     );
 
     assert_eq!(
-        with_mcp_tool_call_thread_id_meta(Some(serde_json::json!("invalid-meta")), "thread-live"),
+        with_mcp_tool_call_chat_id_meta(Some(serde_json::json!("invalid-meta")), "thread-live"),
         Some(serde_json::json!("invalid-meta"))
     );
 }
@@ -2537,7 +2537,7 @@ async fn permission_request_hook_allows_mcp_tool_call() {
         inputs,
         vec![serde_json::json!({
             "session_id": session.session_id(),
-            "turn_id": "turn_id",
+            "interaction_id": "interaction_id",
             "cwd": turn_cwd,
             "transcript_path": null,
             "model": turn_context.model_info.slug,
@@ -2599,7 +2599,7 @@ async fn permission_request_hook_uses_hook_tool_name_without_metadata() {
         inputs,
         vec![serde_json::json!({
             "session_id": session.session_id(),
-            "turn_id": "turn_id",
+            "interaction_id": "interaction_id",
             "cwd": turn_cwd,
             "transcript_path": null,
             "model": turn_context.model_info.slug,

@@ -67,7 +67,7 @@ INSERT INTO agent_job_items (
     source_id,
     row_json,
     status,
-    assigned_thread_id,
+    assigned_chat_id,
     attempt_count,
     result_json,
     last_error,
@@ -142,7 +142,7 @@ SELECT
     source_id,
     row_json,
     status,
-    assigned_thread_id,
+    assigned_chat_id,
     attempt_count,
     result_json,
     last_error,
@@ -185,7 +185,7 @@ SELECT
     source_id,
     row_json,
     status,
-    assigned_thread_id,
+    assigned_chat_id,
     attempt_count,
     result_json,
     last_error,
@@ -322,7 +322,7 @@ WHERE id = ?
 UPDATE agent_job_items
 SET
     status = ?,
-    assigned_thread_id = NULL,
+    assigned_chat_id = NULL,
     attempt_count = attempt_count + 1,
     updated_at = ?,
     last_error = NULL
@@ -343,7 +343,7 @@ WHERE job_id = ? AND item_id = ? AND status = ?
         &self,
         job_id: &str,
         item_id: &str,
-        thread_id: &str,
+        chat_id: &str,
     ) -> anyhow::Result<bool> {
         let now = Utc::now().timestamp();
         let result = sqlx::query(
@@ -351,7 +351,7 @@ WHERE job_id = ? AND item_id = ? AND status = ?
 UPDATE agent_job_items
 SET
     status = ?,
-    assigned_thread_id = ?,
+    assigned_chat_id = ?,
     attempt_count = attempt_count + 1,
     updated_at = ?,
     last_error = NULL
@@ -359,7 +359,7 @@ WHERE job_id = ? AND item_id = ? AND status = ?
             "#,
         )
         .bind(AgentJobItemStatus::Running.as_str())
-        .bind(thread_id)
+        .bind(chat_id)
         .bind(now)
         .bind(job_id)
         .bind(item_id)
@@ -381,7 +381,7 @@ WHERE job_id = ? AND item_id = ? AND status = ?
 UPDATE agent_job_items
 SET
     status = ?,
-    assigned_thread_id = NULL,
+    assigned_chat_id = NULL,
     updated_at = ?,
     last_error = ?
 WHERE job_id = ? AND item_id = ? AND status = ?
@@ -402,17 +402,17 @@ WHERE job_id = ? AND item_id = ? AND status = ?
         &self,
         job_id: &str,
         item_id: &str,
-        thread_id: &str,
+        chat_id: &str,
     ) -> anyhow::Result<bool> {
         let now = Utc::now().timestamp();
         let result = sqlx::query(
             r#"
 UPDATE agent_job_items
-SET assigned_thread_id = ?, updated_at = ?
+SET assigned_chat_id = ?, updated_at = ?
 WHERE job_id = ? AND item_id = ? AND status = ?
             "#,
         )
-        .bind(thread_id)
+        .bind(chat_id)
         .bind(now)
         .bind(job_id)
         .bind(item_id)
@@ -426,7 +426,7 @@ WHERE job_id = ? AND item_id = ? AND status = ?
         &self,
         job_id: &str,
         item_id: &str,
-        reporting_thread_id: &str,
+        reporting_chat_id: &str,
         result_json: &Value,
     ) -> anyhow::Result<bool> {
         let now = Utc::now().timestamp();
@@ -441,12 +441,12 @@ SET
     completed_at = ?,
     updated_at = ?,
     last_error = NULL,
-    assigned_thread_id = NULL
+    assigned_chat_id = NULL
 WHERE
     job_id = ?
     AND item_id = ?
     AND status = ?
-    AND assigned_thread_id = ?
+    AND assigned_chat_id = ?
             "#,
         )
         .bind(AgentJobItemStatus::Completed.as_str())
@@ -457,7 +457,7 @@ WHERE
         .bind(job_id)
         .bind(item_id)
         .bind(AgentJobItemStatus::Running.as_str())
-        .bind(reporting_thread_id)
+        .bind(reporting_chat_id)
         .execute(self.pool.as_ref())
         .await?;
         Ok(result.rows_affected() > 0)
@@ -476,7 +476,7 @@ SET
     status = ?,
     completed_at = ?,
     updated_at = ?,
-    assigned_thread_id = NULL
+    assigned_chat_id = NULL
 WHERE
     job_id = ?
     AND item_id = ?
@@ -510,7 +510,7 @@ SET
     completed_at = ?,
     updated_at = ?,
     last_error = ?,
-    assigned_thread_id = NULL
+    assigned_chat_id = NULL
 WHERE
     job_id = ?
     AND item_id = ?
@@ -578,7 +578,7 @@ mod tests {
     ) -> anyhow::Result<(String, String, String)> {
         let job_id = "job-1".to_string();
         let item_id = "item-1".to_string();
-        let thread_id = "thread-1".to_string();
+        let chat_id = "thread-1".to_string();
         runtime
             .create_agent_job(
                 &AgentJobCreateParams {
@@ -605,24 +605,24 @@ mod tests {
             .mark_agent_job_item_running_with_thread(
                 job_id.as_str(),
                 item_id.as_str(),
-                thread_id.as_str(),
+                chat_id.as_str(),
             )
             .await?;
         assert!(marked_running);
-        Ok((job_id, item_id, thread_id))
+        Ok((job_id, item_id, chat_id))
     }
 
     #[tokio::test]
     async fn report_agent_job_item_result_completes_item_atomically() -> anyhow::Result<()> {
         let codex_home = unique_temp_dir();
         let runtime = StateRuntime::init(codex_home, "test-provider".to_string()).await?;
-        let (job_id, item_id, thread_id) = create_running_single_item_job(runtime.as_ref()).await?;
+        let (job_id, item_id, chat_id) = create_running_single_item_job(runtime.as_ref()).await?;
 
         let accepted = runtime
             .report_agent_job_item_result(
                 job_id.as_str(),
                 item_id.as_str(),
-                thread_id.as_str(),
+                chat_id.as_str(),
                 &json!({"ok": true}),
             )
             .await?;
@@ -634,7 +634,7 @@ mod tests {
             .expect("job item should exist");
         assert_eq!(item.status, AgentJobItemStatus::Completed);
         assert_eq!(item.result_json, Some(json!({"ok": true})));
-        assert_eq!(item.assigned_thread_id, None);
+        assert_eq!(item.assigned_chat_id, None);
         assert_eq!(item.last_error, None);
         assert!(item.reported_at.is_some());
         assert!(item.completed_at.is_some());
@@ -656,7 +656,7 @@ mod tests {
     async fn report_agent_job_item_result_rejects_late_reports() -> anyhow::Result<()> {
         let codex_home = unique_temp_dir();
         let runtime = StateRuntime::init(codex_home, "test-provider".to_string()).await?;
-        let (job_id, item_id, thread_id) = create_running_single_item_job(runtime.as_ref()).await?;
+        let (job_id, item_id, chat_id) = create_running_single_item_job(runtime.as_ref()).await?;
 
         let marked_failed = runtime
             .mark_agent_job_item_failed(job_id.as_str(), item_id.as_str(), "missing report")
@@ -666,7 +666,7 @@ mod tests {
             .report_agent_job_item_result(
                 job_id.as_str(),
                 item_id.as_str(),
-                thread_id.as_str(),
+                chat_id.as_str(),
                 &json!({"late": true}),
             )
             .await?;

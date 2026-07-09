@@ -27,7 +27,7 @@ use datax_model_provider_info::ModelProviderInfo;
 use datax_model_provider_info::WireApi;
 use datax_model_provider_info::create_oss_provider_with_base_url;
 use datax_otel::SessionTelemetry;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::models::ContentItem;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::openai_models::ModelInfo;
@@ -70,10 +70,10 @@ const TEST_INSTALLATION_ID: &str = "11111111-1111-4111-8111-111111111111";
 
 fn test_model_client(session_source: SessionSource) -> ModelClient {
     let provider = create_oss_provider_with_base_url("https://example.com/v1", WireApi::Responses);
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     ModelClient::new(
         /*auth_manager*/ None,
-        thread_id,
+        chat_id,
         provider,
         session_source,
         /*model_verbosity*/ None,
@@ -91,20 +91,20 @@ fn test_model_provider() -> SharedModelProvider {
 
 fn test_responses_metadata_for_client(
     client: &ModelClient,
-    turn_id: Option<&str>,
+    interaction_id: Option<&str>,
     window_id: String,
-    parent_thread_id: Option<ThreadId>,
+    parent_chat_id: Option<ChatId>,
     request_kind: TestCodexResponsesRequestKind,
 ) -> CodexResponsesMetadata {
-    let thread_id = client.state.thread_id.to_string();
+    let chat_id = client.state.chat_id.to_string();
     test_responses_metadata(
         TEST_INSTALLATION_ID,
-        &thread_id,
-        &thread_id,
-        turn_id,
+        &chat_id,
+        &chat_id,
+        interaction_id,
         window_id,
         &client.state.session_source,
-        parent_thread_id,
+        parent_chat_id,
         request_kind,
     )
 }
@@ -141,7 +141,7 @@ fn test_model_info() -> ModelInfo {
 
 fn test_session_telemetry() -> SessionTelemetry {
     SessionTelemetry::new(
-        ThreadId::new(),
+        ChatId::new(),
         "gpt-test",
         "gpt-test",
         /*account_id*/ None,
@@ -212,13 +212,13 @@ fn started_inference_attempt(temp: &TempDir) -> anyhow::Result<InferenceTraceAtt
         "thread-root".to_string(),
     )?);
     writer.append(RawTraceEventPayload::ThreadStarted {
-        thread_id: "thread-root".to_string(),
+        chat_id: "thread-root".to_string(),
         agent_path: "/root".to_string(),
         metadata_payload: None,
     })?;
-    writer.append(RawTraceEventPayload::CodexTurnStarted {
-        codex_turn_id: "turn-1".to_string(),
-        thread_id: "thread-root".to_string(),
+    writer.append(RawTraceEventPayload::CodexInteractionStarted {
+        codex_interaction_id: "turn-1".to_string(),
+        chat_id: "thread-root".to_string(),
     })?;
 
     let inference_trace = InferenceTraceContext::enabled(
@@ -317,27 +317,27 @@ fn build_subagent_headers_sets_internal_memory_consolidation_label() {
 
 #[test]
 fn build_ws_client_metadata_includes_window_lineage_and_turn_metadata() {
-    let parent_thread_id = ThreadId::new();
+    let parent_chat_id = ChatId::new();
     let client = test_model_client(SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-        parent_thread_id,
+        parent_chat_id,
         depth: 2,
         agent_path: None,
         agent_nickname: None,
         agent_role: None,
     }));
 
-    let thread_id = client.state.thread_id.to_string();
-    let expected_window_id = format!("{thread_id}:1");
+    let chat_id = client.state.chat_id.to_string();
+    let expected_window_id = format!("{chat_id}:1");
     let responses_metadata = test_responses_metadata_for_client(
         &client,
         Some("turn-123"),
         expected_window_id.clone(),
-        Some(parent_thread_id),
+        Some(parent_chat_id),
         TestCodexResponsesRequestKind::Turn,
     );
     let client_metadata =
         client.build_ws_client_metadata(&responses_metadata, /*use_responses_lite*/ false);
-    let parent_thread_id = parent_thread_id.to_string();
+    let parent_chat_id = parent_chat_id.to_string();
     let turn_metadata: serde_json::Value = serde_json::from_str(
         client_metadata
             .get(X_CODEX_TURN_METADATA_HEADER)
@@ -350,9 +350,9 @@ fn build_ws_client_metadata_includes_window_lineage_and_turn_metadata() {
             "installation_id",
             "11111111-1111-4111-8111-111111111111",
         ),
-        ("session_id", "session_id", thread_id.as_str()),
-        ("thread_id", "thread_id", thread_id.as_str()),
-        ("turn_id", "turn_id", "turn-123"),
+        ("session_id", "session_id", chat_id.as_str()),
+        ("chat_id", "chat_id", chat_id.as_str()),
+        ("interaction_id", "interaction_id", "turn-123"),
         (
             X_CODEX_WINDOW_ID_HEADER,
             "window_id",
@@ -360,8 +360,8 @@ fn build_ws_client_metadata_includes_window_lineage_and_turn_metadata() {
         ),
         (
             X_CODEX_PARENT_THREAD_ID_HEADER,
-            "parent_thread_id",
-            parent_thread_id.as_str(),
+            "parent_chat_id",
+            parent_chat_id.as_str(),
         ),
     ] {
         assert_eq!(
@@ -618,7 +618,7 @@ fn model_client_with_counting_attestation(
     };
     let model_client = ModelClient::new(
         auth_manager,
-        ThreadId::new(),
+        ChatId::new(),
         provider,
         SessionSource::Exec,
         /*model_verbosity*/ None,
@@ -639,9 +639,9 @@ async fn websocket_handshake_includes_attestation_for_chatgpt_codex_responses() 
         model_client_with_counting_attestation(/*include_attestation*/ true);
     let responses_metadata = test_responses_metadata_for_client(
         &model_client,
-        /*turn_id*/ None,
-        format!("{}:0", model_client.state.thread_id),
-        /*parent_thread_id*/ None,
+        /*interaction_id*/ None,
+        format!("{}:0", model_client.state.chat_id),
+        /*parent_chat_id*/ None,
         TestCodexResponsesRequestKind::WebsocketConnection,
     );
 

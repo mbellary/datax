@@ -3,7 +3,7 @@ use crate::agent::AgentStatus;
 use crate::codex_thread::CodexThread;
 use crate::config::Config;
 use crate::thread_manager::ThreadManagerState;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::error::CodexErr;
 use datax_protocol::error::Result as CodexResult;
 use datax_protocol::protocol::MultiAgentVersion;
@@ -20,7 +20,7 @@ pub(super) struct V2Residency {
 
 #[derive(Default)]
 struct V2ResidencyState {
-    residents: VecDeque<ThreadId>,
+    residents: VecDeque<ChatId>,
     pending_slots: usize,
 }
 
@@ -30,8 +30,8 @@ pub(super) struct V2ResidencySlot {
 }
 
 impl V2ResidencySlot {
-    pub(super) fn commit(mut self, thread_id: ThreadId) {
-        self.residency.commit_slot(thread_id);
+    pub(super) fn commit(mut self, chat_id: ChatId) {
+        self.residency.commit_slot(chat_id);
         self.active = false;
     }
 }
@@ -49,30 +49,30 @@ impl AgentControl {
         &self,
         state: &Arc<ThreadManagerState>,
         config: &Config,
-        protected_thread_id: Option<ThreadId>,
+        protected_chat_id: Option<ChatId>,
     ) -> CodexResult<V2ResidencySlot> {
         let capacity = config
             .effective_agent_max_threads(MultiAgentVersion::V2)
             .unwrap_or(usize::MAX);
         Arc::clone(&self.v2_residency)
-            .reserve_slot(state, capacity, protected_thread_id)
+            .reserve_slot(state, capacity, protected_chat_id)
             .await
     }
 
     pub(super) async fn touch_loaded_v2_residency(
         &self,
         state: &Arc<ThreadManagerState>,
-        thread_id: ThreadId,
+        chat_id: ChatId,
     ) {
-        if let Ok(thread) = state.get_thread(thread_id).await
+        if let Ok(thread) = state.get_thread(chat_id).await
             && is_resident_candidate(thread.as_ref())
         {
-            self.v2_residency.touch(thread_id);
+            self.v2_residency.touch(chat_id);
         }
     }
 
-    pub(super) fn forget_v2_residency(&self, thread_id: ThreadId) {
-        self.v2_residency.remove(thread_id);
+    pub(super) fn forget_v2_residency(&self, chat_id: ChatId) {
+        self.v2_residency.remove(chat_id);
     }
 }
 
@@ -81,7 +81,7 @@ impl V2Residency {
         self: Arc<Self>,
         manager: &Arc<ThreadManagerState>,
         capacity: usize,
-        protected_thread_id: Option<ThreadId>,
+        protected_chat_id: Option<ChatId>,
     ) -> CodexResult<V2ResidencySlot> {
         loop {
             if self.try_reserve_pending_slot(capacity) {
@@ -91,7 +91,7 @@ impl V2Residency {
                 });
             }
             if !self
-                .try_unload_one_resident(manager, protected_thread_id)
+                .try_unload_one_resident(manager, protected_chat_id)
                 .await
             {
                 return Err(CodexErr::AgentLimitReached {
@@ -116,15 +116,15 @@ impl V2Residency {
     async fn try_unload_one_resident(
         &self,
         manager: &Arc<ThreadManagerState>,
-        protected_thread_id: Option<ThreadId>,
+        protected_chat_id: Option<ChatId>,
     ) -> bool {
         let candidates_to_scan = self.resident_count();
         for _ in 0..candidates_to_scan {
-            let Some(candidate_thread_id) = self.pop_lru_candidate(protected_thread_id) else {
+            let Some(candidate_chat_id) = self.pop_lru_candidate(protected_chat_id) else {
                 return false;
             };
             let Some(candidate_thread) = manager
-                .get_thread(candidate_thread_id)
+                .get_thread(candidate_chat_id)
                 .await
                 .ok()
                 .filter(|thread| is_resident_candidate(thread))
@@ -132,18 +132,18 @@ impl V2Residency {
                 continue;
             };
             if !is_unloadable(candidate_thread.as_ref()).await {
-                self.touch(candidate_thread_id);
+                self.touch(candidate_chat_id);
                 continue;
             }
             candidate_thread.ensure_rollout_materialized().await;
             if let Err(err) = candidate_thread.shutdown_and_wait().await {
                 warn!(
-                    "failed to shut down v2 resident thread before unloading {candidate_thread_id}: {err}"
+                    "failed to shut down v2 resident thread before unloading {candidate_chat_id}: {err}"
                 );
-                self.touch(candidate_thread_id);
+                self.touch(candidate_chat_id);
                 continue;
             }
-            let _ = manager.remove_thread(&candidate_thread_id).await;
+            let _ = manager.remove_thread(&candidate_chat_id).await;
             return true;
         }
         false
@@ -157,46 +157,46 @@ impl V2Residency {
             .len()
     }
 
-    fn pop_lru_candidate(&self, protected_thread_id: Option<ThreadId>) -> Option<ThreadId> {
+    fn pop_lru_candidate(&self, protected_chat_id: Option<ChatId>) -> Option<ChatId> {
         let mut state = self
             .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let candidates_to_scan = state.residents.len();
         for _ in 0..candidates_to_scan {
-            let candidate_thread_id = state.residents.pop_front()?;
-            if Some(candidate_thread_id) == protected_thread_id {
-                state.residents.push_back(candidate_thread_id);
+            let candidate_chat_id = state.residents.pop_front()?;
+            if Some(candidate_chat_id) == protected_chat_id {
+                state.residents.push_back(candidate_chat_id);
                 continue;
             }
-            return Some(candidate_thread_id);
+            return Some(candidate_chat_id);
         }
         None
     }
 
-    fn touch(&self, thread_id: ThreadId) {
+    fn touch(&self, chat_id: ChatId) {
         let mut state = self
             .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        touch_resident(&mut state.residents, thread_id);
+        touch_resident(&mut state.residents, chat_id);
     }
 
-    fn remove(&self, thread_id: ThreadId) {
+    fn remove(&self, chat_id: ChatId) {
         self.state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .residents
-            .retain(|resident_thread_id| *resident_thread_id != thread_id);
+            .retain(|resident_chat_id| *resident_chat_id != chat_id);
     }
 
-    fn commit_slot(&self, thread_id: ThreadId) {
+    fn commit_slot(&self, chat_id: ChatId) {
         let mut state = self
             .state
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         state.pending_slots = state.pending_slots.saturating_sub(1);
-        touch_resident(&mut state.residents, thread_id);
+        touch_resident(&mut state.residents, chat_id);
     }
 
     fn release_pending_slot(&self) {
@@ -208,9 +208,9 @@ impl V2Residency {
     }
 }
 
-fn touch_resident(residents: &mut VecDeque<ThreadId>, thread_id: ThreadId) {
-    residents.retain(|resident_thread_id| *resident_thread_id != thread_id);
-    residents.push_back(thread_id);
+fn touch_resident(residents: &mut VecDeque<ChatId>, chat_id: ChatId) {
+    residents.retain(|resident_chat_id| *resident_chat_id != chat_id);
+    residents.push_back(chat_id);
 }
 
 fn is_resident_candidate(thread: &CodexThread) -> bool {

@@ -187,7 +187,7 @@ impl ChatWidget {
             pet_selection_load_request_id: 0,
             #[cfg(test)]
             pet_image_support_override: None,
-            thread_id: None,
+            chat_id: None,
             dismissed_plan_mode_nudge_scopes: HashSet::new(),
             thread_name: None,
             thread_rename_block_message: None,

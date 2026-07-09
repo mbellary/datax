@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::sync::LazyLock;
 use std::sync::Mutex;
 
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::SessionMetaLine;
 use serde::Deserialize;
 use serde::Serialize;
@@ -23,7 +23,7 @@ static SESSION_INDEX_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(())
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SessionIndexEntry {
-    pub id: ThreadId,
+    pub id: ChatId,
     pub thread_name: String,
     pub updated_at: String,
 }
@@ -32,7 +32,7 @@ pub struct SessionIndexEntry {
 /// Name updates are append-only; the most recent entry wins when resolving names or ids.
 pub async fn append_thread_name(
     codex_home: &Path,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     name: &str,
 ) -> std::io::Result<()> {
     use time::OffsetDateTime;
@@ -42,7 +42,7 @@ pub async fn append_thread_name(
         .format(&Rfc3339)
         .unwrap_or_else(|_| "unknown".to_string());
     let entry = SessionIndexEntry {
-        id: thread_id,
+        id: chat_id,
         thread_name: name.to_string(),
         updated_at,
     };
@@ -73,7 +73,7 @@ pub async fn append_session_index_entry(
 /// Remove all recorded names for a thread from the session index.
 pub async fn remove_thread_name_entries(
     codex_home: &Path,
-    thread_id: ThreadId,
+    chat_id: ChatId,
 ) -> std::io::Result<()> {
     let _guard = SESSION_INDEX_LOCK
         .lock()
@@ -88,7 +88,7 @@ pub async fn remove_thread_name_entries(
     let mut remaining = String::with_capacity(contents.len());
     for line in contents.lines() {
         let should_remove = serde_json::from_str::<SessionIndexEntry>(line.trim())
-            .is_ok_and(|entry| entry.id == thread_id);
+            .is_ok_and(|entry| entry.id == chat_id);
         if should_remove {
             removed = true;
         } else {
@@ -107,13 +107,13 @@ pub async fn remove_thread_name_entries(
 /// Find the latest thread name for a thread id, if any.
 pub async fn find_thread_name_by_id(
     codex_home: &Path,
-    thread_id: &ThreadId,
+    chat_id: &ChatId,
 ) -> std::io::Result<Option<String>> {
     let path = session_index_path(codex_home);
     if !path.exists() {
         return Ok(None);
     }
-    let id = *thread_id;
+    let id = *chat_id;
     let entry = tokio::task::spawn_blocking(move || scan_index_from_end_by_id(&path, &id))
         .await
         .map_err(std::io::Error::other)??;
@@ -123,17 +123,17 @@ pub async fn find_thread_name_by_id(
 /// Find the latest thread names for a batch of thread ids.
 pub async fn find_thread_names_by_ids(
     codex_home: &Path,
-    thread_ids: &HashSet<ThreadId>,
-) -> std::io::Result<HashMap<ThreadId, String>> {
+    chat_ids: &HashSet<ChatId>,
+) -> std::io::Result<HashMap<ChatId, String>> {
     let path = session_index_path(codex_home);
-    if thread_ids.is_empty() || !path.exists() {
+    if chat_ids.is_empty() || !path.exists() {
         return Ok(HashMap::new());
     }
 
     let file = tokio::fs::File::open(&path).await?;
     let reader = tokio::io::BufReader::new(file);
     let mut lines = reader.lines();
-    let mut names = HashMap::with_capacity(thread_ids.len());
+    let mut names = HashMap::with_capacity(chat_ids.len());
 
     while let Some(line) = lines.next_line().await? {
         let trimmed = line.trim();
@@ -144,7 +144,7 @@ pub async fn find_thread_names_by_ids(
             continue;
         };
         let name = entry.thread_name.trim();
-        if !name.is_empty() && thread_ids.contains(&entry.id) {
+        if !name.is_empty() && chat_ids.contains(&entry.id) {
             names.insert(entry.id, name.to_string());
         }
     }
@@ -171,14 +171,14 @@ pub async fn find_thread_meta_by_name_str(
     // Stream matching ids newest-first instead of stopping at the first name hit: the newest entry
     // may point at a thread whose rollout was never materialized.
     let scan =
-        tokio::task::spawn_blocking(move || stream_thread_ids_from_end_by_name(&path, &name, tx));
+        tokio::task::spawn_blocking(move || stream_chat_ids_from_end_by_name(&path, &name, tx));
 
-    while let Some(thread_id) = rx.recv().await {
+    while let Some(chat_id) = rx.recv().await {
         // Keep walking until a matching id resolves to a loadable rollout so an unsaved or partial
         // rename cannot shadow an older persisted session with the same name.
         if let Some(path) = super::list::find_thread_path_by_id_str(
             codex_home,
-            &thread_id.to_string(),
+            &chat_id.to_string(),
             state_db_ctx,
         )
         .await?
@@ -200,15 +200,15 @@ fn session_index_path(codex_home: &Path) -> PathBuf {
 
 fn scan_index_from_end_by_id(
     path: &Path,
-    thread_id: &ThreadId,
+    chat_id: &ChatId,
 ) -> std::io::Result<Option<SessionIndexEntry>> {
-    scan_index_from_end(path, |entry| entry.id == *thread_id)
+    scan_index_from_end(path, |entry| entry.id == *chat_id)
 }
 
-fn stream_thread_ids_from_end_by_name(
+fn stream_chat_ids_from_end_by_name(
     path: &Path,
     name: &str,
-    tx: tokio::sync::mpsc::Sender<ThreadId>,
+    tx: tokio::sync::mpsc::Sender<ChatId>,
 ) -> std::io::Result<()> {
     let mut seen = HashSet::new();
     scan_index_from_end_for_each(path, |entry| {

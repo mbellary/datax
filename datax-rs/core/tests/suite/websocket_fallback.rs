@@ -189,7 +189,7 @@ async fn websocket_fallback_hides_first_websocket_retry_stream_error() -> Result
             .msg;
         match event {
             EventMsg::StreamError(e) => stream_error_messages.push(e.message),
-            EventMsg::TurnComplete(_) => break,
+            EventMsg::InteractionComplete(_) => break,
             _ => {}
         }
     }

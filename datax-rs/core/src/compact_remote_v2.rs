@@ -37,7 +37,7 @@ use datax_protocol::protocol::CompactedItem;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::TokenUsage;
 use datax_protocol::protocol::TruncationPolicy;
-use datax_protocol::protocol::TurnStartedEvent;
+use datax_protocol::protocol::InteractionStartedEvent;
 use datax_rollout_trace::CompactionCheckpointTracePayload;
 use datax_rollout_trace::InferenceTraceContext;
 use datax_utils_output_truncation::approx_token_count;
@@ -77,8 +77,8 @@ pub(crate) async fn run_remote_compact_task(
     sess: Arc<Session>,
     turn_context: Arc<TurnContext>,
 ) -> CodexResult<()> {
-    let start_event = EventMsg::TurnStarted(TurnStartedEvent {
-        turn_id: turn_context.sub_id.clone(),
+    let start_event = EventMsg::InteractionStarted(InteractionStartedEvent {
+        interaction_id: turn_context.sub_id.clone(),
         trace_id: turn_context.trace_id.clone(),
         started_at: turn_context.turn_timing_state.started_at_unix_secs().await,
         model_context_window: turn_context.model_context_window(),
@@ -130,7 +130,7 @@ async fn run_remote_compact_task_inner(
     match pre_compact_outcome {
         PreCompactHookOutcome::Continue => {}
         PreCompactHookOutcome::Stopped => {
-            let error = CodexErr::TurnAborted;
+            let error = CodexErr::InteractionAborted;
             attempt
                 .track(
                     sess.as_ref(),
@@ -159,13 +159,13 @@ async fn run_remote_compact_task_inner(
             attempt
                 .track(sess.as_ref(), status, codex_error, analytics_details)
                 .await;
-            return Err(CodexErr::TurnAborted);
+            return Err(CodexErr::InteractionAborted);
         }
     }
     attempt
         .track(sess.as_ref(), status, codex_error, analytics_details)
         .await;
-    if matches!(&result, Err(CodexErr::TurnAborted)) {
+    if matches!(&result, Err(CodexErr::InteractionAborted)) {
         return result;
     }
     if let Err(err) = result {
@@ -208,7 +208,7 @@ async fn run_remote_compact_task_inner_impl(
         );
     if rewritten_outputs > 0 {
         info!(
-            turn_id = %turn_context.sub_id,
+            interaction_id = %turn_context.sub_id,
             rewritten_outputs,
             "rewrote history outputs before remote compaction v2"
         );

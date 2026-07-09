@@ -28,7 +28,7 @@ use datax_app_server_protocol::ServerNotification;
 use datax_app_server_protocol::TokenUsageBreakdown;
 use datax_app_server_protocol::WebSearchAction as ApiWebSearchAction;
 use datax_protocol::SessionId;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::models::PermissionProfile;
 use datax_protocol::models::WebSearchAction;
 use datax_protocol::protocol::AskForApproval;
@@ -69,9 +69,9 @@ use datax_exec::ThreadItemDetails;
 use datax_exec::ThreadStartedEvent;
 use datax_exec::TodoItem;
 use datax_exec::TodoListItem;
-use datax_exec::TurnCompletedEvent;
+use datax_exec::InteractionCompletedEvent;
 use datax_exec::TurnFailedEvent;
-use datax_exec::TurnStartedEvent;
+use datax_exec::InteractionStartedEvent;
 use datax_exec::Usage;
 use datax_exec::WebSearchItem;
 
@@ -105,13 +105,13 @@ fn map_todo_items_preserves_text_and_completion_state() {
 
 #[test]
 fn session_configured_produces_thread_started_event() {
-    let thread_id = ThreadId::from_string("67e55044-10b1-426f-9247-bb680e5fe0c8")
+    let chat_id = ChatId::from_string("67e55044-10b1-426f-9247-bb680e5fe0c8")
         .expect("thread id should parse");
     let session_configured = SessionConfiguredEvent {
-        session_id: SessionId::from(thread_id),
-        thread_id,
+        session_id: SessionId::from(chat_id),
+        chat_id,
         forked_from_id: None,
-        parent_thread_id: None,
+        parent_chat_id: None,
         thread_source: None,
         thread_name: None,
         model: "datax-mini-latest".to_string(),
@@ -131,7 +131,7 @@ fn session_configured_produces_thread_started_event() {
     assert_eq!(
         EventProcessorWithJsonOutput::thread_started_event(&session_configured),
         ThreadEvent::ThreadStarted(ThreadStartedEvent {
-            thread_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".to_string(),
+            chat_id: "67e55044-10b1-426f-9247-bb680e5fe0c8".to_string(),
         })
     );
 }
@@ -142,7 +142,7 @@ fn turn_started_emits_turn_started_event() {
 
     let collected = processor.collect_thread_events(ServerNotification::InteractionStarted(
         InteractionStartedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: Interaction {
                 id: "turn-1".to_string(),
                 items_view: datax_app_server_protocol::InteractionMessagesView::Full,
@@ -159,7 +159,7 @@ fn turn_started_emits_turn_started_event() {
     assert_eq!(
         collected,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::TurnStarted(TurnStartedEvent {})],
+            events: vec![ThreadEvent::InteractionStarted(InteractionStartedEvent {})],
             status: CodexStatus::Running,
         }
     );
@@ -184,8 +184,8 @@ fn command_execution_started_and_completed_translate_to_thread_events() {
     let started = processor.collect_thread_events(ServerNotification::MessageStarted(
         MessageStartedNotification {
             item: command_item,
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             started_at_ms: 0,
         },
     ));
@@ -221,8 +221,8 @@ fn command_execution_started_and_completed_translate_to_thread_events() {
                 exit_code: Some(0),
                 duration_ms: Some(3),
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
         },
     ));
@@ -256,8 +256,8 @@ fn empty_reasoning_items_are_ignored() {
                 summary: Vec::new(),
                 content: vec!["raw reasoning".to_string()],
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
         },
     ));
@@ -281,8 +281,8 @@ fn unsupported_items_do_not_consume_synthetic_ids() {
                 id: "plan-1".to_string(),
                 text: "ignored plan".to_string(),
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
         },
     ));
@@ -303,8 +303,8 @@ fn unsupported_items_do_not_consume_synthetic_ids() {
                 phase: None,
                 memory_citation: None,
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
         },
     ));
@@ -336,8 +336,8 @@ fn reasoning_items_emit_summary_not_raw_content() {
                 summary: vec!["safe summary".to_string()],
                 content: vec!["raw reasoning".to_string()],
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
         },
     ));
@@ -372,8 +372,8 @@ fn web_search_completion_preserves_query_and_action() {
                     queries: None,
                 }),
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
         },
     ));
@@ -410,8 +410,8 @@ fn web_search_start_and_completion_reuse_item_id() {
                 query: String::new(),
                 action: None,
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             started_at_ms: 0,
         },
     ));
@@ -426,8 +426,8 @@ fn web_search_start_and_completion_reuse_item_id() {
                     queries: None,
                 }),
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
         },
     ));
@@ -488,8 +488,8 @@ fn mcp_tool_call_begin_and_end_emit_item_events() {
                 error: None,
                 duration_ms: None,
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             started_at_ms: 0,
         },
     ));
@@ -512,8 +512,8 @@ fn mcp_tool_call_begin_and_end_emit_item_events() {
                 error: None,
                 duration_ms: Some(1_000),
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
         },
     ));
@@ -583,8 +583,8 @@ fn mcp_tool_call_failure_sets_failed_status() {
                 }),
                 duration_ms: Some(5),
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
         },
     ));
@@ -631,8 +631,8 @@ fn mcp_tool_call_defaults_arguments_and_preserves_structured_content() {
                 error: None,
                 duration_ms: None,
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             started_at_ms: 0,
         },
     ));
@@ -658,8 +658,8 @@ fn mcp_tool_call_defaults_arguments_and_preserves_structured_content() {
                 error: None,
                 duration_ms: Some(10),
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
         },
     ));
@@ -721,15 +721,15 @@ fn collab_spawn_begin_and_end_emit_item_events() {
                 id: "collab-1".to_string(),
                 tool: CollabAgentTool::SpawnAgent,
                 status: ApiCollabAgentToolCallStatus::InProgress,
-                sender_thread_id: "thread-parent".to_string(),
-                receiver_thread_ids: Vec::new(),
+                sender_chat_id: "thread-parent".to_string(),
+                receiver_chat_ids: Vec::new(),
                 prompt: Some("draft a plan".to_string()),
                 model: Some("gpt-5".to_string()),
                 reasoning_effort: None,
                 agents_states: std::collections::HashMap::new(),
             },
-            thread_id: "thread-parent".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-parent".to_string(),
+            interaction_id: "turn-1".to_string(),
             started_at_ms: 0,
         },
     ));
@@ -739,8 +739,8 @@ fn collab_spawn_begin_and_end_emit_item_events() {
                 id: "collab-1".to_string(),
                 tool: CollabAgentTool::SpawnAgent,
                 status: ApiCollabAgentToolCallStatus::Completed,
-                sender_thread_id: "thread-parent".to_string(),
-                receiver_thread_ids: vec!["thread-child".to_string()],
+                sender_chat_id: "thread-parent".to_string(),
+                receiver_chat_ids: vec!["thread-child".to_string()],
                 prompt: Some("draft a plan".to_string()),
                 model: Some("gpt-5".to_string()),
                 reasoning_effort: None,
@@ -752,8 +752,8 @@ fn collab_spawn_begin_and_end_emit_item_events() {
                     },
                 )]),
             },
-            thread_id: "thread-parent".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-parent".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
         },
     ));
@@ -766,8 +766,8 @@ fn collab_spawn_begin_and_end_emit_item_events() {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::CollabToolCall(CollabToolCallItem {
                         tool: CollabTool::SpawnAgent,
-                        sender_thread_id: "thread-parent".to_string(),
-                        receiver_thread_ids: Vec::new(),
+                        sender_chat_id: "thread-parent".to_string(),
+                        receiver_chat_ids: Vec::new(),
                         prompt: Some("draft a plan".to_string()),
                         agents_states: std::collections::HashMap::new(),
                         status: CollabToolCallStatus::InProgress,
@@ -785,8 +785,8 @@ fn collab_spawn_begin_and_end_emit_item_events() {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::CollabToolCall(CollabToolCallItem {
                         tool: CollabTool::SpawnAgent,
-                        sender_thread_id: "thread-parent".to_string(),
-                        receiver_thread_ids: vec!["thread-child".to_string()],
+                        sender_chat_id: "thread-parent".to_string(),
+                        receiver_chat_ids: vec!["thread-child".to_string()],
                         prompt: Some("draft a plan".to_string()),
                         agents_states: std::collections::HashMap::from([(
                             "thread-child".to_string(),
@@ -831,8 +831,8 @@ fn file_change_completion_maps_change_kinds() {
                 ],
                 status: ApiPatchApplyStatus::Completed,
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
         },
     ));
@@ -882,8 +882,8 @@ fn file_change_declined_maps_to_failed_status() {
                 }],
                 status: ApiPatchApplyStatus::Declined,
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
         },
     ));
@@ -920,8 +920,8 @@ fn agent_message_item_updates_final_message() {
                 phase: None,
                 memory_citation: None,
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
         },
     ));
@@ -955,8 +955,8 @@ fn agent_message_item_started_is_ignored() {
                 phase: None,
                 memory_citation: None,
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             started_at_ms: 0,
         },
     ));
@@ -981,8 +981,8 @@ fn reasoning_item_completed_uses_synthetic_id() {
                 summary: vec!["thinking...".to_string()],
                 content: vec!["raw".to_string()],
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
         },
     ));
@@ -1033,8 +1033,8 @@ fn plan_update_emits_started_then_updated_then_completed() {
 
     let started = processor.collect_thread_events(ServerNotification::InteractionPlanUpdated(
         InteractionPlanUpdatedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             explanation: None,
             plan: vec![
                 InteractionPlanStep {
@@ -1074,8 +1074,8 @@ fn plan_update_emits_started_then_updated_then_completed() {
 
     let updated = processor.collect_thread_events(ServerNotification::InteractionPlanUpdated(
         InteractionPlanUpdatedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             explanation: None,
             plan: vec![
                 InteractionPlanStep {
@@ -1115,7 +1115,7 @@ fn plan_update_emits_started_then_updated_then_completed() {
 
     let completed = processor.collect_thread_events(ServerNotification::InteractionCompleted(
         InteractionCompletedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: Interaction {
                 id: "turn-1".to_string(),
                 items_view: datax_app_server_protocol::InteractionMessagesView::Full,
@@ -1149,7 +1149,7 @@ fn plan_update_emits_started_then_updated_then_completed() {
                         }),
                     },
                 }),
-                ThreadEvent::TurnCompleted(TurnCompletedEvent {
+                ThreadEvent::InteractionCompleted(InteractionCompletedEvent {
                     usage: Usage::default(),
                 }),
             ],
@@ -1164,8 +1164,8 @@ fn plan_update_after_completion_starts_new_todo_list_with_new_id() {
 
     let _ = processor.collect_thread_events(ServerNotification::InteractionPlanUpdated(
         InteractionPlanUpdatedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             explanation: None,
             plan: vec![InteractionPlanStep {
                 step: "only".to_string(),
@@ -1175,7 +1175,7 @@ fn plan_update_after_completion_starts_new_todo_list_with_new_id() {
     ));
     let _ = processor.collect_thread_events(ServerNotification::InteractionCompleted(
         InteractionCompletedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: Interaction {
                 id: "turn-1".to_string(),
                 items_view: datax_app_server_protocol::InteractionMessagesView::Full,
@@ -1191,8 +1191,8 @@ fn plan_update_after_completion_starts_new_todo_list_with_new_id() {
 
     let restarted = processor.collect_thread_events(ServerNotification::InteractionPlanUpdated(
         InteractionPlanUpdatedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-2".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-2".to_string(),
             explanation: None,
             plan: vec![InteractionPlanStep {
                 step: "again".to_string(),
@@ -1226,8 +1226,8 @@ fn token_usage_update_is_emitted_on_turn_completion() {
 
     let usage_update = processor.collect_thread_events(ServerNotification::ChatTokenUsageUpdated(
         datax_app_server_protocol::ChatTokenUsageUpdatedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             token_usage: ChatTokenUsage {
                 total: TokenUsageBreakdown {
                     total_tokens: 42,
@@ -1257,7 +1257,7 @@ fn token_usage_update_is_emitted_on_turn_completion() {
 
     let completed = processor.collect_thread_events(ServerNotification::InteractionCompleted(
         InteractionCompletedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: Interaction {
                 id: "turn-1".to_string(),
                 items_view: datax_app_server_protocol::InteractionMessagesView::Full,
@@ -1273,7 +1273,7 @@ fn token_usage_update_is_emitted_on_turn_completion() {
     assert_eq!(
         completed,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::TurnCompleted(TurnCompletedEvent {
+            events: vec![ThreadEvent::InteractionCompleted(InteractionCompletedEvent {
                 usage: Usage {
                     input_tokens: 10,
                     cached_input_tokens: 3,
@@ -1292,7 +1292,7 @@ fn turn_completion_recovers_final_message_from_turn_items() {
 
     let completed = processor.collect_thread_events(ServerNotification::InteractionCompleted(
         InteractionCompletedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: Interaction {
                 id: "turn-1".to_string(),
                 items_view: datax_app_server_protocol::InteractionMessagesView::Full,
@@ -1314,7 +1314,7 @@ fn turn_completion_recovers_final_message_from_turn_items() {
     assert_eq!(
         completed,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::TurnCompleted(TurnCompletedEvent {
+            events: vec![ThreadEvent::InteractionCompleted(InteractionCompletedEvent {
                 usage: Usage::default(),
             })],
             status: CodexStatus::InitiateShutdown,
@@ -1341,8 +1341,8 @@ fn turn_completion_reconciles_started_items_from_turn_items() {
                 exit_code: None,
                 duration_ms: None,
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             started_at_ms: 0,
         },
     ));
@@ -1366,7 +1366,7 @@ fn turn_completion_reconciles_started_items_from_turn_items() {
 
     let completed = processor.collect_thread_events(ServerNotification::InteractionCompleted(
         InteractionCompletedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: Interaction {
                 id: "turn-1".to_string(),
                 items_view: datax_app_server_protocol::InteractionMessagesView::Full,
@@ -1406,7 +1406,7 @@ fn turn_completion_reconciles_started_items_from_turn_items() {
                         }),
                     },
                 }),
-                ThreadEvent::TurnCompleted(TurnCompletedEvent {
+                ThreadEvent::InteractionCompleted(InteractionCompletedEvent {
                     usage: Usage::default(),
                 }),
             ],
@@ -1426,15 +1426,15 @@ fn turn_completion_overwrites_stale_final_message_from_turn_items() {
                 phase: None,
                 memory_citation: None,
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
         },
     ));
 
     let completed = processor.collect_thread_events(ServerNotification::InteractionCompleted(
         InteractionCompletedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: Interaction {
                 id: "turn-1".to_string(),
                 items_view: datax_app_server_protocol::InteractionMessagesView::Full,
@@ -1456,7 +1456,7 @@ fn turn_completion_overwrites_stale_final_message_from_turn_items() {
     assert_eq!(
         completed,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::TurnCompleted(TurnCompletedEvent {
+            events: vec![ThreadEvent::InteractionCompleted(InteractionCompletedEvent {
                 usage: Usage::default(),
             })],
             status: CodexStatus::InitiateShutdown,
@@ -1476,15 +1476,15 @@ fn turn_completion_preserves_streamed_final_message_when_turn_items_are_empty() 
                 phase: None,
                 memory_citation: None,
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
         },
     ));
 
     let completed = processor.collect_thread_events(ServerNotification::InteractionCompleted(
         InteractionCompletedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: Interaction {
                 id: "turn-1".to_string(),
                 items_view: datax_app_server_protocol::InteractionMessagesView::Full,
@@ -1501,7 +1501,7 @@ fn turn_completion_preserves_streamed_final_message_when_turn_items_are_empty() 
     assert_eq!(
         completed,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::TurnCompleted(TurnCompletedEvent {
+            events: vec![ThreadEvent::InteractionCompleted(InteractionCompletedEvent {
                 usage: Usage::default(),
             })],
             status: CodexStatus::InitiateShutdown,
@@ -1522,8 +1522,8 @@ fn failed_turn_clears_stale_final_message() {
                 phase: None,
                 memory_citation: None,
             },
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             completed_at_ms: 0,
         },
     ));
@@ -1533,7 +1533,7 @@ fn failed_turn_clears_stale_final_message() {
 
     let collected = processor.collect_thread_events(ServerNotification::InteractionCompleted(
         InteractionCompletedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: Interaction {
                 id: "turn-1".to_string(),
                 items_view: datax_app_server_protocol::InteractionMessagesView::Full,
@@ -1561,7 +1561,7 @@ fn turn_completion_falls_back_to_final_plan_text() {
 
     let completed = processor.collect_thread_events(ServerNotification::InteractionCompleted(
         InteractionCompletedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: Interaction {
                 id: "turn-1".to_string(),
                 items_view: datax_app_server_protocol::InteractionMessagesView::Full,
@@ -1581,7 +1581,7 @@ fn turn_completion_falls_back_to_final_plan_text() {
     assert_eq!(
         completed,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::TurnCompleted(TurnCompletedEvent {
+            events: vec![ThreadEvent::InteractionCompleted(InteractionCompletedEvent {
                 usage: Usage::default(),
             })],
             status: CodexStatus::InitiateShutdown,
@@ -1601,8 +1601,8 @@ fn turn_failure_prefers_structured_error_message() {
             additional_details: Some("request id abc".to_string()),
         },
         will_retry: false,
-        thread_id: "thread-1".to_string(),
-        turn_id: "turn-1".to_string(),
+        chat_id: "thread-1".to_string(),
+        interaction_id: "turn-1".to_string(),
     }));
     assert_eq!(
         error,
@@ -1616,7 +1616,7 @@ fn turn_failure_prefers_structured_error_message() {
 
     let failed = processor.collect_thread_events(ServerNotification::InteractionCompleted(
         InteractionCompletedNotification {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             turn: Interaction {
                 id: "turn-1".to_string(),
                 items_view: datax_app_server_protocol::InteractionMessagesView::Full,
@@ -1648,8 +1648,8 @@ fn model_reroute_surfaces_as_error_item() {
 
     let collected = processor.collect_thread_events(ServerNotification::ModelRerouted(
         datax_app_server_protocol::ModelReroutedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             from_model: "gpt-5".to_string(),
             to_model: "gpt-5-mini".to_string(),
             reason: datax_app_server_protocol::ModelRerouteReason::HighRiskCyberActivity,

@@ -15,7 +15,7 @@ use datax_app_server_protocol::ServerRequest;
 use datax_app_server_protocol::ServerRequestPayload;
 use datax_app_server_protocol::ServerResponse;
 use datax_otel::span_w3c_trace_context;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::W3cTraceContext;
 use datax_protocol::request_permissions::RequestPermissionsResponse;
 use tokio::sync::Mutex;
@@ -75,7 +75,7 @@ impl RequestContext {
         self.span.clone()
     }
 
-    fn record_turn_id(&self, interaction_id: &str) {
+    fn record_interaction_id(&self, interaction_id: &str) {
         self.span.record("turn.id", interaction_id);
     }
 }
@@ -108,12 +108,12 @@ pub(crate) struct OutgoingMessageSender {
 pub(crate) struct ThreadScopedOutgoingMessageSender {
     outgoing: Arc<OutgoingMessageSender>,
     connection_ids: Arc<Vec<ConnectionId>>,
-    chat_id: ThreadId,
+    chat_id: ChatId,
 }
 
 struct PendingCallbackEntry {
     callback: oneshot::Sender<ClientRequestResult>,
-    chat_id: Option<ThreadId>,
+    chat_id: Option<ChatId>,
     request: ServerRequest,
 }
 
@@ -121,7 +121,7 @@ impl ThreadScopedOutgoingMessageSender {
     pub(crate) fn new(
         outgoing: Arc<OutgoingMessageSender>,
         connection_ids: Vec<ConnectionId>,
-        chat_id: ThreadId,
+        chat_id: ChatId,
     ) -> Self {
         Self {
             outgoing,
@@ -245,14 +245,14 @@ impl OutgoingMessageSender {
             .and_then(RequestContext::request_trace)
     }
 
-    pub(crate) async fn record_request_turn_id(
+    pub(crate) async fn record_request_interaction_id(
         &self,
         request_id: &ConnectionRequestId,
         interaction_id: &str,
     ) {
         let request_contexts = self.request_contexts.lock().await;
         if let Some(request_context) = request_contexts.get(request_id) {
-            request_context.record_turn_id(interaction_id);
+            request_context.record_interaction_id(interaction_id);
         }
     }
 
@@ -287,7 +287,7 @@ impl OutgoingMessageSender {
         &self,
         connection_ids: Option<&[ConnectionId]>,
         request: ServerRequestPayload,
-        chat_id: Option<ThreadId>,
+        chat_id: Option<ChatId>,
     ) -> (RequestId, oneshot::Receiver<ClientRequestResult>) {
         let id = self.next_request_id();
         let outgoing_message_id = id.clone();
@@ -352,7 +352,7 @@ impl OutgoingMessageSender {
     pub(crate) async fn replay_requests_to_connection_for_thread(
         &self,
         connection_id: ConnectionId,
-        chat_id: ThreadId,
+        chat_id: ChatId,
     ) {
         let requests = self.pending_requests_for_thread(chat_id).await;
         for request in requests {
@@ -452,7 +452,7 @@ impl OutgoingMessageSender {
 
     pub(crate) async fn pending_requests_for_thread(
         &self,
-        chat_id: ThreadId,
+        chat_id: ChatId,
     ) -> Vec<ServerRequest> {
         let request_id_to_callback = self.request_id_to_callback.lock().await;
         let mut requests = request_id_to_callback
@@ -465,7 +465,7 @@ impl OutgoingMessageSender {
 
     pub(crate) async fn cancel_requests_for_thread(
         &self,
-        chat_id: ThreadId,
+        chat_id: ChatId,
         error: Option<JSONRPCErrorError>,
     ) {
         let entries = {
@@ -714,7 +714,7 @@ mod tests {
     use datax_app_server_protocol::RateLimitWindow;
     use datax_app_server_protocol::ServerResponse;
     use datax_app_server_protocol::ToolRequestUserInputParams;
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::sync::Arc;
@@ -1204,7 +1204,7 @@ mod tests {
         let (request_id, wait_for_result) = outgoing
             .send_request(ServerRequestPayload::ApplyPatchApproval(
                 ApplyPatchApprovalParams {
-                    conversation_id: ThreadId::new(),
+                    conversation_id: ChatId::new(),
                     call_id: "call-id".to_string(),
                     file_changes: HashMap::new(),
                     reason: None,
@@ -1233,7 +1233,7 @@ mod tests {
             tx,
             datax_analytics::AnalyticsEventsClient::disabled(),
         ));
-        let chat_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let thread_outgoing = ThreadScopedOutgoingMessageSender::new(
             outgoing.clone(),
             vec![ConnectionId(1)],
@@ -1296,7 +1296,7 @@ mod tests {
             tx,
             datax_analytics::AnalyticsEventsClient::disabled(),
         ));
-        let chat_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let thread_outgoing = ThreadScopedOutgoingMessageSender::new(
             outgoing.clone(),
             vec![ConnectionId(1)],

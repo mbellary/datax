@@ -34,15 +34,15 @@ fn queue_composer_text_with_tab(chat: &mut ChatWidget, text: &str) {
 
 fn next_goal_objective(
     rx: &mut tokio::sync::mpsc::UnboundedReceiver<AppEvent>,
-    expected_thread_id: ThreadId,
+    expected_chat_id: ChatId,
 ) -> String {
     loop {
         let event = rx.try_recv().expect("expected goal objective event");
         if let AppEvent::SetThreadGoalDraft {
-            thread_id, draft, ..
+            chat_id, draft, ..
         } = event
         {
-            assert_eq!(thread_id, expected_thread_id);
+            assert_eq!(chat_id, expected_chat_id);
             return draft.objective;
         }
     }
@@ -52,8 +52,8 @@ fn next_goal_objective(
 async fn goal_slash_command_accepts_objective_at_limit() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Goals, /*enabled*/ true);
-    let thread_id = ThreadId::new();
-    chat.thread_id = Some(thread_id);
+    let chat_id = ChatId::new();
+    chat.chat_id = Some(chat_id);
     let objective = "x".repeat(MAX_THREAD_GOAL_OBJECTIVE_CHARS);
     let command = format!("/goal {objective}");
 
@@ -61,14 +61,14 @@ async fn goal_slash_command_accepts_objective_at_limit() {
 
     let event = rx.try_recv().expect("expected goal objective event");
     let AppEvent::SetThreadGoalDraft {
-        thread_id: actual_thread_id,
+        chat_id: actual_chat_id,
         draft,
         ..
     } = event
     else {
         panic!("expected SetThreadGoalDraft, got {event:?}");
     };
-    assert_eq!(actual_thread_id, thread_id);
+    assert_eq!(actual_chat_id, chat_id);
     assert_eq!(draft.objective, objective);
     assert_no_submit_op(&mut op_rx);
 }
@@ -77,22 +77,22 @@ async fn goal_slash_command_accepts_objective_at_limit() {
 async fn goal_slash_command_accepts_multiline_objective_after_blank_first_line() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Goals, /*enabled*/ true);
-    let thread_id = ThreadId::new();
-    chat.thread_id = Some(thread_id);
+    let chat_id = ChatId::new();
+    chat.chat_id = Some(chat_id);
     let objective = "follow these instructions\npreserve this detail";
 
     submit_composer_text(&mut chat, &format!("/goal \n\n{objective}"));
 
     let event = rx.try_recv().expect("expected goal objective event");
     let AppEvent::SetThreadGoalDraft {
-        thread_id: actual_thread_id,
+        chat_id: actual_chat_id,
         draft,
         ..
     } = event
     else {
         panic!("expected SetThreadGoalDraft, got {event:?}");
     };
-    assert_eq!(actual_thread_id, thread_id);
+    assert_eq!(actual_chat_id, chat_id);
     assert_eq!(draft.objective, objective);
     assert_no_submit_op(&mut op_rx);
 }
@@ -101,13 +101,13 @@ async fn goal_slash_command_accepts_multiline_objective_after_blank_first_line()
 async fn goal_slash_command_emits_oversized_objective() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Goals, /*enabled*/ true);
-    let thread_id = ThreadId::new();
-    chat.thread_id = Some(thread_id);
+    let chat_id = ChatId::new();
+    chat.chat_id = Some(chat_id);
     let objective = "x".repeat(MAX_THREAD_GOAL_OBJECTIVE_CHARS + 1);
 
     submit_composer_text(&mut chat, &format!("/goal {objective}"));
 
-    assert_eq!(next_goal_objective(&mut rx, thread_id), objective);
+    assert_eq!(next_goal_objective(&mut rx, chat_id), objective);
     assert_no_submit_op(&mut op_rx);
 }
 
@@ -115,8 +115,8 @@ async fn goal_slash_command_emits_oversized_objective() {
 async fn goal_slash_command_preserves_large_pasted_objective() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Goals, /*enabled*/ true);
-    let thread_id = ThreadId::new();
-    chat.thread_id = Some(thread_id);
+    let chat_id = ChatId::new();
+    chat.chat_id = Some(chat_id);
     let objective = "x".repeat(MAX_THREAD_GOAL_OBJECTIVE_CHARS + 1);
     chat.bottom_pane
         .set_composer_text("/goal ".to_string(), Vec::new(), Vec::new());
@@ -128,7 +128,7 @@ async fn goal_slash_command_preserves_large_pasted_objective() {
     );
     submit_current_composer(&mut chat);
 
-    let draft = next_goal_draft(&mut rx, thread_id);
+    let draft = next_goal_draft(&mut rx, chat_id);
     assert_eq!(draft.pending_pastes[0].1, objective);
     assert_no_submit_op(&mut op_rx);
 }
@@ -137,8 +137,8 @@ async fn goal_slash_command_preserves_large_pasted_objective() {
 async fn queued_goal_slash_command_emits_oversized_objective_and_stops_queue() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Goals, /*enabled*/ true);
-    let thread_id = ThreadId::new();
-    chat.thread_id = Some(thread_id);
+    let chat_id = ChatId::new();
+    chat.chat_id = Some(chat_id);
     handle_turn_started(&mut chat, "turn-1");
     let objective = "x".repeat(MAX_THREAD_GOAL_OBJECTIVE_CHARS + 1);
 
@@ -148,7 +148,7 @@ async fn queued_goal_slash_command_emits_oversized_objective_and_stops_queue() {
 
     complete_turn_with_message(&mut chat, "turn-1", Some("done"));
 
-    assert_eq!(next_goal_objective(&mut rx, thread_id), objective);
+    assert_eq!(next_goal_objective(&mut rx, chat_id), objective);
     assert_eq!(chat.input_queue.queued_user_messages.len(), 1);
     assert_no_submit_op(&mut op_rx);
 }
@@ -157,8 +157,8 @@ async fn queued_goal_slash_command_emits_oversized_objective_and_stops_queue() {
 async fn goal_slash_command_emits_only_inserted_paste_text_element() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Goals, /*enabled*/ true);
-    let thread_id = ThreadId::new();
-    chat.thread_id = Some(thread_id);
+    let chat_id = ChatId::new();
+    chat.chat_id = Some(chat_id);
     let paste = "x".repeat(1_001);
     let placeholder = format!("[Pasted Content {} chars]", paste.chars().count());
     chat.bottom_pane.set_composer_text(
@@ -170,7 +170,7 @@ async fn goal_slash_command_emits_only_inserted_paste_text_element() {
 
     submit_current_composer(&mut chat);
 
-    let draft = next_goal_draft(&mut rx, thread_id);
+    let draft = next_goal_draft(&mut rx, chat_id);
     assert!(
         draft
             .objective

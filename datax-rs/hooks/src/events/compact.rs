@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::HookCompletedEvent;
 use datax_protocol::protocol::HookEventName;
 use datax_protocol::protocol::HookOutputEntry;
@@ -21,8 +21,8 @@ use crate::schema::SubagentCommandInputFields;
 
 #[derive(Debug, Clone)]
 pub struct PreCompactRequest {
-    pub session_id: ThreadId,
-    pub turn_id: String,
+    pub session_id: ChatId,
+    pub interaction_id: String,
     pub subagent: Option<common::SubagentHookContext>,
     pub cwd: AbsolutePathBuf,
     pub transcript_path: Option<PathBuf>,
@@ -32,8 +32,8 @@ pub struct PreCompactRequest {
 
 #[derive(Debug, Clone)]
 pub struct PostCompactRequest {
-    pub session_id: ThreadId,
-    pub turn_id: String,
+    pub session_id: ChatId,
+    pub interaction_id: String,
     pub subagent: Option<common::SubagentHookContext>,
     pub cwd: AbsolutePathBuf,
     pub transcript_path: Option<PathBuf>,
@@ -93,7 +93,7 @@ pub(crate) async fn run_pre(
             return PreCompactOutcome {
                 hook_events: common::serialization_failure_hook_events(
                     matched,
-                    Some(request.turn_id),
+                    Some(request.interaction_id),
                     format!("failed to serialize pre compact hook input: {error}"),
                 ),
                 should_stop: false,
@@ -107,7 +107,7 @@ pub(crate) async fn run_pre(
         matched,
         input_json,
         request.cwd.as_path(),
-        Some(request.turn_id),
+        Some(request.interaction_id),
         parse_pre_completed,
     )
     .await;
@@ -126,7 +126,7 @@ fn pre_command_input_json(request: &PreCompactRequest) -> Result<String, serde_j
     let subagent = SubagentCommandInputFields::from(request.subagent.as_ref());
     serde_json::to_string(&PreCompactCommandInput {
         session_id: request.session_id.to_string(),
-        turn_id: request.turn_id.clone(),
+        interaction_id: request.interaction_id.clone(),
         agent_id: subagent.agent_id,
         agent_type: subagent.agent_type,
         transcript_path: crate::schema::NullableString::from_path(request.transcript_path.clone()),
@@ -175,7 +175,7 @@ pub(crate) async fn run_post(
             return StatelessHookOutcome {
                 hook_events: common::serialization_failure_hook_events(
                     matched,
-                    Some(request.turn_id),
+                    Some(request.interaction_id),
                     format!("failed to serialize post compact hook input: {error}"),
                 ),
                 should_stop: false,
@@ -189,7 +189,7 @@ pub(crate) async fn run_post(
         matched,
         input_json,
         request.cwd.as_path(),
-        Some(request.turn_id),
+        Some(request.interaction_id),
         parse_post_completed,
     )
     .await;
@@ -208,7 +208,7 @@ fn post_command_input_json(request: &PostCompactRequest) -> Result<String, serde
     let subagent = SubagentCommandInputFields::from(request.subagent.as_ref());
     serde_json::to_string(&PostCompactCommandInput {
         session_id: request.session_id.to_string(),
-        turn_id: request.turn_id.clone(),
+        interaction_id: request.interaction_id.clone(),
         agent_id: subagent.agent_id,
         agent_type: subagent.agent_type,
         transcript_path: crate::schema::NullableString::from_path(request.transcript_path.clone()),
@@ -228,7 +228,7 @@ struct CompactHandlerData {
 fn parse_pre_completed(
     handler: &ConfiguredHandler,
     run_result: CommandRunResult,
-    turn_id: Option<String>,
+    interaction_id: Option<String>,
 ) -> dispatcher::ParsedHandler<CompactHandlerData> {
     let mut entries = Vec::new();
     let mut status = HookRunStatus::Completed;
@@ -301,7 +301,7 @@ fn parse_pre_completed(
 
     dispatcher::ParsedHandler {
         completed: HookCompletedEvent {
-            turn_id,
+            interaction_id,
             run: dispatcher::completed_summary(handler, &run_result, status, entries),
         },
         data: CompactHandlerData {
@@ -315,12 +315,12 @@ fn parse_pre_completed(
 fn parse_post_completed(
     handler: &ConfiguredHandler,
     run_result: CommandRunResult,
-    turn_id: Option<String>,
+    interaction_id: Option<String>,
 ) -> dispatcher::ParsedHandler<CompactHandlerData> {
     parse_completed(
         handler,
         run_result,
-        turn_id,
+        interaction_id,
         "PostCompact",
         output_parser::parse_post_compact,
     )
@@ -329,7 +329,7 @@ fn parse_post_completed(
 fn parse_completed(
     handler: &ConfiguredHandler,
     run_result: CommandRunResult,
-    turn_id: Option<String>,
+    interaction_id: Option<String>,
     event_label: &'static str,
     parse_output: fn(&str) -> Option<output_parser::StatelessHookOutput>,
 ) -> dispatcher::ParsedHandler<CompactHandlerData> {
@@ -404,7 +404,7 @@ fn parse_completed(
 
     dispatcher::ParsedHandler {
         completed: HookCompletedEvent {
-            turn_id,
+            interaction_id,
             run: dispatcher::completed_summary(handler, &run_result, status, entries),
         },
         data: CompactHandlerData {
@@ -417,7 +417,7 @@ fn parse_completed(
 
 #[cfg(test)]
 mod tests {
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use datax_protocol::protocol::HookEventName;
     use datax_protocol::protocol::HookOutputEntry;
     use datax_protocol::protocol::HookOutputEntryKind;
@@ -444,7 +444,7 @@ mod tests {
             input,
             json!({
                 "session_id": pre_request().session_id.to_string(),
-                "turn_id": "turn-1",
+                "interaction_id": "turn-1",
                 "transcript_path": null,
                 "cwd": test_path_buf("/tmp").display().to_string(),
                 "hook_event_name": "PreCompact",
@@ -464,7 +464,7 @@ mod tests {
             input,
             json!({
                 "session_id": post_request().session_id.to_string(),
-                "turn_id": "turn-1",
+                "interaction_id": "turn-1",
                 "transcript_path": null,
                 "cwd": test_path_buf("/tmp").display().to_string(),
                 "hook_event_name": "PostCompact",
@@ -569,9 +569,9 @@ mod tests {
 
     fn pre_request() -> super::PreCompactRequest {
         super::PreCompactRequest {
-            session_id: ThreadId::from_string("00000000-0000-4000-8000-000000000001")
+            session_id: ChatId::from_string("00000000-0000-4000-8000-000000000001")
                 .expect("valid thread id"),
-            turn_id: "turn-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             subagent: None,
             cwd: test_path_buf("/tmp").abs(),
             transcript_path: None,
@@ -582,9 +582,9 @@ mod tests {
 
     fn post_request() -> super::PostCompactRequest {
         super::PostCompactRequest {
-            session_id: ThreadId::from_string("00000000-0000-4000-8000-000000000002")
+            session_id: ChatId::from_string("00000000-0000-4000-8000-000000000002")
                 .expect("valid thread id"),
-            turn_id: "turn-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             subagent: None,
             cwd: test_path_buf("/tmp").abs(),
             transcript_path: None,

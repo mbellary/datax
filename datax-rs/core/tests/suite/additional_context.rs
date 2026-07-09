@@ -79,7 +79,7 @@ async fn additional_context_is_model_visible_but_not_a_user_message_item() -> Re
         }]
     );
     wait_for_event_match(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_)).then_some(())
+        matches!(event, EventMsg::InteractionComplete(_)).then_some(())
     })
     .await;
 
@@ -153,7 +153,7 @@ async fn external_context_like_user_text_remains_a_user_message_item() -> Result
     .await;
     assert_eq!(user_item.content, vec![user_input]);
     wait_for_event_match(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_)).then_some(())
+        matches!(event, EventMsg::InteractionComplete(_)).then_some(())
     })
     .await;
 
@@ -206,7 +206,7 @@ async fn additional_context_trust_controls_message_role() -> Result<()> {
         })
         .await?;
     wait_for_event_match(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_)).then_some(())
+        matches!(event, EventMsg::InteractionComplete(_)).then_some(())
     })
     .await;
 
@@ -271,7 +271,7 @@ async fn additional_context_is_deduplicated_between_turns_while_retained() -> Re
         })
         .await?;
     wait_for_event_match(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_)).then_some(())
+        matches!(event, EventMsg::InteractionComplete(_)).then_some(())
     })
     .await;
 
@@ -288,7 +288,7 @@ async fn additional_context_is_deduplicated_between_turns_while_retained() -> Re
         })
         .await?;
     wait_for_event_match(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_)).then_some(())
+        matches!(event, EventMsg::InteractionComplete(_)).then_some(())
     })
     .await;
 
@@ -364,7 +364,7 @@ async fn additional_context_removes_one_value_while_adding_another() -> Result<(
         })
         .await?;
     wait_for_event_match(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_)).then_some(())
+        matches!(event, EventMsg::InteractionComplete(_)).then_some(())
     })
     .await;
 
@@ -396,7 +396,7 @@ async fn additional_context_removes_one_value_while_adding_another() -> Result<(
         })
         .await?;
     wait_for_event_match(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_)).then_some(())
+        matches!(event, EventMsg::InteractionComplete(_)).then_some(())
     })
     .await;
 
@@ -435,7 +435,7 @@ async fn additional_context_removes_one_value_while_adding_another() -> Result<(
         })
         .await?;
     wait_for_event_match(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_)).then_some(())
+        matches!(event, EventMsg::InteractionComplete(_)).then_some(())
     })
     .await;
 
@@ -524,7 +524,7 @@ async fn additional_context_values_are_truncated_before_model_input() -> Result<
         })
         .await?;
     wait_for_event_match(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_)).then_some(())
+        matches!(event, EventMsg::InteractionComplete(_)).then_some(())
     })
     .await;
 

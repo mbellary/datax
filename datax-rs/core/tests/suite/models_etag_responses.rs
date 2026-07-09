@@ -134,7 +134,7 @@ async fn refresh_models_on_models_etag_mismatch_and_avoid_duplicate_models_fetch
 
     let _ = wait_for_event_with_timeout(
         &codex,
-        |ev| matches!(ev, EventMsg::TurnComplete(_)),
+        |ev| matches!(ev, EventMsg::InteractionComplete(_)),
         Duration::from_secs(30),
     )
     .await;

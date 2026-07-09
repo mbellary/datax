@@ -313,11 +313,11 @@ async fn collect_attempt_diffs(
             diff,
         });
     }
-    if let Some(turn_id) = text.turn_id {
+    if let Some(interaction_id) = text.interaction_id {
         let siblings = datax_cloud_tasks_client::CloudBackend::list_sibling_attempts(
             backend,
             task_id.clone(),
-            turn_id,
+            interaction_id,
         )
         .await?;
         for sibling in siblings {
@@ -1132,8 +1132,8 @@ pub async fn run_main(cli: Cli, _codex_linux_sandbox_exe: Option<PathBuf>) -> an
                             title,
                             messages,
                             prompt,
-                            turn_id,
-                            sibling_turn_ids,
+                            interaction_id,
+                            sibling_interaction_ids,
                             attempt_placement,
                             attempt_status,
                         } => {
@@ -1148,18 +1148,18 @@ pub async fn run_main(cli: Cli, _codex_linux_sandbox_exe: Option<PathBuf>) -> an
                                     let base = ov.base_attempt_mut();
                                     base.text_lines = conv.clone();
                                     base.prompt = prompt.clone();
-                                    base.turn_id = turn_id.clone();
+                                    base.interaction_id = interaction_id.clone();
                                     base.status = attempt_status;
                                     base.attempt_placement = attempt_placement;
                                 }
-                                ov.base_turn_id = turn_id.clone();
-                                ov.sibling_turn_ids = sibling_turn_ids.clone();
-                                ov.attempt_total_hint = Some(sibling_turn_ids.len().saturating_add(1));
+                                ov.base_interaction_id = interaction_id.clone();
+                                ov.sibling_interaction_ids = sibling_interaction_ids.clone();
+                                ov.attempt_total_hint = Some(sibling_interaction_ids.len().saturating_add(1));
                                 if !ov.base_can_apply {
                                     ov.current_view = app::DetailView::Prompt;
                                 }
                                 ov.apply_selection_to_fields();
-                                if let (Some(turn_id), true) = (turn_id.clone(), !sibling_turn_ids.is_empty())
+                                if let (Some(interaction_id), true) = (interaction_id.clone(), !sibling_interaction_ids.is_empty())
                                     && ov.attempts.len() == 1 {
                                         let backend = Arc::clone(&backend);
                                         let tx = tx.clone();
@@ -1168,7 +1168,7 @@ pub async fn run_main(cli: Cli, _codex_linux_sandbox_exe: Option<PathBuf>) -> an
                                             match datax_cloud_tasks_client::CloudBackend::list_sibling_attempts(
                                                 &*backend,
                                                 task_id.clone(),
-                                                turn_id,
+                                                interaction_id,
                                             )
                                             .await
                                             {
@@ -1190,13 +1190,13 @@ pub async fn run_main(cli: Cli, _codex_linux_sandbox_exe: Option<PathBuf>) -> an
                                     let base = overlay.base_attempt_mut();
                                     base.text_lines = conv.clone();
                                     base.prompt = prompt.clone();
-                                    base.turn_id = turn_id.clone();
+                                    base.interaction_id = interaction_id.clone();
                                     base.status = attempt_status;
                                     base.attempt_placement = attempt_placement;
                                 }
-                                overlay.base_turn_id = turn_id.clone();
-                                overlay.sibling_turn_ids = sibling_turn_ids.clone();
-                                overlay.attempt_total_hint = Some(sibling_turn_ids.len().saturating_add(1));
+                                overlay.base_interaction_id = interaction_id.clone();
+                                overlay.sibling_interaction_ids = sibling_interaction_ids.clone();
+                                overlay.attempt_total_hint = Some(sibling_interaction_ids.len().saturating_add(1));
                                 overlay.current_view = app::DetailView::Prompt;
                                 overlay.apply_selection_to_fields();
                                 app.diff_overlay = Some(overlay);
@@ -1214,7 +1214,7 @@ pub async fn run_main(cli: Cli, _codex_linux_sandbox_exe: Option<PathBuf>) -> an
                                     if ov
                                         .attempts
                                         .iter()
-                                        .any(|existing| existing.turn_id.as_deref() == Some(attempt.turn_id.as_str()))
+                                        .any(|existing| existing.interaction_id.as_deref() == Some(attempt.interaction_id.as_str()))
                                     {
                                         continue;
                                     }
@@ -1225,7 +1225,7 @@ pub async fn run_main(cli: Cli, _codex_linux_sandbox_exe: Option<PathBuf>) -> an
                                         .unwrap_or_default();
                                     let text_lines = conversation_lines(/*prompt*/ None, &attempt.messages);
                                     ov.attempts.push(app::AttemptView {
-                                        turn_id: Some(attempt.turn_id.clone()),
+                                        interaction_id: Some(attempt.interaction_id.clone()),
                                         status: attempt.status,
                                         attempt_placement: attempt.attempt_placement,
                                         diff_lines,
@@ -1240,7 +1240,7 @@ pub async fn run_main(cli: Cli, _codex_linux_sandbox_exe: Option<PathBuf>) -> an
                                         (Some(lhs), Some(rhs)) => lhs.cmp(&rhs),
                                         (Some(_), None) => std::cmp::Ordering::Less,
                                         (None, Some(_)) => std::cmp::Ordering::Greater,
-                                        (None, None) => a.turn_id.cmp(&b.turn_id),
+                                        (None, None) => a.interaction_id.cmp(&b.interaction_id),
                                     });
                                 }
                                 if ov.selected_attempt >= ov.attempts.len() {
@@ -1879,8 +1879,8 @@ pub async fn run_main(cli: Cli, _codex_linux_sandbox_exe: Option<PathBuf>) -> an
                                                                     title: diff_title,
                                                                     messages: text.messages,
                                                                     prompt: text.prompt,
-                                                                    turn_id: text.turn_id,
-                                                                    sibling_turn_ids: text.sibling_turn_ids,
+                                                                    interaction_id: text.interaction_id,
+                                                                    sibling_interaction_ids: text.sibling_interaction_ids,
                                                                     attempt_placement: text.attempt_placement,
                                                                     attempt_status: text.attempt_status,
                                                                 };
@@ -1900,8 +1900,8 @@ pub async fn run_main(cli: Cli, _codex_linux_sandbox_exe: Option<PathBuf>) -> an
                                                                     title: diff_title,
                                                                     messages: text.messages,
                                                                     prompt: text.prompt,
-                                                                    turn_id: text.turn_id,
-                                                                    sibling_turn_ids: text.sibling_turn_ids,
+                                                                    interaction_id: text.interaction_id,
+                                                                    sibling_interaction_ids: text.sibling_interaction_ids,
                                                                     attempt_placement: text.attempt_placement,
                                                                     attempt_status: text.attempt_status,
                                                                 };
@@ -1928,8 +1928,8 @@ pub async fn run_main(cli: Cli, _codex_linux_sandbox_exe: Option<PathBuf>) -> an
                                                         title: msg_title,
                                                         messages: text.messages,
                                                         prompt: text.prompt,
-                                                        turn_id: text.turn_id,
-                                                        sibling_turn_ids: text.sibling_turn_ids,
+                                                        interaction_id: text.interaction_id,
+                                                        sibling_interaction_ids: text.sibling_interaction_ids,
                                                         attempt_placement: text.attempt_placement,
                                                         attempt_status: text.attempt_status,
                                                     };

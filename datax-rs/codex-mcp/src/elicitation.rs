@@ -222,7 +222,7 @@ impl ElicitationRequestManager {
                     .send(Event {
                         id: "mcp_elicitation_request".to_string(),
                         msg: EventMsg::ElicitationRequest(ElicitationRequestEvent {
-                            turn_id: None,
+                            interaction_id: None,
                             server_name,
                             id: match id.clone() {
                                 rmcp::model::NumberOrString::String(value) => {

@@ -33,8 +33,8 @@ fn code_cell_lifecycle_links_nested_tools_waits_and_outputs() -> anyhow::Result<
     )?;
     writer.append(RawTraceEventPayload::InferenceStarted {
         inference_call_id: "inference-1".to_string(),
-        thread_id: "thread-root".to_string(),
-        codex_turn_id: "turn-1".to_string(),
+        chat_id: "thread-root".to_string(),
+        codex_interaction_id: "turn-1".to_string(),
         model: "gpt-test".to_string(),
         provider_name: "test-provider".to_string(),
         request_payload: request,
@@ -116,8 +116,8 @@ fn code_cell_lifecycle_links_nested_tools_waits_and_outputs() -> anyhow::Result<
     )?;
     writer.append(RawTraceEventPayload::InferenceStarted {
         inference_call_id: "inference-2".to_string(),
-        thread_id: "thread-root".to_string(),
-        codex_turn_id: "turn-2".to_string(),
+        chat_id: "thread-root".to_string(),
+        codex_interaction_id: "turn-2".to_string(),
         model: "gpt-test".to_string(),
         provider_name: "test-provider".to_string(),
         request_payload: followup,
@@ -168,7 +168,7 @@ fn code_cell_lifecycle_links_nested_tools_waits_and_outputs() -> anyhow::Result<
         .last()
         .expect("exec output item");
 
-    assert_eq!(cell.thread_id, "thread-root");
+    assert_eq!(cell.chat_id, "thread-root");
     assert_eq!(cell.runtime_status, CodeCellRuntimeStatus::Completed);
     assert_eq!(cell.execution.status, ExecutionStatus::Completed);
     assert_eq!(cell.runtime_cell_id, Some("1".to_string()));
@@ -203,8 +203,8 @@ fn fast_code_cell_lifecycle_waits_for_source_item() -> anyhow::Result<()> {
     )?;
     writer.append(RawTraceEventPayload::InferenceStarted {
         inference_call_id: "inference-1".to_string(),
-        thread_id: "thread-root".to_string(),
-        codex_turn_id: "turn-1".to_string(),
+        chat_id: "thread-root".to_string(),
+        codex_interaction_id: "turn-1".to_string(),
         model: "gpt-test".to_string(),
         provider_name: "test-provider".to_string(),
         request_payload: request,
@@ -256,7 +256,7 @@ fn fast_code_cell_lifecycle_waits_for_source_item() -> anyhow::Result<()> {
     let code_cell_id = test_reduced_code_cell_id("call-code");
     let cell = &rollout.code_cells[&code_cell_id];
 
-    assert_eq!(cell.thread_id, "thread-root");
+    assert_eq!(cell.chat_id, "thread-root");
     assert_eq!(cell.runtime_status, CodeCellRuntimeStatus::Failed);
     assert_eq!(cell.execution.status, ExecutionStatus::Failed);
     assert_eq!(cell.runtime_cell_id, Some("1".to_string()));
@@ -282,8 +282,8 @@ fn cancelled_turn_terminates_unfinished_code_cell() -> anyhow::Result<()> {
     )?;
     writer.append(RawTraceEventPayload::InferenceStarted {
         inference_call_id: "inference-1".to_string(),
-        thread_id: "thread-root".to_string(),
-        codex_turn_id: "turn-1".to_string(),
+        chat_id: "thread-root".to_string(),
+        codex_interaction_id: "turn-1".to_string(),
         model: "gpt-test".to_string(),
         provider_name: "test-provider".to_string(),
         request_payload: request,
@@ -317,7 +317,7 @@ fn cancelled_turn_terminates_unfinished_code_cell() -> anyhow::Result<()> {
     let turn_end = writer.append_with_context(
         trace_context("turn-1"),
         RawTraceEventPayload::CodexTurnEnded {
-            codex_turn_id: "turn-1".to_string(),
+            codex_interaction_id: "turn-1".to_string(),
             status: ExecutionStatus::Cancelled,
         },
     )?;
@@ -338,14 +338,14 @@ fn runtime_code_cell_ids_can_repeat_across_threads() -> anyhow::Result<()> {
     let temp = TempDir::new()?;
     let writer = create_started_writer(&temp)?;
     writer.append(RawTraceEventPayload::ThreadStarted {
-        thread_id: "thread-child".to_string(),
+        chat_id: "thread-child".to_string(),
         agent_path: "/root/child".to_string(),
         metadata_payload: None,
     })?;
     start_turn_for_thread(&writer, "thread-root", "turn-root")?;
     start_turn_for_thread(&writer, "thread-child", "turn-child")?;
 
-    for (thread_id, turn_id, inference_call_id, call_id) in [
+    for (chat_id, interaction_id, inference_call_id, call_id) in [
         ("thread-root", "turn-root", "inference-root", "call-root"),
         (
             "thread-child",
@@ -362,14 +362,14 @@ fn runtime_code_cell_ids_can_repeat_across_threads() -> anyhow::Result<()> {
         )?;
         writer.append(RawTraceEventPayload::InferenceStarted {
             inference_call_id: inference_call_id.to_string(),
-            thread_id: thread_id.to_string(),
-            codex_turn_id: turn_id.to_string(),
+            chat_id: chat_id.to_string(),
+            codex_interaction_id: interaction_id.to_string(),
             model: "gpt-test".to_string(),
             provider_name: "test-provider".to_string(),
             request_payload: request,
         })?;
         writer.append_with_context(
-            trace_context_for_thread(thread_id, turn_id),
+            trace_context_for_thread(chat_id, interaction_id),
             RawTraceEventPayload::CodeCellStarted {
                 runtime_cell_id: "1".to_string(),
                 model_visible_call_id: call_id.to_string(),
@@ -379,7 +379,7 @@ fn runtime_code_cell_ids_can_repeat_across_threads() -> anyhow::Result<()> {
         let response = writer.write_json_payload(
             RawPayloadKind::InferenceResponse,
             &json!({
-                "response_id": format!("resp-{thread_id}"),
+                "response_id": format!("resp-{chat_id}"),
                 "output_items": [{
                     "type": "custom_tool_call",
                     "name": "exec",
@@ -390,12 +390,12 @@ fn runtime_code_cell_ids_can_repeat_across_threads() -> anyhow::Result<()> {
         )?;
         writer.append(RawTraceEventPayload::InferenceCompleted {
             inference_call_id: inference_call_id.to_string(),
-            response_id: Some(format!("resp-{thread_id}")),
+            response_id: Some(format!("resp-{chat_id}")),
             upstream_request_id: None,
             response_payload: response,
         })?;
         writer.append_with_context(
-            trace_context_for_thread(thread_id, turn_id),
+            trace_context_for_thread(chat_id, interaction_id),
             RawTraceEventPayload::CodeCellEnded {
                 runtime_cell_id: "1".to_string(),
                 status: CodeCellRuntimeStatus::Completed,
@@ -408,8 +408,8 @@ fn runtime_code_cell_ids_can_repeat_across_threads() -> anyhow::Result<()> {
     let root_cell_id = test_reduced_code_cell_id("call-root");
     let child_cell_id = test_reduced_code_cell_id("call-child");
 
-    assert_eq!(rollout.code_cells[&root_cell_id].thread_id, "thread-root");
-    assert_eq!(rollout.code_cells[&child_cell_id].thread_id, "thread-child");
+    assert_eq!(rollout.code_cells[&root_cell_id].chat_id, "thread-root");
+    assert_eq!(rollout.code_cells[&child_cell_id].chat_id, "thread-child");
     assert_eq!(
         rollout.code_cells[&root_cell_id].runtime_cell_id,
         Some("1".to_string())

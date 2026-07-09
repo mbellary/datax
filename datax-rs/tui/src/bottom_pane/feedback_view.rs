@@ -47,7 +47,7 @@ pub(crate) enum FeedbackAudience {
 /// through the app-server-managed feedback flow.
 pub(crate) struct FeedbackNoteView {
     category: FeedbackCategory,
-    turn_id: Option<String>,
+    interaction_id: Option<String>,
     app_event_tx: AppEventSender,
     include_logs: bool,
 
@@ -60,13 +60,13 @@ pub(crate) struct FeedbackNoteView {
 impl FeedbackNoteView {
     pub(crate) fn new(
         category: FeedbackCategory,
-        turn_id: Option<String>,
+        interaction_id: Option<String>,
         app_event_tx: AppEventSender,
         include_logs: bool,
     ) -> Self {
         Self {
             category,
-            turn_id,
+            interaction_id,
             app_event_tx,
             include_logs,
             textarea: TextArea::new(),
@@ -81,7 +81,7 @@ impl FeedbackNoteView {
         self.app_event_tx.send(AppEvent::SubmitFeedback {
             category: self.category,
             reason,
-            turn_id: self.turn_id.clone(),
+            interaction_id: self.interaction_id.clone(),
             include_logs: self.include_logs,
         });
         self.complete = true;
@@ -311,7 +311,7 @@ pub(crate) fn feedback_classification(category: FeedbackCategory) -> &'static st
 pub(crate) fn feedback_success_cell(
     category: FeedbackCategory,
     include_logs: bool,
-    thread_id: &str,
+    chat_id: &str,
     feedback_audience: FeedbackAudience,
 ) -> history_cell::WebHyperlinkHistoryCell {
     let prefix = if include_logs {
@@ -319,7 +319,7 @@ pub(crate) fn feedback_success_cell(
     } else {
         "• Feedback recorded (no logs)."
     };
-    let issue_url = issue_url_for_category(category, thread_id, feedback_audience);
+    let issue_url = issue_url_for_category(category, chat_id, feedback_audience);
     let mut lines = vec![Line::from(match issue_url.as_ref() {
         Some(_) if feedback_audience == FeedbackAudience::OpenAiEmployee => {
             format!("{prefix} Please report this in #codex-feedback:")
@@ -336,7 +336,7 @@ pub(crate) fn feedback_success_cell(
                 Line::from("  Share this and add some info about your problem:"),
                 Line::from(vec![
                     "    ".into(),
-                    format!("https://go/codex-feedback/{thread_id}").bold(),
+                    format!("https://go/codex-feedback/{chat_id}").bold(),
                 ]),
             ]);
         }
@@ -347,7 +347,7 @@ pub(crate) fn feedback_success_cell(
                 "".into(),
                 Line::from(vec![
                     "  Or mention your thread ID ".into(),
-                    thread_id.to_string().bold(),
+                    chat_id.to_string().bold(),
                     " in an existing issue.".into(),
                 ]),
             ]);
@@ -355,7 +355,7 @@ pub(crate) fn feedback_success_cell(
         None => {
             lines.extend([
                 "".into(),
-                Line::from(vec!["  Thread ID: ".into(), thread_id.to_string().bold()]),
+                Line::from(vec!["  Thread ID: ".into(), chat_id.to_string().bold()]),
             ]);
         }
     }
@@ -364,7 +364,7 @@ pub(crate) fn feedback_success_cell(
 
 fn issue_url_for_category(
     category: FeedbackCategory,
-    thread_id: &str,
+    chat_id: &str,
     feedback_audience: FeedbackAudience,
 ) -> Option<String> {
     // Only certain categories provide a follow-up link. We intentionally keep
@@ -375,9 +375,9 @@ fn issue_url_for_category(
         | FeedbackCategory::BadResult
         | FeedbackCategory::SafetyCheck
         | FeedbackCategory::Other => Some(match feedback_audience {
-            FeedbackAudience::OpenAiEmployee => slack_feedback_url(thread_id),
+            FeedbackAudience::OpenAiEmployee => slack_feedback_url(chat_id),
             FeedbackAudience::External => {
-                format!("{BASE_CLI_BUG_ISSUE_URL}&steps=Uploaded%20thread:%20{thread_id}")
+                format!("{BASE_CLI_BUG_ISSUE_URL}&steps=Uploaded%20thread:%20{chat_id}")
             }
         }),
         FeedbackCategory::GoodResult => None,
@@ -386,9 +386,9 @@ fn issue_url_for_category(
 
 /// Build the internal follow-up URL.
 ///
-/// We accept a `thread_id` so the call site stays symmetric with the external
+/// We accept a `chat_id` so the call site stays symmetric with the external
 /// path, but we currently point to a fixed channel without prefilling text.
-fn slack_feedback_url(_thread_id: &str) -> String {
+fn slack_feedback_url(_chat_id: &str) -> String {
     CODEX_FEEDBACK_INTERNAL_URL.to_string()
 }
 
@@ -644,7 +644,7 @@ mod tests {
         let (tx_raw, _rx) = tokio::sync::mpsc::unbounded_channel::<AppEvent>();
         let tx = AppEventSender::new(tx_raw);
         FeedbackNoteView::new(
-            category, /*turn_id*/ None, tx, /*include_logs*/ true,
+            category, /*interaction_id*/ None, tx, /*include_logs*/ true,
         )
     }
 
@@ -689,7 +689,7 @@ mod tests {
         let tx = AppEventSender::new(tx_raw);
         let view = FeedbackNoteView::new(
             FeedbackCategory::Bug,
-            /*turn_id*/ None,
+            /*interaction_id*/ None,
             tx,
             /*include_logs*/ false,
         );
@@ -757,9 +757,9 @@ mod tests {
             AppEvent::SubmitFeedback {
                 category: FeedbackCategory::Bug,
                 reason: Some(reason),
-                turn_id: Some(turn_id),
+                interaction_id: Some(interaction_id),
                 include_logs: true,
-            } if reason == "something broke" && turn_id == "turn-123"
+            } if reason == "something broke" && interaction_id == "turn-123"
         ));
         assert_eq!(view.is_complete(), true);
     }
@@ -770,7 +770,7 @@ mod tests {
         let tx = AppEventSender::new(tx_raw);
         let mut view = FeedbackNoteView::new(
             FeedbackCategory::GoodResult,
-            /*turn_id*/ None,
+            /*interaction_id*/ None,
             tx,
             /*include_logs*/ false,
         );
@@ -783,7 +783,7 @@ mod tests {
             AppEvent::SubmitFeedback {
                 category: FeedbackCategory::GoodResult,
                 reason: None,
-                turn_id: None,
+                interaction_id: None,
                 include_logs: false,
             }
         ));

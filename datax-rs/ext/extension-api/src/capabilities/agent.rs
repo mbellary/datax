@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::pin::Pin;
 
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 
 /// Future returned by one injected subagent-spawn helper.
 pub type AgentSpawnFuture<'a, T, E> = Pin<Box<dyn Future<Output = Result<T, E>> + Send + 'a>>;
@@ -16,23 +16,23 @@ pub trait AgentSpawner<R>: Send + Sync {
 
     fn spawn_subagent<'a>(
         &'a self,
-        forked_from_thread_id: ThreadId,
+        forked_from_chat_id: ChatId,
         request: R,
     ) -> AgentSpawnFuture<'a, Self::Spawned, Self::Error>;
 }
 
 impl<R, S, E, F> AgentSpawner<R> for F
 where
-    F: Fn(ThreadId, R) -> AgentSpawnFuture<'static, S, E> + Send + Sync,
+    F: Fn(ChatId, R) -> AgentSpawnFuture<'static, S, E> + Send + Sync,
 {
     type Spawned = S;
     type Error = E;
 
     fn spawn_subagent<'a>(
         &'a self,
-        forked_from_thread_id: ThreadId,
+        forked_from_chat_id: ChatId,
         request: R,
     ) -> AgentSpawnFuture<'a, Self::Spawned, Self::Error> {
-        self(forked_from_thread_id, request)
+        self(forked_from_chat_id, request)
     }
 }

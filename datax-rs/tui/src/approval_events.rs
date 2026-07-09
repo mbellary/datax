@@ -25,7 +25,7 @@ pub(crate) struct ExecApprovalRequestEvent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) approval_id: Option<String>,
     #[serde(default)]
-    pub(crate) turn_id: String,
+    pub(crate) interaction_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) environment_id: Option<String>,
     pub(crate) command: Vec<String>,
@@ -112,7 +112,7 @@ impl ExecApprovalRequestEvent {
 pub(crate) struct ApplyPatchApprovalRequestEvent {
     pub(crate) call_id: String,
     #[serde(default)]
-    pub(crate) turn_id: String,
+    pub(crate) interaction_id: String,
     pub(crate) changes: HashMap<PathBuf, FileChange>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) reason: Option<String>,

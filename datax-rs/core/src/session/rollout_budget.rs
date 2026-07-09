@@ -11,7 +11,7 @@ pub(super) async fn maybe_record_reminder(
     window_id: &str,
 ) {
     let budget = sess.services.agent_control.rollout_budget();
-    let Some(reminder) = budget.pending_reminder(sess.thread_id(), window_id) else {
+    let Some(reminder) = budget.pending_reminder(sess.chat_id(), window_id) else {
         return;
     };
     let response_item = ContextualUserFragment::into(crate::context::RolloutBudgetContext {
@@ -19,7 +19,7 @@ pub(super) async fn maybe_record_reminder(
     });
     sess.record_conversation_items(turn_context, std::slice::from_ref(&response_item))
         .await;
-    budget.mark_reminder_delivered(sess.thread_id(), window_id, reminder);
+    budget.mark_reminder_delivered(sess.chat_id(), window_id, reminder);
 }
 
 impl Session {
@@ -30,7 +30,7 @@ impl Session {
             .rollout_budget()
             .record_usage(usage)
         {
-            return Err(CodexErr::TurnAborted);
+            return Err(CodexErr::InteractionAborted);
         }
         Ok(())
     }

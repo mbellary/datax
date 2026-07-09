@@ -198,7 +198,7 @@ async fn run_snapshot_command_with_options(
     })
     .await;
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     Ok(SnapshotRun {
         begin,
@@ -296,7 +296,7 @@ async fn run_shell_command_snapshot_with_options(
     })
     .await;
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     Ok(SnapshotRun {
         begin,
@@ -371,7 +371,7 @@ async fn run_tool_turn_on_harness(
         _ => None,
     })
     .await;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
     Ok(end)
 }
 
@@ -619,7 +619,7 @@ async fn shell_command_snapshot_still_intercepts_apply_patch() -> Result<()> {
             patch_end = Some(end.clone());
             false
         }
-        EventMsg::TurnComplete(_) => true,
+        EventMsg::InteractionComplete(_) => true,
         _ => false,
     })
     .await;

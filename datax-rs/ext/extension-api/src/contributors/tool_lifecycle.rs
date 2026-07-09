@@ -52,7 +52,7 @@ pub struct ToolStartInput<'a> {
     /// Store scoped to this turn runtime.
     pub turn_store: &'a ExtensionData,
     /// Current turn submission id.
-    pub turn_id: &'a str,
+    pub interaction_id: &'a str,
     /// Model-visible tool call id.
     pub call_id: &'a str,
     /// Tool name as routed by the host.
@@ -70,7 +70,7 @@ pub struct ToolFinishInput<'a> {
     /// Store scoped to this turn runtime.
     pub turn_store: &'a ExtensionData,
     /// Current turn submission id.
-    pub turn_id: &'a str,
+    pub interaction_id: &'a str,
     /// Model-visible tool call id.
     pub call_id: &'a str,
     /// Tool name as routed by the host.

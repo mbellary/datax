@@ -154,7 +154,7 @@ pub(crate) async fn run_turn(
     // diffs/full reinjection + user input) and trigger compaction preemptively
     // when they would push the thread over the compaction threshold.
     if let Err(err) = run_pre_sampling_compact(&sess, &turn_context, &mut client_session).await {
-        if matches!(err, CodexErr::TurnAborted) {
+        if matches!(err, CodexErr::InteractionAborted) {
             return Err(err);
         }
         let error = err.to_codex_protocol_error();
@@ -306,7 +306,7 @@ pub(crate) async fn run_turn(
                 let token_limit_reached = token_status.token_limit_reached;
 
                 trace!(
-                    turn_id = %turn_context.sub_id,
+                    interaction_id = %turn_context.sub_id,
                     total_usage_tokens = token_status.active_context_tokens,
                     auto_compact_scope_tokens = token_status.auto_compact_scope_tokens,
                     estimated_token_count = ?estimated_token_count,
@@ -367,7 +367,7 @@ pub(crate) async fn run_turn(
                     )
                     .await
                     {
-                        if matches!(err, CodexErr::TurnAborted) {
+                        if matches!(err, CodexErr::InteractionAborted) {
                             return Err(err);
                         }
                         let error = err.to_codex_protocol_error();
@@ -426,7 +426,7 @@ pub(crate) async fn run_turn(
                 }
                 continue;
             }
-            Err(err @ CodexErr::TurnAborted) => {
+            Err(err @ CodexErr::InteractionAborted) => {
                 return Err(err);
             }
             Err(codex_error @ CodexErr::InvalidImageRequest()) => {
@@ -541,7 +541,7 @@ async fn build_skills_and_plugins(
         .collect::<Vec<_>>();
     let tracking = build_track_events_context(
         turn_context.model_info.slug.clone(),
-        sess.thread_id.to_string(),
+        sess.chat_id.to_string(),
         turn_context.sub_id.clone(),
     );
     let loaded_plugins = sess
@@ -716,7 +716,7 @@ async fn build_extension_turn_input_items(
         .collect::<Vec<_>>();
 
     let input = TurnInputContext {
-        turn_id: turn_context.sub_id.to_string(),
+        interaction_id: turn_context.sub_id.to_string(),
         user_input: user_input.to_vec(),
         environments,
     };
@@ -764,8 +764,8 @@ async fn track_turn_resolved_config_analytics(
     sess.services
         .analytics_events_client
         .track_turn_resolved_config(TurnResolvedConfigFact {
-            turn_id: turn_context.sub_id.clone(),
-            thread_id: sess.thread_id.to_string(),
+            interaction_id: turn_context.sub_id.clone(),
+            chat_id: sess.chat_id.to_string(),
             num_input_images: input
                 .iter()
                 .filter_map(|item| match item {
@@ -1118,7 +1118,7 @@ pub(crate) fn build_prompt(
 #[instrument(level = "trace",
     skip_all,
     fields(
-        turn_id = %turn_context.sub_id,
+        interaction_id = %turn_context.sub_id,
         model = %turn_context.model_info.slug,
         cwd = %turn_context.cwd.display()
     )
@@ -1222,7 +1222,7 @@ async fn run_sampling_request(
 #[instrument(level = "trace",
     skip_all,
     fields(
-        turn_id = %turn_context.sub_id,
+        interaction_id = %turn_context.sub_id,
         model = %turn_context.model_info.slug,
         apps_enabled = turn_context.apps_enabled()
     )
@@ -1391,12 +1391,12 @@ struct PlanModeStreamState {
 }
 
 impl PlanModeStreamState {
-    fn new(turn_id: &str) -> Self {
+    fn new(interaction_id: &str) -> Self {
         Self {
             pending_agent_message_items: HashMap::new(),
             started_agent_message_items: HashSet::new(),
             leading_whitespace_by_item: HashMap::new(),
-            plan_item_state: ProposedPlanItemState::new(turn_id),
+            plan_item_state: ProposedPlanItemState::new(interaction_id),
         }
     }
 }
@@ -1452,9 +1452,9 @@ impl AssistantMessageStreamParsers {
 }
 
 impl ProposedPlanItemState {
-    fn new(turn_id: &str) -> Self {
+    fn new(interaction_id: &str) -> Self {
         Self {
-            item_id: format!("{turn_id}-plan"),
+            item_id: format!("{interaction_id}-plan"),
             started: false,
             completed: false,
         }
@@ -1480,8 +1480,8 @@ impl ProposedPlanItemState {
             return;
         }
         let event = PlanDeltaEvent {
-            thread_id: sess.thread_id.to_string(),
-            turn_id: turn_context.sub_id.clone(),
+            chat_id: sess.chat_id.to_string(),
+            interaction_id: turn_context.sub_id.clone(),
             item_id: self.item_id.clone(),
             delta: delta.to_string(),
         };
@@ -1557,9 +1557,9 @@ pub(super) fn realtime_text_for_event(msg: &EventMsg) -> Option<(String, Option<
         | EventMsg::SafetyBuffering(_)
         | EventMsg::ContextCompacted(_)
         | EventMsg::ThreadRolledBack(_)
-        | EventMsg::TurnStarted(_)
+        | EventMsg::InteractionStarted(_)
         | EventMsg::ThreadSettingsApplied(_)
-        | EventMsg::TurnComplete(_)
+        | EventMsg::InteractionComplete(_)
         | EventMsg::TokenCount(_)
         | EventMsg::UserMessage(_)
         | EventMsg::AgentReasoning(_)
@@ -1596,7 +1596,7 @@ pub(super) fn realtime_text_for_event(msg: &EventMsg) -> Option<(String, Option<
         | EventMsg::TurnDiff(_)
         | EventMsg::RealtimeConversationListVoicesResponse(_)
         | EventMsg::PlanUpdate(_)
-        | EventMsg::TurnAborted(_)
+        | EventMsg::InteractionAborted(_)
         | EventMsg::ShutdownComplete
         | EventMsg::EnteredReviewMode(_)
         | EventMsg::ExitedReviewMode(_)
@@ -1659,8 +1659,8 @@ async fn handle_plan_segments(
                 maybe_emit_pending_agent_message_start(sess, turn_context, state, item_id).await;
 
                 let event = AgentMessageContentDeltaEvent {
-                    thread_id: sess.thread_id.to_string(),
-                    turn_id: turn_context.sub_id.clone(),
+                    chat_id: sess.chat_id.to_string(),
+                    interaction_id: turn_context.sub_id.clone(),
                     item_id: item_id.to_string(),
                     delta,
                 };
@@ -1713,8 +1713,8 @@ async fn emit_streamed_assistant_text_delta(
         return;
     }
     let event = AgentMessageContentDeltaEvent {
-        thread_id: sess.thread_id.to_string(),
-        turn_id: turn_context.sub_id.clone(),
+        chat_id: sess.chat_id.to_string(),
+        interaction_id: turn_context.sub_id.clone(),
         item_id: item_id.to_string(),
         delta: parsed.visible_text,
     };
@@ -1931,7 +1931,7 @@ async fn drain_in_flight(
 #[instrument(level = "trace",
     skip_all,
     fields(
-        turn_id = %turn_context.sub_id,
+        interaction_id = %turn_context.sub_id,
         model = %turn_context.model_info.slug
     )
 )]
@@ -2015,7 +2015,7 @@ async fn try_run_sampling_request(
             .await
         {
             Ok(event) => event,
-            Err(datax_async_utils::CancelErr::Cancelled) => break Err(CodexErr::TurnAborted),
+            Err(datax_async_utils::CancelErr::Cancelled) => break Err(CodexErr::InteractionAborted),
         };
 
         let event = match event {
@@ -2301,8 +2301,8 @@ async fn try_run_sampling_request(
                         .await;
                     } else {
                         let event = AgentMessageContentDeltaEvent {
-                            thread_id: sess.thread_id.to_string(),
-                            turn_id: turn_context.sub_id.clone(),
+                            chat_id: sess.chat_id.to_string(),
+                            interaction_id: turn_context.sub_id.clone(),
                             item_id,
                             delta,
                         };
@@ -2340,8 +2340,8 @@ async fn try_run_sampling_request(
                         continue;
                     }
                     let event = ReasoningContentDeltaEvent {
-                        thread_id: sess.thread_id.to_string(),
-                        turn_id: turn_context.sub_id.clone(),
+                        chat_id: sess.chat_id.to_string(),
+                        interaction_id: turn_context.sub_id.clone(),
                         item_id: active.id(),
                         delta,
                         summary_index,
@@ -2376,8 +2376,8 @@ async fn try_run_sampling_request(
                         continue;
                     }
                     let event = ReasoningRawContentDeltaEvent {
-                        thread_id: sess.thread_id.to_string(),
-                        turn_id: turn_context.sub_id.clone(),
+                        chat_id: sess.chat_id.to_string(),
+                        interaction_id: turn_context.sub_id.clone(),
                         item_id: active.id(),
                         delta,
                         content_index,
@@ -2417,7 +2417,7 @@ async fn try_run_sampling_request(
     }
 
     if cancellation_token.is_cancelled() {
-        return Err(CodexErr::TurnAborted);
+        return Err(CodexErr::InteractionAborted);
     }
 
     if should_emit_turn_diff {

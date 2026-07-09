@@ -1,6 +1,6 @@
 //! Append-only raw trace events.
 
-use crate::model::AgentThreadId;
+use crate::model::AgentChatId;
 use crate::model::CodeCellRuntimeStatus;
 use crate::model::CodexTurnId;
 use crate::model::CompactionId;
@@ -37,16 +37,16 @@ pub struct RawTraceEvent {
     /// Unix wall-clock timestamp in milliseconds. Use for display/latency.
     pub wall_time_unix_ms: i64,
     pub rollout_id: String,
-    pub thread_id: Option<AgentThreadId>,
-    pub codex_turn_id: Option<CodexTurnId>,
+    pub chat_id: Option<AgentChatId>,
+    pub codex_interaction_id: Option<CodexTurnId>,
     pub payload: RawTraceEventPayload,
 }
 
 /// Writer-supplied context that appears in the raw event envelope.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RawTraceEventContext {
-    pub thread_id: Option<AgentThreadId>,
-    pub codex_turn_id: Option<CodexTurnId>,
+    pub chat_id: Option<AgentChatId>,
+    pub codex_interaction_id: Option<CodexTurnId>,
 }
 
 /// Runtime requester as observed at the raw tool boundary.
@@ -69,33 +69,33 @@ pub enum RawToolCallRequester {
 pub enum RawTraceEventPayload {
     RolloutStarted {
         trace_id: String,
-        root_thread_id: AgentThreadId,
+        root_chat_id: AgentChatId,
     },
     RolloutEnded {
         status: RolloutStatus,
     },
     ThreadStarted {
-        thread_id: AgentThreadId,
+        chat_id: AgentChatId,
         /// Stable agent path.
         agent_path: String,
         metadata_payload: Option<RawPayloadRef>,
     },
     ThreadEnded {
-        thread_id: AgentThreadId,
+        chat_id: AgentChatId,
         status: RolloutStatus,
     },
-    CodexTurnStarted {
-        codex_turn_id: CodexTurnId,
-        thread_id: AgentThreadId,
+    CodexInteractionStarted {
+        codex_interaction_id: CodexTurnId,
+        chat_id: AgentChatId,
     },
     CodexTurnEnded {
-        codex_turn_id: CodexTurnId,
+        codex_interaction_id: CodexTurnId,
         status: ExecutionStatus,
     },
     InferenceStarted {
         inference_call_id: InferenceCallId,
-        thread_id: AgentThreadId,
-        codex_turn_id: CodexTurnId,
+        chat_id: AgentChatId,
+        codex_interaction_id: CodexTurnId,
         model: String,
         provider_name: String,
         request_payload: RawPayloadRef,
@@ -183,8 +183,8 @@ pub enum RawTraceEventPayload {
     CompactionRequestStarted {
         compaction_id: CompactionId,
         compaction_request_id: CompactionRequestId,
-        thread_id: AgentThreadId,
-        codex_turn_id: CodexTurnId,
+        chat_id: AgentChatId,
+        codex_interaction_id: CodexTurnId,
         model: String,
         provider_name: String,
         request_payload: RawPayloadRef,
@@ -208,9 +208,9 @@ pub enum RawTraceEventPayload {
     /// Multi-agent v2 child-to-parent completion delivery.
     AgentResultObserved {
         edge_id: EdgeId,
-        child_thread_id: AgentThreadId,
-        child_codex_turn_id: CodexTurnId,
-        parent_thread_id: AgentThreadId,
+        child_chat_id: AgentChatId,
+        child_codex_interaction_id: CodexTurnId,
+        parent_chat_id: AgentChatId,
         message: String,
         /// Raw notification payload. This is evidence for the runtime delivery,
         /// not the parent-side model-visible item.
@@ -238,7 +238,7 @@ impl RawTraceEventPayload {
             RawTraceEventPayload::RolloutStarted { .. }
             | RawTraceEventPayload::RolloutEnded { .. }
             | RawTraceEventPayload::ThreadEnded { .. }
-            | RawTraceEventPayload::CodexTurnStarted { .. }
+            | RawTraceEventPayload::CodexInteractionStarted { .. }
             | RawTraceEventPayload::CodexTurnEnded { .. }
             | RawTraceEventPayload::CompactionRequestFailed { .. }
             | RawTraceEventPayload::CodeCellStarted { .. }

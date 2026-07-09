@@ -16,19 +16,19 @@ pub(super) async fn unarchive_thread(
     store: &LocalThreadStore,
     params: ArchiveThreadParams,
 ) -> ThreadStoreResult<StoredThread> {
-    let thread_id = params.thread_id;
+    let chat_id = params.chat_id;
     let state_db_ctx = store.state_db().await;
     let archived_path = find_archived_thread_path_by_id_str(
         store.config.codex_home.as_path(),
-        &thread_id.to_string(),
+        &chat_id.to_string(),
         state_db_ctx.as_deref(),
     )
     .await
     .map_err(|err| ThreadStoreError::InvalidRequest {
-        message: format!("failed to locate archived thread id {thread_id}: {err}"),
+        message: format!("failed to locate archived thread id {chat_id}: {err}"),
     })?
     .ok_or_else(|| ThreadStoreError::InvalidRequest {
-        message: format!("no archived rollout found for thread id {thread_id}"),
+        message: format!("no archived rollout found for thread id {chat_id}"),
     })?;
 
     let canonical_archived_path = scoped_rollout_path(
@@ -41,7 +41,7 @@ pub(super) async fn unarchive_thread(
     )?;
     let file_name = matching_rollout_file_name(
         canonical_archived_path.as_path(),
-        thread_id,
+        chat_id,
         archived_path.as_path(),
     )?;
     let Some((year, month, day)) = rollout_date_parts(&file_name) else {
@@ -75,7 +75,7 @@ pub(super) async fn unarchive_thread(
 
     if let Some(ctx) = state_db_ctx {
         let _ = ctx
-            .mark_unarchived(thread_id, restored_path.as_path())
+            .mark_unarchived(chat_id, restored_path.as_path())
             .await;
     }
 
@@ -103,7 +103,7 @@ pub(super) async fn unarchive_thread(
 #[cfg(test)]
 mod tests {
     use chrono::Utc;
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use datax_protocol::protocol::SessionSource;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
@@ -120,12 +120,12 @@ mod tests {
         let home = TempDir::new().expect("temp dir");
         let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
         let uuid = Uuid::from_u128(203);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let archived_path = write_archived_session_file(home.path(), "2025-01-03T13-00-00", uuid)
             .expect("archived session file");
 
         let thread = store
-            .unarchive_thread(ArchiveThreadParams { thread_id })
+            .unarchive_thread(ArchiveThreadParams { chat_id })
             .await
             .expect("unarchive thread");
 
@@ -135,7 +135,7 @@ mod tests {
             .join("sessions/2025/01/03")
             .join(archived_path.file_name().expect("file name"));
         assert!(restored_path.exists());
-        assert_eq!(thread.thread_id, thread_id);
+        assert_eq!(thread.chat_id, chat_id);
         assert_eq!(thread.rollout_path, Some(restored_path));
         assert_eq!(thread.archived_at, None);
         assert_eq!(thread.preview, "Archived user message");
@@ -150,7 +150,7 @@ mod tests {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let uuid = Uuid::from_u128(204);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let archived_path = write_archived_session_file(home.path(), "2025-01-03T13-00-00", uuid)
             .expect("archived session file");
         let runtime = datax_state::StateRuntime::init(
@@ -165,7 +165,7 @@ mod tests {
             .await
             .expect("backfill should be complete");
         let mut builder = datax_state::ThreadMetadataBuilder::new(
-            thread_id,
+            chat_id,
             archived_path.clone(),
             Utc::now(),
             SessionSource::Cli,
@@ -181,7 +181,7 @@ mod tests {
             .expect("state db upsert should succeed");
 
         store
-            .unarchive_thread(ArchiveThreadParams { thread_id })
+            .unarchive_thread(ArchiveThreadParams { chat_id })
             .await
             .expect("unarchive thread");
 
@@ -190,7 +190,7 @@ mod tests {
             .join("sessions/2025/01/03")
             .join(archived_path.file_name().expect("file name"));
         let updated = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("state db read should succeed")
             .expect("thread metadata should exist");

@@ -111,7 +111,7 @@ use datax_app_server_protocol::SkillsListParams;
 use datax_app_server_protocol::SkillsListResponse;
 use datax_app_server_protocol::UserInput;
 use datax_otel::TelemetryAuthMode;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::approvals::GuardianAssessmentEvent;
 use datax_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
 use datax_protocol::models::ActivePermissionProfile;
@@ -460,7 +460,7 @@ impl AppServerSession {
     pub(crate) async fn resume_thread(
         &mut self,
         config: Config,
-        thread_id: ThreadId,
+        chat_id: ChatId,
     ) -> Result<AppServerStartedThread> {
         let request_id = self.next_request_id();
         let session_config = self.session_config_with_effective_service_tier(&config);
@@ -470,7 +470,7 @@ impl AppServerSession {
                 request_id,
                 params: thread_resume_params_from_config(
                     session_config,
-                    thread_id,
+                    chat_id,
                     self.thread_params_mode(),
                     self.remote_cwd_override.as_deref(),
                 ),
@@ -492,7 +492,7 @@ impl AppServerSession {
     pub(crate) async fn fork_thread(
         &mut self,
         config: Config,
-        thread_id: ThreadId,
+        chat_id: ChatId,
     ) -> Result<AppServerStartedThread> {
         let request_id = self.next_request_id();
         let session_config = self.session_config_with_effective_service_tier(&config);
@@ -502,7 +502,7 @@ impl AppServerSession {
                 request_id,
                 params: thread_fork_params_from_config(
                     session_config,
-                    thread_id,
+                    chat_id,
                     self.thread_params_mode(),
                     self.remote_cwd_override.as_deref(),
                 ),
@@ -555,8 +555,8 @@ impl AppServerSession {
         forked_from_id: Option<&str>,
     ) -> Option<String> {
         let forked_from_id = forked_from_id?;
-        let forked_from_id = match ThreadId::from_string(forked_from_id) {
-            Ok(thread_id) => thread_id,
+        let forked_from_id = match ChatId::from_string(forked_from_id) {
+            Ok(chat_id) => chat_id,
             Err(err) => {
                 tracing::warn!("Failed to parse fork parent thread id from app server: {err}");
                 return None;
@@ -601,7 +601,7 @@ impl AppServerSession {
 
     pub(crate) async fn thread_read(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         include_interactions: bool,
     ) -> Result<Chat> {
         let request_id = self.next_request_id();
@@ -610,7 +610,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatRead {
                 request_id,
                 params: ChatReadParams {
-                    chat_id: thread_id.to_string(),
+                    chat_id: chat_id.to_string(),
                     include_interactions,
                 },
             })
@@ -619,14 +619,14 @@ impl AppServerSession {
         Ok(response.thread)
     }
 
-    pub(crate) async fn thread_archive(&mut self, thread_id: ThreadId) -> Result<()> {
+    pub(crate) async fn thread_archive(&mut self, chat_id: ChatId) -> Result<()> {
         let request_id = self.next_request_id();
         let _: ChatArchiveResponse = self
             .client
             .request_typed(ClientRequest::ChatArchive {
                 request_id,
                 params: ChatArchiveParams {
-                    chat_id: thread_id.to_string(),
+                    chat_id: chat_id.to_string(),
                 },
             })
             .await
@@ -634,14 +634,14 @@ impl AppServerSession {
         Ok(())
     }
 
-    pub(crate) async fn thread_delete(&mut self, thread_id: ThreadId) -> Result<()> {
+    pub(crate) async fn thread_delete(&mut self, chat_id: ChatId) -> Result<()> {
         let request_id = self.next_request_id();
         let _: ChatDeleteResponse = self
             .client
             .request_typed(ClientRequest::ChatDelete {
                 request_id,
                 params: ChatDeleteParams {
-                    chat_id: thread_id.to_string(),
+                    chat_id: chat_id.to_string(),
                 },
             })
             .await
@@ -649,14 +649,14 @@ impl AppServerSession {
         Ok(())
     }
 
-    pub(crate) async fn thread_unarchive(&mut self, thread_id: ThreadId) -> Result<Chat> {
+    pub(crate) async fn thread_unarchive(&mut self, chat_id: ChatId) -> Result<Chat> {
         let request_id = self.next_request_id();
         let response: ChatUnarchiveResponse = self
             .client
             .request_typed(ClientRequest::ChatUnarchive {
                 request_id,
                 params: ChatUnarchiveParams {
-                    chat_id: thread_id.to_string(),
+                    chat_id: chat_id.to_string(),
                 },
             })
             .await
@@ -666,7 +666,7 @@ impl AppServerSession {
 
     pub(crate) async fn thread_metadata_update_branch(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         branch: String,
     ) -> Result<ChatMetadataUpdateResponse> {
         let request_id = self.next_request_id();
@@ -674,7 +674,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatMetadataUpdate {
                 request_id,
                 params: ChatMetadataUpdateParams {
-                    chat_id: thread_id.to_string(),
+                    chat_id: chat_id.to_string(),
                     git_info: Some(ChatMetadataGitInfoUpdateParams {
                         sha: None,
                         branch: Some(Some(branch)),
@@ -721,7 +721,7 @@ impl AppServerSession {
 
     pub(crate) async fn thread_inject_items(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         items: Vec<ResponseItem>,
     ) -> Result<ChatInjectMessagesResponse> {
         let messages = items
@@ -734,7 +734,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatInjectMessages {
                 request_id,
                 params: ChatInjectMessagesParams {
-                    chat_id: thread_id.to_string(),
+                    chat_id: chat_id.to_string(),
                     messages,
                 },
             })
@@ -745,7 +745,7 @@ impl AppServerSession {
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn turn_start(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         items: Vec<UserInput>,
         cwd: PathBuf,
         approval_policy: AskForApproval,
@@ -767,7 +767,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::InteractionStart {
                 request_id,
                 params: InteractionStartParams {
-                    chat_id: thread_id.to_string(),
+                    chat_id: chat_id.to_string(),
                     client_user_message_id: None,
                     input: items,
                     responsesapi_client_metadata: None,
@@ -795,8 +795,8 @@ impl AppServerSession {
 
     pub(crate) async fn turn_interrupt(
         &mut self,
-        thread_id: ThreadId,
-        turn_id: String,
+        chat_id: ChatId,
+        interaction_id: String,
     ) -> std::result::Result<(), TypedRequestError> {
         let request_id = self.next_request_id();
         let _: InteractionInterruptResponse = self
@@ -804,8 +804,8 @@ impl AppServerSession {
             .request_typed(ClientRequest::InteractionInterrupt {
                 request_id,
                 params: InteractionInterruptParams {
-                    chat_id: thread_id.to_string(),
-                    interaction_id: turn_id,
+                    chat_id: chat_id.to_string(),
+                    interaction_id: interaction_id,
                 },
             })
             .await?;
@@ -814,15 +814,15 @@ impl AppServerSession {
 
     pub(crate) async fn startup_interrupt(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
     ) -> std::result::Result<(), TypedRequestError> {
-        self.turn_interrupt(thread_id, String::new()).await
+        self.turn_interrupt(chat_id, String::new()).await
     }
 
     pub(crate) async fn turn_steer(
         &mut self,
-        thread_id: ThreadId,
-        turn_id: String,
+        chat_id: ChatId,
+        interaction_id: String,
         items: Vec<UserInput>,
     ) -> std::result::Result<InteractionSteerResponse, TypedRequestError> {
         let request_id = self.next_request_id();
@@ -830,12 +830,12 @@ impl AppServerSession {
             .request_typed(ClientRequest::InteractionSteer {
                 request_id,
                 params: InteractionSteerParams {
-                    chat_id: thread_id.to_string(),
+                    chat_id: chat_id.to_string(),
                     client_user_message_id: None,
                     input: items,
                     responsesapi_client_metadata: None,
                     additional_context: None,
-                    expected_turn_id: turn_id,
+                    expected_interaction_id: interaction_id,
                 },
             })
             .await
@@ -843,7 +843,7 @@ impl AppServerSession {
 
     pub(crate) async fn thread_set_name(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         name: String,
     ) -> Result<()> {
         let request_id = self.next_request_id();
@@ -852,7 +852,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatSetName {
                 request_id,
                 params: ChatSetNameParams {
-                    chat_id: thread_id.to_string(),
+                    chat_id: chat_id.to_string(),
                     name,
                 },
             })
@@ -863,7 +863,7 @@ impl AppServerSession {
 
     pub(crate) async fn thread_memory_mode_set(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         mode: ChatMemoryMode,
     ) -> Result<()> {
         let request_id = self.next_request_id();
@@ -872,7 +872,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatMemoryModeSet {
                 request_id,
                 params: ChatMemoryModeSetParams {
-                    chat_id: thread_id.to_string(),
+                    chat_id: chat_id.to_string(),
                     mode,
                 },
             })
@@ -896,14 +896,14 @@ impl AppServerSession {
 
     pub(crate) async fn thread_goal_get(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
     ) -> Result<ChatGoalGetResponse> {
         let request_id = self.next_request_id();
         self.client
             .request_typed(ClientRequest::ChatGoalGet {
                 request_id,
                 params: ChatGoalGetParams {
-                    chat_id: thread_id.to_string(),
+                    chat_id: chat_id.to_string(),
                 },
             })
             .await
@@ -912,7 +912,7 @@ impl AppServerSession {
 
     pub(crate) async fn thread_goal_set(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         objective: Option<String>,
         status: Option<ChatGoalStatus>,
         token_budget: Option<Option<i64>>,
@@ -922,7 +922,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatGoalSet {
                 request_id,
                 params: ChatGoalSetParams {
-                    chat_id: thread_id.to_string(),
+                    chat_id: chat_id.to_string(),
                     objective,
                     status,
                     token_budget,
@@ -934,14 +934,14 @@ impl AppServerSession {
 
     pub(crate) async fn thread_goal_clear(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
     ) -> Result<ChatGoalClearResponse> {
         let request_id = self.next_request_id();
         self.client
             .request_typed(ClientRequest::ChatGoalClear {
                 request_id,
                 params: ChatGoalClearParams {
-                    chat_id: thread_id.to_string(),
+                    chat_id: chat_id.to_string(),
                 },
             })
             .await
@@ -961,14 +961,14 @@ impl AppServerSession {
         Ok(())
     }
 
-    pub(crate) async fn thread_unsubscribe(&mut self, thread_id: ThreadId) -> Result<()> {
+    pub(crate) async fn thread_unsubscribe(&mut self, chat_id: ChatId) -> Result<()> {
         let request_id = self.next_request_id();
         let _: ChatUnsubscribeResponse = self
             .client
             .request_typed(ClientRequest::ChatUnsubscribe {
                 request_id,
                 params: ChatUnsubscribeParams {
-                    chat_id: thread_id.to_string(),
+                    chat_id: chat_id.to_string(),
                 },
             })
             .await
@@ -976,14 +976,14 @@ impl AppServerSession {
         Ok(())
     }
 
-    pub(crate) async fn thread_compact_start(&mut self, thread_id: ThreadId) -> Result<()> {
+    pub(crate) async fn thread_compact_start(&mut self, chat_id: ChatId) -> Result<()> {
         let request_id = self.next_request_id();
         let _: ChatCompactStartResponse = self
             .client
             .request_typed(ClientRequest::ChatCompactStart {
                 request_id,
                 params: ChatCompactStartParams {
-                    chat_id: thread_id.to_string(),
+                    chat_id: chat_id.to_string(),
                 },
             })
             .await
@@ -993,7 +993,7 @@ impl AppServerSession {
 
     pub(crate) async fn thread_shell_command(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         command: String,
     ) -> Result<()> {
         let request_id = self.next_request_id();
@@ -1002,7 +1002,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatShellCommand {
                 request_id,
                 params: ChatShellCommandParams {
-                    chat_id: thread_id.to_string(),
+                    chat_id: chat_id.to_string(),
                     command,
                 },
             })
@@ -1013,7 +1013,7 @@ impl AppServerSession {
 
     pub(crate) async fn thread_approve_guardian_denied_action(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         event: &GuardianAssessmentEvent,
     ) -> Result<()> {
         let request_id = self.next_request_id();
@@ -1022,7 +1022,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatApproveGuardianDeniedAction {
                 request_id,
                 params: ChatApproveGuardianDeniedActionParams {
-                    chat_id: thread_id.to_string(),
+                    chat_id: chat_id.to_string(),
                     event: serde_json::to_value(event)
                         .wrap_err("failed to serialize Auto Review denial event")?,
                 },
@@ -1034,7 +1034,7 @@ impl AppServerSession {
 
     pub(crate) async fn thread_background_terminals_clean(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
     ) -> Result<()> {
         let request_id = self.next_request_id();
         let _: ChatBackgroundTerminalsCleanResponse = self
@@ -1042,7 +1042,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatBackgroundTerminalsClean {
                 request_id,
                 params: ChatBackgroundTerminalsCleanParams {
-                    chat_id: thread_id.to_string(),
+                    chat_id: chat_id.to_string(),
                 },
             })
             .await
@@ -1052,7 +1052,7 @@ impl AppServerSession {
 
     pub(crate) async fn thread_rollback(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         num_interactions: u32,
     ) -> Result<ChatRollbackResponse> {
         let request_id = self.next_request_id();
@@ -1060,7 +1060,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ChatRollback {
                 request_id,
                 params: ChatRollbackParams {
-                    chat_id: thread_id.to_string(),
+                    chat_id: chat_id.to_string(),
                     num_interactions,
                 },
             })
@@ -1070,7 +1070,7 @@ impl AppServerSession {
 
     pub(crate) async fn review_start(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         target: ReviewTarget,
     ) -> Result<ReviewStartResponse> {
         let request_id = self.next_request_id();
@@ -1078,7 +1078,7 @@ impl AppServerSession {
             .request_typed(ClientRequest::ReviewStart {
                 request_id,
                 params: ReviewStartParams {
-                    chat_id: thread_id.to_string(),
+                    chat_id: chat_id.to_string(),
                     target,
                     delivery: Some(ReviewDelivery::Inline),
                 },
@@ -1408,7 +1408,7 @@ fn thread_start_params_from_config(
 
 fn thread_resume_params_from_config(
     config: Config,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     thread_params_mode: ThreadParamsMode,
     remote_cwd_override: Option<&std::path::Path>,
 ) -> ChatResumeParams {
@@ -1423,7 +1423,7 @@ fn thread_resume_params_from_config(
         })
         .flatten();
     ChatResumeParams {
-        chat_id: thread_id.to_string(),
+        chat_id: chat_id.to_string(),
         model: config.model.clone(),
         model_provider: thread_params_mode.model_provider_from_config(&config),
         service_tier: service_tier_override_from_config(&config),
@@ -1443,7 +1443,7 @@ fn thread_resume_params_from_config(
 
 fn thread_fork_params_from_config(
     config: Config,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     thread_params_mode: ThreadParamsMode,
     remote_cwd_override: Option<&std::path::Path>,
 ) -> ChatForkParams {
@@ -1458,7 +1458,7 @@ fn thread_fork_params_from_config(
         })
         .flatten();
     ChatForkParams {
-        chat_id: thread_id.to_string(),
+        chat_id: chat_id.to_string(),
         model: config.model.clone(),
         model_provider: thread_params_mode.model_provider_from_config(&config),
         service_tier: service_tier_override_from_config(&config),
@@ -1679,18 +1679,18 @@ async fn thread_session_state_from_thread_response(
     reasoning_effort: Option<datax_protocol::openai_models::ReasoningEffort>,
     config: &Config,
 ) -> Result<ThreadSessionState, String> {
-    let thread_id = ThreadId::from_string(chat_id)
+    let chat_id = ChatId::from_string(chat_id)
         .map_err(|err| format!("thread id `{chat_id}` is invalid: {err}"))?;
     let forked_from_id = forked_from_id
         .as_deref()
-        .map(ThreadId::from_string)
+        .map(ChatId::from_string)
         .transpose()
         .map_err(|err| format!("forked_from_id is invalid: {err}"))?;
     let history_config =
         datax_message_history::HistoryConfig::new(config.codex_home.clone(), &config.history);
     let (log_id, entry_count) = datax_message_history::history_metadata(&history_config).await;
     Ok(ThreadSessionState {
-        thread_id,
+        chat_id,
         forked_from_id,
         fork_parent_title: None,
         thread_name,
@@ -1979,7 +1979,7 @@ mod tests {
     async fn thread_lifecycle_params_omit_cwd_without_remote_override_for_remote_sessions() {
         let temp_dir = tempfile::tempdir().expect("tempdir");
         let config = build_config(&temp_dir).await;
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let expected_sandbox = sandbox_mode_from_permission_profile(
             &config.permissions.effective_permission_profile(),
             config.cwd.as_path(),
@@ -1994,13 +1994,13 @@ mod tests {
         );
         let resume = thread_resume_params_from_config(
             config.clone(),
-            thread_id,
+            chat_id,
             ThreadParamsMode::Remote,
             /*remote_cwd_override*/ None,
         );
         let fork = thread_fork_params_from_config(
             config,
-            thread_id,
+            chat_id,
             ThreadParamsMode::Remote,
             /*remote_cwd_override*/ None,
         );
@@ -2096,7 +2096,7 @@ mod tests {
     async fn thread_lifecycle_params_forward_explicit_remote_cwd_override_for_remote_sessions() {
         let temp_dir = tempfile::tempdir().expect("tempdir");
         let config = build_config(&temp_dir).await;
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let remote_cwd = PathBuf::from("repo/on/server");
         let expected_sandbox = sandbox_mode_from_permission_profile(
             &config.permissions.effective_permission_profile(),
@@ -2111,13 +2111,13 @@ mod tests {
         );
         let resume = thread_resume_params_from_config(
             config.clone(),
-            thread_id,
+            chat_id,
             ThreadParamsMode::Remote,
             Some(remote_cwd.as_path()),
         );
         let fork = thread_fork_params_from_config(
             config,
-            thread_id,
+            chat_id,
             ThreadParamsMode::Remote,
             Some(remote_cwd.as_path()),
         );
@@ -2152,7 +2152,7 @@ mod tests {
             .expect("test web search mode should be allowed");
         config.bypass_hook_trust = true;
         config.service_tier = Some(ServiceTier::Fast.request_value().to_string());
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
 
         let start = thread_start_params_from_config(
             &config,
@@ -2162,13 +2162,13 @@ mod tests {
         );
         let resume = thread_resume_params_from_config(
             config.clone(),
-            thread_id,
+            chat_id,
             ThreadParamsMode::Embedded,
             /*remote_cwd_override*/ None,
         );
         let fork = thread_fork_params_from_config(
             config,
-            thread_id,
+            chat_id,
             ThreadParamsMode::Embedded,
             /*remote_cwd_override*/ None,
         );
@@ -2218,11 +2218,11 @@ mod tests {
         let mut config = build_config(&temp_dir).await;
         config.base_instructions = Some("Base override.".to_string());
         config.developer_instructions = Some("Developer override.".to_string());
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
 
         let params = thread_fork_params_from_config(
             config,
-            thread_id,
+            chat_id,
             ThreadParamsMode::Embedded,
             /*remote_cwd_override*/ None,
         );
@@ -2239,7 +2239,7 @@ mod tests {
         let temp_dir = tempfile::tempdir().expect("tempdir");
         let mut config = build_config(&temp_dir).await;
         config.developer_instructions = Some("Developer override.".to_string());
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
 
         let control_start = thread_start_params_from_config(
             &config,
@@ -2249,13 +2249,13 @@ mod tests {
         );
         let control_resume = thread_resume_params_from_config(
             config.clone(),
-            thread_id,
+            chat_id,
             ThreadParamsMode::Embedded,
             /*remote_cwd_override*/ None,
         );
         let control_fork = thread_fork_params_from_config(
             config.clone(),
-            thread_id,
+            chat_id,
             ThreadParamsMode::Embedded,
             /*remote_cwd_override*/ None,
         );
@@ -2278,13 +2278,13 @@ mod tests {
         );
         let treatment_resume = thread_resume_params_from_config(
             config.clone(),
-            thread_id,
+            chat_id,
             ThreadParamsMode::Embedded,
             /*remote_cwd_override*/ None,
         );
         let treatment_fork = thread_fork_params_from_config(
             config,
-            thread_id,
+            chat_id,
             ThreadParamsMode::Embedded,
             /*remote_cwd_override*/ None,
         );
@@ -2311,13 +2311,13 @@ mod tests {
     async fn resume_response_restores_turns_from_thread_items() {
         let temp_dir = tempfile::tempdir().expect("tempdir");
         let config = build_config(&temp_dir).await;
-        let thread_id = ThreadId::new();
-        let forked_from_id = ThreadId::new();
+        let chat_id = ChatId::new();
+        let forked_from_id = ChatId::new();
         let read_only_profile = PermissionProfile::read_only();
         let response = ChatResumeResponse {
             thread: datax_app_server_protocol::Chat {
-                id: thread_id.to_string(),
-                session_id: ThreadId::new().to_string(),
+                id: chat_id.to_string(),
+                session_id: ChatId::new().to_string(),
                 forked_from_id: Some(forked_from_id.to_string()),
                 parent_chat_id: None,
                 preview: "hello".to_string(),
@@ -2485,20 +2485,20 @@ mod tests {
     async fn session_configured_populates_history_metadata() {
         let temp_dir = tempfile::tempdir().expect("tempdir");
         let config = build_config(&temp_dir).await;
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
 
         let history_config =
             datax_message_history::HistoryConfig::new(config.codex_home.clone(), &config.history);
 
-        datax_message_history::append_entry("older", &thread_id, &history_config)
+        datax_message_history::append_entry("older", &chat_id, &history_config)
             .await
             .expect("history append should succeed");
-        datax_message_history::append_entry("newer", &thread_id, &history_config)
+        datax_message_history::append_entry("newer", &chat_id, &history_config)
             .await
             .expect("history append should succeed");
 
         let session = thread_session_state_from_thread_response(
-            &thread_id.to_string(),
+            &chat_id.to_string(),
             /*forked_from_id*/ None,
             Some("restore".to_string()),
             /*rollout_path*/ None,
@@ -2526,14 +2526,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn session_configured_preserves_fork_source_thread_id() {
+    async fn session_configured_preserves_fork_source_chat_id() {
         let temp_dir = tempfile::tempdir().expect("tempdir");
         let config = build_config(&temp_dir).await;
-        let thread_id = ThreadId::new();
-        let forked_from_id = ThreadId::new();
+        let chat_id = ChatId::new();
+        let forked_from_id = ChatId::new();
 
         let session = thread_session_state_from_thread_response(
-            &thread_id.to_string(),
+            &chat_id.to_string(),
             Some(forked_from_id.to_string()),
             Some("restore".to_string()),
             /*rollout_path*/ None,

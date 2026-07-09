@@ -20,7 +20,7 @@ use datax_config::LoaderOverrides;
 use datax_core::config::ConfigBuilder;
 use datax_exec_server::EnvironmentManager;
 use datax_feedback::CodexFeedback;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::models::BaseInstructions;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::ThreadMemoryMode;
@@ -45,7 +45,7 @@ const UPDATED_AT_RFC3339: &str = "2025-01-02T12:00:00.000Z";
 const PREVIEW: &str = "Summarize this conversation";
 const MODEL_PROVIDER: &str = "openai";
 
-fn expected_summary(conversation_id: ThreadId, path: PathBuf) -> ConversationSummary {
+fn expected_summary(conversation_id: ChatId, path: PathBuf) -> ConversationSummary {
     ConversationSummary {
         conversation_id,
         path,
@@ -72,7 +72,7 @@ fn normalized_summary_path(mut summary: ConversationSummary) -> Result<Conversat
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn get_conversation_summary_by_thread_id_reads_rollout() -> Result<()> {
+async fn get_conversation_summary_by_chat_id_reads_rollout() -> Result<()> {
     let codex_home = TempDir::new()?;
     let conversation_id = create_fake_rollout(
         codex_home.path(),
@@ -82,7 +82,7 @@ async fn get_conversation_summary_by_thread_id_reads_rollout() -> Result<()> {
         Some(MODEL_PROVIDER),
         /*git_info*/ None,
     )?;
-    let chat_id = ThreadId::from_string(&conversation_id)?;
+    let chat_id = ChatId::from_string(&conversation_id)?;
     let expected = expected_summary(
         chat_id,
         normalized_canonical_path(rollout_path(
@@ -96,7 +96,7 @@ async fn get_conversation_summary_by_thread_id_reads_rollout() -> Result<()> {
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
-        .send_get_conversation_summary_request(GetConversationSummaryParams::ThreadId {
+        .send_get_conversation_summary_request(GetConversationSummaryParams::ChatId {
             conversation_id: chat_id,
         })
         .await?;
@@ -112,20 +112,20 @@ async fn get_conversation_summary_by_thread_id_reads_rollout() -> Result<()> {
 }
 
 #[tokio::test]
-async fn get_conversation_summary_by_thread_id_reads_pathless_store_thread() -> Result<()> {
+async fn get_conversation_summary_by_chat_id_reads_pathless_store_thread() -> Result<()> {
     let codex_home = TempDir::new()?;
     let store_id = Uuid::new_v4().to_string();
     create_config_toml_with_in_memory_thread_store(codex_home.path(), &store_id)?;
     let store = InMemoryThreadStore::for_id(store_id.clone());
     let _in_memory_store = InMemoryThreadStoreId { store_id };
-    let chat_id = ThreadId::from_string("00000000-0000-4000-8000-000000000125")?;
+    let chat_id = ChatId::from_string("00000000-0000-4000-8000-000000000125")?;
     store
         .create_thread(CreateThreadParams {
             session_id: chat_id.into(),
-            thread_id: chat_id,
+            chat_id: chat_id,
             extra_config: None,
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             source: SessionSource::Cli,
             thread_source: None,
             base_instructions: BaseInstructions::default(),
@@ -179,7 +179,7 @@ async fn get_conversation_summary_by_thread_id_reads_pathless_store_thread() -> 
     let result = client
         .request(ClientRequest::GetConversationSummary {
             request_id: RequestId::Integer(1),
-            params: GetConversationSummaryParams::ThreadId {
+            params: GetConversationSummaryParams::ChatId {
                 conversation_id: chat_id,
             },
         })
@@ -208,7 +208,7 @@ async fn get_conversation_summary_by_relative_rollout_path_resolves_from_codex_h
         Some(MODEL_PROVIDER),
         /*git_info*/ None,
     )?;
-    let chat_id = ThreadId::from_string(&conversation_id)?;
+    let chat_id = ChatId::from_string(&conversation_id)?;
     let rollout_path = rollout_path(codex_home.path(), FILENAME_TS, &conversation_id);
     let relative_path = rollout_path.strip_prefix(codex_home.path())?.to_path_buf();
     let expected = expected_summary(chat_id, normalized_canonical_path(rollout_path)?);

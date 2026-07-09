@@ -1,42 +1,42 @@
 use super::parse_memory_citation;
-use super::thread_ids_from_memory_citation;
-use datax_protocol::ThreadId;
+use super::chat_ids_from_memory_citation;
+use datax_protocol::ChatId;
 use pretty_assertions::assert_eq;
 
 #[test]
-fn parse_memory_citation_supports_legacy_thread_ids() {
-    let first = ThreadId::new();
-    let second = ThreadId::new();
+fn parse_memory_citation_supports_legacy_chat_ids() {
+    let first = ChatId::new();
+    let second = ChatId::new();
 
     let citations = vec![format!(
-        "<memory_citation>\n<citation_entries>\nMEMORY.md:1-2|note=[x]\n</citation_entries>\n<thread_ids>\n{first}\nnot-a-uuid\n{second}\n</thread_ids>\n</memory_citation>"
+        "<memory_citation>\n<citation_entries>\nMEMORY.md:1-2|note=[x]\n</citation_entries>\n<chat_ids>\n{first}\nnot-a-uuid\n{second}\n</chat_ids>\n</memory_citation>"
     )];
 
     let parsed = parse_memory_citation(citations).expect("memory citation should parse");
 
     assert_eq!(
-        thread_ids_from_memory_citation(&parsed),
+        chat_ids_from_memory_citation(&parsed),
         vec![first, second]
     );
 }
 
 #[test]
 fn parse_memory_citation_supports_rollout_ids() {
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
 
     let citations = vec![format!(
-        "<memory_citation>\n<rollout_ids>\n{thread_id}\n</rollout_ids>\n</memory_citation>"
+        "<memory_citation>\n<rollout_ids>\n{chat_id}\n</rollout_ids>\n</memory_citation>"
     )];
 
     let parsed = parse_memory_citation(citations).expect("memory citation should parse");
 
-    assert_eq!(thread_ids_from_memory_citation(&parsed), vec![thread_id]);
+    assert_eq!(chat_ids_from_memory_citation(&parsed), vec![chat_id]);
 }
 
 #[test]
 fn parse_memory_citation_extracts_entries_and_rollout_ids() {
-    let first = ThreadId::new();
-    let second = ThreadId::new();
+    let first = ChatId::new();
+    let second = ChatId::new();
     let citations = vec![format!(
         "<citation_entries>\nMEMORY.md:1-2|note=[summary]\nrollout_summaries/foo.md:10-12|note=[details]\n</citation_entries>\n<rollout_ids>\n{first}\n{second}\n{first}\n</rollout_ids>"
     )];

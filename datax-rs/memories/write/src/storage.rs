@@ -56,7 +56,7 @@ async fn rebuild_raw_memories_file(
 
     body.push_str("Merged stage-1 raw memories (stable ascending thread-id order):\n\n");
     for memory in retained {
-        writeln!(body, "## Thread `{}`", memory.thread_id).map_err(raw_memories_format_error)?;
+        writeln!(body, "## Thread `{}`", memory.chat_id).map_err(raw_memories_format_error)?;
         writeln!(
             body,
             "updated_at: {}",
@@ -115,7 +115,7 @@ async fn write_rollout_summary_for_thread(
     let path = rollout_summaries_dir(root).join(format!("{file_stem}.md"));
 
     let mut body = String::new();
-    writeln!(body, "thread_id: {}", memory.thread_id).map_err(rollout_summary_format_error)?;
+    writeln!(body, "chat_id: {}", memory.chat_id).map_err(rollout_summary_format_error)?;
     writeln!(
         body,
         "updated_at: {}",
@@ -152,14 +152,14 @@ fn rollout_summary_format_error(err: std::fmt::Error) -> std::io::Error {
 
 pub fn rollout_summary_file_stem(memory: &Stage1Output) -> String {
     rollout_summary_file_stem_from_parts(
-        memory.thread_id,
+        memory.chat_id,
         memory.source_updated_at,
         memory.rollout_slug.as_deref(),
     )
 }
 
 fn rollout_summary_file_stem_from_parts(
-    thread_id: datax_protocol::ThreadId,
+    chat_id: datax_protocol::ChatId,
     source_updated_at: chrono::DateTime<chrono::Utc>,
     rollout_slug: Option<&str>,
 ) -> String {
@@ -168,8 +168,8 @@ fn rollout_summary_file_stem_from_parts(
         b"0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const SHORT_HASH_SPACE: u32 = 14_776_336;
 
-    let thread_id = thread_id.to_string();
-    let (timestamp_fragment, short_hash_seed) = match Uuid::parse_str(&thread_id) {
+    let chat_id = chat_id.to_string();
+    let (timestamp_fragment, short_hash_seed) = match Uuid::parse_str(&chat_id) {
         Ok(thread_uuid) => {
             let timestamp = thread_uuid
                 .get_timestamp()
@@ -188,7 +188,7 @@ fn rollout_summary_file_stem_from_parts(
         }
         Err(_) => {
             let mut short_hash_seed = 0u32;
-            for byte in thread_id.bytes() {
+            for byte in chat_id.bytes() {
                 short_hash_seed = short_hash_seed
                     .wrapping_mul(31)
                     .wrapping_add(u32::from(byte));

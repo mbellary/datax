@@ -158,7 +158,7 @@ mod tests {
     use crate::model::ThreadMetadata;
     use chrono::DateTime;
     use chrono::Utc;
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use datax_protocol::models::ContentItem;
     use datax_protocol::models::PermissionProfile;
     use datax_protocol::models::ResponseItem;
@@ -272,10 +272,10 @@ mod tests {
         let mut metadata = metadata_for_test();
         let goal_item =
             RolloutItem::EventMsg(EventMsg::ThreadGoalUpdated(ThreadGoalUpdatedEvent {
-                thread_id: metadata.id,
-                turn_id: None,
+                chat_id: metadata.id,
+                interaction_id: None,
                 goal: ThreadGoal {
-                    thread_id: metadata.id,
+                    chat_id: metadata.id,
                     objective: "optimize the benchmark".to_string(),
                     status: ThreadGoalStatus::Active,
                     token_budget: None,
@@ -315,18 +315,18 @@ mod tests {
     fn turn_context_does_not_override_session_cwd() {
         let mut metadata = metadata_for_test();
         metadata.cwd = PathBuf::new();
-        let thread_id = metadata.id;
+        let chat_id = metadata.id;
 
         apply_rollout_item(
             &mut metadata,
             &RolloutItem::SessionMeta(SessionMetaLine {
                 meta: SessionMeta {
-                    session_id: thread_id.into(),
-                    id: thread_id,
+                    session_id: chat_id.into(),
+                    id: chat_id,
                     forked_from_id: Some(
-                        ThreadId::from_string(&Uuid::now_v7().to_string()).expect("thread id"),
+                        ChatId::from_string(&Uuid::now_v7().to_string()).expect("thread id"),
                     ),
-                    parent_thread_id: None,
+                    parent_chat_id: None,
                     timestamp: "2026-02-26T00:00:00.000Z".to_string(),
                     cwd: PathBuf::from("/child/worktree"),
                     originator: "codex_cli_rs".to_string(),
@@ -349,7 +349,7 @@ mod tests {
         apply_rollout_item(
             &mut metadata,
             &RolloutItem::TurnContext(TurnContextItem {
-                turn_id: Some("turn-1".to_string()),
+                interaction_id: Some("turn-1".to_string()),
                 cwd: serde_json::from_value(serde_json::json!(
                     std::env::current_dir()
                         .expect("current directory")
@@ -394,7 +394,7 @@ mod tests {
         apply_rollout_item(
             &mut metadata,
             &RolloutItem::TurnContext(TurnContextItem {
-                turn_id: Some("turn-1".to_string()),
+                interaction_id: Some("turn-1".to_string()),
                 cwd: serde_json::from_value(serde_json::json!(
                     std::env::current_dir()
                         .expect("current directory")
@@ -439,7 +439,7 @@ mod tests {
         apply_rollout_item(
             &mut metadata,
             &RolloutItem::TurnContext(TurnContextItem {
-                turn_id: Some("turn-1".to_string()),
+                interaction_id: Some("turn-1".to_string()),
                 cwd: serde_json::from_value(serde_json::json!(&fallback_cwd))
                     .expect("absolute fallback cwd"),
                 workspace_roots: None,
@@ -473,7 +473,7 @@ mod tests {
         apply_rollout_item(
             &mut metadata,
             &RolloutItem::TurnContext(TurnContextItem {
-                turn_id: Some("turn-1".to_string()),
+                interaction_id: Some("turn-1".to_string()),
                 cwd: serde_json::from_value(serde_json::json!(
                     std::env::current_dir()
                         .expect("current directory")
@@ -508,16 +508,16 @@ mod tests {
     #[test]
     fn session_meta_does_not_set_model_or_reasoning_effort() {
         let mut metadata = metadata_for_test();
-        let thread_id = metadata.id;
+        let chat_id = metadata.id;
 
         apply_rollout_item(
             &mut metadata,
             &RolloutItem::SessionMeta(SessionMetaLine {
                 meta: SessionMeta {
-                    session_id: thread_id.into(),
-                    id: thread_id,
+                    session_id: chat_id.into(),
+                    id: chat_id,
                     forked_from_id: None,
-                    parent_thread_id: None,
+                    parent_chat_id: None,
                     timestamp: "2026-02-26T00:00:00.000Z".to_string(),
                     cwd: PathBuf::from("/workspace"),
                     originator: "codex_cli_rs".to_string(),
@@ -543,7 +543,7 @@ mod tests {
     }
 
     fn metadata_for_test() -> ThreadMetadata {
-        let id = ThreadId::from_string(&Uuid::from_u128(42).to_string()).expect("thread id");
+        let id = ChatId::from_string(&Uuid::from_u128(42).to_string()).expect("thread id");
         let created_at = DateTime::<Utc>::from_timestamp(1_735_689_600, 0).expect("timestamp");
         ThreadMetadata {
             id,
@@ -577,7 +577,7 @@ mod tests {
     #[test]
     fn diff_fields_detects_changes() {
         let mut base = metadata_for_test();
-        base.id = ThreadId::from_string(&Uuid::now_v7().to_string()).expect("thread id");
+        base.id = ChatId::from_string(&Uuid::now_v7().to_string()).expect("thread id");
         base.title = "hello".to_string();
         let mut other = base.clone();
         other.tokens_used = 2;

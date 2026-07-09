@@ -8,7 +8,7 @@ use datax_extension_api::ExtensionData;
 use datax_extension_api::ExtensionEventSink;
 use datax_extension_api::ExtensionFuture;
 use datax_extension_api::ExtensionRegistryBuilder;
-use datax_extension_api::ThreadIdleInput;
+use datax_extension_api::ChatIdleInput;
 use datax_extension_api::ThreadLifecycleContributor;
 use datax_extension_api::ThreadResumeInput;
 use datax_extension_api::ThreadStartInput;
@@ -25,7 +25,7 @@ use datax_extension_api::TurnLifecycleContributor;
 use datax_extension_api::TurnStartInput;
 use datax_extension_api::TurnStopInput;
 use datax_otel::MetricsClient;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::CodexErrorInfo;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
@@ -113,12 +113,12 @@ where
             let accounting_state = input
                 .thread_store
                 .get_or_init::<GoalAccountingState>(GoalAccountingState::default);
-            let Ok(thread_id) = ThreadId::from_string(input.thread_store.level_id()) else {
+            let Ok(chat_id) = ChatId::from_string(input.thread_store.level_id()) else {
                 return;
             };
             let runtime = input.thread_store.get_or_init::<GoalRuntimeHandle>(|| {
                 GoalRuntimeHandle::new(
-                    thread_id,
+                    chat_id,
                     Arc::clone(&self.state_dbs),
                     self.event_emitter.clone(),
                     self.metrics.clone(),
@@ -145,13 +145,13 @@ where
             if let Err(err) = runtime.restore_after_resume().await {
                 tracing::warn!(
                     "failed to restore goal runtime after thread resume for {}: {err}",
-                    runtime.thread_id()
+                    runtime.chat_id()
                 );
             }
         })
     }
 
-    fn on_thread_idle<'a>(&'a self, input: ThreadIdleInput<'a>) -> ExtensionFuture<'a, ()> {
+    fn on_chat_idle<'a>(&'a self, input: ChatIdleInput<'a>) -> ExtensionFuture<'a, ()> {
         Box::pin(async move {
             let Some(runtime) = goal_runtime_handle(input.thread_store) else {
                 return;
@@ -160,7 +160,7 @@ where
             if let Err(err) = runtime.continue_if_idle().await {
                 tracing::warn!(
                     "failed to continue active goal for idle thread {}: {err}",
-                    runtime.thread_id()
+                    runtime.chat_id()
                 );
             }
         })
@@ -209,7 +209,7 @@ where
 
             let accounting = runtime.accounting_state();
             accounting.start_turn(
-                input.turn_id,
+                input.interaction_id,
                 input.collaboration_mode.mode,
                 input.token_usage_at_turn_start,
             );
@@ -223,7 +223,7 @@ where
             let Ok(goal) = self
                 .state_dbs
                 .thread_goals()
-                .get_thread_goal(runtime.thread_id())
+                .get_thread_goal(runtime.chat_id())
                 .await
             else {
                 return;
@@ -235,7 +235,7 @@ where
                         | datax_state::ThreadGoalStatus::BudgetLimited
                 )
             {
-                accounting.mark_turn_goal_active(input.turn_id, goal.goal_id);
+                accounting.mark_turn_goal_active(input.interaction_id, goal.goal_id);
             }
         })
     }
@@ -249,22 +249,22 @@ where
                 return;
             }
 
-            let turn_id = input.turn_store.level_id();
+            let interaction_id = input.turn_store.level_id();
             if let Err(err) = runtime
                 .account_active_goal_progress(
-                    turn_id,
-                    &format!("{turn_id}:turn-stop"),
+                    interaction_id,
+                    &format!("{interaction_id}:turn-stop"),
                     datax_state::GoalAccountingMode::ActiveOnly,
                     BudgetLimitedGoalDisposition::ClearActive,
                 )
                 .await
             {
                 tracing::warn!(
-                    "failed to account active goal progress at turn stop for {turn_id}: {err}"
+                    "failed to account active goal progress at turn stop for {interaction_id}: {err}"
                 );
                 return;
             }
-            runtime.accounting_state().finish_turn(turn_id);
+            runtime.accounting_state().finish_turn(interaction_id);
         })
     }
 
@@ -277,22 +277,22 @@ where
                 return;
             }
 
-            let turn_id = input.turn_store.level_id();
+            let interaction_id = input.turn_store.level_id();
             if let Err(err) = runtime
                 .account_active_goal_progress(
-                    turn_id,
-                    &format!("{turn_id}:turn-abort"),
+                    interaction_id,
+                    &format!("{interaction_id}:turn-abort"),
                     datax_state::GoalAccountingMode::ActiveOnly,
                     BudgetLimitedGoalDisposition::ClearActive,
                 )
                 .await
             {
                 tracing::warn!(
-                    "failed to account active goal progress after turn abort for {turn_id}: {err}"
+                    "failed to account active goal progress after turn abort for {interaction_id}: {err}"
                 );
                 return;
             }
-            runtime.accounting_state().finish_turn(turn_id);
+            runtime.accounting_state().finish_turn(interaction_id);
         })
     }
 
@@ -311,7 +311,7 @@ where
                 _ => ActiveGoalStopReason::TurnError,
             };
             if let Err(err) = runtime
-                .stop_active_goal_for_turn(input.turn_id, reason)
+                .stop_active_goal_for_turn(input.interaction_id, reason)
                 .await
             {
                 tracing::warn!(
@@ -368,10 +368,10 @@ where
             if !should_count_for_goal_progress {
                 return;
             }
-            let turn_id = input.turn_id;
+            let interaction_id = input.interaction_id;
             let progress = match runtime
                 .account_active_goal_progress(
-                    turn_id,
+                    interaction_id,
                     input.call_id,
                     datax_state::GoalAccountingMode::ActiveOnly,
                     BudgetLimitedGoalDisposition::KeepActive,
@@ -382,7 +382,7 @@ where
                 Ok(None) => return,
                 Err(err) => {
                     tracing::warn!(
-                        "failed to account active goal progress after tool finish for {turn_id}: {err}"
+                        "failed to account active goal progress after tool finish for {interaction_id}: {err}"
                     );
                     return;
                 }
@@ -421,7 +421,7 @@ where
 
         vec![
             Arc::new(GoalToolExecutor::get(
-                runtime.thread_id(),
+                runtime.chat_id(),
                 Arc::clone(&self.state_dbs),
                 runtime.accounting_state(),
                 self.analytics.clone(),
@@ -429,7 +429,7 @@ where
                 self.metrics.clone(),
             )),
             Arc::new(GoalToolExecutor::create(
-                runtime.thread_id(),
+                runtime.chat_id(),
                 Arc::clone(&self.state_dbs),
                 runtime.accounting_state(),
                 self.analytics.clone(),
@@ -437,7 +437,7 @@ where
                 self.metrics.clone(),
             )),
             Arc::new(GoalToolExecutor::update(
-                runtime.thread_id(),
+                runtime.chat_id(),
                 Arc::clone(&self.state_dbs),
                 runtime.accounting_state(),
                 self.analytics.clone(),

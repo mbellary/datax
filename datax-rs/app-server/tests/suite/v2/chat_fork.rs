@@ -31,7 +31,7 @@ use datax_app_server_protocol::SessionSource;
 use datax_app_server_protocol::UserInput;
 use datax_config::types::AuthCredentialsStoreMode;
 use datax_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::MultiAgentVersion;
 use datax_protocol::protocol::RolloutItem;
 use datax_rollout::append_rollout_item_to_path;
@@ -265,9 +265,9 @@ async fn thread_fork_inherits_explicit_source_name_from_session_index() -> Resul
         Some("mock_provider"),
         /*git_info*/ None,
     )?;
-    let source_thread_id = ThreadId::from_string(&conversation_id)?;
+    let source_chat_id = ChatId::from_string(&conversation_id)?;
     let source_name = "Renamed parent thread";
-    append_thread_name(codex_home.path(), source_thread_id, source_name).await?;
+    append_thread_name(codex_home.path(), source_chat_id, source_name).await?;
 
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
@@ -548,7 +548,7 @@ async fn thread_fork_rejects_unmaterialized_thread() -> Result<()> {
 }
 
 #[tokio::test]
-async fn thread_fork_with_empty_path_uses_thread_id() -> Result<()> {
+async fn thread_fork_with_empty_path_uses_chat_id() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
     let codex_home = TempDir::new()?;
     create_config_toml(codex_home.path(), &server.uri())?;
@@ -716,7 +716,7 @@ async fn thread_fork_ephemeral_remains_pathless_and_omits_listing() -> Result<()
     .await??;
     let fork_result = fork_resp.result.clone();
     let ChatForkResponse { chat: thread, .. } = to_response::<ChatForkResponse>(fork_resp)?;
-    let fork_thread_id = thread.id.clone();
+    let fork_chat_id = thread.id.clone();
 
     assert!(
         thread.ephemeral,
@@ -767,7 +767,7 @@ async fn thread_fork_ephemeral_remains_pathless_and_omits_listing() -> Result<()
         if notif.method == "chat/status/changed" {
             let status_changed: ChatStatusChangedNotification =
                 serde_json::from_value(notif.params.expect("params must be present"))?;
-            if status_changed.chat_id == fork_thread_id {
+            if status_changed.chat_id == fork_chat_id {
                 anyhow::bail!(
                     "chat/fork should introduce the thread without a preceding chat/status/changed"
                 );
@@ -803,7 +803,7 @@ async fn thread_fork_ephemeral_remains_pathless_and_omits_listing() -> Result<()
 
     let ChatListResponse { data, .. } = list_threads(&mut mcp).await?;
     assert!(
-        data.iter().all(|candidate| candidate.id != fork_thread_id),
+        data.iter().all(|candidate| candidate.id != fork_chat_id),
         "ephemeral forks should not appear in chat/list"
     );
     assert!(
@@ -813,7 +813,7 @@ async fn thread_fork_ephemeral_remains_pathless_and_omits_listing() -> Result<()
 
     let interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
-            chat_id: fork_thread_id,
+            chat_id: fork_chat_id,
             client_user_message_id: None,
             input: vec![UserInput::Text {
                 text: "continue".to_string(),
@@ -852,7 +852,7 @@ async fn pathless_ephemeral_thread_rejects_codex_home_path_after_reload() -> Res
         /*git_info*/ None,
     )?;
 
-    let side_thread_id = {
+    let side_chat_id = {
         let mut app_server = TestAppServer::new(codex_home.path()).await?;
         timeout(DEFAULT_READ_TIMEOUT, app_server.initialize()).await??;
 
@@ -904,7 +904,7 @@ async fn pathless_ephemeral_thread_rejects_codex_home_path_after_reload() -> Res
 
     let resume_id = app_server
         .send_chat_resume_request(ChatResumeParams {
-            chat_id: side_thread_id.clone(),
+            chat_id: side_chat_id.clone(),
             path: Some(codex_home_path.clone()),
             ..Default::default()
         })
@@ -927,7 +927,7 @@ async fn pathless_ephemeral_thread_rejects_codex_home_path_after_reload() -> Res
 
     let fork_id = app_server
         .send_chat_fork_request(ChatForkParams {
-            chat_id: side_thread_id,
+            chat_id: side_chat_id,
             path: Some(codex_home_path),
             ..Default::default()
         })

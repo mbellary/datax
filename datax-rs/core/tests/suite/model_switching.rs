@@ -167,7 +167,7 @@ async fn model_change_appends_model_instructions_developer_message() -> Result<(
             test.session_configured.model.clone(),
         ))
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     core_test_support::submit_thread_settings(
         &test.codex,
@@ -188,7 +188,7 @@ async fn model_change_appends_model_instructions_developer_message() -> Result<(
             next_model.to_string(),
         ))
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let requests = resp_mock.requests();
     assert_eq!(requests.len(), 2, "expected two model requests");
@@ -239,7 +239,7 @@ async fn model_and_personality_change_only_appends_model_instructions() -> Resul
             test.session_configured.model.clone(),
         ))
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     core_test_support::submit_thread_settings(
         &test.codex,
@@ -261,7 +261,7 @@ async fn model_and_personality_change_only_appends_model_instructions() -> Resul
             next_model.to_string(),
         ))
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let requests = resp_mock.requests();
     assert_eq!(requests.len(), 2, "expected two model requests");
@@ -525,7 +525,7 @@ async fn model_change_from_image_to_text_strips_prior_image_content() -> Result<
             image_model_slug.to_string(),
         ))
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     test.codex
         .submit(read_only_user_turn(
@@ -537,7 +537,7 @@ async fn model_change_from_image_to_text_strips_prior_image_content() -> Result<
             text_model_slug.to_string(),
         ))
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let requests = responses.requests();
     assert_eq!(requests.len(), 2, "expected two model requests");
@@ -604,7 +604,7 @@ async fn generated_image_is_replayed_for_image_capable_models() -> Result<()> {
     let test = builder.build(&server).await?;
     let saved_path = image_generation_artifact_path(
         test.codex_home_path(),
-        &test.session_configured.thread_id.to_string(),
+        &test.session_configured.chat_id.to_string(),
         "ig_123",
     );
     let _ = std::fs::remove_file(&saved_path);
@@ -623,7 +623,7 @@ async fn generated_image_is_replayed_for_image_capable_models() -> Result<()> {
             image_model_slug.to_string(),
         ))
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     test.codex
         .submit(read_only_user_turn(
@@ -635,7 +635,7 @@ async fn generated_image_is_replayed_for_image_capable_models() -> Result<()> {
             image_model_slug.to_string(),
         ))
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let requests = responses.requests();
     assert_eq!(requests.len(), 2, "expected two model requests");
@@ -718,7 +718,7 @@ async fn model_change_from_generated_image_to_text_preserves_prior_generated_ima
     let test = builder.build(&server).await?;
     let saved_path = image_generation_artifact_path(
         test.codex_home_path(),
-        &test.session_configured.thread_id.to_string(),
+        &test.session_configured.chat_id.to_string(),
         "ig_123",
     );
     let _ = std::fs::remove_file(&saved_path);
@@ -737,7 +737,7 @@ async fn model_change_from_generated_image_to_text_preserves_prior_generated_ima
             image_model_slug.to_string(),
         ))
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     test.codex
         .submit(read_only_user_turn(
@@ -749,7 +749,7 @@ async fn model_change_from_generated_image_to_text_preserves_prior_generated_ima
             text_model_slug.to_string(),
         ))
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let requests = responses.requests();
     assert_eq!(requests.len(), 2, "expected two model requests");
@@ -834,7 +834,7 @@ async fn thread_rollback_after_generated_image_drops_entire_image_turn_history()
     let test = builder.build(&server).await?;
     let saved_path = image_generation_artifact_path(
         test.codex_home_path(),
-        &test.session_configured.thread_id.to_string(),
+        &test.session_configured.chat_id.to_string(),
         "ig_rollback",
     );
     let _ = std::fs::remove_file(&saved_path);
@@ -853,7 +853,7 @@ async fn thread_rollback_after_generated_image_drops_entire_image_turn_history()
             image_model_slug.to_string(),
         ))
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     test.codex
         .submit(Op::ThreadRollback { num_turns: 1 })
@@ -873,7 +873,7 @@ async fn thread_rollback_after_generated_image_drops_entire_image_turn_history()
             image_model_slug.to_string(),
         ))
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let requests = responses.requests();
     assert_eq!(requests.len(), 2, "expected two model requests");
@@ -1050,7 +1050,7 @@ async fn model_switch_to_smaller_model_updates_token_context_window() -> Result<
             .and_then(|info| info.model_context_window),
         Some(large_effective_window)
     );
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     core_test_support::submit_thread_settings(
         &test.codex,
@@ -1075,12 +1075,12 @@ async fn model_switch_to_smaller_model_updates_token_context_window() -> Result<
     let smaller_turn_started_event = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::TurnStarted(started)
+            EventMsg::InteractionStarted(started)
                 if started.model_context_window == Some(smaller_effective_window)
         )
     })
     .await;
-    let EventMsg::TurnStarted(smaller_turn_started) = smaller_turn_started_event else {
+    let EventMsg::InteractionStarted(smaller_turn_started) = smaller_turn_started_event else {
         unreachable!("wait_for_event returned unexpected event");
     };
     assert_eq!(
@@ -1108,7 +1108,7 @@ async fn model_switch_to_smaller_model_updates_token_context_window() -> Result<
         .and_then(|info| info.model_context_window);
     assert_eq!(smaller_window, Some(smaller_effective_window));
     assert_ne!(smaller_window, Some(large_effective_window));
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     Ok(())
 }

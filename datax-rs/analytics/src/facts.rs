@@ -39,19 +39,19 @@ pub struct AcceptedLineFingerprint {
 #[derive(Clone)]
 pub struct TrackEventsContext {
     pub model_slug: String,
-    pub thread_id: String,
-    pub turn_id: String,
+    pub chat_id: String,
+    pub interaction_id: String,
 }
 
 pub fn build_track_events_context(
     model_slug: String,
-    thread_id: String,
-    turn_id: String,
+    chat_id: String,
+    interaction_id: String,
 ) -> TrackEventsContext {
     TrackEventsContext {
         model_slug,
-        thread_id,
-        turn_id,
+        chat_id,
+        interaction_id,
     }
 }
 
@@ -64,8 +64,8 @@ pub enum TurnSubmissionType {
 
 #[derive(Clone)]
 pub struct TurnResolvedConfigFact {
-    pub turn_id: String,
-    pub thread_id: String,
+    pub interaction_id: String,
+    pub chat_id: String,
     pub num_input_images: usize,
     pub submission_type: Option<TurnSubmissionType>,
     pub ephemeral: bool,
@@ -96,8 +96,8 @@ pub enum ThreadInitializationMode {
 
 #[derive(Clone)]
 pub struct TurnTokenUsageFact {
-    pub turn_id: String,
-    pub thread_id: String,
+    pub interaction_id: String,
+    pub chat_id: String,
     pub token_usage: TokenUsage,
 }
 
@@ -114,22 +114,22 @@ pub struct TurnProfile {
 
 #[derive(Clone)]
 pub struct TurnProfileFact {
-    pub turn_id: String,
+    pub interaction_id: String,
     pub profile: TurnProfile,
 }
 
 #[derive(Clone)]
 pub struct TurnCodexErrorFact {
-    pub(crate) turn_id: String,
-    pub(crate) thread_id: String,
+    pub(crate) interaction_id: String,
+    pub(crate) chat_id: String,
     pub(crate) error: TurnCodexError,
 }
 
 impl TurnCodexErrorFact {
-    pub fn from_codex_err(thread_id: String, turn_id: String, error: &CodexErr) -> Self {
+    pub fn from_codex_err(chat_id: String, interaction_id: String, error: &CodexErr) -> Self {
         Self {
-            turn_id,
-            thread_id,
+            interaction_id,
+            chat_id,
             error: TurnCodexError::from_codex_err(error),
         }
     }
@@ -138,7 +138,7 @@ impl TurnCodexErrorFact {
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CodexErrKind {
-    TurnAborted,
+    InteractionAborted,
     Stream,
     ContextWindowExceeded,
     ThreadNotFound,
@@ -194,7 +194,7 @@ impl TurnCodexError {
 impl From<&CodexErr> for CodexErrKind {
     fn from(error: &CodexErr) -> Self {
         match error {
-            CodexErr::TurnAborted => CodexErrKind::TurnAborted,
+            CodexErr::InteractionAborted => CodexErrKind::InteractionAborted,
             CodexErr::Stream(..) => CodexErrKind::Stream,
             CodexErr::ContextWindowExceeded => CodexErrKind::ContextWindowExceeded,
             CodexErr::ThreadNotFound(_) => CodexErrKind::ThreadNotFound,
@@ -266,8 +266,8 @@ pub enum TurnSteerRejectionReason {
 
 #[derive(Clone)]
 pub struct CodexTurnSteerEvent {
-    pub expected_turn_id: Option<String>,
-    pub accepted_turn_id: Option<String>,
+    pub expected_interaction_id: Option<String>,
+    pub accepted_interaction_id: Option<String>,
     pub num_input_images: usize,
     pub result: TurnSteerResult,
     pub rejection_reason: Option<TurnSteerRejectionReason>,
@@ -339,9 +339,9 @@ pub struct AppInvocation {
 #[derive(Clone)]
 pub struct SubAgentThreadStartedInput {
     pub session_id: String,
-    pub thread_id: String,
-    pub parent_thread_id: Option<String>,
-    pub forked_from_thread_id: Option<String>,
+    pub chat_id: String,
+    pub parent_chat_id: Option<String>,
+    pub forked_from_chat_id: Option<String>,
     pub product_client_id: String,
     pub client_name: String,
     pub client_version: String,
@@ -400,8 +400,8 @@ pub enum CompactionStatus {
 
 #[derive(Clone)]
 pub struct CodexCompactionEvent {
-    pub thread_id: String,
-    pub turn_id: String,
+    pub chat_id: String,
+    pub interaction_id: String,
     pub trigger: CompactionTrigger,
     pub reason: CompactionReason,
     pub implementation: CompactionImplementation,
@@ -431,8 +431,8 @@ pub enum GoalEventKind {
 
 #[derive(Clone)]
 pub struct CodexGoalEvent {
-    pub thread_id: String,
-    pub turn_id: Option<String>,
+    pub chat_id: String,
+    pub interaction_id: Option<String>,
     pub goal_id: String,
     pub event_kind: GoalEventKind,
     pub goal_status: datax_state::ThreadGoalStatus,

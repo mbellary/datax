@@ -80,8 +80,8 @@ impl Handler {
                 &turn,
                 CollabWaitingBeginEvent {
                     started_at_ms: now_unix_timestamp_ms(),
-                    sender_thread_id: session.thread_id,
-                    receiver_thread_ids: Vec::new(),
+                    sender_chat_id: session.chat_id,
+                    receiver_chat_ids: Vec::new(),
                     receiver_agents: Vec::new(),
                     call_id: call_id.clone(),
                 }
@@ -97,7 +97,7 @@ impl Handler {
             .send_event(
                 &turn,
                 CollabWaitingEndEvent {
-                    sender_thread_id: session.thread_id,
+                    sender_chat_id: session.chat_id,
                     call_id,
                     completed_at_ms: now_unix_timestamp_ms(),
                     agent_statuses: Vec::new(),

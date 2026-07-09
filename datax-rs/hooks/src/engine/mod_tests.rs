@@ -19,7 +19,7 @@ use datax_config::Sourced;
 use datax_config::TomlValue;
 use datax_plugin::PluginHookSource;
 use datax_plugin::PluginId;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::HookOutputEntry;
 use datax_protocol::protocol::HookOutputEntryKind;
 use datax_protocol::protocol::HookRunStatus;
@@ -225,8 +225,8 @@ with Path(r"{log_path}").open("a", encoding="utf-8") as handle:
     assert!(listed.hooks[0].is_managed);
     let cwd = cwd();
     let preview = engine.preview_pre_tool_use(&PreToolUseRequest {
-        session_id: ThreadId::new(),
-        turn_id: "turn-1".to_string(),
+        session_id: ChatId::new(),
+        interaction_id: "turn-1".to_string(),
         subagent: None,
         cwd: cwd.clone(),
         transcript_path: None,
@@ -242,8 +242,8 @@ with Path(r"{log_path}").open("a", encoding="utf-8") as handle:
 
     let outcome = engine
         .run_pre_tool_use(PreToolUseRequest {
-            session_id: ThreadId::new(),
-            turn_id: "turn-1".to_string(),
+            session_id: ChatId::new(),
+            interaction_id: "turn-1".to_string(),
             subagent: None,
             cwd,
             transcript_path: None,
@@ -314,8 +314,8 @@ async fn requirements_managed_hooks_execute_windows_command_override() {
 
     let outcome = engine
         .run_pre_tool_use(PreToolUseRequest {
-            session_id: ThreadId::new(),
-            turn_id: "turn-1".to_string(),
+            session_id: ChatId::new(),
+            interaction_id: "turn-1".to_string(),
             subagent: None,
             cwd: cwd(),
             transcript_path: None,
@@ -703,8 +703,8 @@ fn requirements_managed_hooks_load_when_managed_dir_is_missing() {
     assert!(engine.warnings().is_empty());
     let cwd = cwd();
     let preview = engine.preview_pre_tool_use(&PreToolUseRequest {
-        session_id: ThreadId::new(),
-        turn_id: "turn-1".to_string(),
+        session_id: ChatId::new(),
+        interaction_id: "turn-1".to_string(),
         subagent: None,
         cwd,
         transcript_path: None,
@@ -1109,8 +1109,8 @@ fn discovers_hooks_from_json_and_toml_in_the_same_layer() {
 
     let cwd = cwd();
     let preview = engine.preview_pre_tool_use(&PreToolUseRequest {
-        session_id: ThreadId::new(),
-        turn_id: "turn-1".to_string(),
+        session_id: ChatId::new(),
+        interaction_id: "turn-1".to_string(),
         subagent: None,
         cwd,
         transcript_path: None,
@@ -1199,8 +1199,8 @@ fn profile_user_layers_load_shared_hooks_json_once() {
     assert!(engine.warnings().is_empty());
     assert_eq!(engine.handlers.len(), 1);
     let preview = engine.preview_pre_tool_use(&PreToolUseRequest {
-        session_id: ThreadId::new(),
-        turn_id: "turn-1".to_string(),
+        session_id: ChatId::new(),
+        interaction_id: "turn-1".to_string(),
         subagent: None,
         cwd: cwd(),
         transcript_path: None,
@@ -1342,8 +1342,8 @@ print(json.dumps({
     );
 
     let preview = engine.preview_pre_tool_use(&PreToolUseRequest {
-        session_id: ThreadId::new(),
-        turn_id: "turn-1".to_string(),
+        session_id: ChatId::new(),
+        interaction_id: "turn-1".to_string(),
         subagent: None,
         cwd: cwd(),
         transcript_path: None,
@@ -1374,8 +1374,8 @@ print(json.dumps({
 
     let outcome = engine
         .run_pre_tool_use(PreToolUseRequest {
-            session_id: ThreadId::new(),
-            turn_id: "turn-1".to_string(),
+            session_id: ChatId::new(),
+            interaction_id: "turn-1".to_string(),
             subagent: None,
             cwd: cwd(),
             transcript_path: None,

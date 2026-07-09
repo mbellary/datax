@@ -2861,7 +2861,7 @@ async fn memories_reset_confirmation_sends_event_on_confirm() {
 #[tokio::test]
 async fn model_selection_popup_snapshot() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.2")).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.open_model_popup();
 
     let popup = render_bottom_popup(&chat, /*width*/ 80);
@@ -2871,7 +2871,7 @@ async fn model_selection_popup_snapshot() {
 #[tokio::test]
 async fn personality_selection_popup_snapshot() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.3-codex")).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.open_personality_popup();
 
     let popup = render_bottom_popup(&chat, /*width*/ 80);
@@ -2890,7 +2890,7 @@ async fn skills_menu_default_mentions_shortcut_snapshot() {
 #[tokio::test]
 async fn model_picker_hides_show_in_picker_false_models_from_cache() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("test-visible-model")).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     let preset = |slug: &str, show_in_picker: bool| ModelPreset {
         id: slug.to_string(),
         model: slug.to_string(),
@@ -3038,7 +3038,7 @@ async fn assert_reasoning_shortcuts_update_effort(
 ) {
     for key_event in key_events {
         let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
-        chat.thread_id = Some(ThreadId::new());
+        chat.chat_id = Some(ChatId::new());
         chat.set_reasoning_effort(Some(ReasoningEffortConfig::Medium));
 
         chat.handle_key_event(key_event);
@@ -3097,7 +3097,7 @@ async fn reasoning_down_shortcuts_lower_reasoning_effort() {
 #[tokio::test]
 async fn reasoning_shortcut_clears_armed_quit_shortcut() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.set_reasoning_effort(Some(ReasoningEffortConfig::Medium));
     chat.arm_quit_shortcut(key_hint::ctrl(KeyCode::Char('c')));
 
@@ -3118,7 +3118,7 @@ async fn reasoning_shortcut_clears_armed_quit_shortcut() {
 #[tokio::test]
 async fn reasoning_shortcut_is_ignored_with_model_popup_open() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.set_reasoning_effort(Some(ReasoningEffortConfig::Medium));
     chat.open_model_popup();
 
@@ -3262,7 +3262,7 @@ async fn feedback_good_result_consent_popup_includes_connectivity_diagnostics_fi
 #[tokio::test]
 async fn reasoning_popup_escape_returns_to_model_popup() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.open_model_popup();
 
     let preset = get_available_model(&chat, "gpt-5.4");

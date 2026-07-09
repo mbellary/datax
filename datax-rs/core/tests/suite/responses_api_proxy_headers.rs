@@ -111,12 +111,12 @@ async fn responses_api_parent_and_subagent_requests_include_identity_headers() -
     let child_window_id = child
         .header("x-codex-window-id")
         .ok_or_else(|| anyhow!("child request missing x-codex-window-id"))?;
-    let (parent_thread_id, parent_generation) = split_window_id(&parent_window_id)?;
-    let (child_thread_id, child_generation) = split_window_id(&child_window_id)?;
+    let (parent_chat_id, parent_generation) = split_window_id(&parent_window_id)?;
+    let (child_chat_id, child_generation) = split_window_id(&child_window_id)?;
 
     assert_eq!(parent_generation, 0);
     assert_eq!(child_generation, 0);
-    assert!(child_thread_id != parent_thread_id);
+    assert!(child_chat_id != parent_chat_id);
     assert_eq!(parent.header("x-openai-subagent"), None);
     assert_eq!(
         child.header("x-openai-subagent").as_deref(),
@@ -124,17 +124,17 @@ async fn responses_api_parent_and_subagent_requests_include_identity_headers() -
     );
     assert_eq!(
         child.header("x-codex-parent-thread-id").as_deref(),
-        Some(parent_thread_id)
+        Some(parent_chat_id)
     );
     let child_turn_metadata: serde_json::Value = serde_json::from_str(
         &child
             .header("x-codex-turn-metadata")
             .ok_or_else(|| anyhow!("child request missing x-codex-turn-metadata"))?,
     )?;
-    assert!(child_turn_metadata.get("forked_from_thread_id").is_none());
+    assert!(child_turn_metadata.get("forked_from_chat_id").is_none());
     assert_eq!(
-        child_turn_metadata["parent_thread_id"].as_str(),
-        Some(parent_thread_id)
+        child_turn_metadata["parent_chat_id"].as_str(),
+        Some(parent_chat_id)
     );
 
     Ok(())
@@ -173,14 +173,14 @@ async fn submit_turn_with_timeout(test: &TestCodex, prompt: &str) -> Result<()> 
         .await?;
 
     let turn_started = wait_for_event_result(test, "turn started", |event| {
-        matches!(event, EventMsg::TurnStarted(_))
+        matches!(event, EventMsg::InteractionStarted(_))
     })
     .await?;
-    let EventMsg::TurnStarted(turn_started) = turn_started else {
+    let EventMsg::InteractionStarted(turn_started) = turn_started else {
         unreachable!("event predicate only matches turn started events");
     };
     wait_for_event_result(test, "turn complete", |event| match event {
-        EventMsg::TurnComplete(event) => event.turn_id == turn_started.turn_id,
+        EventMsg::InteractionComplete(event) => event.interaction_id == turn_started.interaction_id,
         _ => false,
     })
     .await?;
@@ -254,8 +254,8 @@ fn request_header<'a>(req: &'a wiremock::Request, name: &str) -> Option<&'a str>
 }
 
 fn split_window_id(window_id: &str) -> Result<(&str, u64)> {
-    let (thread_id, generation) = window_id
+    let (chat_id, generation) = window_id
         .rsplit_once(':')
         .ok_or_else(|| anyhow!("invalid window id header: {window_id}"))?;
-    Ok((thread_id, generation.parse::<u64>()?))
+    Ok((chat_id, generation.parse::<u64>()?))
 }

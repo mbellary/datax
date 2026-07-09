@@ -501,7 +501,7 @@ fn maybe_wrap_shell_lc_with_snapshot_restores_explicit_override_precedence() {
 }
 
 #[test]
-fn maybe_wrap_shell_lc_with_snapshot_restores_codex_thread_id_from_env() {
+fn maybe_wrap_shell_lc_with_snapshot_restores_codex_chat_id_from_env() {
     let dir = tempdir().expect("create temp dir");
     let snapshot_path = dir.path().join("snapshot.sh");
     std::fs::write(

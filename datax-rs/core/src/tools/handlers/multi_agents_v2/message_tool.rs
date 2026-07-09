@@ -69,12 +69,12 @@ pub(crate) async fn handle_message_string_tool(
         call_id,
         ..
     } = invocation;
-    let receiver_thread_id = resolve_agent_target(&session, &turn, &target).await?;
+    let receiver_chat_id = resolve_agent_target(&session, &turn, &target).await?;
     let receiver_agent = session
         .services
         .agent_control
-        .ensure_agent_known(receiver_thread_id)
-        .map_err(|err| collab_agent_error(receiver_thread_id, err))?;
+        .ensure_agent_known(receiver_chat_id)
+        .map_err(|err| collab_agent_error(receiver_chat_id, err))?;
     if mode == MessageDeliveryMode::TriggerTurn
         && receiver_agent
             .agent_path
@@ -92,9 +92,9 @@ pub(crate) async fn handle_message_string_tool(
     session
         .services
         .agent_control
-        .ensure_v2_agent_loaded(resume_config, receiver_thread_id)
+        .ensure_v2_agent_loaded(resume_config, receiver_chat_id)
         .await
-        .map_err(|err| collab_agent_error(receiver_thread_id, err))?;
+        .map_err(|err| collab_agent_error(receiver_chat_id, err))?;
     let author = turn
         .session_source
         .get_agent_path()
@@ -104,9 +104,9 @@ pub(crate) async fn handle_message_string_tool(
     let result = session
         .services
         .agent_control
-        .send_inter_agent_communication(receiver_thread_id, mode.apply(communication))
+        .send_inter_agent_communication(receiver_chat_id, mode.apply(communication))
         .await
-        .map_err(|err| collab_agent_error(receiver_thread_id, err));
+        .map_err(|err| collab_agent_error(receiver_chat_id, err));
     result?;
     session
         .send_event(
@@ -114,7 +114,7 @@ pub(crate) async fn handle_message_string_tool(
             SubAgentActivityEvent {
                 event_id: call_id,
                 occurred_at_ms: now_unix_timestamp_ms(),
-                agent_thread_id: receiver_thread_id,
+                agent_chat_id: receiver_chat_id,
                 agent_path: receiver_agent_path,
                 kind: SubAgentActivityKind::Interacted,
             }

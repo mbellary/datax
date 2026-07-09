@@ -79,7 +79,7 @@ pub(crate) async fn run_codex_thread_interactive(
     let (tx_sub, rx_sub) = async_channel::bounded(SUBMISSION_CHANNEL_CAPACITY);
     let (tx_ops, rx_ops) = async_channel::bounded(SUBMISSION_CHANNEL_CAPACITY);
     let conversation_history = initial_history.unwrap_or(InitialHistory::New);
-    let forked_from_thread_id = conversation_history.forked_from_id();
+    let forked_from_chat_id = conversation_history.forked_from_id();
     let user_instructions = LoadedUserInstructions {
         instructions: parent_session.user_instructions().await,
         warnings: Vec::new(),
@@ -100,8 +100,8 @@ pub(crate) async fn run_codex_thread_interactive(
         extensions: Arc::clone(&parent_session.services.extensions),
         conversation_history,
         session_source: SessionSource::SubAgent(subagent_source.clone()),
-        forked_from_thread_id,
-        parent_thread_id: Some(parent_session.thread_id),
+        forked_from_chat_id,
+        parent_chat_id: Some(parent_session.chat_id),
         thread_source: Some(ThreadSource::Subagent),
         agent_control: parent_session.services.agent_control.clone(),
         dynamic_tools: Vec::new(),
@@ -131,8 +131,8 @@ pub(crate) async fn run_codex_thread_interactive(
         &parent_session.services.analytics_events_client,
         client_metadata,
         codex.session.session_id(),
-        codex.session.thread_id,
-        Some(parent_session.thread_id),
+        codex.session.chat_id,
+        Some(parent_session.chat_id),
         thread_config,
         subagent_source,
     );
@@ -230,7 +230,7 @@ pub(crate) async fn run_codex_thread_one_shot(
         while let Ok(event) = io_for_bridge.next_event().await {
             let should_shutdown = matches!(
                 event.msg,
-                EventMsg::TurnComplete(_) | EventMsg::TurnAborted(_)
+                EventMsg::InteractionComplete(_) | EventMsg::InteractionAborted(_)
             );
             let _ = tx_bridge.send(event).await;
             if should_shutdown {
@@ -413,7 +413,7 @@ async fn shutdown_delegate(codex: &Codex) {
         while let Ok(event) = codex.next_event().await {
             if matches!(
                 event.msg,
-                EventMsg::TurnAborted(_) | EventMsg::TurnComplete(_)
+                EventMsg::InteractionAborted(_) | EventMsg::InteractionComplete(_)
             ) {
                 break;
             }
@@ -455,7 +455,7 @@ async fn forward_ops(
 /// Handle an ExecApprovalRequest by consulting the parent session and replying.
 async fn handle_exec_approval(
     codex: &Codex,
-    turn_id: String,
+    interaction_id: String,
     parent_session: &Arc<Session>,
     parent_ctx: &Arc<TurnContext>,
     event: ExecApprovalRequestEvent,
@@ -531,7 +531,7 @@ async fn handle_exec_approval(
     let _ = codex
         .submit(Op::ExecApproval {
             id: approval_id_for_op,
-            turn_id: Some(turn_id),
+            interaction_id: Some(interaction_id),
             decision,
         })
         .await;

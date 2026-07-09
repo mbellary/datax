@@ -1,4 +1,4 @@
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 
 use crate::AgentGraphStoreResult;
 use crate::ThreadSpawnEdgeStatus;
@@ -10,12 +10,12 @@ use crate::ThreadSpawnEdgeStatus;
 pub trait AgentGraphStore: Send + Sync {
     /// Insert or replace the directional parent/child edge for a spawned thread.
     ///
-    /// `child_thread_id` has at most one persisted parent. Re-inserting the same child should
+    /// `child_chat_id` has at most one persisted parent. Re-inserting the same child should
     /// update both the parent and status to match the supplied values.
     fn upsert_thread_spawn_edge(
         &self,
-        parent_thread_id: ThreadId,
-        child_thread_id: ThreadId,
+        parent_chat_id: ChatId,
+        child_chat_id: ChatId,
         status: ThreadSpawnEdgeStatus,
     ) -> impl std::future::Future<Output = AgentGraphStoreResult<()>> + Send;
 
@@ -24,7 +24,7 @@ pub trait AgentGraphStore: Send + Sync {
     /// Implementations should treat missing children as a successful no-op.
     fn set_thread_spawn_edge_status(
         &self,
-        child_thread_id: ThreadId,
+        child_chat_id: ChatId,
         status: ThreadSpawnEdgeStatus,
     ) -> impl std::future::Future<Output = AgentGraphStoreResult<()>> + Send;
 
@@ -35,9 +35,9 @@ pub trait AgentGraphStore: Send + Sync {
     /// that may be added by a future store implementation.
     fn list_thread_spawn_children(
         &self,
-        parent_thread_id: ThreadId,
+        parent_chat_id: ChatId,
         status_filter: Option<ThreadSpawnEdgeStatus>,
-    ) -> impl std::future::Future<Output = AgentGraphStoreResult<Vec<ThreadId>>> + Send;
+    ) -> impl std::future::Future<Output = AgentGraphStoreResult<Vec<ChatId>>> + Send;
 
     /// List spawned descendants breadth-first by depth, then by thread id.
     ///
@@ -47,7 +47,7 @@ pub trait AgentGraphStore: Send + Sync {
     /// edge regardless of status.
     fn list_thread_spawn_descendants(
         &self,
-        root_thread_id: ThreadId,
+        root_chat_id: ChatId,
         status_filter: Option<ThreadSpawnEdgeStatus>,
-    ) -> impl std::future::Future<Output = AgentGraphStoreResult<Vec<ThreadId>>> + Send;
+    ) -> impl std::future::Future<Output = AgentGraphStoreResult<Vec<ChatId>>> + Send;
 }

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 use datax_install_context::InstallContext;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_rollout::RolloutConfig;
 use datax_rollout::find_thread_names_by_ids;
 use datax_rollout::first_rollout_content_match_snippet;
@@ -98,7 +98,7 @@ pub(super) async fn search_threads(
         cwd_filters: None,
         archived: params.archived,
         search_term: None,
-        parent_thread_id: None,
+        parent_chat_id: None,
         use_state_db_only: state_db.is_some(),
     };
     let mut remaining_rollouts = matching_rollouts;
@@ -192,7 +192,7 @@ fn cursor_from_thread_search_item(
             .or(item.item.created_at.as_deref())?,
     };
     match sort_key {
-        ThreadSortKey::RecencyAt => parse_cursor(&format!("{timestamp}|{}", item.item.thread_id?)),
+        ThreadSortKey::RecencyAt => parse_cursor(&format!("{timestamp}|{}", item.item.chat_id?)),
         ThreadSortKey::CreatedAt | ThreadSortKey::UpdatedAt => parse_cursor(timestamp),
     }
 }
@@ -201,31 +201,31 @@ async fn set_thread_search_result_names(
     store: &LocalThreadStore,
     items: &mut [StoredThreadSearchResult],
 ) {
-    let thread_ids = items
+    let chat_ids = items
         .iter()
-        .map(|item| item.thread.thread_id)
+        .map(|item| item.thread.chat_id)
         .collect::<HashSet<_>>();
-    let mut names = HashMap::<ThreadId, String>::with_capacity(thread_ids.len());
+    let mut names = HashMap::<ChatId, String>::with_capacity(chat_ids.len());
     if let Some(state_db_ctx) = store.state_db().await {
-        for &thread_id in &thread_ids {
-            let Ok(Some(metadata)) = state_db_ctx.get_thread(thread_id).await else {
+        for &chat_id in &chat_ids {
+            let Ok(Some(metadata)) = state_db_ctx.get_thread(chat_id).await else {
                 continue;
             };
             if let Some(title) = distinct_thread_metadata_title(&metadata) {
-                names.insert(thread_id, title);
+                names.insert(chat_id, title);
             }
         }
     }
-    if names.len() < thread_ids.len()
+    if names.len() < chat_ids.len()
         && let Ok(legacy_names) =
-            find_thread_names_by_ids(store.config.codex_home.as_path(), &thread_ids).await
+            find_thread_names_by_ids(store.config.codex_home.as_path(), &chat_ids).await
     {
-        for (thread_id, title) in legacy_names {
-            names.entry(thread_id).or_insert(title);
+        for (chat_id, title) in legacy_names {
+            names.entry(chat_id).or_insert(title);
         }
     }
     for item in items {
-        if let Some(title) = names.get(&item.thread.thread_id).cloned() {
+        if let Some(title) = names.get(&item.thread.chat_id).cloned() {
             set_thread_name_from_title(&mut item.thread, title);
         }
     }

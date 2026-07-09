@@ -48,7 +48,7 @@ pub(super) async fn maybe_record_current_time_reminder(
     let current_time = sess
         .services
         .time_provider
-        .current_time(sess.thread_id)
+        .current_time(sess.chat_id)
         .await
         .map_err(|err| CodexErr::Fatal(format!("failed to read current time: {err:#}")))?;
 

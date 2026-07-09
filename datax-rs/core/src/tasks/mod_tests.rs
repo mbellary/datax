@@ -7,7 +7,7 @@ use datax_otel::MetricsConfig;
 use datax_otel::SessionTelemetry;
 use datax_otel::TURN_MEMORY_METRIC;
 use datax_otel::TURN_NETWORK_PROXY_METRIC;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::SessionSource;
 use opentelemetry::KeyValue;
 use opentelemetry_sdk::metrics::InMemoryMetricExporter;
@@ -26,7 +26,7 @@ fn test_session_telemetry() -> SessionTelemetry {
     )
     .expect("in-memory metrics client");
     SessionTelemetry::new(
-        ThreadId::new(),
+        ChatId::new(),
         "gpt-5.4",
         "gpt-5.4",
         /*account_id*/ None,

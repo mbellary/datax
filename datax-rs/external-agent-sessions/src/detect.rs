@@ -112,7 +112,7 @@ pub fn detect_recent_sessions(
 mod tests {
     use super::*;
     use crate::ledger::record_imported_session;
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use serde_json::Value as JsonValue;
     use std::fs::FileTimes;
     use std::fs::OpenOptions;
@@ -317,7 +317,7 @@ mod tests {
 
         assert_eq!(sessions, expected);
         for session in sessions {
-            record_imported_session(root.path(), &session.path, ThreadId::new())
+            record_imported_session(root.path(), &session.path, ChatId::new())
                 .expect("record import");
         }
 
@@ -325,7 +325,7 @@ mod tests {
 
         assert_eq!(sessions, vec![oldest_session.clone()]);
         for session in sessions {
-            record_imported_session(root.path(), &session.path, ThreadId::new())
+            record_imported_session(root.path(), &session.path, ChatId::new())
                 .expect("record import");
         }
 
@@ -351,7 +351,7 @@ mod tests {
 
         assert_eq!(sessions, expected);
         for session in sessions {
-            record_imported_session(root.path(), &session.path, ThreadId::new())
+            record_imported_session(root.path(), &session.path, ChatId::new())
                 .expect("record import");
         }
 
@@ -372,7 +372,7 @@ mod tests {
             &[record("user", "hello there", project_root.as_path())],
         );
 
-        record_imported_session(root.path(), &session_path, ThreadId::new())
+        record_imported_session(root.path(), &session_path, ChatId::new())
             .expect("record import");
 
         assert!(
@@ -393,7 +393,7 @@ mod tests {
             "session.jsonl",
             &[record("user", "hello there", project_root.as_path())],
         );
-        record_imported_session(root.path(), &session_path, ThreadId::new())
+        record_imported_session(root.path(), &session_path, ChatId::new())
             .expect("record import");
 
         std::fs::write(

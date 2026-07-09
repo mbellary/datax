@@ -158,7 +158,7 @@ impl AnalyticsEventsQueue {
         if emitted.len() >= ANALYTICS_EVENT_DEDUPE_MAX_KEYS {
             emitted.clear();
         }
-        emitted.insert((tracking.turn_id.clone(), connector_id.clone()))
+        emitted.insert((tracking.interaction_id.clone(), connector_id.clone()))
     }
 
     pub(crate) fn should_enqueue_plugin_used(
@@ -173,7 +173,7 @@ impl AnalyticsEventsQueue {
         if emitted.len() >= ANALYTICS_EVENT_DEDUPE_MAX_KEYS {
             emitted.clear();
         }
-        emitted.insert((tracking.turn_id.clone(), plugin.plugin_id.as_key()))
+        emitted.insert((tracking.interaction_id.clone(), plugin.plugin_id.as_key()))
     }
 }
 

@@ -94,7 +94,7 @@ fn log_retry(
         }
         ResponsesStreamRequest::RemoteCompactionV2 => {
             warn!(
-                turn_id = %turn_context.sub_id,
+                interaction_id = %turn_context.sub_id,
                 retries,
                 max_retries,
                 compact_error = %err,

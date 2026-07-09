@@ -27,7 +27,7 @@ pub(super) struct InputQueueState {
     /// stays in lockstep with `queued_user_messages`, with missing entries
     /// treated as user-message text.
     pub(super) queued_user_message_history_records: VecDeque<UserMessageHistoryRecord>,
-    /// A user turn has been submitted to core, but `TurnStarted` has not arrived yet.
+    /// A user turn has been submitted to core, but `InteractionStarted` has not arrived yet.
     pub(super) user_turn_pending_start: bool,
     /// User messages that tried to steer a non-regular turn and must be retried first.
     pub(super) rejected_steers_queue: VecDeque<UserMessage>,

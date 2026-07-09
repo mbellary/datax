@@ -5,16 +5,16 @@ use core_test_support::load_default_config_for_test;
 use core_test_support::wait_for_event;
 use datax_core::NewThread;
 use datax_login::CodexAuth;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::ModeKind;
 use datax_protocol::config_types::ReasoningSummary;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::InitialHistory;
 use datax_protocol::protocol::ResumedHistory;
 use datax_protocol::protocol::RolloutItem;
-use datax_protocol::protocol::TurnCompleteEvent;
+use datax_protocol::protocol::InteractionCompleteEvent;
 use datax_protocol::protocol::TurnContextItem;
-use datax_protocol::protocol::TurnStartedEvent;
+use datax_protocol::protocol::InteractionStartedEvent;
 use datax_protocol::protocol::UserMessageEvent;
 use datax_protocol::protocol::WarningEvent;
 use tempfile::TempDir;
@@ -24,9 +24,9 @@ fn resume_history(
     previous_model: &str,
     rollout_path: &std::path::Path,
 ) -> InitialHistory {
-    let turn_id = "resume-warning-seed-turn".to_string();
+    let interaction_id = "resume-warning-seed-turn".to_string();
     let turn_ctx = TurnContextItem {
-        turn_id: Some(turn_id.clone()),
+        interaction_id: Some(interaction_id.clone()),
         cwd: config.cwd.clone(),
         workspace_roots: None,
         current_date: None,
@@ -50,10 +50,10 @@ fn resume_history(
     };
 
     InitialHistory::Resumed(ResumedHistory {
-        conversation_id: ThreadId::default(),
+        conversation_id: ChatId::default(),
         history: vec![
-            RolloutItem::EventMsg(EventMsg::TurnStarted(TurnStartedEvent {
-                turn_id: turn_id.clone(),
+            RolloutItem::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
+                interaction_id: interaction_id.clone(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: None,
@@ -68,8 +68,8 @@ fn resume_history(
                 ..Default::default()
             })),
             RolloutItem::TurnContext(turn_ctx),
-            RolloutItem::EventMsg(EventMsg::TurnComplete(TurnCompleteEvent {
-                turn_id,
+            RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+                interaction_id,
                 last_agent_message: None,
                 completed_at: None,
                 duration_ms: None,
@@ -131,7 +131,7 @@ async fn emits_warning_when_resumed_model_differs() {
     assert!(message.contains("previous-model"));
     assert!(message.contains("current-model"));
 
-    // Drain the TurnComplete/Shutdown window to avoid leaking tasks between tests.
+    // Drain the InteractionComplete/Shutdown window to avoid leaking tasks between tests.
     // The warning is emitted during initialization, so a short sleep is sufficient.
     tokio::time::sleep(Duration::from_millis(50)).await;
 }

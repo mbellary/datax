@@ -174,7 +174,7 @@ async fn submit_turn(
 
 async fn wait_for_completion(test: &TestCodex) {
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 }
@@ -186,7 +186,7 @@ async fn expect_request_permissions_event(
     let event = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::RequestPermissions(_) | EventMsg::TurnComplete(_)
+            EventMsg::RequestPermissions(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await;
@@ -196,7 +196,7 @@ async fn expect_request_permissions_event(
             assert_eq!(request.call_id, expected_call_id);
             request.permissions
         }
-        EventMsg::TurnComplete(_) => panic!("expected request_permissions before completion"),
+        EventMsg::InteractionComplete(_) => panic!("expected request_permissions before completion"),
         other => panic!("unexpected event: {other:?}"),
     }
 }
@@ -294,7 +294,7 @@ async fn approved_folder_write_request_permissions_unblocks_later_exec_without_s
     let completion_event = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
+            EventMsg::ExecApprovalRequest(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await;
@@ -302,12 +302,12 @@ async fn approved_folder_write_request_permissions_unblocks_later_exec_without_s
         test.codex
             .submit(Op::ExecApproval {
                 id: approval.effective_approval_id(),
-                turn_id: None,
+                interaction_id: None,
                 decision: ReviewDecision::Approved,
             })
             .await?;
         wait_for_event(&test.codex, |event| {
-            matches!(event, EventMsg::TurnComplete(_))
+            matches!(event, EventMsg::InteractionComplete(_))
         })
         .await;
     }
@@ -465,12 +465,12 @@ async fn apply_patch_after_request_permissions(strict_auto_review: bool) -> Resu
         let event = wait_for_event(&test.codex, |event| {
             matches!(
                 event,
-                EventMsg::ApplyPatchApprovalRequest(_) | EventMsg::TurnComplete(_)
+                EventMsg::ApplyPatchApprovalRequest(_) | EventMsg::InteractionComplete(_)
             )
         })
         .await;
         match event {
-            EventMsg::TurnComplete(_) => {}
+            EventMsg::InteractionComplete(_) => {}
             EventMsg::ApplyPatchApprovalRequest(approval) => {
                 panic!(
                     "unexpected apply_patch approval request after granted permissions: {approval:?}",

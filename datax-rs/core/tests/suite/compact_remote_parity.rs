@@ -617,7 +617,7 @@ async fn submit_user_input(codex: &datax_core::CodexThread, items: Vec<UserInput
 }
 
 async fn wait_for_turn_complete(codex: &datax_core::CodexThread) {
-    wait_for_event(codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 }
 
 fn user_input_for_step(scenario_name: &str, idx: usize, step: Step) -> Vec<UserInput> {

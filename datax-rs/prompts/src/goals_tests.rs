@@ -1,11 +1,11 @@
 use super::*;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::ThreadGoalStatus;
 
 #[test]
 fn continuation_prompt_allows_complete_and_strict_blocked_updates() {
     let prompt = continuation_prompt(&ThreadGoal {
-        thread_id: ThreadId::new(),
+        chat_id: ChatId::new(),
         objective: "finish the stack".to_string(),
         status: ThreadGoalStatus::Active,
         token_budget: Some(10_000),
@@ -32,7 +32,7 @@ fn continuation_prompt_allows_complete_and_strict_blocked_updates() {
 #[test]
 fn budget_limit_prompt_steers_model_to_wrap_up_without_pausing() {
     let prompt = budget_limit_prompt(&ThreadGoal {
-        thread_id: ThreadId::new(),
+        chat_id: ChatId::new(),
         objective: "finish the stack".to_string(),
         status: ThreadGoalStatus::BudgetLimited,
         token_budget: Some(10_000),
@@ -54,7 +54,7 @@ fn budget_limit_prompt_steers_model_to_wrap_up_without_pausing() {
 #[test]
 fn objective_updated_prompt_supersedes_previous_goal_context() {
     let prompt = objective_updated_prompt(&ThreadGoal {
-        thread_id: ThreadId::new(),
+        chat_id: ChatId::new(),
         objective: "finish the revised stack".to_string(),
         status: ThreadGoalStatus::Active,
         token_budget: Some(10_000),
@@ -83,7 +83,7 @@ fn goal_prompts_escape_objective_delimiters() {
     let escaped_objective = escape_xml_text(objective);
 
     let continuation = continuation_prompt(&ThreadGoal {
-        thread_id: ThreadId::new(),
+        chat_id: ChatId::new(),
         objective: objective.to_string(),
         status: ThreadGoalStatus::Active,
         token_budget: None,
@@ -93,7 +93,7 @@ fn goal_prompts_escape_objective_delimiters() {
         updated_at: 2,
     });
     let budget_limit = budget_limit_prompt(&ThreadGoal {
-        thread_id: ThreadId::new(),
+        chat_id: ChatId::new(),
         objective: objective.to_string(),
         status: ThreadGoalStatus::BudgetLimited,
         token_budget: Some(10_000),
@@ -103,7 +103,7 @@ fn goal_prompts_escape_objective_delimiters() {
         updated_at: 2,
     });
     let objective_updated = objective_updated_prompt(&ThreadGoal {
-        thread_id: ThreadId::new(),
+        chat_id: ChatId::new(),
         objective: objective.to_string(),
         status: ThreadGoalStatus::Active,
         token_budget: Some(10_000),

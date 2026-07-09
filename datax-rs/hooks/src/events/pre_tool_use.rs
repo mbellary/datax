@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::HookCompletedEvent;
 use datax_protocol::protocol::HookEventName;
 use datax_protocol::protocol::HookOutputEntry;
@@ -21,8 +21,8 @@ use crate::schema::SubagentCommandInputFields;
 
 #[derive(Debug, Clone)]
 pub struct PreToolUseRequest {
-    pub session_id: ThreadId,
-    pub turn_id: String,
+    pub session_id: ChatId,
+    pub interaction_id: String,
     pub subagent: Option<common::SubagentHookContext>,
     pub cwd: AbsolutePathBuf,
     pub transcript_path: Option<PathBuf>,
@@ -94,7 +94,7 @@ pub(crate) async fn run(
         Err(error) => {
             let hook_events = common::serialization_failure_hook_events_for_tool_use(
                 matched,
-                Some(request.turn_id.clone()),
+                Some(request.interaction_id.clone()),
                 format!("failed to serialize pre tool use hook input: {error}"),
                 &request.tool_use_id,
             );
@@ -107,7 +107,7 @@ pub(crate) async fn run(
         matched,
         input_json,
         request.cwd.as_path(),
-        Some(request.turn_id.clone()),
+        Some(request.interaction_id.clone()),
         parse_completed,
     )
     .await;
@@ -171,7 +171,7 @@ fn command_input_json(request: &PreToolUseRequest) -> Result<String, serde_json:
     let subagent = SubagentCommandInputFields::from(request.subagent.as_ref());
     serde_json::to_string(&PreToolUseCommandInput {
         session_id: request.session_id.to_string(),
-        turn_id: request.turn_id.clone(),
+        interaction_id: request.interaction_id.clone(),
         agent_id: subagent.agent_id,
         agent_type: subagent.agent_type,
         transcript_path: crate::schema::NullableString::from_path(request.transcript_path.clone()),
@@ -188,7 +188,7 @@ fn command_input_json(request: &PreToolUseRequest) -> Result<String, serde_json:
 fn parse_completed(
     handler: &ConfiguredHandler,
     run_result: CommandRunResult,
-    turn_id: Option<String>,
+    interaction_id: Option<String>,
 ) -> dispatcher::ParsedHandler<PreToolUseHandlerData> {
     let mut entries = Vec::new();
     let mut status = HookRunStatus::Completed;
@@ -286,7 +286,7 @@ fn parse_completed(
     }
 
     let completed = HookCompletedEvent {
-        turn_id,
+        interaction_id,
         run: dispatcher::completed_summary(handler, &run_result, status, entries),
     };
 
@@ -314,7 +314,7 @@ fn serialization_failure_outcome(hook_events: Vec<HookCompletedEvent>) -> PreToo
 
 #[cfg(test)]
 mod tests {
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use datax_protocol::protocol::HookEventName;
     use datax_protocol::protocol::HookOutputEntry;
     use datax_protocol::protocol::HookOutputEntryKind;
@@ -729,7 +729,7 @@ mod tests {
 
         let completed = common::serialization_failure_hook_events_for_tool_use(
             vec![handler()],
-            Some(request.turn_id.clone()),
+            Some(request.interaction_id.clone()),
             "serialize failed".into(),
             &request.tool_use_id,
         );
@@ -766,8 +766,8 @@ mod tests {
 
     fn request_for_tool_use(tool_use_id: &str) -> super::PreToolUseRequest {
         super::PreToolUseRequest {
-            session_id: ThreadId::new(),
-            turn_id: "turn-1".to_string(),
+            session_id: ChatId::new(),
+            interaction_id: "turn-1".to_string(),
             subagent: None,
             cwd: test_path_buf("/tmp").abs(),
             transcript_path: None,

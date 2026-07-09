@@ -8,7 +8,7 @@ use datax_app_server_protocol::ChatActiveFlag;
 use datax_app_server_protocol::ChatStatus;
 use datax_app_server_protocol::ChatStatusChangedNotification;
 use datax_app_server_protocol::ServerNotification::*;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -132,7 +132,7 @@ impl ThreadWatchManager {
         self.state
             .lock()
             .await
-            .runtime_by_thread_id
+            .runtime_by_chat_id
             .values()
             .filter(|runtime| runtime.running)
             .count()
@@ -220,7 +220,7 @@ impl ThreadWatchManager {
             let mut state = self.state.lock().await;
             let notification = mutate(&mut state);
             let running_turn_count = state
-                .runtime_by_thread_id
+                .runtime_by_chat_id
                 .values()
                 .filter(|runtime| runtime.running)
                 .count();
@@ -237,7 +237,7 @@ impl ThreadWatchManager {
         }
     }
 
-    pub(crate) async fn subscribe(&self, chat_id: ThreadId) -> Option<watch::Receiver<ChatStatus>> {
+    pub(crate) async fn subscribe(&self, chat_id: ChatId) -> Option<watch::Receiver<ChatStatus>> {
         Some(self.state.lock().await.subscribe(chat_id.to_string()))
     }
 
@@ -288,8 +288,8 @@ pub(crate) fn resolve_thread_status(status: ChatStatus, has_in_progress_turn: bo
 
 #[derive(Default)]
 struct ThreadWatchState {
-    runtime_by_thread_id: HashMap<String, RuntimeFacts>,
-    status_watcher_by_thread_id: HashMap<String, watch::Sender<ChatStatus>>,
+    runtime_by_chat_id: HashMap<String, RuntimeFacts>,
+    status_watcher_by_chat_id: HashMap<String, watch::Sender<ChatStatus>>,
 }
 
 impl ThreadWatchState {
@@ -300,7 +300,7 @@ impl ThreadWatchState {
     ) -> Option<ChatStatusChangedNotification> {
         let previous_status = self.status_for(&chat_id);
         let runtime = self
-            .runtime_by_thread_id
+            .runtime_by_chat_id
             .entry(chat_id.clone())
             .or_default();
         runtime.is_loaded = true;
@@ -314,7 +314,7 @@ impl ThreadWatchState {
 
     fn remove_thread(&mut self, chat_id: &str) -> Option<ChatStatusChangedNotification> {
         let previous_status = self.status_for(chat_id);
-        self.runtime_by_thread_id.remove(chat_id);
+        self.runtime_by_chat_id.remove(chat_id);
         self.update_status_watcher(chat_id, &ChatStatus::NotLoaded);
         if previous_status.is_some() && previous_status != Some(ChatStatus::NotLoaded) {
             Some(ChatStatusChangedNotification {
@@ -336,7 +336,7 @@ impl ThreadWatchState {
     {
         let previous_status = self.status_for(chat_id);
         let runtime = self
-            .runtime_by_thread_id
+            .runtime_by_chat_id
             .entry(chat_id.to_string())
             .or_default();
         runtime.is_loaded = true;
@@ -346,7 +346,7 @@ impl ThreadWatchState {
     }
 
     fn status_for(&self, chat_id: &str) -> Option<ChatStatus> {
-        self.runtime_by_thread_id
+        self.runtime_by_chat_id
             .get(chat_id)
             .map(loaded_thread_status)
     }
@@ -358,7 +358,7 @@ impl ThreadWatchState {
     fn subscribe(&mut self, chat_id: String) -> watch::Receiver<ChatStatus> {
         let status = self.loaded_status_for_thread(&chat_id);
         let sender = self
-            .status_watcher_by_thread_id
+            .status_watcher_by_chat_id
             .entry(chat_id)
             .or_insert_with(|| watch::channel(status.clone()).0);
         sender.subscribe()
@@ -370,7 +370,7 @@ impl ThreadWatchState {
     }
 
     fn update_status_watcher(&mut self, chat_id: &str, status: &ChatStatus) {
-        let remove_watcher = if let Some(sender) = self.status_watcher_by_thread_id.get(chat_id) {
+        let remove_watcher = if let Some(sender) = self.status_watcher_by_chat_id.get(chat_id) {
             let status = status.clone();
             let _ = sender.send_if_modified(|current| {
                 if *current == status {
@@ -385,7 +385,7 @@ impl ThreadWatchState {
             false
         };
         if remove_watcher {
-            self.status_watcher_by_thread_id.remove(chat_id);
+            self.status_watcher_by_chat_id.remove(chat_id);
         }
     }
 
@@ -799,16 +799,16 @@ mod tests {
                 datax_app_server_protocol::SessionSource::AppServer,
             ))
             .await;
-        let interactive_thread_id = ThreadId::from_string(INTERACTIVE_THREAD_ID)
+        let interactive_chat_id = ChatId::from_string(INTERACTIVE_THREAD_ID)
             .expect("interactive thread id should parse");
-        let non_interactive_thread_id = ThreadId::from_string(NON_INTERACTIVE_THREAD_ID)
+        let non_interactive_chat_id = ChatId::from_string(NON_INTERACTIVE_THREAD_ID)
             .expect("non-interactive thread id should parse");
         let mut interactive_rx = manager
-            .subscribe(interactive_thread_id)
+            .subscribe(interactive_chat_id)
             .await
             .expect("interactive status watcher should subscribe");
         let mut non_interactive_rx = manager
-            .subscribe(non_interactive_thread_id)
+            .subscribe(non_interactive_chat_id)
             .await
             .expect("non-interactive status watcher should subscribe");
 

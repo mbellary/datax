@@ -4,7 +4,7 @@ use datax_app_server_protocol::Message;
 use datax_app_server_protocol::ServerNotification;
 use datax_core::config::ConfigBuilder;
 use datax_protocol::SessionId;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::models::PermissionProfile;
 use datax_protocol::permissions::FileSystemAccessMode;
 use datax_protocol::permissions::FileSystemPath;
@@ -209,9 +209,9 @@ async fn config_summary_entries_include_runtime_workspace_roots() {
 
     let session_configured_event = SessionConfiguredEvent {
         session_id: SessionId::new(),
-        thread_id: ThreadId::new(),
+        chat_id: ChatId::new(),
         forked_from_id: None,
-        parent_thread_id: None,
+        parent_chat_id: None,
         thread_source: None,
         thread_name: None,
         model: "gpt-5.4".to_string(),

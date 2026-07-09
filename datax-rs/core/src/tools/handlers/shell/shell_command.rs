@@ -1,4 +1,4 @@
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::models::ShellCommandToolCallParams;
 use datax_tools::ShellCommandBackendConfig;
 use datax_tools::ToolName;
@@ -86,7 +86,7 @@ impl ShellCommandHandler {
         params: &ShellCommandToolCallParams,
         session: &crate::session::session::Session,
         turn_context: &TurnContext,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         allow_login_shell: bool,
     ) -> Result<ExecParams, FunctionCallError> {
         let shell = session.user_shell();
@@ -102,7 +102,7 @@ impl ShellCommandHandler {
             capture_policy: ExecCapturePolicy::ShellTool,
             env: create_env(
                 &turn_context.config.permissions.shell_environment_policy,
-                Some(thread_id),
+                Some(chat_id),
             ),
             network: turn_context.network.clone(),
             network_environment_id: turn_context
@@ -191,7 +191,7 @@ impl ShellCommandHandler {
             &params,
             session.as_ref(),
             turn.as_ref(),
-            session.thread_id,
+            session.chat_id,
             turn.config.permissions.allow_login_shell,
         )?;
         let shell_type = Some(session.user_shell().shell_type);

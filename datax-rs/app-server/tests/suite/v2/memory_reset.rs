@@ -5,7 +5,7 @@ use chrono::Utc;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::MemoryResetResponse;
 use datax_app_server_protocol::RequestId;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::SessionSource;
 use datax_state::Stage1JobClaimOutcome;
 use datax_state::StateRuntime;
@@ -68,10 +68,10 @@ async fn memory_reset_clears_memory_files_and_rows_preserves_threads() -> Result
     Ok(())
 }
 
-async fn seed_stage1_output(state_db: &Arc<StateRuntime>, codex_home: &Path) -> Result<ThreadId> {
+async fn seed_stage1_output(state_db: &Arc<StateRuntime>, codex_home: &Path) -> Result<ChatId> {
     let now = Utc::now();
-    let chat_id = ThreadId::from_string(&Uuid::new_v4().to_string())?;
-    let worker_id = ThreadId::from_string(&Uuid::new_v4().to_string())?;
+    let chat_id = ChatId::from_string(&Uuid::new_v4().to_string())?;
+    let worker_id = ChatId::from_string(&Uuid::new_v4().to_string())?;
     let mut builder = ThreadMetadataBuilder::new(
         chat_id,
         codex_home.join("sessions").join("test.jsonl"),

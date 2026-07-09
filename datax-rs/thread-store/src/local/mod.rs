@@ -12,7 +12,7 @@ mod update_thread_metadata;
 #[cfg(test)]
 mod test_support;
 
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_rollout::RolloutRecorder;
 use datax_rollout::StateDbHandle;
 use std::collections::HashMap;
@@ -57,7 +57,7 @@ use crate::UpdateThreadMetadataParams;
 #[derive(Clone)]
 pub struct LocalThreadStore {
     pub(super) config: LocalThreadStoreConfig,
-    live_recorders: Arc<Mutex<HashMap<ThreadId, RolloutRecorder>>>,
+    live_recorders: Arc<Mutex<HashMap<ChatId, RolloutRecorder>>>,
     state_db: Option<StateDbHandle>,
 }
 
@@ -123,29 +123,29 @@ impl LocalThreadStore {
     }
 
     /// Return the live local rollout path for legacy local-only code paths.
-    pub async fn live_rollout_path(&self, thread_id: ThreadId) -> ThreadStoreResult<PathBuf> {
-        live_writer::rollout_path(self, thread_id).await
+    pub async fn live_rollout_path(&self, chat_id: ChatId) -> ThreadStoreResult<PathBuf> {
+        live_writer::rollout_path(self, chat_id).await
     }
 
     pub(super) async fn live_recorder(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
     ) -> ThreadStoreResult<RolloutRecorder> {
         self.live_recorders
             .lock()
             .await
-            .get(&thread_id)
+            .get(&chat_id)
             .cloned()
-            .ok_or(ThreadStoreError::ThreadNotFound { thread_id })
+            .ok_or(ThreadStoreError::ThreadNotFound { chat_id })
     }
 
     pub(super) async fn ensure_live_recorder_absent(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
     ) -> ThreadStoreResult<()> {
-        if self.live_recorders.lock().await.contains_key(&thread_id) {
+        if self.live_recorders.lock().await.contains_key(&chat_id) {
             return Err(ThreadStoreError::InvalidRequest {
-                message: format!("thread {thread_id} already has a live local writer"),
+                message: format!("thread {chat_id} already has a live local writer"),
             });
         }
         Ok(())
@@ -153,10 +153,10 @@ impl LocalThreadStore {
 
     pub(super) async fn insert_live_recorder(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         recorder: RolloutRecorder,
     ) -> ThreadStoreResult<()> {
-        match self.live_recorders.lock().await.entry(thread_id) {
+        match self.live_recorders.lock().await.entry(chat_id) {
             Entry::Occupied(entry) => Err(ThreadStoreError::InvalidRequest {
                 message: format!("thread {} already has a live local writer", entry.key()),
             }),
@@ -171,7 +171,7 @@ impl LocalThreadStore {
         &self,
         params: LoadThreadHistoryParams,
     ) -> ThreadStoreResult<StoredThreadHistory> {
-        if let Ok(rollout_path) = live_writer::rollout_path(self, params.thread_id).await {
+        if let Ok(rollout_path) = live_writer::rollout_path(self, params.chat_id).await {
             if !params.include_archived
                 && helpers::rollout_path_is_archived(
                     self.config.codex_home.as_path(),
@@ -179,7 +179,7 @@ impl LocalThreadStore {
                 )
             {
                 return Err(ThreadStoreError::InvalidRequest {
-                    message: format!("thread {} is archived", params.thread_id),
+                    message: format!("thread {} is archived", params.chat_id),
                 });
             }
             return read_thread::read_thread_by_rollout_path(
@@ -191,14 +191,14 @@ impl LocalThreadStore {
             .await?
             .history
             .ok_or_else(|| ThreadStoreError::Internal {
-                message: format!("failed to load history for thread {}", params.thread_id),
+                message: format!("failed to load history for thread {}", params.chat_id),
             });
         }
 
         read_thread::read_thread(
             self,
             ReadThreadParams {
-                thread_id: params.thread_id,
+                chat_id: params.chat_id,
                 include_archived: params.include_archived,
                 include_history: true,
             },
@@ -206,7 +206,7 @@ impl LocalThreadStore {
         .await?
         .history
         .ok_or_else(|| ThreadStoreError::Internal {
-            message: format!("failed to load history for thread {}", params.thread_id),
+            message: format!("failed to load history for thread {}", params.chat_id),
         })
     }
 
@@ -241,20 +241,20 @@ impl ThreadStore for LocalThreadStore {
         Box::pin(async move { live_writer::append_items(self, params).await })
     }
 
-    fn persist_thread(&self, thread_id: ThreadId) -> ThreadStoreFuture<'_, ()> {
-        Box::pin(async move { live_writer::persist_thread(self, thread_id).await })
+    fn persist_thread(&self, chat_id: ChatId) -> ThreadStoreFuture<'_, ()> {
+        Box::pin(async move { live_writer::persist_thread(self, chat_id).await })
     }
 
-    fn flush_thread(&self, thread_id: ThreadId) -> ThreadStoreFuture<'_, ()> {
-        Box::pin(async move { live_writer::flush_thread(self, thread_id).await })
+    fn flush_thread(&self, chat_id: ChatId) -> ThreadStoreFuture<'_, ()> {
+        Box::pin(async move { live_writer::flush_thread(self, chat_id).await })
     }
 
-    fn shutdown_thread(&self, thread_id: ThreadId) -> ThreadStoreFuture<'_, ()> {
-        Box::pin(async move { live_writer::shutdown_thread(self, thread_id).await })
+    fn shutdown_thread(&self, chat_id: ChatId) -> ThreadStoreFuture<'_, ()> {
+        Box::pin(async move { live_writer::shutdown_thread(self, chat_id).await })
     }
 
-    fn discard_thread(&self, thread_id: ThreadId) -> ThreadStoreFuture<'_, ()> {
-        Box::pin(async move { live_writer::discard_thread(self, thread_id).await })
+    fn discard_thread(&self, chat_id: ChatId) -> ThreadStoreFuture<'_, ()> {
+        Box::pin(async move { live_writer::discard_thread(self, chat_id).await })
     }
 
     fn load_history(
@@ -312,7 +312,7 @@ impl ThreadStore for LocalThreadStore {
 mod tests {
     use std::sync::Arc;
 
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use datax_protocol::models::BaseInstructions;
     use datax_protocol::models::FunctionCallOutputPayload;
     use datax_protocol::models::MessagePhase;
@@ -322,8 +322,8 @@ mod tests {
     use datax_protocol::protocol::RolloutItem;
     use datax_protocol::protocol::SessionSource;
     use datax_protocol::protocol::ThreadMemoryMode;
-    use datax_protocol::protocol::TurnCompleteEvent;
-    use datax_protocol::protocol::TurnStartedEvent;
+    use datax_protocol::protocol::InteractionCompleteEvent;
+    use datax_protocol::protocol::InteractionStartedEvent;
     use datax_protocol::protocol::UserMessageEvent;
     use tempfile::TempDir;
 
@@ -338,48 +338,48 @@ mod tests {
     async fn live_writer_lifecycle_writes_and_closes() {
         let home = TempDir::new().expect("temp dir");
         let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
-        let thread_id = ThreadId::default();
+        let chat_id = ChatId::default();
 
         store
-            .create_thread(create_thread_params(thread_id))
+            .create_thread(create_thread_params(chat_id))
             .await
             .expect("create live thread");
         let rollout_path = store
-            .live_rollout_path(thread_id)
+            .live_rollout_path(chat_id)
             .await
             .expect("load rollout path");
 
         store
             .append_items(AppendThreadItemsParams {
-                thread_id,
+                chat_id,
                 items: vec![user_message_item("first live write")],
             })
             .await
             .expect("append live item");
         store
-            .persist_thread(thread_id)
+            .persist_thread(chat_id)
             .await
             .expect("persist live thread");
         store
-            .flush_thread(thread_id)
+            .flush_thread(chat_id)
             .await
             .expect("flush live thread");
 
         assert_rollout_contains_message(rollout_path.as_path(), "first live write").await;
 
         store
-            .shutdown_thread(thread_id)
+            .shutdown_thread(chat_id)
             .await
             .expect("shutdown live thread");
         let err = store
             .append_items(AppendThreadItemsParams {
-                thread_id,
+                chat_id,
                 items: vec![user_message_item("write after shutdown")],
             })
             .await
             .expect_err("shutdown should remove the live thread writer");
         assert!(
-            matches!(err, ThreadStoreError::ThreadNotFound { thread_id: missing } if missing == thread_id)
+            matches!(err, ThreadStoreError::ThreadNotFound { chat_id: missing } if missing == chat_id)
         );
     }
 
@@ -396,24 +396,24 @@ mod tests {
         .await
         .expect("state db should initialize");
         let store = LocalThreadStore::new(config, Some(runtime.clone()));
-        let thread_id = ThreadId::default();
+        let chat_id = ChatId::default();
 
         store
-            .create_thread(create_thread_params(thread_id))
+            .create_thread(create_thread_params(chat_id))
             .await
             .expect("create live thread");
         store
             .append_items(AppendThreadItemsParams {
-                thread_id,
+                chat_id,
                 items: vec![user_message_item("raw append")],
             })
             .await
             .expect("append raw item");
-        store.flush_thread(thread_id).await.expect("flush thread");
+        store.flush_thread(chat_id).await.expect("flush thread");
 
         assert_eq!(
             runtime
-                .get_thread(thread_id)
+                .get_thread(chat_id)
                 .await
                 .expect("sqlite metadata read"),
             None
@@ -431,8 +431,8 @@ mod tests {
         .await
         .expect("state db should initialize");
         let store = Arc::new(LocalThreadStore::new(config, Some(runtime.clone())));
-        let thread_id = ThreadId::default();
-        let live_thread = LiveThread::create(store.clone(), create_thread_params(thread_id))
+        let chat_id = ChatId::default();
+        let live_thread = LiveThread::create(store.clone(), create_thread_params(chat_id))
             .await
             .expect("create live thread");
 
@@ -443,7 +443,7 @@ mod tests {
         live_thread.flush().await.expect("flush thread");
 
         let metadata = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("sqlite metadata read")
             .expect("sqlite metadata");
@@ -466,8 +466,8 @@ mod tests {
         .await
         .expect("state db should initialize");
         let store = Arc::new(LocalThreadStore::new(config, Some(runtime.clone())));
-        let thread_id = ThreadId::default();
-        let live_thread = LiveThread::create(store, create_thread_params(thread_id))
+        let chat_id = ChatId::default();
+        let live_thread = LiveThread::create(store, create_thread_params(chat_id))
             .await
             .expect("create live thread");
 
@@ -477,15 +477,15 @@ mod tests {
             .expect("append initial user message");
         live_thread.flush().await.expect("flush thread");
         let before_turn_start = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("sqlite metadata read")
             .expect("sqlite metadata");
 
         live_thread
-            .append_items(&[RolloutItem::EventMsg(EventMsg::TurnStarted(
-                TurnStartedEvent {
-                    turn_id: "turn-1".to_string(),
+            .append_items(&[RolloutItem::EventMsg(EventMsg::InteractionStarted(
+                InteractionStartedEvent {
+                    interaction_id: "turn-1".to_string(),
                     trace_id: None,
                     started_at: None,
                     model_context_window: None,
@@ -496,7 +496,7 @@ mod tests {
             .expect("append turn start");
         live_thread.flush().await.expect("flush thread");
         let after_turn_start = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("sqlite metadata read")
             .expect("sqlite metadata");
@@ -521,8 +521,8 @@ mod tests {
                         rate_limits: None,
                     },
                 )),
-                RolloutItem::EventMsg(EventMsg::TurnComplete(TurnCompleteEvent {
-                    turn_id: "turn-1".to_string(),
+                RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+                    interaction_id: "turn-1".to_string(),
                     last_agent_message: None,
                     completed_at: None,
                     duration_ms: None,
@@ -533,7 +533,7 @@ mod tests {
             .expect("append post-start items");
         live_thread.flush().await.expect("flush thread");
         let completed = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("sqlite metadata read")
             .expect("sqlite metadata");
@@ -553,12 +553,12 @@ mod tests {
         .await
         .expect("state db should initialize");
         let store = Arc::new(LocalThreadStore::new(config, Some(runtime.clone())));
-        let thread_id = ThreadId::default();
-        let live_thread = LiveThread::create(store.clone(), create_thread_params(thread_id))
+        let chat_id = ChatId::default();
+        let live_thread = LiveThread::create(store.clone(), create_thread_params(chat_id))
             .await
             .expect("create live thread");
         let rollout_path = store
-            .live_rollout_path(thread_id)
+            .live_rollout_path(chat_id)
             .await
             .expect("live rollout path");
 
@@ -571,7 +571,7 @@ mod tests {
         );
         assert_eq!(
             runtime
-                .get_thread(thread_id)
+                .get_thread(chat_id)
                 .await
                 .expect("sqlite metadata read"),
             None
@@ -589,12 +589,12 @@ mod tests {
         .await
         .expect("state db should initialize");
         let store = Arc::new(LocalThreadStore::new(config, Some(runtime.clone())));
-        let thread_id = ThreadId::default();
-        let live_thread = LiveThread::create(store.clone(), create_thread_params(thread_id))
+        let chat_id = ChatId::default();
+        let live_thread = LiveThread::create(store.clone(), create_thread_params(chat_id))
             .await
             .expect("create live thread");
         let rollout_path = store
-            .live_rollout_path(thread_id)
+            .live_rollout_path(chat_id)
             .await
             .expect("live rollout path");
 
@@ -615,7 +615,7 @@ mod tests {
                 .expect("rollout path should be checkable")
         );
         let metadata = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("sqlite metadata read")
             .expect("sqlite metadata");
@@ -634,13 +634,13 @@ mod tests {
         .expect("state db should initialize");
         let store = Arc::new(LocalThreadStore::new(config, Some(runtime.clone())));
         let uuid = uuid::Uuid::from_u128(401);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let rollout_path =
             write_session_file(home.path(), "2025-01-03T17-00-00", uuid).expect("session file");
         let live_thread = LiveThread::resume(
             store,
             ResumeThreadParams {
-                thread_id,
+                chat_id,
                 rollout_path: Some(rollout_path),
                 history: None,
                 include_archived: false,
@@ -660,7 +660,7 @@ mod tests {
             .expect("append after resume");
 
         let metadata = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("sqlite metadata read")
             .expect("sqlite metadata");
@@ -688,13 +688,13 @@ mod tests {
         .expect("state db should initialize");
         let store = Arc::new(LocalThreadStore::new(config, Some(runtime.clone())));
         let uuid = uuid::Uuid::from_u128(402);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let rollout_path = write_session_file(external_home.path(), "2025-01-03T17-30-00", uuid)
             .expect("external session file");
         let live_thread = LiveThread::resume(
             store,
             ResumeThreadParams {
-                thread_id,
+                chat_id,
                 rollout_path: Some(rollout_path),
                 history: None,
                 include_archived: false,
@@ -714,7 +714,7 @@ mod tests {
             .expect("append after external resume");
 
         let metadata = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("sqlite metadata read")
             .expect("sqlite metadata");
@@ -733,8 +733,8 @@ mod tests {
     async fn create_thread_rejects_missing_cwd() {
         let home = TempDir::new().expect("temp dir");
         let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
-        let thread_id = ThreadId::default();
-        let mut params = create_thread_params(thread_id);
+        let chat_id = ChatId::default();
+        let mut params = create_thread_params(chat_id);
         params.metadata.cwd = None;
 
         let err = store
@@ -753,18 +753,18 @@ mod tests {
     async fn discard_thread_drops_unmaterialized_live_writer() {
         let home = TempDir::new().expect("temp dir");
         let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
-        let thread_id = ThreadId::default();
+        let chat_id = ChatId::default();
 
         store
-            .create_thread(create_thread_params(thread_id))
+            .create_thread(create_thread_params(chat_id))
             .await
             .expect("create live thread");
         let rollout_path = store
-            .live_rollout_path(thread_id)
+            .live_rollout_path(chat_id)
             .await
             .expect("load rollout path");
         store
-            .discard_thread(thread_id)
+            .discard_thread(chat_id)
             .await
             .expect("discard live thread");
 
@@ -775,13 +775,13 @@ mod tests {
         );
         let err = store
             .append_items(AppendThreadItemsParams {
-                thread_id,
+                chat_id,
                 items: vec![user_message_item("write after discard")],
             })
             .await
             .expect_err("discard should remove the live thread writer");
         assert!(
-            matches!(err, ThreadStoreError::ThreadNotFound { thread_id: missing } if missing == thread_id)
+            matches!(err, ThreadStoreError::ThreadNotFound { chat_id: missing } if missing == chat_id)
         );
     }
 
@@ -789,41 +789,41 @@ mod tests {
     async fn resume_thread_reopens_live_writer_and_appends() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let thread_id = ThreadId::default();
+        let chat_id = ChatId::default();
 
         let first_store = LocalThreadStore::new(config.clone(), /*state_db*/ None);
         first_store
-            .create_thread(create_thread_params(thread_id))
+            .create_thread(create_thread_params(chat_id))
             .await
             .expect("create initial thread");
         first_store
             .append_items(AppendThreadItemsParams {
-                thread_id,
+                chat_id,
                 items: vec![user_message_item("before resume")],
             })
             .await
             .expect("append initial item");
         first_store
-            .persist_thread(thread_id)
+            .persist_thread(chat_id)
             .await
             .expect("persist initial thread");
         first_store
-            .flush_thread(thread_id)
+            .flush_thread(chat_id)
             .await
             .expect("flush initial thread");
         let rollout_path = first_store
-            .live_rollout_path(thread_id)
+            .live_rollout_path(chat_id)
             .await
             .expect("load rollout path");
         first_store
-            .shutdown_thread(thread_id)
+            .shutdown_thread(chat_id)
             .await
             .expect("shutdown initial writer");
 
         let resumed_store = LocalThreadStore::new(config, /*state_db*/ None);
         resumed_store
             .resume_thread(ResumeThreadParams {
-                thread_id,
+                chat_id,
                 rollout_path: None,
                 history: None,
                 include_archived: true,
@@ -833,13 +833,13 @@ mod tests {
             .expect("resume live thread");
         resumed_store
             .append_items(AppendThreadItemsParams {
-                thread_id,
+                chat_id,
                 items: vec![user_message_item("after resume")],
             })
             .await
             .expect("append resumed item");
         resumed_store
-            .flush_thread(thread_id)
+            .flush_thread(chat_id)
             .await
             .expect("flush resumed thread");
 
@@ -851,15 +851,15 @@ mod tests {
     async fn create_thread_rejects_duplicate_live_writer() {
         let home = TempDir::new().expect("temp dir");
         let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
-        let thread_id = ThreadId::default();
+        let chat_id = ChatId::default();
 
         store
-            .create_thread(create_thread_params(thread_id))
+            .create_thread(create_thread_params(chat_id))
             .await
             .expect("create live thread");
 
         let err = store
-            .create_thread(create_thread_params(thread_id))
+            .create_thread(create_thread_params(chat_id))
             .await
             .expect_err("duplicate live writer should fail");
 
@@ -871,19 +871,19 @@ mod tests {
     async fn resume_thread_rejects_duplicate_live_writer() {
         let home = TempDir::new().expect("temp dir");
         let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
-        let thread_id = ThreadId::default();
+        let chat_id = ChatId::default();
 
         store
-            .create_thread(create_thread_params(thread_id))
+            .create_thread(create_thread_params(chat_id))
             .await
             .expect("create live thread");
         let rollout_path = store
-            .live_rollout_path(thread_id)
+            .live_rollout_path(chat_id)
             .await
             .expect("live rollout path");
         let err = store
             .resume_thread(ResumeThreadParams {
-                thread_id,
+                chat_id,
                 rollout_path: Some(rollout_path),
                 history: None,
                 include_archived: true,
@@ -900,12 +900,12 @@ mod tests {
         let home = TempDir::new().expect("temp dir");
         let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
         let uuid = uuid::Uuid::from_u128(407);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let rollout_path =
             write_session_file(home.path(), "2025-01-04T11-30-00", uuid).expect("session file");
         let err = store
             .resume_thread(ResumeThreadParams {
-                thread_id,
+                chat_id,
                 rollout_path: Some(rollout_path),
                 history: None,
                 include_archived: true,
@@ -928,13 +928,13 @@ mod tests {
         let external_home = TempDir::new().expect("external temp dir");
         let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
         let uuid = uuid::Uuid::from_u128(404);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let rollout_path = write_session_file(external_home.path(), "2025-01-04T10-00-00", uuid)
             .expect("external session file");
 
         store
             .resume_thread(ResumeThreadParams {
-                thread_id,
+                chat_id,
                 rollout_path: Some(rollout_path),
                 history: None,
                 include_archived: true,
@@ -944,19 +944,19 @@ mod tests {
             .expect("resume live thread");
         store
             .append_items(AppendThreadItemsParams {
-                thread_id,
+                chat_id,
                 items: vec![user_message_item("external history item")],
             })
             .await
             .expect("append live item");
         store
-            .flush_thread(thread_id)
+            .flush_thread(chat_id)
             .await
             .expect("flush live thread");
 
         let history = store
             .load_history(LoadThreadHistoryParams {
-                thread_id,
+                chat_id,
                 include_archived: false,
             })
             .await
@@ -976,13 +976,13 @@ mod tests {
         let external_home = TempDir::new().expect("external temp dir");
         let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
         let uuid = uuid::Uuid::from_u128(406);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let rollout_path = write_session_file(external_home.path(), "2025-01-04T11-00-00", uuid)
             .expect("external session file");
 
         store
             .resume_thread(ResumeThreadParams {
-                thread_id,
+                chat_id,
                 rollout_path: Some(rollout_path.clone()),
                 history: None,
                 include_archived: true,
@@ -993,7 +993,7 @@ mod tests {
 
         let thread = store
             .read_thread(ReadThreadParams {
-                thread_id,
+                chat_id,
                 include_archived: false,
                 include_history: true,
             })
@@ -1014,13 +1014,13 @@ mod tests {
         let home = TempDir::new().expect("temp dir");
         let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
         let uuid = uuid::Uuid::from_u128(405);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let rollout_path = write_archived_session_file(home.path(), "2025-01-04T10-30-00", uuid)
             .expect("archived session file");
 
         store
             .resume_thread(ResumeThreadParams {
-                thread_id,
+                chat_id,
                 rollout_path: Some(rollout_path),
                 history: None,
                 include_archived: true,
@@ -1030,19 +1030,19 @@ mod tests {
             .expect("resume live archived thread");
         store
             .append_items(AppendThreadItemsParams {
-                thread_id,
+                chat_id,
                 items: vec![user_message_item("archived live history item")],
             })
             .await
             .expect("append live item");
         store
-            .flush_thread(thread_id)
+            .flush_thread(chat_id)
             .await
             .expect("flush live thread");
 
         let err = store
             .read_thread(ReadThreadParams {
-                thread_id,
+                chat_id,
                 include_archived: false,
                 include_history: false,
             })
@@ -1052,7 +1052,7 @@ mod tests {
 
         let err = store
             .load_history(LoadThreadHistoryParams {
-                thread_id,
+                chat_id,
                 include_archived: false,
             })
             .await
@@ -1062,7 +1062,7 @@ mod tests {
 
         let history = store
             .load_history(LoadThreadHistoryParams {
-                thread_id,
+                chat_id,
                 include_archived: true,
             })
             .await
@@ -1080,22 +1080,22 @@ mod tests {
     async fn read_thread_by_rollout_path_includes_history() {
         let home = TempDir::new().expect("temp dir");
         let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
-        let thread_id = ThreadId::default();
+        let chat_id = ChatId::default();
 
         store
-            .create_thread(create_thread_params(thread_id))
+            .create_thread(create_thread_params(chat_id))
             .await
             .expect("create thread");
         store
             .append_items(AppendThreadItemsParams {
-                thread_id,
+                chat_id,
                 items: vec![user_message_item("path read")],
             })
             .await
             .expect("append item");
-        store.flush_thread(thread_id).await.expect("flush thread");
+        store.flush_thread(chat_id).await.expect("flush thread");
         let rollout_path = store
-            .live_rollout_path(thread_id)
+            .live_rollout_path(chat_id)
             .await
             .expect("load rollout path");
 
@@ -1108,7 +1108,7 @@ mod tests {
             .await
             .expect("read thread by rollout path");
 
-        assert_eq!(thread.thread_id, thread_id);
+        assert_eq!(thread.chat_id, chat_id);
         assert_eq!(
             thread
                 .history
@@ -1121,13 +1121,13 @@ mod tests {
         );
     }
 
-    fn create_thread_params(thread_id: ThreadId) -> CreateThreadParams {
+    fn create_thread_params(chat_id: ChatId) -> CreateThreadParams {
         CreateThreadParams {
-            session_id: thread_id.into(),
-            thread_id,
+            session_id: chat_id.into(),
+            chat_id,
             extra_config: None,
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             source: SessionSource::Exec,
             thread_source: None,
             base_instructions: BaseInstructions::default(),

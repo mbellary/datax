@@ -16,7 +16,7 @@ use strum_macros::EnumIter;
 
 use crate::AgentPath;
 use crate::SessionId;
-use crate::ThreadId;
+use crate::ChatId;
 use crate::approvals::ElicitationRequestEvent;
 use crate::config_types::ApprovalsReviewer;
 use crate::config_types::CollaborationMode;
@@ -510,7 +510,7 @@ pub struct AdditionalContextEntry {
 #[non_exhaustive]
 pub enum Op {
     /// Abort current task without terminating background terminal processes.
-    /// This server sends [`EventMsg::TurnAborted`] in response.
+    /// This server sends [`EventMsg::InteractionAborted`] in response.
     Interrupt,
 
     /// Terminate all running background terminal processes for this thread.
@@ -570,7 +570,7 @@ pub enum Op {
         /// The id of the submission we are approving
         id: String,
         /// Turn id associated with the approval event, when available.
-        turn_id: Option<String>,
+        interaction_id: Option<String>,
         /// The user's decision in response to the request.
         decision: ReviewDecision,
     },
@@ -660,7 +660,7 @@ pub enum Op {
     ///
     /// The command string is executed using the user's default shell and may
     /// include shell syntax (pipes, redirects, etc.). Output is streamed via
-    /// `ExecCommand*` events and the UI regains control upon `TurnComplete`.
+    /// `ExecCommand*` events and the UI regains control upon `InteractionComplete`.
     RunUserShellCommand {
         /// The raw command string after '!'
         command: String,
@@ -739,10 +739,10 @@ impl InterAgentCommunication {
         }
     }
 
-    pub fn set_turn_id_if_missing(&mut self, turn_id: &str) {
-        InternalChatMessageMetadataPassthrough::set_turn_id_if_missing(
+    pub fn set_interaction_id_if_missing(&mut self, interaction_id: &str) {
+        InternalChatMessageMetadataPassthrough::set_interaction_id_if_missing(
             &mut self.internal_chat_message_metadata_passthrough,
-            turn_id,
+            interaction_id,
         );
     }
 
@@ -1272,19 +1272,27 @@ pub enum EventMsg {
     /// Conversation history was rolled back by dropping the last N user turns.
     ThreadRolledBack(ThreadRolledBackEvent),
 
-    /// Agent has started a turn.
-    /// v1 wire format uses `task_started`; accept `turn_started` for v2 interop.
-    #[serde(rename = "task_started", alias = "turn_started")]
-    TurnStarted(TurnStartedEvent),
+    /// Agent has started an interaction.
+    /// Accept older `task_started` and `turn_started` tags for rollout compatibility.
+    #[serde(
+        rename = "interaction_started",
+        alias = "task_started",
+        alias = "turn_started"
+    )]
+    InteractionStarted(InteractionStartedEvent),
 
     /// Persistent thread-settings overrides from the correlated submission have
     /// been applied to the session configuration.
     ThreadSettingsApplied(ThreadSettingsAppliedEvent),
 
-    /// Agent has completed all actions.
-    /// v1 wire format uses `task_complete`; accept `turn_complete` for v2 interop.
-    #[serde(rename = "task_complete", alias = "turn_complete")]
-    TurnComplete(TurnCompleteEvent),
+    /// Agent has completed all actions for an interaction.
+    /// Accept older `task_complete` and `turn_complete` tags for rollout compatibility.
+    #[serde(
+        rename = "interaction_complete",
+        alias = "task_complete",
+        alias = "turn_complete"
+    )]
+    InteractionComplete(InteractionCompleteEvent),
 
     /// Usage update for the current session, including totals and last turn.
     /// Optional means unknown — UIs should not display when `None`.
@@ -1385,7 +1393,8 @@ pub enum EventMsg {
 
     PlanUpdate(UpdatePlanArgs),
 
-    TurnAborted(TurnAbortedEvent),
+    #[serde(alias = "turn_aborted")]
+    InteractionAborted(InteractionAbortedEvent),
 
     /// Notification that the agent is shutting down.
     ShutdownComplete,
@@ -1549,14 +1558,16 @@ pub struct HookRunSummary {
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct HookStartedEvent {
-    pub turn_id: Option<String>,
+    #[serde(alias = "turn_id")]
+    pub interaction_id: Option<String>,
     pub run: HookRunSummary,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]
 #[serde(rename_all = "snake_case")]
 pub struct HookCompletedEvent {
-    pub turn_id: Option<String>,
+    #[serde(alias = "turn_id")]
+    pub interaction_id: Option<String>,
     pub run: HookRunSummary,
 }
 
@@ -1753,8 +1764,10 @@ pub struct RawResponseItemEvent {
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS, JsonSchema)]
 pub struct ItemStartedEvent {
-    pub thread_id: ThreadId,
-    pub turn_id: String,
+    #[serde(alias = "thread_id")]
+    pub chat_id: ChatId,
+    #[serde(alias = "turn_id")]
+    pub interaction_id: String,
     pub item: TurnItem,
     pub started_at_ms: i64,
 }
@@ -1771,7 +1784,7 @@ impl HasLegacyEvent for ItemStartedEvent {
                     call_id: item.id.clone(),
                 })]
             }
-            TurnItem::FileChange(item) => vec![item.as_legacy_begin_event(self.turn_id.clone())],
+            TurnItem::FileChange(item) => vec![item.as_legacy_begin_event(self.interaction_id.clone())],
             TurnItem::McpToolCall(item) => vec![item.as_legacy_begin_event()],
             _ => Vec::new(),
         }
@@ -1780,8 +1793,10 @@ impl HasLegacyEvent for ItemStartedEvent {
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS, JsonSchema)]
 pub struct ItemCompletedEvent {
-    pub thread_id: ThreadId,
-    pub turn_id: String,
+    #[serde(alias = "thread_id")]
+    pub chat_id: ChatId,
+    #[serde(alias = "turn_id")]
+    pub interaction_id: String,
     pub item: TurnItem,
     // Old rollout files may contain ItemCompleted events for PlanItem without
     // this field. Default to 0 so those persisted rollouts still deserialize
@@ -1802,7 +1817,7 @@ impl HasLegacyEvent for ItemCompletedEvent {
     fn as_legacy_events(&self, show_raw_agent_reasoning: bool) -> Vec<EventMsg> {
         match &self.item {
             TurnItem::FileChange(item) => item
-                .as_legacy_end_event(self.turn_id.clone())
+                .as_legacy_end_event(self.interaction_id.clone())
                 .into_iter()
                 .collect(),
             _ => self.item.as_legacy_events(show_raw_agent_reasoning),
@@ -1812,8 +1827,10 @@ impl HasLegacyEvent for ItemCompletedEvent {
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS, JsonSchema)]
 pub struct AgentMessageContentDeltaEvent {
-    pub thread_id: String,
-    pub turn_id: String,
+    #[serde(alias = "thread_id")]
+    pub chat_id: String,
+    #[serde(alias = "turn_id")]
+    pub interaction_id: String,
     pub item_id: String,
     pub delta: String,
 }
@@ -1826,16 +1843,20 @@ impl HasLegacyEvent for AgentMessageContentDeltaEvent {
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS, JsonSchema)]
 pub struct PlanDeltaEvent {
-    pub thread_id: String,
-    pub turn_id: String,
+    #[serde(alias = "thread_id")]
+    pub chat_id: String,
+    #[serde(alias = "turn_id")]
+    pub interaction_id: String,
     pub item_id: String,
     pub delta: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS, JsonSchema)]
 pub struct ReasoningContentDeltaEvent {
-    pub thread_id: String,
-    pub turn_id: String,
+    #[serde(alias = "thread_id")]
+    pub chat_id: String,
+    #[serde(alias = "turn_id")]
+    pub interaction_id: String,
     pub item_id: String,
     pub delta: String,
     // load with default value so it's backward compatible with the old format.
@@ -1851,8 +1872,10 @@ impl HasLegacyEvent for ReasoningContentDeltaEvent {
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS, JsonSchema)]
 pub struct ReasoningRawContentDeltaEvent {
-    pub thread_id: String,
-    pub turn_id: String,
+    #[serde(alias = "thread_id")]
+    pub chat_id: String,
+    #[serde(alias = "turn_id")]
+    pub interaction_id: String,
     pub item_id: String,
     pub delta: String,
     // load with default value so it's backward compatible with the old format.
@@ -1957,8 +1980,9 @@ pub struct SafetyBufferingEvent {
 pub struct ContextCompactedEvent;
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS)]
-pub struct TurnCompleteEvent {
-    pub turn_id: String,
+pub struct InteractionCompleteEvent {
+    #[serde(alias = "turn_id")]
+    pub interaction_id: String,
     pub last_agent_message: Option<String>,
     /// Unix timestamp (in seconds) when the turn completed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1975,8 +1999,9 @@ pub struct TurnCompleteEvent {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS)]
-pub struct TurnStartedEvent {
-    pub turn_id: String,
+pub struct InteractionStartedEvent {
+    #[serde(alias = "turn_id")]
+    pub interaction_id: String,
     // Persist for rollout consumers that correlate turns with telemetry traces.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -2382,8 +2407,9 @@ pub struct McpToolCallEndEvent {
 pub struct DynamicToolCallResponseEvent {
     /// Identifier for the corresponding DynamicToolCallRequest.
     pub call_id: String,
-    /// Turn ID that this dynamic tool call belongs to.
-    pub turn_id: String,
+    /// Interaction ID that this dynamic tool call belongs to.
+    #[serde(alias = "turn_id")]
+    pub interaction_id: String,
     #[serde(default)]
     pub completed_at_ms: i64,
     /// Dynamic tool namespace, when one was provided.
@@ -2448,13 +2474,13 @@ pub struct ImageGenerationEndEvent {
 /// in-memory transcript.
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS)]
 pub struct ConversationPathResponseEvent {
-    pub conversation_id: ThreadId,
+    pub conversation_id: ChatId,
     pub path: PathBuf,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS)]
 pub struct ResumedHistory {
-    pub conversation_id: ThreadId,
+    pub conversation_id: ChatId,
     pub history: Vec<RolloutItem>,
     pub rollout_path: Option<PathBuf>,
 }
@@ -2476,7 +2502,7 @@ impl InitialHistory {
         }
     }
 
-    pub fn forked_from_id(&self) -> Option<ThreadId> {
+    pub fn forked_from_id(&self) -> Option<ChatId> {
         match self {
             InitialHistory::New | InitialHistory::Cleared => None,
             InitialHistory::Resumed(resumed) => {
@@ -2573,7 +2599,7 @@ impl InitialHistory {
                 multi_agent_version_from_items(&resumed.history, Some(resumed.conversation_id))
             }
             InitialHistory::Forked(items) => {
-                multi_agent_version_from_items(items, /*thread_id*/ None)
+                multi_agent_version_from_items(items, /*chat_id*/ None)
             }
         }
     }
@@ -2608,9 +2634,9 @@ impl InitialHistory {
             .and_then(|meta| meta.thread_source.clone())
     }
 
-    pub fn get_resumed_parent_thread_id(&self) -> Option<ThreadId> {
+    pub fn get_resumed_parent_chat_id(&self) -> Option<ChatId> {
         self.get_resumed_session_meta()
-            .and_then(|meta| meta.parent_thread_id)
+            .and_then(|meta| meta.parent_chat_id)
     }
 
     fn get_resumed_session_meta(&self) -> Option<&SessionMeta> {
@@ -2718,7 +2744,7 @@ pub enum SubAgentSource {
     Review,
     Compact,
     ThreadSpawn {
-        parent_thread_id: ThreadId,
+        parent_chat_id: ChatId,
         depth: i32,
         #[serde(default)]
         agent_path: Option<AgentPath>,
@@ -2821,9 +2847,9 @@ impl SessionSource {
                 .is_some_and(|product| product.matches_product_restriction(products))
     }
 
-    pub fn parent_thread_id(&self) -> Option<ThreadId> {
+    pub fn parent_chat_id(&self) -> Option<ChatId> {
         match self {
-            SessionSource::SubAgent(subagent_source) => subagent_source.parent_thread_id(),
+            SessionSource::SubAgent(subagent_source) => subagent_source.parent_chat_id(),
             SessionSource::Cli
             | SessionSource::VSCode
             | SessionSource::Exec
@@ -2842,11 +2868,11 @@ impl fmt::Display for SubAgentSource {
             SubAgentSource::Compact => f.write_str("compact"),
             SubAgentSource::MemoryConsolidation => f.write_str("memory_consolidation"),
             SubAgentSource::ThreadSpawn {
-                parent_thread_id,
+                parent_chat_id,
                 depth,
                 ..
             } => {
-                write!(f, "thread_spawn_{parent_thread_id}_d{depth}")
+                write!(f, "thread_spawn_{parent_chat_id}_d{depth}")
             }
             SubAgentSource::Other(other) => f.write_str(other),
         }
@@ -2864,11 +2890,11 @@ impl SubAgentSource {
         }
     }
 
-    pub fn parent_thread_id(&self) -> Option<ThreadId> {
+    pub fn parent_chat_id(&self) -> Option<ChatId> {
         match self {
             SubAgentSource::ThreadSpawn {
-                parent_thread_id, ..
-            } => Some(*parent_thread_id),
+                parent_chat_id, ..
+            } => Some(*parent_chat_id),
             SubAgentSource::Review
             | SubAgentSource::Compact
             | SubAgentSource::MemoryConsolidation
@@ -2887,11 +2913,11 @@ impl fmt::Display for InternalSessionSource {
 
 fn multi_agent_version_from_items(
     items: &[RolloutItem],
-    thread_id: Option<ThreadId>,
+    chat_id: Option<ChatId>,
 ) -> Option<MultiAgentVersion> {
     let session_meta_version = items.iter().rev().find_map(|item| match item {
         RolloutItem::SessionMeta(meta_line)
-            if thread_id.is_none_or(|thread_id| meta_line.meta.id == thread_id) =>
+            if chat_id.is_none_or(|chat_id| meta_line.meta.id == chat_id) =>
         {
             meta_line.meta.multi_agent_version
         }
@@ -2927,11 +2953,11 @@ pub enum MultiAgentVersion {
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, TS)]
 pub struct SessionMeta {
     pub session_id: SessionId,
-    pub id: ThreadId,
+    pub id: ChatId,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub forked_from_id: Option<ThreadId>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub parent_thread_id: Option<ThreadId>,
+    pub forked_from_id: Option<ChatId>,
+    #[serde(alias = "parent_thread_id", skip_serializing_if = "Option::is_none")]
+    pub parent_chat_id: Option<ChatId>,
     pub timestamp: String,
     pub cwd: PathBuf,
     pub originator: String,
@@ -2969,12 +2995,12 @@ pub struct SessionMeta {
 
 impl Default for SessionMeta {
     fn default() -> Self {
-        let id = ThreadId::default();
+        let id = ChatId::default();
         SessionMeta {
             session_id: id.into(),
             id,
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             timestamp: String::new(),
             cwd: PathBuf::new(),
             originator: String::new(),
@@ -3018,11 +3044,11 @@ impl<'de> Deserialize<'de> for SessionMetaLine {
             .as_object_mut()
             .ok_or_else(|| D::Error::custom("session metadata must be an object"))?;
         if !fields.contains_key("session_id") {
-            let thread_id = fields
+            let chat_id = fields
                 .get("id")
                 .cloned()
                 .ok_or_else(|| D::Error::missing_field("id"))?;
-            fields.insert("session_id".to_string(), thread_id);
+            fields.insert("session_id".to_string(), chat_id);
         }
         let SessionMetaLineFields { meta, git } =
             serde_json::from_value(value).map_err(D::Error::custom)?;
@@ -3087,8 +3113,8 @@ pub struct TurnContextNetworkItem {
 /// latest durable baseline.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema, TS)]
 pub struct TurnContextItem {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub turn_id: Option<String>,
+    #[serde(default, alias = "turn_id", skip_serializing_if = "Option::is_none")]
+    pub interaction_id: Option<String>,
     pub cwd: AbsolutePathBuf,
     /// Effective workspace roots used to materialize symbolic
     /// `:workspace_roots` filesystem permissions in `permission_profile`.
@@ -3336,7 +3362,7 @@ pub struct ExecCommandBeginEvent {
     #[ts(optional)]
     pub process_id: Option<String>,
     /// Turn ID that this command belongs to.
-    pub turn_id: String,
+    pub interaction_id: String,
     #[serde(default)]
     pub started_at_ms: i64,
     /// The command to be executed.
@@ -3362,7 +3388,7 @@ pub struct ExecCommandEndEvent {
     #[ts(optional)]
     pub process_id: Option<String>,
     /// Turn ID that this command belongs to.
-    pub turn_id: String,
+    pub interaction_id: String,
     #[serde(default)]
     pub completed_at_ms: i64,
     /// The command that was executed.
@@ -3475,7 +3501,7 @@ pub struct PatchApplyBeginEvent {
     /// Turn ID that this patch belongs to.
     /// Uses `#[serde(default)]` for backwards compatibility.
     #[serde(default)]
-    pub turn_id: String,
+    pub interaction_id: String,
     /// If true, there was no ApplyPatchApprovalRequest for this patch.
     pub auto_approved: bool,
     /// The changes to be applied.
@@ -3497,7 +3523,7 @@ pub struct PatchApplyEndEvent {
     /// Turn ID that this patch belongs to.
     /// Uses `#[serde(default)]` for backwards compatibility.
     #[serde(default)]
-    pub turn_id: String,
+    pub interaction_id: String,
     /// Captured stdout (summary printed by apply_patch).
     pub stdout: String,
     /// Captured stderr (parser errors, IO failures, etc.).
@@ -3695,11 +3721,12 @@ pub struct SessionNetworkProxyRuntime {
 #[derive(Debug, Clone, Serialize, JsonSchema, TS)]
 pub struct SessionConfiguredEvent {
     pub session_id: SessionId,
-    pub thread_id: ThreadId,
+    #[serde(alias = "thread_id")]
+    pub chat_id: ChatId,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub forked_from_id: Option<ThreadId>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub parent_thread_id: Option<ThreadId>,
+    pub forked_from_id: Option<ChatId>,
+    #[serde(alias = "parent_thread_id", skip_serializing_if = "Option::is_none")]
+    pub parent_chat_id: Option<ChatId>,
     /// Optional analytics source classification for this thread.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub thread_source: Option<ThreadSource>,
@@ -3767,9 +3794,9 @@ impl<'de> Deserialize<'de> for SessionConfiguredEvent {
         struct Wire {
             session_id: SessionId,
             #[serde(default)]
-            thread_id: Option<ThreadId>,
-            forked_from_id: Option<ThreadId>,
-            parent_thread_id: Option<ThreadId>,
+            chat_id: Option<ChatId>,
+            forked_from_id: Option<ChatId>,
+            parent_chat_id: Option<ChatId>,
             #[serde(default)]
             thread_source: Option<ThreadSource>,
             #[serde(default)]
@@ -3808,9 +3835,9 @@ impl<'de> Deserialize<'de> for SessionConfiguredEvent {
 
         Ok(Self {
             session_id: wire.session_id,
-            thread_id: wire.thread_id.unwrap_or_else(|| wire.session_id.into()),
+            chat_id: wire.chat_id.unwrap_or_else(|| wire.session_id.into()),
             forked_from_id: wire.forked_from_id,
-            parent_thread_id: wire.parent_thread_id,
+            parent_chat_id: wire.parent_chat_id,
             thread_source: wire.thread_source,
             thread_name: wire.thread_name,
             model: wire.model,
@@ -3859,7 +3886,7 @@ pub fn validate_thread_goal_objective(value: &str) -> Result<(), String> {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "protocol/")]
 pub struct ThreadGoal {
-    pub thread_id: ThreadId,
+    pub chat_id: ChatId,
     pub objective: String,
     pub status: ThreadGoalStatus,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -3875,10 +3902,10 @@ pub struct ThreadGoal {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "protocol/")]
 pub struct ThreadGoalUpdatedEvent {
-    pub thread_id: ThreadId,
+    pub chat_id: ChatId,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub turn_id: Option<String>,
+    pub interaction_id: Option<String>,
     pub goal: ThreadGoal,
 }
 
@@ -3965,9 +3992,10 @@ pub struct Chunk {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema, TS)]
-pub struct TurnAbortedEvent {
-    pub turn_id: Option<String>,
-    pub reason: TurnAbortReason,
+pub struct InteractionAbortedEvent {
+    #[serde(alias = "turn_id")]
+    pub interaction_id: Option<String>,
+    pub reason: InteractionAbortReason,
     /// Unix timestamp (in seconds) when the turn was aborted.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(type = "number | null", optional)]
@@ -3980,7 +4008,7 @@ pub struct TurnAbortedEvent {
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
 #[serde(rename_all = "snake_case")]
-pub enum TurnAbortReason {
+pub enum InteractionAbortReason {
     Interrupted,
     Replaced,
     ReviewEnded,
@@ -3994,7 +4022,7 @@ pub struct CollabAgentSpawnBeginEvent {
     #[serde(default)]
     pub started_at_ms: i64,
     /// Thread ID of the sender.
-    pub sender_thread_id: ThreadId,
+    pub sender_chat_id: ChatId,
     /// Initial prompt sent to the agent. Can be empty to prevent CoT leaking at the
     /// beginning.
     pub prompt: String,
@@ -4005,7 +4033,7 @@ pub struct CollabAgentSpawnBeginEvent {
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]
 pub struct CollabAgentRef {
     /// Thread ID of the receiver/new agent.
-    pub thread_id: ThreadId,
+    pub chat_id: ChatId,
     /// Optional nickname assigned to an AgentControl-spawned sub-agent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent_nickname: Option<String>,
@@ -4017,7 +4045,7 @@ pub struct CollabAgentRef {
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, TS)]
 pub struct CollabAgentStatusEntry {
     /// Thread ID of the receiver/new agent.
-    pub thread_id: ThreadId,
+    pub chat_id: ChatId,
     /// Optional nickname assigned to an AgentControl-spawned sub-agent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent_nickname: Option<String>,
@@ -4035,9 +4063,9 @@ pub struct CollabAgentSpawnEndEvent {
     #[serde(default)]
     pub completed_at_ms: i64,
     /// Thread ID of the sender.
-    pub sender_thread_id: ThreadId,
+    pub sender_chat_id: ChatId,
     /// Thread ID of the newly spawned agent, if it was created.
-    pub new_thread_id: Option<ThreadId>,
+    pub new_chat_id: Option<ChatId>,
     /// Optional nickname assigned to the new agent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub new_agent_nickname: Option<String>,
@@ -4062,9 +4090,9 @@ pub struct CollabAgentInteractionBeginEvent {
     #[serde(default)]
     pub started_at_ms: i64,
     /// Thread ID of the sender.
-    pub sender_thread_id: ThreadId,
+    pub sender_chat_id: ChatId,
     /// Thread ID of the receiver.
-    pub receiver_thread_id: ThreadId,
+    pub receiver_chat_id: ChatId,
     /// Prompt sent from the sender to the receiver. Can be empty to prevent CoT
     /// leaking at the beginning.
     pub prompt: String,
@@ -4077,9 +4105,9 @@ pub struct CollabAgentInteractionEndEvent {
     #[serde(default)]
     pub completed_at_ms: i64,
     /// Thread ID of the sender.
-    pub sender_thread_id: ThreadId,
+    pub sender_chat_id: ChatId,
     /// Thread ID of the receiver.
-    pub receiver_thread_id: ThreadId,
+    pub receiver_chat_id: ChatId,
     /// Optional nickname assigned to the receiver agent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub receiver_agent_nickname: Option<String>,
@@ -4108,7 +4136,7 @@ pub struct SubAgentActivityEvent {
     #[serde(default)]
     pub occurred_at_ms: i64,
     /// Thread ID of the affected sub-agent.
-    pub agent_thread_id: ThreadId,
+    pub agent_chat_id: ChatId,
     /// Canonical v2 path of the affected sub-agent.
     pub agent_path: AgentPath,
     pub kind: SubAgentActivityKind,
@@ -4119,9 +4147,9 @@ pub struct CollabWaitingBeginEvent {
     #[serde(default)]
     pub started_at_ms: i64,
     /// Thread ID of the sender.
-    pub sender_thread_id: ThreadId,
+    pub sender_chat_id: ChatId,
     /// Thread ID of the receivers.
-    pub receiver_thread_ids: Vec<ThreadId>,
+    pub receiver_chat_ids: Vec<ChatId>,
     /// Optional nicknames/roles for receivers.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub receiver_agents: Vec<CollabAgentRef>,
@@ -4132,7 +4160,7 @@ pub struct CollabWaitingBeginEvent {
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
 pub struct CollabWaitingEndEvent {
     /// Thread ID of the sender.
-    pub sender_thread_id: ThreadId,
+    pub sender_chat_id: ChatId,
     /// ID of the waiting call.
     pub call_id: String,
     #[serde(default)]
@@ -4141,7 +4169,7 @@ pub struct CollabWaitingEndEvent {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub agent_statuses: Vec<CollabAgentStatusEntry>,
     /// Last known status of the receiver agents reported to the sender agent.
-    pub statuses: HashMap<ThreadId, AgentStatus>,
+    pub statuses: HashMap<ChatId, AgentStatus>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
@@ -4151,9 +4179,9 @@ pub struct CollabCloseBeginEvent {
     #[serde(default)]
     pub started_at_ms: i64,
     /// Thread ID of the sender.
-    pub sender_thread_id: ThreadId,
+    pub sender_chat_id: ChatId,
     /// Thread ID of the receiver.
-    pub receiver_thread_id: ThreadId,
+    pub receiver_chat_id: ChatId,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
@@ -4163,9 +4191,9 @@ pub struct CollabCloseEndEvent {
     #[serde(default)]
     pub completed_at_ms: i64,
     /// Thread ID of the sender.
-    pub sender_thread_id: ThreadId,
+    pub sender_chat_id: ChatId,
     /// Thread ID of the receiver.
-    pub receiver_thread_id: ThreadId,
+    pub receiver_chat_id: ChatId,
     /// Optional nickname assigned to the receiver agent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub receiver_agent_nickname: Option<String>,
@@ -4184,9 +4212,9 @@ pub struct CollabResumeBeginEvent {
     #[serde(default)]
     pub started_at_ms: i64,
     /// Thread ID of the sender.
-    pub sender_thread_id: ThreadId,
+    pub sender_chat_id: ChatId,
     /// Thread ID of the receiver.
-    pub receiver_thread_id: ThreadId,
+    pub receiver_chat_id: ChatId,
     /// Optional nickname assigned to the receiver agent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub receiver_agent_nickname: Option<String>,
@@ -4202,9 +4230,9 @@ pub struct CollabResumeEndEvent {
     #[serde(default)]
     pub completed_at_ms: i64,
     /// Thread ID of the sender.
-    pub sender_thread_id: ThreadId,
+    pub sender_chat_id: ChatId,
     /// Thread ID of the receiver.
-    pub receiver_thread_id: ThreadId,
+    pub receiver_chat_id: ChatId,
     /// Optional nickname assigned to the receiver agent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub receiver_agent_nickname: Option<String>,
@@ -4362,7 +4390,7 @@ mod tests {
             internal_chat_message_metadata_passthrough: None,
             trigger_turn: true,
         };
-        communication.set_turn_id_if_missing("turn-1");
+        communication.set_interaction_id_if_missing("turn-1");
         let mut serialized_communication = communication.clone();
         serialized_communication.internal_chat_message_metadata_passthrough = None;
 
@@ -4933,8 +4961,8 @@ mod tests {
     #[test]
     fn item_started_event_from_web_search_emits_begin_event() {
         let event = ItemStartedEvent {
-            thread_id: ThreadId::new(),
-            turn_id: "turn-1".into(),
+            chat_id: ChatId::new(),
+            interaction_id: "turn-1".into(),
             item: TurnItem::WebSearch(WebSearchItem {
                 id: "search-1".into(),
                 query: "find docs".into(),
@@ -4957,8 +4985,8 @@ mod tests {
     #[test]
     fn item_started_event_from_non_web_search_emits_no_legacy_events() {
         let event = ItemStartedEvent {
-            thread_id: ThreadId::new(),
-            turn_id: "turn-1".into(),
+            chat_id: ChatId::new(),
+            interaction_id: "turn-1".into(),
             item: TurnItem::UserMessage(UserMessageItem::new(&[])),
             started_at_ms: 0,
         };
@@ -4973,8 +5001,8 @@ mod tests {
     #[test]
     fn item_started_event_from_image_generation_emits_begin_event() {
         let event = ItemStartedEvent {
-            thread_id: ThreadId::new(),
-            turn_id: "turn-1".into(),
+            chat_id: ChatId::new(),
+            interaction_id: "turn-1".into(),
             item: TurnItem::ImageGeneration(ImageGenerationItem {
                 id: "ig-1".into(),
                 status: "in_progress".into(),
@@ -4996,8 +5024,8 @@ mod tests {
     #[test]
     fn item_started_event_from_file_change_emits_patch_begin_event() {
         let event = ItemStartedEvent {
-            thread_id: ThreadId::new(),
-            turn_id: "turn-1".into(),
+            chat_id: ChatId::new(),
+            interaction_id: "turn-1".into(),
             started_at_ms: 0,
             item: TurnItem::FileChange(FileChangeItem {
                 id: "patch-1".into(),
@@ -5021,7 +5049,7 @@ mod tests {
         match &legacy_events[0] {
             EventMsg::PatchApplyBegin(event) => {
                 assert_eq!(event.call_id, "patch-1");
-                assert_eq!(event.turn_id, "turn-1");
+                assert_eq!(event.interaction_id, "turn-1");
                 assert!(event.auto_approved);
                 assert!(event.changes.contains_key(&PathBuf::from("new.txt")));
             }
@@ -5032,8 +5060,8 @@ mod tests {
     #[test]
     fn item_started_event_from_mcp_tool_call_emits_begin_event() {
         let event = ItemStartedEvent {
-            thread_id: ThreadId::new(),
-            turn_id: "turn-1".into(),
+            chat_id: ChatId::new(),
+            interaction_id: "turn-1".into(),
             started_at_ms: 0,
             item: TurnItem::McpToolCall(McpToolCallItem {
                 id: "mcp-1".into(),
@@ -5073,8 +5101,8 @@ mod tests {
     #[test]
     fn item_completed_event_from_image_generation_emits_end_event() {
         let event = ItemCompletedEvent {
-            thread_id: ThreadId::new(),
-            turn_id: "turn-1".into(),
+            chat_id: ChatId::new(),
+            interaction_id: "turn-1".into(),
             item: TurnItem::ImageGeneration(ImageGenerationItem {
                 id: "ig-1".into(),
                 status: "completed".into(),
@@ -5105,8 +5133,8 @@ mod tests {
     #[test]
     fn item_completed_event_from_file_change_emits_patch_end_event() {
         let event = ItemCompletedEvent {
-            thread_id: ThreadId::new(),
-            turn_id: "turn-1".into(),
+            chat_id: ChatId::new(),
+            interaction_id: "turn-1".into(),
             completed_at_ms: 0,
             item: TurnItem::FileChange(FileChangeItem {
                 id: "patch-1".into(),
@@ -5130,7 +5158,7 @@ mod tests {
         match &legacy_events[0] {
             EventMsg::PatchApplyEnd(event) => {
                 assert_eq!(event.call_id, "patch-1");
-                assert_eq!(event.turn_id, "turn-1");
+                assert_eq!(event.interaction_id, "turn-1");
                 assert_eq!(event.stdout, "Done!");
                 assert!(event.success);
                 assert_eq!(event.status, PatchApplyStatus::Completed);
@@ -5143,8 +5171,8 @@ mod tests {
     #[test]
     fn item_completed_event_from_mcp_tool_call_emits_end_event() {
         let event = ItemCompletedEvent {
-            thread_id: ThreadId::new(),
-            turn_id: "turn-1".into(),
+            chat_id: ChatId::new(),
+            interaction_id: "turn-1".into(),
             completed_at_ms: 0,
             item: TurnItem::McpToolCall(McpToolCallItem {
                 id: "mcp-1".into(),
@@ -5191,8 +5219,8 @@ mod tests {
     #[test]
     fn item_started_event_requires_started_at_ms() {
         let mut value = serde_json::to_value(ItemStartedEvent {
-            thread_id: ThreadId::new(),
-            turn_id: "turn-1".into(),
+            chat_id: ChatId::new(),
+            interaction_id: "turn-1".into(),
             item: TurnItem::UserMessage(UserMessageItem::new(&[])),
             started_at_ms: 123,
         })
@@ -5205,8 +5233,8 @@ mod tests {
     #[test]
     fn item_completed_event_defaults_missing_completed_at_ms() {
         let mut value = serde_json::to_value(ItemCompletedEvent {
-            thread_id: ThreadId::new(),
-            turn_id: "turn-1".into(),
+            chat_id: ChatId::new(),
+            interaction_id: "turn-1".into(),
             item: TurnItem::UserMessage(UserMessageItem::new(&[])),
             completed_at_ms: 123,
         })
@@ -5398,18 +5426,18 @@ mod tests {
     }
 
     #[test]
-    fn turn_aborted_event_deserializes_without_turn_id() -> Result<()> {
+    fn turn_aborted_event_deserializes_without_interaction_id() -> Result<()> {
         let event: EventMsg = serde_json::from_value(json!({
             "type": "turn_aborted",
             "reason": "interrupted",
         }))?;
 
         match event {
-            EventMsg::TurnAborted(TurnAbortedEvent {
-                turn_id, reason, ..
+            EventMsg::InteractionAborted(InteractionAbortedEvent {
+                interaction_id, reason, ..
             }) => {
-                assert_eq!(turn_id, None);
-                assert_eq!(reason, TurnAbortReason::Interrupted);
+                assert_eq!(interaction_id, None);
+                assert_eq!(reason, InteractionAbortReason::Interrupted);
             }
             _ => panic!("expected turn_aborted event"),
         }
@@ -5435,11 +5463,11 @@ mod tests {
 
     #[test]
     fn multi_agent_version_uses_newest_present_session_meta_value() -> Result<()> {
-        let thread_id = ThreadId::from_string("67e55044-10b1-426f-9247-bb680e5fe0c8")?;
+        let chat_id = ChatId::from_string("67e55044-10b1-426f-9247-bb680e5fe0c8")?;
         let older_meta = SessionMetaLine {
             meta: SessionMeta {
-                session_id: thread_id.into(),
-                id: thread_id,
+                session_id: chat_id.into(),
+                id: chat_id,
                 multi_agent_version: Some(MultiAgentVersion::V2),
                 ..Default::default()
             },
@@ -5447,8 +5475,8 @@ mod tests {
         };
         let newer_meta_without_version = SessionMetaLine {
             meta: SessionMeta {
-                session_id: thread_id.into(),
-                id: thread_id,
+                session_id: chat_id.into(),
+                id: chat_id,
                 multi_agent_version: None,
                 ..Default::default()
             },
@@ -5461,7 +5489,7 @@ mod tests {
                     RolloutItem::SessionMeta(older_meta),
                     RolloutItem::SessionMeta(newer_meta_without_version),
                 ],
-                Some(thread_id),
+                Some(chat_id),
             ),
             Some(MultiAgentVersion::V2)
         );
@@ -5496,7 +5524,7 @@ mod tests {
     #[test]
     fn turn_context_item_serializes_network_when_present() -> Result<()> {
         let item = TurnContextItem {
-            turn_id: None,
+            interaction_id: None,
             cwd: test_path_buf("/tmp").abs(),
             workspace_roots: None,
             current_date: None,
@@ -5557,16 +5585,16 @@ mod tests {
     #[test]
     fn serialize_event() -> Result<()> {
         let session_id = SessionId::from_string("67e55044-10b1-426f-9247-bb680e5fe0c7")?;
-        let thread_id = ThreadId::from_string("67e55044-10b1-426f-9247-bb680e5fe0c8")?;
+        let chat_id = ChatId::from_string("67e55044-10b1-426f-9247-bb680e5fe0c8")?;
         let rollout_file = NamedTempFile::new()?;
         let permission_profile = PermissionProfile::read_only();
         let event = Event {
             id: "1234".to_string(),
             msg: EventMsg::SessionConfigured(SessionConfiguredEvent {
                 session_id,
-                thread_id,
+                chat_id,
                 forked_from_id: None,
-                parent_thread_id: None,
+                parent_chat_id: None,
                 thread_source: None,
                 thread_name: None,
                 model: "datax-mini-latest".to_string(),
@@ -5589,7 +5617,7 @@ mod tests {
             "msg": {
                 "type": "session_configured",
                 "session_id": "67e55044-10b1-426f-9247-bb680e5fe0c7",
-                "thread_id": "67e55044-10b1-426f-9247-bb680e5fe0c8",
+                "chat_id": "67e55044-10b1-426f-9247-bb680e5fe0c8",
                 "model": "datax-mini-latest",
                 "model_provider_id": "openai",
                 "approval_policy": "never",

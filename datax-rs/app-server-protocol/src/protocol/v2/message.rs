@@ -326,10 +326,10 @@ pub enum Message {
         /// Current status of the collab tool call.
         status: CollabAgentToolCallStatus,
         /// Chat ID of the agent issuing the collab request.
-        sender_thread_id: String,
+        sender_chat_id: String,
         /// Chat ID of the receiving agent, when applicable. In case of spawn operation,
         /// this corresponds to the newly spawned agent.
-        receiver_thread_ids: Vec<String>,
+        receiver_chat_ids: Vec<String>,
         /// Prompt text sent as part of the collab tool call, when available.
         prompt: Option<String>,
         /// Model requested for the spawned agent, when applicable.
@@ -344,7 +344,7 @@ pub enum Message {
     SubAgentActivity {
         id: String,
         kind: SubAgentActivityKind,
-        agent_thread_id: String,
+        agent_chat_id: String,
         agent_path: String,
     },
     #[serde(rename_all = "camelCase")]

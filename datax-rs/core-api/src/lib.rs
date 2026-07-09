@@ -74,7 +74,7 @@ pub use datax_model_provider_info::OPENAI_PROVIDER_ID;
 pub use datax_model_provider_info::built_in_model_providers;
 pub use datax_models_manager::manager::RefreshStrategy;
 pub use datax_models_manager::manager::SharedModelsManager;
-pub use datax_protocol::ThreadId;
+pub use datax_protocol::ChatId;
 pub use datax_protocol::config_types::AltScreenMode;
 pub use datax_protocol::config_types::ApprovalsReviewer;
 pub use datax_protocol::config_types::AutoCompactTokenLimitScope;

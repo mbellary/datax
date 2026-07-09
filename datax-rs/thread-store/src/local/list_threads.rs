@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_rollout::RolloutConfig;
 use datax_rollout::RolloutRecorder;
 use datax_rollout::find_thread_names_by_ids;
@@ -76,31 +76,31 @@ pub(super) async fn list_threads(
         })
         .collect::<Vec<_>>();
 
-    let thread_ids = items
+    let chat_ids = items
         .iter()
-        .map(|thread| thread.thread_id)
+        .map(|thread| thread.chat_id)
         .collect::<HashSet<_>>();
-    let mut names = HashMap::<ThreadId, String>::with_capacity(thread_ids.len());
+    let mut names = HashMap::<ChatId, String>::with_capacity(chat_ids.len());
     if let Some(state_db_ctx) = store.state_db().await {
-        for &thread_id in &thread_ids {
-            let Ok(Some(metadata)) = state_db_ctx.get_thread(thread_id).await else {
+        for &chat_id in &chat_ids {
+            let Ok(Some(metadata)) = state_db_ctx.get_thread(chat_id).await else {
                 continue;
             };
             if let Some(title) = distinct_thread_metadata_title(&metadata) {
-                names.insert(thread_id, title);
+                names.insert(chat_id, title);
             }
         }
     }
-    if names.len() < thread_ids.len()
+    if names.len() < chat_ids.len()
         && let Ok(legacy_names) =
-            find_thread_names_by_ids(store.config.codex_home.as_path(), &thread_ids).await
+            find_thread_names_by_ids(store.config.codex_home.as_path(), &chat_ids).await
     {
-        for (thread_id, title) in legacy_names {
-            names.entry(thread_id).or_insert(title);
+        for (chat_id, title) in legacy_names {
+            names.entry(chat_id).or_insert(title);
         }
     }
     for thread in &mut items {
-        if let Some(title) = names.get(&thread.thread_id).cloned() {
+        if let Some(title) = names.get(&thread.chat_id).cloned() {
             set_thread_name_from_title(thread, title);
         }
     }
@@ -117,7 +117,7 @@ pub(super) async fn list_rollout_threads(
     sort_key: datax_rollout::ThreadSortKey,
     sort_direction: datax_rollout::SortDirection,
 ) -> ThreadStoreResult<datax_rollout::ThreadsPage> {
-    if let Some(parent_thread_id) = params.parent_thread_id {
+    if let Some(parent_chat_id) = params.parent_chat_id {
         let page = datax_rollout::state_db::list_threads_db(
             state_db.as_deref(),
             config.codex_home.as_path(),
@@ -128,7 +128,7 @@ pub(super) async fn list_rollout_threads(
             params.allowed_sources.as_slice(),
             params.model_providers.as_deref(),
             params.cwd_filters.as_deref(),
-            Some(parent_thread_id),
+            Some(parent_chat_id),
             params.archived,
             params.search_term.as_deref(),
         )
@@ -138,7 +138,7 @@ pub(super) async fn list_rollout_threads(
         })?;
         let mut page: datax_rollout::ThreadsPage = page.into();
         for item in &mut page.items {
-            item.parent_thread_id = Some(parent_thread_id);
+            item.parent_chat_id = Some(parent_chat_id);
         }
         return Ok(page);
     }
@@ -212,7 +212,7 @@ pub(super) async fn list_rollout_threads(
 #[cfg(test)]
 mod tests {
     use chrono::Utc;
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use datax_protocol::protocol::SessionSource;
     use pretty_assertions::assert_eq;
     use std::fs;
@@ -252,7 +252,7 @@ mod tests {
                 cwd_filters: None,
                 archived: false,
                 search_term: None,
-                parent_thread_id: None,
+                parent_chat_id: None,
                 use_state_db_only: false,
             })
             .await
@@ -267,7 +267,7 @@ mod tests {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let uuid = Uuid::from_u128(103);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let rollout_path = home.path().join("rollout-title-search.jsonl");
         fs::write(&rollout_path, "").expect("placeholder rollout file");
 
@@ -284,7 +284,7 @@ mod tests {
             .expect("backfill should be complete");
         let created_at = Utc::now();
         let mut builder = datax_state::ThreadMetadataBuilder::new(
-            thread_id,
+            chat_id,
             rollout_path,
             created_at,
             SessionSource::Cli,
@@ -312,7 +312,7 @@ mod tests {
                 cwd_filters: None,
                 archived: false,
                 search_term: Some("needle".to_string()),
-                parent_thread_id: None,
+                parent_chat_id: None,
                 use_state_db_only: true,
             })
             .await
@@ -321,9 +321,9 @@ mod tests {
         let ids = page
             .items
             .iter()
-            .map(|item| item.thread_id)
+            .map(|item| item.chat_id)
             .collect::<Vec<_>>();
-        assert_eq!(ids, vec![thread_id]);
+        assert_eq!(ids, vec![chat_id]);
         assert_eq!(
             page.items[0].first_user_message.as_deref(),
             Some("plain preview")
@@ -352,7 +352,7 @@ mod tests {
                 cwd_filters: None,
                 archived: false,
                 search_term: None,
-                parent_thread_id: None,
+                parent_chat_id: None,
                 use_state_db_only: false,
             })
             .await
@@ -368,20 +368,20 @@ mod tests {
                 cwd_filters: None,
                 archived: true,
                 search_term: None,
-                parent_thread_id: None,
+                parent_chat_id: None,
                 use_state_db_only: false,
             })
             .await
             .expect("archived listing");
 
-        let active_id = ThreadId::from_string(&active_uuid.to_string()).expect("valid thread id");
+        let active_id = ChatId::from_string(&active_uuid.to_string()).expect("valid thread id");
         let archived_id =
-            ThreadId::from_string(&archived_uuid.to_string()).expect("valid thread id");
+            ChatId::from_string(&archived_uuid.to_string()).expect("valid thread id");
         assert_eq!(
             active
                 .items
                 .iter()
-                .map(|item| item.thread_id)
+                .map(|item| item.chat_id)
                 .collect::<Vec<_>>(),
             vec![active_id]
         );
@@ -389,7 +389,7 @@ mod tests {
             archived
                 .items
                 .iter()
-                .map(|item| item.thread_id)
+                .map(|item| item.chat_id)
                 .collect::<Vec<_>>(),
             vec![archived_id]
         );
@@ -420,16 +420,16 @@ mod tests {
                 cwd_filters: None,
                 archived: false,
                 search_term: None,
-                parent_thread_id: None,
+                parent_chat_id: None,
                 use_state_db_only: false,
             })
             .await
             .expect("thread listing");
 
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         assert_eq!(page.next_cursor, None);
         assert_eq!(page.items.len(), 1);
-        assert_eq!(page.items[0].thread_id, thread_id);
+        assert_eq!(page.items[0].chat_id, chat_id);
         assert_eq!(page.items[0].rollout_path, Some(path));
         assert_eq!(page.items[0].preview, "Hello from user");
         assert_eq!(
@@ -457,7 +457,7 @@ mod tests {
                 cwd_filters: None,
                 archived: false,
                 search_term: None,
-                parent_thread_id: None,
+                parent_chat_id: None,
                 use_state_db_only: false,
             })
             .await

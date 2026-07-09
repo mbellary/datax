@@ -3,10 +3,10 @@ use super::*;
 #[tokio::test]
 async fn goal_menu_active_snapshot() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
 
     chat.show_goal_summary(test_goal(
-        thread_id,
+        chat_id,
         AppThreadGoalStatus::Active,
         /*token_budget*/ Some(80_000),
     ));
@@ -17,10 +17,10 @@ async fn goal_menu_active_snapshot() {
 #[tokio::test]
 async fn goal_menu_paused_snapshot() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
 
     chat.show_goal_summary(test_goal(
-        thread_id,
+        chat_id,
         AppThreadGoalStatus::Paused,
         /*token_budget*/ None,
     ));
@@ -31,10 +31,10 @@ async fn goal_menu_paused_snapshot() {
 #[tokio::test]
 async fn goal_menu_blocked_snapshot() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
 
     chat.show_goal_summary(test_goal(
-        thread_id,
+        chat_id,
         AppThreadGoalStatus::Blocked,
         /*token_budget*/ None,
     ));
@@ -45,10 +45,10 @@ async fn goal_menu_blocked_snapshot() {
 #[tokio::test]
 async fn goal_menu_usage_limited_snapshot() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
 
     chat.show_goal_summary(test_goal(
-        thread_id,
+        chat_id,
         AppThreadGoalStatus::UsageLimited,
         /*token_budget*/ None,
     ));
@@ -59,10 +59,10 @@ async fn goal_menu_usage_limited_snapshot() {
 #[tokio::test]
 async fn goal_menu_budget_limited_snapshot() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
 
     chat.show_goal_summary(test_goal(
-        thread_id,
+        chat_id,
         AppThreadGoalStatus::BudgetLimited,
         /*token_budget*/ Some(80_000),
     ));
@@ -73,10 +73,10 @@ async fn goal_menu_budget_limited_snapshot() {
 #[tokio::test]
 async fn resume_paused_goal_prompt_snapshot() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
 
     chat.show_resume_paused_goal_prompt(
-        thread_id,
+        chat_id,
         "Keep improving the bare goal command until it feels calm and useful.".to_string(),
     );
 
@@ -89,12 +89,12 @@ async fn resume_paused_goal_prompt_snapshot() {
 #[tokio::test]
 async fn goal_edit_prompt_snapshot() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
 
     chat.show_goal_edit_prompt(
-        thread_id,
+        chat_id,
         test_goal(
-            thread_id,
+            chat_id,
             AppThreadGoalStatus::Active,
             /*token_budget*/ Some(80_000),
         ),
@@ -109,12 +109,12 @@ async fn goal_edit_prompt_snapshot() {
 #[tokio::test]
 async fn goal_edit_prompt_submits_preserved_status_and_budget() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
 
     chat.show_goal_edit_prompt(
-        thread_id,
+        chat_id,
         test_goal(
-            thread_id,
+            chat_id,
             AppThreadGoalStatus::Paused,
             /*token_budget*/ Some(80_000),
         ),
@@ -124,7 +124,7 @@ async fn goal_edit_prompt_submits_preserved_status_and_budget() {
 
     match rx.try_recv() {
         Ok(AppEvent::SetThreadGoalDraft {
-            thread_id: event_thread_id,
+            chat_id: event_chat_id,
             draft,
             mode:
                 crate::app_event::ThreadGoalSetMode::UpdateExisting {
@@ -132,7 +132,7 @@ async fn goal_edit_prompt_submits_preserved_status_and_budget() {
                     token_budget,
                 },
         }) => {
-            assert_eq!(event_thread_id, thread_id);
+            assert_eq!(event_chat_id, chat_id);
             assert_eq!(
                 draft.objective,
                 "Keep improving the bare goal command until it feels calm and useful. with clearer wording"
@@ -152,12 +152,12 @@ async fn goal_edit_prompt_preserves_resumable_stopped_statuses() {
         AppThreadGoalStatus::UsageLimited,
     ] {
         let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
 
         chat.show_goal_edit_prompt(
-            thread_id,
+            chat_id,
             test_goal(
-                thread_id,
+                chat_id,
                 stopped_status,
                 /*token_budget*/ Some(80_000),
             ),
@@ -190,12 +190,12 @@ async fn goal_edit_prompt_resets_terminal_status_to_active() {
 
     for terminal_status in cases {
         let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
 
         chat.show_goal_edit_prompt(
-            thread_id,
+            chat_id,
             test_goal(
-                thread_id,
+                chat_id,
                 terminal_status,
                 /*token_budget*/ Some(80_000),
             ),
@@ -222,17 +222,17 @@ async fn goal_edit_prompt_resets_terminal_status_to_active() {
 #[tokio::test]
 async fn resume_paused_goal_prompt_default_resumes_goal() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
 
-    chat.show_resume_paused_goal_prompt(thread_id, "Finish the paused goal.".to_string());
+    chat.show_resume_paused_goal_prompt(chat_id, "Finish the paused goal.".to_string());
     chat.handle_key_event(KeyEvent::from(KeyCode::Enter));
 
     match rx.try_recv() {
         Ok(AppEvent::SetThreadGoalStatus {
-            thread_id: event_thread_id,
+            chat_id: event_chat_id,
             status,
         }) => {
-            assert_eq!(event_thread_id, thread_id);
+            assert_eq!(event_chat_id, chat_id);
             assert_eq!(status, AppThreadGoalStatus::Active);
         }
         other => panic!("expected SetThreadGoalStatus event, got {other:?}"),
@@ -243,9 +243,9 @@ async fn resume_paused_goal_prompt_default_resumes_goal() {
 #[tokio::test]
 async fn resume_paused_goal_prompt_can_leave_goal_paused() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
 
-    chat.show_resume_paused_goal_prompt(thread_id, "Finish the paused goal.".to_string());
+    chat.show_resume_paused_goal_prompt(chat_id, "Finish the paused goal.".to_string());
     chat.handle_key_event(KeyEvent::from(KeyCode::Down));
     chat.handle_key_event(KeyEvent::from(KeyCode::Enter));
 
@@ -254,7 +254,7 @@ async fn resume_paused_goal_prompt_can_leave_goal_paused() {
 }
 
 fn test_goal(
-    chat_id: ThreadId,
+    chat_id: ChatId,
     status: AppThreadGoalStatus,
     token_budget: Option<i64>,
 ) -> AppThreadGoal {

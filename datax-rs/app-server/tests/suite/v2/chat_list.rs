@@ -30,7 +30,7 @@ use datax_app_server_protocol::SortDirection;
 use datax_app_server_protocol::UserInput;
 use datax_core::ARCHIVED_SESSIONS_SUBDIR;
 use datax_git_utils::GitSha;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::GitInfo as CoreGitInfo;
 use datax_protocol::protocol::RolloutItem;
 use datax_protocol::protocol::RolloutLine;
@@ -109,7 +109,7 @@ async fn list_threads_with_sort(
 
 async fn list_threads_for_parent(
     mcp: &mut TestAppServer,
-    parent_chat_id: ThreadId,
+    parent_chat_id: ChatId,
     cursor: Option<String>,
     limit: u32,
     model_providers: Option<Vec<String>>,
@@ -258,7 +258,7 @@ async fn thread_list_reports_system_error_idle_flag_after_failed_turn() -> Resul
     .await??;
     let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    let seed_turn_id = mcp
+    let seed_interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id.clone(),
             client_user_message_id: None,
@@ -271,7 +271,7 @@ async fn thread_list_reports_system_error_idle_flag_after_failed_turn() -> Resul
         .await?;
     let seed_turn_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(seed_turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(seed_interaction_id)),
     )
     .await??;
     let _: InteractionStartResponse = to_response::<InteractionStartResponse>(seed_turn_resp)?;
@@ -281,7 +281,7 @@ async fn thread_list_reports_system_error_idle_flag_after_failed_turn() -> Resul
     )
     .await??;
 
-    let failed_turn_id = mcp
+    let failed_interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id.clone(),
             client_user_message_id: None,
@@ -294,7 +294,7 @@ async fn thread_list_reports_system_error_idle_flag_after_failed_turn() -> Resul
         .await?;
     let failed_turn_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(failed_turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(failed_interaction_id)),
     )
     .await??;
     let _: InteractionStartResponse = to_response::<InteractionStartResponse>(failed_turn_resp)?;
@@ -907,7 +907,7 @@ sqlite = true
         .collect();
     assert_eq!(ids, vec![chat_id.as_str()]);
 
-    let thread_uuid = ThreadId::from_string(&chat_id)?;
+    let thread_uuid = ChatId::from_string(&chat_id)?;
     let stale_cwd = codex_home.path().join("stale-cwd");
     let mut metadata = state_db
         .get_thread(thread_uuid)
@@ -978,10 +978,10 @@ sqlite = true
 async fn thread_list_parent_filter_reads_direct_children_from_state_db() -> Result<()> {
     let codex_home = TempDir::new()?;
     create_minimal_config(codex_home.path())?;
-    let parent_id = ThreadId::new();
-    let older_child_id = ThreadId::new();
-    let newer_child_id = ThreadId::new();
-    let grandchild_id = ThreadId::new();
+    let parent_id = ChatId::new();
+    let older_child_id = ChatId::new();
+    let newer_child_id = ChatId::new();
+    let grandchild_id = ChatId::new();
     let state_db = datax_state::StateRuntime::init(
         codex_home.path().to_path_buf(),
         "mock_provider".to_string(),
@@ -1022,7 +1022,7 @@ async fn thread_list_parent_filter_reads_direct_children_from_state_db() -> Resu
         metadata.first_user_message = metadata.preview.clone();
         state_db.upsert_thread(&metadata).await?;
     }
-    for (parent_chat_id, child_thread_id) in [
+    for (parent_chat_id, child_chat_id) in [
         (parent_id, older_child_id),
         (parent_id, newer_child_id),
         (newer_child_id, grandchild_id),
@@ -1030,7 +1030,7 @@ async fn thread_list_parent_filter_reads_direct_children_from_state_db() -> Resu
         state_db
             .upsert_thread_spawn_edge(
                 parent_chat_id,
-                child_thread_id,
+                child_chat_id,
                 DirectionalThreadSpawnEdgeStatus::Open,
             )
             .await?;
@@ -1101,7 +1101,7 @@ async fn thread_list_parent_filter_reads_direct_children_from_state_db() -> Resu
 }
 
 #[tokio::test]
-async fn thread_list_parent_filter_rejects_malformed_thread_id() -> Result<()> {
+async fn thread_list_parent_filter_rejects_malformed_chat_id() -> Result<()> {
     let codex_home = TempDir::new()?;
     create_minimal_config(codex_home.path())?;
     let mut mcp = init_mcp(codex_home.path()).await?;
@@ -1190,7 +1190,7 @@ async fn thread_list_filters_by_source_kind_subagent_thread_spawn() -> Result<()
         /*git_info*/ None,
     )?;
 
-    let parent_chat_id = ThreadId::from_string(&Uuid::new_v4().to_string())?;
+    let parent_chat_id = ChatId::from_string(&Uuid::new_v4().to_string())?;
     let subagent_id = create_fake_rollout_with_source(
         codex_home.path(),
         "2025-02-01T11-00-00",
@@ -1199,7 +1199,7 @@ async fn thread_list_filters_by_source_kind_subagent_thread_spawn() -> Result<()
         Some("mock_provider"),
         /*git_info*/ None,
         CoreSessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-            parent_thread_id: parent_chat_id,
+            parent_chat_id: parent_chat_id,
             depth: 1,
             agent_path: None,
             agent_nickname: None,
@@ -1236,7 +1236,7 @@ async fn thread_list_filters_by_subagent_variant() -> Result<()> {
     let codex_home = TempDir::new()?;
     create_minimal_config(codex_home.path())?;
 
-    let parent_chat_id = ThreadId::from_string(&Uuid::new_v4().to_string())?;
+    let parent_chat_id = ChatId::from_string(&Uuid::new_v4().to_string())?;
 
     let review_id = create_fake_parented_rollout_with_source(
         codex_home.path(),
@@ -1266,7 +1266,7 @@ async fn thread_list_filters_by_subagent_variant() -> Result<()> {
         Some("mock_provider"),
         /*git_info*/ None,
         CoreSessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-            parent_thread_id: parent_chat_id,
+            parent_chat_id: parent_chat_id,
             depth: 1,
             agent_path: None,
             agent_nickname: None,
@@ -1739,7 +1739,7 @@ async fn thread_list_sort_recency_at_uses_state_db_order_with_provider_filter() 
     .await?;
     state_db
         .touch_thread_recency_at(
-            ThreadId::from_string(&id_new)?,
+            ChatId::from_string(&id_new)?,
             DateTime::<Utc>::from_timestamp(1_800_000_000, 0).expect("timestamp"),
         )
         .await?;

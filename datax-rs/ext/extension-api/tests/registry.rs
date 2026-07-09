@@ -227,8 +227,8 @@ async fn contributors_preserve_registration_order() {
         fragments.extend(
             contributor
                 .contribute_turn_context(TurnContextContributionInput {
-                    thread_id: datax_protocol::ThreadId::default(),
-                    turn_id: turn_store.level_id(),
+                    chat_id: datax_protocol::ChatId::default(),
+                    interaction_id: turn_store.level_id(),
                     session_store: &session_store,
                     thread_store: &thread_store,
                     turn_store: &turn_store,
@@ -270,7 +270,7 @@ async fn contributors_preserve_registration_order() {
 struct ApprovalCall {
     contributor: &'static str,
     session_id: String,
-    thread_id: String,
+    chat_id: String,
     prompt: String,
 }
 
@@ -294,7 +294,7 @@ impl ApprovalReviewContributor for RecordingApprovalContributor {
                 .push(ApprovalCall {
                     contributor: self.name,
                     session_id: session_store.level_id().to_string(),
-                    thread_id: thread_store.level_id().to_string(),
+                    chat_id: thread_store.level_id().to_string(),
                     prompt: prompt.to_string(),
                 });
             self.decision.clone()
@@ -334,13 +334,13 @@ async fn approval_review_returns_first_claim_and_short_circuits() {
             ApprovalCall {
                 contributor: "first",
                 session_id: "session-1".to_string(),
-                thread_id: "thread-1".to_string(),
+                chat_id: "thread-1".to_string(),
                 prompt: "allow command?".to_string(),
             },
             ApprovalCall {
                 contributor: "second",
                 session_id: "session-1".to_string(),
-                thread_id: "thread-1".to_string(),
+                chat_id: "thread-1".to_string(),
                 prompt: "allow command?".to_string(),
             },
         ]

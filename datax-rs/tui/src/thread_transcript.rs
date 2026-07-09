@@ -12,7 +12,7 @@ use crate::history_cell::UserHistoryCell;
 use crate::multi_agents::sub_agent_activity_summary;
 use datax_app_server_protocol::Chat;
 use datax_app_server_protocol::Message;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::items::UserMessageItem;
 use ratatui::style::Stylize as _;
 use ratatui::text::Line;
@@ -27,11 +27,11 @@ pub(crate) enum RawReasoningVisibility {
 
 pub(crate) async fn load_session_transcript(
     app_server: &mut AppServerSession,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     raw_reasoning_visibility: RawReasoningVisibility,
 ) -> std::io::Result<TranscriptCells> {
     let thread = app_server
-        .thread_read(thread_id, /*include_interactions*/ true)
+        .thread_read(chat_id, /*include_interactions*/ true)
         .await
         .map_err(std::io::Error::other)?;
     Ok(thread_to_transcript_cells(

@@ -17,7 +17,7 @@ pub(crate) struct GoalAccountingState {
 
 #[derive(Debug)]
 struct GoalAccountingInner {
-    current_turn_id: Option<String>,
+    current_interaction_id: Option<String>,
     turns: HashMap<String, GoalTurnAccounting>,
     wall_clock: GoalWallClockAccounting,
     budget_limit_reported_goal_id: Option<String>,
@@ -66,15 +66,15 @@ pub(crate) struct RecordedTokenDelta {
 impl GoalAccountingState {
     pub(crate) fn start_turn(
         &self,
-        turn_id: impl Into<String>,
+        interaction_id: impl Into<String>,
         collaboration_mode: ModeKind,
         token_usage_at_turn_start: &TokenUsage,
     ) {
-        let turn_id = turn_id.into();
+        let interaction_id = interaction_id.into();
         let mut inner = self.inner();
-        inner.current_turn_id = Some(turn_id.clone());
+        inner.current_interaction_id = Some(interaction_id.clone());
         inner.turns.insert(
-            turn_id,
+            interaction_id,
             GoalTurnAccounting::new(
                 token_usage_at_turn_start.clone(),
                 !matches!(collaboration_mode, ModeKind::Plan),
@@ -82,8 +82,8 @@ impl GoalAccountingState {
         );
     }
 
-    pub(crate) fn current_turn_id(&self) -> Option<String> {
-        self.inner().current_turn_id.clone()
+    pub(crate) fn current_interaction_id(&self) -> Option<String> {
+        self.inner().current_interaction_id.clone()
     }
 
     /// Acquires the per-thread progress-accounting permit.
@@ -97,12 +97,12 @@ impl GoalAccountingState {
         self.progress_accounting_lock.acquire().await
     }
 
-    pub(crate) fn turn_is_current_active_goal(&self, turn_id: &str) -> bool {
+    pub(crate) fn turn_is_current_active_goal(&self, interaction_id: &str) -> bool {
         let inner = self.inner();
-        if inner.current_turn_id.as_deref() != Some(turn_id) {
+        if inner.current_interaction_id.as_deref() != Some(interaction_id) {
             return false;
         }
-        let Some(turn) = inner.turns.get(turn_id) else {
+        let Some(turn) = inner.turns.get(interaction_id) else {
             return false;
         };
         turn.account_tokens && turn.active_goal_id.is_some()
@@ -110,12 +110,12 @@ impl GoalAccountingState {
 
     pub(crate) fn record_token_usage(
         &self,
-        turn_id: impl Into<String>,
+        interaction_id: impl Into<String>,
         total_usage: &TokenUsage,
     ) -> Option<RecordedTokenDelta> {
-        let turn_id = turn_id.into();
+        let interaction_id = interaction_id.into();
         let mut inner = self.inner();
-        let turn = inner.turns.get_mut(&turn_id)?;
+        let turn = inner.turns.get_mut(&interaction_id)?;
         turn.current_token_usage = total_usage.clone();
         if !turn.account_tokens {
             return None;
@@ -131,15 +131,15 @@ impl GoalAccountingState {
         })
     }
 
-    pub(crate) fn mark_turn_goal_active(&self, turn_id: &str, goal_id: impl Into<String>) {
+    pub(crate) fn mark_turn_goal_active(&self, interaction_id: &str, goal_id: impl Into<String>) {
         let mut inner = self.inner();
         let goal_id = goal_id.into();
         if inner.budget_limit_reported_goal_id.as_deref() != Some(goal_id.as_str()) {
             inner.budget_limit_reported_goal_id = None;
         }
-        if let Some(turn) = inner.turns.get_mut(turn_id) {
+        if let Some(turn) = inner.turns.get_mut(interaction_id) {
             turn.active_goal_id = Some(goal_id.clone());
-            if inner.current_turn_id.as_deref() == Some(turn_id) {
+            if inner.current_interaction_id.as_deref() == Some(interaction_id) {
                 inner.wall_clock.mark_active_goal(goal_id);
             }
         }
@@ -150,16 +150,16 @@ impl GoalAccountingState {
         goal_id: impl Into<String>,
     ) -> Option<String> {
         let mut inner = self.inner();
-        let turn_id = inner.current_turn_id.clone()?;
+        let interaction_id = inner.current_interaction_id.clone()?;
         let goal_id = goal_id.into();
         if inner.budget_limit_reported_goal_id.as_deref() != Some(goal_id.as_str()) {
             inner.budget_limit_reported_goal_id = None;
         }
-        let turn = inner.turns.get_mut(turn_id.as_str())?;
+        let turn = inner.turns.get_mut(interaction_id.as_str())?;
         turn.active_goal_id = Some(goal_id.clone());
         turn.reset_baseline_to_current();
         inner.wall_clock.mark_active_goal(goal_id);
-        Some(turn_id)
+        Some(interaction_id)
     }
 
     pub(crate) fn mark_idle_goal_active(&self, goal_id: impl Into<String>) {
@@ -173,19 +173,19 @@ impl GoalAccountingState {
 
     pub(crate) fn clear_current_turn_goal(&self) -> Option<String> {
         let mut inner = self.inner();
-        let turn_id = inner.current_turn_id.clone()?;
-        if let Some(turn) = inner.turns.get_mut(turn_id.as_str()) {
+        let interaction_id = inner.current_interaction_id.clone()?;
+        if let Some(turn) = inner.turns.get_mut(interaction_id.as_str()) {
             turn.active_goal_id = None;
         }
         inner.wall_clock.clear_active_goal();
         inner.budget_limit_reported_goal_id = None;
-        Some(turn_id)
+        Some(interaction_id)
     }
 
     pub(crate) fn clear_active_goal(&self) {
         let mut inner = self.inner();
-        if let Some(turn_id) = inner.current_turn_id.clone()
-            && let Some(turn) = inner.turns.get_mut(turn_id.as_str())
+        if let Some(interaction_id) = inner.current_interaction_id.clone()
+            && let Some(turn) = inner.turns.get_mut(interaction_id.as_str())
         {
             turn.active_goal_id = None;
         }
@@ -193,9 +193,9 @@ impl GoalAccountingState {
         inner.budget_limit_reported_goal_id = None;
     }
 
-    pub(crate) fn progress_snapshot(&self, turn_id: &str) -> Option<GoalProgressSnapshot> {
+    pub(crate) fn progress_snapshot(&self, interaction_id: &str) -> Option<GoalProgressSnapshot> {
         let inner = self.inner();
-        let turn = inner.turns.get(turn_id)?;
+        let turn = inner.turns.get(interaction_id)?;
         if !turn.account_tokens {
             return None;
         }
@@ -233,14 +233,14 @@ impl GoalAccountingState {
 
     pub(crate) fn mark_progress_accounted_for_status(
         &self,
-        turn_id: &str,
+        interaction_id: &str,
         snapshot: &GoalProgressSnapshot,
         status: ThreadGoalStatus,
         budget_limited_goal_disposition: BudgetLimitedGoalDisposition,
     ) {
         let clear_active_goal = should_clear_active_goal(status, budget_limited_goal_disposition);
         let mut inner = self.inner();
-        if let Some(turn) = inner.turns.get_mut(turn_id) {
+        if let Some(turn) = inner.turns.get_mut(interaction_id) {
             turn.last_accounted_token_usage = snapshot.current_token_usage.clone();
             if clear_active_goal {
                 turn.active_goal_id = None;
@@ -255,11 +255,11 @@ impl GoalAccountingState {
         }
     }
 
-    pub(crate) fn finish_turn(&self, turn_id: &str) {
+    pub(crate) fn finish_turn(&self, interaction_id: &str) {
         let mut inner = self.inner();
-        inner.turns.remove(turn_id);
-        if inner.current_turn_id.as_deref() == Some(turn_id) {
-            inner.current_turn_id = None;
+        inner.turns.remove(interaction_id);
+        if inner.current_interaction_id.as_deref() == Some(interaction_id) {
+            inner.current_interaction_id = None;
         }
     }
 
@@ -335,7 +335,7 @@ pub(crate) fn goal_token_delta_for_usage(usage: &TokenUsage) -> i64 {
 impl Default for GoalAccountingInner {
     fn default() -> Self {
         Self {
-            current_turn_id: None,
+            current_interaction_id: None,
             turns: HashMap::new(),
             wall_clock: GoalWallClockAccounting::new(),
             budget_limit_reported_goal_id: None,

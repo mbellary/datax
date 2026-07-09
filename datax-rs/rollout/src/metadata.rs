@@ -8,7 +8,7 @@ use chrono::DateTime;
 use chrono::NaiveDateTime;
 use chrono::Timelike;
 use chrono::Utc;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::AskForApproval;
 use datax_protocol::protocol::RolloutItem;
 use datax_protocol::protocol::SandboxPolicy;
@@ -82,7 +82,7 @@ pub fn builder_from_items(
     let (created_ts, uuid) = parse_timestamp_uuid_from_filename(file_name)?;
     let created_at =
         DateTime::<Utc>::from_timestamp(created_ts.unix_timestamp(), 0)?.with_nanosecond(0)?;
-    let id = ThreadId::from_string(&uuid.to_string()).ok()?;
+    let id = ChatId::from_string(&uuid.to_string()).ok()?;
     Some(ThreadMetadataBuilder::new(
         id,
         rollout_path.to_path_buf(),
@@ -95,7 +95,7 @@ pub async fn extract_metadata_from_rollout(
     rollout_path: &Path,
     default_provider: &str,
 ) -> anyhow::Result<ExtractionOutcome> {
-    let (items, _thread_id, parse_errors) =
+    let (items, _chat_id, parse_errors) =
         RolloutRecorder::load_rollout_items(rollout_path).await?;
     if items.is_empty() {
         return Err(anyhow::anyhow!(

@@ -28,7 +28,7 @@ use crate::list::get_threads;
 use crate::list::read_head_for_summary;
 use crate::rollout_date_parts;
 use anyhow::Result;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::models::ContentItem;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::EventMsg;
@@ -52,13 +52,13 @@ fn provider_vec(providers: &[&str]) -> Vec<String> {
         .collect()
 }
 
-fn thread_id_from_uuid(uuid: Uuid) -> ThreadId {
-    ThreadId::from_string(&uuid.to_string()).expect("valid thread id")
+fn chat_id_from_uuid(uuid: Uuid) -> ChatId {
+    ChatId::from_string(&uuid.to_string()).expect("valid thread id")
 }
 
 async fn insert_state_db_thread(
     home: &Path,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     rollout_path: &Path,
     archived: bool,
 ) -> crate::state_db::StateDbHandle {
@@ -74,7 +74,7 @@ async fn insert_state_db_thread(
         .single()
         .expect("valid datetime");
     let mut builder = datax_state::ThreadMetadataBuilder::new(
-        thread_id,
+        chat_id,
         rollout_path.to_path_buf(),
         created_at,
         SessionSource::Cli,
@@ -99,7 +99,7 @@ async fn find_thread_path_falls_back_when_db_path_is_stale() {
     let temp = TempDir::new().unwrap();
     let home = temp.path();
     let uuid = Uuid::from_u128(302);
-    let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+    let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
     let ts = "2025-01-03T13-00-00";
     write_session_file(
         home,
@@ -116,7 +116,7 @@ async fn find_thread_path_falls_back_when_db_path_is_stale() {
     ));
     let runtime = insert_state_db_thread(
         home,
-        thread_id,
+        chat_id,
         stale_db_path.as_path(),
         /*archived*/ false,
     )
@@ -126,7 +126,7 @@ async fn find_thread_path_falls_back_when_db_path_is_stale() {
         .await
         .expect("lookup should succeed");
     assert_eq!(found, Some(fs_rollout_path.clone()));
-    assert_state_db_rollout_path(home, thread_id, Some(fs_rollout_path.as_path())).await;
+    assert_state_db_rollout_path(home, chat_id, Some(fs_rollout_path.as_path())).await;
 }
 
 #[tokio::test]
@@ -134,7 +134,7 @@ async fn find_thread_path_falls_back_when_db_path_points_to_another_thread() {
     let temp = TempDir::new().unwrap();
     let home = temp.path();
     let uuid = Uuid::from_u128(304);
-    let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+    let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
     let ts = "2025-01-03T13-00-00";
     write_session_file(
         home,
@@ -161,7 +161,7 @@ async fn find_thread_path_falls_back_when_db_path_points_to_another_thread() {
     ));
     let runtime = insert_state_db_thread(
         home,
-        thread_id,
+        chat_id,
         stale_db_path.as_path(),
         /*archived*/ false,
     )
@@ -171,7 +171,7 @@ async fn find_thread_path_falls_back_when_db_path_points_to_another_thread() {
         .await
         .expect("lookup should succeed");
     assert_eq!(found, Some(fs_rollout_path.clone()));
-    assert_state_db_rollout_path(home, thread_id, Some(fs_rollout_path.as_path())).await;
+    assert_state_db_rollout_path(home, chat_id, Some(fs_rollout_path.as_path())).await;
 }
 
 #[tokio::test]
@@ -179,7 +179,7 @@ async fn find_thread_path_repairs_missing_db_row_after_filesystem_fallback() {
     let temp = TempDir::new().unwrap();
     let home = temp.path();
     let uuid = Uuid::from_u128(303);
-    let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+    let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
     let ts = "2025-01-03T13-00-00";
     write_session_file(
         home,
@@ -204,7 +204,7 @@ async fn find_thread_path_repairs_missing_db_row_after_filesystem_fallback() {
         .await
         .expect("lookup should succeed");
     assert_eq!(found, Some(fs_rollout_path.clone()));
-    assert_state_db_rollout_path(home, thread_id, Some(fs_rollout_path.as_path())).await;
+    assert_state_db_rollout_path(home, chat_id, Some(fs_rollout_path.as_path())).await;
 }
 
 #[tokio::test]
@@ -212,13 +212,13 @@ async fn find_thread_path_accepts_existing_state_db_path_without_canonical_filen
     let temp = TempDir::new().unwrap();
     let home = temp.path();
     let uuid = Uuid::from_u128(305);
-    let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+    let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
     let db_rollout_path = home.join("sessions/2025/01/03/custom-rollout-name.jsonl");
     fs::create_dir_all(db_rollout_path.parent().expect("rollout parent")).unwrap();
     fs::write(&db_rollout_path, "").unwrap();
     let runtime = insert_state_db_thread(
         home,
-        thread_id,
+        chat_id,
         db_rollout_path.as_path(),
         /*archived*/ false,
     )
@@ -242,14 +242,14 @@ fn rollout_date_parts_extracts_directory_components() {
 
 async fn assert_state_db_rollout_path(
     home: &Path,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     expected_path: Option<&Path>,
 ) {
     let runtime = datax_state::StateRuntime::init(home.to_path_buf(), TEST_PROVIDER.to_string())
         .await
         .expect("state db should initialize");
     let path = runtime
-        .find_rollout_path_by_id(thread_id, Some(false))
+        .find_rollout_path_by_id(chat_id, Some(false))
         .await
         .expect("state db lookup should succeed");
     assert_eq!(path.as_deref(), expected_path);
@@ -384,12 +384,12 @@ fn write_goal_started_session_file(
     });
     writeln!(file, "{meta}")?;
 
-    let thread_id = thread_id_from_uuid(uuid);
+    let chat_id = chat_id_from_uuid(uuid);
     let goal_event = EventMsg::ThreadGoalUpdated(ThreadGoalUpdatedEvent {
-        thread_id,
-        turn_id: None,
+        chat_id,
+        interaction_id: None,
         goal: ThreadGoal {
-            thread_id,
+            chat_id,
             objective: objective.to_string(),
             status: ThreadGoalStatus::Active,
             token_budget: None,
@@ -602,7 +602,7 @@ async fn test_list_conversations_latest_first() {
         items: vec![
             ThreadItem {
                 path: p1,
-                thread_id: Some(thread_id_from_uuid(u3)),
+                chat_id: Some(chat_id_from_uuid(u3)),
                 first_user_message: Some("Hello from user".to_string()),
                 preview: Some("Hello from user".to_string()),
                 cwd: Some(Path::new(".").to_path_buf()),
@@ -610,7 +610,7 @@ async fn test_list_conversations_latest_first() {
                 git_sha: None,
                 git_origin_url: None,
                 source: Some(SessionSource::VSCode),
-                parent_thread_id: None,
+                parent_chat_id: None,
                 agent_nickname: None,
                 agent_role: None,
                 model_provider: Some(TEST_PROVIDER.to_string()),
@@ -621,7 +621,7 @@ async fn test_list_conversations_latest_first() {
             },
             ThreadItem {
                 path: p2,
-                thread_id: Some(thread_id_from_uuid(u2)),
+                chat_id: Some(chat_id_from_uuid(u2)),
                 first_user_message: Some("Hello from user".to_string()),
                 preview: Some("Hello from user".to_string()),
                 cwd: Some(Path::new(".").to_path_buf()),
@@ -629,7 +629,7 @@ async fn test_list_conversations_latest_first() {
                 git_sha: None,
                 git_origin_url: None,
                 source: Some(SessionSource::VSCode),
-                parent_thread_id: None,
+                parent_chat_id: None,
                 agent_nickname: None,
                 agent_role: None,
                 model_provider: Some(TEST_PROVIDER.to_string()),
@@ -640,7 +640,7 @@ async fn test_list_conversations_latest_first() {
             },
             ThreadItem {
                 path: p3,
-                thread_id: Some(thread_id_from_uuid(u1)),
+                chat_id: Some(chat_id_from_uuid(u1)),
                 first_user_message: Some("Hello from user".to_string()),
                 preview: Some("Hello from user".to_string()),
                 cwd: Some(Path::new(".").to_path_buf()),
@@ -648,7 +648,7 @@ async fn test_list_conversations_latest_first() {
                 git_sha: None,
                 git_origin_url: None,
                 source: Some(SessionSource::VSCode),
-                parent_thread_id: None,
+                parent_chat_id: None,
                 agent_nickname: None,
                 agent_role: None,
                 model_provider: Some(TEST_PROVIDER.to_string()),
@@ -752,7 +752,7 @@ async fn test_pagination_cursor() {
         items: vec![
             ThreadItem {
                 path: p5,
-                thread_id: Some(thread_id_from_uuid(u5)),
+                chat_id: Some(chat_id_from_uuid(u5)),
                 first_user_message: Some("Hello from user".to_string()),
                 preview: Some("Hello from user".to_string()),
                 cwd: Some(Path::new(".").to_path_buf()),
@@ -760,7 +760,7 @@ async fn test_pagination_cursor() {
                 git_sha: None,
                 git_origin_url: None,
                 source: Some(SessionSource::VSCode),
-                parent_thread_id: None,
+                parent_chat_id: None,
                 agent_nickname: None,
                 agent_role: None,
                 model_provider: Some(TEST_PROVIDER.to_string()),
@@ -771,7 +771,7 @@ async fn test_pagination_cursor() {
             },
             ThreadItem {
                 path: p4,
-                thread_id: Some(thread_id_from_uuid(u4)),
+                chat_id: Some(chat_id_from_uuid(u4)),
                 first_user_message: Some("Hello from user".to_string()),
                 preview: Some("Hello from user".to_string()),
                 cwd: Some(Path::new(".").to_path_buf()),
@@ -779,7 +779,7 @@ async fn test_pagination_cursor() {
                 git_sha: None,
                 git_origin_url: None,
                 source: Some(SessionSource::VSCode),
-                parent_thread_id: None,
+                parent_chat_id: None,
                 agent_nickname: None,
                 agent_role: None,
                 model_provider: Some(TEST_PROVIDER.to_string()),
@@ -826,7 +826,7 @@ async fn test_pagination_cursor() {
         items: vec![
             ThreadItem {
                 path: p3,
-                thread_id: Some(thread_id_from_uuid(u3)),
+                chat_id: Some(chat_id_from_uuid(u3)),
                 first_user_message: Some("Hello from user".to_string()),
                 preview: Some("Hello from user".to_string()),
                 cwd: Some(Path::new(".").to_path_buf()),
@@ -834,7 +834,7 @@ async fn test_pagination_cursor() {
                 git_sha: None,
                 git_origin_url: None,
                 source: Some(SessionSource::VSCode),
-                parent_thread_id: None,
+                parent_chat_id: None,
                 agent_nickname: None,
                 agent_role: None,
                 model_provider: Some(TEST_PROVIDER.to_string()),
@@ -845,7 +845,7 @@ async fn test_pagination_cursor() {
             },
             ThreadItem {
                 path: p2,
-                thread_id: Some(thread_id_from_uuid(u2)),
+                chat_id: Some(chat_id_from_uuid(u2)),
                 first_user_message: Some("Hello from user".to_string()),
                 preview: Some("Hello from user".to_string()),
                 cwd: Some(Path::new(".").to_path_buf()),
@@ -853,7 +853,7 @@ async fn test_pagination_cursor() {
                 git_sha: None,
                 git_origin_url: None,
                 source: Some(SessionSource::VSCode),
-                parent_thread_id: None,
+                parent_chat_id: None,
                 agent_nickname: None,
                 agent_role: None,
                 model_provider: Some(TEST_PROVIDER.to_string()),
@@ -892,7 +892,7 @@ async fn test_pagination_cursor() {
     let expected_page3 = ThreadsPage {
         items: vec![ThreadItem {
             path: p1,
-            thread_id: Some(thread_id_from_uuid(u1)),
+            chat_id: Some(chat_id_from_uuid(u1)),
             first_user_message: Some("Hello from user".to_string()),
             preview: Some("Hello from user".to_string()),
             cwd: Some(Path::new(".").to_path_buf()),
@@ -900,7 +900,7 @@ async fn test_pagination_cursor() {
             git_sha: None,
             git_origin_url: None,
             source: Some(SessionSource::VSCode),
-            parent_thread_id: None,
+            parent_chat_id: None,
             agent_nickname: None,
             agent_role: None,
             model_provider: Some(TEST_PROVIDER.to_string()),
@@ -941,7 +941,7 @@ async fn test_list_threads_scans_past_head_for_user_event() {
     .unwrap();
 
     assert_eq!(page.items.len(), 1);
-    assert_eq!(page.items[0].thread_id, Some(thread_id_from_uuid(uuid)));
+    assert_eq!(page.items[0].chat_id, Some(chat_id_from_uuid(uuid)));
 }
 
 #[tokio::test]
@@ -976,7 +976,7 @@ async fn test_list_threads_uses_goal_objective_as_preview() {
 
     assert_eq!(page.items.len(), 1);
     let item = &page.items[0];
-    assert_eq!(item.thread_id, Some(thread_id_from_uuid(uuid)));
+    assert_eq!(item.chat_id, Some(chat_id_from_uuid(uuid)));
     assert_eq!(item.preview.as_deref(), Some("optimize the benchmark"));
     assert_eq!(item.first_user_message, None);
 }
@@ -1013,7 +1013,7 @@ async fn test_goal_first_thread_reads_later_user_message() {
 
     assert_eq!(page.items.len(), 1);
     let item = &page.items[0];
-    assert_eq!(item.thread_id, Some(thread_id_from_uuid(uuid)));
+    assert_eq!(item.chat_id, Some(chat_id_from_uuid(uuid)));
     assert_eq!(item.preview.as_deref(), Some("optimize the benchmark"));
     assert_eq!(
         item.first_user_message.as_deref(),
@@ -1064,7 +1064,7 @@ async fn test_get_thread_contents() {
     let expected_page = ThreadsPage {
         items: vec![ThreadItem {
             path: expected_path,
-            thread_id: Some(thread_id_from_uuid(uuid)),
+            chat_id: Some(chat_id_from_uuid(uuid)),
             first_user_message: Some("Hello from user".to_string()),
             preview: Some("Hello from user".to_string()),
             cwd: Some(Path::new(".").to_path_buf()),
@@ -1072,7 +1072,7 @@ async fn test_get_thread_contents() {
             git_sha: None,
             git_origin_url: None,
             source: Some(SessionSource::VSCode),
-            parent_thread_id: None,
+            parent_chat_id: None,
             agent_nickname: None,
             agent_role: None,
             model_provider: Some(TEST_PROVIDER.to_string()),
@@ -1267,7 +1267,7 @@ async fn test_updated_at_uses_file_mtime() -> Result<()> {
     let file_path = day_dir.join(format!("rollout-{ts}-{uuid}.jsonl"));
     let mut file = File::create(&file_path)?;
 
-    let conversation_id = ThreadId::from_string(&uuid.to_string())?;
+    let conversation_id = ChatId::from_string(&uuid.to_string())?;
     let meta_line = RolloutLine {
         timestamp: ts.to_string(),
         item: RolloutItem::SessionMeta(SessionMetaLine {
@@ -1275,7 +1275,7 @@ async fn test_updated_at_uses_file_mtime() -> Result<()> {
                 session_id: conversation_id.into(),
                 id: conversation_id,
                 forked_from_id: None,
-                parent_thread_id: None,
+                parent_chat_id: None,
                 timestamp: ts.to_string(),
                 cwd: ".".into(),
                 originator: "test_originator".into(),
@@ -1422,7 +1422,7 @@ async fn test_timestamp_only_cursor_skips_same_second_filesystem_ties() {
         items: vec![
             ThreadItem {
                 path: p3,
-                thread_id: Some(thread_id_from_uuid(u3)),
+                chat_id: Some(chat_id_from_uuid(u3)),
                 first_user_message: Some("Hello from user".to_string()),
                 preview: Some("Hello from user".to_string()),
                 cwd: Some(Path::new(".").to_path_buf()),
@@ -1430,7 +1430,7 @@ async fn test_timestamp_only_cursor_skips_same_second_filesystem_ties() {
                 git_sha: None,
                 git_origin_url: None,
                 source: Some(SessionSource::VSCode),
-                parent_thread_id: None,
+                parent_chat_id: None,
                 agent_nickname: None,
                 agent_role: None,
                 model_provider: Some(TEST_PROVIDER.to_string()),
@@ -1441,7 +1441,7 @@ async fn test_timestamp_only_cursor_skips_same_second_filesystem_ties() {
             },
             ThreadItem {
                 path: p2,
-                thread_id: Some(thread_id_from_uuid(u2)),
+                chat_id: Some(chat_id_from_uuid(u2)),
                 first_user_message: Some("Hello from user".to_string()),
                 preview: Some("Hello from user".to_string()),
                 cwd: Some(Path::new(".").to_path_buf()),
@@ -1449,7 +1449,7 @@ async fn test_timestamp_only_cursor_skips_same_second_filesystem_ties() {
                 git_sha: None,
                 git_origin_url: None,
                 source: Some(SessionSource::VSCode),
-                parent_thread_id: None,
+                parent_chat_id: None,
                 agent_nickname: None,
                 agent_role: None,
                 model_provider: Some(TEST_PROVIDER.to_string()),
@@ -1615,7 +1615,7 @@ async fn test_model_provider_filter_selects_only_matching_sessions() -> Result<(
     let openai_ids: Vec<_> = openai_sessions
         .items
         .iter()
-        .filter_map(|item| item.thread_id.as_ref().map(ToString::to_string))
+        .filter_map(|item| item.chat_id.as_ref().map(ToString::to_string))
         .collect();
     assert!(openai_ids.contains(&openai_id_str));
     assert!(openai_ids.contains(&none_id_str));
@@ -1637,7 +1637,7 @@ async fn test_model_provider_filter_selects_only_matching_sessions() -> Result<(
     let beta_head = beta_sessions
         .items
         .first()
-        .and_then(|item| item.thread_id.as_ref().map(ToString::to_string));
+        .and_then(|item| item.chat_id.as_ref().map(ToString::to_string));
     assert_eq!(beta_head.as_deref(), Some(beta_id_str.as_str()));
 
     let unknown_filter = provider_vec(&["unknown"]);

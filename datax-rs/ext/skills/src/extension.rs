@@ -119,7 +119,7 @@ where
             let catalog = self
                 .list_skills(
                     SkillListQuery {
-                        turn_id: thread_store.level_id().to_string(),
+                        interaction_id: thread_store.level_id().to_string(),
                         executor_roots: thread_state.selected_roots().to_vec(),
                         host_snapshot: None,
                         include_host_skills: false,
@@ -186,7 +186,7 @@ where
             let config = thread_state.config();
             let host_snapshot = turn_store.get::<HostSkillsSnapshot>();
             let query = SkillListQuery {
-                turn_id: input.turn_id.clone(),
+                interaction_id: input.interaction_id.clone(),
                 executor_roots: thread_state.selected_roots().to_vec(),
                 host_snapshot: host_snapshot.clone(),
                 include_host_skills: true,
@@ -196,7 +196,7 @@ where
             };
             let catalog = self.list_skills(query, &thread_state).await;
             for warning in &catalog.warnings {
-                self.emit_warning(&input.turn_id, warning.clone());
+                self.emit_warning(&input.interaction_id, warning.clone());
             }
 
             let selected_entries = collect_explicit_skill_mentions(&input.user_input, &catalog);
@@ -228,7 +228,7 @@ where
                                 "Skill `{}` exceeded the main prompt context limit and was truncated.",
                                 entry.name
                             );
-                            self.emit_warning(&input.turn_id, warning.clone());
+                            self.emit_warning(&input.interaction_id, warning.clone());
                             warnings.push(warning);
                         }
                         let fragment = SkillInstructions {
@@ -248,7 +248,7 @@ where
                     }
                     Err(message) => {
                         let warning = format!("Failed to load skill `{}`: {message}", entry.name);
-                        self.emit_warning(&input.turn_id, warning.clone());
+                        self.emit_warning(&input.interaction_id, warning.clone());
                         warnings.push(warning);
                     }
                 }
@@ -335,9 +335,9 @@ impl<C> SkillsExtension<C> {
             .map_err(|err| err.message)
     }
 
-    fn emit_warning(&self, turn_id: &str, message: String) {
+    fn emit_warning(&self, interaction_id: &str, message: String) {
         self.event_sink.emit(Event {
-            id: turn_id.to_string(),
+            id: interaction_id.to_string(),
             msg: EventMsg::Warning(WarningEvent { message }),
         });
     }

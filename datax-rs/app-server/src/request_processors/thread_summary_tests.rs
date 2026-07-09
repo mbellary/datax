@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 #[test]
 fn extract_conversation_summary_prefers_plain_user_messages() -> Result<()> {
-    let conversation_id = ThreadId::from_string("3f941c35-29b3-493b-b0a4-e25800d9aeb0")?;
+    let conversation_id = ChatId::from_string("3f941c35-29b3-493b-b0a4-e25800d9aeb0")?;
     let timestamp = Some("2025-09-05T16:53:11.850Z".to_string());
     let path = PathBuf::from("rollout.jsonl");
 

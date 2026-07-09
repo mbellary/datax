@@ -41,30 +41,30 @@ impl Handler {
         } = invocation;
         let arguments = function_arguments(payload)?;
         let args: SendInputArgs = parse_arguments(&arguments)?;
-        let receiver_thread_id = parse_agent_id_target(&args.target)?;
+        let receiver_chat_id = parse_agent_id_target(&args.target)?;
         let input_items = parse_collab_input(args.message, args.items)?;
         let prompt = render_input_preview(&input_items);
         let receiver_agent = session
             .services
             .agent_control
-            .get_agent_metadata(receiver_thread_id);
+            .get_agent_metadata(receiver_chat_id);
         if receiver_agent.is_some() {
             let resume_config = build_agent_resume_config(turn.as_ref())?;
             session
                 .services
                 .agent_control
-                .ensure_v2_agent_loaded(resume_config, receiver_thread_id)
+                .ensure_v2_agent_loaded(resume_config, receiver_chat_id)
                 .await
-                .map_err(|err| collab_agent_error(receiver_thread_id, err))?;
+                .map_err(|err| collab_agent_error(receiver_chat_id, err))?;
         }
         let receiver_agent = receiver_agent.unwrap_or_default();
         if args.interrupt {
             session
                 .services
                 .agent_control
-                .interrupt_agent(receiver_thread_id)
+                .interrupt_agent(receiver_chat_id)
                 .await
-                .map_err(|err| collab_agent_error(receiver_thread_id, err))?;
+                .map_err(|err| collab_agent_error(receiver_chat_id, err))?;
         }
         session
             .send_event(
@@ -72,8 +72,8 @@ impl Handler {
                 CollabAgentInteractionBeginEvent {
                     call_id: call_id.clone(),
                     started_at_ms: now_unix_timestamp_ms(),
-                    sender_thread_id: session.thread_id,
-                    receiver_thread_id,
+                    sender_chat_id: session.chat_id,
+                    receiver_chat_id,
                     prompt: prompt.clone(),
                 }
                 .into(),
@@ -81,13 +81,13 @@ impl Handler {
             .await;
         let agent_control = session.services.agent_control.clone();
         let result = agent_control
-            .send_input(receiver_thread_id, input_items)
+            .send_input(receiver_chat_id, input_items)
             .await
-            .map_err(|err| collab_agent_error(receiver_thread_id, err));
+            .map_err(|err| collab_agent_error(receiver_chat_id, err));
         let status = session
             .services
             .agent_control
-            .get_status(receiver_thread_id)
+            .get_status(receiver_chat_id)
             .await;
         session
             .send_event(
@@ -95,8 +95,8 @@ impl Handler {
                 CollabAgentInteractionEndEvent {
                     call_id,
                     completed_at_ms: now_unix_timestamp_ms(),
-                    sender_thread_id: session.thread_id,
-                    receiver_thread_id,
+                    sender_chat_id: session.chat_id,
+                    receiver_chat_id,
                     receiver_agent_nickname: receiver_agent.agent_nickname,
                     receiver_agent_role: receiver_agent.agent_role,
                     prompt,

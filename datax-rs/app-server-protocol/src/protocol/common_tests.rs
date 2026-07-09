@@ -1,6 +1,6 @@
 use super::*;
 use anyhow::Result;
-use datax_protocol::protocol::TurnAbortReason;
+use datax_protocol::protocol::InteractionAbortReason;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
@@ -28,7 +28,7 @@ fn client_response_payload_returns_jsonrpc_parts_and_client_response() -> Result
 fn interrupt_conversation_payload_stays_jsonrpc_only() -> Result<()> {
     let (request_id, result, payload) =
         ClientResponsePayload::InterruptConversation(v1::InterruptConversationResponse {
-            abort_reason: TurnAbortReason::Interrupted,
+            abort_reason: InteractionAbortReason::Interrupted,
         })
         .into_jsonrpc_parts_and_payload(RequestId::Integer(8))?;
 

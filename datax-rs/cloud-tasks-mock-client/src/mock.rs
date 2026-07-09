@@ -97,8 +97,8 @@ impl MockClient {
         Ok(TaskText {
             prompt: Some("Why is there no diff?".to_string()),
             messages: vec!["Mock assistant output: this task contains no diff.".to_string()],
-            turn_id: Some("mock-turn".to_string()),
-            sibling_turn_ids: Vec::new(),
+            interaction_id: Some("mock-turn".to_string()),
+            sibling_interaction_ids: Vec::new(),
             attempt_placement: Some(0),
             attempt_status: AttemptStatus::Completed,
         })
@@ -131,11 +131,11 @@ impl MockClient {
     async fn list_sibling_attempts(
         &self,
         task: TaskId,
-        _turn_id: String,
+        _interaction_id: String,
     ) -> Result<Vec<TurnAttempt>> {
         if task.0 == "T-1000" {
             return Ok(vec![TurnAttempt {
-                turn_id: "T-1000-attempt-2".to_string(),
+                interaction_id: "T-1000-attempt-2".to_string(),
                 attempt_placement: Some(1),
                 created_at: Some(Utc::now()),
                 status: AttemptStatus::Completed,
@@ -205,9 +205,9 @@ impl CloudBackend for MockClient {
     fn list_sibling_attempts(
         &self,
         task: TaskId,
-        turn_id: String,
+        interaction_id: String,
     ) -> CloudBackendFuture<'_, Vec<TurnAttempt>> {
-        Box::pin(MockClient::list_sibling_attempts(self, task, turn_id))
+        Box::pin(MockClient::list_sibling_attempts(self, task, interaction_id))
     }
 
     fn create_task<'a>(

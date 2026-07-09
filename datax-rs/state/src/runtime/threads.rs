@@ -5,7 +5,7 @@ use std::sync::atomic::AtomicI64;
 use std::sync::atomic::Ordering;
 
 impl StateRuntime {
-    pub async fn get_thread(&self, id: ThreadId) -> anyhow::Result<Option<crate::ThreadMetadata>> {
+    pub async fn get_thread(&self, id: ChatId) -> anyhow::Result<Option<crate::ThreadMetadata>> {
         let row = sqlx::query(
             r#"
 SELECT
@@ -45,7 +45,7 @@ WHERE threads.id = ?
             .transpose()
     }
 
-    pub async fn get_thread_memory_mode(&self, id: ThreadId) -> anyhow::Result<Option<String>> {
+    pub async fn get_thread_memory_mode(&self, id: ChatId) -> anyhow::Result<Option<String>> {
         let row = sqlx::query("SELECT memory_mode FROM threads WHERE id = ?")
             .bind(id.to_string())
             .fetch_optional(self.pool.as_ref())
@@ -55,7 +55,7 @@ WHERE threads.id = ?
 
     pub async fn set_thread_preview_if_empty(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         preview: &str,
     ) -> anyhow::Result<bool> {
         let preview = preview.trim();
@@ -70,7 +70,7 @@ WHERE id = ? AND preview = ''
             "#,
         )
         .bind(preview)
-        .bind(thread_id.to_string())
+        .bind(chat_id.to_string())
         .execute(self.pool.as_ref())
         .await?;
         Ok(result.rows_affected() > 0)
@@ -79,24 +79,24 @@ WHERE id = ? AND preview = ''
     /// Persist or replace the directional parent-child edge for a spawned thread.
     pub async fn upsert_thread_spawn_edge(
         &self,
-        parent_thread_id: ThreadId,
-        child_thread_id: ThreadId,
+        parent_chat_id: ChatId,
+        child_chat_id: ChatId,
         status: crate::DirectionalThreadSpawnEdgeStatus,
     ) -> anyhow::Result<()> {
         sqlx::query(
             r#"
 INSERT INTO thread_spawn_edges (
-    parent_thread_id,
-    child_thread_id,
+    parent_chat_id,
+    child_chat_id,
     status
 ) VALUES (?, ?, ?)
-ON CONFLICT(child_thread_id) DO UPDATE SET
-    parent_thread_id = excluded.parent_thread_id,
+ON CONFLICT(child_chat_id) DO UPDATE SET
+    parent_chat_id = excluded.parent_chat_id,
     status = excluded.status
             "#,
         )
-        .bind(parent_thread_id.to_string())
-        .bind(child_thread_id.to_string())
+        .bind(parent_chat_id.to_string())
+        .bind(child_chat_id.to_string())
         .bind(status.as_ref())
         .execute(self.pool.as_ref())
         .await?;
@@ -106,160 +106,160 @@ ON CONFLICT(child_thread_id) DO UPDATE SET
     /// Update the persisted lifecycle status of a spawned thread's incoming edge.
     pub async fn set_thread_spawn_edge_status(
         &self,
-        child_thread_id: ThreadId,
+        child_chat_id: ChatId,
         status: crate::DirectionalThreadSpawnEdgeStatus,
     ) -> anyhow::Result<()> {
-        sqlx::query("UPDATE thread_spawn_edges SET status = ? WHERE child_thread_id = ?")
+        sqlx::query("UPDATE thread_spawn_edges SET status = ? WHERE child_chat_id = ?")
             .bind(status.as_ref())
-            .bind(child_thread_id.to_string())
+            .bind(child_chat_id.to_string())
             .execute(self.pool.as_ref())
             .await?;
         Ok(())
     }
 
-    /// List direct spawned children of `parent_thread_id` whose edge matches `status`.
+    /// List direct spawned children of `parent_chat_id` whose edge matches `status`.
     pub async fn list_thread_spawn_children_with_status(
         &self,
-        parent_thread_id: ThreadId,
+        parent_chat_id: ChatId,
         status: crate::DirectionalThreadSpawnEdgeStatus,
-    ) -> anyhow::Result<Vec<ThreadId>> {
-        self.list_thread_spawn_children_matching(parent_thread_id, Some(status))
+    ) -> anyhow::Result<Vec<ChatId>> {
+        self.list_thread_spawn_children_matching(parent_chat_id, Some(status))
             .await
     }
 
-    /// List all direct spawned children of `parent_thread_id`.
+    /// List all direct spawned children of `parent_chat_id`.
     pub async fn list_thread_spawn_children(
         &self,
-        parent_thread_id: ThreadId,
-    ) -> anyhow::Result<Vec<ThreadId>> {
-        self.list_thread_spawn_children_matching(parent_thread_id, /*status*/ None)
+        parent_chat_id: ChatId,
+    ) -> anyhow::Result<Vec<ChatId>> {
+        self.list_thread_spawn_children_matching(parent_chat_id, /*status*/ None)
             .await
     }
 
-    /// List spawned descendants of `root_thread_id` whose edges match `status`.
+    /// List spawned descendants of `root_chat_id` whose edges match `status`.
     ///
     /// Descendants are returned breadth-first by depth, then by thread id for stable ordering.
     pub async fn list_thread_spawn_descendants_with_status(
         &self,
-        root_thread_id: ThreadId,
+        root_chat_id: ChatId,
         status: crate::DirectionalThreadSpawnEdgeStatus,
-    ) -> anyhow::Result<Vec<ThreadId>> {
-        self.list_thread_spawn_descendants_matching(root_thread_id, Some(status))
+    ) -> anyhow::Result<Vec<ChatId>> {
+        self.list_thread_spawn_descendants_matching(root_chat_id, Some(status))
             .await
     }
 
-    /// List all spawned descendants of `root_thread_id`.
+    /// List all spawned descendants of `root_chat_id`.
     ///
     /// Descendants are returned breadth-first by depth, then by thread id for stable ordering.
     pub async fn list_thread_spawn_descendants(
         &self,
-        root_thread_id: ThreadId,
-    ) -> anyhow::Result<Vec<ThreadId>> {
-        self.list_thread_spawn_descendants_matching(root_thread_id, /*status*/ None)
+        root_chat_id: ChatId,
+    ) -> anyhow::Result<Vec<ChatId>> {
+        self.list_thread_spawn_descendants_matching(root_chat_id, /*status*/ None)
             .await
     }
 
-    /// Find a direct spawned child of `parent_thread_id` by canonical agent path.
+    /// Find a direct spawned child of `parent_chat_id` by canonical agent path.
     pub async fn find_thread_spawn_child_by_path(
         &self,
-        parent_thread_id: ThreadId,
+        parent_chat_id: ChatId,
         agent_path: &str,
-    ) -> anyhow::Result<Option<ThreadId>> {
+    ) -> anyhow::Result<Option<ChatId>> {
         let rows = sqlx::query(
             r#"
 SELECT threads.id
 FROM thread_spawn_edges
-JOIN threads ON threads.id = thread_spawn_edges.child_thread_id
-WHERE thread_spawn_edges.parent_thread_id = ?
+JOIN threads ON threads.id = thread_spawn_edges.child_chat_id
+WHERE thread_spawn_edges.parent_chat_id = ?
   AND threads.agent_path = ?
 ORDER BY threads.id
 LIMIT 2
             "#,
         )
-        .bind(parent_thread_id.to_string())
+        .bind(parent_chat_id.to_string())
         .bind(agent_path)
         .fetch_all(self.pool.as_ref())
         .await?;
-        one_thread_id_from_rows(rows, agent_path)
+        one_chat_id_from_rows(rows, agent_path)
     }
 
-    /// Find a spawned descendant of `root_thread_id` by canonical agent path.
+    /// Find a spawned descendant of `root_chat_id` by canonical agent path.
     pub async fn find_thread_spawn_descendant_by_path(
         &self,
-        root_thread_id: ThreadId,
+        root_chat_id: ChatId,
         agent_path: &str,
-    ) -> anyhow::Result<Option<ThreadId>> {
+    ) -> anyhow::Result<Option<ChatId>> {
         let rows = sqlx::query(
             r#"
-WITH RECURSIVE subtree(child_thread_id) AS (
-    SELECT child_thread_id
+WITH RECURSIVE subtree(child_chat_id) AS (
+    SELECT child_chat_id
     FROM thread_spawn_edges
-    WHERE parent_thread_id = ?
+    WHERE parent_chat_id = ?
     UNION ALL
-    SELECT edge.child_thread_id
+    SELECT edge.child_chat_id
     FROM thread_spawn_edges AS edge
-    JOIN subtree ON edge.parent_thread_id = subtree.child_thread_id
+    JOIN subtree ON edge.parent_chat_id = subtree.child_chat_id
 )
 SELECT threads.id
 FROM subtree
-JOIN threads ON threads.id = subtree.child_thread_id
+JOIN threads ON threads.id = subtree.child_chat_id
 WHERE threads.agent_path = ?
 ORDER BY threads.id
 LIMIT 2
             "#,
         )
-        .bind(root_thread_id.to_string())
+        .bind(root_chat_id.to_string())
         .bind(agent_path)
         .fetch_all(self.pool.as_ref())
         .await?;
-        one_thread_id_from_rows(rows, agent_path)
+        one_chat_id_from_rows(rows, agent_path)
     }
 
     async fn list_thread_spawn_children_matching(
         &self,
-        parent_thread_id: ThreadId,
+        parent_chat_id: ChatId,
         status: Option<crate::DirectionalThreadSpawnEdgeStatus>,
-    ) -> anyhow::Result<Vec<ThreadId>> {
+    ) -> anyhow::Result<Vec<ChatId>> {
         let mut builder = QueryBuilder::<Sqlite>::new(
-            "SELECT child_thread_id FROM thread_spawn_edges WHERE parent_thread_id = ",
+            "SELECT child_chat_id FROM thread_spawn_edges WHERE parent_chat_id = ",
         );
-        builder.push_bind(parent_thread_id.to_string());
+        builder.push_bind(parent_chat_id.to_string());
         if let Some(status) = status {
             builder.push(" AND status = ").push_bind(status.to_string());
         }
-        builder.push(" ORDER BY child_thread_id");
+        builder.push(" ORDER BY child_chat_id");
 
         let rows = builder.build().fetch_all(self.pool.as_ref()).await?;
         rows.into_iter()
             .map(|row| {
-                ThreadId::try_from(row.try_get::<String, _>("child_thread_id")?).map_err(Into::into)
+                ChatId::try_from(row.try_get::<String, _>("child_chat_id")?).map_err(Into::into)
             })
             .collect()
     }
 
     async fn list_thread_spawn_descendants_matching(
         &self,
-        root_thread_id: ThreadId,
+        root_chat_id: ChatId,
         status: Option<crate::DirectionalThreadSpawnEdgeStatus>,
-    ) -> anyhow::Result<Vec<ThreadId>> {
+    ) -> anyhow::Result<Vec<ChatId>> {
         let mut builder = QueryBuilder::<Sqlite>::new(
             r#"
-WITH RECURSIVE subtree(child_thread_id, depth) AS (
-    SELECT child_thread_id, 1
+WITH RECURSIVE subtree(child_chat_id, depth) AS (
+    SELECT child_chat_id, 1
     FROM thread_spawn_edges
-    WHERE parent_thread_id =
+    WHERE parent_chat_id =
             "#,
         );
-        builder.push_bind(root_thread_id.to_string());
+        builder.push_bind(root_chat_id.to_string());
         if let Some(status) = status {
             let status = status.to_string();
             builder.push(" AND status = ").push_bind(status.clone());
             builder.push(
                 r#"
     UNION ALL
-    SELECT edge.child_thread_id, subtree.depth + 1
+    SELECT edge.child_chat_id, subtree.depth + 1
     FROM thread_spawn_edges AS edge
-    JOIN subtree ON edge.parent_thread_id = subtree.child_thread_id
+    JOIN subtree ON edge.parent_chat_id = subtree.child_chat_id
     WHERE status =
                 "#,
             );
@@ -268,46 +268,46 @@ WITH RECURSIVE subtree(child_thread_id, depth) AS (
             builder.push(
                 r#"
     UNION ALL
-    SELECT edge.child_thread_id, subtree.depth + 1
+    SELECT edge.child_chat_id, subtree.depth + 1
     FROM thread_spawn_edges AS edge
-    JOIN subtree ON edge.parent_thread_id = subtree.child_thread_id
+    JOIN subtree ON edge.parent_chat_id = subtree.child_chat_id
                 "#,
             );
         }
         builder.push(
             r#"
 )
-SELECT child_thread_id
+SELECT child_chat_id
 FROM subtree
-ORDER BY depth ASC, child_thread_id ASC
+ORDER BY depth ASC, child_chat_id ASC
             "#,
         );
 
         let rows = builder.build().fetch_all(self.pool.as_ref()).await?;
         rows.into_iter()
             .map(|row| {
-                ThreadId::try_from(row.try_get::<String, _>("child_thread_id")?).map_err(Into::into)
+                ChatId::try_from(row.try_get::<String, _>("child_chat_id")?).map_err(Into::into)
             })
             .collect()
     }
 
     async fn insert_thread_spawn_edge_if_absent(
         &self,
-        parent_thread_id: ThreadId,
-        child_thread_id: ThreadId,
+        parent_chat_id: ChatId,
+        child_chat_id: ChatId,
     ) -> anyhow::Result<()> {
         sqlx::query(
             r#"
 INSERT INTO thread_spawn_edges (
-    parent_thread_id,
-    child_thread_id,
+    parent_chat_id,
+    child_chat_id,
     status
 ) VALUES (?, ?, ?)
-ON CONFLICT(child_thread_id) DO NOTHING
+ON CONFLICT(child_chat_id) DO NOTHING
             "#,
         )
-        .bind(parent_thread_id.to_string())
-        .bind(child_thread_id.to_string())
+        .bind(parent_chat_id.to_string())
+        .bind(child_chat_id.to_string())
         .bind(crate::DirectionalThreadSpawnEdgeStatus::Open.as_ref())
         .execute(self.pool.as_ref())
         .await?;
@@ -316,20 +316,20 @@ ON CONFLICT(child_thread_id) DO NOTHING
 
     async fn insert_thread_spawn_edge_from_source_if_absent(
         &self,
-        child_thread_id: ThreadId,
+        child_chat_id: ChatId,
         source: &str,
     ) -> anyhow::Result<()> {
-        let Some(parent_thread_id) = thread_spawn_parent_thread_id_from_source_str(source) else {
+        let Some(parent_chat_id) = thread_spawn_parent_chat_id_from_source_str(source) else {
             return Ok(());
         };
-        self.insert_thread_spawn_edge_if_absent(parent_thread_id, child_thread_id)
+        self.insert_thread_spawn_edge_if_absent(parent_chat_id, child_chat_id)
             .await
     }
 
     /// Find a rollout path by thread id using the underlying database.
     pub async fn find_rollout_path_by_id(
         &self,
-        id: ThreadId,
+        id: ChatId,
         archived_only: Option<bool>,
     ) -> anyhow::Result<Option<PathBuf>> {
         let mut builder =
@@ -401,18 +401,18 @@ ON CONFLICT(child_thread_id) DO NOTHING
         page_size: usize,
         filters: ThreadFilterOptions<'_>,
     ) -> anyhow::Result<crate::ThreadsPage> {
-        self.list_threads_matching(page_size, filters, /*parent_thread_id*/ None)
+        self.list_threads_matching(page_size, filters, /*parent_chat_id*/ None)
             .await
     }
 
-    /// List direct children of `parent_thread_id` using persisted spawn edges.
+    /// List direct children of `parent_chat_id` using persisted spawn edges.
     pub async fn list_threads_by_parent(
         &self,
         page_size: usize,
-        parent_thread_id: ThreadId,
+        parent_chat_id: ChatId,
         filters: ThreadFilterOptions<'_>,
     ) -> anyhow::Result<crate::ThreadsPage> {
-        self.list_threads_matching(page_size, filters, Some(parent_thread_id))
+        self.list_threads_matching(page_size, filters, Some(parent_chat_id))
             .await
     }
 
@@ -420,12 +420,12 @@ ON CONFLICT(child_thread_id) DO NOTHING
         &self,
         page_size: usize,
         filters: ThreadFilterOptions<'_>,
-        parent_thread_id: Option<ThreadId>,
+        parent_chat_id: Option<ChatId>,
     ) -> anyhow::Result<crate::ThreadsPage> {
         let limit = page_size.saturating_add(1);
 
         let mut builder = QueryBuilder::<Sqlite>::new("");
-        push_list_threads_query(&mut builder, filters, parent_thread_id, limit);
+        push_list_threads_query(&mut builder, filters, parent_chat_id, limit);
 
         let rows = builder.build().fetch_all(self.pool.as_ref()).await?;
         let mut items = rows
@@ -449,7 +449,7 @@ ON CONFLICT(child_thread_id) DO NOTHING
     }
 
     /// List thread ids using the underlying database (no rollout scanning).
-    pub async fn list_thread_ids(
+    pub async fn list_chat_ids(
         &self,
         limit: usize,
         anchor: Option<&crate::Anchor>,
@@ -457,7 +457,7 @@ ON CONFLICT(child_thread_id) DO NOTHING
         allowed_sources: &[String],
         model_providers: Option<&[String]>,
         archived_only: bool,
-    ) -> anyhow::Result<Vec<ThreadId>> {
+    ) -> anyhow::Result<Vec<ChatId>> {
         let mut builder = QueryBuilder::<Sqlite>::new("SELECT threads.id FROM threads");
         push_thread_filters(
             &mut builder,
@@ -484,7 +484,7 @@ ON CONFLICT(child_thread_id) DO NOTHING
         rows.into_iter()
             .map(|row| {
                 let id: String = row.try_get("id")?;
-                Ok(ThreadId::try_from(id)?)
+                Ok(ChatId::try_from(id)?)
             })
             .collect()
     }
@@ -588,12 +588,12 @@ ON CONFLICT(id) DO NOTHING
 
     pub async fn set_thread_memory_mode(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         memory_mode: &str,
     ) -> anyhow::Result<bool> {
         let result = sqlx::query("UPDATE threads SET memory_mode = ? WHERE id = ?")
             .bind(memory_mode)
-            .bind(thread_id.to_string())
+            .bind(chat_id.to_string())
             .execute(self.pool.as_ref())
             .await?;
         Ok(result.rows_affected() > 0)
@@ -601,12 +601,12 @@ ON CONFLICT(id) DO NOTHING
 
     pub async fn update_thread_title(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         title: &str,
     ) -> anyhow::Result<bool> {
         let result = sqlx::query("UPDATE threads SET title = ? WHERE id = ?")
             .bind(title)
-            .bind(thread_id.to_string())
+            .bind(chat_id.to_string())
             .execute(self.pool.as_ref())
             .await?;
         Ok(result.rows_affected() > 0)
@@ -614,7 +614,7 @@ ON CONFLICT(id) DO NOTHING
 
     pub async fn touch_thread_updated_at(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         updated_at: DateTime<Utc>,
     ) -> anyhow::Result<bool> {
         let updated_at = self.allocate_thread_updated_at(updated_at)?;
@@ -622,7 +622,7 @@ ON CONFLICT(id) DO NOTHING
             sqlx::query("UPDATE threads SET updated_at = ?, updated_at_ms = ? WHERE id = ?")
                 .bind(datetime_to_epoch_seconds(updated_at))
                 .bind(datetime_to_epoch_millis(updated_at))
-                .bind(thread_id.to_string())
+                .bind(chat_id.to_string())
                 .execute(self.pool.as_ref())
                 .await?;
         Ok(result.rows_affected() > 0)
@@ -630,7 +630,7 @@ ON CONFLICT(id) DO NOTHING
 
     pub async fn touch_thread_recency_at(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         recency_at: DateTime<Utc>,
     ) -> anyhow::Result<bool> {
         let recency_at = self.allocate_thread_recency_at(recency_at)?;
@@ -648,7 +648,7 @@ WHERE id = ?
         .bind(recency_at_seconds)
         .bind(recency_at_millis)
         .bind(recency_at_millis)
-        .bind(thread_id.to_string())
+        .bind(chat_id.to_string())
         .execute(self.pool.as_ref())
         .await?;
         Ok(result.rows_affected() > 0)
@@ -716,7 +716,7 @@ fn allocate_thread_timestamp(
 impl StateRuntime {
     pub async fn update_thread_git_info(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         git_sha: Option<Option<&str>>,
         git_branch: Option<Option<&str>>,
         git_origin_url: Option<Option<&str>>,
@@ -737,7 +737,7 @@ WHERE id = ?
         .bind(git_branch.flatten())
         .bind(git_origin_url.is_some())
         .bind(git_origin_url.flatten())
-        .bind(thread_id.to_string())
+        .bind(chat_id.to_string())
         .execute(self.pool.as_ref())
         .await?;
         Ok(result.rows_affected() > 0)
@@ -915,11 +915,11 @@ ON CONFLICT(id) DO UPDATE SET
     /// Mark a thread as archived using the underlying database.
     pub async fn mark_archived(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         rollout_path: &Path,
         archived_at: DateTime<Utc>,
     ) -> anyhow::Result<()> {
-        let Some(mut metadata) = self.get_thread(thread_id).await? else {
+        let Some(mut metadata) = self.get_thread(chat_id).await? else {
             return Ok(());
         };
         metadata.archived_at = Some(archived_at);
@@ -927,9 +927,9 @@ ON CONFLICT(id) DO UPDATE SET
         if let Some(updated_at) = file_modified_time_utc(rollout_path).await {
             metadata.updated_at = updated_at;
         }
-        if metadata.id != thread_id {
+        if metadata.id != chat_id {
             warn!(
-                "thread id mismatch during archive: expected {thread_id}, got {}",
+                "thread id mismatch during archive: expected {chat_id}, got {}",
                 metadata.id
             );
         }
@@ -939,10 +939,10 @@ ON CONFLICT(id) DO UPDATE SET
     /// Mark a thread as unarchived using the underlying database.
     pub async fn mark_unarchived(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         rollout_path: &Path,
     ) -> anyhow::Result<()> {
-        let Some(mut metadata) = self.get_thread(thread_id).await? else {
+        let Some(mut metadata) = self.get_thread(chat_id).await? else {
             return Ok(());
         };
         metadata.archived_at = None;
@@ -950,9 +950,9 @@ ON CONFLICT(id) DO UPDATE SET
         if let Some(updated_at) = file_modified_time_utc(rollout_path).await {
             metadata.updated_at = updated_at;
         }
-        if metadata.id != thread_id {
+        if metadata.id != chat_id {
             warn!(
-                "thread id mismatch during unarchive: expected {thread_id}, got {}",
+                "thread id mismatch during unarchive: expected {chat_id}, got {}",
                 metadata.id
             );
         }
@@ -960,36 +960,36 @@ ON CONFLICT(id) DO UPDATE SET
     }
 
     /// Delete a thread and all associated state by id.
-    pub async fn delete_thread(&self, thread_id: ThreadId) -> anyhow::Result<u64> {
-        self.delete_threads_strict(&[thread_id]).await
+    pub async fn delete_thread(&self, chat_id: ChatId) -> anyhow::Result<u64> {
+        self.delete_threads_strict(&[chat_id]).await
     }
 
     /// Delete a set of threads and all associated state.
     ///
     /// Spawn edges and thread rows are deleted last so a failed delete can be retried with enough
     /// state left to rediscover the same spawned subtree.
-    pub async fn delete_threads_strict(&self, thread_ids: &[ThreadId]) -> anyhow::Result<u64> {
-        if thread_ids.is_empty() {
+    pub async fn delete_threads_strict(&self, chat_ids: &[ChatId]) -> anyhow::Result<u64> {
+        if chat_ids.is_empty() {
             return Ok(0);
         }
 
-        let thread_id_strings = thread_ids
+        let chat_id_strings = chat_ids
             .iter()
-            .map(ThreadId::to_string)
+            .map(ChatId::to_string)
             .collect::<Vec<_>>();
-        for (thread_id, thread_id_string) in thread_ids.iter().zip(&thread_id_strings) {
-            sqlx::query("DELETE FROM logs WHERE thread_id = ?")
-                .bind(thread_id_string)
+        for (chat_id, chat_id_string) in chat_ids.iter().zip(&chat_id_strings) {
+            sqlx::query("DELETE FROM logs WHERE chat_id = ?")
+                .bind(chat_id_string)
                 .execute(self.logs_pool.as_ref())
                 .await?;
-            self.memories.delete_thread_memory(*thread_id).await?;
-            self.thread_goals.delete_thread_goal(*thread_id).await?;
+            self.memories.delete_thread_memory(*chat_id).await?;
+            self.thread_goals.delete_thread_goal(*chat_id).await?;
         }
 
         let now = Utc::now().timestamp();
         let mut tx = self.pool.begin().await?;
-        for thread_id_string in &thread_id_strings {
-            for parent_thread_id_string in &thread_id_strings {
+        for chat_id_string in &chat_id_strings {
+            for parent_chat_id_string in &chat_id_strings {
                 // If both the job runner and worker are being deleted, requeueing
                 // the worker item would leave a running job with no loop to consume it.
                 sqlx::query(
@@ -1000,8 +1000,8 @@ WHERE status IN (?, ?)
   AND id IN (
     SELECT item.job_id
     FROM agent_job_items AS item
-    JOIN thread_spawn_edges AS edge ON edge.child_thread_id = item.assigned_thread_id
-    WHERE item.status = ? AND item.assigned_thread_id = ? AND edge.parent_thread_id = ?
+    JOIN thread_spawn_edges AS edge ON edge.child_chat_id = item.assigned_chat_id
+    WHERE item.status = ? AND item.assigned_chat_id = ? AND edge.parent_chat_id = ?
   )
                     "#,
                 )
@@ -1012,13 +1012,13 @@ WHERE status IN (?, ?)
                 .bind(AgentJobStatus::Pending.as_str())
                 .bind(AgentJobStatus::Running.as_str())
                 .bind(AgentJobItemStatus::Running.as_str())
-                .bind(thread_id_string)
-                .bind(parent_thread_id_string)
+                .bind(chat_id_string)
+                .bind(parent_chat_id_string)
                 .execute(&mut *tx)
                 .await?;
             }
-            sqlx::query("DELETE FROM thread_dynamic_tools WHERE thread_id = ?")
-                .bind(thread_id_string)
+            sqlx::query("DELETE FROM thread_dynamic_tools WHERE chat_id = ?")
+                .bind(chat_id_string)
                 .execute(&mut *tx)
                 .await?;
             sqlx::query(
@@ -1026,44 +1026,44 @@ WHERE status IN (?, ?)
 UPDATE agent_job_items
 SET
     status = ?,
-    assigned_thread_id = NULL,
+    assigned_chat_id = NULL,
     updated_at = ?,
     last_error = ?
-WHERE assigned_thread_id = ? AND status = ?
+WHERE assigned_chat_id = ? AND status = ?
             "#,
             )
             .bind(AgentJobItemStatus::Pending.as_str())
             .bind(now)
             .bind("assigned thread was deleted")
-            .bind(thread_id_string)
+            .bind(chat_id_string)
             .bind(AgentJobItemStatus::Running.as_str())
             .execute(&mut *tx)
             .await?;
             sqlx::query(
                 r#"
 UPDATE agent_job_items
-SET assigned_thread_id = NULL, updated_at = ?
-WHERE assigned_thread_id = ?
+SET assigned_chat_id = NULL, updated_at = ?
+WHERE assigned_chat_id = ?
             "#,
             )
             .bind(now)
-            .bind(thread_id_string)
+            .bind(chat_id_string)
             .execute(&mut *tx)
             .await?;
         }
-        for thread_id_string in &thread_id_strings {
+        for chat_id_string in &chat_id_strings {
             sqlx::query(
-                "DELETE FROM thread_spawn_edges WHERE parent_thread_id = ? OR child_thread_id = ?",
+                "DELETE FROM thread_spawn_edges WHERE parent_chat_id = ? OR child_chat_id = ?",
             )
-            .bind(thread_id_string)
-            .bind(thread_id_string)
+            .bind(chat_id_string)
+            .bind(chat_id_string)
             .execute(&mut *tx)
             .await?;
         }
         let mut rows_affected = 0;
-        for thread_id_string in &thread_id_strings {
+        for chat_id_string in &chat_id_strings {
             rows_affected += sqlx::query("DELETE FROM threads WHERE id = ?")
-                .bind(thread_id_string)
+                .bind(chat_id_string)
                 .execute(&mut *tx)
                 .await?
                 .rows_affected();
@@ -1074,15 +1074,15 @@ WHERE assigned_thread_id = ?
     }
 }
 
-fn one_thread_id_from_rows(
+fn one_chat_id_from_rows(
     rows: Vec<sqlx::sqlite::SqliteRow>,
     agent_path: &str,
-) -> anyhow::Result<Option<ThreadId>> {
+) -> anyhow::Result<Option<ChatId>> {
     let mut ids = rows
         .into_iter()
         .map(|row| {
             let id: String = row.try_get("id")?;
-            ThreadId::try_from(id).map_err(anyhow::Error::from)
+            ChatId::try_from(id).map_err(anyhow::Error::from)
         })
         .collect::<Result<Vec<_>, _>>()?;
     match ids.len() {
@@ -1097,17 +1097,17 @@ fn one_thread_id_from_rows(
 fn push_list_threads_query(
     builder: &mut QueryBuilder<Sqlite>,
     filters: ThreadFilterOptions<'_>,
-    parent_thread_id: Option<ThreadId>,
+    parent_chat_id: Option<ChatId>,
     limit: usize,
 ) {
     push_thread_select_columns(builder);
     builder.push(" FROM threads");
     push_thread_filters(builder, filters);
-    if let Some(parent_thread_id) = parent_thread_id {
+    if let Some(parent_chat_id) = parent_chat_id {
         builder.push(
-            " AND threads.id IN (SELECT child_thread_id FROM thread_spawn_edges WHERE parent_thread_id = ",
+            " AND threads.id IN (SELECT child_chat_id FROM thread_spawn_edges WHERE parent_chat_id = ",
         );
-        builder.push_bind(parent_thread_id.to_string());
+        builder.push_bind(parent_chat_id.to_string());
         builder.push(")");
     }
     let order_by_index = match filters.cwd_filters {
@@ -1169,10 +1169,10 @@ pub(super) fn extract_memory_mode(items: &[RolloutItem]) -> Option<String> {
     })
 }
 
-fn thread_spawn_parent_thread_id_from_source_str(source: &str) -> Option<ThreadId> {
+fn thread_spawn_parent_chat_id_from_source_str(source: &str) -> Option<ChatId> {
     let parsed_source = serde_json::from_str(source)
         .or_else(|_| serde_json::from_value::<SessionSource>(Value::String(source.to_string())));
-    parsed_source.ok()?.parent_thread_id()
+    parsed_source.ok()?.parent_chat_id()
 }
 
 #[derive(Clone, Copy)]
@@ -1356,9 +1356,9 @@ mod tests {
         let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
-        let thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000123").expect("valid thread id");
-        let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000123").expect("valid thread id");
+        let mut metadata = test_thread_metadata(&codex_home, chat_id, codex_home.clone());
 
         runtime
             .upsert_thread_with_creation_memory_mode(&metadata, Some("disabled"))
@@ -1367,7 +1367,7 @@ mod tests {
 
         let memory_mode: String =
             sqlx::query_scalar("SELECT memory_mode FROM threads WHERE id = ?")
-                .bind(thread_id.to_string())
+                .bind(chat_id.to_string())
                 .fetch_one(runtime.pool.as_ref())
                 .await
                 .expect("memory mode should be readable");
@@ -1381,7 +1381,7 @@ mod tests {
 
         let memory_mode: String =
             sqlx::query_scalar("SELECT memory_mode FROM threads WHERE id = ?")
-                .bind(thread_id.to_string())
+                .bind(chat_id.to_string())
                 .fetch_one(runtime.pool.as_ref())
                 .await
                 .expect("memory mode should remain readable");
@@ -1392,18 +1392,18 @@ mod tests {
     async fn delete_thread_cleans_associated_state() -> Result<()> {
         let codex_home = unique_temp_dir();
         let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string()).await?;
-        let thread_id = ThreadId::from_string("00000000-0000-0000-0000-000000000401")?;
-        let child_thread_id = ThreadId::from_string("00000000-0000-0000-0000-000000000402")?;
+        let chat_id = ChatId::from_string("00000000-0000-0000-0000-000000000401")?;
+        let child_chat_id = ChatId::from_string("00000000-0000-0000-0000-000000000402")?;
         runtime
             .upsert_thread(&test_thread_metadata(
                 &codex_home,
-                thread_id,
+                chat_id,
                 codex_home.clone(),
             ))
             .await?;
-        seed_thread_cleanup_state(&runtime, thread_id, child_thread_id).await?;
-        sqlx::query("INSERT INTO thread_dynamic_tools (thread_id, position, name, description, input_schema) VALUES (?, ?, ?, ?, ?)")
-        .bind(thread_id.to_string())
+        seed_thread_cleanup_state(&runtime, chat_id, child_chat_id).await?;
+        sqlx::query("INSERT INTO thread_dynamic_tools (chat_id, position, name, description, input_schema) VALUES (?, ?, ?, ?, ?)")
+        .bind(chat_id.to_string())
         .bind(0_i64)
         .bind("test_tool")
         .bind("test dynamic tool")
@@ -1436,29 +1436,29 @@ mod tests {
             .mark_agent_job_item_running_with_thread(
                 "job-1",
                 "item-1",
-                &child_thread_id.to_string(),
+                &child_chat_id.to_string(),
             )
             .await?;
 
         let rows = runtime
-            .delete_threads_strict(&[thread_id, child_thread_id])
+            .delete_threads_strict(&[chat_id, child_chat_id])
             .await?;
 
         assert_eq!(rows, 1);
-        assert!(runtime.get_thread(thread_id).await?.is_none());
+        assert!(runtime.get_thread(chat_id).await?.is_none());
         let dynamic_tool_count: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM thread_dynamic_tools WHERE thread_id = ?")
-                .bind(thread_id.to_string())
+            sqlx::query_scalar("SELECT COUNT(*) FROM thread_dynamic_tools WHERE chat_id = ?")
+                .bind(chat_id.to_string())
                 .fetch_one(runtime.pool.as_ref())
                 .await?;
         assert_eq!(dynamic_tool_count, 0);
-        assert_thread_cleanup_state(&runtime, thread_id).await?;
+        assert_thread_cleanup_state(&runtime, chat_id).await?;
         let job_item = runtime
             .get_agent_job_item("job-1", "item-1")
             .await?
             .expect("job item should exist");
         assert_eq!(job_item.status, AgentJobItemStatus::Pending);
-        assert_eq!(job_item.assigned_thread_id, None);
+        assert_eq!(job_item.assigned_chat_id, None);
         assert_eq!(
             job_item.last_error,
             Some("assigned thread was deleted".to_string())
@@ -1469,13 +1469,13 @@ mod tests {
             .expect("job should exist");
         assert_eq!(job.status, AgentJobStatus::Cancelled);
 
-        let missing_thread_id = ThreadId::from_string("00000000-0000-0000-0000-000000000403")?;
-        let missing_child_thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000404")?;
-        seed_thread_cleanup_state(&runtime, missing_thread_id, missing_child_thread_id).await?;
+        let missing_chat_id = ChatId::from_string("00000000-0000-0000-0000-000000000403")?;
+        let missing_child_chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000404")?;
+        seed_thread_cleanup_state(&runtime, missing_chat_id, missing_child_chat_id).await?;
 
-        assert_eq!(runtime.delete_thread(missing_thread_id).await?, 0);
-        assert_thread_cleanup_state(&runtime, missing_thread_id).await?;
+        assert_eq!(runtime.delete_thread(missing_chat_id).await?, 0);
+        assert_thread_cleanup_state(&runtime, missing_chat_id).await?;
         Ok(())
     }
 
@@ -1483,54 +1483,54 @@ mod tests {
     async fn delete_thread_keeps_retry_graph_on_cleanup_failure() -> Result<()> {
         let codex_home = unique_temp_dir();
         let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string()).await?;
-        let thread_id = ThreadId::from_string("00000000-0000-0000-0000-000000000405")?;
-        let child_thread_id = ThreadId::from_string("00000000-0000-0000-0000-000000000406")?;
+        let chat_id = ChatId::from_string("00000000-0000-0000-0000-000000000405")?;
+        let child_chat_id = ChatId::from_string("00000000-0000-0000-0000-000000000406")?;
         runtime
             .upsert_thread(&test_thread_metadata(
                 &codex_home,
-                thread_id,
+                chat_id,
                 codex_home.clone(),
             ))
             .await?;
-        seed_thread_cleanup_state(&runtime, thread_id, child_thread_id).await?;
+        seed_thread_cleanup_state(&runtime, chat_id, child_chat_id).await?;
 
         runtime.logs_pool.close().await;
         runtime
-            .delete_thread(thread_id)
+            .delete_thread(chat_id)
             .await
             .expect_err("closed log db should fail deletion");
 
-        assert!(runtime.get_thread(thread_id).await?.is_some());
+        assert!(runtime.get_thread(chat_id).await?.is_some());
         assert_eq!(
-            runtime.list_thread_spawn_descendants(thread_id).await?,
-            vec![child_thread_id]
+            runtime.list_thread_spawn_descendants(chat_id).await?,
+            vec![child_chat_id]
         );
         Ok(())
     }
 
     async fn seed_thread_cleanup_state(
         runtime: &StateRuntime,
-        thread_id: ThreadId,
-        child_thread_id: ThreadId,
+        chat_id: ChatId,
+        child_chat_id: ChatId,
     ) -> Result<()> {
         runtime
             .upsert_thread_spawn_edge(
-                thread_id,
-                child_thread_id,
+                chat_id,
+                child_chat_id,
                 DirectionalThreadSpawnEdgeStatus::Closed,
             )
             .await?;
         runtime
             .thread_goals()
             .replace_thread_goal(
-                thread_id,
+                chat_id,
                 "test goal",
                 crate::ThreadGoalStatus::Active,
                 /*token_budget*/ None,
             )
             .await?;
-        sqlx::query("INSERT INTO logs (ts, ts_nanos, level, target, feedback_log_body, thread_id) VALUES (1, 0, 'INFO', 'test', 'feedback log', ?)")
-            .bind(thread_id.to_string())
+        sqlx::query("INSERT INTO logs (ts, ts_nanos, level, target, feedback_log_body, chat_id) VALUES (1, 0, 'INFO', 'test', 'feedback log', ?)")
+            .bind(chat_id.to_string())
             .execute(runtime.logs_pool.as_ref())
             .await?;
         Ok(())
@@ -1538,23 +1538,23 @@ mod tests {
 
     async fn assert_thread_cleanup_state(
         runtime: &StateRuntime,
-        thread_id: ThreadId,
+        chat_id: ChatId,
     ) -> Result<()> {
         let spawn_edge_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM thread_spawn_edges WHERE parent_thread_id = ? OR child_thread_id = ?",
+            "SELECT COUNT(*) FROM thread_spawn_edges WHERE parent_chat_id = ? OR child_chat_id = ?",
         )
-        .bind(thread_id.to_string())
-        .bind(thread_id.to_string())
+        .bind(chat_id.to_string())
+        .bind(chat_id.to_string())
         .fetch_one(runtime.pool.as_ref())
         .await?;
         assert_eq!(spawn_edge_count, 0);
         assert_eq!(
-            runtime.thread_goals().get_thread_goal(thread_id).await?,
+            runtime.thread_goals().get_thread_goal(chat_id).await?,
             None
         );
         let logs = runtime
             .query_logs(&LogQuery {
-                thread_ids: vec![thread_id.to_string()],
+                chat_ids: vec![chat_id.to_string()],
                 ..Default::default()
             })
             .await?;
@@ -1569,22 +1569,22 @@ mod tests {
             .await
             .expect("state db should initialize");
         let older_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000001").expect("valid thread id");
+            ChatId::from_string("00000000-0000-0000-0000-000000000001").expect("valid thread id");
         let middle_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000002").expect("valid thread id");
+            ChatId::from_string("00000000-0000-0000-0000-000000000002").expect("valid thread id");
         let newer_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000003").expect("valid thread id");
+            ChatId::from_string("00000000-0000-0000-0000-000000000003").expect("valid thread id");
         let older_updated_at =
             DateTime::<Utc>::from_timestamp(1_700_000_100, 0).expect("valid older timestamp");
         let newer_updated_at =
             DateTime::<Utc>::from_timestamp(1_700_000_200, 0).expect("valid newer timestamp");
 
-        for (thread_id, updated_at) in [
+        for (chat_id, updated_at) in [
             (older_id, older_updated_at),
             (newer_id, newer_updated_at),
             (middle_id, newer_updated_at),
         ] {
-            let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+            let mut metadata = test_thread_metadata(&codex_home, chat_id, codex_home.clone());
             metadata.updated_at = updated_at;
             metadata.first_user_message = Some("hello".to_string());
             runtime
@@ -1655,21 +1655,21 @@ mod tests {
             .await
             .expect("state db should initialize");
         let first_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000101").expect("valid thread id");
+            ChatId::from_string("00000000-0000-0000-0000-000000000101").expect("valid thread id");
         let second_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000102").expect("valid thread id");
+            ChatId::from_string("00000000-0000-0000-0000-000000000102").expect("valid thread id");
         let other_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000103").expect("valid thread id");
+            ChatId::from_string("00000000-0000-0000-0000-000000000103").expect("valid thread id");
         let first_cwd = codex_home.join("first");
         let second_cwd = codex_home.join("second");
         let other_cwd = codex_home.join("other");
 
-        for (thread_id, cwd, updated_at) in [
+        for (chat_id, cwd, updated_at) in [
             (first_id, first_cwd.clone(), 1_700_000_100),
             (second_id, second_cwd.clone(), 1_700_000_300),
             (other_id, other_cwd, 1_700_000_500),
         ] {
-            let mut metadata = test_thread_metadata(&codex_home, thread_id, cwd);
+            let mut metadata = test_thread_metadata(&codex_home, chat_id, cwd);
             metadata.updated_at =
                 DateTime::<Utc>::from_timestamp(updated_at, 0).expect("valid timestamp");
             runtime
@@ -1813,7 +1813,7 @@ mod tests {
                         sort_direction: SortDirection::Desc,
                         search_term: None,
                     },
-                    /*parent_thread_id*/ None,
+                    /*parent_chat_id*/ None,
                     /*limit*/ 201,
                 );
                 let plan_details = builder
@@ -1848,19 +1848,19 @@ mod tests {
         let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
-        let parent_id = ThreadId::new();
+        let parent_id = ChatId::new();
         let first_child_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000001").expect("valid thread id");
+            ChatId::from_string("00000000-0000-0000-0000-000000000001").expect("valid thread id");
         let second_child_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000002").expect("valid thread id");
-        let grandchild_id = ThreadId::new();
+            ChatId::from_string("00000000-0000-0000-0000-000000000002").expect("valid thread id");
+        let grandchild_id = ChatId::new();
 
-        for (thread_id, created_at) in [
+        for (chat_id, created_at) in [
             (first_child_id, 1_700_000_100),
             (second_child_id, 1_700_000_200),
             (grandchild_id, 1_700_000_300),
         ] {
-            let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+            let mut metadata = test_thread_metadata(&codex_home, chat_id, codex_home.clone());
             metadata.created_at =
                 DateTime::<Utc>::from_timestamp(created_at, 0).expect("valid timestamp");
             metadata.updated_at = metadata.created_at;
@@ -1869,7 +1869,7 @@ mod tests {
                 .await
                 .expect("thread insert should succeed");
         }
-        for (parent_thread_id, child_thread_id, status) in [
+        for (parent_chat_id, child_chat_id, status) in [
             (
                 parent_id,
                 first_child_id,
@@ -1887,7 +1887,7 @@ mod tests {
             ),
         ] {
             runtime
-                .upsert_thread_spawn_edge(parent_thread_id, child_thread_id, status)
+                .upsert_thread_spawn_edge(parent_chat_id, child_chat_id, status)
                 .await
                 .expect("spawn edge insert should succeed");
         }
@@ -1940,9 +1940,9 @@ mod tests {
         let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
-        let thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000456").expect("valid thread id");
-        let metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000456").expect("valid thread id");
+        let metadata = test_thread_metadata(&codex_home, chat_id, codex_home.clone());
 
         runtime
             .upsert_thread(&metadata)
@@ -1950,17 +1950,17 @@ mod tests {
             .expect("initial upsert should succeed");
 
         let builder = ThreadMetadataBuilder::new(
-            thread_id,
+            chat_id,
             metadata.rollout_path.clone(),
             metadata.created_at,
             SessionSource::Cli,
         );
         let items = vec![RolloutItem::SessionMeta(SessionMetaLine {
             meta: SessionMeta {
-                session_id: thread_id.into(),
-                id: thread_id,
+                session_id: chat_id.into(),
+                id: chat_id,
                 forked_from_id: None,
-                parent_thread_id: None,
+                parent_chat_id: None,
                 timestamp: metadata.created_at.to_rfc3339(),
                 cwd: PathBuf::new(),
                 originator: String::new(),
@@ -1988,7 +1988,7 @@ mod tests {
             .expect("apply_rollout_items should succeed");
 
         let memory_mode = runtime
-            .get_thread_memory_mode(thread_id)
+            .get_thread_memory_mode(chat_id)
             .await
             .expect("memory mode should load");
         assert_eq!(memory_mode.as_deref(), Some("polluted"));
@@ -2000,9 +2000,9 @@ mod tests {
         let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
-        let thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000457").expect("valid thread id");
-        let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000457").expect("valid thread id");
+        let mut metadata = test_thread_metadata(&codex_home, chat_id, codex_home.clone());
         metadata.git_branch = Some("sqlite-branch".to_string());
 
         runtime
@@ -2012,17 +2012,17 @@ mod tests {
 
         let created_at = metadata.created_at.to_rfc3339();
         let builder = ThreadMetadataBuilder::new(
-            thread_id,
+            chat_id,
             metadata.rollout_path.clone(),
             metadata.created_at,
             SessionSource::Cli,
         );
         let items = vec![RolloutItem::SessionMeta(SessionMetaLine {
             meta: SessionMeta {
-                session_id: thread_id.into(),
-                id: thread_id,
+                session_id: chat_id.into(),
+                id: chat_id,
                 forked_from_id: None,
-                parent_thread_id: None,
+                parent_chat_id: None,
                 timestamp: created_at,
                 cwd: PathBuf::new(),
                 originator: String::new(),
@@ -2054,7 +2054,7 @@ mod tests {
             .expect("apply_rollout_items should succeed");
 
         let persisted = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2072,9 +2072,9 @@ mod tests {
         let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
-        let thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000458").expect("valid thread id");
-        let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000458").expect("valid thread id");
+        let mut metadata = test_thread_metadata(&codex_home, chat_id, codex_home.clone());
         metadata.git_sha = Some("sqlite-sha".to_string());
         metadata.git_branch = Some("sqlite-branch".to_string());
         metadata.git_origin_url = Some("git@example.com:openai/codex.git".to_string());
@@ -2095,7 +2095,7 @@ mod tests {
             .expect("rollout upsert should succeed");
 
         let persisted = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2113,9 +2113,9 @@ mod tests {
         let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
-        let thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000459").expect("valid thread id");
-        let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000459").expect("valid thread id");
+        let mut metadata = test_thread_metadata(&codex_home, chat_id, codex_home.clone());
         metadata.first_user_message = None;
         metadata.preview = Some("migrated goal preview".to_string());
 
@@ -2133,7 +2133,7 @@ mod tests {
             .expect("rollout upsert should succeed");
 
         let persisted = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2146,9 +2146,9 @@ mod tests {
         let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
-        let thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000460").expect("valid thread id");
-        let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000460").expect("valid thread id");
+        let mut metadata = test_thread_metadata(&codex_home, chat_id, codex_home.clone());
         metadata.first_user_message = None;
         metadata.preview = None;
 
@@ -2158,23 +2158,23 @@ mod tests {
             .expect("initial upsert should succeed");
 
         let empty_updated = runtime
-            .set_thread_preview_if_empty(thread_id, "  ")
+            .set_thread_preview_if_empty(chat_id, "  ")
             .await
             .expect("empty preview update should succeed");
         assert!(!empty_updated);
         let goal_updated = runtime
-            .set_thread_preview_if_empty(thread_id, "  goal preview  ")
+            .set_thread_preview_if_empty(chat_id, "  goal preview  ")
             .await
             .expect("goal preview update should succeed");
         assert!(goal_updated);
         let overwrite_updated = runtime
-            .set_thread_preview_if_empty(thread_id, "new preview")
+            .set_thread_preview_if_empty(chat_id, "new preview")
             .await
             .expect("overwrite preview update should succeed");
         assert!(!overwrite_updated);
 
         let persisted = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2187,9 +2187,9 @@ mod tests {
         let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
-        let thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000789").expect("valid thread id");
-        let metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000789").expect("valid thread id");
+        let metadata = test_thread_metadata(&codex_home, chat_id, codex_home.clone());
 
         runtime
             .upsert_thread(&metadata)
@@ -2207,14 +2207,14 @@ mod tests {
         .bind(123_i64)
         .bind("newer preview")
         .bind("newer preview")
-        .bind(thread_id.to_string())
+        .bind(chat_id.to_string())
         .execute(runtime.pool.as_ref())
         .await
         .expect("concurrent metadata write should succeed");
 
         let updated = runtime
             .update_thread_git_info(
-                thread_id,
+                chat_id,
                 Some(Some("abc123")),
                 Some(Some("feature/branch")),
                 Some(Some("git@example.com:openai/codex.git")),
@@ -2224,7 +2224,7 @@ mod tests {
         assert!(updated, "git info update should touch the thread row");
 
         let persisted = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2249,10 +2249,10 @@ mod tests {
         let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
-        let thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000791").expect("valid thread id");
+        let chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000791").expect("valid thread id");
 
-        let mut existing = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let mut existing = test_thread_metadata(&codex_home, chat_id, codex_home.clone());
         existing.tokens_used = 123;
         existing.first_user_message = Some("newer preview".to_string());
         existing.preview = Some("newer preview".to_string());
@@ -2262,7 +2262,7 @@ mod tests {
             .await
             .expect("initial upsert should succeed");
 
-        let mut fallback = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let mut fallback = test_thread_metadata(&codex_home, chat_id, codex_home.clone());
         fallback.tokens_used = 0;
         fallback.first_user_message = None;
         fallback.preview = None;
@@ -2275,7 +2275,7 @@ mod tests {
         assert!(!inserted, "existing rows should not be overwritten");
 
         let persisted = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2297,9 +2297,9 @@ mod tests {
         let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
-        let thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000790").expect("valid thread id");
-        let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000790").expect("valid thread id");
+        let mut metadata = test_thread_metadata(&codex_home, chat_id, codex_home.clone());
         metadata.git_sha = Some("abc123".to_string());
         metadata.git_branch = Some("feature/branch".to_string());
         metadata.git_origin_url = Some("git@example.com:openai/codex.git".to_string());
@@ -2310,13 +2310,13 @@ mod tests {
             .expect("initial upsert should succeed");
 
         let updated = runtime
-            .update_thread_git_info(thread_id, Some(None), Some(None), Some(None))
+            .update_thread_git_info(chat_id, Some(None), Some(None), Some(None))
             .await
             .expect("git info clear should succeed");
         assert!(updated, "git info clear should touch the thread row");
 
         let persisted = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2331,9 +2331,9 @@ mod tests {
         let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
-        let thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000791").expect("valid thread id");
-        let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000791").expect("valid thread id");
+        let mut metadata = test_thread_metadata(&codex_home, chat_id, codex_home.clone());
         metadata.title = "original title".to_string();
         metadata.first_user_message = Some("first-user-message".to_string());
         metadata.preview = None;
@@ -2345,13 +2345,13 @@ mod tests {
 
         let touched_at = DateTime::<Utc>::from_timestamp(1_700_001_111, 0).expect("timestamp");
         let touched = runtime
-            .touch_thread_updated_at(thread_id, touched_at)
+            .touch_thread_updated_at(chat_id, touched_at)
             .await
             .expect("touch should succeed");
         assert!(touched);
 
         let persisted = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2370,9 +2370,9 @@ mod tests {
         let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
-        let thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000792").expect("valid thread id");
-        let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000792").expect("valid thread id");
+        let mut metadata = test_thread_metadata(&codex_home, chat_id, codex_home.clone());
         let original_recency_at = metadata.recency_at;
         runtime
             .upsert_thread(&metadata)
@@ -2383,7 +2383,7 @@ mod tests {
             DateTime::<Utc>::from_timestamp_millis(1_700_001_111_123).expect("timestamp");
         assert!(
             runtime
-                .touch_thread_recency_at(thread_id, touched_at)
+                .touch_thread_recency_at(chat_id, touched_at)
                 .await
                 .expect("touch should succeed")
         );
@@ -2398,7 +2398,7 @@ mod tests {
             .expect("stale metadata upsert should succeed");
 
         let persisted = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2408,12 +2408,12 @@ mod tests {
 
         assert!(
             runtime
-                .touch_thread_recency_at(thread_id, original_recency_at)
+                .touch_thread_recency_at(chat_id, original_recency_at)
                 .await
                 .expect("older touch should succeed")
         );
         let persisted = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2430,16 +2430,16 @@ mod tests {
             .await
             .expect("state db should initialize");
         let first_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000793").expect("valid thread id");
+            ChatId::from_string("00000000-0000-0000-0000-000000000793").expect("valid thread id");
         let second_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000794").expect("valid thread id");
+            ChatId::from_string("00000000-0000-0000-0000-000000000794").expect("valid thread id");
         let third_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000795").expect("valid thread id");
+            ChatId::from_string("00000000-0000-0000-0000-000000000795").expect("valid thread id");
         let recency_at =
             DateTime::<Utc>::from_timestamp_millis(1_700_002_000_456).expect("timestamp");
 
-        for thread_id in [first_id, second_id, third_id] {
-            let mut metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        for chat_id in [first_id, second_id, third_id] {
+            let mut metadata = test_thread_metadata(&codex_home, chat_id, codex_home.clone());
             metadata.recency_at = recency_at;
             runtime
                 .upsert_thread(&metadata)
@@ -2551,11 +2551,11 @@ mod tests {
             .await
             .expect("state db should initialize");
         let first_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000901").expect("valid thread id");
+            ChatId::from_string("00000000-0000-0000-0000-000000000901").expect("valid thread id");
         let second_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000902").expect("valid thread id");
+            ChatId::from_string("00000000-0000-0000-0000-000000000902").expect("valid thread id");
         let older_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000903").expect("valid thread id");
+            ChatId::from_string("00000000-0000-0000-0000-000000000903").expect("valid thread id");
         let updated_at =
             DateTime::<Utc>::from_timestamp_millis(1_700_001_111_123).expect("timestamp millis");
         let mut first = test_thread_metadata(&codex_home, first_id, codex_home.clone());
@@ -2658,9 +2658,9 @@ mod tests {
         let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
             .await
             .expect("state db should initialize");
-        let thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000792").expect("valid thread id");
-        let metadata = test_thread_metadata(&codex_home, thread_id, codex_home.clone());
+        let chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000792").expect("valid thread id");
+        let metadata = test_thread_metadata(&codex_home, chat_id, codex_home.clone());
 
         runtime
             .upsert_thread(&metadata)
@@ -2668,7 +2668,7 @@ mod tests {
             .expect("initial upsert should succeed");
 
         let builder = ThreadMetadataBuilder::new(
-            thread_id,
+            chat_id,
             metadata.rollout_path.clone(),
             metadata.created_at,
             SessionSource::Cli,
@@ -2703,7 +2703,7 @@ mod tests {
             .expect("apply_rollout_items should succeed");
 
         let persisted = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2717,25 +2717,25 @@ mod tests {
         let runtime = StateRuntime::init(codex_home, "test-provider".to_string())
             .await
             .expect("state db should initialize");
-        let parent_thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000900").expect("valid thread id");
-        let child_thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000901").expect("valid thread id");
-        let grandchild_thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000902").expect("valid thread id");
+        let parent_chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000900").expect("valid thread id");
+        let child_chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000901").expect("valid thread id");
+        let grandchild_chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000902").expect("valid thread id");
 
         runtime
             .upsert_thread_spawn_edge(
-                parent_thread_id,
-                child_thread_id,
+                parent_chat_id,
+                child_chat_id,
                 DirectionalThreadSpawnEdgeStatus::Open,
             )
             .await
             .expect("child edge insert should succeed");
         runtime
             .upsert_thread_spawn_edge(
-                child_thread_id,
-                grandchild_thread_id,
+                child_chat_id,
+                grandchild_chat_id,
                 DirectionalThreadSpawnEdgeStatus::Open,
             )
             .await
@@ -2743,68 +2743,68 @@ mod tests {
 
         let children = runtime
             .list_thread_spawn_children_with_status(
-                parent_thread_id,
+                parent_chat_id,
                 DirectionalThreadSpawnEdgeStatus::Open,
             )
             .await
             .expect("open child list should load");
-        assert_eq!(children, vec![child_thread_id]);
+        assert_eq!(children, vec![child_chat_id]);
 
         let descendants = runtime
             .list_thread_spawn_descendants_with_status(
-                parent_thread_id,
+                parent_chat_id,
                 DirectionalThreadSpawnEdgeStatus::Open,
             )
             .await
             .expect("open descendants should load");
-        assert_eq!(descendants, vec![child_thread_id, grandchild_thread_id]);
+        assert_eq!(descendants, vec![child_chat_id, grandchild_chat_id]);
 
         runtime
-            .set_thread_spawn_edge_status(child_thread_id, DirectionalThreadSpawnEdgeStatus::Closed)
+            .set_thread_spawn_edge_status(child_chat_id, DirectionalThreadSpawnEdgeStatus::Closed)
             .await
             .expect("edge close should succeed");
 
         let open_children = runtime
             .list_thread_spawn_children_with_status(
-                parent_thread_id,
+                parent_chat_id,
                 DirectionalThreadSpawnEdgeStatus::Open,
             )
             .await
             .expect("open child list should load");
-        assert_eq!(open_children, Vec::<ThreadId>::new());
+        assert_eq!(open_children, Vec::<ChatId>::new());
 
         let closed_children = runtime
             .list_thread_spawn_children_with_status(
-                parent_thread_id,
+                parent_chat_id,
                 DirectionalThreadSpawnEdgeStatus::Closed,
             )
             .await
             .expect("closed child list should load");
-        assert_eq!(closed_children, vec![child_thread_id]);
+        assert_eq!(closed_children, vec![child_chat_id]);
 
         let closed_descendants = runtime
             .list_thread_spawn_descendants_with_status(
-                parent_thread_id,
+                parent_chat_id,
                 DirectionalThreadSpawnEdgeStatus::Closed,
             )
             .await
             .expect("closed descendants should load");
-        assert_eq!(closed_descendants, vec![child_thread_id]);
+        assert_eq!(closed_descendants, vec![child_chat_id]);
 
         let open_descendants_from_child = runtime
             .list_thread_spawn_descendants_with_status(
-                child_thread_id,
+                child_chat_id,
                 DirectionalThreadSpawnEdgeStatus::Open,
             )
             .await
             .expect("open descendants from child should load");
-        assert_eq!(open_descendants_from_child, vec![grandchild_thread_id]);
+        assert_eq!(open_descendants_from_child, vec![grandchild_chat_id]);
 
         let all_descendants = runtime
-            .list_thread_spawn_descendants(parent_thread_id)
+            .list_thread_spawn_descendants(parent_chat_id)
             .await
             .expect("all descendants should load");
-        assert_eq!(all_descendants, vec![child_thread_id, grandchild_thread_id]);
+        assert_eq!(all_descendants, vec![child_chat_id, grandchild_chat_id]);
     }
 
     #[tokio::test]
@@ -2813,27 +2813,27 @@ mod tests {
         let runtime = StateRuntime::init(codex_home, "test-provider".to_string())
             .await
             .expect("state db should initialize");
-        let parent_thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000910").expect("valid thread id");
-        let open_child_thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000911").expect("valid thread id");
-        let closed_child_thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000912").expect("valid thread id");
-        let future_child_thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000913").expect("valid thread id");
+        let parent_chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000910").expect("valid thread id");
+        let open_child_chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000911").expect("valid thread id");
+        let closed_child_chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000912").expect("valid thread id");
+        let future_child_chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000913").expect("valid thread id");
 
         runtime
             .upsert_thread_spawn_edge(
-                parent_thread_id,
-                open_child_thread_id,
+                parent_chat_id,
+                open_child_chat_id,
                 DirectionalThreadSpawnEdgeStatus::Open,
             )
             .await
             .expect("open child edge insert should succeed");
         runtime
             .upsert_thread_spawn_edge(
-                parent_thread_id,
-                closed_child_thread_id,
+                parent_chat_id,
+                closed_child_chat_id,
                 DirectionalThreadSpawnEdgeStatus::Closed,
             )
             .await
@@ -2841,29 +2841,29 @@ mod tests {
         sqlx::query(
             r#"
 INSERT INTO thread_spawn_edges (
-    parent_thread_id,
-    child_thread_id,
+    parent_chat_id,
+    child_chat_id,
     status
 ) VALUES (?, ?, ?)
             "#,
         )
-        .bind(parent_thread_id.to_string())
-        .bind(future_child_thread_id.to_string())
+        .bind(parent_chat_id.to_string())
+        .bind(future_child_chat_id.to_string())
         .bind("future")
         .execute(runtime.pool.as_ref())
         .await
         .expect("future-status child edge insert should succeed");
 
         let children = runtime
-            .list_thread_spawn_children(parent_thread_id)
+            .list_thread_spawn_children(parent_chat_id)
             .await
             .expect("all children should load");
         assert_eq!(
             children,
             vec![
-                open_child_thread_id,
-                closed_child_thread_id,
-                future_child_thread_id,
+                open_child_chat_id,
+                closed_child_chat_id,
+                future_child_chat_id,
             ]
         );
     }

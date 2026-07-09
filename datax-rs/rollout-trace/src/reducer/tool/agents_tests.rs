@@ -44,7 +44,7 @@ fn child_thread_metadata_creates_spawn_origin_without_delivery_edge() -> anyhow:
             "session_source": {
                 "subagent": {
                     "thread_spawn": {
-                        "parent_thread_id": "019d0000-0000-7000-8000-000000000001",
+                        "parent_chat_id": "019d0000-0000-7000-8000-000000000001",
                         "agent_path": "/root/repo_file_counter",
                         "agent_nickname": "James",
                         "agent_role": "explorer"
@@ -54,7 +54,7 @@ fn child_thread_metadata_creates_spawn_origin_without_delivery_edge() -> anyhow:
         }),
     )?;
     writer.append(RawTraceEventPayload::ThreadStarted {
-        thread_id: "019d0000-0000-7000-8000-000000000002".to_string(),
+        chat_id: "019d0000-0000-7000-8000-000000000002".to_string(),
         agent_path: "/root/repo_file_counter".to_string(),
         metadata_payload: Some(metadata),
     })?;
@@ -66,7 +66,7 @@ fn child_thread_metadata_creates_spawn_origin_without_delivery_edge() -> anyhow:
     assert_eq!(
         thread.origin,
         AgentOrigin::Spawned {
-            parent_thread_id: "019d0000-0000-7000-8000-000000000001".to_string(),
+            parent_chat_id: "019d0000-0000-7000-8000-000000000001".to_string(),
             spawn_edge_id: "edge:spawn:019d0000-0000-7000-8000-000000000001:019d0000-0000-7000-8000-000000000002".to_string(),
             task_name: "repo_file_counter".to_string(),
             agent_role: "explorer".to_string(),
@@ -130,7 +130,7 @@ fn spawn_runtime_payload_targets_delivered_child_message() -> anyhow::Result<()>
     let target_item_id = target_conversation_item_id(&edge.target);
     assert_eq!(edge.carried_item_ids, vec![target_item_id.clone()]);
     assert_eq!(
-        replayed.conversation_items[target_item_id].thread_id,
+        replayed.conversation_items[target_item_id].chat_id,
         "019d0000-0000-7000-8000-000000000002"
     );
     assert_eq!(
@@ -175,7 +175,7 @@ fn spawn_runtime_payload_falls_back_to_child_thread_without_delivery_item() -> a
     assert_eq!(
         edge.target,
         TraceAnchor::Thread {
-            thread_id: "019d0000-0000-7000-8000-000000000002".to_string()
+            chat_id: "019d0000-0000-7000-8000-000000000002".to_string()
         }
     );
     // No transcript item carried the task, so the fallback edge should not
@@ -199,7 +199,7 @@ fn sub_agent_started_activity_creates_spawn_edge() -> anyhow::Result<()> {
     let temp = TempDir::new()?;
     let writer = create_started_agent_writer(&temp)?;
     start_agent_turn(&writer, "turn-1")?;
-    let child_thread_id = "019d0000-0000-7000-8000-000000000002";
+    let child_chat_id = "019d0000-0000-7000-8000-000000000002";
     let invocation_payload = writer.write_json_payload(
         RawPayloadKind::ToolInvocation,
         &json!({
@@ -231,7 +231,7 @@ fn sub_agent_started_activity_creates_spawn_edge() -> anyhow::Result<()> {
         &json!({
             "event_id": "call-spawn-v2",
             "occurred_at_ms": 1234,
-            "agent_thread_id": child_thread_id,
+            "agent_chat_id": child_chat_id,
             "agent_path": "/root/reviewer",
             "kind": "started"
         }),
@@ -244,11 +244,11 @@ fn sub_agent_started_activity_creates_spawn_edge() -> anyhow::Result<()> {
             runtime_payload: activity_payload.clone(),
         },
     )?;
-    start_thread(&writer, child_thread_id, "/root/reviewer")?;
-    start_turn_for_thread(&writer, child_thread_id, "turn-child-1")?;
+    start_thread(&writer, child_chat_id, "/root/reviewer")?;
+    start_turn_for_thread(&writer, child_chat_id, "turn-child-1")?;
     append_inference_request(
         &writer,
-        child_thread_id,
+        child_chat_id,
         "turn-child-1",
         "inference-child-1",
         vec![json!({
@@ -266,14 +266,14 @@ fn sub_agent_started_activity_creates_spawn_edge() -> anyhow::Result<()> {
     )?;
 
     let replayed = replay_bundle(temp.path())?;
-    let edge_id = format!("edge:spawn:019d0000-0000-7000-8000-000000000001:{child_thread_id}");
+    let edge_id = format!("edge:spawn:019d0000-0000-7000-8000-000000000001:{child_chat_id}");
     let edge = &replayed.interaction_edges[&edge_id];
     assert_eq!(edge.kind, InteractionEdgeKind::SpawnAgent);
     let target_item_id = target_conversation_item_id(&edge.target);
     assert_eq!(edge.carried_item_ids, vec![target_item_id.clone()]);
     assert_eq!(
-        replayed.conversation_items[target_item_id].thread_id,
-        child_thread_id
+        replayed.conversation_items[target_item_id].chat_id,
+        child_chat_id
     );
     assert_eq!(
         edge.carried_raw_payload_ids,
@@ -320,8 +320,8 @@ fn send_message_runtime_payload_targets_delivered_child_message() -> anyhow::Res
         RawPayloadKind::ToolRuntimeEvent,
         &json!({
             "call_id": "call-send",
-            "sender_thread_id": "019d0000-0000-7000-8000-000000000001",
-            "receiver_thread_id": "019d0000-0000-7000-8000-000000000002",
+            "sender_chat_id": "019d0000-0000-7000-8000-000000000001",
+            "receiver_chat_id": "019d0000-0000-7000-8000-000000000002",
             "prompt": "hello",
             "status": "running"
         }),
@@ -337,8 +337,8 @@ fn send_message_runtime_payload_targets_delivered_child_message() -> anyhow::Res
         RawPayloadKind::ToolRuntimeEvent,
         &json!({
             "call_id": "call-send",
-            "sender_thread_id": "019d0000-0000-7000-8000-000000000001",
-            "receiver_thread_id": "019d0000-0000-7000-8000-000000000002",
+            "sender_chat_id": "019d0000-0000-7000-8000-000000000001",
+            "receiver_chat_id": "019d0000-0000-7000-8000-000000000002",
             "prompt": "hello",
             "status": "running"
         }),
@@ -383,7 +383,7 @@ fn send_message_runtime_payload_targets_delivered_child_message() -> anyhow::Res
     let target_item_id = target_conversation_item_id(&edge.target);
     assert_eq!(edge.carried_item_ids, vec![target_item_id.clone()]);
     assert_eq!(
-        replayed.conversation_items[target_item_id].thread_id,
+        replayed.conversation_items[target_item_id].chat_id,
         "019d0000-0000-7000-8000-000000000002"
     );
     assert!(edge.ended_at_unix_ms.is_some());
@@ -396,7 +396,7 @@ fn send_message_activity_targets_delivered_child_message() -> anyhow::Result<()>
     let temp = TempDir::new()?;
     let writer = create_started_agent_writer(&temp)?;
     start_agent_turn(&writer, "turn-1")?;
-    let child_thread_id = "019d0000-0000-7000-8000-000000000002";
+    let child_chat_id = "019d0000-0000-7000-8000-000000000002";
     let invocation_payload = writer.write_json_payload(
         RawPayloadKind::ToolInvocation,
         &json!({
@@ -428,7 +428,7 @@ fn send_message_activity_targets_delivered_child_message() -> anyhow::Result<()>
         &json!({
             "event_id": "call-send-v2",
             "occurred_at_ms": 1234,
-            "agent_thread_id": child_thread_id,
+            "agent_chat_id": child_chat_id,
             "agent_path": "/root/child",
             "kind": "interacted"
         }),
@@ -441,8 +441,8 @@ fn send_message_activity_targets_delivered_child_message() -> anyhow::Result<()>
             runtime_payload: activity_payload.clone(),
         },
     )?;
-    start_thread(&writer, child_thread_id, "/root/child")?;
-    start_turn_for_thread(&writer, child_thread_id, "turn-child-1")?;
+    start_thread(&writer, child_chat_id, "/root/child")?;
+    start_turn_for_thread(&writer, child_chat_id, "turn-child-1")?;
     let delivered = inter_agent_message(
         "/root",
         "/root/child",
@@ -451,7 +451,7 @@ fn send_message_activity_targets_delivered_child_message() -> anyhow::Result<()>
     );
     append_inference_request(
         &writer,
-        child_thread_id,
+        child_chat_id,
         "turn-child-1",
         "inference-child-1",
         vec![message("assistant", &delivered)],
@@ -463,8 +463,8 @@ fn send_message_activity_targets_delivered_child_message() -> anyhow::Result<()>
     let target_item_id = target_conversation_item_id(&edge.target);
     assert_eq!(edge.carried_item_ids, vec![target_item_id.clone()]);
     assert_eq!(
-        replayed.conversation_items[target_item_id].thread_id,
-        child_thread_id
+        replayed.conversation_items[target_item_id].chat_id,
+        child_chat_id
     );
     assert_eq!(
         edge.carried_raw_payload_ids,
@@ -482,7 +482,7 @@ fn followup_activity_targets_delivered_child_message() -> anyhow::Result<()> {
     let temp = TempDir::new()?;
     let writer = create_started_agent_writer(&temp)?;
     start_agent_turn(&writer, "turn-1")?;
-    let child_thread_id = "019d0000-0000-7000-8000-000000000002";
+    let child_chat_id = "019d0000-0000-7000-8000-000000000002";
     let invocation_payload = writer.write_json_payload(
         RawPayloadKind::ToolInvocation,
         &json!({
@@ -514,7 +514,7 @@ fn followup_activity_targets_delivered_child_message() -> anyhow::Result<()> {
         &json!({
             "event_id": "call-followup-v2",
             "occurred_at_ms": 1234,
-            "agent_thread_id": child_thread_id,
+            "agent_chat_id": child_chat_id,
             "agent_path": "/root/child",
             "kind": "interacted"
         }),
@@ -527,8 +527,8 @@ fn followup_activity_targets_delivered_child_message() -> anyhow::Result<()> {
             runtime_payload: activity_payload.clone(),
         },
     )?;
-    start_thread(&writer, child_thread_id, "/root/child")?;
-    start_turn_for_thread(&writer, child_thread_id, "turn-child-1")?;
+    start_thread(&writer, child_chat_id, "/root/child")?;
+    start_turn_for_thread(&writer, child_chat_id, "turn-child-1")?;
     let delivered = inter_agent_message(
         "/root",
         "/root/child",
@@ -537,7 +537,7 @@ fn followup_activity_targets_delivered_child_message() -> anyhow::Result<()> {
     );
     append_inference_request(
         &writer,
-        child_thread_id,
+        child_chat_id,
         "turn-child-1",
         "inference-child-1",
         vec![message("assistant", &delivered)],
@@ -549,8 +549,8 @@ fn followup_activity_targets_delivered_child_message() -> anyhow::Result<()> {
     let target_item_id = target_conversation_item_id(&edge.target);
     assert_eq!(edge.carried_item_ids, vec![target_item_id.clone()]);
     assert_eq!(
-        replayed.conversation_items[target_item_id].thread_id,
-        child_thread_id
+        replayed.conversation_items[target_item_id].chat_id,
+        child_chat_id
     );
     assert_eq!(
         edge.carried_raw_payload_ids,
@@ -603,8 +603,8 @@ fn close_agent_runtime_payload_targets_thread() -> anyhow::Result<()> {
         RawPayloadKind::ToolRuntimeEvent,
         &json!({
             "call_id": "call-close",
-            "sender_thread_id": "019d0000-0000-7000-8000-000000000001",
-            "receiver_thread_id": "019d0000-0000-7000-8000-000000000002"
+            "sender_chat_id": "019d0000-0000-7000-8000-000000000001",
+            "receiver_chat_id": "019d0000-0000-7000-8000-000000000002"
         }),
     )?;
     writer.append_with_context(
@@ -618,8 +618,8 @@ fn close_agent_runtime_payload_targets_thread() -> anyhow::Result<()> {
         RawPayloadKind::ToolRuntimeEvent,
         &json!({
             "call_id": "call-close",
-            "sender_thread_id": "019d0000-0000-7000-8000-000000000001",
-            "receiver_thread_id": "019d0000-0000-7000-8000-000000000002",
+            "sender_chat_id": "019d0000-0000-7000-8000-000000000001",
+            "receiver_chat_id": "019d0000-0000-7000-8000-000000000002",
             "receiver_agent_nickname": "Scout",
             "receiver_agent_role": "explorer",
             "status": "running"
@@ -646,7 +646,7 @@ fn close_agent_runtime_payload_targets_thread() -> anyhow::Result<()> {
         },
     )?;
     writer.append(RawTraceEventPayload::ThreadEnded {
-        thread_id: "019d0000-0000-7000-8000-000000000002".to_string(),
+        chat_id: "019d0000-0000-7000-8000-000000000002".to_string(),
         status: RolloutStatus::Completed,
     })?;
 
@@ -662,7 +662,7 @@ fn close_agent_runtime_payload_targets_thread() -> anyhow::Result<()> {
     assert_eq!(
         edge.target,
         TraceAnchor::Thread {
-            thread_id: "019d0000-0000-7000-8000-000000000002".to_string()
+            chat_id: "019d0000-0000-7000-8000-000000000002".to_string()
         }
     );
     assert!(edge.carried_item_ids.is_empty());
@@ -722,9 +722,9 @@ fn agent_result_edge_links_child_result_to_parent_notification() -> anyhow::Resu
         trace_context_for_thread("019d0000-0000-7000-8000-000000000002", "turn-child-1"),
         RawTraceEventPayload::AgentResultObserved {
             edge_id: "edge:agent_result:thread-child:turn-child-1:thread-root".to_string(),
-            child_thread_id: "019d0000-0000-7000-8000-000000000002".to_string(),
-            child_codex_turn_id: "turn-child-1".to_string(),
-            parent_thread_id: "019d0000-0000-7000-8000-000000000001".to_string(),
+            child_chat_id: "019d0000-0000-7000-8000-000000000002".to_string(),
+            child_codex_interaction_id: "turn-child-1".to_string(),
+            parent_chat_id: "019d0000-0000-7000-8000-000000000001".to_string(),
             message: notification.to_string(),
             carried_payload: Some(carried_payload.clone()),
         },
@@ -761,7 +761,7 @@ fn agent_result_edge_links_child_result_to_parent_notification() -> anyhow::Resu
     );
     let target_item_id = target_conversation_item_id(&edge.target);
     assert_eq!(
-        replayed.conversation_items[target_item_id].thread_id,
+        replayed.conversation_items[target_item_id].chat_id,
         "019d0000-0000-7000-8000-000000000001"
     );
     assert_eq!(edge.carried_item_ids, vec![target_item_id.clone()]);
@@ -817,9 +817,9 @@ fn agent_result_edge_falls_back_to_child_thread_without_result_message() -> anyh
         trace_context_for_thread("019d0000-0000-7000-8000-000000000002", "turn-child-1"),
         RawTraceEventPayload::AgentResultObserved {
             edge_id: "edge:agent_result:thread-child:turn-child-1:thread-root".to_string(),
-            child_thread_id: "019d0000-0000-7000-8000-000000000002".to_string(),
-            child_codex_turn_id: "turn-child-1".to_string(),
-            parent_thread_id: "019d0000-0000-7000-8000-000000000001".to_string(),
+            child_chat_id: "019d0000-0000-7000-8000-000000000002".to_string(),
+            child_codex_interaction_id: "turn-child-1".to_string(),
+            parent_chat_id: "019d0000-0000-7000-8000-000000000001".to_string(),
             message: notification.to_string(),
             carried_payload: Some(carried_payload.clone()),
         },
@@ -850,12 +850,12 @@ fn agent_result_edge_falls_back_to_child_thread_without_result_message() -> anyh
     assert_eq!(
         edge.source,
         TraceAnchor::Thread {
-            thread_id: "019d0000-0000-7000-8000-000000000002".to_string(),
+            chat_id: "019d0000-0000-7000-8000-000000000002".to_string(),
         }
     );
     let target_item_id = target_conversation_item_id(&edge.target);
     assert_eq!(
-        replayed.conversation_items[target_item_id].thread_id,
+        replayed.conversation_items[target_item_id].chat_id,
         "019d0000-0000-7000-8000-000000000001"
     );
     assert_eq!(edge.carried_item_ids, vec![target_item_id.clone()]);
@@ -876,7 +876,7 @@ struct SpawnAgentToolPayloads {
 
 fn append_spawn_agent_tool_lifecycle(
     writer: &TraceWriter,
-    turn_id: &str,
+    interaction_id: &str,
 ) -> anyhow::Result<SpawnAgentToolPayloads> {
     // Keep the parent-side tool lifecycle in one place so the spawn tests can
     // focus on the child-side event that decides the edge target.
@@ -891,7 +891,7 @@ fn append_spawn_agent_tool_lifecycle(
         }),
     )?;
     writer.append_with_context(
-        trace_context_for_agent(turn_id),
+        trace_context_for_agent(interaction_id),
         RawTraceEventPayload::ToolCallStarted {
             tool_call_id: "call-spawn".to_string(),
             model_visible_call_id: Some("call-spawn".to_string()),
@@ -911,12 +911,12 @@ fn append_spawn_agent_tool_lifecycle(
         RawPayloadKind::ToolRuntimeEvent,
         &json!({
             "call_id": "call-spawn",
-            "sender_thread_id": "019d0000-0000-7000-8000-000000000001",
+            "sender_chat_id": "019d0000-0000-7000-8000-000000000001",
             "prompt": "count"
         }),
     )?;
     writer.append_with_context(
-        trace_context_for_agent(turn_id),
+        trace_context_for_agent(interaction_id),
         RawTraceEventPayload::ToolCallRuntimeStarted {
             tool_call_id: "call-spawn".to_string(),
             runtime_payload: begin.clone(),
@@ -927,8 +927,8 @@ fn append_spawn_agent_tool_lifecycle(
         RawPayloadKind::ToolRuntimeEvent,
         &json!({
             "call_id": "call-spawn",
-            "sender_thread_id": "019d0000-0000-7000-8000-000000000001",
-            "new_thread_id": "019d0000-0000-7000-8000-000000000002",
+            "sender_chat_id": "019d0000-0000-7000-8000-000000000001",
+            "new_chat_id": "019d0000-0000-7000-8000-000000000002",
             "prompt": "count",
             "model": "gpt-test",
             "reasoning_effort": "medium",
@@ -936,7 +936,7 @@ fn append_spawn_agent_tool_lifecycle(
         }),
     )?;
     writer.append_with_context(
-        trace_context_for_agent(turn_id),
+        trace_context_for_agent(interaction_id),
         RawTraceEventPayload::ToolCallRuntimeEnded {
             tool_call_id: "call-spawn".to_string(),
             status: ExecutionStatus::Completed,
@@ -949,7 +949,7 @@ fn append_spawn_agent_tool_lifecycle(
         &json!({"task_name": "/root/repo_file_counter"}),
     )?;
     writer.append_with_context(
-        trace_context_for_agent(turn_id),
+        trace_context_for_agent(interaction_id),
         RawTraceEventPayload::ToolCallEnded {
             tool_call_id: "call-spawn".to_string(),
             status: ExecutionStatus::Completed,

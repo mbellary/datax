@@ -19,16 +19,16 @@ fn write_index(path: &Path, lines: &[SessionIndexEntry]) -> std::io::Result<()> 
     std::fs::write(path, out)
 }
 
-fn write_rollout_with_metadata(path: &Path, thread_id: ThreadId) -> std::io::Result<()> {
+fn write_rollout_with_metadata(path: &Path, chat_id: ChatId) -> std::io::Result<()> {
     let timestamp = "2024-01-01T00-00-00Z".to_string();
     let line = RolloutLine {
         timestamp: timestamp.clone(),
         item: RolloutItem::SessionMeta(SessionMetaLine {
             meta: SessionMeta {
-                session_id: thread_id.into(),
-                id: thread_id,
+                session_id: chat_id.into(),
+                id: chat_id,
                 forked_from_id: None,
-                parent_thread_id: None,
+                parent_chat_id: None,
                 timestamp,
                 cwd: ".".into(),
                 originator: "test_originator".into(),
@@ -52,11 +52,11 @@ fn write_rollout_with_metadata(path: &Path, thread_id: ThreadId) -> std::io::Res
 }
 
 #[test]
-fn find_thread_id_by_name_prefers_latest_entry() -> std::io::Result<()> {
+fn find_chat_id_by_name_prefers_latest_entry() -> std::io::Result<()> {
     let temp = TempDir::new()?;
     let path = session_index_path(temp.path());
-    let id1 = ThreadId::new();
-    let id2 = ThreadId::new();
+    let id1 = ChatId::new();
+    let id2 = ChatId::new();
     let lines = vec![
         SessionIndexEntry {
             id: id1,
@@ -81,8 +81,8 @@ async fn find_thread_meta_by_name_str_skips_newest_entry_without_rollout() -> st
     // A newer unsaved name entry should not shadow an older persisted rollout with the same name.
     let temp = TempDir::new()?;
     let path = session_index_path(temp.path());
-    let saved_id = ThreadId::new();
-    let unsaved_id = ThreadId::new();
+    let saved_id = ChatId::new();
+    let unsaved_id = ChatId::new();
     let saved_rollout_path = temp
         .path()
         .join("sessions/2024/01/01")
@@ -116,8 +116,8 @@ async fn find_thread_meta_by_name_str_skips_newest_entry_without_rollout() -> st
 async fn find_thread_meta_by_name_str_skips_partial_rollout() -> std::io::Result<()> {
     let temp = TempDir::new()?;
     let path = session_index_path(temp.path());
-    let saved_id = ThreadId::new();
-    let partial_id = ThreadId::new();
+    let saved_id = ChatId::new();
+    let partial_id = ChatId::new();
     let rollout_dir = temp.path().join("sessions/2024/01/01");
     let saved_rollout_path =
         rollout_dir.join(format!("rollout-2024-01-01T00-00-00-{saved_id}.jsonl"));
@@ -151,8 +151,8 @@ async fn find_thread_meta_by_name_str_ignores_historical_name_after_rename() -> 
 {
     let temp = TempDir::new()?;
     let path = session_index_path(temp.path());
-    let renamed_id = ThreadId::new();
-    let current_id = ThreadId::new();
+    let renamed_id = ChatId::new();
+    let current_id = ChatId::new();
     let current_rollout_path = temp
         .path()
         .join("sessions/2024/01/01")
@@ -188,7 +188,7 @@ async fn find_thread_meta_by_name_str_ignores_historical_name_after_rename() -> 
 fn find_thread_name_by_id_prefers_latest_entry() -> std::io::Result<()> {
     let temp = TempDir::new()?;
     let path = session_index_path(temp.path());
-    let id = ThreadId::new();
+    let id = ChatId::new();
     let lines = vec![
         SessionIndexEntry {
             id,
@@ -215,7 +215,7 @@ fn find_thread_name_by_id_prefers_latest_entry() -> std::io::Result<()> {
 fn scan_index_returns_none_when_entry_missing() -> std::io::Result<()> {
     let temp = TempDir::new()?;
     let path = session_index_path(temp.path());
-    let id = ThreadId::new();
+    let id = ChatId::new();
     let lines = vec![SessionIndexEntry {
         id,
         thread_name: "present".to_string(),
@@ -226,7 +226,7 @@ fn scan_index_returns_none_when_entry_missing() -> std::io::Result<()> {
     let missing_name = scan_index_from_end(&path, |entry| entry.thread_name == "missing")?;
     assert_eq!(missing_name, None);
 
-    let missing_id = scan_index_from_end_by_id(&path, &ThreadId::new())?;
+    let missing_id = scan_index_from_end_by_id(&path, &ChatId::new())?;
     assert_eq!(missing_id, None);
     Ok(())
 }
@@ -235,8 +235,8 @@ fn scan_index_returns_none_when_entry_missing() -> std::io::Result<()> {
 async fn find_thread_names_by_ids_prefers_latest_entry() -> std::io::Result<()> {
     let temp = TempDir::new()?;
     let path = session_index_path(temp.path());
-    let id1 = ThreadId::new();
-    let id2 = ThreadId::new();
+    let id1 = ChatId::new();
+    let id2 = ChatId::new();
     let lines = vec![
         SessionIndexEntry {
             id: id1,
@@ -273,8 +273,8 @@ async fn find_thread_names_by_ids_prefers_latest_entry() -> std::io::Result<()> 
 fn scan_index_finds_latest_match_among_mixed_entries() -> std::io::Result<()> {
     let temp = TempDir::new()?;
     let path = session_index_path(temp.path());
-    let id_target = ThreadId::new();
-    let id_other = ThreadId::new();
+    let id_target = ChatId::new();
+    let id_other = ChatId::new();
     let expected = SessionIndexEntry {
         id: id_target,
         thread_name: "target".to_string(),
@@ -295,7 +295,7 @@ fn scan_index_finds_latest_match_among_mixed_entries() -> std::io::Result<()> {
         expected_other.clone(),
         expected.clone(),
         SessionIndexEntry {
-            id: ThreadId::new(),
+            id: ChatId::new(),
             thread_name: "another".to_string(),
             updated_at: "2024-01-04T00:00:00Z".to_string(),
         },

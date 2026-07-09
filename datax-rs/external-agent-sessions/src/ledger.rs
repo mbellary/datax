@@ -1,5 +1,5 @@
 use crate::now_unix_seconds;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use serde::Deserialize;
 use serde::Serialize;
 use sha2::Digest;
@@ -24,7 +24,7 @@ pub(super) struct ImportedExternalAgentSessionLedger {
 struct ImportedExternalAgentSessionRecord {
     source_path: PathBuf,
     content_sha256: String,
-    imported_thread_id: ThreadId,
+    imported_chat_id: ChatId,
     imported_at: i64,
     #[serde(default)]
     source_modified_at: Option<i64>,
@@ -34,7 +34,7 @@ struct ImportedExternalAgentSessionRecord {
 pub struct CompletedExternalAgentSessionImport {
     pub source_path: PathBuf,
     pub source_content_sha256: String,
-    pub imported_thread_id: ThreadId,
+    pub imported_chat_id: ChatId,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -54,7 +54,7 @@ pub fn has_current_session_been_imported(
 pub(crate) fn record_imported_session(
     codex_home: &Path,
     source_path: &Path,
-    imported_thread_id: ThreadId,
+    imported_chat_id: ChatId,
 ) -> io::Result<()> {
     let source_path = canonical_source_path(source_path)?;
     record_completed_session_imports(
@@ -62,7 +62,7 @@ pub(crate) fn record_imported_session(
         vec![CompletedExternalAgentSessionImport {
             source_content_sha256: session_content_sha256(&source_path)?,
             source_path,
-            imported_thread_id,
+            imported_chat_id,
         }],
     )
 }
@@ -83,7 +83,7 @@ pub fn record_completed_session_imports(
                 && record.content_sha256 == import.source_content_sha256
         }) {
             let mut record = ledger.records.remove(index);
-            record.imported_thread_id = import.imported_thread_id;
+            record.imported_chat_id = import.imported_chat_id;
             record.imported_at = imported_at;
             record.source_modified_at = source_modified_at.or(record.source_modified_at);
             ledger.records.push(record);
@@ -92,7 +92,7 @@ pub fn record_completed_session_imports(
         ledger.records.push(ImportedExternalAgentSessionRecord {
             source_path: import.source_path,
             content_sha256: import.source_content_sha256,
-            imported_thread_id: import.imported_thread_id,
+            imported_chat_id: import.imported_chat_id,
             imported_at,
             source_modified_at,
         });

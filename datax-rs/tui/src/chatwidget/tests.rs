@@ -131,7 +131,7 @@ pub(super) use datax_models_manager::test_support::construct_model_info_offline_
 pub(super) use datax_models_manager::test_support::get_model_offline_for_tests;
 pub(super) use datax_otel::RuntimeMetricsSummary;
 pub(super) use datax_otel::SessionTelemetry;
-pub(super) use datax_protocol::ThreadId;
+pub(super) use datax_protocol::ChatId;
 pub(super) use datax_protocol::account::PlanType;
 pub(super) use datax_protocol::approvals::GuardianAssessmentAction;
 pub(super) use datax_protocol::approvals::GuardianAssessmentDecisionSource;
@@ -216,15 +216,15 @@ macro_rules! assert_chatwidget_snapshot {
 
 fn next_goal_draft(
     rx: &mut tokio::sync::mpsc::UnboundedReceiver<AppEvent>,
-    expected_thread_id: ThreadId,
+    expected_chat_id: ChatId,
 ) -> crate::goal_files::GoalDraft {
     loop {
         let event = rx.try_recv().expect("expected goal draft event");
         if let AppEvent::SetThreadGoalDraft {
-            thread_id, draft, ..
+            chat_id, draft, ..
         } = event
         {
-            assert_eq!(thread_id, expected_thread_id);
+            assert_eq!(chat_id, expected_chat_id);
             return draft;
         }
     }

@@ -730,7 +730,7 @@ async fn expect_exec_approval(
     let event = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
+            EventMsg::ExecApprovalRequest(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await;
@@ -745,7 +745,7 @@ async fn expect_exec_approval(
             assert_eq!(last_arg, expected_command);
             approval
         }
-        EventMsg::TurnComplete(_) => panic!("expected approval request before completion"),
+        EventMsg::InteractionComplete(_) => panic!("expected approval request before completion"),
         other => panic!("unexpected event: {other:?}"),
     }
 }
@@ -757,7 +757,7 @@ async fn expect_patch_approval(
     let event = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::ApplyPatchApprovalRequest(_) | EventMsg::TurnComplete(_)
+            EventMsg::ApplyPatchApprovalRequest(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await;
@@ -767,7 +767,7 @@ async fn expect_patch_approval(
             assert_eq!(approval.call_id, expected_call_id);
             approval
         }
-        EventMsg::TurnComplete(_) => panic!("expected patch approval request before completion"),
+        EventMsg::InteractionComplete(_) => panic!("expected patch approval request before completion"),
         other => panic!("unexpected event: {other:?}"),
     }
 }
@@ -776,13 +776,13 @@ async fn wait_for_completion_without_approval(test: &TestCodex) {
     let event = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
+            EventMsg::ExecApprovalRequest(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await;
 
     match event {
-        EventMsg::TurnComplete(_) => {}
+        EventMsg::InteractionComplete(_) => {}
         EventMsg::ExecApprovalRequest(event) => {
             panic!("unexpected approval request: {:?}", event.command)
         }
@@ -792,7 +792,7 @@ async fn wait_for_completion_without_approval(test: &TestCodex) {
 
 async fn wait_for_completion(test: &TestCodex) {
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 }
@@ -820,14 +820,14 @@ fn body_contains(req: &Request, text: &str) -> bool {
 async fn wait_for_spawned_thread(test: &TestCodex) -> Result<Arc<CodexThread>> {
     let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
     loop {
-        let ids = test.thread_manager.list_thread_ids().await;
-        if let Some(thread_id) = ids
+        let ids = test.thread_manager.list_chat_ids().await;
+        if let Some(chat_id) = ids
             .iter()
-            .find(|id| **id != test.session_configured.thread_id)
+            .find(|id| **id != test.session_configured.chat_id)
         {
             return test
                 .thread_manager
-                .get_thread(*thread_id)
+                .get_thread(*chat_id)
                 .await
                 .map_err(anyhow::Error::from);
         }
@@ -1975,7 +1975,7 @@ async fn run_scenario(scenario: &ScenarioSpec) -> Result<()> {
             test.codex
                 .submit(Op::ExecApproval {
                     id: approval.effective_approval_id(),
-                    turn_id: None,
+                    interaction_id: None,
                     decision: decision.clone(),
                 })
                 .await?;
@@ -2009,7 +2009,7 @@ async fn run_scenario(scenario: &ScenarioSpec) -> Result<()> {
             test.codex
                 .submit(Op::ExecApproval {
                     id: approval.effective_approval_id(),
-                    turn_id: None,
+                    interaction_id: None,
                     decision: decision.clone(),
                 })
                 .await?;
@@ -2152,12 +2152,12 @@ async fn approving_apply_patch_for_session_skips_future_prompts_for_same_file() 
     let event = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::ApplyPatchApprovalRequest(_) | EventMsg::TurnComplete(_)
+            EventMsg::ApplyPatchApprovalRequest(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await;
     match event {
-        EventMsg::TurnComplete(_) => {}
+        EventMsg::InteractionComplete(_) => {}
         EventMsg::ApplyPatchApprovalRequest(event) => {
             panic!("unexpected patch approval request: {:?}", event.call_id)
         }
@@ -2238,7 +2238,7 @@ async fn approving_execpolicy_amendment_persists_policy_and_skips_future_prompts
     test.codex
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
-            turn_id: None,
+            interaction_id: None,
             decision: ReviewDecision::ApprovedExecpolicyAmendment {
                 proposed_execpolicy_amendment: expected_execpolicy_amendment.clone(),
             },
@@ -2462,7 +2462,7 @@ async fn spawned_subagent_execpolicy_amendment_propagates_to_parent_session() ->
         |event| {
             matches!(
                 event,
-                EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
+                EventMsg::ExecApprovalRequest(_) | EventMsg::InteractionComplete(_)
             )
         },
         Duration::from_secs(2),
@@ -2484,7 +2484,7 @@ async fn spawned_subagent_execpolicy_amendment_propagates_to_parent_session() ->
     child
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
-            turn_id: None,
+            interaction_id: None,
             decision: ReviewDecision::ApprovedExecpolicyAmendment {
                 proposed_execpolicy_amendment: expected_execpolicy_amendment,
             },
@@ -2496,14 +2496,14 @@ async fn spawned_subagent_execpolicy_amendment_propagates_to_parent_session() ->
         |event| {
             matches!(
                 event,
-                EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
+                EventMsg::ExecApprovalRequest(_) | EventMsg::InteractionComplete(_)
             )
         },
         Duration::from_secs(2),
     )
     .await;
     match child_event {
-        EventMsg::TurnComplete(_) => {}
+        EventMsg::InteractionComplete(_) => {}
         EventMsg::ExecApprovalRequest(ev) => {
             panic!("unexpected second child approval request: {:?}", ev.command)
         }
@@ -2641,7 +2641,7 @@ async fn env_zsh_script_spawned_by_python_can_request_escalation_under_zsh_fork(
         |event| {
             matches!(
                 event,
-                EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
+                EventMsg::ExecApprovalRequest(_) | EventMsg::InteractionComplete(_)
             )
         },
         Duration::from_secs(10),
@@ -2663,7 +2663,7 @@ async fn env_zsh_script_spawned_by_python_can_request_escalation_under_zsh_fork(
     test.codex
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
-            turn_id: None,
+            interaction_id: None,
             decision: ReviewDecision::Approved,
         })
         .await?;
@@ -2900,7 +2900,7 @@ async fn approving_fallback_rule_for_compound_command_works() -> Result<()> {
     test.codex
         .submit(Op::ExecApproval {
             id: approval_id,
-            turn_id: None,
+            interaction_id: None,
             decision: ReviewDecision::ApprovedExecpolicyAmendment {
                 proposed_execpolicy_amendment: amendment.clone(),
             },
@@ -3061,7 +3061,7 @@ allow_local_binding = true
             |event| {
                 matches!(
                     event,
-                    EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
+                    EventMsg::ExecApprovalRequest(_) | EventMsg::InteractionComplete(_)
                 )
             },
             remaining,
@@ -3077,12 +3077,12 @@ allow_local_binding = true
                 test.codex
                     .submit(Op::ExecApproval {
                         id: approval.effective_approval_id(),
-                        turn_id: None,
+                        interaction_id: None,
                         decision: ReviewDecision::Approved,
                     })
                     .await?;
             }
-            EventMsg::TurnComplete(_) => {
+            EventMsg::InteractionComplete(_) => {
                 panic!("expected network approval request before completion");
             }
             other => panic!("unexpected event: {other:?}"),
@@ -3115,7 +3115,7 @@ allow_local_binding = true
     test.codex
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
-            turn_id: None,
+            interaction_id: None,
             decision: ReviewDecision::NetworkPolicyAmendment {
                 network_policy_amendment: deny_network_amendment.clone(),
             },
@@ -3201,7 +3201,7 @@ allow_local_binding = true
             |event| {
                 matches!(
                     event,
-                    EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
+                    EventMsg::ExecApprovalRequest(_) | EventMsg::InteractionComplete(_)
                 )
             },
             remaining,
@@ -3220,12 +3220,12 @@ allow_local_binding = true
                 test.codex
                     .submit(Op::ExecApproval {
                         id: approval.effective_approval_id(),
-                        turn_id: None,
+                        interaction_id: None,
                         decision: ReviewDecision::Approved,
                     })
                     .await?;
             }
-            EventMsg::TurnComplete(_) => break,
+            EventMsg::InteractionComplete(_) => break,
             other => panic!("unexpected event: {other:?}"),
         }
     }
@@ -3382,7 +3382,7 @@ allow_local_binding = true
             |event| {
                 matches!(
                     event,
-                    EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
+                    EventMsg::ExecApprovalRequest(_) | EventMsg::InteractionComplete(_)
                 )
             },
             remaining,
@@ -3403,12 +3403,12 @@ allow_local_binding = true
                 test.codex
                     .submit(Op::ExecApproval {
                         id: approval.effective_approval_id(),
-                        turn_id: None,
+                        interaction_id: None,
                         decision: ReviewDecision::Approved,
                     })
                     .await?;
             }
-            EventMsg::TurnComplete(_) => {
+            EventMsg::InteractionComplete(_) => {
                 panic!("expected network approval request before completion");
             }
             other => panic!("unexpected event: {other:?}"),
@@ -3431,7 +3431,7 @@ allow_local_binding = true
     test.codex
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
-            turn_id: None,
+            interaction_id: None,
             decision: ReviewDecision::NetworkPolicyAmendment {
                 network_policy_amendment: allow_network_amendment,
             },
@@ -3545,7 +3545,7 @@ allow_local_binding = true
             |event| {
                 matches!(
                     event,
-                    EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
+                    EventMsg::ExecApprovalRequest(_) | EventMsg::InteractionComplete(_)
                 )
             },
             remaining,
@@ -3561,12 +3561,12 @@ allow_local_binding = true
                 test.codex
                     .submit(Op::ExecApproval {
                         id: approval.effective_approval_id(),
-                        turn_id: None,
+                        interaction_id: None,
                         decision: ReviewDecision::Approved,
                     })
                     .await?;
             }
-            EventMsg::TurnComplete(_) => {
+            EventMsg::InteractionComplete(_) => {
                 panic!("expected network approval request before completion");
             }
             other => panic!("unexpected event: {other:?}"),
@@ -3582,7 +3582,7 @@ allow_local_binding = true
     test.codex
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
-            turn_id: None,
+            interaction_id: None,
             decision: ReviewDecision::Denied,
         })
         .await?;
@@ -3654,7 +3654,7 @@ async fn compound_command_with_one_safe_command_still_requires_approval() -> Res
     test.codex
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
-            turn_id: None,
+            interaction_id: None,
             decision: ReviewDecision::Denied,
         })
         .await?;

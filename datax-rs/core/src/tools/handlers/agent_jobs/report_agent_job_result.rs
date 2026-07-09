@@ -66,12 +66,12 @@ pub async fn handle(
         ));
     }
     let db = required_state_db(&session)?;
-    let reporting_thread_id = session.thread_id.to_string();
+    let reporting_chat_id = session.chat_id.to_string();
     let accepted = db
         .report_agent_job_item_result(
             args.job_id.as_str(),
             args.item_id.as_str(),
-            reporting_thread_id.as_str(),
+            reporting_chat_id.as_str(),
             &args.result,
         )
         .await

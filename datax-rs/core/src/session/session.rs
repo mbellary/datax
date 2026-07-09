@@ -24,7 +24,7 @@ use tokio::sync::Semaphore;
 ///
 /// A session has at most 1 running task at a time, and can be interrupted by user input.
 pub(crate) struct Session {
-    pub(crate) thread_id: ThreadId,
+    pub(crate) chat_id: ChatId,
     pub(crate) installation_id: String,
     pub(super) tx_event: Sender<Event>,
     pub(super) agent_status: watch::Sender<AgentStatus>,
@@ -100,9 +100,9 @@ pub(crate) struct SessionConfiguration {
     /// Source of the session (cli, vscode, exec, mcp, ...)
     pub(super) session_source: SessionSource,
     /// Immediate history source copied into this thread, when this thread was forked.
-    pub(super) forked_from_thread_id: Option<ThreadId>,
+    pub(super) forked_from_chat_id: Option<ChatId>,
     /// Immediate control/spawn parent for this thread, when it has one.
-    pub(super) parent_thread_id: Option<ThreadId>,
+    pub(super) parent_chat_id: Option<ChatId>,
     /// Optional analytics source classification for this thread.
     pub(super) thread_source: Option<ThreadSource>,
     pub(super) dynamic_tools: Vec<DynamicToolSpec>,
@@ -193,8 +193,8 @@ impl SessionConfiguration {
             personality: self.personality,
             collaboration_mode: self.collaboration_mode.clone(),
             session_source: self.session_source.clone(),
-            forked_from_thread_id: self.forked_from_thread_id,
-            parent_thread_id: self.parent_thread_id,
+            forked_from_chat_id: self.forked_from_chat_id,
+            parent_chat_id: self.parent_chat_id,
             thread_source: self.thread_source.clone(),
         }
     }
@@ -458,8 +458,8 @@ async fn warm_plugins_and_skills_for_session_init(
 
 impl Session {
     /// Returns the concrete identity for this thread.
-    pub(crate) fn thread_id(&self) -> ThreadId {
-        self.thread_id
+    pub(crate) fn chat_id(&self) -> ChatId {
+        self.chat_id
     }
 
     /// Returns the identity shared by the root thread and all descendant threads.
@@ -503,19 +503,19 @@ impl Session {
             session_configuration.provider
         );
         let forked_from_id = session_configuration
-            .forked_from_thread_id
+            .forked_from_chat_id
             .or_else(|| initial_history.forked_from_id());
-        session_configuration.forked_from_thread_id = forked_from_id;
-        let parent_thread_id = session_configuration
-            .parent_thread_id
-            .or_else(|| initial_history.get_resumed_parent_thread_id());
-        session_configuration.parent_thread_id = parent_thread_id;
+        session_configuration.forked_from_chat_id = forked_from_id;
+        let parent_chat_id = session_configuration
+            .parent_chat_id
+            .or_else(|| initial_history.get_resumed_parent_chat_id());
+        session_configuration.parent_chat_id = parent_chat_id;
         let multi_agent_version = multi_agent_version.map(OnceLock::from).unwrap_or_default();
         let initial_multi_agent_version = multi_agent_version.get().copied();
 
-        let thread_id = match &initial_history {
+        let chat_id = match &initial_history {
             InitialHistory::New | InitialHistory::Cleared | InitialHistory::Forked(_) => {
-                ThreadId::default()
+                ChatId::default()
             }
             InitialHistory::Resumed(resumed_history) => resumed_history.conversation_id,
         };
@@ -531,13 +531,13 @@ impl Session {
         // Legacy subagent rollouts synthesize session_id from their own thread id.
         let resumed_session_id = resumed_session_id.filter(|session_id| {
             !session_configuration.session_source.is_non_root_agent()
-                || *session_id != SessionId::from(thread_id)
+                || *session_id != SessionId::from(chat_id)
         });
         let session_id = resumed_session_id.unwrap_or_else(|| {
             if session_configuration.session_source.is_non_root_agent() {
                 agent_control.session_id()
             } else {
-                SessionId::from(thread_id)
+                SessionId::from(chat_id)
             }
         });
         let agent_control = agent_control.with_session_id(
@@ -552,7 +552,7 @@ impl Session {
         )?;
         let mcp_thread_init = thread_extension_init.clone();
         let thread_extension_data = datax_extension_api::ExtensionData::new_with_init(
-            thread_id.to_string(),
+            chat_id.to_string(),
             thread_extension_init,
         );
         // Kick off independent async setup tasks in parallel to reduce startup latency.
@@ -568,10 +568,10 @@ impl Session {
                     InitialHistory::New | InitialHistory::Cleared | InitialHistory::Forked(_) => {
                         let params = CreateThreadParams {
                             session_id,
-                            thread_id,
+                            chat_id,
                             extra_config: config.extra_config.clone(),
                             forked_from_id,
-                            parent_thread_id,
+                            parent_chat_id,
                             source: session_source,
                             thread_source: session_configuration.thread_source.clone(),
                             base_instructions: BaseInstructions {
@@ -593,7 +593,7 @@ impl Session {
                     }
                     InitialHistory::Resumed(resumed_history) => {
                         let params = ResumeThreadParams {
-                            thread_id: resumed_history.conversation_id,
+                            chat_id: resumed_history.conversation_id,
                             rollout_path: resumed_history.rollout_path.clone(),
                             history: Some(resumed_history.history.clone()),
                             include_archived: true,
@@ -685,7 +685,7 @@ impl Session {
             let trace_task_name =
                 (!trace_agent_path.is_root()).then(|| trace_agent_path.name().to_string());
             let trace_metadata = ThreadStartedTraceMetadata {
-                thread_id: thread_id.to_string(),
+                chat_id: chat_id.to_string(),
                 agent_path: trace_agent_path.to_string(),
                 task_name: trace_task_name,
                 nickname: session_configuration.session_source.get_nickname(),
@@ -763,7 +763,7 @@ impl Session {
                 auth_manager.codex_api_key_env_enabled(),
             );
             let mut session_telemetry = SessionTelemetry::new(
-                thread_id,
+                chat_id,
                 session_model.as_str(),
                 session_model.as_str(),
                 account_id.clone(),
@@ -779,7 +779,7 @@ impl Session {
                 session_telemetry = session_telemetry.with_metrics_service_name(service_name);
             }
             let network_proxy_audit_metadata = NetworkProxyAuditMetadata {
-                conversation_id: Some(thread_id.to_string()),
+                conversation_id: Some(chat_id.to_string()),
                 app_version: Some(env!("CARGO_PKG_VERSION").to_string()),
                 user_account_id: account_id,
                 auth_mode: auth_mode.map(|mode| mode.to_string()),
@@ -842,7 +842,7 @@ impl Session {
             let shell_snapshot = if config.features.enabled(Feature::ShellSnapshot) {
                 ShellSnapshot::new(
                     config.codex_home.clone(),
-                    thread_id,
+                    chat_id,
                     session_telemetry.clone(),
                     state_db_ctx.clone(),
                 )
@@ -883,7 +883,7 @@ impl Session {
                 );
             }
             let thread_name =
-                thread_title_from_thread_store(live_thread_init.as_ref(), &thread_store, thread_id)
+                thread_title_from_thread_store(live_thread_init.as_ref(), &thread_store, chat_id)
                     .instrument(info_span!(
                         "session_init.thread_name_lookup",
                         otel.name = "session_init.thread_name_lookup",
@@ -891,7 +891,7 @@ impl Session {
                     .await;
             session_configuration.thread_name = thread_name.clone();
             validate_config_lock_if_configured(&session_configuration).await?;
-            export_config_lock_if_configured(&session_configuration, thread_id).await?;
+            export_config_lock_if_configured(&session_configuration, chat_id).await?;
             let state = SessionState::new(session_configuration.clone());
             let managed_network_requirements_configured = config
                 .config_layer_stack
@@ -1050,7 +1050,7 @@ impl Session {
                 time_provider,
                 model_client: ModelClient::new(
                     Some(Arc::clone(&auth_manager)),
-                    thread_id,
+                    chat_id,
                     session_configuration.provider.clone(),
                     session_configuration.session_source.clone(),
                     config.model_verbosity,
@@ -1063,7 +1063,7 @@ impl Session {
                 .with_prompt_cache_key_override(
                     crate::guardian::prompt_cache_key_override_for_review_session(
                         &session_configuration.session_source,
-                        session_configuration.parent_thread_id,
+                        session_configuration.parent_chat_id,
                     ),
                 ),
                 code_mode_service: crate::tools::code_mode::CodeModeService::new(),
@@ -1074,7 +1074,7 @@ impl Session {
                 watch::channel(false);
 
             let sess = Arc::new(Session {
-                thread_id,
+                chat_id,
                 installation_id,
                 tx_event: tx_event.clone(),
                 agent_status,
@@ -1102,9 +1102,9 @@ impl Session {
                 id: INITIAL_SUBMIT_ID.to_owned(),
                 msg: EventMsg::SessionConfigured(SessionConfiguredEvent {
                     session_id,
-                    thread_id,
+                    chat_id,
                     forked_from_id,
-                    parent_thread_id,
+                    parent_chat_id,
                     thread_source: session_configuration.thread_source.clone(),
                     thread_name: session_configuration.thread_name.clone(),
                     model: session_configuration.collaboration_mode.model().to_string(),

@@ -20,8 +20,8 @@ fn test_core_inherit_defaults_keep_sensitive_vars() {
     ]);
 
     let policy = ShellEnvironmentPolicy::default(); // inherit All, default excludes ignored
-    let thread_id = ThreadId::new();
-    let result = populate_env(vars, &policy, Some(thread_id));
+    let chat_id = ChatId::new();
+    let result = populate_env(vars, &policy, Some(chat_id));
 
     let mut expected: HashMap<String, String> = hashmap! {
         "PATH".to_string() => "/usr/bin".to_string(),
@@ -29,7 +29,7 @@ fn test_core_inherit_defaults_keep_sensitive_vars() {
         "API_KEY".to_string() => "secret".to_string(),
         "SECRET_TOKEN".to_string() => "t".to_string(),
     };
-    expected.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), thread_id.to_string());
+    expected.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), chat_id.to_string());
 
     assert_eq!(result, expected);
 }
@@ -47,14 +47,14 @@ fn test_core_inherit_with_default_excludes_enabled() {
         ignore_default_excludes: false, // apply KEY/SECRET/TOKEN filter
         ..Default::default()
     };
-    let thread_id = ThreadId::new();
-    let result = populate_env(vars, &policy, Some(thread_id));
+    let chat_id = ChatId::new();
+    let result = populate_env(vars, &policy, Some(chat_id));
 
     let mut expected: HashMap<String, String> = hashmap! {
         "PATH".to_string() => "/usr/bin".to_string(),
         "HOME".to_string() => "/home/user".to_string(),
     };
-    expected.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), thread_id.to_string());
+    expected.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), chat_id.to_string());
 
     assert_eq!(result, expected);
 }
@@ -70,13 +70,13 @@ fn test_include_only() {
         ..Default::default()
     };
 
-    let thread_id = ThreadId::new();
-    let result = populate_env(vars, &policy, Some(thread_id));
+    let chat_id = ChatId::new();
+    let result = populate_env(vars, &policy, Some(chat_id));
 
     let mut expected: HashMap<String, String> = hashmap! {
         "PATH".to_string() => "/usr/bin".to_string(),
     };
-    expected.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), thread_id.to_string());
+    expected.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), chat_id.to_string());
 
     assert_eq!(result, expected);
 }
@@ -91,38 +91,38 @@ fn test_set_overrides() {
     };
     policy.r#set.insert("NEW_VAR".to_string(), "42".to_string());
 
-    let thread_id = ThreadId::new();
-    let result = populate_env(vars, &policy, Some(thread_id));
+    let chat_id = ChatId::new();
+    let result = populate_env(vars, &policy, Some(chat_id));
 
     let mut expected: HashMap<String, String> = hashmap! {
         "PATH".to_string() => "/usr/bin".to_string(),
         "NEW_VAR".to_string() => "42".to_string(),
     };
-    expected.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), thread_id.to_string());
+    expected.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), chat_id.to_string());
 
     assert_eq!(result, expected);
 }
 
 #[test]
-fn populate_env_inserts_thread_id() {
+fn populate_env_inserts_chat_id() {
     let vars = make_vars(&[("PATH", "/usr/bin")]);
     let policy = ShellEnvironmentPolicy::default();
-    let thread_id = ThreadId::new();
-    let result = populate_env(vars, &policy, Some(thread_id));
+    let chat_id = ChatId::new();
+    let result = populate_env(vars, &policy, Some(chat_id));
 
     let mut expected: HashMap<String, String> = hashmap! {
         "PATH".to_string() => "/usr/bin".to_string(),
     };
-    expected.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), thread_id.to_string());
+    expected.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), chat_id.to_string());
 
     assert_eq!(result, expected);
 }
 
 #[test]
-fn populate_env_omits_thread_id_when_missing() {
+fn populate_env_omits_chat_id_when_missing() {
     let vars = make_vars(&[("PATH", "/usr/bin")]);
     let policy = ShellEnvironmentPolicy::default();
-    let result = populate_env(vars, &policy, /*thread_id*/ None);
+    let result = populate_env(vars, &policy, /*chat_id*/ None);
 
     let expected: HashMap<String, String> = hashmap! {
         "PATH".to_string() => "/usr/bin".to_string(),
@@ -141,10 +141,10 @@ fn test_inherit_all() {
         ..Default::default()
     };
 
-    let thread_id = ThreadId::new();
-    let result = populate_env(vars.clone(), &policy, Some(thread_id));
+    let chat_id = ChatId::new();
+    let result = populate_env(vars.clone(), &policy, Some(chat_id));
     let mut expected: HashMap<String, String> = vars.into_iter().collect();
-    expected.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), thread_id.to_string());
+    expected.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), chat_id.to_string());
     assert_eq!(result, expected);
 }
 
@@ -158,12 +158,12 @@ fn test_inherit_all_with_default_excludes() {
         ..Default::default()
     };
 
-    let thread_id = ThreadId::new();
-    let result = populate_env(vars, &policy, Some(thread_id));
+    let chat_id = ChatId::new();
+    let result = populate_env(vars, &policy, Some(chat_id));
     let mut expected: HashMap<String, String> = hashmap! {
         "PATH".to_string() => "/usr/bin".to_string(),
     };
-    expected.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), thread_id.to_string());
+    expected.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), chat_id.to_string());
     assert_eq!(result, expected);
 }
 
@@ -183,14 +183,14 @@ fn test_core_inherit_respects_case_insensitive_names_on_windows() {
         ..Default::default()
     };
 
-    let thread_id = ThreadId::new();
-    let result = populate_env(vars, &policy, Some(thread_id));
+    let chat_id = ChatId::new();
+    let result = populate_env(vars, &policy, Some(chat_id));
     let mut expected: HashMap<String, String> = hashmap! {
         "Path".to_string() => "C:\\Windows\\System32".to_string(),
         "PathExt".to_string() => ".COM;.EXE;.BAT;.CMD".to_string(),
         "TEMP".to_string() => "C:\\Temp".to_string(),
     };
-    expected.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), thread_id.to_string());
+    expected.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), chat_id.to_string());
 
     assert_eq!(result, expected);
 }
@@ -206,7 +206,7 @@ fn create_env_inserts_pathext_on_windows_when_missing() {
         ..Default::default()
     };
 
-    let result = create_env_from_vars(vars, &policy, /*thread_id*/ None);
+    let result = create_env_from_vars(vars, &policy, /*chat_id*/ None);
 
     let expected: HashMap<String, String> = hashmap! {
         "PATHEXT".to_string() => ".COM;.EXE;.BAT;.CMD".to_string(),
@@ -225,7 +225,7 @@ fn create_env_preserves_existing_pathext_case_insensitively_on_windows() {
         ..Default::default()
     };
 
-    let result = create_env_from_vars(vars, &policy, /*thread_id*/ None);
+    let result = create_env_from_vars(vars, &policy, /*chat_id*/ None);
 
     let pathext_vars = result
         .iter()
@@ -249,11 +249,11 @@ fn test_inherit_none() {
         .r#set
         .insert("ONLY_VAR".to_string(), "yes".to_string());
 
-    let thread_id = ThreadId::new();
-    let result = populate_env(vars, &policy, Some(thread_id));
+    let chat_id = ChatId::new();
+    let result = populate_env(vars, &policy, Some(chat_id));
     let mut expected: HashMap<String, String> = hashmap! {
         "ONLY_VAR".to_string() => "yes".to_string(),
     };
-    expected.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), thread_id.to_string());
+    expected.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), chat_id.to_string());
     assert_eq!(result, expected);
 }

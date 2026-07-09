@@ -1,7 +1,7 @@
 use crate::config_manager::ConfigManager;
 use datax_core::CodexThread;
 use datax_core::ThreadManager;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::McpServerRefreshConfig;
 use datax_protocol::protocol::Op;
 use std::io;
@@ -16,7 +16,7 @@ pub(crate) async fn queue_strict_refresh(
         .load_latest_config(/*fallback_cwd*/ None)
         .await?;
     let mut refreshes = Vec::new();
-    for chat_id in thread_manager.list_thread_ids().await {
+    for chat_id in thread_manager.list_chat_ids().await {
         let thread = thread_manager
             .get_thread(chat_id)
             .await
@@ -34,7 +34,7 @@ pub(crate) async fn queue_best_effort_refresh(
     thread_manager: &Arc<ThreadManager>,
     config_manager: &ConfigManager,
 ) {
-    for chat_id in thread_manager.list_thread_ids().await {
+    for chat_id in thread_manager.list_chat_ids().await {
         let thread = match thread_manager.get_thread(chat_id).await {
             Ok(thread) => thread,
             Err(err) => {
@@ -77,7 +77,7 @@ async fn build_refresh_config(
 }
 
 async fn queue_refresh(
-    chat_id: ThreadId,
+    chat_id: ChatId,
     thread: Arc<CodexThread>,
     config: McpServerRefreshConfig,
 ) -> io::Result<()> {
@@ -154,7 +154,7 @@ mod tests {
         )?;
 
         let mut good_thread = None;
-        for chat_id in thread_manager.list_thread_ids().await {
+        for chat_id in thread_manager.list_chat_ids().await {
             let thread = thread_manager.get_thread(chat_id).await?;
             let thread_config = thread.config().await;
             if thread_config.cwd.ends_with("good") {

@@ -238,15 +238,15 @@ fn build_compacted_history_preserves_user_message_passthrough_metadata() {
             message: "first user message".to_string(),
             internal_chat_message_metadata_passthrough: Some(
                 InternalChatMessageMetadataPassthrough {
-                    turn_id: Some("turn-1".to_string()),
+                    interaction_id: Some("turn-1".to_string()),
                 },
             ),
         }],
         "summary text",
     );
 
-    assert_eq!(history[0].turn_id(), Some("turn-1"));
-    assert_eq!(history[1].turn_id(), None);
+    assert_eq!(history[0].interaction_id(), Some("turn-1"));
+    assert_eq!(history[1].interaction_id(), None);
 }
 
 #[test]
@@ -384,7 +384,7 @@ keep me updated
             role: "user".to_string(),
             content: vec![ContentItem::InputText {
                 text: r#"<turn_aborted>
-  <turn_id>turn-1</turn_id>
+  <interaction_id>turn-1</interaction_id>
   <reason>interrupted</reason>
 </turn_aborted>"#
                     .to_string(),

@@ -46,7 +46,8 @@ pub enum DynamicToolNamespaceTool {
 #[serde(rename_all = "camelCase")]
 pub struct DynamicToolCallRequest {
     pub call_id: String,
-    pub turn_id: String,
+    #[serde(alias = "turn_id")]
+    pub interaction_id: String,
     #[serde(default)]
     pub started_at_ms: i64,
     #[serde(default)]

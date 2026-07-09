@@ -50,15 +50,15 @@ pub(super) async fn make_test_app() -> App {
         environment_manager: Arc::new(EnvironmentManager::default_for_tests()),
         app_server_target: crate::AppServerTarget::Embedded,
         pending_update_action: None,
-        pending_shutdown_exit_thread_id: None,
+        pending_shutdown_exit_chat_id: None,
         windows_sandbox: WindowsSandboxState::default(),
         thread_event_channels: HashMap::new(),
         thread_event_listener_tasks: HashMap::new(),
         agent_navigation: AgentNavigationState::default(),
         side_threads: HashMap::new(),
-        active_thread_id: None,
+        active_chat_id: None,
         active_thread_rx: None,
-        primary_thread_id: None,
+        primary_chat_id: None,
         last_subagent_backfill_attempt: None,
         primary_session_configured: None,
         pending_primary_events: VecDeque::new(),
@@ -73,7 +73,7 @@ fn test_session_telemetry(config: &Config, model: &str) -> SessionTelemetry {
     let model_info =
         construct_model_info_offline_for_tests(model, &config.to_models_manager_config());
     SessionTelemetry::new(
-        ThreadId::new(),
+        ChatId::new(),
         model,
         model_info.slug.as_str(),
         /*account_id*/ None,

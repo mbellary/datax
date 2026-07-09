@@ -682,7 +682,7 @@ impl App {
             return;
         }
 
-        let Some(thread_id) = self.current_displayed_thread_id() else {
+        let Some(chat_id) = self.current_displayed_chat_id() else {
             return;
         };
 
@@ -692,8 +692,8 @@ impl App {
             ChatMemoryMode::Disabled
         };
 
-        if let Err(err) = app_server.thread_memory_mode_set(thread_id, mode).await {
-            tracing::error!(error = %err, %thread_id, "failed to update thread memory mode");
+        if let Err(err) = app_server.thread_memory_mode_set(chat_id, mode).await {
+            tracing::error!(error = %err, %chat_id, "failed to update thread memory mode");
             self.chat_widget.add_error_message(format!(
                 "Saved memory settings, but failed to update the current thread: {err}"
             ));
@@ -1210,7 +1210,7 @@ enabled = false
 
         app.chat_widget
             .handle_thread_session(crate::session_state::ThreadSessionState {
-                thread_id: ThreadId::new(),
+                chat_id: ChatId::new(),
                 forked_from_id: None,
                 fork_parent_title: None,
                 thread_name: None,

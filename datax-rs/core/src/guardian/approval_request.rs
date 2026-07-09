@@ -49,7 +49,7 @@ pub(crate) enum GuardianApprovalRequest {
     },
     NetworkAccess {
         id: String,
-        turn_id: String,
+        interaction_id: String,
         target: String,
         host: String,
         protocol: NetworkApprovalProtocol,
@@ -70,7 +70,7 @@ pub(crate) enum GuardianApprovalRequest {
     },
     RequestPermissions {
         id: String,
-        turn_id: String,
+        interaction_id: String,
         reason: Option<String>,
         permissions: RequestPermissionProfile,
     },
@@ -163,7 +163,7 @@ struct NetworkAccessApprovalAction<'a> {
 #[derive(Serialize)]
 struct RequestPermissionsApprovalAction<'a> {
     tool: &'static str,
-    turn_id: &'a str,
+    interaction_id: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
     reason: Option<&'a String>,
     permissions: &'a RequestPermissionProfile,
@@ -321,7 +321,7 @@ pub(crate) fn guardian_approval_request_to_json(
         })),
         GuardianApprovalRequest::NetworkAccess {
             id: _,
-            turn_id: _,
+            interaction_id: _,
             target,
             host,
             protocol,
@@ -360,12 +360,12 @@ pub(crate) fn guardian_approval_request_to_json(
         }),
         GuardianApprovalRequest::RequestPermissions {
             id: _,
-            turn_id,
+            interaction_id,
             reason,
             permissions,
         } => serialize_guardian_action(RequestPermissionsApprovalAction {
             tool: "request_permissions",
-            turn_id,
+            interaction_id,
             reason: reason.as_ref(),
             permissions,
         }),
@@ -403,7 +403,7 @@ pub(crate) fn guardian_assessment_action(
         }
         GuardianApprovalRequest::NetworkAccess {
             id: _id,
-            turn_id: _turn_id,
+            interaction_id: _interaction_id,
             target,
             host,
             protocol,
@@ -513,19 +513,19 @@ pub(crate) fn guardian_request_target_item_id(request: &GuardianApprovalRequest)
     }
 }
 
-pub(crate) fn guardian_request_turn_id<'a>(
+pub(crate) fn guardian_request_interaction_id<'a>(
     request: &'a GuardianApprovalRequest,
-    default_turn_id: &'a str,
+    default_interaction_id: &'a str,
 ) -> &'a str {
     match request {
-        GuardianApprovalRequest::NetworkAccess { turn_id, .. }
-        | GuardianApprovalRequest::RequestPermissions { turn_id, .. } => turn_id,
+        GuardianApprovalRequest::NetworkAccess { interaction_id, .. }
+        | GuardianApprovalRequest::RequestPermissions { interaction_id, .. } => interaction_id,
         GuardianApprovalRequest::Shell { .. }
         | GuardianApprovalRequest::ExecCommand { .. }
         | GuardianApprovalRequest::ApplyPatch { .. }
-        | GuardianApprovalRequest::McpToolCall { .. } => default_turn_id,
+        | GuardianApprovalRequest::McpToolCall { .. } => default_interaction_id,
         #[cfg(unix)]
-        GuardianApprovalRequest::Execve { .. } => default_turn_id,
+        GuardianApprovalRequest::Execve { .. } => default_interaction_id,
     }
 }
 

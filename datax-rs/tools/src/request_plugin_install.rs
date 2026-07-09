@@ -55,16 +55,16 @@ pub struct RequestPluginInstallMeta<'a> {
 
 pub fn build_request_plugin_install_elicitation_request(
     server_name: &str,
-    thread_id: String,
-    turn_id: String,
+    chat_id: String,
+    interaction_id: String,
     suggest_reason: &str,
     tool: &DiscoverableTool,
 ) -> McpServerElicitationRequestParams {
     let message = suggest_reason.to_string();
 
     McpServerElicitationRequestParams {
-        chat_id: thread_id,
-        interaction_id: Some(turn_id),
+        chat_id: chat_id,
+        interaction_id: Some(interaction_id),
         server_name: server_name.to_string(),
         request: McpServerElicitationRequest::Form {
             meta: Some(json!(build_request_plugin_install_meta(

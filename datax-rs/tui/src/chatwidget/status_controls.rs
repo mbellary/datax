@@ -229,7 +229,7 @@ impl ChatWidget {
             self.status_account_display.as_ref(),
             token_info,
             total_usage,
-            &self.thread_id,
+            &self.chat_id,
             self.thread_name.clone(),
             self.forked_from,
             rate_limit_snapshots.as_slice(),

@@ -109,12 +109,12 @@ impl App {
             && self.chat_widget.composer_text_with_pending().is_empty()
             && previous_agent_shortcut_matches(key_event, allow_agent_word_motion_fallback)
         {
-            if let Some(thread_id) = self
-                .adjacent_thread_id_with_backfill(app_server, AgentNavigationDirection::Previous)
+            if let Some(chat_id) = self
+                .adjacent_chat_id_with_backfill(app_server, AgentNavigationDirection::Previous)
                 .await
             {
                 let _ = self
-                    .select_agent_thread_and_discard_side(tui, app_server, thread_id)
+                    .select_agent_thread_and_discard_side(tui, app_server, chat_id)
                     .await;
             }
             return;
@@ -126,12 +126,12 @@ impl App {
             && self.chat_widget.composer_text_with_pending().is_empty()
             && next_agent_shortcut_matches(key_event, allow_agent_word_motion_fallback)
         {
-            if let Some(thread_id) = self
-                .adjacent_thread_id_with_backfill(app_server, AgentNavigationDirection::Next)
+            if let Some(chat_id) = self
+                .adjacent_chat_id_with_backfill(app_server, AgentNavigationDirection::Next)
                 .await
             {
                 let _ = self
-                    .select_agent_thread_and_discard_side(tui, app_server, thread_id)
+                    .select_agent_thread_and_discard_side(tui, app_server, chat_id)
                     .await;
             }
             return;

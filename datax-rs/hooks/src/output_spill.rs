@@ -1,4 +1,4 @@
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::items::HookPromptFragment;
 use datax_utils_absolute_path::AbsolutePathBuf;
 use datax_utils_output_truncation::TruncationPolicy;
@@ -27,15 +27,15 @@ impl HookOutputSpiller {
     /// Keeps hook text within the model-visible hook-output budget.
     ///
     /// Oversized text is written in full under the OS temp directory at
-    /// `<temp_dir>/hook_outputs/<thread_id>/`
+    /// `<temp_dir>/hook_outputs/<chat_id>/`
     /// and replaced with the same head/tail preview style used for other truncated
     /// output, plus a path back to the preserved full text.
-    pub(crate) async fn maybe_spill_text(&self, thread_id: ThreadId, text: String) -> String {
+    pub(crate) async fn maybe_spill_text(&self, chat_id: ChatId, text: String) -> String {
         if approx_token_count(&text) <= HOOK_OUTPUT_TOKEN_LIMIT {
             return text;
         }
 
-        let path = hook_output_path(&self.output_dir, thread_id);
+        let path = hook_output_path(&self.output_dir, chat_id);
         if let Some(parent) = path.parent()
             && let Err(err) = fs::create_dir_all(parent.as_ref()).await
         {
@@ -62,25 +62,25 @@ impl HookOutputSpiller {
 
     pub(crate) async fn maybe_spill_texts(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         texts: Vec<String>,
     ) -> Vec<String> {
         let mut spilled = Vec::with_capacity(texts.len());
         for text in texts {
-            spilled.push(self.maybe_spill_text(thread_id, text).await);
+            spilled.push(self.maybe_spill_text(chat_id, text).await);
         }
         spilled
     }
 
     pub(crate) async fn maybe_spill_prompt_fragments(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         fragments: Vec<HookPromptFragment>,
     ) -> Vec<HookPromptFragment> {
         let mut spilled = Vec::with_capacity(fragments.len());
         for fragment in fragments {
             spilled.push(HookPromptFragment {
-                text: self.maybe_spill_text(thread_id, fragment.text).await,
+                text: self.maybe_spill_text(chat_id, fragment.text).await,
                 hook_run_id: fragment.hook_run_id,
             });
         }
@@ -88,9 +88,9 @@ impl HookOutputSpiller {
     }
 }
 
-fn hook_output_path(output_dir: &AbsolutePathBuf, thread_id: ThreadId) -> AbsolutePathBuf {
+fn hook_output_path(output_dir: &AbsolutePathBuf, chat_id: ChatId) -> AbsolutePathBuf {
     output_dir
-        .join(thread_id.to_string())
+        .join(chat_id.to_string())
         .join(format!("{}.txt", Uuid::new_v4()))
 }
 

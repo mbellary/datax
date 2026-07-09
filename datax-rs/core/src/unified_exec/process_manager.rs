@@ -1095,12 +1095,12 @@ impl UnifiedExecProcessManager {
     ) -> Result<(UnifiedExecProcess, Option<DeferredNetworkApproval>), UnifiedExecError> {
         let local_policy_env = create_env(
             &context.turn.config.permissions.shell_environment_policy,
-            /*thread_id*/ None,
+            /*chat_id*/ None,
         );
         let mut env = local_policy_env.clone();
         env.insert(
             CODEX_THREAD_ID_ENV_VAR.to_string(),
-            context.session.thread_id.to_string(),
+            context.session.chat_id.to_string(),
         );
         let env = apply_unified_exec_env(env);
         let exec_server_env_config = ExecServerEnvConfig {

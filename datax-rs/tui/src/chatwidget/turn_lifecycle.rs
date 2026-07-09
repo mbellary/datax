@@ -10,8 +10,8 @@ pub(super) struct TurnLifecycleState {
     pub(super) sleep_inhibitor: SleepInhibitor,
     /// Tracks whether codex-core currently considers an agent turn to be in progress.
     pub(super) agent_turn_running: bool,
-    pub(super) last_turn_id: Option<String>,
-    pub(super) budget_limited_turn_ids: HashSet<String>,
+    pub(super) last_interaction_id: Option<String>,
+    pub(super) budget_limited_interaction_ids: HashSet<String>,
     pub(super) goal_status_active_turn_started_at: Option<Instant>,
 }
 
@@ -20,8 +20,8 @@ impl TurnLifecycleState {
         Self {
             sleep_inhibitor: SleepInhibitor::new(prevent_idle_sleep),
             agent_turn_running: false,
-            last_turn_id: None,
-            budget_limited_turn_ids: HashSet::new(),
+            last_interaction_id: None,
+            budget_limited_interaction_ids: HashSet::new(),
             goal_status_active_turn_started_at: None,
         }
     }
@@ -47,8 +47,8 @@ impl TurnLifecycleState {
 
     pub(super) fn reset_thread(&mut self) {
         self.finish();
-        self.last_turn_id = None;
-        self.budget_limited_turn_ids.clear();
+        self.last_interaction_id = None;
+        self.budget_limited_interaction_ids.clear();
     }
 
     pub(super) fn set_prevent_idle_sleep(&mut self, enabled: bool) {
@@ -57,12 +57,12 @@ impl TurnLifecycleState {
             .set_turn_running(self.agent_turn_running);
     }
 
-    pub(super) fn mark_budget_limited(&mut self, turn_id: String) {
-        self.budget_limited_turn_ids.insert(turn_id);
+    pub(super) fn mark_budget_limited(&mut self, interaction_id: String) {
+        self.budget_limited_interaction_ids.insert(interaction_id);
     }
 
-    pub(super) fn take_budget_limited(&mut self, turn_id: &str) -> bool {
-        self.budget_limited_turn_ids.remove(turn_id)
+    pub(super) fn take_budget_limited(&mut self, interaction_id: &str) -> bool {
+        self.budget_limited_interaction_ids.remove(interaction_id)
     }
 }
 
@@ -86,7 +86,7 @@ mod tests {
     }
 
     #[test]
-    fn budget_limited_turn_ids_are_consumed() {
+    fn budget_limited_interaction_ids_are_consumed() {
         let mut state = TurnLifecycleState::new(/*prevent_idle_sleep*/ false);
 
         state.mark_budget_limited("turn-1".to_string());

@@ -139,7 +139,7 @@ async fn to_extension_call(invocation: &ToolInvocation) -> ExtensionToolCall {
         });
     }
     ExtensionToolCall {
-        turn_id: invocation.turn.sub_id.clone(),
+        interaction_id: invocation.turn.sub_id.clone(),
         call_id: invocation.call_id.clone(),
         tool_name: invocation.tool_name.clone(),
         model: invocation.turn.model_info.slug.clone(),
@@ -313,7 +313,7 @@ mod tests {
         let (session, turn, rx) = crate::session::tests::make_session_and_context_with_rx().await;
         let weak_session = Arc::downgrade(&session);
         let weak_turn = Arc::downgrade(&turn);
-        let turn_id = turn.sub_id.clone();
+        let interaction_id = turn.sub_id.clone();
         let model = turn.model_info.slug.clone();
         let truncation_policy = turn.model_info.truncation_policy.into();
         let expected_sandbox_cwds = turn
@@ -335,7 +335,7 @@ mod tests {
             .record_conversation_items(&turn, std::slice::from_ref(&history_item))
             .await;
         let mut expected_history_item = history_item.clone();
-        expected_history_item.set_turn_id_if_missing(&turn_id);
+        expected_history_item.set_interaction_id_if_missing(&interaction_id);
         let raw_history_event = rx.recv().await.expect("history raw response item event");
         let EventMsg::RawResponseItem(raw_history_item) = raw_history_event.msg else {
             panic!("expected raw response item event");
@@ -361,7 +361,7 @@ mod tests {
         let captured_call = captured_call.lock().await.clone().expect("captured call");
         assert!(weak_session.upgrade().is_none());
         assert!(weak_turn.upgrade().is_none());
-        assert_eq!(captured_call.turn_id, turn_id);
+        assert_eq!(captured_call.interaction_id, interaction_id);
         assert_eq!(captured_call.call_id, "call-extension");
         assert_eq!(
             captured_call.tool_name,
@@ -539,7 +539,7 @@ mod tests {
         let (session, turn, rx) = crate::session::tests::make_session_and_context_with_rx().await;
         let expected_path = crate::stream_events_utils::image_generation_artifact_path(
             &turn.config.codex_home,
-            &session.thread_id.to_string(),
+            &session.chat_id.to_string(),
             "call-image",
         );
         let invocation = ToolInvocation {

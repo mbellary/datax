@@ -25,8 +25,8 @@ pub struct TaskResponse {
         skip_serializing_if = "Option::is_none"
     )]
     pub has_generated_title: Option<bool>,
-    #[serde(rename = "current_turn_id", skip_serializing_if = "Option::is_none")]
-    pub current_turn_id: Option<String>,
+    #[serde(rename = "current_interaction_id", skip_serializing_if = "Option::is_none")]
+    pub current_interaction_id: Option<String>,
     #[serde(rename = "has_unread_turn", skip_serializing_if = "Option::is_none")]
     pub has_unread_turn: Option<bool>,
     #[serde(
@@ -52,7 +52,7 @@ impl TaskResponse {
             created_at: None,
             title,
             has_generated_title: None,
-            current_turn_id: None,
+            current_interaction_id: None,
             has_unread_turn: None,
             denormalized_metadata: None,
             archived,

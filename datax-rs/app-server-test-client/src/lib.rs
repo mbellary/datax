@@ -181,7 +181,7 @@ enum CliCommand {
     /// Resume a V2 chat by id, then send a user message.
     ResumeMessageV2 {
         /// Existing chat id to resume.
-        thread_id: String,
+        chat_id: String,
         /// User message to send to Datax.
         user_message: String,
     },
@@ -190,7 +190,7 @@ enum CliCommand {
     /// This command does not auto-exit; stop it with SIGINT/SIGTERM/SIGKILL.
     ChatResume {
         /// Existing chat id to resume.
-        thread_id: String,
+        chat_id: String,
     },
     /// Initialize the app-server and dump all inbound messages until interrupted.
     ///
@@ -252,13 +252,13 @@ enum CliCommand {
     #[command(name = "chat-increment-elicitation")]
     ChatIncrementElicitation {
         /// Existing chat id to update.
-        thread_id: String,
+        chat_id: String,
     },
     /// Decrement the out-of-band elicitation pause counter for a thread.
     #[command(name = "chat-decrement-elicitation")]
     ChatDecrementElicitation {
         /// Existing chat id to update.
-        thread_id: String,
+        chat_id: String,
     },
     /// Run the live websocket harness that proves elicitation pause prevents a
     /// 10s unified exec timeout from killing a 15s helper script.
@@ -350,23 +350,23 @@ pub async fn run() -> Result<()> {
             .await
         }
         CliCommand::ResumeMessageV2 {
-            thread_id,
+            chat_id,
             user_message,
         } => {
             let endpoint = resolve_endpoint(datax_bin, url)?;
             resume_message_v2(
                 &endpoint,
                 &config_overrides,
-                thread_id,
+                chat_id,
                 user_message,
                 &dynamic_tools,
             )
             .await
         }
-        CliCommand::ChatResume { thread_id } => {
+        CliCommand::ChatResume { chat_id } => {
             ensure_dynamic_tools_unused(&dynamic_tools, "thread-resume")?;
             let endpoint = resolve_endpoint(datax_bin, url)?;
-            thread_resume_follow(&endpoint, &config_overrides, thread_id).await
+            thread_resume_follow(&endpoint, &config_overrides, chat_id).await
         }
         CliCommand::Watch => {
             ensure_dynamic_tools_unused(&dynamic_tools, "watch")?;
@@ -435,15 +435,15 @@ pub async fn run() -> Result<()> {
             let endpoint = resolve_endpoint(datax_bin, url)?;
             chat_list(&endpoint, &config_overrides, limit).await
         }
-        CliCommand::ChatIncrementElicitation { thread_id } => {
+        CliCommand::ChatIncrementElicitation { chat_id } => {
             ensure_dynamic_tools_unused(&dynamic_tools, "chat-increment-elicitation")?;
             let url = resolve_shared_websocket_url(datax_bin, url, "chat-increment-elicitation")?;
-            chat_increment_elicitation(&url, thread_id)
+            chat_increment_elicitation(&url, chat_id)
         }
-        CliCommand::ChatDecrementElicitation { thread_id } => {
+        CliCommand::ChatDecrementElicitation { chat_id } => {
             ensure_dynamic_tools_unused(&dynamic_tools, "chat-decrement-elicitation")?;
             let url = resolve_shared_websocket_url(datax_bin, url, "chat-decrement-elicitation")?;
-            chat_decrement_elicitation(&url, thread_id)
+            chat_decrement_elicitation(&url, chat_id)
         }
         CliCommand::LiveElicitationTimeoutPause {
             model,
@@ -893,7 +893,7 @@ async fn trigger_zsh_fork_multi_cmd_approval(
 async fn resume_message_v2(
     endpoint: &Endpoint,
     config_overrides: &[String],
-    thread_id: String,
+    chat_id: String,
     user_message: String,
     dynamic_tools: &Option<Vec<DynamicToolSpec>>,
 ) -> Result<()> {
@@ -904,7 +904,7 @@ async fn resume_message_v2(
         println!("< initialize response: {initialize:?}");
 
         let resume_response = client.chat_resume(ChatResumeParams {
-            chat_id: thread_id,
+            chat_id: chat_id,
             ..Default::default()
         })?;
         println!("< thread/resume response: {resume_response:?}");
@@ -930,14 +930,14 @@ async fn resume_message_v2(
 async fn thread_resume_follow(
     endpoint: &Endpoint,
     config_overrides: &[String],
-    thread_id: String,
+    chat_id: String,
 ) -> Result<()> {
     with_client("thread-resume", endpoint, config_overrides, |client| {
         let initialize = client.initialize()?;
         println!("< initialize response: {initialize:?}");
 
         let resume_response = client.chat_resume(ChatResumeParams {
-            chat_id: thread_id,
+            chat_id: chat_id,
             ..Default::default()
         })?;
         println!("< thread/resume response: {resume_response:?}");
@@ -1255,7 +1255,7 @@ async fn with_client<T>(
     result
 }
 
-fn chat_increment_elicitation(url: &str, thread_id: String) -> Result<()> {
+fn chat_increment_elicitation(url: &str, chat_id: String) -> Result<()> {
     let endpoint = Endpoint::ConnectWs(url.to_string());
     let mut client = DataxClient::connect(&endpoint, &[])?;
 
@@ -1263,13 +1263,13 @@ fn chat_increment_elicitation(url: &str, thread_id: String) -> Result<()> {
     println!("< initialize response: {initialize:?}");
 
     let response =
-        client.chat_increment_elicitation(ChatIncrementElicitationParams { chat_id: thread_id })?;
+        client.chat_increment_elicitation(ChatIncrementElicitationParams { chat_id: chat_id })?;
     println!("< thread/increment_elicitation response: {response:?}");
 
     Ok(())
 }
 
-fn chat_decrement_elicitation(url: &str, thread_id: String) -> Result<()> {
+fn chat_decrement_elicitation(url: &str, chat_id: String) -> Result<()> {
     let endpoint = Endpoint::ConnectWs(url.to_string());
     let mut client = DataxClient::connect(&endpoint, &[])?;
 
@@ -1277,7 +1277,7 @@ fn chat_decrement_elicitation(url: &str, thread_id: String) -> Result<()> {
     println!("< initialize response: {initialize:?}");
 
     let response =
-        client.chat_decrement_elicitation(ChatDecrementElicitationParams { chat_id: thread_id })?;
+        client.chat_decrement_elicitation(ChatDecrementElicitationParams { chat_id: chat_id })?;
     println!("< thread/decrement_elicitation response: {response:?}");
 
     Ok(())
@@ -1338,7 +1338,7 @@ fn live_elicitation_timeout_pause(
     })?;
     println!("< chat/start response: {thread_response:?}");
 
-    let thread_id = thread_response.thread.id;
+    let chat_id = thread_response.thread.id;
     let command = format!(
         "APP_SERVER_URL={} APP_SERVER_TEST_CLIENT_BIN={} ELICITATION_HOLD_SECONDS={} sh {}",
         shell_quote(&websocket_url),
@@ -1352,7 +1352,7 @@ fn live_elicitation_timeout_pause(
 
     let started_at = Instant::now();
     let turn_response = client.interaction_start(InteractionStartParams {
-        chat_id: thread_id.clone(),
+        chat_id: chat_id.clone(),
         client_user_message_id: None,
         input: vec![V2UserInput::Text {
             text: prompt,
@@ -1366,7 +1366,7 @@ fn live_elicitation_timeout_pause(
     })?;
     println!("< interaction/start response: {turn_response:?}");
 
-    let stream_result = client.stream_turn(&thread_id, &turn_response.turn.id);
+    let stream_result = client.stream_turn(&chat_id, &turn_response.turn.id);
     let elapsed = started_at.elapsed();
 
     let validation_result = (|| -> Result<()> {
@@ -1420,7 +1420,7 @@ fn live_elicitation_timeout_pause(
     })();
 
     match client.chat_decrement_elicitation(ChatDecrementElicitationParams {
-        chat_id: thread_id.clone(),
+        chat_id: chat_id.clone(),
     }) {
         Ok(response) => {
             println!("[cleanup] thread/decrement_elicitation response after harness: {response:?}");
@@ -1433,7 +1433,7 @@ fn live_elicitation_timeout_pause(
     validation_result?;
 
     println!(
-        "[live elicitation timeout pause summary] thread_id={thread_id}, turn_id={}, elapsed={elapsed:?}, command_statuses={:?}",
+        "[live elicitation timeout pause summary] chat_id={chat_id}, interaction_id={}, elapsed={elapsed:?}, command_statuses={:?}",
         turn_response.turn.id, client.command_execution_statuses
     );
 
@@ -1825,7 +1825,7 @@ impl DataxClient {
         }
     }
 
-    fn stream_turn(&mut self, thread_id: &str, turn_id: &str) -> Result<()> {
+    fn stream_turn(&mut self, chat_id: &str, interaction_id: &str) -> Result<()> {
         loop {
             let notification = self.next_notification()?;
 
@@ -1835,12 +1835,12 @@ impl DataxClient {
 
             match server_notification {
                 ServerNotification::ChatStarted(payload) => {
-                    if payload.thread.id == thread_id {
+                    if payload.thread.id == chat_id {
                         println!("< chat/started notification: {:?}", payload.thread);
                     }
                 }
                 ServerNotification::InteractionStarted(payload) => {
-                    if payload.turn.id == turn_id {
+                    if payload.turn.id == interaction_id {
                         println!(
                             "< interaction/started notification: {:?}",
                             payload.turn.status
@@ -1893,7 +1893,7 @@ impl DataxClient {
                     println!("< item completed: {:?}", payload.item);
                 }
                 ServerNotification::InteractionCompleted(payload) => {
-                    if payload.turn.id == turn_id {
+                    if payload.turn.id == interaction_id {
                         self.last_turn_status = Some(payload.turn.status.clone());
                         if self.command_item_started && !self.helper_done_seen {
                             self.turn_completed_before_helper_done = true;

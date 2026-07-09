@@ -2,7 +2,7 @@ use anyhow::Result;
 use anyhow::anyhow;
 use chrono::DateTime;
 use chrono::Utc;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use serde::Serialize;
 use sqlx::Row;
 use sqlx::sqlite::SqliteRow;
@@ -59,7 +59,7 @@ impl TryFrom<&str> for ThreadGoalStatus {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ThreadGoal {
-    pub thread_id: ThreadId,
+    pub chat_id: ChatId,
     pub goal_id: String,
     pub objective: String,
     pub status: ThreadGoalStatus,
@@ -71,7 +71,7 @@ pub struct ThreadGoal {
 }
 
 pub(crate) struct ThreadGoalRow {
-    pub thread_id: String,
+    pub chat_id: String,
     pub goal_id: String,
     pub objective: String,
     pub status: String,
@@ -85,7 +85,7 @@ pub(crate) struct ThreadGoalRow {
 impl ThreadGoalRow {
     pub(crate) fn try_from_row(row: &SqliteRow) -> Result<Self> {
         Ok(Self {
-            thread_id: row.try_get("thread_id")?,
+            chat_id: row.try_get("chat_id")?,
             goal_id: row.try_get("goal_id")?,
             objective: row.try_get("objective")?,
             status: row.try_get("status")?,
@@ -103,7 +103,7 @@ impl TryFrom<ThreadGoalRow> for ThreadGoal {
 
     fn try_from(row: ThreadGoalRow) -> Result<Self> {
         Ok(Self {
-            thread_id: ThreadId::try_from(row.thread_id)?,
+            chat_id: ChatId::try_from(row.chat_id)?,
             goal_id: row.goal_id,
             objective: row.objective,
             status: ThreadGoalStatus::try_from(row.status.as_str())?,

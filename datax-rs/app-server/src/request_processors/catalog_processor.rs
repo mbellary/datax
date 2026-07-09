@@ -317,7 +317,7 @@ impl CatalogRequestProcessor {
         } = params;
         let config = match chat_id.as_deref() {
             Some(chat_id) => {
-                let chat_id = ThreadId::from_string(chat_id)
+                let chat_id = ChatId::from_string(chat_id)
                     .map_err(|err| invalid_request(format!("invalid thread id: {err}")))?;
                 let thread = self
                     .thread_manager

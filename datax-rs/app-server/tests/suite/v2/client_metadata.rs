@@ -24,7 +24,7 @@ use datax_app_server_protocol::ReviewStartResponse;
 use datax_app_server_protocol::ReviewTarget;
 use datax_app_server_protocol::SessionSource as ApiSessionSource;
 use datax_app_server_protocol::UserInput as V2UserInput;
-use datax_protocol::ThreadId as CoreThreadId;
+use datax_protocol::ChatId as CoreChatId;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
 use pretty_assertions::assert_eq;
@@ -147,7 +147,7 @@ async fn turn_start_sends_fork_lineage_in_turn_metadata_for_thread_fork_v2() -> 
         /*supports_websockets*/ false,
     )?;
 
-    let source_thread_id = create_fake_rollout(
+    let source_chat_id = create_fake_rollout(
         codex_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
@@ -160,7 +160,7 @@ async fn turn_start_sends_fork_lineage_in_turn_metadata_for_thread_fork_v2() -> 
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let ChatForkResponse { chat: thread, .. } =
-        fork_fake_rollout_thread(&mut mcp, source_thread_id.clone()).await?;
+        fork_fake_rollout_thread(&mut mcp, source_chat_id.clone()).await?;
 
     let turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
@@ -195,7 +195,7 @@ async fn turn_start_sends_fork_lineage_in_turn_metadata_for_thread_fork_v2() -> 
         .expect("x-codex-turn-metadata header should be present");
     assert_eq!(
         metadata["forked_from_chat_id"].as_str(),
-        Some(source_thread_id.as_str())
+        Some(source_chat_id.as_str())
     );
     assert_eq!(metadata["chat_id"].as_str(), Some(thread.id.as_str()));
     assert_eq!(metadata["interaction_id"].as_str(), Some(turn.id.as_str()));
@@ -232,7 +232,7 @@ async fn review_start_sends_parent_lineage_in_turn_metadata_for_thread_fork_v2()
         /*supports_websockets*/ false,
     )?;
 
-    let source_thread_id = create_fake_rollout(
+    let source_chat_id = create_fake_rollout(
         codex_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
@@ -245,7 +245,7 @@ async fn review_start_sends_parent_lineage_in_turn_metadata_for_thread_fork_v2()
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let ChatForkResponse { chat: thread, .. } =
-        fork_fake_rollout_thread(&mut mcp, source_thread_id.clone()).await?;
+        fork_fake_rollout_thread(&mut mcp, source_chat_id.clone()).await?;
 
     let review_req = mcp
         .send_review_start_request(ReviewStartParams {
@@ -286,16 +286,16 @@ async fn review_start_sends_parent_lineage_in_turn_metadata_for_thread_fork_v2()
         metadata["parent_chat_id"].as_str(),
         Some(review_chat_id.as_str())
     );
-    let review_request_thread_id = metadata["chat_id"]
+    let review_request_chat_id = metadata["chat_id"]
         .as_str()
         .expect("review request chat_id should be present");
-    assert!(review_request_thread_id != review_chat_id.as_str());
+    assert!(review_request_chat_id != review_chat_id.as_str());
     assert_eq!(
         request
             .header("x-codex-window-id")
             .as_deref()
             .and_then(|window_id| window_id.split_once(':').map(|(chat_id, _)| chat_id)),
-        Some(review_request_thread_id)
+        Some(review_request_chat_id)
     );
     assert!(metadata["interaction_id"].as_str().is_some());
 
@@ -324,11 +324,11 @@ async fn turn_start_sends_nested_subagent_lineage_after_cold_thread_resume_v2() 
         /*supports_websockets*/ false,
     )?;
 
-    let root_thread_id = CoreThreadId::new();
-    let root_thread_id_str = root_thread_id.to_string();
-    let parent_chat_id = CoreThreadId::new();
-    let parent_thread_id_str = parent_chat_id.to_string();
-    let subagent_thread_id = create_fake_parented_rollout_with_source(
+    let root_chat_id = CoreChatId::new();
+    let root_chat_id_str = root_chat_id.to_string();
+    let parent_chat_id = CoreChatId::new();
+    let parent_chat_id_str = parent_chat_id.to_string();
+    let subagent_chat_id = create_fake_parented_rollout_with_source(
         codex_home.path(),
         "2025-01-05T12-00-00",
         "2025-01-05T12:00:00Z",
@@ -336,7 +336,7 @@ async fn turn_start_sends_nested_subagent_lineage_after_cold_thread_resume_v2() 
         Some("mock_provider"),
         /*git_info*/ None,
         SessionSource::SubAgent(SubAgentSource::Other("guardian".to_string())),
-        root_thread_id.into(),
+        root_chat_id.into(),
         parent_chat_id,
     )?;
 
@@ -345,7 +345,7 @@ async fn turn_start_sends_nested_subagent_lineage_after_cold_thread_resume_v2() 
 
     let resume_req = mcp
         .send_chat_resume_request(ChatResumeParams {
-            chat_id: subagent_thread_id.clone(),
+            chat_id: subagent_chat_id.clone(),
             ..Default::default()
         })
         .await?;
@@ -355,9 +355,9 @@ async fn turn_start_sends_nested_subagent_lineage_after_cold_thread_resume_v2() 
     )
     .await??;
     let ChatResumeResponse { chat: thread, .. } = to_response::<ChatResumeResponse>(resume_resp)?;
-    assert_eq!(thread.id, subagent_thread_id);
-    assert_eq!(thread.session_id, root_thread_id_str);
-    assert_eq!(thread.parent_chat_id, Some(parent_thread_id_str.clone()));
+    assert_eq!(thread.id, subagent_chat_id);
+    assert_eq!(thread.session_id, root_chat_id_str);
+    assert_eq!(thread.parent_chat_id, Some(parent_chat_id_str.clone()));
     assert_eq!(
         thread.source,
         ApiSessionSource::SubAgent(SubAgentSource::Other("guardian".to_string()))
@@ -395,7 +395,7 @@ async fn turn_start_sends_nested_subagent_lineage_after_cold_thread_resume_v2() 
         .expect("x-codex-turn-metadata header should be present");
     assert_eq!(
         metadata["parent_chat_id"].as_str(),
-        Some(parent_thread_id_str.as_str())
+        Some(parent_chat_id_str.as_str())
     );
     assert_eq!(metadata["subagent_kind"].as_str(), Some("guardian"));
     assert_eq!(
@@ -676,11 +676,11 @@ supports_websockets = {supports_websockets}
 
 async fn fork_fake_rollout_thread(
     mcp: &mut TestAppServer,
-    source_thread_id: String,
+    source_chat_id: String,
 ) -> Result<ChatForkResponse> {
     let fork_req = mcp
         .send_chat_fork_request(ChatForkParams {
-            chat_id: source_thread_id,
+            chat_id: source_chat_id,
             chat_source: Some(ChatSource::User),
             ..Default::default()
         })

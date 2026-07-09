@@ -10,7 +10,7 @@ use crate::tools::context::ToolOutput;
 use crate::tools::context::ToolPayload;
 use datax_models_manager::manager::RefreshStrategy;
 use datax_protocol::AgentPath;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::error::CodexErr;
 use datax_protocol::models::BaseInstructions;
 use datax_protocol::models::ResponseInputItem;
@@ -73,7 +73,7 @@ where
 }
 
 pub(crate) fn build_wait_agent_statuses(
-    statuses: &HashMap<ThreadId, AgentStatus>,
+    statuses: &HashMap<ChatId, AgentStatus>,
     receiver_agents: &[CollabAgentRef],
 ) -> Vec<CollabAgentStatusEntry> {
     if statuses.is_empty() {
@@ -83,10 +83,10 @@ pub(crate) fn build_wait_agent_statuses(
     let mut entries = Vec::with_capacity(statuses.len());
     let mut seen = HashMap::with_capacity(receiver_agents.len());
     for receiver_agent in receiver_agents {
-        seen.insert(receiver_agent.thread_id, ());
-        if let Some(status) = statuses.get(&receiver_agent.thread_id) {
+        seen.insert(receiver_agent.chat_id, ());
+        if let Some(status) = statuses.get(&receiver_agent.chat_id) {
             entries.push(CollabAgentStatusEntry {
-                thread_id: receiver_agent.thread_id,
+                chat_id: receiver_agent.chat_id,
                 agent_nickname: receiver_agent.agent_nickname.clone(),
                 agent_role: receiver_agent.agent_role.clone(),
                 status: status.clone(),
@@ -96,15 +96,15 @@ pub(crate) fn build_wait_agent_statuses(
 
     let mut extras = statuses
         .iter()
-        .filter(|(thread_id, _)| !seen.contains_key(thread_id))
-        .map(|(thread_id, status)| CollabAgentStatusEntry {
-            thread_id: *thread_id,
+        .filter(|(chat_id, _)| !seen.contains_key(chat_id))
+        .map(|(chat_id, status)| CollabAgentStatusEntry {
+            chat_id: *chat_id,
             agent_nickname: None,
             agent_role: None,
             status: status.clone(),
         })
         .collect::<Vec<_>>();
-    extras.sort_by_key(|entry| entry.thread_id.to_string());
+    extras.sort_by_key(|entry| entry.chat_id.to_string());
     entries.extend(extras);
     entries
 }
@@ -119,7 +119,7 @@ pub(crate) fn collab_spawn_error(err: CodexErr) -> FunctionCallError {
     }
 }
 
-pub(crate) fn collab_agent_error(agent_id: ThreadId, err: CodexErr) -> FunctionCallError {
+pub(crate) fn collab_agent_error(agent_id: ChatId, err: CodexErr) -> FunctionCallError {
     match err {
         CodexErr::ThreadNotFound(id) => {
             FunctionCallError::RespondToModel(format!("agent with id {id} not found"))
@@ -135,7 +135,7 @@ pub(crate) fn collab_agent_error(agent_id: ThreadId, err: CodexErr) -> FunctionC
 }
 
 pub(crate) fn thread_spawn_source(
-    parent_thread_id: ThreadId,
+    parent_chat_id: ChatId,
     parent_session_source: &SessionSource,
     depth: i32,
     agent_role: Option<&str>,
@@ -152,7 +152,7 @@ pub(crate) fn thread_spawn_source(
         })
         .transpose()?;
     Ok(SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-        parent_thread_id,
+        parent_chat_id,
         depth,
         agent_path,
         agent_nickname: None,

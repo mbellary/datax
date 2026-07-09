@@ -22,7 +22,7 @@ use datax_app_server_protocol::ChatSetNameResponse;
 use datax_app_server_protocol::JSONRPCNotification;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_core::find_thread_name_by_id;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use tempfile::TempDir;
@@ -183,7 +183,7 @@ async fn assert_legacy_thread_name(
     conversation_id: &str,
     expected_name: &str,
 ) -> Result<()> {
-    let chat_id = ThreadId::from_string(conversation_id)?;
+    let chat_id = ChatId::from_string(conversation_id)?;
     assert_eq!(
         find_thread_name_by_id(codex_home, &chat_id)
             .await?

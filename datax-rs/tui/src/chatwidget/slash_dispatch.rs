@@ -103,19 +103,19 @@ impl ChatWidget {
 
     fn request_side_conversation(
         &mut self,
-        parent_thread_id: ThreadId,
+        parent_chat_id: ChatId,
         user_message: Option<UserMessage>,
     ) {
         self.set_side_conversation_context_label(Some(SIDE_STARTING_CONTEXT_LABEL.to_string()));
         self.request_redraw();
         self.app_event_tx.send(AppEvent::StartSide {
-            parent_thread_id,
+            parent_chat_id,
             user_message,
         });
     }
 
     fn request_empty_side_conversation(&mut self, cmd: SlashCommand) {
-        let Some(parent_thread_id) = self.thread_id else {
+        let Some(parent_chat_id) = self.chat_id else {
             let command = cmd.command();
             self.add_error_message(format!(
                 "'/{command}' is unavailable before the session starts."
@@ -123,7 +123,7 @@ impl ChatWidget {
             return;
         };
 
-        self.request_side_conversation(parent_thread_id, /*user_message*/ None);
+        self.request_side_conversation(parent_chat_id, /*user_message*/ None);
     }
 
     fn emit_raw_output_mode_changed(&self, enabled: bool) {
@@ -240,14 +240,14 @@ impl ChatWidget {
                 self.app_event_tx.send(AppEvent::ForkCurrentSession);
             }
             SlashCommand::App => {
-                let Some(thread_id) = self.thread_id else {
+                let Some(chat_id) = self.chat_id else {
                     self.add_error_message(
                         "Session is still starting; try /app again in a moment.".to_string(),
                     );
                     return;
                 };
                 self.app_event_tx
-                    .send(AppEvent::OpenDesktopThread { thread_id });
+                    .send(AppEvent::OpenDesktopThread { chat_id });
             }
             SlashCommand::Init => {
                 const INIT_PROMPT: &str = include_str!("../../prompt_for_init_command.md");
@@ -283,9 +283,9 @@ impl ChatWidget {
                 if !self.config.features.enabled(Feature::Goals) {
                     return;
                 }
-                if let Some(thread_id) = self.thread_id {
+                if let Some(chat_id) = self.chat_id {
                     self.app_event_tx
-                        .send(AppEvent::OpenThreadGoalMenu { thread_id });
+                        .send(AppEvent::OpenThreadGoalMenu { chat_id });
                     self.append_message_history_entry("/goal".to_string());
                 } else {
                     self.add_info_message(
@@ -510,7 +510,7 @@ impl ChatWidget {
                     "1".to_string(),
                     ApplyPatchApprovalRequestEvent {
                         call_id: "1".to_string(),
-                        turn_id: "turn-1".to_string(),
+                        interaction_id: "turn-1".to_string(),
                         changes: HashMap::from([
                             (
                                 PathBuf::from("/tmp/test.txt"),
@@ -757,7 +757,7 @@ impl ChatWidget {
                     "clear" => Some(GoalControlCommand::Clear),
                     "edit" => {
                         self.app_event_tx.send(AppEvent::OpenThreadGoalEditor {
-                            thread_id: self.thread_id,
+                            chat_id: self.chat_id,
                         });
                         if source == SlashCommandDispatchSource::Live {
                             self.clear_live_goal_submission();
@@ -769,7 +769,7 @@ impl ChatWidget {
                     _ => None,
                 };
                 if let Some(command) = control_command {
-                    let Some(thread_id) = self.thread_id else {
+                    let Some(chat_id) = self.chat_id else {
                         self.add_info_message(
                             GOAL_USAGE.to_string(),
                             Some(
@@ -784,11 +784,11 @@ impl ChatWidget {
                     match command {
                         GoalControlCommand::Clear => {
                             self.app_event_tx
-                                .send(AppEvent::ClearThreadGoal { thread_id });
+                                .send(AppEvent::ClearThreadGoal { chat_id });
                         }
                         GoalControlCommand::SetStatus(status) => {
                             self.app_event_tx
-                                .send(AppEvent::SetThreadGoalStatus { thread_id, status });
+                                .send(AppEvent::SetThreadGoalStatus { chat_id, status });
                         }
                     }
                     self.append_message_history_entry(format!("/goal {trimmed}"));
@@ -804,7 +804,7 @@ impl ChatWidget {
                     local_images,
                     remote_image_urls,
                 };
-                let Some(thread_id) = self.thread_id else {
+                let Some(chat_id) = self.chat_id else {
                     if source == SlashCommandDispatchSource::Live {
                         const GOAL_PREFIX: &str = "/goal ";
                         let text_elements = draft
@@ -839,7 +839,7 @@ impl ChatWidget {
                 };
                 let history_objective = draft.objective.clone();
                 self.app_event_tx.send(AppEvent::SetThreadGoalDraft {
-                    thread_id,
+                    chat_id,
                     draft,
                     mode: ThreadGoalSetMode::ConfirmIfExists,
                 });
@@ -849,7 +849,7 @@ impl ChatWidget {
                 }
             }
             SlashCommand::Side | SlashCommand::Btw if !trimmed.is_empty() => {
-                let Some(parent_thread_id) = self.thread_id else {
+                let Some(parent_chat_id) = self.chat_id else {
                     let command = cmd.command();
                     self.add_error_message(format!(
                         "'/{command}' is unavailable before the session starts."
@@ -864,7 +864,7 @@ impl ChatWidget {
                     mention_bindings,
                     source,
                 );
-                self.request_side_conversation(parent_thread_id, Some(user_message));
+                self.request_side_conversation(parent_chat_id, Some(user_message));
             }
             SlashCommand::Review if !trimmed.is_empty() => {
                 self.submit_op(AppCommand::review(ReviewTarget::Custom {

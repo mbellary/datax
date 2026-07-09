@@ -5,7 +5,7 @@ use crossterm::event::KeyEvent;
 use crossterm::event::KeyModifiers;
 use datax_app_server_protocol::McpServerElicitationAction;
 use datax_app_server_protocol::RequestId as AppServerRequestId;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Constraint;
 use ratatui::layout::Layout;
@@ -60,7 +60,7 @@ pub(crate) enum AppLinkSuggestionType {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct AppLinkElicitationTarget {
-    pub(crate) thread_id: ThreadId,
+    pub(crate) chat_id: ChatId,
     pub(crate) server_name: String,
     pub(crate) request_id: AppServerRequestId,
 }
@@ -81,7 +81,7 @@ pub(crate) struct AppLinkViewParams {
 
 impl AppLinkViewParams {
     pub(crate) fn from_url_app_server_request(
-        thread_id: ThreadId,
+        chat_id: ChatId,
         server_name: &str,
         request_id: AppServerRequestId,
         request: &datax_app_server_protocol::McpServerElicitationRequest,
@@ -98,7 +98,7 @@ impl AppLinkViewParams {
         if server_name == MCP_CODEX_APPS_SERVER_NAME {
             let url = validate_external_url(url, /*require_chatgpt_host*/ true)?;
             return Self::from_codex_apps_auth_url_parts(
-                thread_id,
+                chat_id,
                 server_name,
                 request_id,
                 meta.as_ref(),
@@ -110,7 +110,7 @@ impl AppLinkViewParams {
 
         let url = validate_external_url(url, /*require_chatgpt_host*/ false)?;
         Some(Self::from_generic_url_parts(
-            thread_id,
+            chat_id,
             server_name,
             request_id,
             message,
@@ -120,7 +120,7 @@ impl AppLinkViewParams {
     }
 
     fn from_codex_apps_auth_url_parts(
-        thread_id: ThreadId,
+        chat_id: ChatId,
         server_name: &str,
         request_id: AppServerRequestId,
         meta: Option<&serde_json::Value>,
@@ -168,7 +168,7 @@ impl AppLinkViewParams {
             suggest_reason: Some(message.to_string()),
             suggestion_type: Some(AppLinkSuggestionType::Auth),
             elicitation_target: Some(AppLinkElicitationTarget {
-                thread_id,
+                chat_id,
                 server_name: server_name.to_string(),
                 request_id,
             }),
@@ -176,7 +176,7 @@ impl AppLinkViewParams {
     }
 
     fn from_generic_url_parts(
-        thread_id: ThreadId,
+        chat_id: ChatId,
         server_name: &str,
         request_id: AppServerRequestId,
         message: &str,
@@ -195,7 +195,7 @@ impl AppLinkViewParams {
             suggest_reason: Some(message.to_string()),
             suggestion_type: Some(AppLinkSuggestionType::ExternalAction),
             elicitation_target: Some(AppLinkElicitationTarget {
-                thread_id,
+                chat_id,
                 server_name: server_name.to_string(),
                 request_id,
             }),
@@ -353,7 +353,7 @@ impl AppLinkView {
             return;
         };
         self.app_event_tx.resolve_elicitation(
-            target.thread_id,
+            target.chat_id,
             target.server_name.clone(),
             target.request_id.clone(),
             decision,
@@ -859,7 +859,7 @@ mod tests {
 
     fn suggestion_target() -> AppLinkElicitationTarget {
         AppLinkElicitationTarget {
-            thread_id: ThreadId::try_from("00000000-0000-0000-0000-000000000001")
+            chat_id: ChatId::try_from("00000000-0000-0000-0000-000000000001")
                 .expect("valid thread id"),
             server_name: "codex_apps".to_string(),
             request_id: AppServerRequestId::String("request-1".to_string()),
@@ -868,7 +868,7 @@ mod tests {
 
     fn generic_url_target() -> AppLinkElicitationTarget {
         AppLinkElicitationTarget {
-            thread_id: ThreadId::try_from("00000000-0000-0000-0000-000000000002")
+            chat_id: ChatId::try_from("00000000-0000-0000-0000-000000000002")
                 .expect("valid thread id"),
             server_name: "payments".to_string(),
             request_id: AppServerRequestId::String("request-2".to_string()),
@@ -899,7 +899,7 @@ mod tests {
             auth_url_request("https://chatgpt.com/apps/google-calendar/connector_calendar");
 
         let params = AppLinkViewParams::from_url_app_server_request(
-            target.thread_id,
+            target.chat_id,
             &target.server_name,
             target.request_id.clone(),
             &request,
@@ -927,7 +927,7 @@ mod tests {
         };
 
         let params = AppLinkViewParams::from_url_app_server_request(
-            target.thread_id,
+            target.chat_id,
             &target.server_name,
             target.request_id.clone(),
             &request,
@@ -963,7 +963,7 @@ mod tests {
         ] {
             let request = auth_url_request(url);
             let params = AppLinkViewParams::from_url_app_server_request(
-                target.thread_id,
+                target.chat_id,
                 &target.server_name,
                 target.request_id.clone(),
                 &request,
@@ -986,7 +986,7 @@ mod tests {
                 elicitation_id: "payment-123".to_string(),
             };
             let params = AppLinkViewParams::from_url_app_server_request(
-                target.thread_id,
+                target.chat_id,
                 &target.server_name,
                 target.request_id.clone(),
                 &request,
@@ -1209,7 +1209,7 @@ mod tests {
             elicitation_id: "payment-123".to_string(),
         };
         let params = AppLinkViewParams::from_url_app_server_request(
-            target.thread_id,
+            target.chat_id,
             &target.server_name,
             target.request_id.clone(),
             &request,
@@ -1229,8 +1229,8 @@ mod tests {
 
         view.handle_key_event(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
         match rx.try_recv() {
-            Ok(AppEvent::SubmitThreadOp { thread_id, op }) => {
-                assert_eq!(thread_id, target.thread_id);
+            Ok(AppEvent::SubmitThreadOp { chat_id, op }) => {
+                assert_eq!(chat_id, target.chat_id);
                 assert_eq!(
                     op,
                     Op::ResolveElicitation {
@@ -1385,8 +1385,8 @@ mod tests {
             Err(err) => panic!("missing app event: {err}"),
         }
         match rx.try_recv() {
-            Ok(AppEvent::SubmitThreadOp { thread_id, op }) => {
-                assert_eq!(thread_id, suggestion_target().thread_id);
+            Ok(AppEvent::SubmitThreadOp { chat_id, op }) => {
+                assert_eq!(chat_id, suggestion_target().chat_id);
                 assert_eq!(
                     op,
                     Op::ResolveElicitation {
@@ -1427,8 +1427,8 @@ mod tests {
         view.handle_key_event(KeyEvent::new(KeyCode::Char('2'), KeyModifiers::NONE));
 
         match rx.try_recv() {
-            Ok(AppEvent::SubmitThreadOp { thread_id, op }) => {
-                assert_eq!(thread_id, suggestion_target().thread_id);
+            Ok(AppEvent::SubmitThreadOp { chat_id, op }) => {
+                assert_eq!(chat_id, suggestion_target().chat_id);
                 assert_eq!(
                     op,
                     Op::ResolveElicitation {
@@ -1477,8 +1477,8 @@ mod tests {
             Err(err) => panic!("missing app event: {err}"),
         }
         match rx.try_recv() {
-            Ok(AppEvent::SubmitThreadOp { thread_id, op }) => {
-                assert_eq!(thread_id, suggestion_target().thread_id);
+            Ok(AppEvent::SubmitThreadOp { chat_id, op }) => {
+                assert_eq!(chat_id, suggestion_target().chat_id);
                 assert_eq!(
                     op,
                     Op::ResolveElicitation {
@@ -1654,7 +1654,7 @@ mod tests {
             elicitation_id: "payment-123".to_string(),
         };
         let params = AppLinkViewParams::from_url_app_server_request(
-            target.thread_id,
+            target.chat_id,
             &target.server_name,
             target.request_id.clone(),
             &request,
@@ -1683,7 +1683,7 @@ mod tests {
             elicitation_id: "payment-123".to_string(),
         };
         let params = AppLinkViewParams::from_url_app_server_request(
-            target.thread_id,
+            target.chat_id,
             &target.server_name,
             target.request_id.clone(),
             &request,

@@ -19,7 +19,7 @@ use datax_app_server_protocol::CollabAgentTool;
 use datax_app_server_protocol::CollabAgentToolCallStatus;
 use datax_app_server_protocol::Message;
 use datax_app_server_protocol::SubAgentActivityKind;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
@@ -46,7 +46,7 @@ pub(crate) struct AgentPickerThreadEntry {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SubAgentActivityDisplay {
-    pub(crate) thread_id: ThreadId,
+    pub(crate) chat_id: ChatId,
     pub(crate) agent_path: String,
     pub(crate) is_running_hint: bool,
 }
@@ -61,7 +61,7 @@ pub(crate) struct AgentMetadata {
 
 #[derive(Clone, Copy)]
 struct AgentLabel<'a> {
-    thread_id: Option<ThreadId>,
+    chat_id: Option<ChatId>,
     nickname: Option<&'a str>,
     role: Option<&'a str>,
 }
@@ -203,12 +203,12 @@ pub(crate) fn spawn_request_summary(item: &Message) -> Option<SpawnRequestSummar
 pub(crate) fn tool_call_history_cell(
     item: &Message,
     cached_spawn_request: Option<&SpawnRequestSummary>,
-    mut agent_metadata: impl FnMut(ThreadId) -> AgentMetadata,
+    mut agent_metadata: impl FnMut(ChatId) -> AgentMetadata,
 ) -> Option<PlainHistoryCell> {
     let Message::CollabAgentToolCall {
         tool,
         status,
-        receiver_thread_ids,
+        receiver_chat_ids,
         prompt,
         agents_states,
         ..
@@ -217,9 +217,9 @@ pub(crate) fn tool_call_history_cell(
         return None;
     };
 
-    let first_receiver = receiver_thread_ids
+    let first_receiver = receiver_chat_ids
         .first()
-        .and_then(|id| parse_thread_id(id));
+        .and_then(|id| parse_chat_id(id));
     let prompt = prompt.as_deref().unwrap_or_default();
 
     match tool {
@@ -240,17 +240,17 @@ pub(crate) fn tool_call_history_cell(
             if matches!(status, CollabAgentToolCallStatus::InProgress) {
                 return None;
             }
-            first_receiver.map(|receiver_thread_id| {
-                interaction_end(receiver_thread_id, prompt, &mut agent_metadata)
+            first_receiver.map(|receiver_chat_id| {
+                interaction_end(receiver_chat_id, prompt, &mut agent_metadata)
             })
         }
-        CollabAgentTool::ResumeAgent => first_receiver.map(|receiver_thread_id| {
+        CollabAgentTool::ResumeAgent => first_receiver.map(|receiver_chat_id| {
             if matches!(status, CollabAgentToolCallStatus::InProgress) {
-                resume_begin(receiver_thread_id, &mut agent_metadata)
+                resume_begin(receiver_chat_id, &mut agent_metadata)
             } else {
-                let state = first_agent_state(receiver_thread_ids, agents_states);
+                let state = first_agent_state(receiver_chat_ids, agents_states);
                 resume_end(
-                    receiver_thread_id,
+                    receiver_chat_id,
                     state,
                     "Agent resume failed",
                     &mut agent_metadata,
@@ -259,10 +259,10 @@ pub(crate) fn tool_call_history_cell(
         }),
         CollabAgentTool::Wait => {
             if matches!(status, CollabAgentToolCallStatus::InProgress) {
-                Some(waiting_begin(receiver_thread_ids, &mut agent_metadata))
+                Some(waiting_begin(receiver_chat_ids, &mut agent_metadata))
             } else {
                 Some(waiting_end(
-                    receiver_thread_ids,
+                    receiver_chat_ids,
                     agents_states,
                     &mut agent_metadata,
                 ))
@@ -273,7 +273,7 @@ pub(crate) fn tool_call_history_cell(
                 return None;
             }
             first_receiver
-                .map(|receiver_thread_id| close_end(receiver_thread_id, &mut agent_metadata))
+                .map(|receiver_chat_id| close_end(receiver_chat_id, &mut agent_metadata))
         }
     }
 }
@@ -281,7 +281,7 @@ pub(crate) fn tool_call_history_cell(
 pub(crate) fn sub_agent_activity_display(item: &Message) -> Option<SubAgentActivityDisplay> {
     let Message::SubAgentActivity {
         kind,
-        agent_thread_id,
+        agent_chat_id,
         agent_path,
         ..
     } = item
@@ -289,7 +289,7 @@ pub(crate) fn sub_agent_activity_display(item: &Message) -> Option<SubAgentActiv
         return None;
     };
     Some(SubAgentActivityDisplay {
-        thread_id: parse_thread_id(agent_thread_id)?,
+        chat_id: parse_chat_id(agent_chat_id)?,
         agent_path: agent_path.clone(),
         is_running_hint: !matches!(kind, SubAgentActivityKind::Interrupted),
     })
@@ -329,15 +329,15 @@ fn sub_agent_activity_title(kind: SubAgentActivityKind, agent_path: &str) -> Lin
 }
 
 fn spawn_end(
-    new_thread_id: Option<ThreadId>,
+    new_chat_id: Option<ChatId>,
     prompt: &str,
     spawn_request: Option<&SpawnRequestSummary>,
-    agent_metadata: &mut impl FnMut(ThreadId) -> AgentMetadata,
+    agent_metadata: &mut impl FnMut(ChatId) -> AgentMetadata,
 ) -> PlainHistoryCell {
-    let title = match new_thread_id {
-        Some(thread_id) => title_with_agent(
+    let title = match new_chat_id {
+        Some(chat_id) => title_with_agent(
             "Spawned",
-            agent_label(thread_id, &agent_metadata(thread_id)),
+            agent_label(chat_id, &agent_metadata(chat_id)),
             spawn_request,
         ),
         None => title_text("Agent spawn failed"),
@@ -351,13 +351,13 @@ fn spawn_end(
 }
 
 fn interaction_end(
-    receiver_thread_id: ThreadId,
+    receiver_chat_id: ChatId,
     prompt: &str,
-    agent_metadata: &mut impl FnMut(ThreadId) -> AgentMetadata,
+    agent_metadata: &mut impl FnMut(ChatId) -> AgentMetadata,
 ) -> PlainHistoryCell {
     let title = title_with_agent(
         "Sent input to",
-        agent_label(receiver_thread_id, &agent_metadata(receiver_thread_id)),
+        agent_label(receiver_chat_id, &agent_metadata(receiver_chat_id)),
         /*spawn_request*/ None,
     );
 
@@ -369,19 +369,19 @@ fn interaction_end(
 }
 
 fn waiting_begin(
-    receiver_thread_ids: &[String],
-    agent_metadata: &mut impl FnMut(ThreadId) -> AgentMetadata,
+    receiver_chat_ids: &[String],
+    agent_metadata: &mut impl FnMut(ChatId) -> AgentMetadata,
 ) -> PlainHistoryCell {
-    let receiver_agents = receiver_thread_ids
+    let receiver_agents = receiver_chat_ids
         .iter()
-        .filter_map(|thread_id| parse_thread_id(thread_id))
-        .map(|thread_id| (thread_id, agent_metadata(thread_id)))
+        .filter_map(|chat_id| parse_chat_id(chat_id))
+        .map(|chat_id| (chat_id, agent_metadata(chat_id)))
         .collect::<Vec<_>>();
 
     let title = match receiver_agents.as_slice() {
-        [(thread_id, metadata)] => title_with_agent(
+        [(chat_id, metadata)] => title_with_agent(
             "Waiting for",
-            agent_label(*thread_id, metadata),
+            agent_label(*chat_id, metadata),
             /*spawn_request*/ None,
         ),
         [] => title_text("Waiting for agents"),
@@ -391,7 +391,7 @@ fn waiting_begin(
     let details = if receiver_agents.len() > 1 {
         receiver_agents
             .iter()
-            .map(|(thread_id, metadata)| agent_label_line(agent_label(*thread_id, metadata)))
+            .map(|(chat_id, metadata)| agent_label_line(agent_label(*chat_id, metadata)))
             .collect()
     } else {
         Vec::new()
@@ -401,22 +401,22 @@ fn waiting_begin(
 }
 
 fn waiting_end(
-    receiver_thread_ids: &[String],
+    receiver_chat_ids: &[String],
     agents_states: &std::collections::HashMap<String, CollabAgentState>,
-    agent_metadata: &mut impl FnMut(ThreadId) -> AgentMetadata,
+    agent_metadata: &mut impl FnMut(ChatId) -> AgentMetadata,
 ) -> PlainHistoryCell {
-    let details = wait_complete_lines(receiver_thread_ids, agents_states, agent_metadata);
+    let details = wait_complete_lines(receiver_chat_ids, agents_states, agent_metadata);
     collab_event(title_text("Finished waiting"), details)
 }
 
 fn close_end(
-    receiver_thread_id: ThreadId,
-    agent_metadata: &mut impl FnMut(ThreadId) -> AgentMetadata,
+    receiver_chat_id: ChatId,
+    agent_metadata: &mut impl FnMut(ChatId) -> AgentMetadata,
 ) -> PlainHistoryCell {
     collab_event(
         title_with_agent(
             "Closed",
-            agent_label(receiver_thread_id, &agent_metadata(receiver_thread_id)),
+            agent_label(receiver_chat_id, &agent_metadata(receiver_chat_id)),
             /*spawn_request*/ None,
         ),
         Vec::new(),
@@ -424,13 +424,13 @@ fn close_end(
 }
 
 fn resume_begin(
-    receiver_thread_id: ThreadId,
-    agent_metadata: &mut impl FnMut(ThreadId) -> AgentMetadata,
+    receiver_chat_id: ChatId,
+    agent_metadata: &mut impl FnMut(ChatId) -> AgentMetadata,
 ) -> PlainHistoryCell {
     collab_event(
         title_with_agent(
             "Resuming",
-            agent_label(receiver_thread_id, &agent_metadata(receiver_thread_id)),
+            agent_label(receiver_chat_id, &agent_metadata(receiver_chat_id)),
             /*spawn_request*/ None,
         ),
         Vec::new(),
@@ -438,15 +438,15 @@ fn resume_begin(
 }
 
 fn resume_end(
-    receiver_thread_id: ThreadId,
+    receiver_chat_id: ChatId,
     status: Option<&CollabAgentState>,
     fallback_error: &str,
-    agent_metadata: &mut impl FnMut(ThreadId) -> AgentMetadata,
+    agent_metadata: &mut impl FnMut(ChatId) -> AgentMetadata,
 ) -> PlainHistoryCell {
     collab_event(
         title_with_agent(
             "Resumed",
-            agent_label(receiver_thread_id, &agent_metadata(receiver_thread_id)),
+            agent_label(receiver_chat_id, &agent_metadata(receiver_chat_id)),
             /*spawn_request*/ None,
         ),
         vec![status_summary_line(status, fallback_error)],
@@ -483,13 +483,13 @@ fn title_spans_line(mut spans: Vec<Span<'static>>) -> Line<'static> {
     title.into()
 }
 
-fn parse_thread_id(thread_id: &str) -> Option<ThreadId> {
-    ThreadId::from_string(thread_id).ok()
+fn parse_chat_id(chat_id: &str) -> Option<ChatId> {
+    ChatId::from_string(chat_id).ok()
 }
 
-fn agent_label(thread_id: ThreadId, metadata: &AgentMetadata) -> AgentLabel<'_> {
+fn agent_label(chat_id: ChatId, metadata: &AgentMetadata) -> AgentLabel<'_> {
     AgentLabel {
-        thread_id: Some(thread_id),
+        chat_id: Some(chat_id),
         nickname: metadata.agent_nickname.as_deref(),
         role: metadata.agent_role.as_deref(),
     }
@@ -509,8 +509,8 @@ fn agent_label_spans(agent: AgentLabel<'_>) -> Vec<Span<'static>> {
 
     if let Some(nickname) = nickname {
         spans.push(Span::from(nickname.to_string()).cyan().bold());
-    } else if let Some(thread_id) = agent.thread_id {
-        spans.push(Span::from(thread_id.to_string()).cyan());
+    } else if let Some(chat_id) = agent.chat_id {
+        spans.push(Span::from(chat_id.to_string()).cyan());
     } else {
         spans.push(Span::from("agent").cyan());
     }
@@ -555,27 +555,27 @@ fn prompt_line(prompt: &str) -> Option<Line<'static>> {
 }
 
 fn wait_complete_lines(
-    receiver_thread_ids: &[String],
+    receiver_chat_ids: &[String],
     agents_states: &std::collections::HashMap<String, CollabAgentState>,
-    agent_metadata: &mut impl FnMut(ThreadId) -> AgentMetadata,
+    agent_metadata: &mut impl FnMut(ChatId) -> AgentMetadata,
 ) -> Vec<Line<'static>> {
     let mut seen = HashSet::new();
-    let mut entries = receiver_thread_ids
+    let mut entries = receiver_chat_ids
         .iter()
-        .filter_map(|thread_id| {
-            let parsed_thread_id = parse_thread_id(thread_id)?;
-            let status = agents_states.get(thread_id)?;
-            seen.insert(parsed_thread_id);
-            Some((parsed_thread_id, agent_metadata(parsed_thread_id), status))
+        .filter_map(|chat_id| {
+            let parsed_chat_id = parse_chat_id(chat_id)?;
+            let status = agents_states.get(chat_id)?;
+            seen.insert(parsed_chat_id);
+            Some((parsed_chat_id, agent_metadata(parsed_chat_id), status))
         })
         .collect::<Vec<_>>();
 
     let mut extras = agents_states
         .iter()
-        .filter_map(|(thread_id, status)| {
-            let parsed_thread_id = parse_thread_id(thread_id)?;
-            (!seen.contains(&parsed_thread_id))
-                .then(|| (parsed_thread_id, agent_metadata(parsed_thread_id), status))
+        .filter_map(|(chat_id, status)| {
+            let parsed_chat_id = parse_chat_id(chat_id)?;
+            (!seen.contains(&parsed_chat_id))
+                .then(|| (parsed_chat_id, agent_metadata(parsed_chat_id), status))
         })
         .collect::<Vec<_>>();
     extras.sort_by_key(|entry| entry.0.to_string());
@@ -586,8 +586,8 @@ fn wait_complete_lines(
     } else {
         entries
             .into_iter()
-            .map(|(thread_id, metadata, status)| {
-                let mut spans = agent_label_spans(agent_label(thread_id, &metadata));
+            .map(|(chat_id, metadata, status)| {
+                let mut spans = agent_label_spans(agent_label(chat_id, &metadata));
                 spans.push(Span::from(": ").dim());
                 spans.extend(status_summary_spans(status));
                 spans.into()
@@ -597,12 +597,12 @@ fn wait_complete_lines(
 }
 
 fn first_agent_state<'a>(
-    receiver_thread_ids: &[String],
+    receiver_chat_ids: &[String],
     agents_states: &'a std::collections::HashMap<String, CollabAgentState>,
 ) -> Option<&'a CollabAgentState> {
-    receiver_thread_ids
+    receiver_chat_ids
         .iter()
-        .find_map(|thread_id| agents_states.get(thread_id))
+        .find_map(|chat_id| agents_states.get(chat_id))
         .or_else(|| {
             agents_states
                 .iter()
@@ -676,11 +676,11 @@ mod tests {
 
     #[test]
     fn collab_events_snapshot() {
-        let sender_thread_id = ThreadId::from_string("00000000-0000-0000-0000-000000000001")
+        let sender_chat_id = ChatId::from_string("00000000-0000-0000-0000-000000000001")
             .expect("valid sender thread id");
-        let robie_id = ThreadId::from_string("00000000-0000-0000-0000-000000000002")
+        let robie_id = ChatId::from_string("00000000-0000-0000-0000-000000000002")
             .expect("valid robie thread id");
-        let bob_id = ThreadId::from_string("00000000-0000-0000-0000-000000000003")
+        let bob_id = ChatId::from_string("00000000-0000-0000-0000-000000000003")
             .expect("valid bob thread id");
 
         let spawn = tool_call_history_cell(
@@ -688,8 +688,8 @@ mod tests {
                 id: "call-spawn".to_string(),
                 tool: CollabAgentTool::SpawnAgent,
                 status: CollabAgentToolCallStatus::Completed,
-                sender_thread_id: sender_thread_id.to_string(),
-                receiver_thread_ids: vec![robie_id.to_string()],
+                sender_chat_id: sender_chat_id.to_string(),
+                receiver_chat_ids: vec![robie_id.to_string()],
                 prompt: Some("Compute 11! and reply with just the integer result.".to_string()),
                 model: Some("gpt-5".to_string()),
                 reasoning_effort: Some(ReasoningEffortConfig::High),
@@ -699,7 +699,7 @@ mod tests {
                 )]),
             },
             /*cached_spawn_request*/ None,
-            |thread_id| metadata_for(thread_id, robie_id, bob_id),
+            |chat_id| metadata_for(chat_id, robie_id, bob_id),
         )
         .expect("spawn item renders");
 
@@ -708,8 +708,8 @@ mod tests {
                 id: "call-send".to_string(),
                 tool: CollabAgentTool::SendInput,
                 status: CollabAgentToolCallStatus::Completed,
-                sender_thread_id: sender_thread_id.to_string(),
-                receiver_thread_ids: vec![robie_id.to_string()],
+                sender_chat_id: sender_chat_id.to_string(),
+                receiver_chat_ids: vec![robie_id.to_string()],
                 prompt: Some("Please continue and return the answer only.".to_string()),
                 model: None,
                 reasoning_effort: None,
@@ -719,7 +719,7 @@ mod tests {
                 )]),
             },
             /*cached_spawn_request*/ None,
-            |thread_id| metadata_for(thread_id, robie_id, bob_id),
+            |chat_id| metadata_for(chat_id, robie_id, bob_id),
         )
         .expect("send-input item renders");
 
@@ -728,15 +728,15 @@ mod tests {
                 id: "call-wait".to_string(),
                 tool: CollabAgentTool::Wait,
                 status: CollabAgentToolCallStatus::InProgress,
-                sender_thread_id: sender_thread_id.to_string(),
-                receiver_thread_ids: vec![robie_id.to_string()],
+                sender_chat_id: sender_chat_id.to_string(),
+                receiver_chat_ids: vec![robie_id.to_string()],
                 prompt: None,
                 model: None,
                 reasoning_effort: None,
                 agents_states: HashMap::new(),
             },
             /*cached_spawn_request*/ None,
-            |thread_id| metadata_for(thread_id, robie_id, bob_id),
+            |chat_id| metadata_for(chat_id, robie_id, bob_id),
         )
         .expect("wait begin item renders");
 
@@ -745,8 +745,8 @@ mod tests {
                 id: "call-wait".to_string(),
                 tool: CollabAgentTool::Wait,
                 status: CollabAgentToolCallStatus::Completed,
-                sender_thread_id: sender_thread_id.to_string(),
-                receiver_thread_ids: vec![robie_id.to_string(), bob_id.to_string()],
+                sender_chat_id: sender_chat_id.to_string(),
+                receiver_chat_ids: vec![robie_id.to_string(), bob_id.to_string()],
                 prompt: None,
                 model: None,
                 reasoning_effort: None,
@@ -762,7 +762,7 @@ mod tests {
                 ]),
             },
             /*cached_spawn_request*/ None,
-            |thread_id| metadata_for(thread_id, robie_id, bob_id),
+            |chat_id| metadata_for(chat_id, robie_id, bob_id),
         )
         .expect("wait end item renders");
 
@@ -771,8 +771,8 @@ mod tests {
                 id: "call-close".to_string(),
                 tool: CollabAgentTool::CloseAgent,
                 status: CollabAgentToolCallStatus::Completed,
-                sender_thread_id: sender_thread_id.to_string(),
-                receiver_thread_ids: vec![robie_id.to_string()],
+                sender_chat_id: sender_chat_id.to_string(),
+                receiver_chat_ids: vec![robie_id.to_string()],
                 prompt: None,
                 model: None,
                 reasoning_effort: None,
@@ -782,7 +782,7 @@ mod tests {
                 )]),
             },
             /*cached_spawn_request*/ None,
-            |thread_id| metadata_for(thread_id, robie_id, bob_id),
+            |chat_id| metadata_for(chat_id, robie_id, bob_id),
         )
         .expect("close item renders");
 
@@ -846,17 +846,17 @@ mod tests {
 
     #[test]
     fn title_styles_nickname_and_role() {
-        let sender_thread_id = ThreadId::from_string("00000000-0000-0000-0000-000000000001")
+        let sender_chat_id = ChatId::from_string("00000000-0000-0000-0000-000000000001")
             .expect("valid sender thread id");
-        let robie_id = ThreadId::from_string("00000000-0000-0000-0000-000000000002")
+        let robie_id = ChatId::from_string("00000000-0000-0000-0000-000000000002")
             .expect("valid robie thread id");
         let cell = tool_call_history_cell(
             &Message::CollabAgentToolCall {
                 id: "call-spawn".to_string(),
                 tool: CollabAgentTool::SpawnAgent,
                 status: CollabAgentToolCallStatus::Completed,
-                sender_thread_id: sender_thread_id.to_string(),
-                receiver_thread_ids: vec![robie_id.to_string()],
+                sender_chat_id: sender_chat_id.to_string(),
+                receiver_chat_ids: vec![robie_id.to_string()],
                 prompt: Some(String::new()),
                 model: Some("gpt-5".to_string()),
                 reasoning_effort: Some(ReasoningEffortConfig::High),
@@ -866,7 +866,7 @@ mod tests {
                 )]),
             },
             /*cached_spawn_request*/ None,
-            |thread_id| metadata_for(thread_id, robie_id, ThreadId::new()),
+            |chat_id| metadata_for(chat_id, robie_id, ChatId::new()),
         )
         .expect("spawn item renders");
 
@@ -884,9 +884,9 @@ mod tests {
 
     #[test]
     fn collab_resume_interrupted_snapshot() {
-        let sender_thread_id = ThreadId::from_string("00000000-0000-0000-0000-000000000001")
+        let sender_chat_id = ChatId::from_string("00000000-0000-0000-0000-000000000001")
             .expect("valid sender thread id");
-        let robie_id = ThreadId::from_string("00000000-0000-0000-0000-000000000002")
+        let robie_id = ChatId::from_string("00000000-0000-0000-0000-000000000002")
             .expect("valid robie thread id");
 
         let cell = tool_call_history_cell(
@@ -894,8 +894,8 @@ mod tests {
                 id: "call-resume".to_string(),
                 tool: CollabAgentTool::ResumeAgent,
                 status: CollabAgentToolCallStatus::Completed,
-                sender_thread_id: sender_thread_id.to_string(),
-                receiver_thread_ids: vec![robie_id.to_string()],
+                sender_chat_id: sender_chat_id.to_string(),
+                receiver_chat_ids: vec![robie_id.to_string()],
                 prompt: None,
                 model: None,
                 reasoning_effort: None,
@@ -905,7 +905,7 @@ mod tests {
                 )]),
             },
             /*cached_spawn_request*/ None,
-            |thread_id| metadata_for(thread_id, robie_id, ThreadId::new()),
+            |chat_id| metadata_for(chat_id, robie_id, ChatId::new()),
         )
         .expect("resume item renders");
 
@@ -919,13 +919,13 @@ mod tests {
         }
     }
 
-    fn metadata_for(thread_id: ThreadId, robie_id: ThreadId, bob_id: ThreadId) -> AgentMetadata {
-        if thread_id == robie_id {
+    fn metadata_for(chat_id: ChatId, robie_id: ChatId, bob_id: ChatId) -> AgentMetadata {
+        if chat_id == robie_id {
             AgentMetadata {
                 agent_nickname: Some("Robie".to_string()),
                 agent_role: Some("explorer".to_string()),
             }
-        } else if thread_id == bob_id {
+        } else if chat_id == bob_id {
             AgentMetadata {
                 agent_nickname: Some("Bob".to_string()),
                 agent_role: Some("worker".to_string()),

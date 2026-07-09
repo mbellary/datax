@@ -21,7 +21,7 @@ use datax_core::config::Config;
 use datax_extension_api::ExtensionRegistryBuilder;
 use datax_features::Feature;
 use datax_login::CodexAuth;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::WebSearchMode;
 use datax_protocol::dynamic_tools::DynamicToolFunctionSpec;
 use datax_protocol::dynamic_tools::DynamicToolNamespaceSpec;
@@ -63,7 +63,7 @@ async fn new_thread_is_recorded_in_state_db() -> Result<()> {
     });
     let test = builder.build(&server).await?;
 
-    let thread_id = test.session_configured.thread_id;
+    let chat_id = test.session_configured.chat_id;
     let rollout_path = test.codex.rollout_path().expect("rollout path");
     let db_path = datax_state::state_db_path(test.config.sqlite_home.as_path());
 
@@ -80,7 +80,7 @@ async fn new_thread_is_recorded_in_state_db() -> Result<()> {
         "fresh thread rollout should not be materialized before first user message"
     );
 
-    let initial_metadata = db.get_thread(thread_id).await?;
+    let initial_metadata = db.get_thread(chat_id).await?;
     assert!(
         initial_metadata.is_none(),
         "fresh thread should not be recorded in state db before first user message"
@@ -90,7 +90,7 @@ async fn new_thread_is_recorded_in_state_db() -> Result<()> {
 
     let mut metadata = None;
     for _ in 0..100 {
-        metadata = db.get_thread(thread_id).await?;
+        metadata = db.get_thread(chat_id).await?;
         if metadata.is_some() {
             break;
         }
@@ -98,7 +98,7 @@ async fn new_thread_is_recorded_in_state_db() -> Result<()> {
     }
 
     let metadata = metadata.expect("thread should exist in state db");
-    assert_eq!(metadata.id, thread_id);
+    assert_eq!(metadata.id, chat_id);
     assert_eq!(metadata.rollout_path, rollout_path.to_path_buf());
     assert!(
         rollout_path.exists(),
@@ -173,7 +173,7 @@ async fn resume_restores_dynamic_tools_from_rollout_with_sqlite_enabled() -> Res
         })
         .await?;
     wait_for_event(&started.thread, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -270,7 +270,7 @@ async fn resume_restores_legacy_dynamic_tools_from_rollout_with_sqlite_enabled()
         })
         .await?;
     wait_for_event(&started.thread, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
     started.thread.submit(Op::Shutdown).await?;
@@ -343,7 +343,7 @@ async fn backfill_scans_existing_rollouts() -> Result<()> {
     let server = start_mock_server().await;
 
     let uuid = Uuid::now_v7();
-    let thread_id = ThreadId::from_string(&uuid.to_string())?;
+    let chat_id = ChatId::from_string(&uuid.to_string())?;
     let rollout_rel_path = format!("sessions/2026/01/27/rollout-2026-01-27T12-00-00-{uuid}.jsonl");
     let rollout_rel_path_for_hook = rollout_rel_path.clone();
 
@@ -356,10 +356,10 @@ async fn backfill_scans_existing_rollouts() -> Result<()> {
             fs::create_dir_all(parent).expect("should create rollout directory");
             let session_meta_line = SessionMetaLine {
                 meta: SessionMeta {
-                    session_id: thread_id.into(),
-                    id: thread_id,
+                    session_id: chat_id.into(),
+                    id: chat_id,
                     forked_from_id: None,
-                    parent_thread_id: None,
+                    parent_chat_id: None,
                     timestamp: "2026-01-27T12:00:00Z".to_string(),
                     cwd: codex_home.to_path_buf(),
                     originator: "test".to_string(),
@@ -427,7 +427,7 @@ async fn backfill_scans_existing_rollouts() -> Result<()> {
 
     let mut metadata = None;
     for _ in 0..40 {
-        metadata = db.get_thread(thread_id).await?;
+        metadata = db.get_thread(chat_id).await?;
         if metadata.is_some() {
             break;
         }
@@ -435,7 +435,7 @@ async fn backfill_scans_existing_rollouts() -> Result<()> {
     }
 
     let metadata = metadata.expect("backfilled thread should exist in state db");
-    assert_eq!(metadata.id, thread_id);
+    assert_eq!(metadata.id, chat_id);
     assert_eq!(metadata.rollout_path, rollout_path.to_path_buf());
     assert_eq!(metadata.model_provider, default_provider);
     assert!(metadata.first_user_message.is_some());
@@ -475,11 +475,11 @@ async fn user_messages_persist_in_state_db() -> Result<()> {
     test.submit_turn("another message").await?;
 
     let db = test.codex.state_db().expect("state db enabled");
-    let thread_id = test.session_configured.thread_id;
+    let chat_id = test.session_configured.chat_id;
 
     let mut metadata = None;
     for _ in 0..100 {
-        metadata = db.get_thread(thread_id).await?;
+        metadata = db.get_thread(chat_id).await?;
         if metadata
             .as_ref()
             .map(|entry| entry.first_user_message.is_some())
@@ -518,13 +518,13 @@ async fn web_search_marks_thread_memory_mode_polluted_when_configured() -> Resul
     });
     let test = builder.build(&server).await?;
     let db = test.codex.state_db().expect("state db enabled");
-    let thread_id = test.session_configured.thread_id;
+    let chat_id = test.session_configured.chat_id;
 
     test.submit_turn("search the web").await?;
 
     let mut memory_mode = None;
     for _ in 0..100 {
-        memory_mode = db.get_thread_memory_mode(thread_id).await?;
+        memory_mode = db.get_thread_memory_mode(chat_id).await?;
         if memory_mode.as_deref() == Some("polluted") {
             break;
         }
@@ -596,13 +596,13 @@ async fn standalone_web_search_marks_thread_memory_mode_polluted_when_configured
         });
     let test = builder.build(&server).await?;
     let db = test.codex.state_db().expect("state db enabled");
-    let thread_id = test.session_configured.thread_id;
+    let chat_id = test.session_configured.chat_id;
 
     test.submit_turn("search the web").await?;
 
     let mut memory_mode = None;
     for _ in 0..100 {
-        memory_mode = db.get_thread_memory_mode(thread_id).await?;
+        memory_mode = db.get_thread_memory_mode(chat_id).await?;
         if memory_mode.as_deref() == Some("polluted") {
             break;
         }
@@ -690,7 +690,7 @@ async fn mcp_call_marks_thread_memory_mode_polluted_when_configured() -> Result<
     let test = builder.build(&server).await?;
     wait_for_mcp_server(&test.codex, server_name).await?;
     let db = test.codex.state_db().expect("state db enabled");
-    let thread_id = test.session_configured.thread_id;
+    let chat_id = test.session_configured.chat_id;
     let cwd = test.config.cwd.clone();
     let (sandbox_policy, permission_profile) =
         turn_permission_fields(PermissionProfile::read_only(), cwd.as_path());
@@ -727,14 +727,14 @@ async fn mcp_call_marks_thread_memory_mode_polluted_when_configured() -> Result<
     .await;
     wait_for_event_match(&test.codex, |event| match event {
         EventMsg::Error(err) => Some(Err(anyhow::anyhow!(err.message.clone()))),
-        EventMsg::TurnComplete(_) => Some(Ok(())),
+        EventMsg::InteractionComplete(_) => Some(Ok(())),
         _ => None,
     })
     .await?;
 
     let mut memory_mode = None;
     for _ in 0..100 {
-        memory_mode = db.get_thread_memory_mode(thread_id).await?;
+        memory_mode = db.get_thread_memory_mode(chat_id).await?;
         if memory_mode.as_deref() == Some("polluted") {
             break;
         }
@@ -746,7 +746,7 @@ async fn mcp_call_marks_thread_memory_mode_polluted_when_configured() -> Result<
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn tool_call_logs_include_thread_id() -> Result<()> {
+async fn tool_call_logs_include_chat_id() -> Result<()> {
     let server = start_mock_server().await;
     let call_id = "call-1";
     let args = json!({
@@ -776,7 +776,7 @@ async fn tool_call_logs_include_thread_id() -> Result<()> {
     });
     let test = builder.build(&server).await?;
     let db = test.codex.state_db().expect("state db enabled");
-    let expected_thread_id = test.session_configured.thread_id.to_string();
+    let expected_chat_id = test.session_configured.chat_id.to_string();
 
     test.submit_turn("run a shell command").await?;
 
@@ -784,7 +784,7 @@ async fn tool_call_logs_include_thread_id() -> Result<()> {
     let subscriber = tracing_subscriber::registry().with(log_db_layer.clone());
     let dispatch = tracing::Dispatch::new(subscriber);
     tracing::dispatcher::with_default(&dispatch, || {
-        let span = tracing::info_span!("test_log_span", thread_id = %expected_thread_id);
+        let span = tracing::info_span!("test_log_span", chat_id = %expected_chat_id);
         let _entered = span.enter();
         tracing::info!("ToolCall: shell_command {{\"command\":\"echo hello\"}}");
     });
@@ -803,16 +803,16 @@ async fn tool_call_logs_include_thread_id() -> Result<()> {
                 .as_deref()
                 .is_some_and(|m| m.contains("ToolCall:"))
         }) {
-            let thread_id = row.thread_id;
+            let chat_id = row.chat_id;
             let message = row.message;
-            found = Some((thread_id, message));
+            found = Some((chat_id, message));
             break;
         }
         tokio::time::sleep(Duration::from_millis(25)).await;
     }
 
-    let (thread_id, message) = found.expect("expected ToolCall log row");
-    assert_eq!(thread_id, Some(expected_thread_id));
+    let (chat_id, message) = found.expect("expected ToolCall log row");
+    assert_eq!(chat_id, Some(expected_chat_id));
     assert!(
         message
             .as_deref()

@@ -540,7 +540,7 @@ async fn azure_store_sends_ids_and_headers() -> Result<()> {
             request,
             ResponsesOptions {
                 session_id: Some("sess_123".into()),
-                thread_id: Some("thread_123".into()),
+                chat_id: Some("thread_123".into()),
                 session_source: Some(SessionSource::SubAgent(SubAgentSource::Review)),
                 extra_headers,
                 compression: Compression::None,

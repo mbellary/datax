@@ -34,37 +34,37 @@ impl ElicitationRequestKey {
 // We keep both fast lookup sets (for snapshot filtering by call_id/request key) and
 // turn-indexed queues/vectors so turn completion or interruption can clear
 // stale prompts tied to a turn. `request_user_input` removal is FIFO because
-// the overlay answers queued prompts in FIFO order for a shared `turn_id`.
+// the overlay answers queued prompts in FIFO order for a shared `interaction_id`.
 pub(super) struct PendingInteractiveReplayState {
     exec_approval_call_ids: HashSet<String>,
-    exec_approval_call_ids_by_turn_id: HashMap<String, Vec<String>>,
+    exec_approval_call_ids_by_interaction_id: HashMap<String, Vec<String>>,
     patch_approval_call_ids: HashSet<String>,
-    patch_approval_call_ids_by_turn_id: HashMap<String, Vec<String>>,
+    patch_approval_call_ids_by_interaction_id: HashMap<String, Vec<String>>,
     elicitation_requests: HashSet<ElicitationRequestKey>,
     request_permissions_call_ids: HashSet<String>,
-    request_permissions_call_ids_by_turn_id: HashMap<String, Vec<String>>,
+    request_permissions_call_ids_by_interaction_id: HashMap<String, Vec<String>>,
     request_user_input_call_ids: HashSet<String>,
-    request_user_input_call_ids_by_turn_id: HashMap<String, Vec<String>>,
+    request_user_input_call_ids_by_interaction_id: HashMap<String, Vec<String>>,
     pending_requests_by_request_id: HashMap<AppServerRequestId, PendingInteractiveRequest>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum PendingInteractiveRequest {
     ExecApproval {
-        turn_id: String,
+        interaction_id: String,
         approval_id: String,
     },
     PatchApproval {
-        turn_id: String,
+        interaction_id: String,
         item_id: String,
     },
     Elicitation(ElicitationRequestKey),
     RequestPermissions {
-        turn_id: String,
+        interaction_id: String,
         item_id: String,
     },
     RequestUserInput {
-        turn_id: String,
+        interaction_id: String,
         item_id: String,
     },
 }
@@ -92,12 +92,12 @@ impl PendingInteractiveReplayState {
     {
         let op: AppCommand = op.into();
         match &op {
-            AppCommand::ExecApproval { id, turn_id, .. } => {
+            AppCommand::ExecApproval { id, interaction_id, .. } => {
                 self.exec_approval_call_ids.remove(id);
-                if let Some(turn_id) = turn_id {
+                if let Some(interaction_id) = interaction_id {
                     Self::remove_call_id_from_turn_map_entry(
-                        &mut self.exec_approval_call_ids_by_turn_id,
-                        turn_id,
+                        &mut self.exec_approval_call_ids_by_interaction_id,
+                        interaction_id,
                         id,
                     );
                 }
@@ -107,7 +107,7 @@ impl PendingInteractiveReplayState {
             AppCommand::PatchApproval { id, .. } => {
                 self.patch_approval_call_ids.remove(id);
                 Self::remove_call_id_from_turn_map(
-                    &mut self.patch_approval_call_ids_by_turn_id,
+                    &mut self.patch_approval_call_ids_by_interaction_id,
                     id,
                 );
                 self.pending_requests_by_request_id
@@ -132,7 +132,7 @@ impl PendingInteractiveReplayState {
             AppCommand::RequestPermissionsResponse { id, .. } => {
                 self.request_permissions_call_ids.remove(id);
                 Self::remove_call_id_from_turn_map(
-                    &mut self.request_permissions_call_ids_by_turn_id,
+                    &mut self.request_permissions_call_ids_by_interaction_id,
                     id,
                 );
                 self.pending_requests_by_request_id.retain(
@@ -146,7 +146,7 @@ impl PendingInteractiveReplayState {
             // queued call_id for that turn.
             AppCommand::UserInputAnswer { id, .. } => {
                 let mut remove_turn_entry = false;
-                if let Some(call_ids) = self.request_user_input_call_ids_by_turn_id.get_mut(id) {
+                if let Some(call_ids) = self.request_user_input_call_ids_by_interaction_id.get_mut(id) {
                     if !call_ids.is_empty() {
                         let call_id = call_ids.remove(0);
                         self.request_user_input_call_ids.remove(&call_id);
@@ -161,7 +161,7 @@ impl PendingInteractiveReplayState {
                     }
                 }
                 if remove_turn_entry {
-                    self.request_user_input_call_ids_by_turn_id.remove(id);
+                    self.request_user_input_call_ids_by_interaction_id.remove(id);
                 }
             }
             AppCommand::Shutdown => self.clear(),
@@ -177,14 +177,14 @@ impl PendingInteractiveReplayState {
                     .clone()
                     .unwrap_or_else(|| params.message_id.clone());
                 self.exec_approval_call_ids.insert(approval_id.clone());
-                self.exec_approval_call_ids_by_turn_id
+                self.exec_approval_call_ids_by_interaction_id
                     .entry(params.interaction_id.clone())
                     .or_default()
                     .push(approval_id);
                 self.pending_requests_by_request_id.insert(
                     request_id.clone(),
                     PendingInteractiveRequest::ExecApproval {
-                        turn_id: params.interaction_id.clone(),
+                        interaction_id: params.interaction_id.clone(),
                         approval_id: params
                             .approval_id
                             .clone()
@@ -195,14 +195,14 @@ impl PendingInteractiveReplayState {
             ServerRequest::FileChangeRequestApproval { request_id, params } => {
                 self.patch_approval_call_ids
                     .insert(params.message_id.clone());
-                self.patch_approval_call_ids_by_turn_id
+                self.patch_approval_call_ids_by_interaction_id
                     .entry(params.interaction_id.clone())
                     .or_default()
                     .push(params.message_id.clone());
                 self.pending_requests_by_request_id.insert(
                     request_id.clone(),
                     PendingInteractiveRequest::PatchApproval {
-                        turn_id: params.interaction_id.clone(),
+                        interaction_id: params.interaction_id.clone(),
                         item_id: params.message_id.clone(),
                     },
                 );
@@ -219,14 +219,14 @@ impl PendingInteractiveReplayState {
             ServerRequest::ToolRequestUserInput { request_id, params } => {
                 self.request_user_input_call_ids
                     .insert(params.message_id.clone());
-                self.request_user_input_call_ids_by_turn_id
+                self.request_user_input_call_ids_by_interaction_id
                     .entry(params.interaction_id.clone())
                     .or_default()
                     .push(params.message_id.clone());
                 self.pending_requests_by_request_id.insert(
                     request_id.clone(),
                     PendingInteractiveRequest::RequestUserInput {
-                        turn_id: params.interaction_id.clone(),
+                        interaction_id: params.interaction_id.clone(),
                         item_id: params.message_id.clone(),
                     },
                 );
@@ -234,14 +234,14 @@ impl PendingInteractiveReplayState {
             ServerRequest::PermissionsRequestApproval { request_id, params } => {
                 self.request_permissions_call_ids
                     .insert(params.message_id.clone());
-                self.request_permissions_call_ids_by_turn_id
+                self.request_permissions_call_ids_by_interaction_id
                     .entry(params.interaction_id.clone())
                     .or_default()
                     .push(params.message_id.clone());
                 self.pending_requests_by_request_id.insert(
                     request_id.clone(),
                     PendingInteractiveRequest::RequestPermissions {
-                        turn_id: params.interaction_id.clone(),
+                        interaction_id: params.interaction_id.clone(),
                         item_id: params.message_id.clone(),
                     },
                 );
@@ -256,14 +256,14 @@ impl PendingInteractiveReplayState {
                 Message::CommandExecution { id, .. } => {
                     self.exec_approval_call_ids.remove(id);
                     Self::remove_call_id_from_turn_map(
-                        &mut self.exec_approval_call_ids_by_turn_id,
+                        &mut self.exec_approval_call_ids_by_interaction_id,
                         id,
                     );
                 }
                 Message::FileChange { id, .. } => {
                     self.patch_approval_call_ids.remove(id);
                     Self::remove_call_id_from_turn_map(
-                        &mut self.patch_approval_call_ids_by_turn_id,
+                        &mut self.patch_approval_call_ids_by_interaction_id,
                         id,
                     );
                 }
@@ -292,7 +292,7 @@ impl PendingInteractiveReplayState {
                     .unwrap_or_else(|| params.message_id.clone());
                 self.exec_approval_call_ids.remove(&approval_id);
                 Self::remove_call_id_from_turn_map_entry(
-                    &mut self.exec_approval_call_ids_by_turn_id,
+                    &mut self.exec_approval_call_ids_by_interaction_id,
                     &params.interaction_id,
                     &approval_id,
                 );
@@ -300,7 +300,7 @@ impl PendingInteractiveReplayState {
             ServerRequest::FileChangeRequestApproval { params, .. } => {
                 self.patch_approval_call_ids.remove(&params.message_id);
                 Self::remove_call_id_from_turn_map_entry(
-                    &mut self.patch_approval_call_ids_by_turn_id,
+                    &mut self.patch_approval_call_ids_by_interaction_id,
                     &params.interaction_id,
                     &params.message_id,
                 );
@@ -316,7 +316,7 @@ impl PendingInteractiveReplayState {
                 self.request_user_input_call_ids.remove(&params.message_id);
                 let mut remove_turn_entry = false;
                 if let Some(call_ids) = self
-                    .request_user_input_call_ids_by_turn_id
+                    .request_user_input_call_ids_by_interaction_id
                     .get_mut(&params.interaction_id)
                 {
                     call_ids.retain(|call_id| call_id != &params.message_id);
@@ -325,7 +325,7 @@ impl PendingInteractiveReplayState {
                     }
                 }
                 if remove_turn_entry {
-                    self.request_user_input_call_ids_by_turn_id
+                    self.request_user_input_call_ids_by_interaction_id
                         .remove(&params.interaction_id);
                 }
             }
@@ -333,7 +333,7 @@ impl PendingInteractiveReplayState {
                 self.request_permissions_call_ids.remove(&params.message_id);
                 let mut remove_turn_entry = false;
                 if let Some(call_ids) = self
-                    .request_permissions_call_ids_by_turn_id
+                    .request_permissions_call_ids_by_interaction_id
                     .get_mut(&params.interaction_id)
                 {
                     call_ids.retain(|call_id| call_id != &params.message_id);
@@ -342,7 +342,7 @@ impl PendingInteractiveReplayState {
                     }
                 }
                 if remove_turn_entry {
-                    self.request_permissions_call_ids_by_turn_id
+                    self.request_permissions_call_ids_by_interaction_id
                         .remove(&params.interaction_id);
                 }
             }
@@ -387,95 +387,95 @@ impl PendingInteractiveReplayState {
         !self.request_user_input_call_ids.is_empty()
     }
 
-    fn clear_request_user_input_turn(&mut self, turn_id: &str) {
-        if let Some(call_ids) = self.request_user_input_call_ids_by_turn_id.remove(turn_id) {
+    fn clear_request_user_input_turn(&mut self, interaction_id: &str) {
+        if let Some(call_ids) = self.request_user_input_call_ids_by_interaction_id.remove(interaction_id) {
             for call_id in call_ids {
                 self.request_user_input_call_ids.remove(&call_id);
             }
         }
         self.pending_requests_by_request_id.retain(
             |_, pending| {
-                !matches!(pending, PendingInteractiveRequest::RequestUserInput { turn_id: pending_turn_id, .. } if pending_turn_id == turn_id)
+                !matches!(pending, PendingInteractiveRequest::RequestUserInput { interaction_id: pending_interaction_id, .. } if pending_interaction_id == interaction_id)
             },
         );
     }
 
-    fn clear_request_permissions_turn(&mut self, turn_id: &str) {
-        if let Some(call_ids) = self.request_permissions_call_ids_by_turn_id.remove(turn_id) {
+    fn clear_request_permissions_turn(&mut self, interaction_id: &str) {
+        if let Some(call_ids) = self.request_permissions_call_ids_by_interaction_id.remove(interaction_id) {
             for call_id in call_ids {
                 self.request_permissions_call_ids.remove(&call_id);
             }
         }
         self.pending_requests_by_request_id.retain(
             |_, pending| {
-                !matches!(pending, PendingInteractiveRequest::RequestPermissions { turn_id: pending_turn_id, .. } if pending_turn_id == turn_id)
+                !matches!(pending, PendingInteractiveRequest::RequestPermissions { interaction_id: pending_interaction_id, .. } if pending_interaction_id == interaction_id)
             },
         );
     }
 
-    fn clear_exec_approval_turn(&mut self, turn_id: &str) {
-        if let Some(call_ids) = self.exec_approval_call_ids_by_turn_id.remove(turn_id) {
+    fn clear_exec_approval_turn(&mut self, interaction_id: &str) {
+        if let Some(call_ids) = self.exec_approval_call_ids_by_interaction_id.remove(interaction_id) {
             for call_id in call_ids {
                 self.exec_approval_call_ids.remove(&call_id);
             }
         }
         self.pending_requests_by_request_id.retain(
             |_, pending| {
-                !matches!(pending, PendingInteractiveRequest::ExecApproval { turn_id: pending_turn_id, .. } if pending_turn_id == turn_id)
+                !matches!(pending, PendingInteractiveRequest::ExecApproval { interaction_id: pending_interaction_id, .. } if pending_interaction_id == interaction_id)
             },
         );
     }
 
-    fn clear_patch_approval_turn(&mut self, turn_id: &str) {
-        if let Some(call_ids) = self.patch_approval_call_ids_by_turn_id.remove(turn_id) {
+    fn clear_patch_approval_turn(&mut self, interaction_id: &str) {
+        if let Some(call_ids) = self.patch_approval_call_ids_by_interaction_id.remove(interaction_id) {
             for call_id in call_ids {
                 self.patch_approval_call_ids.remove(&call_id);
             }
         }
         self.pending_requests_by_request_id.retain(
             |_, pending| {
-                !matches!(pending, PendingInteractiveRequest::PatchApproval { turn_id: pending_turn_id, .. } if pending_turn_id == turn_id)
+                !matches!(pending, PendingInteractiveRequest::PatchApproval { interaction_id: pending_interaction_id, .. } if pending_interaction_id == interaction_id)
             },
         );
     }
 
     fn remove_call_id_from_turn_map(
-        call_ids_by_turn_id: &mut HashMap<String, Vec<String>>,
+        call_ids_by_interaction_id: &mut HashMap<String, Vec<String>>,
         call_id: &str,
     ) {
-        call_ids_by_turn_id.retain(|_, call_ids| {
+        call_ids_by_interaction_id.retain(|_, call_ids| {
             call_ids.retain(|queued_call_id| queued_call_id != call_id);
             !call_ids.is_empty()
         });
     }
 
     fn remove_call_id_from_turn_map_entry(
-        call_ids_by_turn_id: &mut HashMap<String, Vec<String>>,
-        turn_id: &str,
+        call_ids_by_interaction_id: &mut HashMap<String, Vec<String>>,
+        interaction_id: &str,
         call_id: &str,
     ) {
         let mut remove_turn_entry = false;
-        if let Some(call_ids) = call_ids_by_turn_id.get_mut(turn_id) {
+        if let Some(call_ids) = call_ids_by_interaction_id.get_mut(interaction_id) {
             call_ids.retain(|queued_call_id| queued_call_id != call_id);
             if call_ids.is_empty() {
                 remove_turn_entry = true;
             }
         }
         if remove_turn_entry {
-            call_ids_by_turn_id.remove(turn_id);
+            call_ids_by_interaction_id.remove(interaction_id);
         }
     }
 
     fn clear(&mut self) {
         self.exec_approval_call_ids.clear();
-        self.exec_approval_call_ids_by_turn_id.clear();
+        self.exec_approval_call_ids_by_interaction_id.clear();
         self.patch_approval_call_ids.clear();
-        self.patch_approval_call_ids_by_turn_id.clear();
+        self.patch_approval_call_ids_by_interaction_id.clear();
         self.elicitation_requests.clear();
         self.request_permissions_call_ids.clear();
-        self.request_permissions_call_ids_by_turn_id.clear();
+        self.request_permissions_call_ids_by_interaction_id.clear();
         self.request_user_input_call_ids.clear();
-        self.request_user_input_call_ids_by_turn_id.clear();
+        self.request_user_input_call_ids_by_interaction_id.clear();
         self.pending_requests_by_request_id.clear();
     }
 
@@ -485,40 +485,40 @@ impl PendingInteractiveReplayState {
         };
         match pending {
             PendingInteractiveRequest::ExecApproval {
-                turn_id,
+                interaction_id,
                 approval_id,
             } => {
                 self.exec_approval_call_ids.remove(&approval_id);
                 Self::remove_call_id_from_turn_map_entry(
-                    &mut self.exec_approval_call_ids_by_turn_id,
-                    &turn_id,
+                    &mut self.exec_approval_call_ids_by_interaction_id,
+                    &interaction_id,
                     &approval_id,
                 );
             }
-            PendingInteractiveRequest::PatchApproval { turn_id, item_id } => {
+            PendingInteractiveRequest::PatchApproval { interaction_id, item_id } => {
                 self.patch_approval_call_ids.remove(&item_id);
                 Self::remove_call_id_from_turn_map_entry(
-                    &mut self.patch_approval_call_ids_by_turn_id,
-                    &turn_id,
+                    &mut self.patch_approval_call_ids_by_interaction_id,
+                    &interaction_id,
                     &item_id,
                 );
             }
             PendingInteractiveRequest::Elicitation(key) => {
                 self.elicitation_requests.remove(&key);
             }
-            PendingInteractiveRequest::RequestPermissions { turn_id, item_id } => {
+            PendingInteractiveRequest::RequestPermissions { interaction_id, item_id } => {
                 self.request_permissions_call_ids.remove(&item_id);
                 Self::remove_call_id_from_turn_map_entry(
-                    &mut self.request_permissions_call_ids_by_turn_id,
-                    &turn_id,
+                    &mut self.request_permissions_call_ids_by_interaction_id,
+                    &interaction_id,
                     &item_id,
                 );
             }
-            PendingInteractiveRequest::RequestUserInput { turn_id, item_id } => {
+            PendingInteractiveRequest::RequestUserInput { interaction_id, item_id } => {
                 self.request_user_input_call_ids.remove(&item_id);
                 Self::remove_call_id_from_turn_map_entry(
-                    &mut self.request_user_input_call_ids_by_turn_id,
-                    &turn_id,
+                    &mut self.request_user_input_call_ids_by_interaction_id,
+                    &interaction_id,
                     &item_id,
                 );
             }
@@ -532,30 +532,30 @@ impl PendingInteractiveReplayState {
         match (pending, request) {
             (
                 PendingInteractiveRequest::ExecApproval {
-                    turn_id,
+                    interaction_id,
                     approval_id,
                 },
                 ServerRequest::CommandExecutionRequestApproval { params, .. },
             ) => {
-                turn_id == &params.interaction_id
+                interaction_id == &params.interaction_id
                     && approval_id == params.approval_id.as_ref().unwrap_or(&params.message_id)
             }
             (
-                PendingInteractiveRequest::PatchApproval { turn_id, item_id },
+                PendingInteractiveRequest::PatchApproval { interaction_id, item_id },
                 ServerRequest::FileChangeRequestApproval { params, .. },
-            ) => turn_id == &params.interaction_id && item_id == &params.message_id,
+            ) => interaction_id == &params.interaction_id && item_id == &params.message_id,
             (
                 PendingInteractiveRequest::Elicitation(key),
                 ServerRequest::McpServerElicitationRequest { request_id, params },
             ) => key.server_name == params.server_name && key.request_id == *request_id,
             (
-                PendingInteractiveRequest::RequestPermissions { turn_id, item_id },
+                PendingInteractiveRequest::RequestPermissions { interaction_id, item_id },
                 ServerRequest::PermissionsRequestApproval { params, .. },
-            ) => turn_id == &params.interaction_id && item_id == &params.message_id,
+            ) => interaction_id == &params.interaction_id && item_id == &params.message_id,
             (
-                PendingInteractiveRequest::RequestUserInput { turn_id, item_id },
+                PendingInteractiveRequest::RequestUserInput { interaction_id, item_id },
                 ServerRequest::ToolRequestUserInput { params, .. },
-            ) => turn_id == &params.interaction_id && item_id == &params.message_id,
+            ) => interaction_id == &params.interaction_id && item_id == &params.message_id,
             _ => false,
         }
     }
@@ -763,7 +763,7 @@ mod tests {
 
         store.note_outbound_op(&Op::ExecApproval {
             id: "approval-1".to_string(),
-            turn_id: Some("turn-1".to_string()),
+            interaction_id: Some("turn-1".to_string()),
             decision: CommandExecutionApprovalDecision::Accept,
         });
 
@@ -916,7 +916,7 @@ mod tests {
 
         store.note_outbound_op(&Op::ExecApproval {
             id: "call-1".to_string(),
-            turn_id: Some("turn-1".to_string()),
+            interaction_id: Some("turn-1".to_string()),
             decision: CommandExecutionApprovalDecision::Accept,
         });
 

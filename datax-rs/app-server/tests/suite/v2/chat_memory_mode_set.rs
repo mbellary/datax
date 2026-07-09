@@ -10,7 +10,7 @@ use datax_app_server_protocol::ChatStartParams;
 use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_state::StateRuntime;
 use pretty_assertions::assert_eq;
 use std::path::Path;
@@ -42,7 +42,7 @@ async fn thread_memory_mode_set_updates_loaded_thread_state() -> Result<()> {
     )
     .await??;
     let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
-    let thread_uuid = ThreadId::from_string(&thread.id)?;
+    let thread_uuid = ChatId::from_string(&thread.id)?;
 
     let set_id = mcp
         .send_chat_memory_mode_set_request(ChatMemoryModeSetParams {
@@ -77,7 +77,7 @@ async fn thread_memory_mode_set_updates_stored_thread_state() -> Result<()> {
         Some("mock_provider"),
         /*git_info*/ None,
     )?;
-    let thread_uuid = ThreadId::from_string(&chat_id)?;
+    let thread_uuid = ChatId::from_string(&chat_id)?;
 
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;

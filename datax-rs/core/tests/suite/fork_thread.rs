@@ -61,7 +61,7 @@ async fn fork_thread_twice_drops_to_first_message() {
             })
             .await
             .unwrap();
-        let _ = wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+        let _ = wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
     }
 
     // Request history from the base conversation to obtain rollout path.
@@ -183,7 +183,7 @@ async fn fork_thread_from_history_does_not_require_source_rollout_path() {
         })
         .await
         .unwrap();
-    let _ = wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _ = wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let source_path = codex.rollout_path().expect("source rollout path");
     let source_items = read_rollout_items(&source_path);
@@ -195,7 +195,7 @@ async fn fork_thread_from_history_does_not_require_source_rollout_path() {
             ForkSnapshot::Interrupted,
             test.config.clone(),
             InitialHistory::Resumed(ResumedHistory {
-                conversation_id: test.session_configured.thread_id,
+                conversation_id: test.session_configured.chat_id,
                 history: source_items.clone(),
                 rollout_path: None,
             }),

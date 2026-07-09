@@ -8,7 +8,7 @@ pub(super) struct ListenerTaskContext {
     pub(super) thread_manager: Arc<ThreadManager>,
     pub(super) thread_state_manager: ThreadStateManager,
     pub(super) outgoing: Arc<OutgoingMessageSender>,
-    pub(super) pending_thread_unloads: Arc<Mutex<HashSet<ThreadId>>>,
+    pub(super) pending_thread_unloads: Arc<Mutex<HashSet<ChatId>>>,
     pub(super) thread_watch_manager: ThreadWatchManager,
     pub(super) thread_list_state_permit: Arc<Semaphore>,
     pub(super) fallback_model_provider: String,
@@ -27,7 +27,7 @@ struct UnloadingState {
 impl UnloadingState {
     async fn new(
         listener_task_context: &ListenerTaskContext,
-        chat_id: ThreadId,
+        chat_id: ChatId,
         delay: Duration,
     ) -> Option<Self> {
         let has_subscribers_rx = listener_task_context
@@ -137,7 +137,7 @@ pub(super) enum EnsureConversationListenerResult {
 )]
 pub(super) async fn ensure_conversation_listener(
     listener_task_context: ListenerTaskContext,
-    conversation_id: ThreadId,
+    conversation_id: ChatId,
     connection_id: ConnectionId,
     raw_events_enabled: bool,
 ) -> Result<EnsureConversationListenerResult, JSONRPCErrorError> {
@@ -188,7 +188,7 @@ pub(super) async fn ensure_conversation_listener(
 
 pub(super) fn log_listener_attach_result(
     result: Result<EnsureConversationListenerResult, JSONRPCErrorError>,
-    chat_id: ThreadId,
+    chat_id: ChatId,
     connection_id: ConnectionId,
     thread_kind: &'static str,
 ) {
@@ -212,7 +212,7 @@ pub(super) fn log_listener_attach_result(
 
 pub(super) async fn ensure_listener_task_running(
     listener_task_context: ListenerTaskContext,
-    conversation_id: ThreadId,
+    conversation_id: ChatId,
     conversation: Arc<CodexThread>,
     thread_state: Arc<Mutex<ThreadState>>,
 ) -> Result<(), JSONRPCErrorError> {
@@ -407,10 +407,10 @@ pub(super) async fn wait_for_thread_shutdown(thread: &Arc<CodexThread>) -> Threa
 pub(super) async fn unload_thread_without_subscribers(
     thread_manager: Arc<ThreadManager>,
     outgoing: Arc<OutgoingMessageSender>,
-    pending_thread_unloads: Arc<Mutex<HashSet<ThreadId>>>,
+    pending_thread_unloads: Arc<Mutex<HashSet<ChatId>>>,
     thread_state_manager: ThreadStateManager,
     thread_watch_manager: ThreadWatchManager,
-    chat_id: ThreadId,
+    chat_id: ChatId,
     thread: Arc<CodexThread>,
 ) {
     info!("thread {chat_id} has no subscribers and is idle; shutting down");
@@ -458,14 +458,14 @@ pub(super) async fn unload_thread_without_subscribers(
 
 #[allow(clippy::too_many_arguments)]
 pub(super) async fn handle_thread_listener_command(
-    conversation_id: ThreadId,
+    conversation_id: ChatId,
     conversation: &Arc<CodexThread>,
     codex_home: &Path,
     thread_state_manager: &ThreadStateManager,
     thread_state: &Arc<Mutex<ThreadState>>,
     thread_watch_manager: &ThreadWatchManager,
     outgoing: &Arc<OutgoingMessageSender>,
-    pending_thread_unloads: &Arc<Mutex<HashSet<ThreadId>>>,
+    pending_thread_unloads: &Arc<Mutex<HashSet<ChatId>>>,
     listener_command: ThreadListenerCommand,
 ) {
     match listener_command {
@@ -527,14 +527,14 @@ pub(super) async fn handle_thread_listener_command(
     reason = "running-thread resume subscription must be serialized against pending unloads"
 )]
 pub(super) async fn handle_pending_thread_resume_request(
-    conversation_id: ThreadId,
+    conversation_id: ChatId,
     conversation: &Arc<CodexThread>,
     _codex_home: &Path,
     thread_state_manager: &ThreadStateManager,
     thread_state: &Arc<Mutex<ThreadState>>,
     thread_watch_manager: &ThreadWatchManager,
     outgoing: &Arc<OutgoingMessageSender>,
-    pending_thread_unloads: &Arc<Mutex<HashSet<ThreadId>>>,
+    pending_thread_unloads: &Arc<Mutex<HashSet<ChatId>>>,
     pending: crate::thread_state::PendingThreadResumeRequest,
 ) {
     let active_turn = {
@@ -545,7 +545,7 @@ pub(super) async fn handle_pending_thread_resume_request(
         chat_id = %conversation_id,
         request_id = ?pending.request_id,
         active_turn_present = active_turn.is_some(),
-        active_turn_id = ?active_turn.as_ref().map(|turn| turn.id.as_str()),
+        active_interaction_id = ?active_turn.as_ref().map(|turn| turn.id.as_str()),
         active_turn_status = ?active_turn.as_ref().map(|turn| &turn.status),
         "composing running thread resume response"
     );
@@ -668,7 +668,7 @@ pub(super) async fn handle_pending_thread_resume_request(
     // Match cold resume: metadata-only resume should attach the listener without
     // paying the cost of turn reconstruction for historical usage replay.
     if let Some(token_usage_thread) = token_usage_thread {
-        let token_usage_turn_id = latest_token_usage_turn_id_from_rollout_items(
+        let token_usage_interaction_id = latest_token_usage_interaction_id_from_rollout_items(
             &pending.history_items,
             token_usage_thread.interactions.as_slice(),
         );
@@ -680,7 +680,7 @@ pub(super) async fn handle_pending_thread_resume_request(
             conversation_id,
             &token_usage_thread,
             conversation.as_ref(),
-            token_usage_turn_id,
+            token_usage_interaction_id,
         )
         .await;
     }
@@ -700,13 +700,13 @@ pub(super) async fn handle_pending_thread_resume_request(
     // App-server owns resume response and snapshot ordering, so wait until
     // replay completes before letting extensions react to the idle thread.
     if pending.emit_thread_goal_update {
-        conversation.emit_thread_idle_lifecycle_if_idle().await;
+        conversation.emit_chat_idle_lifecycle_if_idle().await;
     }
 }
 
 pub(super) async fn send_thread_goal_snapshot_notification(
     outgoing: &Arc<OutgoingMessageSender>,
-    chat_id: ThreadId,
+    chat_id: ChatId,
     state_db: &StateDbHandle,
 ) {
     match state_db.thread_goals().get_thread_goal(chat_id).await {
@@ -748,7 +748,7 @@ pub(crate) fn populate_thread_turns_from_history(
 }
 
 pub(super) async fn resolve_pending_server_request(
-    conversation_id: ThreadId,
+    conversation_id: ChatId,
     thread_state_manager: &ThreadStateManager,
     outgoing: &Arc<OutgoingMessageSender>,
     request_id: RequestId,

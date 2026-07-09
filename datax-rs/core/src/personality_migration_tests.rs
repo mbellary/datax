@@ -1,5 +1,5 @@
 use super::*;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::RolloutItem;
 use datax_protocol::protocol::RolloutLine;
@@ -21,32 +21,32 @@ async fn read_config_toml(codex_home: &Path) -> io::Result<ConfigToml> {
 }
 
 async fn write_session_with_user_event(codex_home: &Path) -> io::Result<()> {
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let dir = codex_home
         .join(SESSIONS_SUBDIR)
         .join("2025")
         .join("01")
         .join("01");
-    write_rollout_with_user_event(&dir, thread_id).await
+    write_rollout_with_user_event(&dir, chat_id).await
 }
 
 async fn write_archived_session_with_user_event(codex_home: &Path) -> io::Result<()> {
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let dir = codex_home.join(ARCHIVED_SESSIONS_SUBDIR);
-    write_rollout_with_user_event(&dir, thread_id).await
+    write_rollout_with_user_event(&dir, chat_id).await
 }
 
-async fn write_rollout_with_user_event(dir: &Path, thread_id: ThreadId) -> io::Result<()> {
+async fn write_rollout_with_user_event(dir: &Path, chat_id: ChatId) -> io::Result<()> {
     tokio::fs::create_dir_all(&dir).await?;
-    let file_path = dir.join(format!("rollout-{TEST_TIMESTAMP}-{thread_id}.jsonl"));
+    let file_path = dir.join(format!("rollout-{TEST_TIMESTAMP}-{chat_id}.jsonl"));
     let mut file = tokio::fs::File::create(&file_path).await?;
 
     let session_meta = SessionMetaLine {
         meta: SessionMeta {
-            session_id: thread_id.into(),
-            id: thread_id,
+            session_id: chat_id.into(),
+            id: chat_id,
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             timestamp: TEST_TIMESTAMP.to_string(),
             cwd: std::path::PathBuf::from("."),
             originator: "test_originator".to_string(),

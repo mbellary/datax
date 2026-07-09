@@ -140,7 +140,7 @@ use datax_git_utils::recent_commits;
 use datax_otel::RuntimeMetricsSummary;
 use datax_otel::SessionTelemetry;
 use datax_plugin::PluginCapabilitySummary;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::account::PlanType;
 use datax_protocol::approvals::GuardianAssessmentAction;
 use datax_protocol::approvals::GuardianAssessmentDecisionSource;
@@ -577,7 +577,7 @@ pub(crate) struct ChatWidget {
     clipboard_lease: Option<crate::clipboard_copy::ClipboardLease>,
     copy_last_response_binding: Vec<KeyBinding>,
     running_commands: HashMap<String, RunningCommand>,
-    collab_agent_metadata: HashMap<ThreadId, AgentMetadata>,
+    collab_agent_metadata: HashMap<ChatId, AgentMetadata>,
     pending_collab_spawn_requests: HashMap<String, multi_agents::SpawnRequestSummary>,
     suppressed_exec_calls: HashSet<String>,
     skills_all: Vec<ProtocolSkillMetadata>,
@@ -634,7 +634,7 @@ pub(crate) struct ChatWidget {
     pet_selection_load_request_id: u64,
     #[cfg(test)]
     pet_image_support_override: Option<crate::pets::PetImageSupport>,
-    thread_id: Option<ThreadId>,
+    chat_id: Option<ChatId>,
     /// Nudge dismissals that should survive draft edits within the current thread scope.
     ///
     /// The nudge is only a discovery aid, so once a user dismisses it or enters Plan mode we keep it
@@ -645,7 +645,7 @@ pub(crate) struct ChatWidget {
     active_side_conversation: bool,
     normal_placeholder_text: String,
     side_placeholder_text: String,
-    forked_from: Option<ThreadId>,
+    forked_from: Option<ChatId>,
     interrupted_turn_notice_mode: InterruptedTurnNoticeMode,
     frame_requester: FrameRequester,
     // Whether to include the initial welcome banner on session configured
@@ -810,11 +810,11 @@ enum PlanModeNudgeScope {
     /// Drafts entered before the server has assigned a thread id.
     NewThread,
     /// Drafts associated with one configured thread.
-    Chat(ThreadId),
+    Chat(ChatId),
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub(crate) enum TurnAbortReason {
+pub(crate) enum InteractionAbortReason {
     Interrupted,
     BudgetLimited,
 }
@@ -869,7 +869,7 @@ fn exec_approval_request_from_params(
         reason: params.reason,
         network_approval_context: params.network_approval_context,
         additional_permissions: params.additional_permissions,
-        turn_id: params.interaction_id,
+        interaction_id: params.interaction_id,
         approval_id: params.approval_id,
         environment_id: params.environment_id,
         proposed_execpolicy_amendment: params.proposed_execpolicy_amendment,
@@ -883,7 +883,7 @@ fn patch_approval_request_from_params(
 ) -> ApplyPatchApprovalRequestEvent {
     ApplyPatchApprovalRequestEvent {
         call_id: params.message_id,
-        turn_id: params.interaction_id,
+        interaction_id: params.interaction_id,
         changes: HashMap::new(),
         reason: params.reason,
         grant_root: params.grant_root,
@@ -894,7 +894,7 @@ fn request_permissions_from_params(
     params: datax_app_server_protocol::PermissionsRequestApprovalParams,
 ) -> std::io::Result<RequestPermissionsEvent> {
     Ok(RequestPermissionsEvent {
-        turn_id: params.interaction_id,
+        interaction_id: params.interaction_id,
         call_id: params.message_id,
         environment_id: params.environment_id,
         started_at_ms: params.started_at_ms,
@@ -933,12 +933,12 @@ impl ChatWidget {
     /// back to showing the raw thread id.
     pub(crate) fn set_collab_agent_metadata(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         agent_nickname: Option<String>,
         agent_role: Option<String>,
     ) {
         self.collab_agent_metadata.insert(
-            thread_id,
+            chat_id,
             AgentMetadata {
                 agent_nickname,
                 agent_role,
@@ -947,9 +947,9 @@ impl ChatWidget {
     }
 
     /// Returns the cached metadata for a thread, defaulting to empty if none has been registered.
-    fn collab_agent_metadata(&self, thread_id: ThreadId) -> AgentMetadata {
+    fn collab_agent_metadata(&self, chat_id: ChatId) -> AgentMetadata {
         self.collab_agent_metadata
-            .get(&thread_id)
+            .get(&chat_id)
             .cloned()
             .unwrap_or_default()
     }
@@ -986,7 +986,7 @@ impl ChatWidget {
     ) {
         let view = crate::bottom_pane::FeedbackNoteView::new(
             category,
-            self.turn_lifecycle.last_turn_id.clone(),
+            self.turn_lifecycle.last_interaction_id.clone(),
             self.app_event_tx.clone(),
             include_logs,
         );
@@ -1015,7 +1015,7 @@ impl ChatWidget {
     }
 
     pub(crate) fn open_feedback_consent(&mut self, category: crate::app_event::FeedbackCategory) {
-        let snapshot = self.feedback.snapshot(self.thread_id);
+        let snapshot = self.feedback.snapshot(self.chat_id);
         #[cfg(target_os = "windows")]
         let include_windows_sandbox_log =
             datax_windows_sandbox::current_log_file_path_for_codex_home(&self.config.codex_home)
@@ -1026,8 +1026,8 @@ impl ChatWidget {
             self.app_event_tx.clone(),
             category,
             self.current_rollout_path.clone(),
-            self.thread_id
-                .map(|thread_id| format!("auto-review-rollout-{thread_id}.jsonl")),
+            self.chat_id
+                .map(|chat_id| format!("auto-review-rollout-{chat_id}.jsonl")),
             include_windows_sandbox_log,
             snapshot.feedback_diagnostics(),
         );
@@ -1562,13 +1562,13 @@ impl ChatWidget {
         self.add_error_message(format!("{feature}: {TUI_STUB_MESSAGE}"));
     }
 
-    fn rename_confirmation_cell(name: &str, thread_id: Option<ThreadId>) -> PlainHistoryCell {
+    fn rename_confirmation_cell(name: &str, chat_id: Option<ChatId>) -> PlainHistoryCell {
         let mut line = vec![
             "• ".into(),
             "Session renamed to ".into(),
             name.to_string().cyan(),
         ];
-        if let Some(hint) = resume_hint(Some(name), thread_id) {
+        if let Some(hint) = resume_hint(Some(name), chat_id) {
             line.extend([". To resume this session run ".into(), hint.cyan()]);
         }
         PlainHistoryCell::new(vec![line.into()])
@@ -1589,7 +1589,7 @@ impl ChatWidget {
         self.request_redraw();
         self.app_event_tx.send(AppEvent::FetchMcpInventory {
             detail,
-            thread_id: self.thread_id(),
+            chat_id: self.chat_id(),
         });
     }
 
@@ -1827,12 +1827,12 @@ impl ChatWidget {
     }
 
     fn append_message_history_entry(&self, text: String) {
-        let Some(thread_id) = self.thread_id else {
+        let Some(chat_id) = self.chat_id else {
             tracing::warn!("failed to append to message history: no active thread id");
             return;
         };
         self.app_event_tx
-            .send(AppEvent::AppendMessageHistoryEntry { thread_id, text });
+            .send(AppEvent::AppendMessageHistoryEntry { chat_id, text });
     }
 
     pub(crate) fn prepare_local_op_submission(&mut self, op: &AppCommand) {
@@ -1892,8 +1892,8 @@ impl ChatWidget {
             .unwrap_or_default()
     }
 
-    pub(crate) fn thread_id(&self) -> Option<ThreadId> {
-        self.thread_id
+    pub(crate) fn chat_id(&self) -> Option<ChatId> {
+        self.chat_id
     }
 
     pub(crate) fn thread_name(&self) -> Option<String> {

@@ -1,5 +1,5 @@
 use datax_protocol::AgentPath;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::ExecCommandBeginEvent;
 use datax_protocol::protocol::ExecCommandEndEvent;
@@ -17,11 +17,11 @@ use crate::ExecutionStatus;
 
 #[test]
 fn sub_agent_activity_is_a_terminal_tool_runtime_event() -> anyhow::Result<()> {
-    let agent_thread_id = ThreadId::new();
+    let agent_chat_id = ChatId::new();
     let event = EventMsg::SubAgentActivity(SubAgentActivityEvent {
         event_id: "call-spawn".to_string(),
         occurred_at_ms: 1234,
-        agent_thread_id,
+        agent_chat_id,
         agent_path: AgentPath::try_from("/root/reviewer").map_err(anyhow::Error::msg)?,
         kind: SubAgentActivityKind::Started,
     });
@@ -42,7 +42,7 @@ fn sub_agent_activity_is_a_terminal_tool_runtime_event() -> anyhow::Result<()> {
         json!({
             "event_id": "call-spawn",
             "occurred_at_ms": 1234,
-            "agent_thread_id": agent_thread_id,
+            "agent_chat_id": agent_chat_id,
             "agent_path": "/root/reviewer",
             "kind": "started"
         })
@@ -57,7 +57,7 @@ fn exec_command_trace_payloads_use_inferred_native_cwd() -> anyhow::Result<()> {
     let begin = EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
         call_id: "call-begin".to_string(),
         process_id: Some("process-1".to_string()),
-        turn_id: "turn-1".to_string(),
+        interaction_id: "turn-1".to_string(),
         started_at_ms: 1234,
         command: vec!["pwd".to_string()],
         cwd: "file:///C:/windows".parse()?,
@@ -68,7 +68,7 @@ fn exec_command_trace_payloads_use_inferred_native_cwd() -> anyhow::Result<()> {
     let end = EventMsg::ExecCommandEnd(ExecCommandEndEvent {
         call_id: "call-end".to_string(),
         process_id: None,
-        turn_id: "turn-1".to_string(),
+        interaction_id: "turn-1".to_string(),
         completed_at_ms: 2345,
         command: vec!["pwd".to_string()],
         cwd: "file:///workspace/project".parse()?,
@@ -93,7 +93,7 @@ fn exec_command_trace_payloads_use_inferred_native_cwd() -> anyhow::Result<()> {
         json!({
             "call_id": "call-begin",
             "process_id": "process-1",
-            "turn_id": "turn-1",
+            "interaction_id": "turn-1",
             "started_at_ms": 1234,
             "command": ["pwd"],
             "cwd": r"C:\windows",
@@ -109,7 +109,7 @@ fn exec_command_trace_payloads_use_inferred_native_cwd() -> anyhow::Result<()> {
         serde_json::to_value(payload)?,
         json!({
             "call_id": "call-end",
-            "turn_id": "turn-1",
+            "interaction_id": "turn-1",
             "completed_at_ms": 2345,
             "command": ["pwd"],
             "cwd": "/workspace/project",

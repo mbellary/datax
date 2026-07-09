@@ -80,7 +80,7 @@ async fn submit_turn(
             },
         })
         .await?;
-    wait_for_event(codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
     Ok(())
 }
 

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use chrono::DateTime;
 use chrono::Utc;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::openai_models::ReasoningEffort;
 use datax_protocol::protocol::AskForApproval;
 use datax_protocol::protocol::SandboxPolicy;
@@ -35,7 +35,7 @@ pub struct Anchor {
     /// The timestamp component of the anchor.
     pub ts: DateTime<Utc>,
     /// The thread ID component used to disambiguate equal recency timestamps.
-    pub id: Option<ThreadId>,
+    pub id: Option<ChatId>,
 }
 
 /// A single page of thread metadata results.
@@ -64,7 +64,7 @@ pub struct ExtractionOutcome {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ThreadMetadata {
     /// The thread identifier.
-    pub id: ThreadId,
+    pub id: ChatId,
     /// The absolute rollout path on disk.
     pub rollout_path: PathBuf,
     /// The creation timestamp.
@@ -119,7 +119,7 @@ pub struct ThreadMetadata {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ThreadMetadataBuilder {
     /// The thread identifier.
-    pub id: ThreadId,
+    pub id: ChatId,
     /// The absolute rollout path on disk.
     pub rollout_path: PathBuf,
     /// The creation timestamp.
@@ -161,7 +161,7 @@ pub struct ThreadMetadataBuilder {
 impl ThreadMetadataBuilder {
     /// Create a new builder with required fields and sensible defaults.
     pub fn new(
-        id: ThreadId,
+        id: ChatId,
         rollout_path: PathBuf,
         created_at: DateTime<Utc>,
         source: SessionSource,
@@ -445,7 +445,7 @@ impl TryFrom<ThreadRow> for ThreadMetadata {
             .transpose()
             .map_err(anyhow::Error::msg)?;
         Ok(Self {
-            id: ThreadId::try_from(id)?,
+            id: ChatId::try_from(id)?,
             rollout_path: PathBuf::from(rollout_path),
             created_at: epoch_millis_to_datetime(created_at)?,
             updated_at: epoch_millis_to_datetime(updated_at)?,
@@ -530,7 +530,7 @@ mod tests {
     use super::ThreadRow;
     use chrono::DateTime;
     use chrono::Utc;
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use datax_protocol::openai_models::ReasoningEffort;
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
@@ -567,7 +567,7 @@ mod tests {
 
     fn expected_thread_metadata(reasoning_effort: Option<ReasoningEffort>) -> ThreadMetadata {
         ThreadMetadata {
-            id: ThreadId::from_string("00000000-0000-0000-0000-000000000123")
+            id: ChatId::from_string("00000000-0000-0000-0000-000000000123")
                 .expect("valid thread id"),
             rollout_path: PathBuf::from("/tmp/rollout-123.jsonl"),
             created_at: DateTime::<Utc>::from_timestamp(1_700_000_000, 0).expect("timestamp"),

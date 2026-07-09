@@ -13,7 +13,7 @@ use crate::goal_files;
 use crate::text_formatting::truncate_text;
 use datax_app_server_protocol::ChatGoal;
 use datax_app_server_protocol::ChatGoalStatus;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 
 const EPHEMERAL_THREAD_GOAL_ERROR_MESSAGE: &str = concat!(
     "Goals need a saved session. This session is temporary.\n",
@@ -24,10 +24,10 @@ impl App {
     pub(super) async fn open_thread_goal_menu(
         &mut self,
         app_server: &mut AppServerSession,
-        thread_id: ThreadId,
+        chat_id: ChatId,
     ) {
-        let result = app_server.thread_goal_get(thread_id).await;
-        if self.current_displayed_thread_id() != Some(thread_id) {
+        let result = app_server.thread_goal_get(chat_id).await;
+        if self.current_displayed_chat_id() != Some(chat_id) {
             return;
         }
 
@@ -54,10 +54,10 @@ impl App {
     pub(super) async fn maybe_prompt_resume_paused_goal_after_resume(
         &mut self,
         app_server: &mut AppServerSession,
-        thread_id: ThreadId,
+        chat_id: ChatId,
     ) {
-        let result = app_server.thread_goal_get(thread_id).await;
-        if self.current_displayed_thread_id() != Some(thread_id) {
+        let result = app_server.thread_goal_get(chat_id).await;
+        if self.current_displayed_chat_id() != Some(chat_id) {
             return;
         }
 
@@ -77,22 +77,22 @@ impl App {
             ChatGoalStatus::Paused | ChatGoalStatus::Blocked | ChatGoalStatus::UsageLimited
         ) {
             self.chat_widget
-                .show_resume_paused_goal_prompt(thread_id, goal.objective);
+                .show_resume_paused_goal_prompt(chat_id, goal.objective);
         }
     }
 
     pub(super) async fn open_thread_goal_editor(
         &mut self,
         app_server: &mut AppServerSession,
-        thread_id: Option<ThreadId>,
+        chat_id: Option<ChatId>,
     ) {
-        let Some(thread_id) = thread_id else {
+        let Some(chat_id) = chat_id else {
             self.show_no_thread_goal_to_edit();
             return;
         };
 
-        let result = app_server.thread_goal_get(thread_id).await;
-        if self.current_displayed_thread_id() != Some(thread_id) {
+        let result = app_server.thread_goal_get(chat_id).await;
+        if self.current_displayed_chat_id() != Some(chat_id) {
             return;
         }
 
@@ -119,30 +119,30 @@ impl App {
                 self.chat_widget.add_error_message(err.to_string());
             }
         }
-        if self.current_displayed_thread_id() != Some(thread_id) {
+        if self.current_displayed_chat_id() != Some(chat_id) {
             return;
         }
-        self.chat_widget.show_goal_edit_prompt(thread_id, goal);
+        self.chat_widget.show_goal_edit_prompt(chat_id, goal);
     }
 
     pub(super) async fn set_thread_goal_draft(
         &mut self,
         app_server: &mut AppServerSession,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         draft: goal_files::GoalDraft,
         mode: ThreadGoalSetMode,
     ) {
         let codex_home = app_server.codex_home_path(&self.config.codex_home);
         let mode = if matches!(mode, ThreadGoalSetMode::ConfirmIfExists) {
-            let result = app_server.thread_goal_get(thread_id).await;
-            if self.current_displayed_thread_id() != Some(thread_id) {
+            let result = app_server.thread_goal_get(chat_id).await;
+            if self.current_displayed_chat_id() != Some(chat_id) {
                 return;
             }
 
             match result {
                 Ok(response) => match response.goal.as_ref() {
                     Some(goal) if should_confirm_before_replacing_goal(goal) => {
-                        self.show_replace_thread_goal_confirmation(thread_id, draft);
+                        self.show_replace_thread_goal_confirmation(chat_id, draft);
                         return;
                     }
                     Some(_) => ThreadGoalSetMode::ReplaceExisting,
@@ -167,7 +167,7 @@ impl App {
         {
             Ok(materialized) => materialized,
             Err(err) => {
-                if self.current_displayed_thread_id() == Some(thread_id) {
+                if self.current_displayed_chat_id() == Some(chat_id) {
                     self.chat_widget.add_error_message(err.to_string());
                 }
                 return;
@@ -176,11 +176,11 @@ impl App {
 
         let replacing_goal = matches!(mode, ThreadGoalSetMode::ReplaceExisting);
         if replacing_goal {
-            let result = app_server.thread_goal_clear(thread_id).await;
+            let result = app_server.thread_goal_clear(chat_id).await;
 
             if let Err(err) = result {
                 cleanup_materialized_goal_files(app_server, output_dir).await;
-                if self.current_displayed_thread_id() != Some(thread_id) {
+                if self.current_displayed_chat_id() != Some(chat_id) {
                     return;
                 }
                 self.chat_widget
@@ -200,12 +200,12 @@ impl App {
         };
 
         let result = app_server
-            .thread_goal_set(thread_id, Some(objective), Some(status), token_budget)
+            .thread_goal_set(chat_id, Some(objective), Some(status), token_budget)
             .await;
 
         match result {
             Ok(response) => {
-                if self.current_displayed_thread_id() != Some(thread_id) {
+                if self.current_displayed_chat_id() != Some(chat_id) {
                     return;
                 }
                 self.chat_widget.add_info_message(
@@ -216,7 +216,7 @@ impl App {
             }
             Err(err) => {
                 cleanup_materialized_goal_files(app_server, output_dir).await;
-                if self.current_displayed_thread_id() != Some(thread_id) {
+                if self.current_displayed_chat_id() != Some(chat_id) {
                     return;
                 }
                 let action = if replacing_goal { "replace" } else { "set" };
@@ -229,18 +229,18 @@ impl App {
     pub(super) async fn set_thread_goal_status(
         &mut self,
         app_server: &mut AppServerSession,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         status: ChatGoalStatus,
     ) {
         let result = app_server
             .thread_goal_set(
-                thread_id,
+                chat_id,
                 /*objective*/ None,
                 Some(status),
                 /*token_budget*/ None,
             )
             .await;
-        if self.current_displayed_thread_id() != Some(thread_id) {
+        if self.current_displayed_chat_id() != Some(chat_id) {
             return;
         }
 
@@ -258,10 +258,10 @@ impl App {
     pub(super) async fn clear_thread_goal(
         &mut self,
         app_server: &mut AppServerSession,
-        thread_id: ThreadId,
+        chat_id: ChatId,
     ) {
-        let result = app_server.thread_goal_clear(thread_id).await;
-        if self.current_displayed_thread_id() != Some(thread_id) {
+        let result = app_server.thread_goal_clear(chat_id).await;
+        if self.current_displayed_chat_id() != Some(chat_id) {
             return;
         }
 
@@ -285,14 +285,14 @@ impl App {
 
     pub(super) fn show_replace_thread_goal_confirmation(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         draft: goal_files::GoalDraft,
     ) {
         let objective = draft.objective.clone();
         let replace_draft = draft;
         let replace_actions: Vec<SelectionAction> = vec![Box::new(move |tx| {
             tx.send(AppEvent::SetThreadGoalDraft {
-                thread_id,
+                chat_id,
                 draft: replace_draft.clone(),
                 mode: ThreadGoalSetMode::ReplaceExisting,
             });
@@ -451,7 +451,7 @@ mod tests {
 
     fn test_goal(status: ChatGoalStatus) -> ChatGoal {
         ChatGoal {
-            chat_id: ThreadId::new().to_string(),
+            chat_id: ChatId::new().to_string(),
             objective: "Finish the thing.".to_string(),
             status,
             token_budget: None,

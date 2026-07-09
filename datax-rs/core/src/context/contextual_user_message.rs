@@ -12,7 +12,7 @@ use super::LegacyUnifiedExecProcessLimitWarning;
 use super::RecommendedPluginsInstructions;
 use super::SkillInstructions;
 use super::SubagentNotification;
-use super::TurnAborted;
+use super::InteractionAborted;
 use super::UserInstructions;
 use super::UserShellCommand;
 use super::world_state::EnvironmentsState;
@@ -27,7 +27,7 @@ static SKILL_INSTRUCTIONS_REGISTRATION: FragmentRegistrationProxy<SkillInstructi
     FragmentRegistrationProxy::new();
 static USER_SHELL_COMMAND_REGISTRATION: FragmentRegistrationProxy<UserShellCommand> =
     FragmentRegistrationProxy::new();
-static TURN_ABORTED_REGISTRATION: FragmentRegistrationProxy<TurnAborted> =
+static TURN_ABORTED_REGISTRATION: FragmentRegistrationProxy<InteractionAborted> =
     FragmentRegistrationProxy::new();
 static SUBAGENT_NOTIFICATION_REGISTRATION: FragmentRegistrationProxy<SubagentNotification> =
     FragmentRegistrationProxy::new();

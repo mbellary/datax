@@ -65,7 +65,7 @@ pub enum AttemptStatus {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TurnAttempt {
-    pub turn_id: String,
+    pub interaction_id: String,
     pub attempt_placement: Option<i64>,
     pub created_at: Option<DateTime<Utc>>,
     pub status: AttemptStatus,
@@ -114,8 +114,8 @@ pub struct DiffSummary {
 pub struct TaskText {
     pub prompt: Option<String>,
     pub messages: Vec<String>,
-    pub turn_id: Option<String>,
-    pub sibling_turn_ids: Vec<String>,
+    pub interaction_id: Option<String>,
+    pub sibling_interaction_ids: Vec<String>,
     pub attempt_placement: Option<i64>,
     pub attempt_status: AttemptStatus,
 }
@@ -125,8 +125,8 @@ impl Default for TaskText {
         Self {
             prompt: None,
             messages: Vec::new(),
-            turn_id: None,
-            sibling_turn_ids: Vec::new(),
+            interaction_id: None,
+            sibling_interaction_ids: Vec::new(),
             attempt_placement: None,
             attempt_status: AttemptStatus::Unknown,
         }
@@ -150,7 +150,7 @@ pub trait CloudBackend: Send + Sync {
     fn list_sibling_attempts(
         &self,
         task: TaskId,
-        turn_id: String,
+        interaction_id: String,
     ) -> CloudBackendFuture<'_, Vec<TurnAttempt>>;
     /// Dry-run apply (preflight) that validates whether the patch would apply cleanly.
     /// Never modifies the working tree. When `diff_override` is supplied, the provided diff is

@@ -129,7 +129,7 @@ async fn submit_context_window_exceeded_turn(codex: &Arc<CodexThread>, text: &st
         _ => None,
     })
     .await;
-    wait_for_event(codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
     assert!(
         error_message.contains("ran out of room in the model's context window"),
         "expected context window exceeded message, got {error_message}"
@@ -456,7 +456,7 @@ async fn assert_compaction_uses_turn_lifecycle_id(codex: &std::sync::Arc<datax_c
     while turn_completed_id.is_none() {
         let event = codex.next_event().await.expect("next event");
         match event.msg {
-            EventMsg::TurnStarted(_) => turn_started_id = Some(event.id.clone()),
+            EventMsg::InteractionStarted(_) => turn_started_id = Some(event.id.clone()),
             EventMsg::ItemStarted(ItemStartedEvent {
                 item: TurnItem::ContextCompaction(_),
                 ..
@@ -465,7 +465,7 @@ async fn assert_compaction_uses_turn_lifecycle_id(codex: &std::sync::Arc<datax_c
                 item: TurnItem::ContextCompaction(_),
                 ..
             }) => compact_completed_id = Some(event.id.clone()),
-            EventMsg::TurnComplete(_) => turn_completed_id = Some(event.id.clone()),
+            EventMsg::InteractionComplete(_) => turn_completed_id = Some(event.id.clone()),
             _ => {}
         }
     }
@@ -556,7 +556,7 @@ async fn summarize_context_three_requests_and_instructions() {
         })
         .await
         .unwrap();
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     // 2) Summarize – second hit should include the summarization prompt.
     codex.submit(Op::Compact).await.unwrap();
@@ -565,7 +565,7 @@ async fn summarize_context_three_requests_and_instructions() {
         panic!("expected warning event after compact");
     };
     assert_eq!(message, COMPACT_WARNING_MESSAGE);
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     // 3) Next user input – third hit; history should include only the summary.
     codex
@@ -581,7 +581,7 @@ async fn summarize_context_three_requests_and_instructions() {
         })
         .await
         .unwrap();
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     // Inspect the three captured requests.
     let requests = request_log.requests();
@@ -751,7 +751,7 @@ async fn manual_pre_compact_block_decision_does_not_block_compaction() {
         })
         .await
         .expect("submit first user turn");
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex.submit(Op::Compact).await.expect("trigger compact");
 
@@ -766,7 +766,7 @@ async fn manual_pre_compact_block_decision_does_not_block_compaction() {
     .await;
     assert_eq!(completed.run.status, HookRunStatus::Failed);
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::Warning(_))).await;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let requests = request_log.requests();
     assert_eq!(
@@ -824,11 +824,11 @@ async fn compact_hooks_respect_matchers_and_post_runs_after_compaction() {
         })
         .await
         .expect("submit first user turn");
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex.submit(Op::Compact).await.expect("trigger compact");
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::Warning(_))).await;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     assert_eq!(request_log.requests().len(), 2);
     assert!(
@@ -894,7 +894,7 @@ async fn manual_compact_uses_custom_prompt() {
         })
         .await
         .expect("submit first user turn");
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex.submit(Op::Compact).await.expect("trigger compact");
     let warning_event = wait_for_event(&codex, |ev| matches!(ev, EventMsg::Warning(_))).await;
@@ -902,7 +902,7 @@ async fn manual_compact_uses_custom_prompt() {
         panic!("expected warning event after compact");
     };
     assert_eq!(message, COMPACT_WARNING_MESSAGE);
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let requests = request_log.requests();
     assert_eq!(
@@ -993,7 +993,7 @@ async fn manual_compact_emits_api_and_local_token_usage_events() {
     .await;
 
     // Ensure the compact task itself completes.
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     assert_eq!(
         first, 0,
@@ -1041,7 +1041,7 @@ async fn manual_compact_emits_context_compaction_items() {
         })
         .await
         .unwrap();
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     codex.submit(Op::Compact).await.unwrap();
 
@@ -1069,7 +1069,7 @@ async fn manual_compact_emits_context_compaction_items() {
             EventMsg::ContextCompacted(_) => {
                 legacy_event = true;
             }
-            EventMsg::TurnComplete(_) => {
+            EventMsg::InteractionComplete(_) => {
                 saw_turn_complete = true;
             }
             _ => {}
@@ -1207,7 +1207,7 @@ async fn multiple_auto_compact_per_task_runs_after_token_limit_hit() {
         })
         .await
         .expect("submit user input");
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     // collect the requests payloads from the model
     let requests_payloads = request_log.requests();
@@ -1680,7 +1680,7 @@ async fn auto_compact_runs_after_token_limit_hit() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex
         .submit(Op::UserInput {
@@ -1696,7 +1696,7 @@ async fn auto_compact_runs_after_token_limit_hit() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex
         .submit(Op::UserInput {
@@ -1712,7 +1712,7 @@ async fn auto_compact_runs_after_token_limit_hit() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let requests = request_log.requests();
     let request_bodies: Vec<String> = requests
@@ -1901,7 +1901,7 @@ async fn auto_compact_emits_context_compaction_items() {
                 EventMsg::ContextCompacted(_) => {
                     legacy_event = true;
                 }
-                EventMsg::TurnComplete(_) if !event.id.starts_with("auto-compact-") => {
+                EventMsg::InteractionComplete(_) if !event.id.starts_with("auto-compact-") => {
                     break;
                 }
                 _ => {}
@@ -1963,7 +1963,7 @@ async fn auto_compact_starts_after_turn_started() {
         })
         .await
         .unwrap();
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex
         .submit(Op::UserInput {
@@ -1978,7 +1978,7 @@ async fn auto_compact_starts_after_turn_started() {
         })
         .await
         .unwrap();
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex
         .submit(Op::UserInput {
@@ -1995,7 +1995,7 @@ async fn auto_compact_starts_after_turn_started() {
         .unwrap();
 
     let first = wait_for_event_match(&codex, |ev| match ev {
-        EventMsg::TurnStarted(_) => Some("turn"),
+        EventMsg::InteractionStarted(_) => Some("turn"),
         EventMsg::ItemStarted(ItemStartedEvent {
             item: TurnItem::ContextCompaction(_),
             ..
@@ -2016,7 +2016,7 @@ async fn auto_compact_starts_after_turn_started() {
     })
     .await;
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -2114,7 +2114,7 @@ async fn auto_compact_runs_after_resume_when_token_usage_is_over_limit() {
     })
     .await;
     wait_for_event(&resumed.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -2188,7 +2188,7 @@ async fn pre_sampling_compact_runs_on_switch_to_smaller_context_model() {
         .await
         .expect("submit first user turn");
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -2290,7 +2290,7 @@ async fn pre_sampling_compact_runs_when_comp_hash_changes() {
         .await
         .expect("submit first user turn");
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -2372,7 +2372,7 @@ async fn auto_compaction_feature_disabled_skips_comp_hash_model_switch_compactio
         .await
         .expect("submit first user turn");
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
     test.codex
@@ -2384,7 +2384,7 @@ async fn auto_compaction_feature_disabled_skips_comp_hash_model_switch_compactio
         .await
         .expect("submit second user turn");
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -2469,7 +2469,7 @@ async fn pre_sampling_compact_skips_when_either_comp_hash_is_missing() {
         .await
         .expect("submit first user turn");
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -2482,7 +2482,7 @@ async fn pre_sampling_compact_skips_when_either_comp_hash_is_missing() {
         .await
         .expect("submit second user turn");
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -2495,7 +2495,7 @@ async fn pre_sampling_compact_skips_when_either_comp_hash_is_missing() {
         .await
         .expect("submit third user turn");
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -2578,7 +2578,7 @@ async fn body_after_prefix_model_switch_budget_compacts_with_next_model() {
         .await
         .expect("submit first user turn");
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -2678,7 +2678,7 @@ async fn pre_sampling_compact_runs_after_resume_and_switch_to_smaller_model() {
         .await
         .expect("submit pre-resume turn");
     wait_for_event(&initial.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -2799,7 +2799,7 @@ async fn pre_sampling_compact_recovers_comp_hash_after_resume() {
         .await
         .expect("submit pre-resume turn");
     wait_for_event(&initial.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -2926,7 +2926,7 @@ async fn pre_sampling_compact_skips_missing_comp_hash_after_resume() {
         .await
         .expect("submit pre-resume turn");
     wait_for_event(&initial.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -2971,7 +2971,7 @@ async fn pre_sampling_compact_skips_missing_comp_hash_after_resume() {
         .await
         .expect("submit resumed user turn");
     wait_for_event(&resumed.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -3070,7 +3070,7 @@ async fn auto_compact_persists_rollout_entries() {
         })
         .await
         .unwrap();
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex
         .submit(Op::UserInput {
@@ -3085,7 +3085,7 @@ async fn auto_compact_persists_rollout_entries() {
         })
         .await
         .unwrap();
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex
         .submit(Op::UserInput {
@@ -3100,7 +3100,7 @@ async fn auto_compact_persists_rollout_entries() {
         })
         .await
         .unwrap();
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex.submit(Op::Shutdown).await.unwrap();
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
@@ -3184,7 +3184,7 @@ async fn manual_compact_retries_after_context_window_error() {
         })
         .await
         .unwrap();
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex.submit(Op::Compact).await.unwrap();
     let warning_event = wait_for_event(&codex, |ev| matches!(ev, EventMsg::Warning(_))).await;
@@ -3192,7 +3192,7 @@ async fn manual_compact_retries_after_context_window_error() {
         panic!("expected warning event after compact retry");
     };
     assert_eq!(message, COMPACT_WARNING_MESSAGE);
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let requests = request_log.requests();
     assert_eq!(
@@ -3288,7 +3288,7 @@ async fn manual_compact_non_context_failure_retries_then_emits_task_error() {
         })
         .await
         .expect("submit user input");
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex.submit(Op::Compact).await.expect("trigger compact");
 
@@ -3311,7 +3311,7 @@ async fn manual_compact_non_context_failure_retries_then_emits_task_error() {
         task_error_message.contains("Error running local compact task"),
         "expected local compact task error prefix, got {task_error_message}"
     );
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -3383,10 +3383,10 @@ async fn manual_compact_twice_preserves_latest_user_messages() {
         })
         .await
         .unwrap();
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex.submit(Op::Compact).await.unwrap();
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex
         .submit(Op::UserInput {
@@ -3401,10 +3401,10 @@ async fn manual_compact_twice_preserves_latest_user_messages() {
         })
         .await
         .unwrap();
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex.submit(Op::Compact).await.unwrap();
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex
         .submit(Op::UserInput {
@@ -3419,7 +3419,7 @@ async fn manual_compact_twice_preserves_latest_user_messages() {
         })
         .await
         .unwrap();
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let requests = responses_mock.requests();
     assert_eq!(
@@ -3632,13 +3632,13 @@ async fn auto_compact_allows_multiple_attempts_when_interleaved_with_other_turn_
             if event.id.starts_with("auto-compact-")
                 && matches!(
                     event.msg,
-                    EventMsg::TurnStarted(_) | EventMsg::TurnComplete(_)
+                    EventMsg::InteractionStarted(_) | EventMsg::InteractionComplete(_)
                 )
             {
                 auto_compact_lifecycle_events.push(event);
                 continue;
             }
-            if let EventMsg::TurnComplete(_) = &event.msg
+            if let EventMsg::InteractionComplete(_) = &event.msg
                 && !event.id.starts_with("auto-compact-")
             {
                 break;
@@ -3732,7 +3732,7 @@ async fn snapshot_request_shape_mid_turn_continuation_compaction() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |msg| matches!(msg, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |msg| matches!(msg, EventMsg::InteractionComplete(_))).await;
 
     // Assert first request captured expected user message that triggers function call.
     let first_request = first_turn_mock.single_request().input();
@@ -4205,7 +4205,7 @@ async fn auto_compact_counts_encrypted_reasoning_before_last_user() {
             })
             .await
             .unwrap();
-        wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+        wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
         if idx < 2 {
             assert!(
@@ -4328,7 +4328,7 @@ async fn auto_compact_runs_when_reasoning_header_clears_between_turns() {
             })
             .await
             .unwrap();
-        wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+        wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
     }
 
     let compact_requests = compact_mock.requests();
@@ -4390,7 +4390,7 @@ async fn snapshot_request_shape_pre_turn_compaction_including_incoming_user_mess
             })
             .await
             .expect("submit user input");
-        wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+        wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
     }
     core_test_support::submit_thread_settings(
         &codex,
@@ -4424,7 +4424,7 @@ async fn snapshot_request_shape_pre_turn_compaction_including_incoming_user_mess
         })
         .await
         .expect("submit user input");
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let requests = request_log.requests();
     assert_eq!(requests.len(), 4, "expected user, user, compact, follow-up");
@@ -4512,7 +4512,7 @@ async fn snapshot_request_shape_pre_turn_compaction_strips_incoming_model_switch
         .await
         .expect("submit first user turn");
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -4525,7 +4525,7 @@ async fn snapshot_request_shape_pre_turn_compaction_strips_incoming_model_switch
         .await
         .expect("submit second user turn");
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -4613,7 +4613,7 @@ async fn snapshot_request_shape_pre_turn_compaction_context_window_exceeded() {
         })
         .await
         .expect("submit first user");
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex
         .submit(Op::UserInput {
@@ -4633,7 +4633,7 @@ async fn snapshot_request_shape_pre_turn_compaction_context_window_exceeded() {
         _ => None,
     })
     .await;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let requests = request_log.requests();
     assert!(
@@ -4724,7 +4724,7 @@ async fn snapshot_request_shape_manual_compact_without_previous_user_messages() 
         .codex;
 
     codex.submit(Op::Compact).await.expect("run /compact");
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex
         .submit(Op::UserInput {
@@ -4739,7 +4739,7 @@ async fn snapshot_request_shape_manual_compact_without_previous_user_messages() 
         })
         .await
         .expect("submit follow-up user input");
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let requests = request_log.requests();
     assert_eq!(
@@ -4817,7 +4817,7 @@ async fn manual_compaction_keeps_the_creation_time_global_instructions() -> Resu
 
     test.codex.submit(Op::Compact).await?;
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
     test.submit_turn("after compact").await?;
@@ -4961,7 +4961,7 @@ async fn remote_v2_compaction_keeps_creation_time_instructions_after_same_path_m
     assert_eq!(source, rewritten_source);
     test.codex.submit(Op::Compact).await?;
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
     test.submit_turn("after remote v2 compaction").await?;

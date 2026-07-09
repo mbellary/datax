@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::atomic::AtomicI64;
 use std::sync::atomic::Ordering;
 
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::Event;
 use rmcp::model::CustomNotification;
 use rmcp::model::CustomRequest;
@@ -211,7 +211,7 @@ pub(crate) struct OutgoingNotificationMeta {
     /// Because multiple threads may be multiplexed over a single MCP connection,
     /// include the `threadId` in the notification meta.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub thread_id: Option<ThreadId>,
+    pub chat_id: Option<ChatId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -230,7 +230,7 @@ pub(crate) struct OutgoingError {
 mod tests {
 
     use anyhow::Result;
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use datax_protocol::models::PermissionProfile;
     use datax_protocol::openai_models::ReasoningEffort;
     use datax_protocol::protocol::AskForApproval;
@@ -291,15 +291,15 @@ mod tests {
         let (outgoing_tx, mut outgoing_rx) = mpsc::unbounded_channel::<OutgoingMessage>();
         let outgoing_message_sender = OutgoingMessageSender::new(outgoing_tx);
 
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let rollout_file = NamedTempFile::new()?;
         let event = Event {
             id: "1".to_string(),
             msg: EventMsg::SessionConfigured(SessionConfiguredEvent {
                 session_id: datax_protocol::SessionId::new(),
-                thread_id,
+                chat_id,
                 forked_from_id: None,
-                parent_thread_id: None,
+                parent_chat_id: None,
                 thread_source: None,
                 thread_name: None,
                 model: "gpt-4o".to_string(),
@@ -339,13 +339,13 @@ mod tests {
         let (outgoing_tx, mut outgoing_rx) = mpsc::unbounded_channel::<OutgoingMessage>();
         let outgoing_message_sender = OutgoingMessageSender::new(outgoing_tx);
 
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let rollout_file = NamedTempFile::new()?;
         let session_configured_event = SessionConfiguredEvent {
             session_id: datax_protocol::SessionId::new(),
-            thread_id,
+            chat_id,
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             thread_source: None,
             thread_name: None,
             model: "gpt-4o".to_string(),
@@ -367,7 +367,7 @@ mod tests {
         };
         let meta = OutgoingNotificationMeta {
             request_id: Some(RequestId::String("123".into())),
-            thread_id: None,
+            chat_id: None,
         };
 
         outgoing_message_sender
@@ -387,7 +387,7 @@ mod tests {
             "msg": {
                 "type": "session_configured",
                 "session_id": session_configured_event.session_id,
-                "thread_id": session_configured_event.thread_id,
+                "chat_id": session_configured_event.chat_id,
                 "model": "gpt-4o",
                 "model_provider_id": "test-provider",
                 "approval_policy": "never",
@@ -403,17 +403,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_send_event_as_notification_with_meta_and_thread_id() -> Result<()> {
+    async fn test_send_event_as_notification_with_meta_and_chat_id() -> Result<()> {
         let (outgoing_tx, mut outgoing_rx) = mpsc::unbounded_channel::<OutgoingMessage>();
         let outgoing_message_sender = OutgoingMessageSender::new(outgoing_tx);
 
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let rollout_file = NamedTempFile::new()?;
         let session_configured_event = SessionConfiguredEvent {
             session_id: datax_protocol::SessionId::new(),
-            thread_id,
+            chat_id,
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             thread_source: None,
             thread_name: None,
             model: "gpt-4o".to_string(),
@@ -435,7 +435,7 @@ mod tests {
         };
         let meta = OutgoingNotificationMeta {
             request_id: Some(RequestId::String("123".into())),
-            thread_id: Some(thread_id),
+            chat_id: Some(chat_id),
         };
 
         outgoing_message_sender
@@ -450,13 +450,13 @@ mod tests {
         let expected_params = json!({
             "_meta": {
                 "requestId": "123",
-                "threadId": thread_id.to_string(),
+                "threadId": chat_id.to_string(),
             },
             "id": "1",
             "msg": {
                 "type": "session_configured",
                 "session_id": session_configured_event.session_id,
-                "thread_id": session_configured_event.thread_id,
+                "chat_id": session_configured_event.chat_id,
                 "model": "gpt-4o",
                 "model_provider_id": "test-provider",
                 "approval_policy": "never",

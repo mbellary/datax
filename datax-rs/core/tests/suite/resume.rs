@@ -97,7 +97,7 @@ async fn resume_includes_initial_messages_from_rollout_events() -> Result<()> {
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     let resumed = resume_until_initial_messages(
         &mut builder,
@@ -108,11 +108,11 @@ async fn resume_includes_initial_messages_from_rollout_events() -> Result<()> {
             matches!(
                 initial_messages,
                 [
-                    EventMsg::TurnStarted(_),
+                    EventMsg::InteractionStarted(_),
                     EventMsg::UserMessage(_),
                     EventMsg::AgentMessage(_),
                     EventMsg::TokenCount(_),
-                    EventMsg::TurnComplete(_),
+                    EventMsg::InteractionComplete(_),
                 ]
             )
         },
@@ -124,16 +124,16 @@ async fn resume_includes_initial_messages_from_rollout_events() -> Result<()> {
         .expect("expected initial messages to be present for resumed session");
     match initial_messages.as_slice() {
         [
-            EventMsg::TurnStarted(started),
+            EventMsg::InteractionStarted(started),
             EventMsg::UserMessage(first_user),
             EventMsg::AgentMessage(assistant_message),
             EventMsg::TokenCount(_),
-            EventMsg::TurnComplete(completed),
+            EventMsg::InteractionComplete(completed),
         ] => {
             assert_eq!(first_user.message, "Record some messages");
             assert_eq!(first_user.text_elements, text_elements);
             assert_eq!(assistant_message.message, "Completed first turn");
-            assert_eq!(completed.turn_id, started.turn_id);
+            assert_eq!(completed.interaction_id, started.interaction_id);
             assert_eq!(
                 completed.last_agent_message.as_deref(),
                 Some("Completed first turn")
@@ -183,7 +183,7 @@ async fn resume_includes_initial_messages_from_reasoning_events() -> Result<()> 
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     let resumed = resume_until_initial_messages(
         &mut builder,
@@ -194,13 +194,13 @@ async fn resume_includes_initial_messages_from_reasoning_events() -> Result<()> 
             matches!(
                 initial_messages,
                 [
-                    EventMsg::TurnStarted(_),
+                    EventMsg::InteractionStarted(_),
                     EventMsg::UserMessage(_),
                     EventMsg::AgentReasoning(_),
                     EventMsg::AgentReasoningRawContent(_),
                     EventMsg::AgentMessage(_),
                     EventMsg::TokenCount(_),
-                    EventMsg::TurnComplete(_),
+                    EventMsg::InteractionComplete(_),
                 ]
             )
         },
@@ -212,19 +212,19 @@ async fn resume_includes_initial_messages_from_reasoning_events() -> Result<()> 
         .expect("expected initial messages to be present for resumed session");
     match initial_messages.as_slice() {
         [
-            EventMsg::TurnStarted(started),
+            EventMsg::InteractionStarted(started),
             EventMsg::UserMessage(first_user),
             EventMsg::AgentReasoning(reasoning),
             EventMsg::AgentReasoningRawContent(raw),
             EventMsg::AgentMessage(assistant_message),
             EventMsg::TokenCount(_),
-            EventMsg::TurnComplete(completed),
+            EventMsg::InteractionComplete(completed),
         ] => {
             assert_eq!(first_user.message, "Record reasoning messages");
             assert_eq!(reasoning.text, "Summarized step");
             assert_eq!(raw.text, "raw detail");
             assert_eq!(assistant_message.message, "Completed reasoning turn");
-            assert_eq!(completed.turn_id, started.turn_id);
+            assert_eq!(completed.interaction_id, started.interaction_id);
             assert_eq!(
                 completed.last_agent_message.as_deref(),
                 Some("Completed reasoning turn")
@@ -272,7 +272,7 @@ async fn resume_switches_models_preserves_base_instructions() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     let initial_body = initial_mock.single_request().body_json();
     let initial_instructions = initial_body
@@ -316,7 +316,7 @@ async fn resume_switches_models_preserves_base_instructions() -> Result<()> {
         })
         .await?;
     wait_for_event(&resumed.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -334,7 +334,7 @@ async fn resume_switches_models_preserves_base_instructions() -> Result<()> {
         })
         .await?;
     wait_for_event(&resumed.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -406,7 +406,7 @@ async fn resume_model_switch_is_not_duplicated_after_pre_turn_override() -> Resu
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
     let _ = initial_mock.single_request();
 
     let resumed_mock = mount_sse_once(
@@ -445,7 +445,7 @@ async fn resume_model_switch_is_not_duplicated_after_pre_turn_override() -> Resu
         })
         .await?;
     wait_for_event(&resumed.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 

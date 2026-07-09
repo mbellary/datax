@@ -169,17 +169,17 @@ use std::sync::Mutex;
 use tokio::sync::mpsc;
 
 fn sample_thread_with_metadata(
-    thread_id: &str,
+    chat_id: &str,
     ephemeral: bool,
     source: AppServerSessionSource,
     thread_source: Option<AppServerThreadSource>,
-    parent_thread_id: Option<String>,
+    parent_chat_id: Option<String>,
 ) -> Chat {
     Chat {
-        id: thread_id.to_string(),
-        session_id: format!("session-{thread_id}"),
+        id: chat_id.to_string(),
+        session_id: format!("session-{chat_id}"),
         forked_from_id: None,
-        parent_thread_id,
+        parent_chat_id,
         preview: "first prompt".to_string(),
         ephemeral,
         model_provider: "openai".to_string(),
@@ -201,17 +201,17 @@ fn sample_thread_with_metadata(
 }
 
 fn sample_thread_start_response(
-    thread_id: &str,
+    chat_id: &str,
     ephemeral: bool,
     model: &str,
 ) -> ClientResponsePayload {
     ClientResponsePayload::ChatStart(ChatStartResponse {
         thread: sample_thread_with_metadata(
-            thread_id,
+            chat_id,
             ephemeral,
             AppServerSessionSource::Exec,
             Some(AppServerThreadSource::User),
-            /*parent_thread_id*/ None,
+            /*parent_chat_id*/ None,
         ),
         model: model.to_string(),
         model_provider: "openai".to_string(),
@@ -248,35 +248,35 @@ fn sample_runtime_metadata() -> CodexRuntimeMetadata {
 }
 
 fn sample_thread_resume_response(
-    thread_id: &str,
+    chat_id: &str,
     ephemeral: bool,
     model: &str,
 ) -> ClientResponsePayload {
     sample_thread_resume_response_with_source(
-        thread_id,
+        chat_id,
         ephemeral,
         model,
         AppServerSessionSource::Exec,
         Some(AppServerThreadSource::User),
-        /*parent_thread_id*/ None,
+        /*parent_chat_id*/ None,
     )
 }
 
 fn sample_thread_resume_response_with_source(
-    thread_id: &str,
+    chat_id: &str,
     ephemeral: bool,
     model: &str,
     source: AppServerSessionSource,
     thread_source: Option<AppServerThreadSource>,
-    parent_thread_id: Option<String>,
+    parent_chat_id: Option<String>,
 ) -> ClientResponsePayload {
     ClientResponsePayload::ChatResume(ChatResumeResponse {
         thread: sample_thread_with_metadata(
-            thread_id,
+            chat_id,
             ephemeral,
             source,
             thread_source,
-            parent_thread_id,
+            parent_chat_id,
         ),
         model: model.to_string(),
         model_provider: "openai".to_string(),
@@ -294,11 +294,11 @@ fn sample_thread_resume_response_with_source(
     })
 }
 
-fn sample_turn_start_request(thread_id: &str, request_id: i64) -> ClientRequest {
+fn sample_turn_start_request(chat_id: &str, request_id: i64) -> ClientRequest {
     ClientRequest::InteractionStart {
         request_id: RequestId::Integer(request_id),
         params: InteractionStartParams {
-            thread_id: thread_id.to_string(),
+            chat_id: chat_id.to_string(),
             client_user_message_id: None,
             input: vec![
                 UserInput::Text {
@@ -315,10 +315,10 @@ fn sample_turn_start_request(thread_id: &str, request_id: i64) -> ClientRequest 
     }
 }
 
-fn sample_turn_start_response(turn_id: &str) -> ClientResponsePayload {
+fn sample_turn_start_response(interaction_id: &str) -> ClientResponsePayload {
     ClientResponsePayload::InteractionStart(datax_app_server_protocol::InteractionStartResponse {
         turn: Interaction {
-            id: turn_id.to_string(),
+            id: interaction_id.to_string(),
             items_view: datax_app_server_protocol::InteractionMessagesView::Full,
             items: vec![],
             status: AppServerTurnStatus::InProgress,
@@ -330,11 +330,11 @@ fn sample_turn_start_response(turn_id: &str) -> ClientResponsePayload {
     })
 }
 
-fn sample_turn_started_notification(thread_id: &str, turn_id: &str) -> ServerNotification {
+fn sample_turn_started_notification(chat_id: &str, interaction_id: &str) -> ServerNotification {
     ServerNotification::InteractionStarted(InteractionStartedNotification {
-        thread_id: thread_id.to_string(),
+        chat_id: chat_id.to_string(),
         turn: Interaction {
-            id: turn_id.to_string(),
+            id: interaction_id.to_string(),
             items_view: datax_app_server_protocol::InteractionMessagesView::Full,
             items: vec![],
             status: AppServerTurnStatus::InProgress,
@@ -346,10 +346,10 @@ fn sample_turn_started_notification(thread_id: &str, turn_id: &str) -> ServerNot
     })
 }
 
-fn sample_turn_token_usage_fact(thread_id: &str, turn_id: &str) -> TurnTokenUsageFact {
+fn sample_turn_token_usage_fact(chat_id: &str, interaction_id: &str) -> TurnTokenUsageFact {
     TurnTokenUsageFact {
-        thread_id: thread_id.to_string(),
-        turn_id: turn_id.to_string(),
+        chat_id: chat_id.to_string(),
+        interaction_id: interaction_id.to_string(),
         token_usage: TokenUsage {
             total_tokens: 321,
             input_tokens: 123,
@@ -361,15 +361,15 @@ fn sample_turn_token_usage_fact(thread_id: &str, turn_id: &str) -> TurnTokenUsag
 }
 
 fn sample_turn_completed_notification(
-    thread_id: &str,
-    turn_id: &str,
+    chat_id: &str,
+    interaction_id: &str,
     status: AppServerTurnStatus,
     codex_error_info: Option<datax_app_server_protocol::CodexErrorInfo>,
 ) -> ServerNotification {
     ServerNotification::InteractionCompleted(InteractionCompletedNotification {
-        thread_id: thread_id.to_string(),
+        chat_id: chat_id.to_string(),
         turn: Interaction {
-            id: turn_id.to_string(),
+            id: interaction_id.to_string(),
             items_view: datax_app_server_protocol::InteractionMessagesView::Full,
             items: vec![],
             status,
@@ -385,10 +385,10 @@ fn sample_turn_completed_notification(
     })
 }
 
-fn sample_turn_resolved_config(thread_id: &str, turn_id: &str) -> TurnResolvedConfigFact {
+fn sample_turn_resolved_config(chat_id: &str, interaction_id: &str) -> TurnResolvedConfigFact {
     TurnResolvedConfigFact {
-        turn_id: turn_id.to_string(),
-        thread_id: thread_id.to_string(),
+        interaction_id: interaction_id.to_string(),
+        chat_id: chat_id.to_string(),
         num_input_images: 1,
         submission_type: None,
         ephemeral: false,
@@ -423,15 +423,15 @@ fn sample_turn_profile() -> TurnProfile {
 }
 
 fn sample_turn_steer_request(
-    thread_id: &str,
-    expected_turn_id: &str,
+    chat_id: &str,
+    expected_interaction_id: &str,
     request_id: i64,
 ) -> ClientRequest {
     ClientRequest::InteractionSteer {
         request_id: RequestId::Integer(request_id),
         params: InteractionSteerParams {
-            thread_id: thread_id.to_string(),
-            expected_turn_id: expected_turn_id.to_string(),
+            chat_id: chat_id.to_string(),
+            expected_interaction_id: expected_interaction_id.to_string(),
             client_user_message_id: None,
             input: vec![
                 UserInput::Text {
@@ -449,9 +449,9 @@ fn sample_turn_steer_request(
     }
 }
 
-fn sample_turn_steer_response(turn_id: &str) -> ClientResponsePayload {
+fn sample_turn_steer_response(interaction_id: &str) -> ClientResponsePayload {
     ClientResponsePayload::InteractionSteer(InteractionSteerResponse {
-        turn_id: turn_id.to_string(),
+        interaction_id: interaction_id.to_string(),
     })
 }
 
@@ -680,7 +680,7 @@ async fn ingest_turn_prerequisites(
         .ingest(
             AnalyticsFact::Custom(CustomAnalyticsFact::TurnProfile(Box::new(
                 TurnProfileFact {
-                    turn_id: "turn-2".to_string(),
+                    interaction_id: "turn-2".to_string(),
                     profile: sample_turn_profile(),
                 },
             ))),
@@ -714,13 +714,13 @@ async fn ingest_review_prerequisites(
 async fn ingest_completed_command_execution_item(
     reducer: &mut AnalyticsReducer,
     events: &mut Vec<TrackEventRequest>,
-    thread_id: &str,
+    chat_id: &str,
     item_id: &str,
 ) {
     reducer
         .ingest(
             AnalyticsFact::Notification(Box::new(sample_turn_started_notification(
-                thread_id, "turn-1",
+                chat_id, "turn-1",
             ))),
             events,
         )
@@ -729,8 +729,8 @@ async fn ingest_completed_command_execution_item(
         .ingest(
             AnalyticsFact::Notification(Box::new(ServerNotification::MessageStarted(
                 MessageStartedNotification {
-                    thread_id: thread_id.to_string(),
-                    turn_id: "turn-1".to_string(),
+                    chat_id: chat_id.to_string(),
+                    interaction_id: "turn-1".to_string(),
                     started_at_ms: 1_000,
                     item: sample_command_execution_item_with_id(
                         item_id,
@@ -747,8 +747,8 @@ async fn ingest_completed_command_execution_item(
         .ingest(
             AnalyticsFact::Notification(Box::new(ServerNotification::MessageCompleted(
                 MessageCompletedNotification {
-                    thread_id: thread_id.to_string(),
-                    turn_id: "turn-1".to_string(),
+                    chat_id: chat_id.to_string(),
+                    interaction_id: "turn-1".to_string(),
                     completed_at_ms: 1_042,
                     item: sample_command_execution_item_with_id(
                         item_id,
@@ -793,22 +793,22 @@ fn sample_initialize_fact(connection_id: u64) -> AnalyticsFact {
 async fn ingest_complete_child_turn(
     reducer: &mut AnalyticsReducer,
     events: &mut Vec<TrackEventRequest>,
-    thread_id: &str,
-    turn_id: &str,
+    chat_id: &str,
+    interaction_id: &str,
 ) {
     for fact in [
         AnalyticsFact::Custom(CustomAnalyticsFact::TurnResolvedConfig(Box::new(
-            sample_turn_resolved_config(thread_id, turn_id),
+            sample_turn_resolved_config(chat_id, interaction_id),
         ))),
         AnalyticsFact::Custom(CustomAnalyticsFact::TurnProfile(Box::new(
             TurnProfileFact {
-                turn_id: turn_id.to_string(),
+                interaction_id: interaction_id.to_string(),
                 profile: sample_turn_profile(),
             },
         ))),
         AnalyticsFact::Notification(Box::new(sample_turn_completed_notification(
-            thread_id,
-            turn_id,
+            chat_id,
+            interaction_id,
             AppServerTurnStatus::Completed,
             /*codex_error_info*/ None,
         ))),
@@ -867,8 +867,8 @@ fn sample_command_approval_request(request_id: i64, approval_id: Option<&str>) -
     ServerRequest::CommandExecutionRequestApproval {
         request_id: RequestId::Integer(request_id),
         params: CommandExecutionRequestApprovalParams {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             item_id: "item-1".to_string(),
             started_at_ms: 1_000,
             approval_id: approval_id.map(str::to_string),
@@ -900,8 +900,8 @@ fn sample_permissions_approval_request(request_id: i64) -> ServerRequest {
     ServerRequest::PermissionsRequestApproval {
         request_id: RequestId::Integer(request_id),
         params: PermissionsRequestApprovalParams {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             item_id: "permissions-1".to_string(),
             environment_id: None,
             started_at_ms: 1_000,
@@ -935,8 +935,8 @@ fn sample_guardian_review_completed(
 ) -> ServerNotification {
     ServerNotification::MessageGuardianApprovalReviewCompleted(
         MessageGuardianApprovalReviewCompletedNotification {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             started_at_ms: 1_000,
             completed_at_ms: 1_042,
             review_id: review_id.to_string(),
@@ -1025,8 +1025,8 @@ fn normalize_path_for_skill_id_repo_root_not_in_skill_path_uses_absolute_path() 
 fn app_mentioned_event_serializes_expected_shape() {
     let tracking = TrackEventsContext {
         model_slug: "gpt-5".to_string(),
-        thread_id: "thread-1".to_string(),
-        turn_id: "turn-1".to_string(),
+        chat_id: "thread-1".to_string(),
+        interaction_id: "turn-1".to_string(),
     };
     let event = TrackEventRequest::AppMentioned(CodexAppMentionedEventRequest {
         event_type: "codex_app_mentioned",
@@ -1048,8 +1048,8 @@ fn app_mentioned_event_serializes_expected_shape() {
             "event_type": "codex_app_mentioned",
             "event_params": {
                 "connector_id": "calendar",
-                "thread_id": "thread-1",
-                "turn_id": "turn-1",
+                "chat_id": "thread-1",
+                "interaction_id": "turn-1",
                 "app_name": "Calendar",
                 "product_client_id": originator().value,
                 "invoke_type": "explicit",
@@ -1063,8 +1063,8 @@ fn app_mentioned_event_serializes_expected_shape() {
 fn app_used_event_serializes_expected_shape() {
     let tracking = TrackEventsContext {
         model_slug: "gpt-5".to_string(),
-        thread_id: "thread-2".to_string(),
-        turn_id: "turn-2".to_string(),
+        chat_id: "thread-2".to_string(),
+        interaction_id: "turn-2".to_string(),
     };
     let event = TrackEventRequest::AppUsed(CodexAppUsedEventRequest {
         event_type: "codex_app_used",
@@ -1086,8 +1086,8 @@ fn app_used_event_serializes_expected_shape() {
             "event_type": "codex_app_used",
             "event_params": {
                 "connector_id": "drive",
-                "thread_id": "thread-2",
-                "turn_id": "turn-2",
+                "chat_id": "thread-2",
+                "interaction_id": "turn-2",
                 "app_name": "Google Drive",
                 "product_client_id": originator().value,
                 "invoke_type": "implicit",
@@ -1104,8 +1104,8 @@ fn accepted_line_fingerprints_event_serializes_expected_shape() {
             event_type: "codex_accepted_line_fingerprints",
             event_params: CodexAcceptedLineFingerprintsEventParams {
                 event_type: "codex.accepted_line_fingerprints",
-                turn_id: "turn-1".to_string(),
-                thread_id: "thread-1".to_string(),
+                interaction_id: "turn-1".to_string(),
+                chat_id: "thread-1".to_string(),
                 product_surface: Some("codex".to_string()),
                 model_slug: Some("gpt-5.1-codex".to_string()),
                 completed_at: 1710000000,
@@ -1125,8 +1125,8 @@ fn accepted_line_fingerprints_event_serializes_expected_shape() {
             "event_type": "codex_accepted_line_fingerprints",
             "event_params": {
                 "event_type": "codex.accepted_line_fingerprints",
-                "turn_id": "turn-1",
-                "thread_id": "thread-1",
+                "interaction_id": "turn-1",
+                "chat_id": "thread-1",
                 "product_surface": "codex",
                 "model_slug": "gpt-5.1-codex",
                 "completed_at": 1710000000,
@@ -1171,8 +1171,8 @@ index 1111111..2222222
         .ingest(
             AnalyticsFact::Notification(Box::new(ServerNotification::InteractionDiffUpdated(
                 InteractionDiffUpdatedNotification {
-                    thread_id: "thread-2".to_string(),
-                    turn_id: "turn-2".to_string(),
+                    chat_id: "thread-2".to_string(),
+                    interaction_id: "turn-2".to_string(),
                     diff,
                 },
             ))),
@@ -1202,8 +1202,8 @@ index 1111111..2222222
         .collect::<Vec<_>>();
     assert_eq!(accepted_line_events.len(), 1);
     let event = accepted_line_events[0];
-    assert_eq!(event.event_params.turn_id, "turn-2");
-    assert_eq!(event.event_params.thread_id, "thread-2");
+    assert_eq!(event.event_params.interaction_id, "turn-2");
+    assert_eq!(event.event_params.chat_id, "thread-2");
     assert_eq!(event.event_params.accepted_added_lines, 20_000);
     assert_eq!(event.event_params.accepted_deleted_lines, 0);
     assert!(event.event_params.line_fingerprints.is_empty());
@@ -1241,8 +1241,8 @@ index 1111111..2222222
             .ingest(
                 AnalyticsFact::Notification(Box::new(ServerNotification::InteractionDiffUpdated(
                     InteractionDiffUpdatedNotification {
-                        thread_id: "thread-2".to_string(),
-                        turn_id: "turn-2".to_string(),
+                        chat_id: "thread-2".to_string(),
+                        interaction_id: "turn-2".to_string(),
                         diff,
                     },
                 ))),
@@ -1283,8 +1283,8 @@ fn compaction_event_serializes_expected_shape() {
         event_type: "codex_compaction_event",
         event_params: crate::events::codex_compaction_event_params(
             CodexCompactionEvent {
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
+                chat_id: "thread-1".to_string(),
+                interaction_id: "turn-1".to_string(),
                 trigger: CompactionTrigger::Auto,
                 reason: CompactionReason::ContextLimit,
                 implementation: CompactionImplementation::ResponsesCompact,
@@ -1307,7 +1307,7 @@ fn compaction_event_serializes_expected_shape() {
             sample_runtime_metadata(),
             Some(ThreadSource::User),
             /*subagent_source*/ None,
-            /*parent_thread_id*/ None,
+            /*parent_chat_id*/ None,
         ),
     }));
 
@@ -1318,9 +1318,9 @@ fn compaction_event_serializes_expected_shape() {
         json!({
             "event_type": "codex_compaction_event",
             "event_params": {
-                "thread_id": "thread-1",
+                "chat_id": "thread-1",
                 "session_id": "session-thread-1",
-                "turn_id": "turn-1",
+                "interaction_id": "turn-1",
                 "app_server_client": {
                     "product_client_id": DEFAULT_ORIGINATOR,
                     "client_name": "datax-tui",
@@ -1336,7 +1336,7 @@ fn compaction_event_serializes_expected_shape() {
                 },
                 "thread_source": "user",
                 "subagent_source": null,
-                "parent_thread_id": null,
+                "parent_chat_id": null,
                 "trigger": "auto",
                 "reason": "context_limit",
                 "implementation": "responses_compact",
@@ -1382,13 +1382,13 @@ fn app_used_dedupe_is_keyed_by_turn_and_connector() {
 
     let turn_1 = TrackEventsContext {
         model_slug: "gpt-5".to_string(),
-        thread_id: "thread-1".to_string(),
-        turn_id: "turn-1".to_string(),
+        chat_id: "thread-1".to_string(),
+        interaction_id: "turn-1".to_string(),
     };
     let turn_2 = TrackEventsContext {
         model_slug: "gpt-5".to_string(),
-        thread_id: "thread-1".to_string(),
-        turn_id: "turn-2".to_string(),
+        chat_id: "thread-1".to_string(),
+        interaction_id: "turn-2".to_string(),
     };
 
     assert_eq!(queue.should_enqueue_app_used(&turn_1, &app), true);
@@ -1401,7 +1401,7 @@ fn thread_initialized_event_serializes_expected_shape() {
     let event = TrackEventRequest::ThreadInitialized(ThreadInitializedEvent {
         event_type: "codex_thread_initialized",
         event_params: ThreadInitializedEventParams {
-            thread_id: "thread-0".to_string(),
+            chat_id: "thread-0".to_string(),
             session_id: "session-thread-0".to_string(),
             app_server_client: CodexAppServerClientMetadata {
                 product_client_id: DEFAULT_ORIGINATOR.to_string(),
@@ -1421,8 +1421,8 @@ fn thread_initialized_event_serializes_expected_shape() {
             thread_source: Some(ThreadSource::Feature("automation".to_string())),
             initialization_mode: ThreadInitializationMode::New,
             subagent_source: None,
-            parent_thread_id: None,
-            forked_from_thread_id: None,
+            parent_chat_id: None,
+            forked_from_chat_id: None,
             created_at: 1,
         },
     });
@@ -1434,7 +1434,7 @@ fn thread_initialized_event_serializes_expected_shape() {
         json!({
             "event_type": "codex_thread_initialized",
             "event_params": {
-                "thread_id": "thread-0",
+                "chat_id": "thread-0",
                 "session_id": "session-thread-0",
                 "app_server_client": {
                     "product_client_id": DEFAULT_ORIGINATOR,
@@ -1454,8 +1454,8 @@ fn thread_initialized_event_serializes_expected_shape() {
                 "thread_source": "automation",
                 "initialization_mode": "new",
                 "subagent_source": null,
-                "parent_thread_id": null,
-                "forked_from_thread_id": null,
+                "parent_chat_id": null,
+                "forked_from_chat_id": null,
                 "created_at": 1
             }
         })
@@ -1468,8 +1468,8 @@ fn command_execution_event_serializes_expected_shape() {
         event_type: "codex_command_execution_event",
         event_params: CodexCommandExecutionEventParams {
             base: CodexToolItemEventBase {
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
+                chat_id: "thread-1".to_string(),
+                interaction_id: "turn-1".to_string(),
                 item_id: "item-1".to_string(),
                 app_server_client: CodexAppServerClientMetadata {
                     product_client_id: "codex_tui".to_string(),
@@ -1486,7 +1486,7 @@ fn command_execution_event_serializes_expected_shape() {
                 },
                 thread_source: Some(ThreadSource::User),
                 subagent_source: None,
-                parent_thread_id: None,
+                parent_chat_id: None,
                 tool_name: "shell".to_string(),
                 started_at_ms: 123_000,
                 completed_at_ms: 125_000,
@@ -1517,8 +1517,8 @@ fn command_execution_event_serializes_expected_shape() {
         json!({
             "event_type": "codex_command_execution_event",
             "event_params": {
-                "thread_id": "thread-1",
-                "turn_id": "turn-1",
+                "chat_id": "thread-1",
+                "interaction_id": "turn-1",
                 "item_id": "item-1",
                 "app_server_client": {
                     "product_client_id": "codex_tui",
@@ -1535,7 +1535,7 @@ fn command_execution_event_serializes_expected_shape() {
                 },
                 "thread_source": "user",
                 "subagent_source": null,
-                "parent_thread_id": null,
+                "parent_chat_id": null,
                 "tool_name": "shell",
                 "started_at_ms": 123000,
                 "completed_at_ms": 125000,
@@ -1566,8 +1566,8 @@ fn review_event_serializes_expected_shape() {
     let event = TrackEventRequest::ReviewEvent(CodexReviewEventRequest {
         event_type: "codex_review_event",
         event_params: CodexReviewEventParams {
-            thread_id: "thread-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             item_id: None,
             review_id: "review-1".to_string(),
             app_server_client: CodexAppServerClientMetadata {
@@ -1585,7 +1585,7 @@ fn review_event_serializes_expected_shape() {
             },
             thread_source: Some(ThreadSource::Subagent),
             subagent_source: Some("thread_spawn".to_string()),
-            parent_thread_id: Some("parent-thread-1".to_string()),
+            parent_chat_id: Some("parent-thread-1".to_string()),
             subject_kind: ReviewSubjectKind::NetworkAccess,
             subject_name: "network_access".to_string(),
             reviewer: Reviewer::User,
@@ -1604,8 +1604,8 @@ fn review_event_serializes_expected_shape() {
         json!({
             "event_type": "codex_review_event",
             "event_params": {
-                "thread_id": "thread-1",
-                "turn_id": "turn-1",
+                "chat_id": "thread-1",
+                "interaction_id": "turn-1",
                 "item_id": null,
                 "review_id": "review-1",
                 "app_server_client": {
@@ -1623,7 +1623,7 @@ fn review_event_serializes_expected_shape() {
                 },
                 "thread_source": "subagent",
                 "subagent_source": "thread_spawn",
-                "parent_thread_id": "parent-thread-1",
+                "parent_chat_id": "parent-thread-1",
                 "subject_kind": "network_access",
                 "subject_name": "network_access",
                 "reviewer": "user",
@@ -1754,7 +1754,7 @@ async fn unrelated_client_requests_are_ignored_by_reducer() {
                 request: Box::new(ClientRequest::ChatArchive {
                     request_id: RequestId::Integer(3),
                     params: ChatArchiveParams {
-                        thread_id: "thread-2".to_string(),
+                        chat_id: "thread-2".to_string(),
                     },
                 }),
             },
@@ -1802,8 +1802,8 @@ async fn unrelated_client_responses_are_ignored_by_reducer() {
 async fn compaction_event_ingests_custom_fact() {
     let mut reducer = AnalyticsReducer::default();
     let mut events = Vec::new();
-    let parent_thread_id =
-        datax_protocol::ThreadId::from_string("22222222-2222-2222-2222-222222222222")
+    let parent_chat_id =
+        datax_protocol::ChatId::from_string("22222222-2222-2222-2222-222222222222")
             .expect("valid parent thread id");
 
     reducer
@@ -1840,14 +1840,14 @@ async fn compaction_event_ingests_custom_fact() {
                     /*ephemeral*/ false,
                     "gpt-5",
                     AppServerSessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-                        parent_thread_id,
+                        parent_chat_id,
                         depth: 1,
                         agent_path: None,
                         agent_nickname: None,
                         agent_role: None,
                     }),
                     Some(AppServerThreadSource::Subagent),
-                    Some(parent_thread_id.to_string()),
+                    Some(parent_chat_id.to_string()),
                 )),
             },
             &mut events,
@@ -1859,8 +1859,8 @@ async fn compaction_event_ingests_custom_fact() {
         .ingest(
             AnalyticsFact::Custom(CustomAnalyticsFact::Compaction(Box::new(
                 CodexCompactionEvent {
-                    thread_id: "thread-1".to_string(),
-                    turn_id: "turn-compact".to_string(),
+                    chat_id: "thread-1".to_string(),
+                    interaction_id: "turn-compact".to_string(),
                     trigger: CompactionTrigger::Manual,
                     reason: CompactionReason::UserRequested,
                     implementation: CompactionImplementation::Responses,
@@ -1887,8 +1887,8 @@ async fn compaction_event_ingests_custom_fact() {
     assert_eq!(payload.as_array().expect("events array").len(), 1);
     assert_eq!(payload[0]["event_type"], "codex_compaction_event");
     assert_eq!(payload[0]["event_params"]["session_id"], "session-thread-1");
-    assert_eq!(payload[0]["event_params"]["thread_id"], "thread-1");
-    assert_eq!(payload[0]["event_params"]["turn_id"], "turn-compact");
+    assert_eq!(payload[0]["event_params"]["chat_id"], "thread-1");
+    assert_eq!(payload[0]["event_params"]["interaction_id"], "turn-compact");
     assert_eq!(
         payload[0]["event_params"]["codex_error_kind"],
         json!("context_window_exceeded")
@@ -1919,7 +1919,7 @@ async fn compaction_event_ingests_custom_fact() {
         "thread_spawn"
     );
     assert_eq!(
-        payload[0]["event_params"]["parent_thread_id"],
+        payload[0]["event_params"]["parent_chat_id"],
         "22222222-2222-2222-2222-222222222222"
     );
     assert_eq!(payload[0]["event_params"]["trigger"], "manual");
@@ -1979,8 +1979,8 @@ async fn guardian_review_event_ingests_custom_fact_with_optional_target_item() {
         .ingest(
             AnalyticsFact::Custom(CustomAnalyticsFact::GuardianReview(Box::new(
                 GuardianReviewEventParams {
-                    thread_id: "thread-guardian".to_string(),
-                    turn_id: "turn-guardian".to_string(),
+                    chat_id: "thread-guardian".to_string(),
+                    interaction_id: "turn-guardian".to_string(),
                     review_id: "review-guardian".to_string(),
                     target_item_id: None,
                     approval_request_source: GuardianApprovalRequestSource::DelegatedSubagent,
@@ -1996,7 +1996,7 @@ async fn guardian_review_event_ingests_custom_fact_with_optional_target_item() {
                     risk_level: None,
                     user_authorization: None,
                     outcome: None,
-                    guardian_thread_id: None,
+                    guardian_chat_id: None,
                     guardian_session_kind: None,
                     guardian_model: None,
                     guardian_reasoning_effort: None,
@@ -2030,8 +2030,8 @@ async fn guardian_review_event_ingests_custom_fact_with_optional_target_item() {
         payload[0]["event_params"]["session_id"],
         "session-thread-guardian"
     );
-    assert_eq!(payload[0]["event_params"]["thread_id"], "thread-guardian");
-    assert_eq!(payload[0]["event_params"]["turn_id"], "turn-guardian");
+    assert_eq!(payload[0]["event_params"]["chat_id"], "thread-guardian");
+    assert_eq!(payload[0]["event_params"]["interaction_id"], "turn-guardian");
     assert_eq!(payload[0]["event_params"]["review_id"], "review-guardian");
     assert_eq!(payload[0]["event_params"]["target_item_id"], json!(null));
     assert_eq!(
@@ -2111,8 +2111,8 @@ async fn item_lifecycle_notifications_publish_command_execution_event() {
         .ingest(
             AnalyticsFact::Notification(Box::new(ServerNotification::MessageStarted(
                 MessageStartedNotification {
-                    thread_id: "thread-1".to_string(),
-                    turn_id: "turn-1".to_string(),
+                    chat_id: "thread-1".to_string(),
+                    interaction_id: "turn-1".to_string(),
                     started_at_ms: 1_000,
                     item: sample_command_execution_item(
                         CommandExecutionStatus::InProgress,
@@ -2133,8 +2133,8 @@ async fn item_lifecycle_notifications_publish_command_execution_event() {
         .ingest(
             AnalyticsFact::Notification(Box::new(ServerNotification::MessageCompleted(
                 MessageCompletedNotification {
-                    thread_id: "thread-1".to_string(),
-                    turn_id: "turn-1".to_string(),
+                    chat_id: "thread-1".to_string(),
+                    interaction_id: "turn-1".to_string(),
                     completed_at_ms: 1_045,
                     item: sample_command_execution_item_with_actions(
                         CommandExecutionStatus::Completed,
@@ -2169,8 +2169,8 @@ async fn item_lifecycle_notifications_publish_command_execution_event() {
     let payload = serde_json::to_value(&events).expect("serialize events");
     assert_eq!(payload.as_array().expect("events array").len(), 1);
     assert_eq!(payload[0]["event_type"], "codex_command_execution_event");
-    assert_eq!(payload[0]["event_params"]["thread_id"], "thread-1");
-    assert_eq!(payload[0]["event_params"]["turn_id"], "turn-1");
+    assert_eq!(payload[0]["event_params"]["chat_id"], "thread-1");
+    assert_eq!(payload[0]["event_params"]["interaction_id"], "turn-1");
     assert_eq!(payload[0]["event_params"]["item_id"], "item-1");
     assert_eq!(payload[0]["event_params"]["tool_name"], "shell");
     assert_eq!(
@@ -2244,8 +2244,8 @@ async fn command_execution_approval_response_publishes_user_review_event() {
     let payload = serde_json::to_value(&events).expect("serialize events");
     assert_eq!(payload.as_array().expect("events array").len(), 1);
     assert_eq!(payload[0]["event_type"], "codex_review_event");
-    assert_eq!(payload[0]["event_params"]["thread_id"], "thread-1");
-    assert_eq!(payload[0]["event_params"]["turn_id"], "turn-1");
+    assert_eq!(payload[0]["event_params"]["chat_id"], "thread-1");
+    assert_eq!(payload[0]["event_params"]["interaction_id"], "turn-1");
     assert_eq!(payload[0]["event_params"]["item_id"], "item-1");
     assert_eq!(payload[0]["event_params"]["review_id"], "user:41");
     assert_eq!(payload[0]["event_params"]["thread_source"], "user");
@@ -2531,7 +2531,7 @@ async fn item_review_summaries_do_not_cross_threads_with_reused_item_ids() {
     ingest_completed_command_execution_item(&mut reducer, &mut events, "thread-2", "item-1").await;
 
     let payload = serde_json::to_value(&events[0]).expect("serialize tool item event");
-    assert_eq!(payload["event_params"]["thread_id"], "thread-2");
+    assert_eq!(payload["event_params"]["chat_id"], "thread-2");
     assert_eq!(payload["event_params"]["item_id"], "item-1");
     assert_eq!(payload["event_params"]["review_count"], 0);
     assert_eq!(payload["event_params"]["user_review_count"], 0);
@@ -2544,9 +2544,9 @@ fn subagent_thread_started_review_serializes_expected_shape() {
     let event = TrackEventRequest::ThreadInitialized(subagent_thread_started_event_request(
         SubAgentThreadStartedInput {
             session_id: "session-root".to_string(),
-            thread_id: "thread-review".to_string(),
-            parent_thread_id: None,
-            forked_from_thread_id: None,
+            chat_id: "thread-review".to_string(),
+            parent_chat_id: None,
+            forked_from_chat_id: None,
             product_client_id: "datax-tui".to_string(),
             client_name: "datax-tui".to_string(),
             client_version: "1.0.0".to_string(),
@@ -2578,34 +2578,34 @@ fn subagent_thread_started_review_serializes_expected_shape() {
     assert_eq!(payload["event_params"]["created_at"], 123);
     assert_eq!(payload["event_params"]["initialization_mode"], "new");
     assert_eq!(payload["event_params"]["subagent_source"], "review");
-    assert_eq!(payload["event_params"]["parent_thread_id"], json!(null));
+    assert_eq!(payload["event_params"]["parent_chat_id"], json!(null));
     assert_eq!(
-        payload["event_params"]["forked_from_thread_id"],
+        payload["event_params"]["forked_from_chat_id"],
         json!(null)
     );
 }
 
 #[test]
 fn subagent_thread_started_thread_spawn_serializes_thread_lineage() {
-    let parent_thread_id =
-        datax_protocol::ThreadId::from_string("11111111-1111-1111-1111-111111111111")
+    let parent_chat_id =
+        datax_protocol::ChatId::from_string("11111111-1111-1111-1111-111111111111")
             .expect("valid thread id");
-    let forked_from_thread_id =
-        datax_protocol::ThreadId::from_string("22222222-2222-4222-8222-222222222222")
+    let forked_from_chat_id =
+        datax_protocol::ChatId::from_string("22222222-2222-4222-8222-222222222222")
             .expect("valid thread id");
     let event = TrackEventRequest::ThreadInitialized(subagent_thread_started_event_request(
         SubAgentThreadStartedInput {
             session_id: "session-root".to_string(),
-            thread_id: "thread-spawn".to_string(),
-            parent_thread_id: Some(parent_thread_id.to_string()),
-            forked_from_thread_id: Some(forked_from_thread_id.to_string()),
+            chat_id: "thread-spawn".to_string(),
+            parent_chat_id: Some(parent_chat_id.to_string()),
+            forked_from_chat_id: Some(forked_from_chat_id.to_string()),
             product_client_id: "datax-tui".to_string(),
             client_name: "datax-tui".to_string(),
             client_version: "1.0.0".to_string(),
             model: "gpt-5".to_string(),
             ephemeral: true,
             subagent_source: SubAgentSource::ThreadSpawn {
-                parent_thread_id,
+                parent_chat_id,
                 depth: 1,
                 agent_path: None,
                 agent_nickname: None,
@@ -2616,15 +2616,15 @@ fn subagent_thread_started_thread_spawn_serializes_thread_lineage() {
     ));
 
     let payload = serde_json::to_value(&event).expect("serialize thread spawn subagent event");
-    assert_eq!(payload["event_params"]["thread_id"], "thread-spawn");
+    assert_eq!(payload["event_params"]["chat_id"], "thread-spawn");
     assert_eq!(payload["event_params"]["thread_source"], "subagent");
     assert_eq!(payload["event_params"]["subagent_source"], "thread_spawn");
     assert_eq!(
-        payload["event_params"]["parent_thread_id"],
+        payload["event_params"]["parent_chat_id"],
         "11111111-1111-1111-1111-111111111111"
     );
     assert_eq!(
-        payload["event_params"]["forked_from_thread_id"],
+        payload["event_params"]["forked_from_chat_id"],
         "22222222-2222-4222-8222-222222222222"
     );
     assert_eq!(payload["event_params"]["session_id"], "session-root");
@@ -2635,9 +2635,9 @@ fn subagent_thread_started_memory_consolidation_serializes_expected_shape() {
     let event = TrackEventRequest::ThreadInitialized(subagent_thread_started_event_request(
         SubAgentThreadStartedInput {
             session_id: "session-root".to_string(),
-            thread_id: "thread-memory".to_string(),
-            parent_thread_id: None,
-            forked_from_thread_id: None,
+            chat_id: "thread-memory".to_string(),
+            parent_chat_id: None,
+            forked_from_chat_id: None,
             product_client_id: "datax-tui".to_string(),
             client_name: "datax-tui".to_string(),
             client_version: "1.0.0".to_string(),
@@ -2654,7 +2654,7 @@ fn subagent_thread_started_memory_consolidation_serializes_expected_shape() {
         payload["event_params"]["subagent_source"],
         "memory_consolidation"
     );
-    assert_eq!(payload["event_params"]["parent_thread_id"], json!(null));
+    assert_eq!(payload["event_params"]["parent_chat_id"], json!(null));
 }
 
 #[test]
@@ -2662,9 +2662,9 @@ fn subagent_thread_started_other_serializes_expected_shape() {
     let event = TrackEventRequest::ThreadInitialized(subagent_thread_started_event_request(
         SubAgentThreadStartedInput {
             session_id: "session-root".to_string(),
-            thread_id: "thread-guardian".to_string(),
-            parent_thread_id: None,
-            forked_from_thread_id: None,
+            chat_id: "thread-guardian".to_string(),
+            parent_chat_id: None,
+            forked_from_chat_id: None,
             product_client_id: "datax-tui".to_string(),
             client_name: "datax-tui".to_string(),
             client_version: "1.0.0".to_string(),
@@ -2677,20 +2677,20 @@ fn subagent_thread_started_other_serializes_expected_shape() {
 
     let payload = serde_json::to_value(&event).expect("serialize other subagent event");
     assert_eq!(payload["event_params"]["subagent_source"], "guardian");
-    assert_eq!(payload["event_params"]["parent_thread_id"], json!(null));
+    assert_eq!(payload["event_params"]["parent_chat_id"], json!(null));
 }
 
 #[test]
-fn subagent_thread_started_other_serializes_explicit_parent_thread_id() {
-    let parent_thread_id =
-        datax_protocol::ThreadId::from_string("33333333-3333-4333-8333-333333333333")
+fn subagent_thread_started_other_serializes_explicit_parent_chat_id() {
+    let parent_chat_id =
+        datax_protocol::ChatId::from_string("33333333-3333-4333-8333-333333333333")
             .expect("valid thread id");
     let event = TrackEventRequest::ThreadInitialized(subagent_thread_started_event_request(
         SubAgentThreadStartedInput {
             session_id: "session-root".to_string(),
-            thread_id: "thread-guardian".to_string(),
-            parent_thread_id: Some(parent_thread_id.to_string()),
-            forked_from_thread_id: None,
+            chat_id: "thread-guardian".to_string(),
+            parent_chat_id: Some(parent_chat_id.to_string()),
+            forked_from_chat_id: None,
             product_client_id: "datax-tui".to_string(),
             client_name: "datax-tui".to_string(),
             client_version: "1.0.0".to_string(),
@@ -2704,7 +2704,7 @@ fn subagent_thread_started_other_serializes_explicit_parent_thread_id() {
     let payload = serde_json::to_value(&event).expect("serialize auto-review subagent event");
     assert_eq!(payload["event_params"]["subagent_source"], "guardian");
     assert_eq!(
-        payload["event_params"]["parent_thread_id"],
+        payload["event_params"]["parent_chat_id"],
         "33333333-3333-4333-8333-333333333333"
     );
 }
@@ -2719,9 +2719,9 @@ async fn subagent_thread_started_publishes_without_initialize() {
             AnalyticsFact::Custom(CustomAnalyticsFact::SubAgentThreadStarted(
                 SubAgentThreadStartedInput {
                     session_id: "session-root".to_string(),
-                    thread_id: "thread-review".to_string(),
-                    parent_thread_id: None,
-                    forked_from_thread_id: None,
+                    chat_id: "thread-review".to_string(),
+                    parent_chat_id: None,
+                    forked_from_chat_id: None,
                     product_client_id: "datax-tui".to_string(),
                     client_name: "datax-tui".to_string(),
                     client_version: "1.0.0".to_string(),
@@ -2750,10 +2750,10 @@ async fn subagent_thread_started_publishes_without_initialize() {
 async fn subagent_events_use_inherited_connection_unless_turn_connection_is_explicit() {
     let mut reducer = AnalyticsReducer::default();
     let mut events = Vec::new();
-    let parent_thread_id =
-        datax_protocol::ThreadId::from_string("44444444-4444-4444-4444-444444444444")
+    let parent_chat_id =
+        datax_protocol::ChatId::from_string("44444444-4444-4444-4444-444444444444")
             .expect("valid parent thread id");
-    let parent_thread_id_string = parent_thread_id.to_string();
+    let parent_chat_id_string = parent_chat_id.to_string();
 
     reducer
         .ingest(
@@ -2780,7 +2780,7 @@ async fn subagent_events_use_inherited_connection_unless_turn_connection_is_expl
                 connection_id: 7,
                 request_id: RequestId::Integer(1),
                 response: Box::new(sample_thread_start_response(
-                    &parent_thread_id_string,
+                    &parent_chat_id_string,
                     /*ephemeral*/ false,
                     "gpt-5",
                 )),
@@ -2794,16 +2794,16 @@ async fn subagent_events_use_inherited_connection_unless_turn_connection_is_expl
             AnalyticsFact::Custom(CustomAnalyticsFact::SubAgentThreadStarted(
                 SubAgentThreadStartedInput {
                     session_id: "session-root".to_string(),
-                    thread_id: "thread-review".to_string(),
-                    parent_thread_id: Some(parent_thread_id.to_string()),
-                    forked_from_thread_id: None,
+                    chat_id: "thread-review".to_string(),
+                    parent_chat_id: Some(parent_chat_id.to_string()),
+                    forked_from_chat_id: None,
                     product_client_id: "parent-client".to_string(),
                     client_name: "parent-client".to_string(),
                     client_version: "1.0.0".to_string(),
                     model: "gpt-5".to_string(),
                     ephemeral: false,
                     subagent_source: SubAgentSource::ThreadSpawn {
-                        parent_thread_id,
+                        parent_chat_id,
                         depth: 1,
                         agent_path: None,
                         agent_nickname: None,
@@ -2821,8 +2821,8 @@ async fn subagent_events_use_inherited_connection_unless_turn_connection_is_expl
         .ingest(
             AnalyticsFact::Custom(CustomAnalyticsFact::Compaction(Box::new(
                 CodexCompactionEvent {
-                    thread_id: "thread-review".to_string(),
-                    turn_id: "turn-compact".to_string(),
+                    chat_id: "thread-review".to_string(),
+                    interaction_id: "turn-compact".to_string(),
                     trigger: CompactionTrigger::Manual,
                     reason: CompactionReason::UserRequested,
                     implementation: CompactionImplementation::Responses,
@@ -2847,13 +2847,13 @@ async fn subagent_events_use_inherited_connection_unless_turn_connection_is_expl
 
     let payload = serde_json::to_value(&events).expect("serialize events");
     assert_eq!(payload[0]["event_params"]["session_id"], "session-root");
-    assert_eq!(payload[0]["event_params"]["thread_id"], "thread-review");
+    assert_eq!(payload[0]["event_params"]["chat_id"], "thread-review");
     assert_eq!(
         payload[0]["event_params"]["app_server_client"]["product_client_id"],
         "parent-client"
     );
     assert_eq!(
-        payload[0]["event_params"]["parent_thread_id"],
+        payload[0]["event_params"]["parent_chat_id"],
         "44444444-4444-4444-4444-444444444444"
     );
 
@@ -2867,7 +2867,7 @@ async fn subagent_events_use_inherited_connection_unless_turn_connection_is_expl
     assert_eq!(params.thread_source, Some(ThreadSource::Subagent));
     assert_eq!(params.subagent_source.as_deref(), Some("thread_spawn"));
     assert_eq!(
-        params.parent_thread_id.as_deref(),
+        params.parent_chat_id.as_deref(),
         Some("44444444-4444-4444-4444-444444444444")
     );
     assert_eq!(params.app_server_client.product_client_id, "parent-client");
@@ -2931,9 +2931,9 @@ async fn subagent_tool_items_inherit_parent_connection_metadata() {
             AnalyticsFact::Custom(CustomAnalyticsFact::SubAgentThreadStarted(
                 SubAgentThreadStartedInput {
                     session_id: "session-root".to_string(),
-                    thread_id: "thread-subagent".to_string(),
-                    parent_thread_id: Some("thread-1".to_string()),
-                    forked_from_thread_id: None,
+                    chat_id: "thread-subagent".to_string(),
+                    parent_chat_id: Some("thread-1".to_string()),
+                    forked_from_chat_id: None,
                     product_client_id: "datax-tui".to_string(),
                     client_name: "datax-tui".to_string(),
                     client_version: "1.0.0".to_string(),
@@ -2961,8 +2961,8 @@ async fn subagent_tool_items_inherit_parent_connection_metadata() {
         .ingest(
             AnalyticsFact::Notification(Box::new(ServerNotification::MessageStarted(
                 MessageStartedNotification {
-                    thread_id: "thread-subagent".to_string(),
-                    turn_id: "turn-subagent".to_string(),
+                    chat_id: "thread-subagent".to_string(),
+                    interaction_id: "turn-subagent".to_string(),
                     started_at_ms: 1_000,
                     item: sample_command_execution_item(
                         CommandExecutionStatus::InProgress,
@@ -2978,8 +2978,8 @@ async fn subagent_tool_items_inherit_parent_connection_metadata() {
         .ingest(
             AnalyticsFact::Notification(Box::new(ServerNotification::MessageCompleted(
                 MessageCompletedNotification {
-                    thread_id: "thread-subagent".to_string(),
-                    turn_id: "turn-subagent".to_string(),
+                    chat_id: "thread-subagent".to_string(),
+                    interaction_id: "turn-subagent".to_string(),
                     completed_at_ms: 1_042,
                     item: sample_command_execution_item(
                         CommandExecutionStatus::Completed,
@@ -2997,7 +2997,7 @@ async fn subagent_tool_items_inherit_parent_connection_metadata() {
     assert_eq!(payload[0]["event_type"], "codex_command_execution_event");
     assert_eq!(payload[0]["event_params"]["thread_source"], "subagent");
     assert_eq!(payload[0]["event_params"]["subagent_source"], "review");
-    assert_eq!(payload[0]["event_params"]["parent_thread_id"], "thread-1");
+    assert_eq!(payload[0]["event_params"]["parent_chat_id"], "thread-1");
     assert_eq!(
         payload[0]["event_params"]["app_server_client"]["client_name"],
         "datax-tui"
@@ -3008,8 +3008,8 @@ async fn subagent_tool_items_inherit_parent_connection_metadata() {
 fn plugin_used_event_serializes_expected_shape() {
     let tracking = TrackEventsContext {
         model_slug: "gpt-5".to_string(),
-        thread_id: "thread-3".to_string(),
-        turn_id: "turn-3".to_string(),
+        chat_id: "thread-3".to_string(),
+        interaction_id: "turn-3".to_string(),
     };
     let event = TrackEventRequest::PluginUsed(CodexPluginUsedEventRequest {
         event_type: "codex_plugin_used",
@@ -3031,8 +3031,8 @@ fn plugin_used_event_serializes_expected_shape() {
                 "connector_ids": ["calendar", "drive"],
                 "product_client_id": originator().value,
                 "mcp_server_names": ["mcp-1", "mcp-2"],
-                "thread_id": "thread-3",
-                "turn_id": "turn-3",
+                "chat_id": "thread-3",
+                "interaction_id": "turn-3",
                 "model_slug": "gpt-5"
             }
         })
@@ -3118,8 +3118,8 @@ fn plugin_management_event_can_use_remote_plugin_id_override() {
 fn hook_run_event_serializes_expected_shape() {
     let tracking = TrackEventsContext {
         model_slug: "gpt-5".to_string(),
-        thread_id: "thread-3".to_string(),
-        turn_id: "turn-3".to_string(),
+        chat_id: "thread-3".to_string(),
+        interaction_id: "turn-3".to_string(),
     };
     let event = TrackEventRequest::HookRun(CodexHookRunEventRequest {
         event_type: "codex_hook_run",
@@ -3140,8 +3140,8 @@ fn hook_run_event_serializes_expected_shape() {
         json!({
             "event_type": "codex_hook_run",
             "event_params": {
-                "thread_id": "thread-3",
-                "turn_id": "turn-3",
+                "chat_id": "thread-3",
+                "interaction_id": "turn-3",
                 "model_slug": "gpt-5",
                 "hook_name": "PreToolUse",
                 "hook_source": "user",
@@ -3155,8 +3155,8 @@ fn hook_run_event_serializes_expected_shape() {
 fn hook_run_metadata_maps_sources_and_statuses() {
     let tracking = TrackEventsContext {
         model_slug: "gpt-5".to_string(),
-        thread_id: "thread-1".to_string(),
-        turn_id: "turn-1".to_string(),
+        chat_id: "thread-1".to_string(),
+        interaction_id: "turn-1".to_string(),
     };
 
     let system = serde_json::to_value(codex_hook_run_metadata(
@@ -3210,8 +3210,8 @@ fn hook_run_metadata_maps_sources_and_statuses() {
 fn hook_run_metadata_maps_stopped_status() {
     let tracking = TrackEventsContext {
         model_slug: "gpt-5".to_string(),
-        thread_id: "thread-1".to_string(),
-        turn_id: "turn-1".to_string(),
+        chat_id: "thread-1".to_string(),
+        interaction_id: "turn-1".to_string(),
     };
 
     let stopped = serde_json::to_value(codex_hook_run_metadata(
@@ -3240,13 +3240,13 @@ fn plugin_used_dedupe_is_keyed_by_turn_and_plugin() {
 
     let turn_1 = TrackEventsContext {
         model_slug: "gpt-5".to_string(),
-        thread_id: "thread-1".to_string(),
-        turn_id: "turn-1".to_string(),
+        chat_id: "thread-1".to_string(),
+        interaction_id: "turn-1".to_string(),
     };
     let turn_2 = TrackEventsContext {
         model_slug: "gpt-5".to_string(),
-        thread_id: "thread-1".to_string(),
-        turn_id: "turn-2".to_string(),
+        chat_id: "thread-1".to_string(),
+        interaction_id: "turn-2".to_string(),
     };
 
     assert_eq!(queue.should_enqueue_plugin_used(&turn_1, &plugin), true);
@@ -3260,8 +3260,8 @@ async fn reducer_ingests_skill_invoked_fact() {
     let mut events = Vec::new();
     let tracking = TrackEventsContext {
         model_slug: "gpt-5".to_string(),
-        thread_id: "thread-1".to_string(),
-        turn_id: "turn-1".to_string(),
+        chat_id: "thread-1".to_string(),
+        interaction_id: "turn-1".to_string(),
     };
     let skill_path = PathBuf::from("/Users/abc/.datax/skills/doc/SKILL.md");
     let expected_skill_id = skill_id_for_local_skill(
@@ -3299,8 +3299,8 @@ async fn reducer_ingests_skill_invoked_fact() {
                 "skill_scope": "user",
                 "plugin_id": null,
                 "repo_url": null,
-                "thread_id": "thread-1",
-                "turn_id": "turn-1",
+                "chat_id": "thread-1",
+                "interaction_id": "turn-1",
                 "invoke_type": "explicit",
                 "model_slug": "gpt-5"
             }
@@ -3314,8 +3314,8 @@ async fn reducer_includes_plugin_id_for_plugin_skill_invocations() {
     let mut events = Vec::new();
     let tracking = TrackEventsContext {
         model_slug: "gpt-5".to_string(),
-        thread_id: "thread-1".to_string(),
-        turn_id: "turn-1".to_string(),
+        chat_id: "thread-1".to_string(),
+        interaction_id: "turn-1".to_string(),
     };
     let skill_path =
         PathBuf::from("/Users/abc/.datax/plugins/cache/test/sample/skills/doc/SKILL.md");
@@ -3353,8 +3353,8 @@ async fn reducer_ingests_hook_run_fact() {
             AnalyticsFact::Custom(CustomAnalyticsFact::HookRun(HookRunInput {
                 tracking: TrackEventsContext {
                     model_slug: "gpt-5".to_string(),
-                    thread_id: "thread-1".to_string(),
-                    turn_id: "turn-1".to_string(),
+                    chat_id: "thread-1".to_string(),
+                    interaction_id: "turn-1".to_string(),
                 },
                 hook: HookRunFact {
                     event_name: HookEventName::PostToolUse,
@@ -3380,8 +3380,8 @@ async fn reducer_ingests_app_and_plugin_facts() {
     let mut events = Vec::new();
     let tracking = TrackEventsContext {
         model_slug: "gpt-5".to_string(),
-        thread_id: "thread-1".to_string(),
-        turn_id: "turn-1".to_string(),
+        chat_id: "thread-1".to_string(),
+        interaction_id: "turn-1".to_string(),
     };
 
     reducer
@@ -3652,9 +3652,9 @@ fn turn_event_serializes_expected_shape() {
     let event = TrackEventRequest::TurnEvent(Box::new(CodexTurnEventRequest {
         event_type: "codex_turn_event",
         event_params: crate::events::CodexTurnEventParams {
-            thread_id: "thread-2".to_string(),
+            chat_id: "thread-2".to_string(),
             session_id: "session-thread-2".to_string(),
-            turn_id: "turn-2".to_string(),
+            interaction_id: "turn-2".to_string(),
             app_server_client: sample_app_server_client_metadata(),
             runtime: sample_runtime_metadata(),
             submission_type: None,
@@ -3662,7 +3662,7 @@ fn turn_event_serializes_expected_shape() {
             thread_source: Some(ThreadSource::User),
             initialization_mode: ThreadInitializationMode::New,
             subagent_source: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             model: Some("gpt-5".to_string()),
             model_provider: "openai".to_string(),
             sandbox_policy: Some("read_only"),
@@ -3713,9 +3713,9 @@ fn turn_event_serializes_expected_shape() {
         r#"{
             "event_type": "codex_turn_event",
             "event_params": {
-                "thread_id": "thread-2",
+                "chat_id": "thread-2",
                 "session_id": "session-thread-2",
-                "turn_id": "turn-2",
+                "interaction_id": "turn-2",
                 "submission_type": null,
                 "app_server_client": {
                     "product_client_id": "codex_cli_rs",
@@ -3734,7 +3734,7 @@ fn turn_event_serializes_expected_shape() {
                 "thread_source": "user",
                 "initialization_mode": "new",
                 "subagent_source": null,
-                "parent_thread_id": null,
+                "parent_chat_id": null,
                 "model": "gpt-5",
                 "model_provider": "openai",
                 "sandbox_policy": "read_only",
@@ -3825,13 +3825,13 @@ async fn accepted_turn_steer_emits_expected_event() {
     assert_eq!(out.len(), 1);
     let payload = serde_json::to_value(&out[0]).expect("serialize turn steer event");
     assert_eq!(payload["event_type"], json!("codex_turn_steer_event"));
-    assert_eq!(payload["event_params"]["thread_id"], json!("thread-2"));
+    assert_eq!(payload["event_params"]["chat_id"], json!("thread-2"));
     assert_eq!(
         payload["event_params"]["session_id"],
         json!("session-thread-2")
     );
-    assert_eq!(payload["event_params"]["expected_turn_id"], json!("turn-2"));
-    assert_eq!(payload["event_params"]["accepted_turn_id"], json!("turn-2"));
+    assert_eq!(payload["event_params"]["expected_interaction_id"], json!("turn-2"));
+    assert_eq!(payload["event_params"]["accepted_interaction_id"], json!("turn-2"));
     assert_eq!(payload["event_params"]["num_input_images"], json!(1));
     assert_eq!(payload["event_params"]["result"], json!("accepted"));
     assert_eq!(payload["event_params"]["rejection_reason"], json!(null));
@@ -3851,7 +3851,7 @@ async fn accepted_turn_steer_emits_expected_event() {
     );
     assert_eq!(payload["event_params"]["thread_source"], json!("user"));
     assert_eq!(payload["event_params"]["subagent_source"], json!(null));
-    assert_eq!(payload["event_params"]["parent_thread_id"], json!(null));
+    assert_eq!(payload["event_params"]["parent_chat_id"], json!(null));
     assert!(payload["event_params"].get("product_client_id").is_none());
 }
 
@@ -3868,9 +3868,9 @@ async fn rejected_turn_steer_uses_request_connection_metadata() {
     .await;
 
     assert_eq!(payload["event_type"], json!("codex_turn_steer_event"));
-    assert_eq!(payload["event_params"]["thread_id"], json!("thread-2"));
-    assert_eq!(payload["event_params"]["expected_turn_id"], json!("turn-2"));
-    assert_eq!(payload["event_params"]["accepted_turn_id"], json!(null));
+    assert_eq!(payload["event_params"]["chat_id"], json!("thread-2"));
+    assert_eq!(payload["event_params"]["expected_interaction_id"], json!("turn-2"));
+    assert_eq!(payload["event_params"]["accepted_interaction_id"], json!(null));
     assert_eq!(payload["event_params"]["num_input_images"], json!(1));
     assert_eq!(
         payload["event_params"]["app_server_client"]["product_client_id"],
@@ -3882,7 +3882,7 @@ async fn rejected_turn_steer_uses_request_connection_metadata() {
     );
     assert_eq!(payload["event_params"]["thread_source"], json!("user"));
     assert_eq!(payload["event_params"]["subagent_source"], json!(null));
-    assert_eq!(payload["event_params"]["parent_thread_id"], json!(null));
+    assert_eq!(payload["event_params"]["parent_chat_id"], json!(null));
     assert_eq!(payload["event_params"]["result"], json!("rejected"));
     assert_eq!(
         payload["event_params"]["rejection_reason"],
@@ -4046,12 +4046,12 @@ async fn turn_lifecycle_emits_turn_event() {
     assert_eq!(out.len(), 1);
     let payload = serde_json::to_value(&out[0]).expect("serialize turn event");
     assert_eq!(payload["event_type"], json!("codex_turn_event"));
-    assert_eq!(payload["event_params"]["thread_id"], json!("thread-2"));
+    assert_eq!(payload["event_params"]["chat_id"], json!("thread-2"));
     assert_eq!(
         payload["event_params"]["session_id"],
         json!("session-thread-2")
     );
-    assert_eq!(payload["event_params"]["turn_id"], json!("turn-2"));
+    assert_eq!(payload["event_params"]["interaction_id"], json!("turn-2"));
     assert_eq!(
         payload["event_params"]["app_server_client"],
         json!({
@@ -4133,8 +4133,8 @@ async fn turn_event_counts_completed_tool_items() {
         .ingest(
             AnalyticsFact::Notification(Box::new(ServerNotification::MessageStarted(
                 MessageStartedNotification {
-                    thread_id: "thread-2".to_string(),
-                    turn_id: "turn-2".to_string(),
+                    chat_id: "thread-2".to_string(),
+                    interaction_id: "turn-2".to_string(),
                     started_at_ms: 998,
                     item: mcp_tool_call_item(McpToolCallStatus::InProgress, None),
                 },
@@ -4165,8 +4165,8 @@ async fn turn_event_counts_completed_tool_items() {
             id: "collab-1".to_string(),
             tool: CollabAgentTool::SpawnAgent,
             status: CollabAgentToolCallStatus::Completed,
-            sender_thread_id: "thread-2".to_string(),
-            receiver_thread_ids: vec!["thread-child".to_string()],
+            sender_chat_id: "thread-2".to_string(),
+            receiver_chat_ids: vec!["thread-child".to_string()],
             prompt: Some("help".to_string()),
             model: Some("gpt-5".to_string()),
             reasoning_effort: None,
@@ -4175,7 +4175,7 @@ async fn turn_event_counts_completed_tool_items() {
         Message::SubAgentActivity {
             id: "sub-agent-activity-1".to_string(),
             kind: SubAgentActivityKind::Interacted,
-            agent_thread_id: "thread-child".to_string(),
+            agent_chat_id: "thread-child".to_string(),
             agent_path: "/root/child".to_string(),
         },
         Message::WebSearch {
@@ -4197,8 +4197,8 @@ async fn turn_event_counts_completed_tool_items() {
             .ingest(
                 AnalyticsFact::Notification(Box::new(ServerNotification::MessageCompleted(
                     MessageCompletedNotification {
-                        thread_id: "thread-2".to_string(),
-                        turn_id: "turn-2".to_string(),
+                        chat_id: "thread-2".to_string(),
+                        interaction_id: "turn-2".to_string(),
                         completed_at_ms: 1_000,
                         item,
                     },
@@ -4254,8 +4254,8 @@ async fn item_completed_without_turn_state_does_not_create_turn_state() {
         .ingest(
             AnalyticsFact::Notification(Box::new(ServerNotification::MessageCompleted(
                 MessageCompletedNotification {
-                    thread_id: "thread-2".to_string(),
-                    turn_id: "turn-2".to_string(),
+                    chat_id: "thread-2".to_string(),
+                    interaction_id: "turn-2".to_string(),
                     completed_at_ms: 1_000,
                     item: sample_command_execution_item(
                         CommandExecutionStatus::Completed,

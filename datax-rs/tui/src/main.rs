@@ -14,7 +14,7 @@ fn format_exit_messages(exit_info: AppExitInfo, color_enabled: bool) -> Vec<Stri
     let is_fatal = matches!(&exit_info.exit_reason, ExitReason::Fatal(_));
     let AppExitInfo {
         token_usage,
-        thread_id,
+        chat_id,
         resume_hint,
         ..
     } = exit_info;
@@ -31,8 +31,8 @@ fn format_exit_messages(exit_info: AppExitInfo, color_enabled: bool) -> Vec<Stri
             resume_cmd
         };
         lines.push(format!("To continue this session, run {command}"));
-    } else if is_fatal && let Some(thread_id) = thread_id {
-        lines.push(format!("Session ID: {thread_id}"));
+    } else if is_fatal && let Some(chat_id) = chat_id {
+        lines.push(format!("Session ID: {chat_id}"));
     }
 
     lines

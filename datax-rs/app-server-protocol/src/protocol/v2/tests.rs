@@ -2115,7 +2115,7 @@ fn mcp_server_status_serializes_absent_server_info_as_null() {
 }
 
 #[test]
-fn mcp_server_status_updated_accepts_missing_thread_id() {
+fn mcp_server_status_updated_accepts_missing_chat_id() {
     let notification: McpServerStatusUpdatedNotification = serde_json::from_value(json!({
         "name": "optional_broken",
         "status": "failed",

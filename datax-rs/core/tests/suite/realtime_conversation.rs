@@ -17,7 +17,7 @@ use datax_config::config_toml::RealtimeWsVersion;
 use datax_core::test_support::auth_manager_from_auth;
 use datax_login::CodexAuth;
 use datax_login::OPENAI_API_KEY_ENV_VAR;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::models::ContentItem;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::CodexErrorInfo;
@@ -216,17 +216,17 @@ async fn seed_recent_thread(
     slug: &str,
 ) -> Result<()> {
     let db = test.codex.state_db().context("state db enabled")?;
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let updated_at = Utc::now();
     let rollout_path = test
         .codex_home_path()
-        .join(format!("rollout-{thread_id}.jsonl"));
+        .join(format!("rollout-{chat_id}.jsonl"));
     // This helper seeds SQLite metadata directly. Local listing drops stale metadata rows whose
     // rollout path no longer exists, so create the placeholder path that the test metadata points
     // at without exercising rollout writing in this realtime-context test.
     std::fs::write(&rollout_path, "")?;
     let mut metadata_builder = datax_state::ThreadMetadataBuilder::new(
-        thread_id,
+        chat_id,
         rollout_path,
         updated_at,
         SessionSource::Cli,
@@ -2683,7 +2683,7 @@ async fn conversation_user_text_turn_is_not_sent_to_realtime() -> Result<()> {
         .await?;
 
     let turn_complete = wait_for_event_match(&test.codex, |event| match event {
-        EventMsg::TurnComplete(turn_complete) => Some(turn_complete.clone()),
+        EventMsg::InteractionComplete(turn_complete) => Some(turn_complete.clone()),
         _ => None,
     })
     .await;
@@ -2881,7 +2881,7 @@ async fn conversation_mirrors_assistant_message_text_to_realtime_handoff() -> Re
     .await;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -3068,7 +3068,7 @@ async fn conversation_handoff_persists_across_item_done_until_turn_complete() ->
         .await
         .expect("delegated turn request did not complete");
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -3179,16 +3179,16 @@ async fn inbound_handoff_request_starts_turn() -> Result<()> {
     })
     .await;
 
-    let turn_id = loop {
+    let interaction_id = loop {
         let event = test.codex.next_event().await?;
-        if let EventMsg::TurnStarted(turn_started) = event.msg {
-            break turn_started.turn_id;
+        if let EventMsg::InteractionStarted(turn_started) = event.msg {
+            break turn_started.interaction_id;
         }
     };
-    Uuid::parse_str(&turn_id).context("realtime-routed turn ID should be a UUID")?;
+    Uuid::parse_str(&interaction_id).context("realtime-routed turn ID should be a UUID")?;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -3281,7 +3281,7 @@ async fn inbound_handoff_request_uses_active_transcript() -> Result<()> {
     .await;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -3388,7 +3388,7 @@ async fn inbound_handoff_request_sends_transcript_delta_after_each_handoff() -> 
     .await;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -3405,7 +3405,7 @@ async fn inbound_handoff_request_sends_transcript_delta_after_each_handoff() -> 
         .await?;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -3508,7 +3508,7 @@ async fn inbound_conversation_item_does_not_start_turn_and_still_forwards_audio(
     let unexpected_turn_started = tokio::time::timeout(
         Duration::from_millis(200),
         wait_for_event_match(&test.codex, |msg| match msg {
-            EventMsg::TurnStarted(_) => Some(()),
+            EventMsg::InteractionStarted(_) => Some(()),
             _ => None,
         }),
     )
@@ -3685,7 +3685,7 @@ async fn delegated_turn_user_role_echo_does_not_redelegate_and_still_forwards_au
         start.elapsed().as_millis()
     );
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -3806,7 +3806,7 @@ async fn inbound_handoff_request_does_not_block_realtime_event_forwarding() -> R
         .await
         .expect("delegated turn request did not complete");
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -3971,7 +3971,7 @@ async fn inbound_handoff_request_steers_active_turn() -> Result<()> {
         .await
         .expect("second request did not complete");
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -4110,7 +4110,7 @@ async fn inbound_handoff_request_starts_turn_and_does_not_block_realtime_audio()
         .await
         .expect("delegated turn request did not complete");
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 

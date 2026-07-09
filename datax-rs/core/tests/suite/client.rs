@@ -43,7 +43,7 @@ use datax_model_provider_info::built_in_model_providers;
 use datax_models_manager::bundled_models_response;
 use datax_otel::SessionTelemetry;
 use datax_otel::TelemetryAuthMode;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::CollaborationMode;
 use datax_protocol::config_types::ModeKind;
 use datax_protocol::config_types::ModelProviderAuthInfo;
@@ -99,17 +99,17 @@ const TEST_INSTALLATION_ID: &str = "11111111-1111-4111-8111-111111111111";
 
 fn test_turn_responses_metadata(
     _client: &ModelClient,
-    thread_id: ThreadId,
+    chat_id: ChatId,
 ) -> datax_core::CodexResponsesMetadata {
-    let thread_id = thread_id.to_string();
+    let chat_id = chat_id.to_string();
     test_responses_metadata(
         TEST_INSTALLATION_ID,
-        &thread_id,
-        &thread_id,
-        /*turn_id*/ None,
+        &chat_id,
+        &chat_id,
+        /*interaction_id*/ None,
         TEST_WINDOW_ID.to_string(),
         &SessionSource::Exec,
-        /*parent_thread_id*/ None,
+        /*parent_chat_id*/ None,
         TestCodexResponsesRequestKind::Turn,
     )
 }
@@ -156,7 +156,7 @@ fn assert_codex_client_metadata(
     request_body: &serde_json::Value,
     installation_id: &str,
     session_id: &str,
-    thread_id: &str,
+    chat_id: &str,
 ) {
     let client_metadata = &request_body["client_metadata"];
     assert_eq!(
@@ -164,7 +164,7 @@ fn assert_codex_client_metadata(
         Some(installation_id)
     );
     assert_eq!(client_metadata["session_id"].as_str(), Some(session_id));
-    assert_eq!(client_metadata["thread_id"].as_str(), Some(thread_id));
+    assert_eq!(client_metadata["chat_id"].as_str(), Some(chat_id));
     let turn_metadata_str = client_metadata["x-codex-turn-metadata"]
         .as_str()
         .expect("missing x-codex-turn-metadata client metadata");
@@ -175,10 +175,10 @@ fn assert_codex_client_metadata(
         Some(installation_id)
     );
     assert_eq!(turn_metadata["session_id"].as_str(), Some(session_id));
-    assert_eq!(turn_metadata["thread_id"].as_str(), Some(thread_id));
+    assert_eq!(turn_metadata["chat_id"].as_str(), Some(chat_id));
     assert_eq!(
-        client_metadata["turn_id"].as_str(),
-        turn_metadata["turn_id"].as_str()
+        client_metadata["interaction_id"].as_str(),
+        turn_metadata["interaction_id"].as_str()
     );
     assert_eq!(
         client_metadata["x-codex-window-id"].as_str(),
@@ -210,25 +210,25 @@ async fn openai_stateless_responses_requests_preserve_item_turn_metadata_across_
     assert_eq!(requests.len(), 2);
     let first = requests[0].body_json();
     let second = requests[1].body_json();
-    let first_turn_id = first["client_metadata"]["turn_id"]
+    let first_interaction_id = first["client_metadata"]["interaction_id"]
         .as_str()
         .expect("first request should include turn id");
-    let second_turn_id = second["client_metadata"]["turn_id"]
+    let second_interaction_id = second["client_metadata"]["interaction_id"]
         .as_str()
         .expect("second request should include turn id");
-    assert_ne!(first_turn_id, second_turn_id);
+    assert_ne!(first_interaction_id, second_interaction_id);
 
     let first_input = first["input"].as_array().expect("first input");
     let second_input = second["input"].as_array().expect("second input");
     assert_eq!(&second_input[..first_input.len()], first_input.as_slice());
     for item in first_input {
         assert_eq!(
-            item["internal_chat_message_metadata_passthrough"]["turn_id"].as_str(),
-            Some(first_turn_id)
+            item["internal_chat_message_metadata_passthrough"]["interaction_id"].as_str(),
+            Some(first_interaction_id)
         );
     }
 
-    let item_turn_id = |text: &str| {
+    let item_interaction_id = |text: &str| {
         second_input
             .iter()
             .find(|item| {
@@ -238,11 +238,11 @@ async fn openai_stateless_responses_requests_preserve_item_turn_metadata_across_
                         .any(|content_item| content_item["text"].as_str() == Some(text))
                 })
             })
-            .and_then(|item| item["internal_chat_message_metadata_passthrough"]["turn_id"].as_str())
+            .and_then(|item| item["internal_chat_message_metadata_passthrough"]["interaction_id"].as_str())
     };
-    assert_eq!(item_turn_id("turn one"), Some(first_turn_id));
-    assert_eq!(item_turn_id("first answer"), Some(first_turn_id));
-    assert_eq!(item_turn_id("turn two"), Some(second_turn_id));
+    assert_eq!(item_interaction_id("turn one"), Some(first_interaction_id));
+    assert_eq!(item_interaction_id("first answer"), Some(first_interaction_id));
+    assert_eq!(item_interaction_id("turn two"), Some(second_interaction_id));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -281,7 +281,7 @@ async fn non_openai_responses_requests_omit_item_passthrough_metadata() {
         })
         .await
         .unwrap();
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     let body = response_mock.single_request().body_json();
     let input = body["input"]
@@ -395,7 +395,7 @@ async fn response_item_ids_are_sent_for_all_remote_v2_compaction_requests() -> a
     test.submit_turn("before compaction").await?;
     test.codex.submit(Op::Compact).await?;
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
     test.submit_turn("after compaction").await?;
@@ -702,7 +702,7 @@ async fn resume_includes_initial_messages_and_sends_prior_items() {
         })
         .await
         .unwrap();
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -788,15 +788,15 @@ async fn resume_replays_legacy_js_repl_image_rollout_shapes() {
         internal_chat_message_metadata_passthrough: None,
     };
     let legacy_image_url = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
-    let thread_id = ThreadId::default();
+    let chat_id = ChatId::default();
     let rollout = vec![
         RolloutLine {
             timestamp: "2024-01-01T00:00:00.000Z".to_string(),
             item: RolloutItem::SessionMeta(SessionMetaLine {
                 meta: SessionMeta {
-                    session_id: thread_id.into(),
-                    id: thread_id,
-                    parent_thread_id: None,
+                    session_id: chat_id.into(),
+                    id: chat_id,
+                    parent_chat_id: None,
                     timestamp: "2024-01-01T00:00:00Z".to_string(),
                     cwd: ".".into(),
                     originator: "test_originator".to_string(),
@@ -924,15 +924,15 @@ async fn resume_replays_image_tool_outputs_with_detail() {
     let image_url = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
     let function_call_id = "view-image-call";
     let custom_call_id = "js-repl-call";
-    let thread_id = ThreadId::default();
+    let chat_id = ChatId::default();
     let rollout = vec![
         RolloutLine {
             timestamp: "2024-01-01T00:00:00.000Z".to_string(),
             item: RolloutItem::SessionMeta(SessionMetaLine {
                 meta: SessionMeta {
-                    session_id: thread_id.into(),
-                    id: thread_id,
-                    parent_thread_id: None,
+                    session_id: chat_id.into(),
+                    id: chat_id,
+                    parent_chat_id: None,
                     timestamp: "2024-01-01T00:00:00Z".to_string(),
                     cwd: ".".into(),
                     originator: "test_originator".to_string(),
@@ -1050,7 +1050,7 @@ async fn resume_replays_image_tool_outputs_with_detail() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn includes_session_id_thread_id_and_model_headers_in_request() {
+async fn includes_session_id_chat_id_and_model_headers_in_request() {
     skip_if_no_network!();
 
     // Mock server
@@ -1069,7 +1069,7 @@ async fn includes_session_id_thread_id_and_model_headers_in_request() {
         .expect("create new conversation");
     let codex = test.codex.clone();
     let expected_session_id = test.session_configured.session_id;
-    let expected_thread_id = test.session_configured.thread_id;
+    let expected_chat_id = test.session_configured.chat_id;
 
     codex
         .submit(Op::UserInput {
@@ -1085,12 +1085,12 @@ async fn includes_session_id_thread_id_and_model_headers_in_request() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = resp_mock.single_request();
     assert_eq!(request.path(), "/v1/responses");
     let request_session_id = request.header("session-id").expect("session-id header");
-    let request_thread_id = request.header("thread-id").expect("thread-id header");
+    let request_chat_id = request.header("thread-id").expect("thread-id header");
     let request_authorization = request
         .header("authorization")
         .expect("authorization header");
@@ -1100,21 +1100,21 @@ async fn includes_session_id_thread_id_and_model_headers_in_request() {
         std::fs::read_to_string(test.codex_home_path().join(INSTALLATION_ID_FILENAME))
             .expect("read installation id");
     let session_id_string = expected_session_id.to_string();
-    let thread_id_string = expected_thread_id.to_string();
+    let chat_id_string = expected_chat_id.to_string();
 
     assert_eq!(request_session_id, session_id_string.as_str());
-    assert_eq!(request_thread_id, thread_id_string.as_str());
+    assert_eq!(request_chat_id, chat_id_string.as_str());
     assert_eq!(request_originator, originator().value);
     assert_eq!(request_authorization, "Bearer Test API Key");
     assert_eq!(
         request_body["prompt_cache_key"].as_str(),
-        Some(thread_id_string.as_str())
+        Some(chat_id_string.as_str())
     );
     assert_codex_client_metadata(
         &request_body,
         installation_id.as_str(),
         session_id_string.as_str(),
-        thread_id_string.as_str(),
+        chat_id_string.as_str(),
     );
 }
 
@@ -1203,9 +1203,9 @@ async fn send_provider_auth_request(server: &MockServer, auth: ModelProviderAuth
     let config = Arc::new(config);
     let model_info =
         datax_core::test_support::construct_model_info_offline(model.as_str(), &config);
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let session_telemetry = SessionTelemetry::new(
-        thread_id,
+        chat_id,
         model.as_str(),
         model_info.slug.as_str(),
         /*account_id*/ None,
@@ -1220,7 +1220,7 @@ async fn send_provider_auth_request(server: &MockServer, auth: ModelProviderAuth
         Some(AuthManager::from_auth_for_testing(CodexAuth::from_api_key(
             "unused-api-key",
         ))),
-        thread_id,
+        chat_id,
         provider,
         SessionSource::Exec,
         config.model_verbosity,
@@ -1230,7 +1230,7 @@ async fn send_provider_auth_request(server: &MockServer, auth: ModelProviderAuth
         /*item_ids_enabled*/ config.features.enabled(Feature::ItemIds),
         /*attestation_provider*/ None,
     );
-    let responses_metadata = test_turn_responses_metadata(&client, thread_id);
+    let responses_metadata = test_turn_responses_metadata(&client, chat_id);
     let mut client_session = client.new_session();
     let mut prompt = Prompt::default();
     prompt.input.push(ResponseItem::Message {
@@ -1300,7 +1300,7 @@ async fn includes_base_instructions_override_in_request() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -1341,7 +1341,7 @@ async fn chatgpt_auth_sends_correct_request() {
         .expect("create new conversation");
     let codex = test.codex.clone();
     let expected_session_id = test.session_configured.session_id;
-    let expected_thread_id = test.session_configured.thread_id;
+    let expected_chat_id = test.session_configured.chat_id;
 
     codex
         .submit(Op::UserInput {
@@ -1357,7 +1357,7 @@ async fn chatgpt_auth_sends_correct_request() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = resp_mock.single_request();
     assert_eq!(request.path(), "/api/codex/responses");
@@ -1371,14 +1371,14 @@ async fn chatgpt_auth_sends_correct_request() {
     let request_body = request.body_json();
 
     let request_session_id = request.header("session-id").expect("session-id header");
-    let request_thread_id = request.header("thread-id").expect("thread-id header");
+    let request_chat_id = request.header("thread-id").expect("thread-id header");
     let installation_id =
         std::fs::read_to_string(test.codex_home_path().join(INSTALLATION_ID_FILENAME))
             .expect("read installation id");
     let session_id_string = expected_session_id.to_string();
-    let thread_id_string = expected_thread_id.to_string();
+    let chat_id_string = expected_chat_id.to_string();
     assert_eq!(request_session_id, session_id_string.as_str());
-    assert_eq!(request_thread_id, thread_id_string.as_str());
+    assert_eq!(request_chat_id, chat_id_string.as_str());
 
     assert_eq!(request_originator, originator().value);
     assert_eq!(request_authorization, "Bearer Access Token");
@@ -1387,7 +1387,7 @@ async fn chatgpt_auth_sends_correct_request() {
         &request_body,
         installation_id.as_str(),
         session_id_string.as_str(),
-        thread_id_string.as_str(),
+        chat_id_string.as_str(),
     );
     assert!(request_body["stream"].as_bool().unwrap());
     assert_eq!(
@@ -1487,7 +1487,7 @@ async fn prefers_apikey_when_config_prefers_apikey_even_with_chatgpt_tokens() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -1526,7 +1526,7 @@ async fn includes_user_instructions_message_in_request() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -1614,7 +1614,7 @@ async fn includes_apps_guidance_as_developer_message_for_chatgpt_auth() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = resp_mock.single_request();
     let apps_snippet =
@@ -1677,7 +1677,7 @@ async fn omits_apps_guidance_for_api_key_auth_even_when_feature_enabled() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = resp_mock.single_request();
     let apps_snippet =
@@ -1736,7 +1736,7 @@ async fn omits_apps_guidance_when_configured_off() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = resp_mock.single_request();
     assert!(
@@ -1813,7 +1813,7 @@ async fn omits_apps_guidance_when_orchestrator_mcp_is_disabled() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let requests = resp_mock.requests();
     assert_eq!(requests.len(), 3);
@@ -1895,7 +1895,7 @@ async fn omits_environment_context_when_configured_off() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = resp_mock.single_request();
     assert!(
@@ -1952,7 +1952,7 @@ async fn skills_append_to_developer_message() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = resp_mock.single_request();
     let developer_messages = request.message_input_texts("developer");
@@ -2035,7 +2035,7 @@ async fn skills_use_aliases_in_developer_message_under_budget_pressure() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = resp_mock.single_request();
     let developer_messages = request.message_input_texts("developer");
@@ -2096,7 +2096,7 @@ async fn includes_configured_effort_in_request() -> anyhow::Result<()> {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -2138,7 +2138,7 @@ async fn includes_no_effort_in_request() -> anyhow::Result<()> {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -2181,7 +2181,7 @@ async fn includes_default_reasoning_effort_in_request_when_defined_by_model_info
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -2242,7 +2242,7 @@ async fn user_turn_collaboration_mode_overrides_model_and_effort() -> anyhow::Re
         })
         .await?;
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request_body = resp_mock.single_request().body_json();
     assert_eq!(request_body["model"].as_str(), Some("gpt-5.4"));
@@ -2288,7 +2288,7 @@ async fn configured_reasoning_summary_is_sent() -> anyhow::Result<()> {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -2343,7 +2343,7 @@ async fn responses_lite_sets_all_turns_context_and_disables_parallel_tool_calls(
         })
         .await?;
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request_body = resp_mock.single_request().body_json();
     pretty_assertions::assert_eq!(
@@ -2420,7 +2420,7 @@ async fn user_turn_explicit_reasoning_summary_overrides_model_catalog_default() 
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request_body = resp_mock.single_request().body_json();
 
@@ -2466,7 +2466,7 @@ async fn reasoning_summary_is_omitted_when_disabled() -> anyhow::Result<()> {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -2524,7 +2524,7 @@ async fn reasoning_summary_none_overrides_model_catalog_default() -> anyhow::Res
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request_body = resp_mock.single_request().body_json();
     pretty_assertions::assert_eq!(
@@ -2563,7 +2563,7 @@ async fn includes_default_verbosity_in_request() -> anyhow::Result<()> {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -2611,7 +2611,7 @@ async fn configured_verbosity_not_sent_for_models_without_support() -> anyhow::R
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -2658,7 +2658,7 @@ async fn configured_verbosity_is_sent() -> anyhow::Result<()> {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -2712,7 +2712,7 @@ async fn includes_developer_instructions_message_in_request() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = resp_mock.single_request();
     let request_body = request.body_json();
@@ -2814,11 +2814,11 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
     let config = Arc::new(config);
     let model_info =
         datax_core::test_support::construct_model_info_offline(model.as_str(), &config);
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let auth_manager =
         datax_core::test_support::auth_manager_from_auth(CodexAuth::from_api_key("Test API Key"));
     let session_telemetry = SessionTelemetry::new(
-        thread_id,
+        chat_id,
         model.as_str(),
         model_info.slug.as_str(),
         /*account_id*/ None,
@@ -2832,7 +2832,7 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
 
     let client = ModelClient::new(
         /*auth_manager*/ None,
-        thread_id,
+        chat_id,
         provider.clone(),
         SessionSource::Exec,
         config.model_verbosity,
@@ -2842,7 +2842,7 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
         /*item_ids_enabled*/ false,
         /*attestation_provider*/ None,
     );
-    let responses_metadata = test_turn_responses_metadata(&client, thread_id);
+    let responses_metadata = test_turn_responses_metadata(&client, chat_id);
     let mut client_session = client.new_session();
 
     let mut prompt = Prompt::default();
@@ -3092,7 +3092,7 @@ async fn token_count_includes_rate_limits_snapshot() {
         Some(1704069000)
     );
 
-    wait_for_event(&codex, |msg| matches!(msg, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |msg| matches!(msg, EventMsg::InteractionComplete(_))).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -3235,7 +3235,7 @@ async fn context_window_error_sets_total_tokens_to_model_window() -> anyhow::Res
         })
         .await?;
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex
         .submit(Op::UserInput {
@@ -3286,7 +3286,7 @@ async fn context_window_error_sets_total_tokens_to_model_window() -> anyhow::Res
         "expected context window error; got {error_event:?}"
     );
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     Ok(())
 }
@@ -3348,7 +3348,7 @@ async fn incomplete_response_emits_content_filter_error_message() -> anyhow::Res
 
     assert_eq!(responses_mock.requests().len(), 1);
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
     Ok(())
 }
 
@@ -3447,7 +3447,7 @@ async fn azure_overrides_assign_properties_used_for_responses_url() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -3536,7 +3536,7 @@ async fn env_var_overrides_loaded_auth() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 }
 
 fn create_dummy_codex_auth() -> CodexAuth {
@@ -3592,7 +3592,7 @@ async fn history_dedupes_streamed_and_final_messages_across_turns() {
         })
         .await
         .unwrap();
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     // Turn 2: user sends U2; wait for completion.
     codex
@@ -3608,7 +3608,7 @@ async fn history_dedupes_streamed_and_final_messages_across_turns() {
         })
         .await
         .unwrap();
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     // Turn 3: user sends U3; wait for completion.
     codex
@@ -3624,7 +3624,7 @@ async fn history_dedupes_streamed_and_final_messages_across_turns() {
         })
         .await
         .unwrap();
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     // Inspect the three captured requests.
     let requests = request_log.requests();

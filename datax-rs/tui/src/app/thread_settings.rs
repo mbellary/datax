@@ -7,7 +7,7 @@ use crate::session_state::ThreadSessionState;
 use datax_app_server_protocol::ApprovalsReviewer as AppServerApprovalsReviewer;
 use datax_app_server_protocol::ChatSettings;
 use datax_app_server_protocol::ChatSettingsUpdateParams;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::ModeKind;
 use datax_protocol::models::PermissionProfile;
 
@@ -27,9 +27,9 @@ impl App {
         &self,
         model: String,
     ) -> Option<ChatSettingsUpdateParams> {
-        let thread_id = self.active_thread_id?;
+        let chat_id = self.active_chat_id?;
         Some(ChatSettingsUpdateParams {
-            chat_id: thread_id.to_string(),
+            chat_id: chat_id.to_string(),
             model: Some(model),
             collaboration_mode: Some(self.chat_widget.effective_collaboration_mode()),
             ..ChatSettingsUpdateParams::default()
@@ -51,9 +51,9 @@ impl App {
         &self,
         effort: Option<datax_protocol::openai_models::ReasoningEffort>,
     ) -> Option<ChatSettingsUpdateParams> {
-        let thread_id = self.active_thread_id?;
+        let chat_id = self.active_chat_id?;
         Some(ChatSettingsUpdateParams {
-            chat_id: thread_id.to_string(),
+            chat_id: chat_id.to_string(),
             effort,
             collaboration_mode: Some(self.chat_widget.current_collaboration_mode().clone()),
             ..ChatSettingsUpdateParams::default()
@@ -64,11 +64,11 @@ impl App {
         &mut self,
         app_server: &mut AppServerSession,
     ) {
-        let Some(thread_id) = self.active_thread_id else {
+        let Some(chat_id) = self.active_chat_id else {
             return;
         };
         let params = ChatSettingsUpdateParams {
-            chat_id: thread_id.to_string(),
+            chat_id: chat_id.to_string(),
             collaboration_mode: Some(self.chat_widget.effective_collaboration_mode()),
             ..ChatSettingsUpdateParams::default()
         };
@@ -80,11 +80,11 @@ impl App {
         app_server: &mut AppServerSession,
         personality: datax_protocol::config_types::Personality,
     ) {
-        let Some(thread_id) = self.active_thread_id else {
+        let Some(chat_id) = self.active_chat_id else {
             return;
         };
         let params = ChatSettingsUpdateParams {
-            chat_id: thread_id.to_string(),
+            chat_id: chat_id.to_string(),
             personality: Some(personality),
             ..ChatSettingsUpdateParams::default()
         };
@@ -94,7 +94,7 @@ impl App {
     pub(super) async fn sync_override_turn_context_settings(
         &mut self,
         app_server: &mut AppServerSession,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         op: &AppCommand,
     ) {
         let AppCommand::OverrideTurnContext {
@@ -116,7 +116,7 @@ impl App {
         };
 
         let params = ChatSettingsUpdateParams {
-            chat_id: thread_id.to_string(),
+            chat_id: chat_id.to_string(),
             cwd: cwd.clone(),
             approval_policy: *approval_policy,
             approvals_reviewer: approvals_reviewer.map(AppServerApprovalsReviewer::from),
@@ -136,16 +136,16 @@ impl App {
 
     pub(super) async fn apply_thread_settings_to_cached_session(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         settings: &ChatSettings,
     ) {
-        if self.primary_thread_id == Some(thread_id)
+        if self.primary_chat_id == Some(chat_id)
             && let Some(session) = self.primary_session_configured.as_mut()
         {
             apply_thread_settings_to_session(session, settings);
         }
 
-        if let Some(channel) = self.thread_event_channels.get(&thread_id) {
+        if let Some(channel) = self.thread_event_channels.get(&chat_id) {
             let mut store = channel.store.lock().await;
             if let Some(session) = store.session.as_mut() {
                 apply_thread_settings_to_session(session, settings);

@@ -288,7 +288,7 @@ async fn review_start_rejects_empty_base_branch() -> Result<()> {
 
 #[cfg_attr(target_os = "windows", ignore = "flaky on windows CI")]
 #[tokio::test]
-async fn review_start_with_detached_delivery_returns_new_thread_id() -> Result<()> {
+async fn review_start_with_detached_delivery_returns_new_chat_id() -> Result<()> {
     let review_payload = json!({
         "findings": [],
         "overall_correctness": "ok",

@@ -76,7 +76,7 @@ async fn handle_spawn_agent(
             CollabAgentSpawnBeginEvent {
                 call_id: call_id.clone(),
                 started_at_ms: now_unix_timestamp_ms(),
-                sender_thread_id: session.thread_id,
+                sender_chat_id: session.chat_id,
                 prompt: prompt.clone(),
                 model: args.model.clone().unwrap_or_default(),
                 reasoning_effort: args.reasoning_effort.clone().unwrap_or_default(),
@@ -121,7 +121,7 @@ async fn handle_spawn_agent(
         config,
         input_items,
         Some(thread_spawn_source(
-            session.thread_id,
+            session.chat_id,
             &turn.session_source,
             child_depth,
             role_name,
@@ -130,26 +130,26 @@ async fn handle_spawn_agent(
         SpawnAgentOptions {
             fork_parent_spawn_call_id: args.fork_context.then(|| call_id.clone()),
             fork_mode: args.fork_context.then_some(SpawnAgentForkMode::FullHistory),
-            parent_thread_id: Some(session.thread_id),
+            parent_chat_id: Some(session.chat_id),
             environments: Some(turn.environments.to_selections()),
         },
     ))
     .await
     .map_err(collab_spawn_error);
-    let (new_thread_id, new_agent_metadata, status) = match &result {
+    let (new_chat_id, new_agent_metadata, status) = match &result {
         Ok(spawned_agent) => (
-            Some(spawned_agent.thread_id),
+            Some(spawned_agent.chat_id),
             Some(spawned_agent.metadata.clone()),
             spawned_agent.status.clone(),
         ),
         Err(_) => (None, None, AgentStatus::NotFound),
     };
-    let agent_snapshot = match new_thread_id {
-        Some(thread_id) => {
+    let agent_snapshot = match new_chat_id {
+        Some(chat_id) => {
             session
                 .services
                 .agent_control
-                .get_agent_config_snapshot(thread_id)
+                .get_agent_config_snapshot(chat_id)
                 .await
         }
         None => None,
@@ -183,8 +183,8 @@ async fn handle_spawn_agent(
             CollabAgentSpawnEndEvent {
                 call_id,
                 completed_at_ms: now_unix_timestamp_ms(),
-                sender_thread_id: session.thread_id,
-                new_thread_id,
+                sender_chat_id: session.chat_id,
+                new_chat_id,
                 new_agent_nickname,
                 new_agent_role,
                 prompt,
@@ -195,7 +195,7 @@ async fn handle_spawn_agent(
             .into(),
         )
         .await;
-    let new_thread_id = result?.thread_id;
+    let new_chat_id = result?.chat_id;
     let role_tag = role_name.unwrap_or(DEFAULT_ROLE_NAME);
     turn.session_telemetry.counter(
         "codex.multi_agent.spawn",
@@ -204,7 +204,7 @@ async fn handle_spawn_agent(
     );
 
     Ok(SpawnAgentResult {
-        agent_id: new_thread_id.to_string(),
+        agent_id: new_chat_id.to_string(),
         nickname,
     })
 }

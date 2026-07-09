@@ -5,7 +5,7 @@ use crate::session::SessionSettingsUpdate;
 use crate::session::SteerInputError;
 use datax_features::Feature;
 use datax_otel::SessionTelemetry;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::ApprovalsReviewer;
 use datax_protocol::config_types::CollaborationMode;
 use datax_protocol::config_types::Personality;
@@ -72,8 +72,8 @@ pub struct ThreadConfigSnapshot {
     pub personality: Option<Personality>,
     pub collaboration_mode: CollaborationMode,
     pub session_source: SessionSource,
-    pub forked_from_thread_id: Option<ThreadId>,
-    pub parent_thread_id: Option<ThreadId>,
+    pub forked_from_chat_id: Option<ChatId>,
+    pub parent_chat_id: Option<ChatId>,
     pub thread_source: Option<ThreadSource>,
 }
 
@@ -223,10 +223,10 @@ impl CodexThread {
         }
     }
 
-    pub async fn emit_thread_idle_lifecycle_if_idle(&self) {
+    pub async fn emit_chat_idle_lifecycle_if_idle(&self) {
         self.codex
             .session
-            .emit_thread_idle_lifecycle_if_idle()
+            .emit_chat_idle_lifecycle_if_idle()
             .await;
     }
 
@@ -258,7 +258,7 @@ impl CodexThread {
             .session
             .services
             .agent_control
-            .ensure_execution_capacity_for_op(self.session_configured.thread_id, &op)
+            .ensure_execution_capacity_for_op(self.session_configured.chat_id, &op)
             .await?;
         self.codex
             .submit_user_input_with_client_user_message_id(op, trace, client_user_message_id)
@@ -274,7 +274,7 @@ impl CodexThread {
         &self,
         input: Vec<UserInput>,
         additional_context: BTreeMap<String, AdditionalContextEntry>,
-        expected_turn_id: Option<&str>,
+        expected_interaction_id: Option<&str>,
         client_user_message_id: Option<String>,
         responsesapi_client_metadata: Option<HashMap<String, String>>,
     ) -> Result<String, SteerInputError> {
@@ -282,7 +282,7 @@ impl CodexThread {
             .steer_input(
                 input,
                 additional_context,
-                expected_turn_id,
+                expected_interaction_id,
                 client_user_message_id,
                 responsesapi_client_metadata,
             )
@@ -305,7 +305,7 @@ impl CodexThread {
     /// work is allowed for this thread.
     ///
     /// This is the required entry point for extensions that want to launch
-    /// model-visible work from `ThreadLifecycleContributor::on_thread_idle`.
+    /// model-visible work from `ThreadLifecycleContributor::on_chat_idle`.
     /// The call succeeds only if no user/client-triggered turn is queued, no
     /// task is currently active, and the thread is not in Plan mode. Active
     /// Review tasks are rejected by the active-task check because Review turns

@@ -83,7 +83,7 @@ fn load_thread_config_request(
     context: ThreadConfigContext,
 ) -> tonic::Request<proto::LoadThreadConfigRequest> {
     let mut request = tonic::Request::new(proto::LoadThreadConfigRequest {
-        thread_id: context.thread_id,
+        chat_id: context.chat_id,
         cwd: context.cwd.map(|cwd| cwd.to_string_lossy().into_owned()),
     });
     request.set_timeout(REMOTE_THREAD_CONFIG_LOAD_TIMEOUT);
@@ -335,7 +335,7 @@ mod tests {
             assert_eq!(
                 request.into_inner(),
                 proto::LoadThreadConfigRequest {
-                    thread_id: Some("thread-1".to_string()),
+                    chat_id: Some("thread-1".to_string()),
                     cwd: Some(self.expected_cwd.clone()),
                 }
             );
@@ -393,7 +393,7 @@ mod tests {
         let loader = RemoteThreadConfigLoader::new(format!("http://{addr}"));
         let loaded = loader
             .load(ThreadConfigContext {
-                thread_id: Some("thread-1".to_string()),
+                chat_id: Some("thread-1".to_string()),
                 cwd: Some(cwd),
             })
             .await;

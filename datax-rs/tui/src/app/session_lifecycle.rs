@@ -12,39 +12,39 @@ impl App {
         // V2 subagents are identified by canonical paths observed from activity events or loaded
         // thread metadata. Prefer local buffered turn state for liveness, and fall back to
         // thread/read only when no local event channel exists.
-        let path_backed_thread_ids: Vec<_> = self
+        let path_backed_chat_ids: Vec<_> = self
             .agent_navigation
-            .ordered_path_backed_subagent_threads(self.primary_thread_id)
+            .ordered_path_backed_subagent_threads(self.primary_chat_id)
             .into_iter()
-            .map(|(thread_id, _)| thread_id)
+            .map(|(chat_id, _)| chat_id)
             .collect();
-        for thread_id in path_backed_thread_ids {
-            if let Some(channel) = self.thread_event_channels.get(&thread_id)
+        for chat_id in path_backed_chat_ids {
+            if let Some(channel) = self.thread_event_channels.get(&chat_id)
                 && channel.attachment() == ThreadEventAttachment::Live
             {
-                let is_running = channel.store.lock().await.active_turn_id().is_some();
-                self.agent_navigation.set_running(thread_id, is_running);
+                let is_running = channel.store.lock().await.active_interaction_id().is_some();
+                self.agent_navigation.set_running(chat_id, is_running);
             } else {
-                self.refresh_agent_picker_thread_liveness(app_server, thread_id)
+                self.refresh_agent_picker_thread_liveness(app_server, chat_id)
                     .await;
             }
         }
         let path_backed_threads = self
             .agent_navigation
-            .ordered_path_backed_subagent_threads(self.primary_thread_id);
+            .ordered_path_backed_subagent_threads(self.primary_chat_id);
         if !path_backed_threads.is_empty() {
             let running_threads: Vec<_> = path_backed_threads
                 .into_iter()
-                .filter_map(|(thread_id, entry)| {
+                .filter_map(|(chat_id, entry)| {
                     if !entry.is_running || entry.is_closed {
                         return None;
                     }
-                    Some((thread_id, entry.agent_path.as_deref()?.trim().to_string()))
+                    Some((chat_id, entry.agent_path.as_deref()?.trim().to_string()))
                 })
                 .collect();
             let mut entries = Vec::new();
-            for (thread_id, agent_path) in running_threads {
-                let preview = if let Some(channel) = self.thread_event_channels.get(&thread_id) {
+            for (chat_id, agent_path) in running_threads {
+                let preview = if let Some(channel) = self.thread_event_channels.get(&chat_id) {
                     let store = channel.store.lock().await;
                     super::agent_status_feed::AgentStatusThreadPreview::from_store(
                         agent_path, &store,
@@ -62,18 +62,18 @@ impl App {
             return;
         }
 
-        let mut thread_ids = self.agent_navigation.tracked_thread_ids();
-        for thread_id in self.thread_event_channels.keys().copied() {
-            if !thread_ids.contains(&thread_id) {
-                thread_ids.push(thread_id);
+        let mut chat_ids = self.agent_navigation.tracked_chat_ids();
+        for chat_id in self.thread_event_channels.keys().copied() {
+            if !chat_ids.contains(&chat_id) {
+                chat_ids.push(chat_id);
             }
         }
-        for thread_id in thread_ids {
-            if self.side_threads.contains_key(&thread_id) {
+        for chat_id in chat_ids {
+            if self.side_threads.contains_key(&chat_id) {
                 continue;
             }
             if !self
-                .refresh_agent_picker_thread_liveness(app_server, thread_id)
+                .refresh_agent_picker_thread_liveness(app_server, chat_id)
                 .await
             {
                 continue;
@@ -82,7 +82,7 @@ impl App {
 
         let has_non_primary_agent_thread = self
             .agent_navigation
-            .has_non_primary_thread(self.primary_thread_id);
+            .has_non_primary_thread(self.primary_chat_id);
         if !self.config.features.enabled(Feature::Collab) && !has_non_primary_agent_thread {
             self.chat_widget.open_multi_agent_enable_prompt();
             return;
@@ -100,23 +100,23 @@ impl App {
             .ordered_threads()
             .into_iter()
             .enumerate()
-            .map(|(idx, (thread_id, entry))| {
-                if self.active_thread_id == Some(thread_id) {
+            .map(|(idx, (chat_id, entry))| {
+                if self.active_chat_id == Some(chat_id) {
                     initial_selected_idx = Some(idx);
                 }
-                let id = thread_id;
-                let is_primary = self.primary_thread_id == Some(thread_id);
+                let id = chat_id;
+                let is_primary = self.primary_chat_id == Some(chat_id);
                 let name = format_agent_picker_item_name(
                     entry.agent_nickname.as_deref(),
                     entry.agent_role.as_deref(),
                     is_primary,
                 );
-                let uuid = thread_id.to_string();
+                let uuid = chat_id.to_string();
                 SelectionItem {
                     name: name.clone(),
                     name_prefix_spans: agent_picker_status_dot_spans(entry.is_closed),
                     description: Some(uuid.clone()),
-                    is_current: self.active_thread_id == Some(thread_id),
+                    is_current: self.active_chat_id == Some(chat_id),
                     actions: vec![Box::new(move |tx| {
                         tx.send(AppEvent::SelectAgentThread(id));
                     })],
@@ -163,18 +163,18 @@ impl App {
     /// the same displayed thread after nickname or role updates.
     pub(super) fn upsert_agent_picker_thread(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         agent_nickname: Option<String>,
         agent_role: Option<String>,
         is_closed: bool,
     ) {
         self.chat_widget.set_collab_agent_metadata(
-            thread_id,
+            chat_id,
             agent_nickname.clone(),
             agent_role.clone(),
         );
         self.agent_navigation
-            .upsert(thread_id, agent_nickname, agent_role, is_closed);
+            .upsert(chat_id, agent_nickname, agent_role, is_closed);
         self.sync_active_agent_label();
     }
 
@@ -182,20 +182,20 @@ impl App {
     ///
     /// Closing a thread is not the same as removing it: users can still inspect finished agent
     /// transcripts, and the stable next/previous traversal order should not collapse around them.
-    pub(super) fn mark_agent_picker_thread_closed(&mut self, thread_id: ThreadId) {
-        self.agent_navigation.mark_closed(thread_id);
+    pub(super) fn mark_agent_picker_thread_closed(&mut self, chat_id: ChatId) {
+        self.agent_navigation.mark_closed(chat_id);
         self.sync_active_agent_label();
     }
 
     pub(super) async fn refresh_agent_picker_thread_liveness(
         &mut self,
         app_server: &mut AppServerSession,
-        thread_id: ThreadId,
+        chat_id: ChatId,
     ) -> bool {
-        let existing_entry = self.agent_navigation.get(&thread_id).cloned();
-        let has_replay_channel = self.thread_event_channels.contains_key(&thread_id);
+        let existing_entry = self.agent_navigation.get(&chat_id).cloned();
+        let has_replay_channel = self.thread_event_channels.contains_key(&chat_id);
         match app_server
-            .thread_read(thread_id, /*include_turns*/ false)
+            .thread_read(chat_id, /*include_turns*/ false)
             .await
         {
             Ok(thread) => {
@@ -208,7 +208,7 @@ impl App {
                     datax_app_server_protocol::ChatStatus::NotLoaded
                 );
                 self.upsert_agent_picker_thread(
-                    thread_id,
+                    chat_id,
                     thread.agent_nickname.or_else(|| {
                         existing_entry
                             .as_ref()
@@ -221,12 +221,12 @@ impl App {
                     }),
                     is_closed,
                 );
-                self.agent_navigation.set_running(thread_id, is_running);
+                self.agent_navigation.set_running(chat_id, is_running);
                 true
             }
             Err(err) => {
                 if Self::is_terminal_thread_read_error(&err) && !has_replay_channel {
-                    self.agent_navigation.remove(thread_id);
+                    self.agent_navigation.remove(chat_id);
                     return false;
                 }
                 let is_closed = Self::closed_state_for_thread_read_error(
@@ -235,19 +235,19 @@ impl App {
                 );
                 if let Some(entry) = existing_entry {
                     self.upsert_agent_picker_thread(
-                        thread_id,
+                        chat_id,
                         entry.agent_nickname,
                         entry.agent_role,
                         is_closed,
                     );
                 } else {
                     self.upsert_agent_picker_thread(
-                        thread_id, /*agent_nickname*/ None, /*agent_role*/ None,
+                        chat_id, /*agent_nickname*/ None, /*agent_role*/ None,
                         is_closed,
                     );
                 }
                 self.agent_navigation
-                    .set_running(thread_id, /*is_running*/ false);
+                    .set_running(chat_id, /*is_running*/ false);
                 true
             }
         }
@@ -262,25 +262,25 @@ impl App {
     pub(super) async fn attach_live_thread_for_selection(
         &mut self,
         app_server: &mut AppServerSession,
-        thread_id: ThreadId,
+        chat_id: ChatId,
     ) -> Result<bool> {
-        if self.thread_event_channels.contains_key(&thread_id) {
+        if self.thread_event_channels.contains_key(&chat_id) {
             return Ok(true);
         }
 
         let (session, turns, live_attached) = match app_server
-            .resume_thread(self.config.clone(), thread_id)
+            .resume_thread(self.config.clone(), chat_id)
             .await
         {
             Ok(started) => (started.session, started.turns, true),
             Err(resume_err) => {
                 tracing::warn!(
-                    thread_id = %thread_id,
+                    chat_id = %chat_id,
                     error = %resume_err,
                     "failed to resume live thread for selection; falling back to thread/read"
                 );
                 let (thread, turns) = match app_server
-                    .thread_read(thread_id, /*include_turns*/ true)
+                    .thread_read(chat_id, /*include_turns*/ true)
                     .await
                 {
                     Ok(thread) => {
@@ -289,7 +289,7 @@ impl App {
                     }
                     Err(err) if Self::can_fallback_from_include_turns_error(&err) => {
                         let thread = app_server
-                            .thread_read(thread_id, /*include_turns*/ false)
+                            .thread_read(chat_id, /*include_turns*/ false)
                             .await?;
                         (thread, Vec::new())
                     }
@@ -299,17 +299,17 @@ impl App {
                     // A `thread/read` fallback without turns would create a blank local replay
                     // channel with no live listener attached, which blocks later real re-attach.
                     return Err(color_eyre::eyre::eyre!(
-                        "Agent thread {thread_id} is not yet available for replay or live attach."
+                        "Agent thread {chat_id} is not yet available for replay or live attach."
                     ));
                 }
-                let mut session = self.session_state_for_thread_read(thread_id, &thread).await;
+                let mut session = self.session_state_for_thread_read(chat_id, &thread).await;
                 // `thread/read` can seed replay state, but it does not attach the app-server
                 // listener that `thread/resume` establishes, so treat this path as replay-only.
                 session.model.clear();
                 (session, turns, false)
             }
         };
-        let channel = self.ensure_thread_channel(thread_id);
+        let channel = self.ensure_thread_channel(chat_id);
         if !live_attached {
             channel.mark_replay_only();
         }
@@ -334,9 +334,9 @@ impl App {
             chat_widget.last_terminal_title = previous_terminal_title;
         }
         chat_widget.remote_connection = self.chat_widget.remote_connection.clone();
-        for (thread_id, entry) in self.agent_navigation.ordered_threads() {
+        for (chat_id, entry) in self.agent_navigation.ordered_threads() {
             chat_widget.set_collab_agent_metadata(
-                thread_id,
+                chat_id,
                 entry.agent_nickname.clone(),
                 entry.agent_role.clone(),
             );
@@ -349,29 +349,29 @@ impl App {
         &mut self,
         tui: &mut tui::Tui,
         app_server: &mut AppServerSession,
-        thread_id: ThreadId,
+        chat_id: ChatId,
     ) -> Result<()> {
-        if self.active_thread_id == Some(thread_id) {
+        if self.active_chat_id == Some(chat_id) {
             return Ok(());
         }
 
         if !self
-            .refresh_agent_picker_thread_liveness(app_server, thread_id)
+            .refresh_agent_picker_thread_liveness(app_server, chat_id)
             .await
         {
             self.chat_widget
-                .add_error_message(format!("Agent thread {thread_id} is no longer available."));
+                .add_error_message(format!("Agent thread {chat_id} is no longer available."));
             return Ok(());
         }
 
         let mut is_replay_only = self
             .agent_navigation
-            .get(&thread_id)
+            .get(&chat_id)
             .is_some_and(|entry| entry.is_closed);
         let mut attached_replay_only = false;
-        if self.should_attach_live_thread_for_selection(thread_id) {
+        if self.should_attach_live_thread_for_selection(chat_id) {
             match self
-                .attach_live_thread_for_selection(app_server, thread_id)
+                .attach_live_thread_for_selection(app_server, chat_id)
                 .await
             {
                 Ok(live_attached) => {
@@ -382,39 +382,39 @@ impl App {
                 }
                 Err(err) => {
                     self.chat_widget.add_error_message(format!(
-                        "Failed to attach to agent thread {thread_id}: {err}"
+                        "Failed to attach to agent thread {chat_id}: {err}"
                     ));
                     return Ok(());
                 }
             }
-        } else if !self.thread_event_channels.contains_key(&thread_id) && is_replay_only {
+        } else if !self.thread_event_channels.contains_key(&chat_id) && is_replay_only {
             self.chat_widget
-                .add_error_message(format!("Agent thread {thread_id} is no longer available."));
+                .add_error_message(format!("Agent thread {chat_id} is no longer available."));
             return Ok(());
         }
 
-        let previous_thread_id = self.active_thread_id;
+        let previous_chat_id = self.active_chat_id;
         self.store_active_thread_receiver().await;
-        self.active_thread_id = None;
-        let Some((receiver, mut snapshot)) = self.activate_thread_for_replay(thread_id).await
+        self.active_chat_id = None;
+        let Some((receiver, mut snapshot)) = self.activate_thread_for_replay(chat_id).await
         else {
             self.chat_widget
-                .add_error_message(format!("Agent thread {thread_id} is already active."));
-            if let Some(previous_thread_id) = previous_thread_id {
-                self.activate_thread_channel(previous_thread_id).await;
+                .add_error_message(format!("Agent thread {chat_id} is already active."));
+            if let Some(previous_chat_id) = previous_chat_id {
+                self.activate_thread_channel(previous_chat_id).await;
             }
             return Ok(());
         };
 
         self.refresh_snapshot_session_if_needed(
             app_server,
-            thread_id,
+            chat_id,
             is_replay_only,
             &mut snapshot,
         )
         .await;
 
-        self.active_thread_id = Some(thread_id);
+        self.active_chat_id = Some(chat_id);
         self.active_thread_rx = Some(receiver);
 
         let init = self.chatwidget_init_for_forked_or_resumed_thread(
@@ -429,10 +429,10 @@ impl App {
         if is_replay_only {
             let message = if attached_replay_only {
                 format!(
-                    "Agent thread {thread_id} could not be resumed live. Replaying saved transcript."
+                    "Agent thread {chat_id} could not be resumed live. Replaying saved transcript."
                 )
             } else {
-                format!("Agent thread {thread_id} is closed. Replaying saved transcript.")
+                format!("Agent thread {chat_id} is closed. Replaying saved transcript.")
             };
             self.chat_widget.add_info_message(message, /*hint*/ None);
         }
@@ -442,11 +442,11 @@ impl App {
         Ok(())
     }
 
-    pub(super) fn should_attach_live_thread_for_selection(&self, thread_id: ThreadId) -> bool {
-        !self.thread_event_channels.contains_key(&thread_id)
+    pub(super) fn should_attach_live_thread_for_selection(&self, chat_id: ChatId) -> bool {
+        !self.thread_event_channels.contains_key(&chat_id)
             && self
                 .agent_navigation
-                .get(&thread_id)
+                .get(&chat_id)
                 .is_none_or(|entry| !entry.is_closed)
     }
 
@@ -477,9 +477,9 @@ impl App {
         self.thread_event_channels.clear();
         self.agent_navigation.clear();
         self.side_threads.clear();
-        self.active_thread_id = None;
+        self.active_chat_id = None;
         self.active_thread_rx = None;
-        self.primary_thread_id = None;
+        self.primary_chat_id = None;
         self.last_subagent_backfill_attempt = None;
         self.primary_session_configured = None;
         self.pending_primary_events.clear();
@@ -496,14 +496,14 @@ impl App {
     ) -> Result<()> {
         if !self.pending_startup_thread_start {
             if let Ok(started) = result {
-                let thread_id = started.session.thread_id;
-                if let Err(err) = app_server.thread_unsubscribe(thread_id).await {
+                let chat_id = started.session.chat_id;
+                if let Err(err) = app_server.thread_unsubscribe(chat_id).await {
                     tracing::warn!(
-                        thread_id = %thread_id,
+                        chat_id = %chat_id,
                         "failed to unsubscribe stale startup thread: {err}"
                     );
                 }
-                self.discard_thread_local_state(thread_id).await;
+                self.discard_thread_local_state(chat_id).await;
             }
             return Ok(());
         }
@@ -542,16 +542,16 @@ impl App {
         let config = self.fresh_session_config();
         let summary = session_summary(
             self.chat_widget.token_usage(),
-            self.chat_widget.thread_id(),
+            self.chat_widget.chat_id(),
             self.chat_widget.thread_name(),
             self.chat_widget.rollout_path().as_deref(),
         );
         self.shutdown_current_thread(app_server).await;
-        let tracked_thread_ids: Vec<ThreadId> =
+        let tracked_chat_ids: Vec<ChatId> =
             self.thread_event_channels.keys().copied().collect();
-        for thread_id in tracked_thread_ids {
-            if let Err(err) = app_server.thread_unsubscribe(thread_id).await {
-                tracing::warn!("failed to unsubscribe tracked thread {thread_id}: {err}");
+        for chat_id in tracked_chat_ids {
+            if let Err(err) = app_server.thread_unsubscribe(chat_id).await {
+                tracing::warn!("failed to unsubscribe tracked thread {chat_id}: {err}");
             }
         }
         self.config = config.clone();
@@ -632,11 +632,11 @@ impl App {
         &mut self,
         app_server: &mut AppServerSession,
     ) -> bool {
-        let Some(primary_thread_id) = self.primary_thread_id else {
+        let Some(primary_chat_id) = self.primary_chat_id else {
             return false;
         };
 
-        let loaded_thread_ids = match app_server
+        let loaded_chat_ids = match app_server
             .thread_loaded_list(ChatLoadedListParams {
                 cursor: None,
                 limit: None,
@@ -652,38 +652,38 @@ impl App {
 
         let mut threads = Vec::new();
         let mut had_read_error = false;
-        for thread_id in loaded_thread_ids {
-            let Ok(thread_id) = ThreadId::from_string(&thread_id) else {
+        for chat_id in loaded_chat_ids {
+            let Ok(chat_id) = ChatId::from_string(&chat_id) else {
                 tracing::warn!("ignoring loaded thread with invalid id during subagent backfill");
                 continue;
             };
 
-            if thread_id == primary_thread_id {
+            if chat_id == primary_chat_id {
                 continue;
             }
 
             match app_server
-                .thread_read(thread_id, /*include_turns*/ false)
+                .thread_read(chat_id, /*include_turns*/ false)
                 .await
             {
                 Ok(thread) => threads.push(thread),
                 Err(err) => {
                     had_read_error = true;
-                    tracing::warn!(thread_id = %thread_id, %err, "failed to read loaded thread");
+                    tracing::warn!(chat_id = %chat_id, %err, "failed to read loaded thread");
                 }
             }
         }
 
-        for thread in find_loaded_subagent_threads_for_primary(threads, primary_thread_id) {
+        for thread in find_loaded_subagent_threads_for_primary(threads, primary_chat_id) {
             let agent_path = thread.agent_path;
             self.upsert_agent_picker_thread(
-                thread.thread_id,
+                thread.chat_id,
                 thread.agent_nickname,
                 thread.agent_role,
                 /*is_closed*/ false,
             );
             self.agent_navigation
-                .set_agent_path(thread.thread_id, agent_path);
+                .set_agent_path(thread.chat_id, agent_path);
         }
         self.sync_active_agent_label();
 
@@ -698,29 +698,29 @@ impl App {
     /// subagents), performs a full `backfill_loaded_subagent_threads` and retries. This ensures the
     /// first next/previous keypress in a resumed remote session discovers subagents on demand
     /// without requiring the user to wait for a proactive fetch.
-    pub(super) async fn adjacent_thread_id_with_backfill(
+    pub(super) async fn adjacent_chat_id_with_backfill(
         &mut self,
         app_server: &mut AppServerSession,
         direction: AgentNavigationDirection,
-    ) -> Option<ThreadId> {
-        let current_thread = self.current_displayed_thread_id();
-        if let Some(thread_id) = self
+    ) -> Option<ChatId> {
+        let current_thread = self.current_displayed_chat_id();
+        if let Some(chat_id) = self
             .agent_navigation
-            .adjacent_thread_id(current_thread, direction)
+            .adjacent_chat_id(current_thread, direction)
         {
-            return Some(thread_id);
+            return Some(chat_id);
         }
 
-        let primary_thread_id = self.primary_thread_id?;
-        if self.last_subagent_backfill_attempt == Some(primary_thread_id) {
+        let primary_chat_id = self.primary_chat_id?;
+        if self.last_subagent_backfill_attempt == Some(primary_chat_id) {
             return None;
         }
 
         if self.backfill_loaded_subagent_threads(app_server).await {
-            self.last_subagent_backfill_attempt = Some(primary_thread_id);
+            self.last_subagent_backfill_attempt = Some(primary_chat_id);
         }
         self.agent_navigation
-            .adjacent_thread_id(self.current_displayed_thread_id(), direction)
+            .adjacent_chat_id(self.current_displayed_chat_id(), direction)
     }
 
     pub(super) fn fresh_session_config(&self) -> Config {
@@ -778,7 +778,7 @@ impl App {
 
         let summary = session_summary(
             self.chat_widget.token_usage(),
-            self.chat_widget.thread_id(),
+            self.chat_widget.chat_id(),
             self.chat_widget.thread_name(),
             self.chat_widget.rollout_path().as_deref(),
         );
@@ -787,7 +787,7 @@ impl App {
             .await
         {
             Ok(resumed) => {
-                let resumed_thread_id = resumed.session.thread_id;
+                let resumed_chat_id = resumed.session.chat_id;
                 self.shutdown_current_thread(app_server).await;
                 self.config = resume_config;
                 tui.set_notification_settings(
@@ -817,7 +817,7 @@ impl App {
                         }
                         self.maybe_prompt_resume_paused_goal_after_resume(
                             app_server,
-                            resumed_thread_id,
+                            resumed_chat_id,
                         )
                         .await;
                     }

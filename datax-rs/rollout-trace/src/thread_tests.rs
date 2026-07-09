@@ -4,7 +4,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use datax_protocol::AgentPath;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::AgentStatus;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::SandboxPolicy;
@@ -23,11 +23,11 @@ use crate::replay_bundle;
 #[test]
 fn create_in_root_writes_replayable_lifecycle_events() -> anyhow::Result<()> {
     let temp = TempDir::new()?;
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let thread_trace = ThreadTraceContext::start_root_in_root_for_test(
         temp.path(),
         ThreadStartedTraceMetadata {
-            thread_id: thread_id.to_string(),
+            chat_id: chat_id.to_string(),
             agent_path: "/root".to_string(),
             task_name: None,
             nickname: None,
@@ -48,8 +48,8 @@ fn create_in_root_writes_replayable_lifecycle_events() -> anyhow::Result<()> {
     let replayed = replay_bundle(&bundle_dir)?;
 
     assert_eq!(replayed.status, RolloutStatus::Completed);
-    assert_eq!(replayed.root_thread_id, thread_id.to_string());
-    assert_eq!(replayed.threads[&thread_id.to_string()].agent_path, "/root");
+    assert_eq!(replayed.root_chat_id, chat_id.to_string());
+    assert_eq!(replayed.threads[&chat_id.to_string()].agent_path, "/root");
     assert_eq!(replayed.raw_payloads.len(), 1);
 
     Ok(())
@@ -58,21 +58,21 @@ fn create_in_root_writes_replayable_lifecycle_events() -> anyhow::Result<()> {
 #[test]
 fn spawned_thread_start_appends_to_root_bundle() -> anyhow::Result<()> {
     let temp = TempDir::new()?;
-    let root_thread_id = ThreadId::new();
-    let child_thread_id = ThreadId::new();
+    let root_chat_id = ChatId::new();
+    let child_chat_id = ChatId::new();
     let root_trace = ThreadTraceContext::start_root_in_root_for_test(
         temp.path(),
-        minimal_metadata(root_thread_id),
+        minimal_metadata(root_chat_id),
     )?;
 
     let child_trace = root_trace.start_child_thread_trace_or_disabled(ThreadStartedTraceMetadata {
-        thread_id: child_thread_id.to_string(),
+        chat_id: child_chat_id.to_string(),
         agent_path: "/root/repo_file_counter".to_string(),
         task_name: Some("repo_file_counter".to_string()),
         nickname: Some("Kepler".to_string()),
         agent_role: Some("worker".to_string()),
         session_source: SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-            parent_thread_id: root_thread_id,
+            parent_chat_id: root_chat_id,
             depth: 1,
             agent_path: Some(
                 AgentPath::try_from("/root/repo_file_counter").map_err(anyhow::Error::msg)?,
@@ -94,12 +94,12 @@ fn spawned_thread_start_appends_to_root_bundle() -> anyhow::Result<()> {
     assert_eq!(fs::read_dir(temp.path())?.count(), 1);
     assert_eq!(replayed.threads.len(), 2);
     assert_eq!(
-        replayed.threads[&child_thread_id.to_string()].agent_path,
+        replayed.threads[&child_chat_id.to_string()].agent_path,
         "/root/repo_file_counter"
     );
     assert_eq!(replayed.status, RolloutStatus::Running);
     assert_eq!(
-        replayed.threads[&child_thread_id.to_string()]
+        replayed.threads[&child_chat_id.to_string()]
             .execution
             .status,
         ExecutionStatus::Completed
@@ -120,7 +120,7 @@ fn disabled_thread_context_accepts_trace_calls_without_writing() -> anyhow::Resu
     thread_trace.record_tool_call_event("turn-1", &EventMsg::ShutdownComplete);
     thread_trace.record_agent_result_interaction(
         "turn-1",
-        ThreadId::new(),
+        ChatId::new(),
         &AgentResultTracePayload {
             child_agent_path: "/root/child",
             message: "done",
@@ -167,9 +167,9 @@ fn disabled_thread_context_accepts_trace_calls_without_writing() -> anyhow::Resu
 #[test]
 fn protocol_wrapper_records_selected_events_as_raw_payloads() -> anyhow::Result<()> {
     let temp = TempDir::new()?;
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let thread_trace =
-        ThreadTraceContext::start_root_in_root_for_test(temp.path(), minimal_metadata(thread_id))?;
+        ThreadTraceContext::start_root_in_root_for_test(temp.path(), minimal_metadata(chat_id))?;
 
     thread_trace.record_protocol_event(&EventMsg::ShutdownComplete);
 
@@ -189,9 +189,9 @@ fn protocol_wrapper_records_selected_events_as_raw_payloads() -> anyhow::Result<
     Ok(())
 }
 
-fn minimal_metadata(thread_id: ThreadId) -> ThreadStartedTraceMetadata {
+fn minimal_metadata(chat_id: ChatId) -> ThreadStartedTraceMetadata {
     ThreadStartedTraceMetadata {
-        thread_id: thread_id.to_string(),
+        chat_id: chat_id.to_string(),
         agent_path: "/root".to_string(),
         task_name: None,
         nickname: None,

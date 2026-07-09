@@ -66,24 +66,24 @@ async fn responses_turn_state_persists_within_turn_and_resets_after() -> Result<
     );
     assert_eq!(requests[2].header(TURN_STATE_HEADER), None);
 
-    let parse_turn_id = |header: Option<String>| {
+    let parse_interaction_id = |header: Option<String>| {
         let value = header?;
         let parsed: Value = serde_json::from_str(&value).ok()?;
         parsed
-            .get("turn_id")
+            .get("interaction_id")
             .and_then(Value::as_str)
             .map(str::to_string)
     };
 
-    let first_turn_id = parse_turn_id(requests[0].header("x-codex-turn-metadata"))
-        .expect("first request should include turn metadata turn_id");
-    let second_turn_id = parse_turn_id(requests[1].header("x-codex-turn-metadata"))
-        .expect("follow-up request should include turn metadata turn_id");
-    let third_turn_id = parse_turn_id(requests[2].header("x-codex-turn-metadata"))
-        .expect("new turn request should include turn metadata turn_id");
+    let first_interaction_id = parse_interaction_id(requests[0].header("x-codex-turn-metadata"))
+        .expect("first request should include turn metadata interaction_id");
+    let second_interaction_id = parse_interaction_id(requests[1].header("x-codex-turn-metadata"))
+        .expect("follow-up request should include turn metadata interaction_id");
+    let third_interaction_id = parse_interaction_id(requests[2].header("x-codex-turn-metadata"))
+        .expect("new turn request should include turn metadata interaction_id");
 
-    assert_eq!(first_turn_id, second_turn_id);
-    assert_ne!(second_turn_id, third_turn_id);
+    assert_eq!(first_interaction_id, second_interaction_id);
+    assert_ne!(second_interaction_id, third_interaction_id);
 
     Ok(())
 }

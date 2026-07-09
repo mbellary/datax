@@ -19,7 +19,7 @@ use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;
 use crate::bottom_pane::MentionBinding;
 use crate::mention_codec::decode_history_mentions_with_at_mentions;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::user_input::TextElement;
 
 /// A composer history entry that can rehydrate draft state.
@@ -111,7 +111,7 @@ impl HistoryEntry {
 /// rendering widget so the logic remains isolated and easier to test.
 pub(crate) struct ChatComposerHistory {
     /// Thread that owns persistent lookup responses for this metadata snapshot.
-    thread_id: Option<ThreadId>,
+    chat_id: Option<ChatId>,
     /// Identifier of the persistent history log used for stale lookup rejection.
     persistent_log_id: Option<u64>,
     /// Number of entries already present in the persistent cross-session
@@ -228,7 +228,7 @@ impl ChatComposerHistory {
     /// metadata-free lets the composer reset and reuse this helper across session lifecycles.
     pub fn new() -> Self {
         Self {
-            thread_id: None,
+            chat_id: None,
             persistent_log_id: None,
             persistent_entry_count: 0,
             local_history: Vec::new(),
@@ -258,8 +258,8 @@ impl ChatComposerHistory {
     /// This clears fetched entries, local entries, navigation cursors, and active search state
     /// because offsets only make sense within one history log snapshot. Reusing old offsets after a
     /// log-id change would allow a stale async response to hydrate the wrong prompt.
-    pub fn set_metadata(&mut self, thread_id: ThreadId, log_id: u64, entry_count: usize) {
-        self.thread_id = Some(thread_id);
+    pub fn set_metadata(&mut self, chat_id: ChatId, log_id: u64, entry_count: usize) {
+        self.chat_id = Some(chat_id);
         self.persistent_log_id = Some(log_id);
         self.persistent_entry_count = entry_count;
         self.fetched_history.clear();
@@ -656,7 +656,7 @@ impl ChatComposerHistory {
                     return self.search_match(offset, entry);
                 }
             } else if offset < self.persistent_entry_count
-                && let (Some(thread_id), Some(log_id)) = (self.thread_id, self.persistent_log_id)
+                && let (Some(chat_id), Some(log_id)) = (self.chat_id, self.persistent_log_id)
             {
                 if let Some(search) = self.search.as_mut() {
                     search.awaiting = Some(PendingHistorySearch {
@@ -666,7 +666,7 @@ impl ChatComposerHistory {
                     });
                 }
                 app_event_tx.send(AppEvent::LookupMessageHistoryEntry {
-                    thread_id,
+                    chat_id,
                     offset,
                     log_id,
                 });
@@ -797,10 +797,10 @@ impl ChatComposerHistory {
                 return None;
             }
 
-            if let (Some(thread_id), Some(log_id)) = (self.thread_id, self.persistent_log_id) {
+            if let (Some(chat_id), Some(log_id)) = (self.chat_id, self.persistent_log_id) {
                 self.pending_navigation_direction = Some(direction);
                 app_event_tx.send(AppEvent::LookupMessageHistoryEntry {
-                    thread_id,
+                    chat_id,
                     offset: global_idx,
                     log_id,
                 });
@@ -901,8 +901,8 @@ mod tests {
     use pretty_assertions::assert_eq;
     use tokio::sync::mpsc::unbounded_channel;
 
-    fn test_thread_id() -> ThreadId {
-        ThreadId::from_string("67e55044-10b1-426f-9247-bb680e5fe0c8")
+    fn test_chat_id() -> ChatId {
+        ChatId::from_string("67e55044-10b1-426f-9247-bb680e5fe0c8")
             .expect("thread id should parse")
     }
 
@@ -940,7 +940,7 @@ mod tests {
         let (tx, _rx) = unbounded_channel::<AppEvent>();
         let tx = AppEventSender::new(tx);
         let mut history = ChatComposerHistory::new();
-        history.set_metadata(test_thread_id(), /*log_id*/ 42, /*entry_count*/ 1);
+        history.set_metadata(test_chat_id(), /*log_id*/ 42, /*entry_count*/ 1);
 
         assert!(history.navigate_up(&tx).is_none());
         let disabled = history.on_entry_response(
@@ -1011,8 +1011,8 @@ mod tests {
 
         let mut history = ChatComposerHistory::new();
         // Pretend there are 3 persistent entries.
-        let thread_id = test_thread_id();
-        history.set_metadata(thread_id, /*log_id*/ 1, /*entry_count*/ 3);
+        let chat_id = test_chat_id();
+        history.set_metadata(chat_id, /*log_id*/ 1, /*entry_count*/ 3);
         history.record_local_submission(HistoryEntry::new("latest".to_string()));
 
         // First Up should recall current-session local history.
@@ -1028,14 +1028,14 @@ mod tests {
         // Verify that a history lookup request was sent.
         let event = rx.try_recv().expect("expected AppEvent to be sent");
         let AppEvent::LookupMessageHistoryEntry {
-            thread_id: response_thread_id,
+            chat_id: response_chat_id,
             offset,
             log_id,
         } = event
         else {
             panic!("unexpected event variant");
         };
-        assert_eq!(response_thread_id, thread_id);
+        assert_eq!(response_chat_id, chat_id);
         assert_eq!(offset, 2);
         assert_eq!(log_id, 1);
 
@@ -1056,14 +1056,14 @@ mod tests {
         // Verify second lookup request for offset 1.
         let event2 = rx.try_recv().expect("expected second event");
         let AppEvent::LookupMessageHistoryEntry {
-            thread_id: response_thread_id,
+            chat_id: response_chat_id,
             offset,
             log_id,
         } = event2
         else {
             panic!("unexpected event variant");
         };
-        assert_eq!(response_thread_id, thread_id);
+        assert_eq!(response_chat_id, chat_id);
         assert_eq!(offset, 1);
         assert_eq!(log_id, 1);
 
@@ -1208,7 +1208,7 @@ mod tests {
         let tx = AppEventSender::new(tx);
 
         let mut history = ChatComposerHistory::new();
-        history.set_metadata(test_thread_id(), /*log_id*/ 1, /*entry_count*/ 3);
+        history.set_metadata(test_chat_id(), /*log_id*/ 1, /*entry_count*/ 3);
 
         assert_eq!(
             HistorySearchResult::Pending,
@@ -1281,8 +1281,8 @@ mod tests {
         let tx = AppEventSender::new(tx);
 
         let mut history = ChatComposerHistory::new();
-        let thread_id = test_thread_id();
-        history.set_metadata(thread_id, /*log_id*/ 1, /*entry_count*/ 3);
+        let chat_id = test_chat_id();
+        history.set_metadata(chat_id, /*log_id*/ 1, /*entry_count*/ 3);
 
         assert_eq!(
             HistorySearchResult::Pending,
@@ -1294,14 +1294,14 @@ mod tests {
             )
         );
         let AppEvent::LookupMessageHistoryEntry {
-            thread_id: response_thread_id,
+            chat_id: response_chat_id,
             offset,
             log_id,
         } = rx.try_recv().expect("expected latest lookup")
         else {
             panic!("unexpected event variant");
         };
-        assert_eq!(response_thread_id, thread_id);
+        assert_eq!(response_chat_id, chat_id);
         assert_eq!(offset, 2);
         assert_eq!(log_id, 1);
 
@@ -1315,14 +1315,14 @@ mod tests {
             )
         );
         let AppEvent::LookupMessageHistoryEntry {
-            thread_id: response_thread_id,
+            chat_id: response_chat_id,
             offset,
             log_id,
         } = rx.try_recv().expect("expected next lookup")
         else {
             panic!("unexpected event variant");
         };
-        assert_eq!(response_thread_id, thread_id);
+        assert_eq!(response_chat_id, chat_id);
         assert_eq!(offset, 1);
         assert_eq!(log_id, 1);
 
@@ -1345,7 +1345,7 @@ mod tests {
         let tx = AppEventSender::new(tx);
 
         let mut history = ChatComposerHistory::new();
-        history.set_metadata(test_thread_id(), /*log_id*/ 1, /*entry_count*/ 4);
+        history.set_metadata(test_chat_id(), /*log_id*/ 1, /*entry_count*/ 4);
 
         assert_eq!(
             HistorySearchResult::Pending,
@@ -1464,7 +1464,7 @@ mod tests {
         let tx = AppEventSender::new(tx);
 
         let mut history = ChatComposerHistory::new();
-        history.set_metadata(test_thread_id(), /*log_id*/ 1, /*entry_count*/ 3);
+        history.set_metadata(test_chat_id(), /*log_id*/ 1, /*entry_count*/ 3);
         history
             .fetched_history
             .insert(1, HistoryEntry::new("command2".to_string()));

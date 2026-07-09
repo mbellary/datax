@@ -152,7 +152,7 @@ use datax_models_manager::model_presets::HIDE_GPT_5_1_CODEX_MAX_MIGRATION_PROMPT
 use datax_models_manager::model_presets::HIDE_GPT5_1_MIGRATION_PROMPT_CONFIG;
 use datax_otel::SessionTelemetry;
 use datax_otel::TelemetryAuthMode;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::Personality;
 #[cfg(target_os = "windows")]
 use datax_protocol::config_types::WindowsSandboxLevel;
@@ -244,24 +244,24 @@ enum ThreadInteractiveRequest {
     McpServerElicitation(McpServerElicitationFormRequest),
 }
 
-/// Extracts `receiver_thread_ids` from collab agent tool-call notifications.
+/// Extracts `receiver_chat_ids` from collab agent tool-call notifications.
 ///
 /// Only `ItemStarted` and `ItemCompleted` notifications with a `CollabAgentToolCall` item carry
 /// receiver thread ids. All other notification variants return `None`.
-fn collab_receiver_thread_ids(notification: &ServerNotification) -> Option<&[String]> {
+fn collab_receiver_chat_ids(notification: &ServerNotification) -> Option<&[String]> {
     match notification {
         ServerNotification::MessageStarted(notification) => match &notification.item {
             Message::CollabAgentToolCall {
-                receiver_thread_ids,
+                receiver_chat_ids,
                 ..
-            } => Some(receiver_thread_ids),
+            } => Some(receiver_chat_ids),
             _ => None,
         },
         ServerNotification::MessageCompleted(notification) => match &notification.item {
             Message::CollabAgentToolCall {
-                receiver_thread_ids,
+                receiver_chat_ids,
                 ..
-            } => Some(receiver_thread_ids),
+            } => Some(receiver_chat_ids),
             _ => None,
         },
         _ => None,
@@ -284,12 +284,12 @@ fn sub_agent_activity_item(notification: &ServerNotification) -> Option<&Message
 
 fn collab_receiver_is_not_found(
     notification: &ServerNotification,
-    receiver_thread_id: &str,
+    receiver_chat_id: &str,
 ) -> bool {
     match notification {
         ServerNotification::MessageCompleted(notification) => match &notification.item {
             Message::CollabAgentToolCall { agents_states, .. } => {
-                agents_states.get(receiver_thread_id).is_some_and(|state| {
+                agents_states.get(receiver_chat_id).is_some_and(|state| {
                     matches!(
                         &state.status,
                         datax_app_server_protocol::CollabAgentStatus::NotFound
@@ -398,7 +398,7 @@ const COMMIT_ANIMATION_TICK: Duration = tui::TARGET_FRAME_INTERVAL;
 #[derive(Debug, Clone)]
 pub struct AppExitInfo {
     pub token_usage: TokenUsage,
-    pub thread_id: Option<ThreadId>,
+    pub chat_id: Option<ChatId>,
     pub resume_hint: Option<String>,
     pub update_action: Option<UpdateAction>,
     pub exit_reason: ExitReason,
@@ -408,7 +408,7 @@ impl AppExitInfo {
     pub fn fatal(message: impl Into<String>) -> Self {
         Self {
             token_usage: TokenUsage::default(),
-            thread_id: None,
+            chat_id: None,
             resume_hint: None,
             update_action: None,
             exit_reason: ExitReason::Fatal(message.into()),
@@ -430,12 +430,12 @@ pub enum ExitReason {
 
 fn session_summary(
     token_usage: TokenUsage,
-    thread_id: Option<ThreadId>,
+    chat_id: Option<ChatId>,
     thread_name: Option<String>,
     rollout_path: Option<&Path>,
 ) -> Option<SessionSummary> {
     let usage_line = (!token_usage.is_zero()).then(|| token_usage.to_string());
-    let resume_hint = resume_hint_for_resumable_thread(thread_id, thread_name, rollout_path);
+    let resume_hint = resume_hint_for_resumable_thread(chat_id, thread_name, rollout_path);
 
     if usage_line.is_none() && resume_hint.is_none() {
         return None;
@@ -449,30 +449,30 @@ fn session_summary(
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ResumableThread {
-    thread_id: ThreadId,
+    chat_id: ChatId,
     thread_name: Option<String>,
 }
 
 fn resumable_thread(
-    thread_id: Option<ThreadId>,
+    chat_id: Option<ChatId>,
     thread_name: Option<String>,
     rollout_path: Option<&Path>,
 ) -> Option<ResumableThread> {
-    let thread_id = thread_id?;
+    let chat_id = chat_id?;
     let rollout_path = rollout_path?;
     rollout_path_is_resumable(rollout_path).then_some(ResumableThread {
-        thread_id,
+        chat_id,
         thread_name,
     })
 }
 
 fn resume_hint_for_resumable_thread(
-    thread_id: Option<ThreadId>,
+    chat_id: Option<ChatId>,
     thread_name: Option<String>,
     rollout_path: Option<&Path>,
 ) -> Option<String> {
-    let thread = resumable_thread(thread_id, thread_name, rollout_path)?;
-    datax_utils_cli::resume_hint(thread.thread_name.as_deref(), Some(thread.thread_id))
+    let thread = resumable_thread(chat_id, thread_name, rollout_path)?;
+    datax_utils_cli::resume_hint(thread.thread_name.as_deref(), Some(thread.chat_id))
 }
 
 fn rollout_path_is_resumable(rollout_path: &Path) -> bool {
@@ -559,20 +559,20 @@ pub(crate) struct App {
     /// process exit instead of being treated as an unexpected sub-agent death that
     /// triggers failover to the primary thread.
     ///
-    /// This is thread-scoped state (`Option<ThreadId>`) instead of a global bool
+    /// This is thread-scoped state (`Option<ChatId>`) instead of a global bool
     /// so shutdown events from other threads still take the normal failover path.
-    pending_shutdown_exit_thread_id: Option<ThreadId>,
+    pending_shutdown_exit_chat_id: Option<ChatId>,
 
     windows_sandbox: WindowsSandboxState,
 
-    thread_event_channels: HashMap<ThreadId, ThreadEventChannel>,
-    thread_event_listener_tasks: HashMap<ThreadId, JoinHandle<()>>,
+    thread_event_channels: HashMap<ChatId, ThreadEventChannel>,
+    thread_event_listener_tasks: HashMap<ChatId, JoinHandle<()>>,
     agent_navigation: AgentNavigationState,
-    side_threads: HashMap<ThreadId, SideThreadState>,
-    active_thread_id: Option<ThreadId>,
+    side_threads: HashMap<ChatId, SideThreadState>,
+    active_chat_id: Option<ChatId>,
     active_thread_rx: Option<mpsc::Receiver<ThreadBufferedEvent>>,
-    primary_thread_id: Option<ThreadId>,
-    last_subagent_backfill_attempt: Option<ThreadId>,
+    primary_chat_id: Option<ChatId>,
+    last_subagent_backfill_attempt: Option<ChatId>,
     primary_session_configured: Option<ThreadSessionState>,
     pending_primary_events: VecDeque<ThreadBufferedEvent>,
     pending_app_server_requests: PendingAppServerRequests,
@@ -650,7 +650,7 @@ fn spawn_startup_thread_start(
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum ActiveTurnSteerRace {
     Missing,
-    ExpectedTurnMismatch { actual_turn_id: String },
+    ExpectedTurnMismatch { actual_interaction_id: String },
 }
 
 fn active_turn_steer_race(error: &TypedRequestError) -> Option<ActiveTurnSteerRace> {
@@ -668,14 +668,14 @@ fn active_turn_steer_race(error: &TypedRequestError) -> Option<ActiveTurnSteerRa
     // includes the server's current active turn so we can resynchronize and retry once.
     let mismatch_prefix = "expected active turn id `";
     let mismatch_separator = "` but found `";
-    let actual_turn_id = source
+    let actual_interaction_id = source
         .message
         .strip_prefix(mismatch_prefix)?
         .split_once(mismatch_separator)?
         .1
         .strip_suffix('`')?
         .to_string();
-    Some(ActiveTurnSteerRace::ExpectedTurnMismatch { actual_turn_id })
+    Some(ActiveTurnSteerRace::ExpectedTurnMismatch { actual_interaction_id })
 }
 
 fn session_start_error(
@@ -831,7 +831,7 @@ impl App {
         let status_account_display = bootstrap.status_account_display.clone();
         let initial_plan_type = bootstrap.plan_type;
         let session_telemetry = SessionTelemetry::new(
-            ThreadId::new(),
+            ChatId::new(),
             model.as_str(),
             model.as_str(),
             /*account_id*/ None,
@@ -1037,15 +1037,15 @@ See the Codex keymap documentation for supported actions and examples."
             environment_manager,
             app_server_target,
             pending_update_action: None,
-            pending_shutdown_exit_thread_id: None,
+            pending_shutdown_exit_chat_id: None,
             windows_sandbox: WindowsSandboxState::default(),
             thread_event_channels: HashMap::new(),
             thread_event_listener_tasks: HashMap::new(),
             agent_navigation: AgentNavigationState::default(),
             side_threads: HashMap::new(),
-            active_thread_id: None,
+            active_chat_id: None,
             active_thread_rx: None,
-            primary_thread_id: None,
+            primary_chat_id: None,
             last_subagent_backfill_attempt: None,
             primary_session_configured: None,
             pending_primary_events: VecDeque::new(),
@@ -1059,11 +1059,11 @@ See the Codex keymap documentation for supported actions and examples."
         }
         let initial_session_started_at = Instant::now();
         if let Some(started) = initial_started_thread {
-            let thread_id = started.session.thread_id;
+            let chat_id = started.session.chat_id;
             app.enqueue_primary_thread_session(started.session, started.turns)
                 .await?;
             if should_prompt_for_paused_goal_after_startup_resume {
-                app.maybe_prompt_resume_paused_goal_after_resume(&mut app_server, thread_id)
+                app.maybe_prompt_resume_paused_goal_after_resume(&mut app_server, chat_id)
                     .await;
             }
         }
@@ -1205,7 +1205,7 @@ See the Codex keymap documentation for supported actions and examples."
                 };
                 if App::should_stop_waiting_for_initial_session(
                     waiting_for_initial_session_configured,
-                    app.primary_thread_id,
+                    app.primary_chat_id,
                 ) {
                     waiting_for_initial_session_configured = false;
                 }
@@ -1236,15 +1236,15 @@ See the Codex keymap documentation for supported actions and examples."
                 return Err(err);
             }
         };
-        let thread_id = app.chat_widget.thread_id().or(app.primary_thread_id);
+        let chat_id = app.chat_widget.chat_id().or(app.primary_chat_id);
         let resume_hint = resume_hint_for_resumable_thread(
-            thread_id,
+            chat_id,
             app.chat_widget.thread_name(),
             app.chat_widget.rollout_path().as_deref(),
         );
         Ok(AppExitInfo {
             token_usage: app.token_usage(),
-            thread_id,
+            chat_id,
             resume_hint,
             update_action: app.pending_update_action,
             exit_reason,

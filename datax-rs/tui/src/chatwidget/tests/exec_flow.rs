@@ -9,7 +9,7 @@ async fn exec_approval_emits_proposed_command_and_decision_history() {
     let ev = ExecApprovalRequestEvent {
         call_id: "call-short".into(),
         approval_id: Some("call-short".into()),
-        turn_id: "turn-short".into(),
+        interaction_id: "turn-short".into(),
         environment_id: None,
         command: vec!["bash".into(), "-lc".into(), "echo hello world".into()],
         cwd: AbsolutePathBuf::current_dir().expect("current dir"),
@@ -94,7 +94,7 @@ async fn exec_approval_uses_approval_id_when_present() {
         ExecApprovalRequestEvent {
             call_id: "call-parent".into(),
             approval_id: Some("approval-subcommand".into()),
-            turn_id: "turn-short".into(),
+            interaction_id: "turn-short".into(),
             environment_id: None,
             command: vec!["bash".into(), "-lc".into(), "echo hello world".into()],
             cwd: AbsolutePathBuf::current_dir().expect("current dir"),
@@ -138,7 +138,7 @@ async fn exec_approval_decision_truncates_multiline_and_long_commands() {
     let ev_multi = ExecApprovalRequestEvent {
         call_id: "call-multi".into(),
         approval_id: Some("call-multi".into()),
-        turn_id: "turn-multi".into(),
+        interaction_id: "turn-multi".into(),
         environment_id: None,
         command: vec!["bash".into(), "-lc".into(), "echo line1\necho line2".into()],
         cwd: AbsolutePathBuf::current_dir().expect("current dir"),
@@ -192,7 +192,7 @@ async fn exec_approval_decision_truncates_multiline_and_long_commands() {
     let ev_long = ExecApprovalRequestEvent {
         call_id: "call-long".into(),
         approval_id: Some("call-long".into()),
-        turn_id: "turn-long".into(),
+        interaction_id: "turn-long".into(),
         environment_id: None,
         command: vec!["bash".into(), "-lc".into(), long],
         cwd: AbsolutePathBuf::current_dir().expect("current dir"),
@@ -222,7 +222,7 @@ async fn exec_approval_decision_truncates_multiline_and_long_commands() {
 #[tokio::test]
 async fn preamble_keeps_working_status_snapshot() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
 
     // Regression sequence: a preamble line is committed to history before any exec/tool event.
     // After commentary completes, the status row should be restored before subsequent work.
@@ -979,10 +979,10 @@ async fn user_shell_command_renders_output_not_exploring() {
 #[tokio::test]
 async fn bang_shell_enter_while_task_running_submits_run_user_shell_command() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let rollout_file = NamedTempFile::new().unwrap();
     let configured = crate::session_state::ThreadSessionState {
-        thread_id,
+        chat_id,
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -1026,7 +1026,7 @@ async fn bang_shell_enter_while_task_running_submits_run_user_shell_command() {
 #[tokio::test]
 async fn user_message_during_user_shell_command_is_queued_not_steered() {
     let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     handle_turn_started(&mut chat, "turn-1");
     let begin = begin_exec_with_source(
         &mut chat,
@@ -1102,7 +1102,7 @@ async fn approval_modal_exec_snapshot() -> anyhow::Result<()> {
     let ev = ExecApprovalRequestEvent {
         call_id: "call-approve-cmd".into(),
         approval_id: Some("call-approve-cmd".into()),
-        turn_id: "turn-approve-cmd".into(),
+        interaction_id: "turn-approve-cmd".into(),
         environment_id: None,
         command: vec!["bash".into(), "-lc".into(), "echo hello world".into()],
         cwd: AbsolutePathBuf::current_dir().expect("current dir"),
@@ -1160,7 +1160,7 @@ async fn approval_modal_exec_without_reason_snapshot() -> anyhow::Result<()> {
     let ev = ExecApprovalRequestEvent {
         call_id: "call-approve-cmd-noreason".into(),
         approval_id: Some("call-approve-cmd-noreason".into()),
-        turn_id: "turn-approve-cmd-noreason".into(),
+        interaction_id: "turn-approve-cmd-noreason".into(),
         environment_id: None,
         command: vec!["bash".into(), "-lc".into(), "echo hello world".into()],
         cwd: AbsolutePathBuf::current_dir().expect("current dir"),
@@ -1207,7 +1207,7 @@ async fn approval_modal_exec_multiline_prefix_hides_execpolicy_option_snapshot()
     let ev = ExecApprovalRequestEvent {
         call_id: "call-approve-cmd-multiline-trunc".into(),
         approval_id: Some("call-approve-cmd-multiline-trunc".into()),
-        turn_id: "turn-approve-cmd-multiline-trunc".into(),
+        interaction_id: "turn-approve-cmd-multiline-trunc".into(),
         environment_id: None,
         command: command.clone(),
         cwd: AbsolutePathBuf::current_dir().expect("current dir"),
@@ -1257,7 +1257,7 @@ async fn approval_modal_patch_snapshot() -> anyhow::Result<()> {
     );
     let ev = ApplyPatchApprovalRequestEvent {
         call_id: "call-approve-patch".into(),
-        turn_id: "turn-approve-patch".into(),
+        interaction_id: "turn-approve-patch".into(),
         changes,
         reason: Some("The model wants to apply changes".into()),
         grant_root: Some(PathBuf::from("/tmp")),
@@ -1377,7 +1377,7 @@ async fn apply_patch_events_emit_history_cells() {
     );
     let ev = ApplyPatchApprovalRequestEvent {
         call_id: "c1".into(),
-        turn_id: "turn-c1".into(),
+        interaction_id: "turn-c1".into(),
         changes,
         reason: None,
         grant_root: None,
@@ -1443,7 +1443,7 @@ async fn apply_patch_manual_approval_adjusts_header() {
         "s1",
         ApplyPatchApprovalRequestEvent {
             call_id: "c1".into(),
-            turn_id: "turn-c1".into(),
+            interaction_id: "turn-c1".into(),
             changes: proposed_changes,
             reason: None,
             grant_root: None,
@@ -1485,7 +1485,7 @@ async fn apply_patch_manual_flow_snapshot() {
         "s1",
         ApplyPatchApprovalRequestEvent {
             call_id: "c1".into(),
-            turn_id: "turn-c1".into(),
+            interaction_id: "turn-c1".into(),
             changes: proposed_changes,
             reason: Some("Manual review required".into()),
             grant_root: None,
@@ -1528,7 +1528,7 @@ async fn apply_patch_approval_sends_op_with_call_id() {
     );
     let ev = ApplyPatchApprovalRequestEvent {
         call_id: "call-999".into(),
-        turn_id: "turn-999".into(),
+        interaction_id: "turn-999".into(),
         changes,
         reason: None,
         grant_root: None,
@@ -1573,7 +1573,7 @@ async fn apply_patch_full_flow_integration_like() {
         "sub-xyz",
         ApplyPatchApprovalRequestEvent {
             call_id: "call-1".into(),
-            turn_id: "turn-call-1".into(),
+            interaction_id: "turn-call-1".into(),
             changes,
             reason: None,
             grant_root: None,
@@ -1648,7 +1648,7 @@ async fn apply_patch_untrusted_shows_approval_modal() -> anyhow::Result<()> {
         "sub-1",
         ApplyPatchApprovalRequestEvent {
             call_id: "call-1".into(),
-            turn_id: "turn-call-1".into(),
+            interaction_id: "turn-call-1".into(),
             changes,
             reason: None,
             grant_root: None,
@@ -1703,7 +1703,7 @@ async fn apply_patch_request_omits_diff_summary_from_modal() -> anyhow::Result<(
         "sub-apply",
         ApplyPatchApprovalRequestEvent {
             call_id: "call-apply".into(),
-            turn_id: "turn-apply".into(),
+            interaction_id: "turn-apply".into(),
             changes,
             reason: None,
             grant_root: None,

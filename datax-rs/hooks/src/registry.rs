@@ -137,9 +137,9 @@ impl Hooks {
     pub async fn run_session_start(
         &self,
         request: SessionStartRequest,
-        turn_id: Option<String>,
+        interaction_id: Option<String>,
     ) -> SessionStartOutcome {
-        self.engine.run_session_start(request, turn_id).await
+        self.engine.run_session_start(request, interaction_id).await
     }
 
     pub async fn run_pre_tool_use(&self, request: PreToolUseRequest) -> PreToolUseOutcome {

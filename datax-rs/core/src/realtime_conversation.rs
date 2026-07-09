@@ -891,7 +891,7 @@ pub(crate) async fn build_realtime_session_config(
             params
                 .realtime_session_id
                 .clone()
-                .unwrap_or_else(|| sess.thread_id.to_string()),
+                .unwrap_or_else(|| sess.chat_id.to_string()),
         ),
         event_parser,
         session_mode,

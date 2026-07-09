@@ -35,7 +35,7 @@ use datax_model_provider_info::ModelProviderAwsAuthInfo;
 use datax_model_provider_info::ModelProviderInfo;
 use datax_models_manager::test_support::construct_model_info_offline_for_tests;
 use datax_models_manager::test_support::get_model_offline_for_tests;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::ApprovalsReviewer;
 use datax_protocol::config_types::ReasoningSummary;
 use datax_protocol::models::ActivePermissionProfile;
@@ -924,9 +924,9 @@ async fn status_snapshot_includes_forked_from() {
     let model_slug = get_model_offline_for_tests(config.model.as_deref());
     let token_info = token_info_for(&model_slug, &config, &usage);
     let session_id =
-        ThreadId::from_string("0f0f3c13-6cf9-4aa4-8b80-7d49c2f1be2e").expect("session id");
+        ChatId::from_string("0f0f3c13-6cf9-4aa4-8b80-7d49c2f1be2e").expect("session id");
     let forked_from =
-        ThreadId::from_string("e9f18a88-8081-4e51-9d4e-8af5cde2d8dd").expect("forked id");
+        ChatId::from_string("e9f18a88-8081-4e51-9d4e-8af5cde2d8dd").expect("forked id");
 
     let composite = new_status_output(
         &config,

@@ -45,7 +45,7 @@ use datax_model_provider_info::ModelProviderInfo;
 use datax_model_provider_info::OPENAI_PROVIDER_ID;
 use datax_models_manager::manager::StaticModelsManager;
 use datax_network_proxy::NetworkProxyConfig;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::approvals::NetworkApprovalProtocol;
 use datax_protocol::config_types::ApprovalsReviewer;
 use datax_protocol::models::ContentItem;
@@ -67,7 +67,7 @@ use datax_protocol::protocol::GuardianRiskLevel;
 use datax_protocol::protocol::GuardianUserAuthorization;
 use datax_protocol::protocol::ReviewDecision;
 use datax_protocol::protocol::RolloutItem;
-use datax_protocol::protocol::TurnCompleteEvent;
+use datax_protocol::protocol::InteractionCompleteEvent;
 use insta::Settings;
 use insta::assert_snapshot;
 use pretty_assertions::assert_eq;
@@ -78,8 +78,8 @@ use std::time::Duration;
 use tempfile::TempDir;
 use tokio_util::sync::CancellationToken;
 
-fn fixed_guardian_parent_session_id() -> ThreadId {
-    ThreadId::from_string("11111111-1111-4111-8111-111111111111")
+fn fixed_guardian_parent_session_id() -> ChatId {
+    ChatId::from_string("11111111-1111-4111-8111-111111111111")
         .expect("fixed parent session id should be a valid UUID")
 }
 
@@ -231,7 +231,7 @@ async fn guardian_test_session_turn_and_rx(
         crate::session::tests::make_session_and_context_with_rx().await;
     Arc::get_mut(&mut session)
         .expect("session should be uniquely owned")
-        .thread_id = fixed_guardian_parent_session_id();
+        .chat_id = fixed_guardian_parent_session_id();
     let mut config = (*turn.config).clone();
     config.model_provider.base_url = Some(format!("{}/v1", server.uri()));
     let config = Arc::new(config);
@@ -268,7 +268,7 @@ async fn guardian_test_session_and_turn_with_base_url(
     base_url: &str,
 ) -> (Arc<Session>, Arc<TurnContext>) {
     let (mut session, mut turn) = crate::session::tests::make_session_and_context().await;
-    session.thread_id = fixed_guardian_parent_session_id();
+    session.chat_id = fixed_guardian_parent_session_id();
     let mut config = (*turn.config).clone();
     config.model_provider.base_url = Some(format!("{base_url}/v1"));
     let config = Arc::new(config);
@@ -461,7 +461,7 @@ async fn build_guardian_prompt_full_mode_preserves_initial_review_format() -> an
 #[tokio::test(flavor = "current_thread")]
 async fn build_guardian_prompt_includes_parent_turn_denied_reads() -> anyhow::Result<()> {
     let (mut session, mut turn) = crate::session::tests::make_session_and_context().await;
-    session.thread_id = fixed_guardian_parent_session_id();
+    session.chat_id = fixed_guardian_parent_session_id();
     let denied_root = test_path_buf("/repo/private").abs();
     let denied_glob = test_path_buf("/repo/private/**").display().to_string();
     turn.permission_profile = PermissionProfile::from_runtime_permissions(
@@ -959,7 +959,7 @@ fn guardian_approval_request_to_json_renders_network_access_trigger() -> serde_j
     let cwd = test_path_buf("/repo").abs();
     let action = GuardianApprovalRequest::NetworkAccess {
         id: "network-1".to_string(),
-        turn_id: "turn-1".to_string(),
+        interaction_id: "turn-1".to_string(),
         target: "https://example.com:443".to_string(),
         host: "example.com".to_string(),
         protocol: NetworkApprovalProtocol::Https,
@@ -1009,7 +1009,7 @@ async fn build_guardian_prompt_items_explains_network_access_review_scope() -> a
         Some("Network access to \"example.com\" is blocked by policy.".to_string()),
         GuardianApprovalRequest::NetworkAccess {
             id: "network-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             target: "https://example.com:443".to_string(),
             host: "example.com".to_string(),
             protocol: NetworkApprovalProtocol::Https,
@@ -1090,10 +1090,10 @@ fn guardian_assessment_action_redacts_apply_patch_patch_text() {
 }
 
 #[test]
-fn guardian_request_turn_id_prefers_network_access_owner_turn() {
+fn guardian_request_interaction_id_prefers_network_access_owner_turn() {
     let network_access = GuardianApprovalRequest::NetworkAccess {
         id: "network-1".to_string(),
-        turn_id: "owner-turn".to_string(),
+        interaction_id: "owner-turn".to_string(),
         target: "https://example.com:443".to_string(),
         host: "example.com".to_string(),
         protocol: NetworkApprovalProtocol::Https,
@@ -1109,11 +1109,11 @@ fn guardian_request_turn_id_prefers_network_access_owner_turn() {
     };
 
     assert_eq!(
-        guardian_request_turn_id(&network_access, "fallback-turn"),
+        guardian_request_interaction_id(&network_access, "fallback-turn"),
         "owner-turn"
     );
     assert_eq!(
-        guardian_request_turn_id(&apply_patch, "fallback-turn"),
+        guardian_request_interaction_id(&apply_patch, "fallback-turn"),
         "fallback-turn"
     );
 }
@@ -1122,7 +1122,7 @@ fn guardian_request_turn_id_prefers_network_access_owner_turn() {
 fn guardian_request_target_item_id_omits_network_access_trigger_call_id() {
     let network_access = GuardianApprovalRequest::NetworkAccess {
         id: "network-1".to_string(),
-        turn_id: "owner-turn".to_string(),
+        interaction_id: "owner-turn".to_string(),
         target: "https://example.com:443".to_string(),
         host: "example.com".to_string(),
         protocol: NetworkApprovalProtocol::Https,
@@ -1645,7 +1645,7 @@ async fn guardian_review_request_layout_matches_model_visible_request_snapshot()
     .await;
 
     let (mut session, mut turn) = crate::session::tests::make_session_and_context().await;
-    session.thread_id = fixed_guardian_parent_session_id();
+    session.chat_id = fixed_guardian_parent_session_id();
     let temp_cwd = TempDir::new()?;
     let mut config = (*turn.config).clone();
     config.cwd = temp_cwd.abs();
@@ -1730,13 +1730,13 @@ async fn guardian_review_request_layout_matches_model_visible_request_snapshot()
     let (GuardianReviewOutcome::Completed(assessment), metadata) = outcome else {
         panic!("expected guardian assessment");
     };
-    let guardian_thread_id = metadata
-        .guardian_thread_id
+    let guardian_chat_id = metadata
+        .guardian_chat_id
         .as_deref()
         .expect("guardian thread id");
     assert_eq!(assessment.outcome, GuardianAssessmentOutcome::Allow);
-    assert_ne!(guardian_thread_id, session.thread_id.to_string());
-    ThreadId::from_string(guardian_thread_id).expect("guardian thread id should be a valid UUID");
+    assert_ne!(guardian_chat_id, session.chat_id.to_string());
+    ChatId::from_string(guardian_chat_id).expect("guardian thread id should be a valid UUID");
     assert!(matches!(
         metadata.guardian_session_kind,
         Some(datax_analytics::GuardianReviewSessionKind::TrunkNew)
@@ -1851,7 +1851,7 @@ async fn build_guardian_prompt_items_includes_parent_session_id() -> anyhow::Res
     assert!(
         prompt_text.contains(&format!(
             ">>> TRANSCRIPT END\nReviewed Codex session id: {}\n",
-            session.thread_id
+            session.chat_id
         )),
         "guardian prompt should expose the parent session id immediately after the transcript end"
     );
@@ -2035,23 +2035,23 @@ async fn guardian_reuses_prompt_cache_key_and_appends_prior_reviews() -> anyhow:
         third_metadata.guardian_session_kind,
         Some(datax_analytics::GuardianReviewSessionKind::TrunkReused)
     ));
-    ThreadId::from_string(
+    ChatId::from_string(
         first_metadata
-            .guardian_thread_id
+            .guardian_chat_id
             .as_deref()
             .expect("first guardian thread id"),
     )
     .expect("first guardian thread id should be a valid UUID");
-    ThreadId::from_string(
+    ChatId::from_string(
         second_metadata
-            .guardian_thread_id
+            .guardian_chat_id
             .as_deref()
             .expect("second guardian thread id"),
     )
     .expect("second guardian thread id should be a valid UUID");
-    ThreadId::from_string(
+    ChatId::from_string(
         third_metadata
-            .guardian_thread_id
+            .guardian_chat_id
             .as_deref()
             .expect("third guardian thread id"),
     )
@@ -2060,12 +2060,12 @@ async fn guardian_reuses_prompt_cache_key_and_appends_prior_reviews() -> anyhow:
     assert_eq!(second_metadata.had_prior_review_context, Some(true));
     assert_eq!(third_metadata.had_prior_review_context, Some(true));
     assert_eq!(
-        first_metadata.guardian_thread_id,
-        second_metadata.guardian_thread_id
+        first_metadata.guardian_chat_id,
+        second_metadata.guardian_chat_id
     );
     assert_eq!(
-        second_metadata.guardian_thread_id,
-        third_metadata.guardian_thread_id
+        second_metadata.guardian_chat_id,
+        third_metadata.guardian_chat_id
     );
 
     let requests = request_log.requests();
@@ -2214,8 +2214,8 @@ async fn guardian_reused_trunk_ignores_stale_prior_turn_completion() -> anyhow::
         .guardian_review_session
         .send_trunk_event_raw_for_test(Event {
             id: "stale-turn".to_string(),
-            msg: EventMsg::TurnComplete(TurnCompleteEvent {
-                turn_id: "stale-turn".to_string(),
+            msg: EventMsg::InteractionComplete(InteractionCompleteEvent {
+                interaction_id: "stale-turn".to_string(),
                 last_agent_message: Some(
                     "{\"risk_level\":\"high\",\"user_authorization\":\"low\",\"outcome\":\"deny\",\"rationale\":\"stale guardian rationale\"}"
                         .to_string(),

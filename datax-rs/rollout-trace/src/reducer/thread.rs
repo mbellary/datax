@@ -31,12 +31,12 @@ impl TraceReducer {
         &mut self,
         seq: RawEventSeq,
         wall_time_unix_ms: i64,
-        thread_id: String,
+        chat_id: String,
         agent_path: String,
         metadata_payload: Option<RawPayloadRef>,
     ) -> Result<()> {
-        if self.rollout.threads.contains_key(&thread_id) {
-            bail!("duplicate thread start for {thread_id}");
+        if self.rollout.threads.contains_key(&chat_id) {
+            bail!("duplicate thread start for {chat_id}");
         }
 
         let metadata = metadata_payload
@@ -65,7 +65,7 @@ impl TraceReducer {
             .as_ref()
             .and_then(|metadata| metadata.model.clone());
         let origin = if let Some(spawn) = spawn {
-            let edge_id = spawn_edge_id(&spawn.parent_thread_id, &thread_id);
+            let edge_id = spawn_edge_id(&spawn.parent_chat_id, &chat_id);
             let task_name = spawn
                 .task_name
                 .clone()
@@ -73,7 +73,7 @@ impl TraceReducer {
             let agent_role = spawn.agent_role.clone().unwrap_or_default();
 
             AgentOrigin::Spawned {
-                parent_thread_id: spawn.parent_thread_id,
+                parent_chat_id: spawn.parent_chat_id,
                 spawn_edge_id: edge_id,
                 task_name,
                 agent_role,
@@ -83,9 +83,9 @@ impl TraceReducer {
         };
 
         self.rollout.threads.insert(
-            thread_id.clone(),
+            chat_id.clone(),
             AgentThread {
-                thread_id,
+                chat_id,
                 agent_path,
                 nickname,
                 origin,
@@ -108,10 +108,10 @@ impl TraceReducer {
         &mut self,
         seq: RawEventSeq,
         wall_time_unix_ms: i64,
-        thread_id: String,
+        chat_id: String,
         status: RolloutStatus,
     ) -> Result<()> {
-        let thread = self.thread_mut(&thread_id)?;
+        let thread = self.thread_mut(&chat_id)?;
         thread.execution.ended_at_unix_ms = Some(wall_time_unix_ms);
         thread.execution.ended_seq = Some(seq);
         thread.execution.status = match status {
@@ -128,20 +128,20 @@ impl TraceReducer {
         &mut self,
         seq: RawEventSeq,
         wall_time_unix_ms: i64,
-        codex_turn_id: CodexTurnId,
-        thread_id: String,
+        codex_interaction_id: CodexTurnId,
+        chat_id: String,
     ) -> Result<()> {
-        if self.rollout.codex_turns.contains_key(&codex_turn_id) {
-            bail!("duplicate codex turn start for {codex_turn_id}");
+        if self.rollout.codex_turns.contains_key(&codex_interaction_id) {
+            bail!("duplicate codex turn start for {codex_interaction_id}");
         }
 
-        self.thread_mut(&thread_id)?;
+        self.thread_mut(&chat_id)?;
 
         self.rollout.codex_turns.insert(
-            codex_turn_id.clone(),
+            codex_interaction_id.clone(),
             CodexTurn {
-                codex_turn_id,
-                thread_id,
+                codex_interaction_id,
+                chat_id,
                 execution: ExecutionWindow {
                     started_at_unix_ms: wall_time_unix_ms,
                     started_seq: seq,
@@ -160,23 +160,23 @@ impl TraceReducer {
         &mut self,
         seq: RawEventSeq,
         wall_time_unix_ms: i64,
-        thread_id: Option<String>,
-        codex_turn_id: CodexTurnId,
+        chat_id: Option<String>,
+        codex_interaction_id: CodexTurnId,
         status: ExecutionStatus,
     ) -> Result<()> {
-        if let Some(event_thread_id) = thread_id.as_deref()
-            && let Some(turn) = self.rollout.codex_turns.get(&codex_turn_id)
-            && turn.thread_id != event_thread_id
+        if let Some(event_chat_id) = chat_id.as_deref()
+            && let Some(turn) = self.rollout.codex_turns.get(&codex_interaction_id)
+            && turn.chat_id != event_chat_id
         {
             bail!(
-                "codex turn end for {codex_turn_id} used thread {event_thread_id}, \
+                "codex turn end for {codex_interaction_id} used thread {event_chat_id}, \
                  but the turn belongs to {}",
-                turn.thread_id
+                turn.chat_id
             );
         }
 
-        let Some(turn) = self.rollout.codex_turns.get_mut(&codex_turn_id) else {
-            bail!("codex turn end referenced unknown turn {codex_turn_id}");
+        let Some(turn) = self.rollout.codex_turns.get_mut(&codex_interaction_id) else {
+            bail!("codex turn end referenced unknown turn {codex_interaction_id}");
         };
         turn.execution.ended_at_unix_ms = Some(wall_time_unix_ms);
         turn.execution.ended_seq = Some(seq);
@@ -184,24 +184,24 @@ impl TraceReducer {
         self.terminate_running_code_cells_for_turn_end(
             seq,
             wall_time_unix_ms,
-            &codex_turn_id,
+            &codex_interaction_id,
             &status,
         )?;
         self.close_running_inference_calls_for_turn_end(
             seq,
             wall_time_unix_ms,
-            &codex_turn_id,
+            &codex_interaction_id,
             &status,
         );
         Ok(())
     }
 
     /// Returns a mutable thread or reports a reducer error tied to the unknown id.
-    pub(super) fn thread_mut(&mut self, thread_id: &str) -> Result<&mut AgentThread> {
+    pub(super) fn thread_mut(&mut self, chat_id: &str) -> Result<&mut AgentThread> {
         self.rollout
             .threads
-            .get_mut(thread_id)
-            .with_context(|| format!("trace event referenced unknown thread {thread_id}"))
+            .get_mut(chat_id)
+            .with_context(|| format!("trace event referenced unknown thread {chat_id}"))
     }
 
     fn thread_started_metadata(
@@ -237,7 +237,7 @@ impl ThreadStartedMetadata {
             .map(str::to_string)
             .or_else(|| self.agent_path.clone());
         Some(ThreadSpawnMetadata {
-            parent_thread_id: spawn.get("parent_thread_id")?.as_str()?.to_string(),
+            parent_chat_id: spawn.get("parent_chat_id")?.as_str()?.to_string(),
             agent_path: agent_path.clone(),
             task_name: spawn
                 .get("task_name")
@@ -255,7 +255,7 @@ impl ThreadStartedMetadata {
 }
 
 struct ThreadSpawnMetadata {
-    parent_thread_id: String,
+    parent_chat_id: String,
     agent_path: Option<String>,
     task_name: Option<String>,
     agent_role: Option<String>,

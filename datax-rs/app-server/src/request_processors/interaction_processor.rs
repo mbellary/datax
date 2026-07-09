@@ -73,7 +73,7 @@ pub(crate) struct InteractionRequestProcessor {
     arg0_paths: Arg0DispatchPaths,
     config: Arc<Config>,
     config_manager: ConfigManager,
-    pending_thread_unloads: Arc<Mutex<HashSet<ThreadId>>>,
+    pending_thread_unloads: Arc<Mutex<HashSet<ChatId>>>,
     thread_state_manager: ThreadStateManager,
     thread_watch_manager: ThreadWatchManager,
     thread_list_state_permit: Arc<Semaphore>,
@@ -129,7 +129,7 @@ impl InteractionRequestProcessor {
         arg0_paths: Arg0DispatchPaths,
         config: Arc<Config>,
         config_manager: ConfigManager,
-        pending_thread_unloads: Arc<Mutex<HashSet<ThreadId>>>,
+        pending_thread_unloads: Arc<Mutex<HashSet<ChatId>>>,
         thread_state_manager: ThreadStateManager,
         thread_watch_manager: ThreadWatchManager,
         thread_list_state_permit: Arc<Semaphore>,
@@ -299,9 +299,9 @@ impl InteractionRequestProcessor {
     async fn load_thread(
         &self,
         chat_id: &str,
-    ) -> Result<(ThreadId, Arc<CodexThread>), JSONRPCErrorError> {
+    ) -> Result<(ChatId, Arc<CodexThread>), JSONRPCErrorError> {
         // Resolve the core conversation handle from a v2 thread id string.
-        let chat_id = ThreadId::from_string(chat_id)
+        let chat_id = ChatId::from_string(chat_id)
             .map_err(|err| invalid_request(format!("invalid thread id: {err}")))?;
 
         let thread = self
@@ -551,7 +551,7 @@ impl InteractionRequestProcessor {
         }
 
         self.outgoing
-            .record_request_turn_id(&request_id, &interaction_id)
+            .record_request_interaction_id(&request_id, &interaction_id)
             .await;
         let turn = Interaction {
             id: interaction_id,
@@ -863,7 +863,7 @@ impl InteractionRequestProcessor {
             return Err(invalid_request("expectedTurnId must not be empty"));
         }
         self.outgoing
-            .record_request_turn_id(request_id, &params.expected_interaction_id)
+            .record_request_interaction_id(request_id, &params.expected_interaction_id)
             .await;
         if let Err(error) = Self::validate_v2_input_limit(&params.input) {
             self.track_error_response(
@@ -958,7 +958,7 @@ impl InteractionRequestProcessor {
         &self,
         request_id: &ConnectionRequestId,
         chat_id: &str,
-    ) -> Result<Option<(ThreadId, Arc<CodexThread>)>, JSONRPCErrorError> {
+    ) -> Result<Option<(ChatId, Arc<CodexThread>)>, JSONRPCErrorError> {
         let (chat_id, thread) = self.load_thread(chat_id).await?;
 
         match self
@@ -1190,7 +1190,7 @@ impl InteractionRequestProcessor {
     async fn start_detached_review(
         &self,
         request_id: &ConnectionRequestId,
-        parent_chat_id: ThreadId,
+        parent_chat_id: ChatId,
         parent_thread: Arc<CodexThread>,
         review_request: ReviewRequest,
         display_text: &str,
@@ -1216,7 +1216,7 @@ impl InteractionRequestProcessor {
         }
 
         let NewThread {
-            thread_id: chat_id,
+            chat_id: chat_id,
             chat: review_thread,
             ..
         } = self
@@ -1350,7 +1350,7 @@ impl InteractionRequestProcessor {
 
         let (thread_uuid, thread) = self.load_thread(&chat_id).await?;
 
-        // Record turn interrupts so we can reply when TurnAborted arrives. Startup
+        // Record turn interrupts so we can reply when InteractionAborted arrives. Startup
         // interrupts do not have a turn and are acknowledged after submission.
         if !is_startup_interrupt {
             let thread_state = self.thread_state_manager.thread_state(thread_uuid).await;
@@ -1364,7 +1364,7 @@ impl InteractionRequestProcessor {
                             active_turn.id
                         )));
                     }
-                } else if thread_state.last_terminal_turn_id.as_deref()
+                } else if thread_state.last_terminal_interaction_id.as_deref()
                     == Some(interaction_id.as_str())
                     || !is_running
                 {
@@ -1374,11 +1374,11 @@ impl InteractionRequestProcessor {
             }
 
             self.outgoing
-                .record_request_turn_id(request_id, &interaction_id)
+                .record_request_interaction_id(request_id, &interaction_id)
                 .await;
         }
 
-        // Submit the interrupt. Interaction interrupts respond upon TurnAborted; startup
+        // Submit the interrupt. Interaction interrupts respond upon InteractionAborted; startup
         // interrupts respond here because startup cancellation has no turn event.
         match self
             .submit_core_op(request_id, thread.as_ref(), Op::Interrupt)
@@ -1422,7 +1422,7 @@ impl InteractionRequestProcessor {
 
     async fn ensure_conversation_listener(
         &self,
-        conversation_id: ThreadId,
+        conversation_id: ChatId,
         connection_id: ConnectionId,
         raw_events_enabled: bool,
     ) -> Result<EnsureConversationListenerResult, JSONRPCErrorError> {

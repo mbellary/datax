@@ -58,7 +58,7 @@ use datax_app_server_protocol::UserInput;
 use datax_config::types::AuthCredentialsStoreMode;
 use datax_core::ARCHIVED_SESSIONS_SUBDIR;
 use datax_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::Personality;
 use datax_protocol::mcp::CallToolResult;
 use datax_protocol::models::ContentItem;
@@ -76,9 +76,9 @@ use datax_protocol::protocol::SessionSource as RolloutSessionSource;
 use datax_protocol::protocol::TokenCountEvent;
 use datax_protocol::protocol::TokenUsage;
 use datax_protocol::protocol::TokenUsageInfo;
-use datax_protocol::protocol::TurnAbortReason;
-use datax_protocol::protocol::TurnAbortedEvent;
-use datax_protocol::protocol::TurnStartedEvent;
+use datax_protocol::protocol::InteractionAbortReason;
+use datax_protocol::protocol::InteractionAbortedEvent;
+use datax_protocol::protocol::InteractionStartedEvent;
 use datax_protocol::user_input::ByteRange;
 use datax_protocol::user_input::TextElement;
 use datax_rollout::append_rollout_item_to_path;
@@ -197,7 +197,7 @@ async fn thread_resume_rejects_unmaterialized_thread() -> Result<()> {
 }
 
 #[tokio::test]
-async fn thread_resume_with_empty_path_uses_running_thread_id() -> Result<()> {
+async fn thread_resume_with_empty_path_uses_running_chat_id() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
     let codex_home = TempDir::new()?;
     create_config_toml(codex_home.path(), &server.uri())?;
@@ -1371,7 +1371,7 @@ async fn thread_goal_set_edits_objective_without_resetting_usage() -> Result<()>
 
     let state_db =
         StateRuntime::init(codex_home.path().to_path_buf(), "mock_provider".into()).await?;
-    let chat_id = ThreadId::from_string(&chat_id)?;
+    let chat_id = ChatId::from_string(&chat_id)?;
     let thread_metadata = state_db
         .get_thread(chat_id)
         .await?
@@ -1538,7 +1538,7 @@ async fn thread_goal_lifecycle_emits_analytics_and_clear_deletes_goal() -> Resul
         "budget_limited",
     )
     .await?;
-    let causal_turn_id = usage["event_params"]["interaction_id"]
+    let causal_interaction_id = usage["event_params"]["interaction_id"]
         .as_str()
         .expect("accounted usage turn id");
     assert_eq!(usage["event_params"]["goal_id"], persisted_goal_id);
@@ -1557,7 +1557,7 @@ async fn thread_goal_lifecycle_emits_analytics_and_clear_deletes_goal() -> Resul
     )
     .await?;
     assert_eq!(status["event_params"]["goal_id"], persisted_goal_id);
-    assert_eq!(status["event_params"]["interaction_id"], causal_turn_id);
+    assert_eq!(status["event_params"]["interaction_id"], causal_interaction_id);
     assert_eq!(
         status["event_params"]["cumulative_tokens_accounted"],
         serde_json::Value::Null
@@ -1776,13 +1776,13 @@ async fn thread_resume_token_usage_replay_ignores_stale_interrupted_tail_turn() 
     )?;
     let rollout_file_path = rollout_path(codex_home.path(), filename_ts, &conversation_id);
     let persisted_rollout = std::fs::read_to_string(&rollout_file_path)?;
-    let stale_turn_id = "incomplete-turn-after-token-usage";
+    let stale_interaction_id = "incomplete-turn-after-token-usage";
     let appended_rollout = [
         json!({
             "timestamp": meta_rfc3339,
             "type": "event_msg",
-            "payload": serde_json::to_value(EventMsg::TurnStarted(TurnStartedEvent {
-                turn_id: stale_turn_id.to_string(),
+            "payload": serde_json::to_value(EventMsg::InteractionStarted(InteractionStartedEvent {
+                interaction_id: stale_interaction_id.to_string(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: None,
@@ -1825,7 +1825,7 @@ async fn thread_resume_token_usage_replay_ignores_stale_interrupted_tail_turn() 
 
     assert_eq!(thread.interactions.len(), 2);
     assert_eq!(thread.interactions[0].status, InteractionStatus::Completed);
-    assert_eq!(thread.interactions[1].id, stale_turn_id);
+    assert_eq!(thread.interactions[1].id, stale_interaction_id);
     assert_eq!(
         thread.interactions[1].status,
         InteractionStatus::Interrupted
@@ -1843,7 +1843,7 @@ async fn thread_resume_token_usage_replay_ignores_stale_interrupted_tail_turn() 
 
     assert_eq!(notification.chat_id, thread.id);
     assert_eq!(notification.interaction_id, thread.interactions[0].id);
-    assert_ne!(notification.interaction_id, stale_turn_id);
+    assert_ne!(notification.interaction_id, stale_interaction_id);
     assert_eq!(notification.token_usage.total.total_tokens, 150);
     assert_eq!(notification.token_usage.last.total_tokens, 90);
 
@@ -1867,13 +1867,13 @@ async fn thread_resume_token_usage_replay_can_belong_to_interrupted_turn() -> Re
     )?;
     let rollout_file_path = rollout_path(codex_home.path(), filename_ts, &conversation_id);
     let persisted_rollout = std::fs::read_to_string(&rollout_file_path)?;
-    let interrupted_turn_id = "interrupted-turn-with-token-usage";
+    let interrupted_interaction_id = "interrupted-turn-with-token-usage";
     let appended_rollout = [
         json!({
             "timestamp": meta_rfc3339,
             "type": "event_msg",
-            "payload": serde_json::to_value(EventMsg::TurnStarted(TurnStartedEvent {
-                turn_id: interrupted_turn_id.to_string(),
+            "payload": serde_json::to_value(EventMsg::InteractionStarted(InteractionStartedEvent {
+                interaction_id: interrupted_interaction_id.to_string(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: None,
@@ -1919,9 +1919,9 @@ async fn thread_resume_token_usage_replay_can_belong_to_interrupted_turn() -> Re
         json!({
             "timestamp": meta_rfc3339,
             "type": "event_msg",
-            "payload": serde_json::to_value(EventMsg::TurnAborted(TurnAbortedEvent {
-                turn_id: Some(interrupted_turn_id.to_string()),
-                reason: TurnAbortReason::Interrupted,
+            "payload": serde_json::to_value(EventMsg::InteractionAborted(InteractionAbortedEvent {
+                interaction_id: Some(interrupted_interaction_id.to_string()),
+                reason: InteractionAbortReason::Interrupted,
                 completed_at: None,
                 duration_ms: None,
             }))?,
@@ -1952,7 +1952,7 @@ async fn thread_resume_token_usage_replay_can_belong_to_interrupted_turn() -> Re
 
     assert_eq!(thread.interactions.len(), 2);
     assert_eq!(thread.interactions[0].status, InteractionStatus::Completed);
-    assert_eq!(thread.interactions[1].id, interrupted_turn_id);
+    assert_eq!(thread.interactions[1].id, interrupted_interaction_id);
     assert_eq!(
         thread.interactions[1].status,
         InteractionStatus::Interrupted
@@ -1969,7 +1969,7 @@ async fn thread_resume_token_usage_replay_can_belong_to_interrupted_turn() -> Re
     };
 
     assert_eq!(notification.chat_id, thread.id);
-    assert_eq!(notification.interaction_id, interrupted_turn_id);
+    assert_eq!(notification.interaction_id, interrupted_interaction_id);
     assert_eq!(notification.token_usage.total.total_tokens, 230);
     assert_eq!(notification.token_usage.last.total_tokens, 130);
 
@@ -2062,7 +2062,7 @@ stream_max_retries = 0
     );
 
     let chat_id = Uuid::new_v4().to_string();
-    let conversation_id = ThreadId::from_string(&chat_id)?;
+    let conversation_id = ChatId::from_string(&chat_id)?;
     let rollout_path = rollout_path(codex_home.path(), "2025-01-05T12-00-00", &chat_id);
     let rollout_dir = rollout_path.parent().expect("rollout parent directory");
     std::fs::create_dir_all(rollout_dir)?;
@@ -2070,7 +2070,7 @@ stream_max_retries = 0
         session_id: conversation_id.into(),
         id: conversation_id,
         forked_from_id: None,
-        parent_thread_id: None,
+        parent_chat_id: None,
         timestamp: "2025-01-05T12:00:00Z".to_string(),
         cwd: repo_path.clone(),
         originator: "codex".to_string(),
@@ -2196,8 +2196,8 @@ async fn thread_resume_and_read_interrupt_incomplete_rollout_turn_when_thread_is
         json!({
             "timestamp": meta_rfc3339,
             "type": "event_msg",
-            "payload": serde_json::to_value(EventMsg::TurnStarted(TurnStartedEvent {
-                turn_id: interaction_id.to_string(),
+            "payload": serde_json::to_value(EventMsg::InteractionStarted(InteractionStartedEvent {
+                interaction_id: interaction_id.to_string(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: None,
@@ -2442,7 +2442,7 @@ async fn thread_resume_keeps_in_flight_turn_streaming() -> Result<()> {
     .await??;
     let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    let seed_turn_id = primary
+    let seed_interaction_id = primary
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id.clone(),
             client_user_message_id: None,
@@ -2455,7 +2455,7 @@ async fn thread_resume_keeps_in_flight_turn_streaming() -> Result<()> {
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_response_message(RequestId::Integer(seed_turn_id)),
+        primary.read_stream_until_response_message(RequestId::Integer(seed_interaction_id)),
     )
     .await??;
     timeout(
@@ -2551,7 +2551,7 @@ async fn thread_resume_rejects_history_when_thread_is_running() -> Result<()> {
     .await??;
     let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    let seed_turn_id = primary
+    let seed_interaction_id = primary
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id.clone(),
             client_user_message_id: None,
@@ -2564,7 +2564,7 @@ async fn thread_resume_rejects_history_when_thread_is_running() -> Result<()> {
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_response_message(RequestId::Integer(seed_turn_id)),
+        primary.read_stream_until_response_message(RequestId::Integer(seed_interaction_id)),
     )
     .await??;
     timeout(
@@ -2640,7 +2640,7 @@ async fn thread_resume_rejects_history_when_thread_is_running() -> Result<()> {
 }
 
 #[tokio::test]
-async fn thread_resume_rejects_mismatched_path_for_running_thread_id() -> Result<()> {
+async fn thread_resume_rejects_mismatched_path_for_running_chat_id() -> Result<()> {
     let server = responses::start_mock_server().await;
     let first_body = responses::sse(vec![
         responses::ev_response_created("resp-1"),
@@ -2674,7 +2674,7 @@ async fn thread_resume_rejects_mismatched_path_for_running_thread_id() -> Result
     .await??;
     let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    let seed_turn_id = primary
+    let seed_interaction_id = primary
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id.clone(),
             client_user_message_id: None,
@@ -2687,7 +2687,7 @@ async fn thread_resume_rejects_mismatched_path_for_running_thread_id() -> Result
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_response_message(RequestId::Integer(seed_turn_id)),
+        primary.read_stream_until_response_message(RequestId::Integer(seed_interaction_id)),
     )
     .await??;
     timeout(
@@ -2753,10 +2753,10 @@ async fn thread_resume_rejects_mismatched_path_for_running_thread_id() -> Result
         assert_eq!(thread.id, chat_id);
     }
 
-    let stale_thread_id = Uuid::new_v4().to_string();
-    let stale_path = rollout_path(codex_home.path(), "2025-01-01T00-00-00", &stale_thread_id);
+    let stale_chat_id = Uuid::new_v4().to_string();
+    let stale_path = rollout_path(codex_home.path(), "2025-01-01T00-00-00", &stale_chat_id);
     std::fs::create_dir_all(stale_path.parent().expect("stale path parent"))?;
-    let thread_uuid = Uuid::parse_str(&stale_thread_id)?;
+    let thread_uuid = Uuid::parse_str(&stale_chat_id)?;
     let mut stale_file = std::fs::File::create(&stale_path)?;
     let stale_meta = json!({
         "timestamp": "2025-01-01T00:00:00Z",
@@ -2844,7 +2844,7 @@ async fn thread_resume_rejoins_running_thread_even_with_override_mismatch() -> R
     .await??;
     let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    let seed_turn_id = primary
+    let seed_interaction_id = primary
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id.clone(),
             client_user_message_id: None,
@@ -2857,7 +2857,7 @@ async fn thread_resume_rejoins_running_thread_even_with_override_mismatch() -> R
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_response_message(RequestId::Integer(seed_turn_id)),
+        primary.read_stream_until_response_message(RequestId::Integer(seed_interaction_id)),
     )
     .await??;
     timeout(
@@ -2867,7 +2867,7 @@ async fn thread_resume_rejoins_running_thread_even_with_override_mismatch() -> R
     .await??;
     primary.clear_message_buffer();
 
-    let running_turn_id = primary
+    let running_interaction_id = primary
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id.clone(),
             client_user_message_id: None,
@@ -2880,7 +2880,7 @@ async fn thread_resume_rejoins_running_thread_even_with_override_mismatch() -> R
         .await?;
     let running_turn_resp: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_response_message(RequestId::Integer(running_turn_id)),
+        primary.read_stream_until_response_message(RequestId::Integer(running_interaction_id)),
     )
     .await??;
     let InteractionStartResponse {
@@ -3062,7 +3062,7 @@ async fn thread_resume_replays_pending_command_execution_request_approval() -> R
     .await??;
     let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    let seed_turn_id = primary
+    let seed_interaction_id = primary
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id.clone(),
             client_user_message_id: None,
@@ -3075,7 +3075,7 @@ async fn thread_resume_replays_pending_command_execution_request_approval() -> R
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_response_message(RequestId::Integer(seed_turn_id)),
+        primary.read_stream_until_response_message(RequestId::Integer(seed_interaction_id)),
     )
     .await??;
     timeout(
@@ -3085,7 +3085,7 @@ async fn thread_resume_replays_pending_command_execution_request_approval() -> R
     .await??;
     primary.clear_message_buffer();
 
-    let running_turn_id = primary
+    let running_interaction_id = primary
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id.clone(),
             client_user_message_id: None,
@@ -3099,7 +3099,7 @@ async fn thread_resume_replays_pending_command_execution_request_approval() -> R
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_response_message(RequestId::Integer(running_turn_id)),
+        primary.read_stream_until_response_message(RequestId::Integer(running_interaction_id)),
     )
     .await??;
 
@@ -3202,7 +3202,7 @@ async fn thread_resume_replays_pending_file_change_request_approval() -> Result<
     .await??;
     let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    let seed_turn_id = primary
+    let seed_interaction_id = primary
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id.clone(),
             client_user_message_id: None,
@@ -3216,7 +3216,7 @@ async fn thread_resume_replays_pending_file_change_request_approval() -> Result<
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_response_message(RequestId::Integer(seed_turn_id)),
+        primary.read_stream_until_response_message(RequestId::Integer(seed_interaction_id)),
     )
     .await??;
     timeout(
@@ -3226,7 +3226,7 @@ async fn thread_resume_replays_pending_file_change_request_approval() -> Result<
     .await??;
     primary.clear_message_buffer();
 
-    let running_turn_id = primary
+    let running_interaction_id = primary
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id.clone(),
             client_user_message_id: None,
@@ -3241,7 +3241,7 @@ async fn thread_resume_replays_pending_file_change_request_approval() -> Result<
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        primary.read_stream_until_response_message(RequestId::Integer(running_turn_id)),
+        primary.read_stream_until_response_message(RequestId::Integer(running_interaction_id)),
     )
     .await??;
 
@@ -3531,7 +3531,7 @@ async fn thread_resume_surfaces_cloud_config_bundle_load_errors() -> Result<()> 
 }
 
 #[tokio::test]
-async fn thread_resume_uses_path_over_non_running_thread_id() -> Result<()> {
+async fn thread_resume_uses_path_over_non_running_chat_id() -> Result<()> {
     let server = create_mock_responses_server_repeating_assistant("Done").await;
     let codex_home = TempDir::new()?;
     create_config_toml(codex_home.path(), &server.uri())?;
@@ -3545,7 +3545,7 @@ async fn thread_resume_uses_path_over_non_running_thread_id() -> Result<()> {
 
     let resume_id = mcp
         .send_chat_resume_request(ChatResumeParams {
-            chat_id: ThreadId::new().to_string(),
+            chat_id: ChatId::new().to_string(),
             path: Some(rollout_file_path),
             ..Default::default()
         })
@@ -3682,7 +3682,7 @@ async fn start_materialized_thread_and_restart(
     .await??;
     let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    let materialize_turn_id = first_mcp
+    let materialize_interaction_id = first_mcp
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id.clone(),
             client_user_message_id: None,
@@ -3695,7 +3695,7 @@ async fn start_materialized_thread_and_restart(
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        first_mcp.read_stream_until_response_message(RequestId::Integer(materialize_turn_id)),
+        first_mcp.read_stream_until_response_message(RequestId::Integer(materialize_interaction_id)),
     )
     .await??;
     timeout(

@@ -15,7 +15,7 @@ impl StateRuntime {
 
         let mut tx = self.logs_pool.begin().await?;
         let mut builder = QueryBuilder::<Sqlite>::new(
-            "INSERT INTO logs (ts, ts_nanos, level, target, feedback_log_body, thread_id, process_uuid, module_path, file, line, estimated_bytes) ",
+            "INSERT INTO logs (ts, ts_nanos, level, target, feedback_log_body, chat_id, process_uuid, module_path, file, line, estimated_bytes) ",
         );
         builder.push_values(entries, |mut row, entry| {
             let feedback_log_body = entry.feedback_log_body.as_ref().or(entry.message.as_ref());
@@ -33,7 +33,7 @@ impl StateRuntime {
                 .push_bind(&entry.level)
                 .push_bind(&entry.target)
                 .push_bind(feedback_log_body)
-                .push_bind(&entry.thread_id)
+                .push_bind(&entry.chat_id)
                 .push_bind(&entry.process_uuid)
                 .push_bind(&entry.module_path)
                 .push_bind(&entry.file)
@@ -49,8 +49,8 @@ impl StateRuntime {
     /// Enforce per-partition retained-log-content caps after a successful batch insert.
     ///
     /// We maintain two independent budgets:
-    /// - Thread logs: rows with `thread_id IS NOT NULL`, capped per `thread_id`.
-    /// - Threadless process logs: rows with `thread_id IS NULL` ("threadless"),
+    /// - Thread logs: rows with `chat_id IS NOT NULL`, capped per `chat_id`.
+    /// - Threadless process logs: rows with `chat_id IS NULL` ("threadless"),
     ///   capped per `process_uuid` (including `process_uuid IS NULL` as its own
     ///   threadless partition).
     ///
@@ -64,35 +64,35 @@ impl StateRuntime {
         entries: &[LogEntry],
         tx: &mut SqliteConnection,
     ) -> anyhow::Result<()> {
-        let thread_ids: BTreeSet<&str> = entries
+        let chat_ids: BTreeSet<&str> = entries
             .iter()
-            .filter_map(|entry| entry.thread_id.as_deref())
+            .filter_map(|entry| entry.chat_id.as_deref())
             .collect();
-        if !thread_ids.is_empty() {
+        if !chat_ids.is_empty() {
             // Cheap precheck: only run the heavier window-function prune for
             // threads that are currently above the cap.
             let mut over_limit_threads_query =
-                QueryBuilder::<Sqlite>::new("SELECT thread_id FROM logs WHERE thread_id IN (");
+                QueryBuilder::<Sqlite>::new("SELECT chat_id FROM logs WHERE chat_id IN (");
             {
                 let mut separated = over_limit_threads_query.separated(", ");
-                for thread_id in &thread_ids {
-                    separated.push_bind(*thread_id);
+                for chat_id in &chat_ids {
+                    separated.push_bind(*chat_id);
                 }
             }
-            over_limit_threads_query.push(") GROUP BY thread_id HAVING SUM(");
+            over_limit_threads_query.push(") GROUP BY chat_id HAVING SUM(");
             over_limit_threads_query.push("estimated_bytes");
             over_limit_threads_query.push(") > ");
             over_limit_threads_query.push_bind(LOG_PARTITION_SIZE_LIMIT_BYTES);
             over_limit_threads_query.push(" OR COUNT(*) > ");
             over_limit_threads_query.push_bind(LOG_PARTITION_ROW_LIMIT);
-            let over_limit_thread_ids: Vec<String> = over_limit_threads_query
+            let over_limit_chat_ids: Vec<String> = over_limit_threads_query
                 .build()
                 .fetch_all(&mut *tx)
                 .await?
                 .into_iter()
-                .map(|row| row.try_get("thread_id"))
+                .map(|row| row.try_get("chat_id"))
                 .collect::<Result<_, _>>()?;
-            if !over_limit_thread_ids.is_empty() {
+            if !over_limit_chat_ids.is_empty() {
                 // Enforce a strict per-thread cap by deleting every row whose
                 // newest-first cumulative bytes exceed the partition budget.
                 let mut prune_threads = QueryBuilder::<Sqlite>::new(
@@ -110,21 +110,21 @@ WHERE id IN (
                 prune_threads.push(
                     r#"
             ) OVER (
-                PARTITION BY thread_id
+                PARTITION BY chat_id
                 ORDER BY ts DESC, ts_nanos DESC, id DESC
             ) AS cumulative_bytes,
             ROW_NUMBER() OVER (
-                PARTITION BY thread_id
+                PARTITION BY chat_id
                 ORDER BY ts DESC, ts_nanos DESC, id DESC
             ) AS row_number
         FROM logs
-        WHERE thread_id IN (
+        WHERE chat_id IN (
 "#,
                 );
                 {
                     let mut separated = prune_threads.separated(", ");
-                    for thread_id in &over_limit_thread_ids {
-                        separated.push_bind(thread_id);
+                    for chat_id in &over_limit_chat_ids {
+                        separated.push_bind(chat_id);
                     }
                 }
                 prune_threads.push(
@@ -144,16 +144,16 @@ WHERE id IN (
 
         let threadless_process_uuids: BTreeSet<&str> = entries
             .iter()
-            .filter(|entry| entry.thread_id.is_none())
+            .filter(|entry| entry.chat_id.is_none())
             .filter_map(|entry| entry.process_uuid.as_deref())
             .collect();
         let has_threadless_null_process_uuid = entries
             .iter()
-            .any(|entry| entry.thread_id.is_none() && entry.process_uuid.is_none());
+            .any(|entry| entry.chat_id.is_none() && entry.process_uuid.is_none());
         if !threadless_process_uuids.is_empty() {
             // Threadless logs are budgeted separately per process UUID.
             let mut over_limit_processes_query = QueryBuilder::<Sqlite>::new(
-                "SELECT process_uuid FROM logs WHERE thread_id IS NULL AND process_uuid IN (",
+                "SELECT process_uuid FROM logs WHERE chat_id IS NULL AND process_uuid IN (",
             );
             {
                 let mut separated = over_limit_processes_query.separated(", ");
@@ -200,7 +200,7 @@ WHERE id IN (
                 ORDER BY ts DESC, ts_nanos DESC, id DESC
             ) AS row_number
         FROM logs
-        WHERE thread_id IS NULL
+        WHERE chat_id IS NULL
           AND process_uuid IN (
 "#,
                 );
@@ -233,7 +233,7 @@ WHERE id IN (
             let mut null_process_usage_query = QueryBuilder::<Sqlite>::new("SELECT SUM(");
             null_process_usage_query.push("estimated_bytes");
             null_process_usage_query.push(
-                ") AS total_bytes, COUNT(*) AS row_count FROM logs WHERE thread_id IS NULL AND process_uuid IS NULL",
+                ") AS total_bytes, COUNT(*) AS row_count FROM logs WHERE chat_id IS NULL AND process_uuid IS NULL",
             );
             let null_process_usage = null_process_usage_query.build().fetch_one(&mut *tx).await?;
             let total_null_process_bytes: Option<i64> =
@@ -266,7 +266,7 @@ WHERE id IN (
                 ORDER BY ts DESC, ts_nanos DESC, id DESC
             ) AS row_number
         FROM logs
-        WHERE thread_id IS NULL
+        WHERE chat_id IS NULL
           AND process_uuid IS NULL
     )
     WHERE cumulative_bytes >
@@ -312,7 +312,7 @@ WHERE id IN (
     /// Query logs with optional filters.
     pub async fn query_logs(&self, query: &LogQuery) -> anyhow::Result<Vec<LogRow>> {
         let mut builder = QueryBuilder::<Sqlite>::new(
-            "SELECT id, ts, ts_nanos, level, target, feedback_log_body AS message, thread_id, process_uuid, file, line FROM logs WHERE 1 = 1",
+            "SELECT id, ts, ts_nanos, level, target, feedback_log_body AS message, chat_id, process_uuid, file, line FROM logs WHERE 1 = 1",
         );
         push_log_filters(&mut builder, query);
         if query.descending {
@@ -334,9 +334,9 @@ WHERE id IN (
     /// Query feedback logs for a set of threads, capped to the SQLite retention budget.
     pub async fn query_feedback_logs_for_threads(
         &self,
-        thread_ids: &[&str],
+        chat_ids: &[&str],
     ) -> anyhow::Result<Vec<u8>> {
-        if thread_ids.is_empty() {
+        if chat_ids.is_empty() {
             return Ok(Vec::new());
         }
 
@@ -345,16 +345,16 @@ WHERE id IN (
         // every row into memory, then apply the exact whole-line byte cap after formatting.
         let mut builder = QueryBuilder::<Sqlite>::new(
             r#"
-WITH requested_threads(thread_id) AS (
+WITH requested_threads(chat_id) AS (
     VALUES
             "#,
         );
         {
             let mut separated = builder.separated(", ");
-            for thread_id in thread_ids {
+            for chat_id in chat_ids {
                 separated
                     .push("(")
-                    .push_bind_unseparated(*thread_id)
+                    .push_bind_unseparated(*chat_id)
                     .push_unseparated(")");
             }
         }
@@ -365,7 +365,7 @@ latest_processes AS (
     SELECT (
         SELECT process_uuid
         FROM logs
-        WHERE logs.thread_id = requested_threads.thread_id AND process_uuid IS NOT NULL
+        WHERE logs.chat_id = requested_threads.chat_id AND process_uuid IS NOT NULL
         ORDER BY ts DESC, ts_nanos DESC, id DESC
         LIMIT 1
     ) AS process_uuid
@@ -375,9 +375,9 @@ feedback_logs AS (
     SELECT ts, ts_nanos, level, feedback_log_body, estimated_bytes, id
     FROM logs
     WHERE feedback_log_body IS NOT NULL AND (
-        thread_id IN (SELECT thread_id FROM requested_threads)
+        chat_id IN (SELECT chat_id FROM requested_threads)
         OR (
-            thread_id IS NULL
+            chat_id IS NULL
             AND process_uuid IN (
                 SELECT process_uuid
                 FROM latest_processes
@@ -431,8 +431,8 @@ WHERE cumulative_estimated_bytes <=
     }
 
     /// Query per-thread feedback logs, capped to the per-thread SQLite retention budget.
-    pub async fn query_feedback_logs(&self, thread_id: &str) -> anyhow::Result<Vec<u8>> {
-        self.query_feedback_logs_for_threads(&[thread_id]).await
+    pub async fn query_feedback_logs(&self, chat_id: &str) -> anyhow::Result<Vec<u8>> {
+        self.query_feedback_logs_for_threads(&[chat_id]).await
     }
 
     /// Return the max log id matching optional filters.
@@ -491,22 +491,22 @@ fn push_log_filters(builder: &mut QueryBuilder<Sqlite>, query: &LogQuery) {
     }
     push_like_filters(builder, "module_path", &query.module_like);
     push_like_filters(builder, "file", &query.file_like);
-    let has_thread_filter = !query.thread_ids.is_empty() || query.include_threadless;
+    let has_thread_filter = !query.chat_ids.is_empty() || query.include_threadless;
     if has_thread_filter {
         builder.push(" AND (");
         let mut needs_or = false;
-        for thread_id in &query.thread_ids {
+        for chat_id in &query.chat_ids {
             if needs_or {
                 builder.push(" OR ");
             }
-            builder.push("thread_id = ").push_bind(thread_id.as_str());
+            builder.push("chat_id = ").push_bind(chat_id.as_str());
             needs_or = true;
         }
         if query.include_threadless {
             if needs_or {
                 builder.push(" OR ");
             }
-            builder.push("thread_id IS NULL");
+            builder.push("chat_id IS NULL");
         }
         builder.push(")");
     }
@@ -590,7 +590,7 @@ mod tests {
                 target: "cli".to_string(),
                 message: Some("dedicated-log-db".to_string()),
                 feedback_log_body: Some("dedicated-log-db".to_string()),
-                thread_id: Some("thread-1".to_string()),
+                chat_id: Some("thread-1".to_string()),
                 process_uuid: Some("proc-1".to_string()),
                 module_path: Some("mod".to_string()),
                 file: Some("main.rs".to_string()),
@@ -633,7 +633,7 @@ mod tests {
             .await
             .expect("apply old logs schema");
         sqlx::query(
-            "INSERT INTO logs (ts, ts_nanos, level, target, message, module_path, file, line, thread_id, process_uuid, estimated_bytes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO logs (ts, ts_nanos, level, target, message, module_path, file, line, chat_id, process_uuid, estimated_bytes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(Utc::now().timestamp())
         .bind(0_i64)
@@ -680,7 +680,7 @@ mod tests {
                 "module_path".to_string(),
                 "file".to_string(),
                 "line".to_string(),
-                "thread_id".to_string(),
+                "chat_id".to_string(),
                 "process_uuid".to_string(),
                 "estimated_bytes".to_string(),
             ]
@@ -695,8 +695,8 @@ mod tests {
             indexes,
             vec![
                 "idx_logs_process_uuid_threadless_ts".to_string(),
-                "idx_logs_thread_id".to_string(),
-                "idx_logs_thread_id_ts".to_string(),
+                "idx_logs_chat_id".to_string(),
+                "idx_logs_chat_id_ts".to_string(),
                 "idx_logs_ts".to_string(),
             ]
         );
@@ -765,7 +765,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("alpha".to_string()),
                     feedback_log_body: Some("foo=1 alpha".to_string()),
-                    thread_id: Some("thread-1".to_string()),
+                    chat_id: Some("thread-1".to_string()),
                     process_uuid: None,
                     file: Some("main.rs".to_string()),
                     line: Some(42),
@@ -778,7 +778,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("alphabet".to_string()),
                     feedback_log_body: Some("foo=2 alphabet".to_string()),
-                    thread_id: Some("thread-1".to_string()),
+                    chat_id: Some("thread-1".to_string()),
                     process_uuid: None,
                     file: Some("main.rs".to_string()),
                     line: Some(43),
@@ -818,7 +818,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("trace-row".to_string()),
                     feedback_log_body: Some("trace-row".to_string()),
-                    thread_id: None,
+                    chat_id: None,
                     process_uuid: None,
                     file: Some("main.rs".to_string()),
                     line: Some(1),
@@ -831,7 +831,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("info-row".to_string()),
                     feedback_log_body: Some("info-row".to_string()),
-                    thread_id: None,
+                    chat_id: None,
                     process_uuid: None,
                     file: Some("main.rs".to_string()),
                     line: Some(2),
@@ -844,7 +844,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("warn-row".to_string()),
                     feedback_log_body: Some("warn-row".to_string()),
-                    thread_id: None,
+                    chat_id: None,
                     process_uuid: None,
                     file: Some("main.rs".to_string()),
                     line: Some(3),
@@ -857,7 +857,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("error-row".to_string()),
                     feedback_log_body: Some("error-row".to_string()),
-                    thread_id: None,
+                    chat_id: None,
                     process_uuid: None,
                     file: Some("main.rs".to_string()),
                     line: Some(4),
@@ -904,7 +904,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("small".to_string()),
                     feedback_log_body: Some(six_mebibytes.clone()),
-                    thread_id: Some("thread-1".to_string()),
+                    chat_id: Some("thread-1".to_string()),
                     process_uuid: Some("proc-1".to_string()),
                     file: Some("main.rs".to_string()),
                     line: Some(1),
@@ -917,7 +917,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("small".to_string()),
                     feedback_log_body: Some(six_mebibytes.clone()),
-                    thread_id: Some("thread-1".to_string()),
+                    chat_id: Some("thread-1".to_string()),
                     process_uuid: Some("proc-1".to_string()),
                     file: Some("main.rs".to_string()),
                     line: Some(2),
@@ -929,7 +929,7 @@ mod tests {
 
         let rows = runtime
             .query_logs(&LogQuery {
-                thread_ids: vec!["thread-1".to_string()],
+                chat_ids: vec!["thread-1".to_string()],
                 ..Default::default()
             })
             .await
@@ -957,7 +957,7 @@ mod tests {
                 target: "cli".to_string(),
                 message: Some("small".to_string()),
                 feedback_log_body: Some(eleven_mebibytes),
-                thread_id: Some("thread-oversized".to_string()),
+                chat_id: Some("thread-oversized".to_string()),
                 process_uuid: Some("proc-1".to_string()),
                 file: Some("main.rs".to_string()),
                 line: Some(1),
@@ -968,7 +968,7 @@ mod tests {
 
         let rows = runtime
             .query_logs(&LogQuery {
-                thread_ids: vec!["thread-oversized".to_string()],
+                chat_ids: vec!["thread-oversized".to_string()],
                 ..Default::default()
             })
             .await
@@ -996,7 +996,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some(six_mebibytes.clone()),
                     feedback_log_body: None,
-                    thread_id: None,
+                    chat_id: None,
                     process_uuid: Some("proc-1".to_string()),
                     file: Some("main.rs".to_string()),
                     line: Some(1),
@@ -1009,7 +1009,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some(six_mebibytes.clone()),
                     feedback_log_body: None,
-                    thread_id: None,
+                    chat_id: None,
                     process_uuid: Some("proc-1".to_string()),
                     file: Some("main.rs".to_string()),
                     line: Some(2),
@@ -1022,7 +1022,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some(six_mebibytes),
                     feedback_log_body: None,
-                    thread_id: Some("thread-1".to_string()),
+                    chat_id: Some("thread-1".to_string()),
                     process_uuid: Some("proc-1".to_string()),
                     file: Some("main.rs".to_string()),
                     line: Some(3),
@@ -1034,7 +1034,7 @@ mod tests {
 
         let rows = runtime
             .query_logs(&LogQuery {
-                thread_ids: vec!["thread-1".to_string()],
+                chat_ids: vec!["thread-1".to_string()],
                 include_threadless: true,
                 ..Default::default()
             })
@@ -1064,7 +1064,7 @@ mod tests {
                 target: "cli".to_string(),
                 message: Some("small".to_string()),
                 feedback_log_body: Some(eleven_mebibytes),
-                thread_id: None,
+                chat_id: None,
                 process_uuid: Some("proc-oversized".to_string()),
                 file: Some("main.rs".to_string()),
                 line: Some(1),
@@ -1103,7 +1103,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some(six_mebibytes.clone()),
                     feedback_log_body: None,
-                    thread_id: None,
+                    chat_id: None,
                     process_uuid: None,
                     file: Some("main.rs".to_string()),
                     line: Some(1),
@@ -1116,7 +1116,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some(six_mebibytes),
                     feedback_log_body: None,
-                    thread_id: None,
+                    chat_id: None,
                     process_uuid: None,
                     file: Some("main.rs".to_string()),
                     line: Some(2),
@@ -1129,7 +1129,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("small".to_string()),
                     feedback_log_body: None,
-                    thread_id: None,
+                    chat_id: None,
                     process_uuid: Some("proc-1".to_string()),
                     file: Some("main.rs".to_string()),
                     line: Some(3),
@@ -1170,7 +1170,7 @@ mod tests {
                 target: "cli".to_string(),
                 message: Some("small".to_string()),
                 feedback_log_body: Some(eleven_mebibytes),
-                thread_id: None,
+                chat_id: None,
                 process_uuid: None,
                 file: Some("main.rs".to_string()),
                 line: Some(1),
@@ -1207,7 +1207,7 @@ mod tests {
                 target: "cli".to_string(),
                 message: Some(format!("thread-row-{ts}")),
                 feedback_log_body: None,
-                thread_id: Some("thread-row-limit".to_string()),
+                chat_id: Some("thread-row-limit".to_string()),
                 process_uuid: Some("proc-1".to_string()),
                 file: Some("main.rs".to_string()),
                 line: Some(ts),
@@ -1221,7 +1221,7 @@ mod tests {
 
         let rows = runtime
             .query_logs(&LogQuery {
-                thread_ids: vec!["thread-row-limit".to_string()],
+                chat_ids: vec!["thread-row-limit".to_string()],
                 ..Default::default()
             })
             .await
@@ -1250,7 +1250,7 @@ mod tests {
                 target: "cli".to_string(),
                 message: Some(format!("process-row-{ts}")),
                 feedback_log_body: None,
-                thread_id: None,
+                chat_id: None,
                 process_uuid: Some("proc-row-limit".to_string()),
                 file: Some("main.rs".to_string()),
                 line: Some(ts),
@@ -1297,7 +1297,7 @@ mod tests {
                 target: "cli".to_string(),
                 message: Some(format!("null-process-row-{ts}")),
                 feedback_log_body: None,
-                thread_id: None,
+                chat_id: None,
                 process_uuid: None,
                 file: Some("main.rs".to_string()),
                 line: Some(ts),
@@ -1345,7 +1345,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("alpha".to_string()),
                     feedback_log_body: None,
-                    thread_id: Some("thread-1".to_string()),
+                    chat_id: Some("thread-1".to_string()),
                     process_uuid: Some("proc-1".to_string()),
                     file: None,
                     line: None,
@@ -1358,7 +1358,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("bravo".to_string()),
                     feedback_log_body: None,
-                    thread_id: Some("thread-1".to_string()),
+                    chat_id: Some("thread-1".to_string()),
                     process_uuid: Some("proc-1".to_string()),
                     file: None,
                     line: None,
@@ -1371,7 +1371,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("charlie".to_string()),
                     feedback_log_body: None,
-                    thread_id: Some("thread-1".to_string()),
+                    chat_id: Some("thread-1".to_string()),
                     process_uuid: Some("proc-1".to_string()),
                     file: None,
                     line: None,
@@ -1416,7 +1416,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("small".to_string()),
                     feedback_log_body: None,
-                    thread_id: Some("thread-oversized".to_string()),
+                    chat_id: Some("thread-oversized".to_string()),
                     process_uuid: Some("proc-1".to_string()),
                     file: None,
                     line: None,
@@ -1429,7 +1429,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some(eleven_mebibytes),
                     feedback_log_body: None,
-                    thread_id: Some("thread-oversized".to_string()),
+                    chat_id: Some("thread-oversized".to_string()),
                     process_uuid: Some("proc-1".to_string()),
                     file: None,
                     line: None,
@@ -1465,7 +1465,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("threadless-before".to_string()),
                     feedback_log_body: None,
-                    thread_id: None,
+                    chat_id: None,
                     process_uuid: Some("proc-1".to_string()),
                     file: None,
                     line: None,
@@ -1478,7 +1478,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("thread-scoped".to_string()),
                     feedback_log_body: None,
-                    thread_id: Some("thread-1".to_string()),
+                    chat_id: Some("thread-1".to_string()),
                     process_uuid: Some("proc-1".to_string()),
                     file: None,
                     line: None,
@@ -1491,7 +1491,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("threadless-after".to_string()),
                     feedback_log_body: None,
-                    thread_id: None,
+                    chat_id: None,
                     process_uuid: Some("proc-1".to_string()),
                     file: None,
                     line: None,
@@ -1504,7 +1504,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("other-process-threadless".to_string()),
                     feedback_log_body: None,
-                    thread_id: None,
+                    chat_id: None,
                     process_uuid: Some("proc-2".to_string()),
                     file: None,
                     line: None,
@@ -1563,7 +1563,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("old-process-threadless".to_string()),
                     feedback_log_body: None,
-                    thread_id: None,
+                    chat_id: None,
                     process_uuid: Some("proc-old".to_string()),
                     file: None,
                     line: None,
@@ -1576,7 +1576,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("old-process-thread".to_string()),
                     feedback_log_body: None,
-                    thread_id: Some("thread-1".to_string()),
+                    chat_id: Some("thread-1".to_string()),
                     process_uuid: Some("proc-old".to_string()),
                     file: None,
                     line: None,
@@ -1589,7 +1589,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("new-process-thread".to_string()),
                     feedback_log_body: None,
-                    thread_id: Some("thread-1".to_string()),
+                    chat_id: Some("thread-1".to_string()),
                     process_uuid: Some("proc-new".to_string()),
                     file: None,
                     line: None,
@@ -1602,7 +1602,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("new-process-threadless".to_string()),
                     feedback_log_body: None,
-                    thread_id: None,
+                    chat_id: None,
                     process_uuid: Some("proc-new".to_string()),
                     file: None,
                     line: None,
@@ -1670,7 +1670,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some(one_mebibyte.clone()),
                     feedback_log_body: None,
-                    thread_id: Some("thread-1".to_string()),
+                    chat_id: Some("thread-1".to_string()),
                     process_uuid: Some("proc-1".to_string()),
                     file: None,
                     line: None,
@@ -1683,7 +1683,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some(five_mebibytes),
                     feedback_log_body: None,
-                    thread_id: None,
+                    chat_id: None,
                     process_uuid: Some("proc-1".to_string()),
                     file: None,
                     line: None,
@@ -1696,7 +1696,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some(four_and_half_mebibytes),
                     feedback_log_body: None,
-                    thread_id: None,
+                    chat_id: None,
                     process_uuid: Some("proc-1".to_string()),
                     file: None,
                     line: None,
@@ -1736,7 +1736,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("thread-1".to_string()),
                     feedback_log_body: None,
-                    thread_id: Some("thread-1".to_string()),
+                    chat_id: Some("thread-1".to_string()),
                     process_uuid: Some("proc-1".to_string()),
                     file: None,
                     line: None,
@@ -1749,7 +1749,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("thread-2".to_string()),
                     feedback_log_body: None,
-                    thread_id: Some("thread-2".to_string()),
+                    chat_id: Some("thread-2".to_string()),
                     process_uuid: Some("proc-2".to_string()),
                     file: None,
                     line: None,
@@ -1762,7 +1762,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("threadless-proc-1".to_string()),
                     feedback_log_body: None,
-                    thread_id: None,
+                    chat_id: None,
                     process_uuid: Some("proc-1".to_string()),
                     file: None,
                     line: None,
@@ -1775,7 +1775,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("threadless-proc-2".to_string()),
                     feedback_log_body: None,
-                    thread_id: None,
+                    chat_id: None,
                     process_uuid: Some("proc-2".to_string()),
                     file: None,
                     line: None,
@@ -1788,7 +1788,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("thread-3".to_string()),
                     feedback_log_body: None,
-                    thread_id: Some("thread-3".to_string()),
+                    chat_id: Some("thread-3".to_string()),
                     process_uuid: Some("proc-3".to_string()),
                     file: None,
                     line: None,
@@ -1801,7 +1801,7 @@ mod tests {
                     target: "cli".to_string(),
                     message: Some("threadless-proc-3".to_string()),
                     feedback_log_body: None,
-                    thread_id: None,
+                    chat_id: None,
                     process_uuid: Some("proc-3".to_string()),
                     file: None,
                     line: None,

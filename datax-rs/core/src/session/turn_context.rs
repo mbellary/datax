@@ -7,7 +7,7 @@ use datax_file_system::FileSystemSandboxContext;
 use datax_model_provider::SharedModelProvider;
 use datax_model_provider::create_model_provider;
 use datax_protocol::SessionId;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::models::AdditionalPermissionProfile;
 use datax_protocol::openai_models::ModelInfo;
 use datax_protocol::protocol::MultiAgentVersion;
@@ -112,7 +112,7 @@ pub struct TurnContext {
     pub(crate) reasoning_effort: Option<ReasoningEffortConfig>,
     pub(crate) reasoning_summary: ReasoningSummaryConfig,
     pub(crate) session_source: SessionSource,
-    pub(crate) parent_thread_id: Option<ThreadId>,
+    pub(crate) parent_chat_id: Option<ChatId>,
     pub(crate) environments: TurnEnvironmentSnapshot,
     /// The session's absolute working directory. All relative paths provided
     /// by the model as well as sandbox policies are resolved against this path
@@ -267,7 +267,7 @@ impl TurnContext {
             reasoning_effort,
             reasoning_summary: self.reasoning_summary,
             session_source: self.session_source.clone(),
-            parent_thread_id: self.parent_thread_id,
+            parent_chat_id: self.parent_chat_id,
             environments: self.environments.clone(),
             #[allow(deprecated)]
             cwd: self.cwd.clone(),
@@ -367,7 +367,7 @@ impl TurnContext {
         #[allow(deprecated)]
         let cwd = self.cwd.clone();
         TurnContextItem {
-            turn_id: Some(self.sub_id.clone()),
+            interaction_id: Some(self.sub_id.clone()),
             cwd,
             workspace_roots: (!workspace_roots.is_empty()).then_some(workspace_roots),
             current_date: self.current_date.clone(),
@@ -478,7 +478,7 @@ impl Session {
 
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn make_turn_context(
-        thread_id: ThreadId,
+        chat_id: ChatId,
         session_id: SessionId,
         auth_manager: Option<Arc<AuthManager>>,
         session_telemetry: &SessionTelemetry,
@@ -526,9 +526,9 @@ impl Session {
         let per_turn_config = Arc::new(per_turn_config);
         let turn_metadata_state = Arc::new(TurnMetadataState::new(
             session_id.to_string(),
-            thread_id.to_string(),
-            session_configuration.forked_from_thread_id,
-            session_configuration.parent_thread_id,
+            chat_id.to_string(),
+            session_configuration.forked_from_chat_id,
+            session_configuration.parent_chat_id,
             &session_configuration.session_source,
             session_configuration.thread_source.clone(),
             sub_id.clone(),
@@ -552,7 +552,7 @@ impl Session {
             reasoning_effort,
             reasoning_summary,
             session_source,
-            parent_thread_id: session_configuration.parent_thread_id,
+            parent_chat_id: session_configuration.parent_chat_id,
             environments,
             #[allow(deprecated)]
             cwd,
@@ -746,7 +746,7 @@ impl Session {
             .snapshot_for_config(&skills_input, fs)
             .await;
         let mut turn_context: TurnContext = Self::make_turn_context(
-            self.thread_id(),
+            self.chat_id(),
             self.session_id(),
             Some(Arc::clone(&self.services.auth_manager)),
             &self.services.session_telemetry,

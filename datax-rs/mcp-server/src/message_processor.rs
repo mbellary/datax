@@ -11,7 +11,7 @@ use datax_home::CodexHomeUserInstructionsProvider;
 use datax_login::AuthManager;
 use datax_login::default_client::USER_AGENT_SUFFIX;
 use datax_login::default_client::get_codex_user_agent;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::Submission;
 use rmcp::model::CallToolRequestParams;
@@ -43,7 +43,7 @@ pub(crate) struct MessageProcessor {
     initialized: bool,
     arg0_paths: Arg0DispatchPaths,
     thread_manager: Arc<ThreadManager>,
-    running_requests_id_to_codex_uuid: Arc<Mutex<HashMap<RequestId, ThreadId>>>,
+    running_requests_id_to_codex_uuid: Arc<Mutex<HashMap<RequestId, ChatId>>>,
 }
 
 impl MessageProcessor {
@@ -428,22 +428,22 @@ impl MessageProcessor {
             },
             None => {
                 tracing::error!(
-                    "Missing arguments for codex-reply tool-call; the `thread_id` and `prompt` fields are required."
+                    "Missing arguments for codex-reply tool-call; the `chat_id` and `prompt` fields are required."
                 );
                 let result = CallToolResult::error(vec![rmcp::model::Content::text(
-                    "Missing arguments for codex-reply tool-call; the `thread_id` and `prompt` fields are required.",
+                    "Missing arguments for codex-reply tool-call; the `chat_id` and `prompt` fields are required.",
                 )]);
                 self.outgoing.send_response(request_id, result).await;
                 return;
             }
         };
 
-        let thread_id = match codex_tool_call_reply_param.get_thread_id() {
+        let chat_id = match codex_tool_call_reply_param.get_chat_id() {
             Ok(id) => id,
             Err(e) => {
-                tracing::error!("Failed to parse thread_id: {e}");
+                tracing::error!("Failed to parse chat_id: {e}");
                 let result = CallToolResult::error(vec![rmcp::model::Content::text(format!(
-                    "Failed to parse thread_id: {e}"
+                    "Failed to parse chat_id: {e}"
                 ))]);
                 self.outgoing.send_response(request_id, result).await;
                 return;
@@ -454,13 +454,13 @@ impl MessageProcessor {
         let outgoing = self.outgoing.clone();
         let running_requests_id_to_codex_uuid = self.running_requests_id_to_codex_uuid.clone();
 
-        let codex = match self.thread_manager.get_thread(thread_id).await {
+        let codex = match self.thread_manager.get_thread(chat_id).await {
             Ok(c) => c,
             Err(_) => {
-                tracing::warn!("Session not found for thread_id: {thread_id}");
-                let result = crate::codex_tool_runner::create_call_tool_result_with_thread_id(
-                    thread_id,
-                    format!("Session not found for thread_id: {thread_id}"),
+                tracing::warn!("Session not found for chat_id: {chat_id}");
+                let result = crate::codex_tool_runner::create_call_tool_result_with_chat_id(
+                    chat_id,
+                    format!("Session not found for chat_id: {chat_id}"),
                     Some(true),
                 );
                 outgoing.send_response(request_id, result).await;
@@ -476,7 +476,7 @@ impl MessageProcessor {
 
             async move {
                 crate::codex_tool_runner::run_codex_tool_session_reply(
-                    thread_id,
+                    chat_id,
                     codex,
                     outgoing,
                     request_id,
@@ -519,7 +519,7 @@ impl MessageProcessor {
         let request_id_string = request_id.to_string();
 
         // Obtain the thread id while holding the first lock, then release.
-        let thread_id = {
+        let chat_id = {
             let map_guard = self.running_requests_id_to_codex_uuid.lock().await;
             match map_guard.get(&request_id) {
                 Some(id) => *id,
@@ -529,13 +529,13 @@ impl MessageProcessor {
                 }
             }
         };
-        tracing::info!("thread_id: {thread_id}");
+        tracing::info!("chat_id: {chat_id}");
 
         // Obtain the Codex thread from the server.
-        let codex_arc = match self.thread_manager.get_thread(thread_id).await {
+        let codex_arc = match self.thread_manager.get_thread(chat_id).await {
             Ok(c) => c,
             Err(_) => {
-                tracing::warn!("Session not found for thread_id: {thread_id}");
+                tracing::warn!("Session not found for chat_id: {chat_id}");
                 return;
             }
         };

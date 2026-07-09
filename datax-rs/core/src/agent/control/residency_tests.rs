@@ -6,15 +6,15 @@ use crate::config::test_config;
 use crate::thread_manager::ThreadManagerState;
 use datax_features::Feature;
 use datax_login::CodexAuth;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::error::CodexErr;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
 use datax_protocol::protocol::ThreadSource;
-use datax_protocol::protocol::TurnAbortReason;
-use datax_protocol::protocol::TurnAbortedEvent;
-use datax_protocol::protocol::TurnCompleteEvent;
+use datax_protocol::protocol::InteractionAbortReason;
+use datax_protocol::protocol::InteractionAbortedEvent;
+use datax_protocol::protocol::InteractionCompleteEvent;
 use pretty_assertions::assert_eq;
 use std::sync::Arc;
 
@@ -40,28 +40,28 @@ async fn residency_slot_reservation_unloads_oldest_idle_v2_agent() {
     let state = control.upgrade().expect("thread manager should be live");
 
     let first_slot = control
-        .reserve_v2_residency_slot(&state, &config, /*protected_thread_id*/ None)
+        .reserve_v2_residency_slot(&state, &config, /*protected_chat_id*/ None)
         .await
         .expect("first resident slot");
     let first =
-        spawn_v2_subagent(&control, &state, config.clone(), root.thread_id, "worker-1").await;
-    first_slot.commit(first.thread_id);
+        spawn_v2_subagent(&control, &state, config.clone(), root.chat_id, "worker-1").await;
+    first_slot.commit(first.chat_id);
     mark_thread_completed(first.thread.as_ref()).await;
 
     let second_slot = control
-        .reserve_v2_residency_slot(&state, &config, /*protected_thread_id*/ None)
+        .reserve_v2_residency_slot(&state, &config, /*protected_chat_id*/ None)
         .await
         .expect("second resident slot should evict the first idle agent");
-    match manager.get_thread(first.thread_id).await {
-        Err(CodexErr::ThreadNotFound(thread_id)) => assert_eq!(thread_id, first.thread_id),
+    match manager.get_thread(first.chat_id).await {
+        Err(CodexErr::ThreadNotFound(chat_id)) => assert_eq!(chat_id, first.chat_id),
         Err(err) => panic!("expected evicted thread to be missing, got {err:?}"),
         Ok(_) => panic!("expected evicted thread to be missing"),
     }
-    let second = spawn_v2_subagent(&control, &state, config, root.thread_id, "worker-2").await;
-    second_slot.commit(second.thread_id);
+    let second = spawn_v2_subagent(&control, &state, config, root.chat_id, "worker-2").await;
+    second_slot.commit(second.chat_id);
 
-    assert!(manager.get_thread(root.thread_id).await.is_ok());
-    assert!(manager.get_thread(second.thread_id).await.is_ok());
+    assert!(manager.get_thread(root.chat_id).await.is_ok());
+    assert!(manager.get_thread(second.chat_id).await.is_ok());
 }
 
 #[tokio::test]
@@ -86,41 +86,41 @@ async fn interrupted_v2_agent_is_lost_after_residency_eviction() {
     let state = control.upgrade().expect("thread manager should be live");
 
     let first_slot = control
-        .reserve_v2_residency_slot(&state, &config, /*protected_thread_id*/ None)
+        .reserve_v2_residency_slot(&state, &config, /*protected_chat_id*/ None)
         .await
         .expect("first resident slot");
     let first =
-        spawn_v2_subagent(&control, &state, config.clone(), root.thread_id, "worker-1").await;
-    first_slot.commit(first.thread_id);
+        spawn_v2_subagent(&control, &state, config.clone(), root.chat_id, "worker-1").await;
+    first_slot.commit(first.chat_id);
     mark_thread_interrupted(first.thread.as_ref()).await;
 
     let second_slot = control
-        .reserve_v2_residency_slot(&state, &config, /*protected_thread_id*/ None)
+        .reserve_v2_residency_slot(&state, &config, /*protected_chat_id*/ None)
         .await
         .expect("second resident slot should evict the first interrupted idle agent");
-    match manager.get_thread(first.thread_id).await {
-        Err(CodexErr::ThreadNotFound(thread_id)) => assert_eq!(thread_id, first.thread_id),
+    match manager.get_thread(first.chat_id).await {
+        Err(CodexErr::ThreadNotFound(chat_id)) => assert_eq!(chat_id, first.chat_id),
         Err(err) => panic!("expected evicted thread to be missing, got {err:?}"),
         Ok(_) => panic!("expected evicted thread to be missing"),
     }
     let second =
-        spawn_v2_subagent(&control, &state, config.clone(), root.thread_id, "worker-2").await;
-    second_slot.commit(second.thread_id);
+        spawn_v2_subagent(&control, &state, config.clone(), root.chat_id, "worker-2").await;
+    second_slot.commit(second.chat_id);
     mark_thread_completed(second.thread.as_ref()).await;
 
     let err = control
-        .ensure_v2_agent_loaded(config, first.thread_id)
+        .ensure_v2_agent_loaded(config, first.chat_id)
         .await
         .expect_err("evicted interrupted agent should stay lost");
     match err {
-        CodexErr::ThreadNotFound(thread_id) => assert_eq!(thread_id, first.thread_id),
+        CodexErr::ThreadNotFound(chat_id) => assert_eq!(chat_id, first.chat_id),
         err => panic!("expected ThreadNotFound, got {err:?}"),
     }
 
-    assert!(manager.get_thread(root.thread_id).await.is_ok());
-    assert!(manager.get_thread(second.thread_id).await.is_ok());
-    match manager.get_thread(first.thread_id).await {
-        Err(CodexErr::ThreadNotFound(thread_id)) => assert_eq!(thread_id, first.thread_id),
+    assert!(manager.get_thread(root.chat_id).await.is_ok());
+    assert!(manager.get_thread(second.chat_id).await.is_ok());
+    match manager.get_thread(first.chat_id).await {
+        Err(CodexErr::ThreadNotFound(chat_id)) => assert_eq!(chat_id, first.chat_id),
         Err(err) => panic!("expected evicted thread to be missing, got {err:?}"),
         Ok(_) => panic!("expected evicted thread to be missing"),
     }
@@ -130,7 +130,7 @@ async fn spawn_v2_subagent(
     control: &AgentControl,
     state: &Arc<ThreadManagerState>,
     config: Config,
-    parent_thread_id: ThreadId,
+    parent_chat_id: ChatId,
     label: &str,
 ) -> crate::thread_manager::NewThread {
     state
@@ -138,8 +138,8 @@ async fn spawn_v2_subagent(
             config,
             control.clone(),
             SessionSource::SubAgent(SubAgentSource::Other(label.to_string())),
-            Some(parent_thread_id),
-            /*forked_from_thread_id*/ None,
+            Some(parent_chat_id),
+            /*forked_from_chat_id*/ None,
             Some(ThreadSource::Subagent),
             /*metrics_service_name*/ None,
             /*inherited_environments*/ None,
@@ -157,8 +157,8 @@ async fn mark_thread_completed(thread: &CodexThread) {
         .session
         .send_event(
             turn.as_ref(),
-            EventMsg::TurnComplete(TurnCompleteEvent {
-                turn_id: turn.sub_id.clone(),
+            EventMsg::InteractionComplete(InteractionCompleteEvent {
+                interaction_id: turn.sub_id.clone(),
                 last_agent_message: Some("done".to_string()),
                 completed_at: None,
                 duration_ms: None,
@@ -176,9 +176,9 @@ async fn mark_thread_interrupted(thread: &CodexThread) {
         .session
         .send_event(
             turn.as_ref(),
-            EventMsg::TurnAborted(TurnAbortedEvent {
-                turn_id: Some(turn.sub_id.clone()),
-                reason: TurnAbortReason::Interrupted,
+            EventMsg::InteractionAborted(InteractionAbortedEvent {
+                interaction_id: Some(turn.sub_id.clone()),
+                reason: InteractionAbortReason::Interrupted,
                 completed_at: None,
                 duration_ms: None,
             }),

@@ -16,7 +16,7 @@ use datax_protocol::protocol::GuardianRiskLevel;
 use datax_protocol::protocol::GuardianUserAuthorization;
 use datax_protocol::protocol::ReviewDecision;
 use datax_protocol::protocol::SubAgentSource;
-use datax_protocol::protocol::TurnAbortReason;
+use datax_protocol::protocol::InteractionAbortReason;
 use datax_protocol::protocol::WarningEvent;
 use std::sync::Arc;
 use tokio::sync::oneshot;
@@ -39,7 +39,7 @@ use super::GuardianRejection;
 use super::GuardianRejectionCircuitBreakerAction;
 use super::approval_request::guardian_assessment_action;
 use super::approval_request::guardian_request_target_item_id;
-use super::approval_request::guardian_request_turn_id;
+use super::approval_request::guardian_request_interaction_id;
 use super::approval_request::guardian_reviewed_action;
 use super::metrics::emit_guardian_review_metrics;
 use super::prompt::guardian_output_schema;
@@ -211,22 +211,22 @@ fn track_guardian_review(
         .track_guardian_review(tracking, result, completed_at_ms);
 }
 
-async fn record_guardian_non_denial(session: &Arc<Session>, turn_id: &str) {
+async fn record_guardian_non_denial(session: &Arc<Session>, interaction_id: &str) {
     session
         .services
         .guardian_rejection_circuit_breaker
         .lock()
         .await
-        .record_non_denial(turn_id);
+        .record_non_denial(interaction_id);
 }
 
-async fn record_guardian_denial(session: &Arc<Session>, turn: &Arc<TurnContext>, turn_id: &str) {
+async fn record_guardian_denial(session: &Arc<Session>, turn: &Arc<TurnContext>, interaction_id: &str) {
     let action = session
         .services
         .guardian_rejection_circuit_breaker
         .lock()
         .await
-        .record_denial(turn_id);
+        .record_denial(interaction_id);
     let GuardianRejectionCircuitBreakerAction::InterruptTurn {
         consecutive_denials,
         recent_denials,
@@ -235,7 +235,7 @@ async fn record_guardian_denial(session: &Arc<Session>, turn: &Arc<TurnContext>,
         return;
     };
 
-    if session.turn_context_for_sub_id(turn_id).await.is_none() {
+    if session.turn_context_for_sub_id(interaction_id).await.is_none() {
         return;
     }
 
@@ -252,10 +252,10 @@ async fn record_guardian_denial(session: &Arc<Session>, turn: &Arc<TurnContext>,
 
     let runtime_handle = session.services.runtime_handle.clone();
     let session = Arc::clone(session);
-    let turn_id = turn_id.to_string();
+    let interaction_id = interaction_id.to_string();
     let _abort_task = runtime_handle.spawn(async move {
         session
-            .abort_turn_if_active(&turn_id, TurnAbortReason::Interrupted)
+            .abort_turn_if_active(&interaction_id, InteractionAbortReason::Interrupted)
             .await;
     });
 }
@@ -264,9 +264,9 @@ async fn record_guardian_denial(session: &Arc<Session>, turn: &Arc<TurnContext>,
 pub(crate) async fn record_guardian_denial_for_test(
     session: &Arc<Session>,
     turn: &Arc<TurnContext>,
-    turn_id: &str,
+    interaction_id: &str,
 ) {
-    record_guardian_denial(session, turn, turn_id).await;
+    record_guardian_denial(session, turn, interaction_id).await;
 }
 
 /// This function always fails closed: timeouts, review-session failures, and
@@ -282,12 +282,12 @@ async fn run_guardian_review(
     external_cancel: Option<CancellationToken>,
 ) -> ReviewDecision {
     let target_item_id = guardian_request_target_item_id(&request).map(str::to_string);
-    let assessment_turn_id = guardian_request_turn_id(&request, &turn.sub_id).to_string();
+    let assessment_interaction_id = guardian_request_interaction_id(&request, &turn.sub_id).to_string();
     let action_summary = guardian_assessment_action(&request);
     let reviewed_action = guardian_reviewed_action(&request);
     let review_tracking = GuardianReviewTrackContext::new(
-        session.thread_id.to_string(),
-        assessment_turn_id.clone(),
+        session.chat_id.to_string(),
+        assessment_interaction_id.clone(),
         review_id.clone(),
         target_item_id.clone(),
         approval_request_source,
@@ -301,7 +301,7 @@ async fn run_guardian_review(
             EventMsg::GuardianAssessment(GuardianAssessmentEvent {
                 id: review_id.clone(),
                 target_item_id: target_item_id.clone(),
-                turn_id: assessment_turn_id.clone(),
+                interaction_id: assessment_interaction_id.clone(),
                 started_at_ms,
                 completed_at_ms: None,
                 status: GuardianAssessmentStatus::InProgress,
@@ -338,7 +338,7 @@ async fn run_guardian_review(
                 EventMsg::GuardianAssessment(GuardianAssessmentEvent {
                     id: review_id,
                     target_item_id,
-                    turn_id: assessment_turn_id.clone(),
+                    interaction_id: assessment_interaction_id.clone(),
                     started_at_ms,
                     completed_at_ms: Some(completed_at_ms),
                     status: GuardianAssessmentStatus::Aborted,
@@ -350,7 +350,7 @@ async fn run_guardian_review(
                 }),
             )
             .await;
-        record_guardian_non_denial(&session, &assessment_turn_id).await;
+        record_guardian_non_denial(&session, &assessment_interaction_id).await;
         return ReviewDecision::Abort;
     }
 
@@ -431,7 +431,7 @@ async fn run_guardian_review(
                         EventMsg::GuardianAssessment(GuardianAssessmentEvent {
                             id: review_id,
                             target_item_id,
-                            turn_id: assessment_turn_id.clone(),
+                            interaction_id: assessment_interaction_id.clone(),
                             started_at_ms,
                             completed_at_ms: Some(completed_at_ms),
                             status: GuardianAssessmentStatus::TimedOut,
@@ -443,7 +443,7 @@ async fn run_guardian_review(
                         }),
                     )
                     .await;
-                record_guardian_non_denial(&session, &assessment_turn_id).await;
+                record_guardian_non_denial(&session, &assessment_interaction_id).await;
                 return ReviewDecision::TimedOut;
             }
             GuardianReviewError::Cancelled => {
@@ -466,7 +466,7 @@ async fn run_guardian_review(
                         EventMsg::GuardianAssessment(GuardianAssessmentEvent {
                             id: review_id,
                             target_item_id,
-                            turn_id: assessment_turn_id.clone(),
+                            interaction_id: assessment_interaction_id.clone(),
                             started_at_ms,
                             completed_at_ms: Some(completed_at_ms),
                             status: GuardianAssessmentStatus::Aborted,
@@ -478,7 +478,7 @@ async fn run_guardian_review(
                         }),
                     )
                     .await;
-                record_guardian_non_denial(&session, &assessment_turn_id).await;
+                record_guardian_non_denial(&session, &assessment_interaction_id).await;
                 return ReviewDecision::Abort;
             }
             GuardianReviewError::PromptBuild { .. }
@@ -564,7 +564,7 @@ async fn run_guardian_review(
             EventMsg::GuardianAssessment(GuardianAssessmentEvent {
                 id: review_id,
                 target_item_id,
-                turn_id: assessment_turn_id.clone(),
+                interaction_id: assessment_interaction_id.clone(),
                 started_at_ms,
                 completed_at_ms: Some(completed_at_ms),
                 status,
@@ -578,9 +578,9 @@ async fn run_guardian_review(
         .await;
 
     if count_denial_for_circuit_breaker {
-        record_guardian_denial(&session, &turn, &assessment_turn_id).await;
+        record_guardian_denial(&session, &turn, &assessment_interaction_id).await;
     } else {
-        record_guardian_non_denial(&session, &assessment_turn_id).await;
+        record_guardian_non_denial(&session, &assessment_interaction_id).await;
     }
 
     if approved {

@@ -80,20 +80,20 @@ async fn window_id_advances_after_compact_persists_on_resume_and_resets_on_fork(
     let requests = request_log.requests();
     assert_eq!(requests.len(), 5, "expected five model requests");
 
-    let (initial_thread_id, first_generation) = window_id_parts(&requests[0]);
-    let (compact_thread_id, compact_generation) = window_id_parts(&requests[1]);
-    let (after_compact_thread_id, after_compact_generation) = window_id_parts(&requests[2]);
-    let (after_resume_thread_id, after_resume_generation) = window_id_parts(&requests[3]);
-    let (after_fork_thread_id, after_fork_generation) = window_id_parts(&requests[4]);
+    let (initial_chat_id, first_generation) = window_id_parts(&requests[0]);
+    let (compact_chat_id, compact_generation) = window_id_parts(&requests[1]);
+    let (after_compact_chat_id, after_compact_generation) = window_id_parts(&requests[2]);
+    let (after_resume_chat_id, after_resume_generation) = window_id_parts(&requests[3]);
+    let (after_fork_chat_id, after_fork_generation) = window_id_parts(&requests[4]);
 
     assert_eq!(first_generation, 0);
-    assert_eq!(compact_thread_id, initial_thread_id);
+    assert_eq!(compact_chat_id, initial_chat_id);
     assert_eq!(compact_generation, 0);
-    assert_eq!(after_compact_thread_id, initial_thread_id);
+    assert_eq!(after_compact_chat_id, initial_chat_id);
     assert_eq!(after_compact_generation, 1);
-    assert_eq!(after_resume_thread_id, initial_thread_id);
+    assert_eq!(after_resume_chat_id, initial_chat_id);
     assert_eq!(after_resume_generation, 1);
-    assert_ne!(after_fork_thread_id, initial_thread_id);
+    assert_ne!(after_fork_chat_id, initial_chat_id);
     assert_eq!(after_fork_generation, 0);
 
     Ok(())
@@ -112,7 +112,7 @@ async fn submit_user_turn(codex: &Arc<CodexThread>, text: &str) -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
     Ok(())
 }
 
@@ -123,7 +123,7 @@ async fn submit_compact_turn(codex: &Arc<CodexThread>) -> Result<()> {
         panic!("expected warning event after compact");
     };
     assert_eq!(message, COMPACT_WARNING_MESSAGE);
-    wait_for_event(codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
     Ok(())
 }
 
@@ -137,11 +137,11 @@ fn window_id_parts(request: &ResponsesRequest) -> (String, u64) {
     let window_id = request
         .header("x-codex-window-id")
         .expect("missing x-codex-window-id header");
-    let (thread_id, generation) = window_id
+    let (chat_id, generation) = window_id
         .rsplit_once(':')
         .expect("window id header should contain a generation");
     let generation = generation
         .parse::<u64>()
         .expect("window generation should be a valid integer");
-    (thread_id.to_string(), generation)
+    (chat_id.to_string(), generation)
 }

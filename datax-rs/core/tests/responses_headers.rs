@@ -14,7 +14,7 @@ use datax_model_provider_info::ModelProviderInfo;
 use datax_model_provider_info::WireApi;
 use datax_otel::SessionTelemetry;
 use datax_otel::TelemetryAuthMode;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::ReasoningSummary;
 use datax_protocol::models::ContentItem;
 use datax_protocol::models::ResponseItem;
@@ -36,18 +36,18 @@ fn normalize_git_remote_url(url: &str) -> String {
 const TEST_INSTALLATION_ID: &str = "11111111-1111-4111-8111-111111111111";
 fn test_turn_responses_metadata(
     _client: &ModelClient,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     session_source: &SessionSource,
 ) -> datax_core::CodexResponsesMetadata {
-    let thread_id = thread_id.to_string();
+    let chat_id = chat_id.to_string();
     test_responses_metadata(
         TEST_INSTALLATION_ID,
-        &thread_id,
-        &thread_id,
-        /*turn_id*/ None,
-        format!("{thread_id}:0"),
+        &chat_id,
+        &chat_id,
+        /*interaction_id*/ None,
+        format!("{chat_id}:0"),
         session_source,
-        /*parent_thread_id*/ None,
+        /*parent_chat_id*/ None,
         TestCodexResponsesRequestKind::Turn,
     )
 }
@@ -99,14 +99,14 @@ async fn responses_stream_includes_subagent_header_on_review() {
     config.model = Some(model.clone());
     let config = Arc::new(config);
 
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let auth_mode = TelemetryAuthMode::Chatgpt;
     let session_source = SessionSource::SubAgent(SubAgentSource::Review);
     let model_info =
         datax_core::test_support::construct_model_info_offline(model.as_str(), &config);
-    let expected_window_id = format!("{thread_id}:0");
+    let expected_window_id = format!("{chat_id}:0");
     let session_telemetry = SessionTelemetry::new(
-        thread_id,
+        chat_id,
         model.as_str(),
         model_info.slug.as_str(),
         /*account_id*/ None,
@@ -120,7 +120,7 @@ async fn responses_stream_includes_subagent_header_on_review() {
 
     let client = ModelClient::new(
         /*auth_manager*/ None,
-        thread_id,
+        chat_id,
         provider.clone(),
         session_source.clone(),
         config.model_verbosity,
@@ -130,7 +130,7 @@ async fn responses_stream_includes_subagent_header_on_review() {
         /*item_ids_enabled*/ false,
         /*attestation_provider*/ None,
     );
-    let responses_metadata = test_turn_responses_metadata(&client, thread_id, &session_source);
+    let responses_metadata = test_turn_responses_metadata(&client, chat_id, &session_source);
     let mut client_session = client.new_session();
 
     let mut prompt = Prompt::default();
@@ -231,14 +231,14 @@ async fn responses_stream_includes_subagent_header_on_other() {
     config.model = Some(model.clone());
     let config = Arc::new(config);
 
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let auth_mode = TelemetryAuthMode::Chatgpt;
     let session_source = SessionSource::SubAgent(SubAgentSource::Other("my-task".to_string()));
     let model_info =
         datax_core::test_support::construct_model_info_offline(model.as_str(), &config);
 
     let session_telemetry = SessionTelemetry::new(
-        thread_id,
+        chat_id,
         model.as_str(),
         model_info.slug.as_str(),
         /*account_id*/ None,
@@ -252,7 +252,7 @@ async fn responses_stream_includes_subagent_header_on_other() {
 
     let client = ModelClient::new(
         /*auth_manager*/ None,
-        thread_id,
+        chat_id,
         provider.clone(),
         session_source.clone(),
         config.model_verbosity,
@@ -262,7 +262,7 @@ async fn responses_stream_includes_subagent_header_on_other() {
         /*item_ids_enabled*/ false,
         /*attestation_provider*/ None,
     );
-    let responses_metadata = test_turn_responses_metadata(&client, thread_id, &session_source);
+    let responses_metadata = test_turn_responses_metadata(&client, chat_id, &session_source);
     let mut client_session = client.new_session();
 
     let mut prompt = Prompt::default();
@@ -346,7 +346,7 @@ async fn responses_respects_model_info_overrides_from_config() {
     let model = config.model.clone().expect("model configured");
     let config = Arc::new(config);
 
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let auth_mode =
         datax_core::test_support::auth_manager_from_auth(CodexAuth::from_api_key("Test API Key"))
             .auth_mode()
@@ -356,7 +356,7 @@ async fn responses_respects_model_info_overrides_from_config() {
     let model_info =
         datax_core::test_support::construct_model_info_offline(model.as_str(), &config);
     let session_telemetry = SessionTelemetry::new(
-        thread_id,
+        chat_id,
         model.as_str(),
         model_info.slug.as_str(),
         /*account_id*/ None,
@@ -370,7 +370,7 @@ async fn responses_respects_model_info_overrides_from_config() {
 
     let client = ModelClient::new(
         /*auth_manager*/ None,
-        thread_id,
+        chat_id,
         provider.clone(),
         session_source.clone(),
         config.model_verbosity,
@@ -380,7 +380,7 @@ async fn responses_respects_model_info_overrides_from_config() {
         /*item_ids_enabled*/ false,
         /*attestation_provider*/ None,
     );
-    let responses_metadata = test_turn_responses_metadata(&client, thread_id, &session_source);
+    let responses_metadata = test_turn_responses_metadata(&client, chat_id, &session_source);
     let mut client_session = client.new_session();
 
     let mut prompt = Prompt::default();
@@ -457,14 +457,14 @@ async fn responses_stream_includes_turn_metadata_header_for_git_workspace_e2e() 
         .expect("x-codex-turn-metadata header should be present");
     let initial_parsed: serde_json::Value =
         serde_json::from_str(&initial_header).expect("x-codex-turn-metadata should be valid JSON");
-    let initial_turn_id = initial_parsed
-        .get("turn_id")
+    let initial_interaction_id = initial_parsed
+        .get("interaction_id")
         .and_then(serde_json::Value::as_str)
-        .expect("turn_id should be present")
+        .expect("interaction_id should be present")
         .to_string();
     assert!(
-        !initial_turn_id.is_empty(),
-        "turn_id should not be empty in x-codex-turn-metadata"
+        !initial_interaction_id.is_empty(),
+        "interaction_id should not be empty in x-codex-turn-metadata"
     );
     let initial_turn_started_at_unix_ms = initial_parsed
         .get("turn_started_at_unix_ms")
@@ -569,14 +569,14 @@ async fn responses_stream_includes_turn_metadata_header_for_git_workspace_e2e() 
     )
     .expect("second metadata should be valid json");
 
-    let first_turn_id = first_parsed
-        .get("turn_id")
+    let first_interaction_id = first_parsed
+        .get("interaction_id")
         .and_then(serde_json::Value::as_str)
-        .expect("first turn_id should be present");
-    let second_turn_id = second_parsed
-        .get("turn_id")
+        .expect("first interaction_id should be present");
+    let second_interaction_id = second_parsed
+        .get("interaction_id")
         .and_then(serde_json::Value::as_str)
-        .expect("second turn_id should be present");
+        .expect("second interaction_id should be present");
     let first_turn_started_at_unix_ms = first_parsed
         .get("turn_started_at_unix_ms")
         .and_then(serde_json::Value::as_i64)
@@ -606,13 +606,13 @@ async fn responses_stream_includes_turn_metadata_header_for_git_workspace_e2e() 
         None
     );
     assert_eq!(
-        first_turn_id, second_turn_id,
-        "requests should share turn_id"
+        first_interaction_id, second_interaction_id,
+        "requests should share interaction_id"
     );
     assert_ne!(
-        second_turn_id,
-        initial_turn_id.as_str(),
-        "post-git turn should have a new turn_id"
+        second_interaction_id,
+        initial_interaction_id.as_str(),
+        "post-git turn should have a new interaction_id"
     );
 
     assert_eq!(

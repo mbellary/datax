@@ -8,7 +8,7 @@ use serde::Serialize;
 use ts_rs::TS;
 use uuid::Uuid;
 
-use crate::ThreadId;
+use crate::ChatId;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, TS, Hash)]
 #[ts(type = "string")]
@@ -52,15 +52,15 @@ impl From<SessionId> for String {
     }
 }
 
-impl From<ThreadId> for SessionId {
-    fn from(value: ThreadId) -> Self {
+impl From<ChatId> for SessionId {
+    fn from(value: ChatId) -> Self {
         Self { uuid: value.uuid }
     }
 }
 
-impl From<SessionId> for ThreadId {
+impl From<SessionId> for ChatId {
     fn from(value: SessionId) -> Self {
-        ThreadId { uuid: value.uuid }
+        ChatId { uuid: value.uuid }
     }
 }
 
@@ -117,10 +117,10 @@ mod tests {
     }
 
     #[test]
-    fn converts_to_and_from_thread_id() {
-        let thread_id = ThreadId::new();
-        let session_id = SessionId::from(thread_id);
+    fn converts_to_and_from_chat_id() {
+        let chat_id = ChatId::new();
+        let session_id = SessionId::from(chat_id);
 
-        assert_eq!(ThreadId::from(session_id), thread_id);
+        assert_eq!(ChatId::from(session_id), chat_id);
     }
 }

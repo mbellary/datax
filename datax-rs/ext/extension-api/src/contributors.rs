@@ -24,7 +24,7 @@ pub use mcp::McpServerContribution;
 pub use mcp::McpServerContributionContext;
 pub use prompt::PromptFragment;
 pub use prompt::PromptSlot;
-pub use thread_lifecycle::ThreadIdleInput;
+pub use thread_lifecycle::ChatIdleInput;
 pub use thread_lifecycle::ThreadResumeInput;
 pub use thread_lifecycle::ThreadStartInput;
 pub use thread_lifecycle::ThreadStopInput;
@@ -121,7 +121,7 @@ pub trait ThreadLifecycleContributor<C: Sync>: Send + Sync {
     /// Implementations may use host capabilities captured by the extension to
     /// submit follow-up input. The host remains responsible for deciding
     /// whether that input starts a turn, is queued, or is ignored.
-    fn on_thread_idle<'a>(&'a self, input: ThreadIdleInput<'a>) -> ExtensionFuture<'a, ()> {
+    fn on_chat_idle<'a>(&'a self, input: ChatIdleInput<'a>) -> ExtensionFuture<'a, ()> {
         Box::pin(async move {
             let _self = self;
             let _input = input;

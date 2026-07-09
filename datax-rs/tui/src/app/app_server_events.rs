@@ -3,7 +3,7 @@
 use super::App;
 use super::app_server_event_targets::ServerNotificationThreadTarget;
 use super::app_server_event_targets::server_notification_thread_target;
-use super::app_server_event_targets::server_request_thread_id;
+use super::app_server_event_targets::server_request_chat_id;
 use crate::app_command::AppCommand;
 use crate::app_event::AppEvent;
 use crate::app_event::ConnectorsSnapshot;
@@ -137,13 +137,13 @@ impl App {
         }
 
         match server_notification_thread_target(&notification) {
-            ServerNotificationThreadTarget::Chat(thread_id) => {
-                let result = if self.primary_thread_id == Some(thread_id)
-                    || self.primary_thread_id.is_none()
+            ServerNotificationThreadTarget::Chat(chat_id) => {
+                let result = if self.primary_chat_id == Some(chat_id)
+                    || self.primary_chat_id.is_none()
                 {
                     self.enqueue_primary_thread_notification(notification).await
                 } else {
-                    self.enqueue_thread_notification(thread_id, notification)
+                    self.enqueue_thread_notification(chat_id, notification)
                         .await
                 };
 
@@ -152,10 +152,10 @@ impl App {
                 }
                 return;
             }
-            ServerNotificationThreadTarget::InvalidThreadId(thread_id) => {
+            ServerNotificationThreadTarget::InvalidChatId(chat_id) => {
                 tracing::warn!(
-                    thread_id,
-                    "ignoring app-server notification with invalid thread_id"
+                    chat_id,
+                    "ignoring app-server notification with invalid chat_id"
                 );
                 return;
             }
@@ -201,16 +201,16 @@ impl App {
             return;
         }
 
-        let Some(thread_id) = server_request_thread_id(&request) else {
+        let Some(chat_id) = server_request_chat_id(&request) else {
             tracing::warn!("ignoring threadless app-server request");
             return;
         };
 
         let result =
-            if self.primary_thread_id == Some(thread_id) || self.primary_thread_id.is_none() {
+            if self.primary_chat_id == Some(chat_id) || self.primary_chat_id.is_none() {
                 self.enqueue_primary_thread_request(request).await
             } else {
-                self.enqueue_thread_request(thread_id, request).await
+                self.enqueue_thread_request(chat_id, request).await
             };
         if let Err(err) = result {
             tracing::warn!("failed to enqueue app-server request: {err}");

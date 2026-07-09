@@ -20,7 +20,7 @@ use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
 use datax_core::ARCHIVED_SESSIONS_SUBDIR;
 use datax_git_utils::GitSha;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::GitInfo as RolloutGitInfo;
 use datax_rollout::state_db::reconcile_rollout;
 use datax_state::StateRuntime;
@@ -296,7 +296,7 @@ async fn thread_metadata_update_repairs_loaded_thread_without_resetting_summary(
         Some("mock_provider"),
         /*git_info*/ None,
     )?;
-    let thread_uuid = ThreadId::from_string(&chat_id)?;
+    let thread_uuid = ChatId::from_string(&chat_id)?;
     let rollout_path = rollout_path(codex_home.path(), "2025-01-06T08-30-00", &chat_id);
     reconcile_rollout(
         Some(&state_db),

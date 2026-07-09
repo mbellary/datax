@@ -80,7 +80,7 @@ use datax_login::auth::ExternalAuth;
 use datax_login::auth::ExternalAuthRefreshContext;
 use datax_login::auth::ExternalAuthRefreshReason;
 use datax_login::auth::ExternalAuthTokens;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::W3cTraceContext;
 use datax_rollout::StateDbHandle;
@@ -717,7 +717,7 @@ impl MessageProcessor {
         request_fut.instrument(request_context.span()).await;
     }
 
-    pub(crate) fn thread_created_receiver(&self) -> broadcast::Receiver<ThreadId> {
+    pub(crate) fn thread_created_receiver(&self) -> broadcast::Receiver<ChatId> {
         self.chat_processor.thread_created_receiver()
     }
 
@@ -753,7 +753,7 @@ impl MessageProcessor {
 
     pub(crate) async fn try_attach_thread_listener(
         &self,
-        chat_id: ThreadId,
+        chat_id: ChatId,
         connection_ids: Vec<ConnectionId>,
     ) {
         self.chat_processor

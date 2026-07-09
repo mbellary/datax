@@ -16,7 +16,7 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use datax_otel::SessionTelemetry;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_utils_absolute_path::AbsolutePathBuf;
 use tokio::fs;
 use tokio::process::Command;
@@ -31,7 +31,7 @@ pub(crate) struct ShellSnapshot {
 
 struct ShellSnapshotConfig {
     codex_home: AbsolutePathBuf,
-    session_id: ThreadId,
+    session_id: ChatId,
     session_telemetry: SessionTelemetry,
     state_db: Option<StateDbHandle>,
 }
@@ -48,7 +48,7 @@ const EXCLUDED_EXPORT_VARS: &[&str] = &["PWD", "OLDPWD"];
 impl ShellSnapshot {
     pub(crate) fn new(
         codex_home: AbsolutePathBuf,
-        session_id: ThreadId,
+        session_id: ChatId,
         session_telemetry: SessionTelemetry,
         state_db: Option<StateDbHandle>,
     ) -> Self {
@@ -87,7 +87,7 @@ impl ShellSnapshot {
         cwd: AbsolutePathBuf,
         shell: Shell,
     ) -> Option<Arc<ShellSnapshotFile>> {
-        let snapshot_span = info_span!("shell_snapshot", thread_id = %config.session_id);
+        let snapshot_span = info_span!("shell_snapshot", chat_id = %config.session_id);
         async {
             let timer = config
                 .session_telemetry
@@ -117,7 +117,7 @@ impl ShellSnapshot {
 
     async fn try_create(
         codex_home: &AbsolutePathBuf,
-        session_id: ThreadId,
+        session_id: ChatId,
         session_cwd: &AbsolutePathBuf,
         shell: &Shell,
         state_db: Option<StateDbHandle>,
@@ -499,7 +499,7 @@ $envVars | ForEach-Object {
 /// The active session id is exempt from cleanup.
 pub async fn cleanup_stale_snapshots(
     codex_home: &AbsolutePathBuf,
-    active_session_id: ThreadId,
+    active_session_id: ChatId,
     state_db: Option<StateDbHandle>,
 ) -> Result<()> {
     let snapshot_dir = codex_home.join(SNAPSHOT_DIR);

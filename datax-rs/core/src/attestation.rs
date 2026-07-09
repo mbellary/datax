@@ -1,7 +1,7 @@
 use std::future::Future;
 use std::pin::Pin;
 
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use http::HeaderValue;
 
 pub(crate) const X_OAI_ATTESTATION_HEADER: &str = "x-oai-attestation";
@@ -14,7 +14,7 @@ pub type GenerateAttestationFuture<'a> =
 #[derive(Clone, Copy, Debug)]
 pub struct AttestationContext {
     /// Thread whose upstream request is being prepared.
-    pub thread_id: ThreadId,
+    pub chat_id: ChatId,
 }
 
 /// Host integration boundary for just-in-time attestation header values.

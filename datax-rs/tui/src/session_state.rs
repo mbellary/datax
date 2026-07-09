@@ -6,7 +6,7 @@
 use std::path::PathBuf;
 
 use datax_app_server_protocol::AskForApproval;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::CollaborationMode;
 use datax_protocol::config_types::Personality;
 use datax_protocol::models::ActivePermissionProfile;
@@ -28,8 +28,8 @@ pub(crate) struct MessageHistoryMetadata {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct ThreadSessionState {
-    pub(crate) thread_id: ThreadId,
-    pub(crate) forked_from_id: Option<ThreadId>,
+    pub(crate) chat_id: ChatId,
+    pub(crate) forked_from_id: Option<ChatId>,
     pub(crate) fork_parent_title: Option<String>,
     pub(crate) thread_name: Option<String>,
     pub(crate) model: String,

@@ -35,8 +35,8 @@ impl TraceReducer {
         &mut self,
         wall_time_unix_ms: i64,
         inference_call_id: &InferenceCallId,
-        thread_id: &str,
-        codex_turn_id: &str,
+        chat_id: &str,
+        codex_interaction_id: &str,
         request_payload: &RawPayloadRef,
     ) -> Result<Vec<String>> {
         let payload = self.read_payload_json(request_payload)?;
@@ -61,7 +61,7 @@ impl TraceReducer {
         // reinjects must therefore become a fresh post-compaction conversation item.
         let post_compaction_snapshot = if previous_response_id.is_none() {
             self.pending_compaction_replacement_item_ids
-                .get(thread_id)
+                .get(chat_id)
                 .cloned()
         } else {
             None
@@ -76,7 +76,7 @@ impl TraceReducer {
                 .inference_calls
                 .values()
                 .find(|inference| {
-                    inference.thread_id == thread_id
+                    inference.chat_id == chat_id
                         && inference.response_id.as_deref() == Some(previous_response_id)
                 })
                 .map(|inference| {
@@ -92,8 +92,8 @@ impl TraceReducer {
             let delta_item_ids = self.reconcile_conversation_items(
                 items,
                 ReconcileItems {
-                    thread_id,
-                    codex_turn_id,
+                    chat_id,
+                    codex_interaction_id,
                     wall_time_unix_ms,
                     produced_by: Vec::new(),
                     start_index: item_ids.len(),
@@ -107,8 +107,8 @@ impl TraceReducer {
             self.reconcile_conversation_items(
                 items,
                 ReconcileItems {
-                    thread_id,
-                    codex_turn_id,
+                    chat_id,
+                    codex_interaction_id,
                     wall_time_unix_ms,
                     produced_by: Vec::new(),
                     start_index: 0,
@@ -118,13 +118,13 @@ impl TraceReducer {
             )?
         };
 
-        self.append_thread_conversation_items(thread_id, &request_item_ids)?;
+        self.append_thread_conversation_items(chat_id, &request_item_ids)?;
         if post_compaction_snapshot.is_some() {
             self.pending_compaction_replacement_item_ids
-                .remove(thread_id);
+                .remove(chat_id);
         }
         self.thread_conversation_snapshots
-            .insert(thread_id.to_string(), request_item_ids.clone());
+            .insert(chat_id.to_string(), request_item_ids.clone());
         Ok(request_item_ids)
     }
 
@@ -143,11 +143,11 @@ impl TraceReducer {
             );
         };
 
-        let Some((thread_id, codex_turn_id)) = self
+        let Some((chat_id, codex_interaction_id)) = self
             .rollout
             .inference_calls
             .get(inference_call_id)
-            .map(|inference| (inference.thread_id.clone(), inference.codex_turn_id.clone()))
+            .map(|inference| (inference.chat_id.clone(), inference.codex_interaction_id.clone()))
         else {
             bail!("inference response referenced unknown call {inference_call_id}");
         };
@@ -157,13 +157,13 @@ impl TraceReducer {
         // so it is conversation even before a later request carries it forward.
         let append_at = self
             .thread_conversation_snapshots
-            .get(&thread_id)
+            .get(&chat_id)
             .map_or(0, Vec::len);
         let response_item_ids = self.reconcile_conversation_items(
             items,
             ReconcileItems {
-                thread_id: &thread_id,
-                codex_turn_id: &codex_turn_id,
+                chat_id: &chat_id,
+                codex_interaction_id: &codex_interaction_id,
                 wall_time_unix_ms,
                 produced_by: vec![ProducerRef::Inference {
                     inference_call_id: inference_call_id.clone(),
@@ -173,9 +173,9 @@ impl TraceReducer {
                 snapshot_override: None,
             },
         )?;
-        self.append_thread_conversation_items(&thread_id, &response_item_ids)?;
+        self.append_thread_conversation_items(&chat_id, &response_item_ids)?;
         self.thread_conversation_snapshots
-            .entry(thread_id)
+            .entry(chat_id)
             .or_default()
             .extend(response_item_ids.clone());
 
@@ -198,7 +198,7 @@ impl TraceReducer {
         let previous_snapshot = context.snapshot_override.map_or_else(
             || {
                 self.thread_conversation_snapshots
-                    .get(context.thread_id)
+                    .get(context.chat_id)
                     .cloned()
                     .unwrap_or_default()
             },
@@ -209,7 +209,7 @@ impl TraceReducer {
         for (offset, item) in items.into_iter().enumerate() {
             let index = context.start_index + offset;
             let tool_link_item = item.clone();
-            self.ensure_call_id_consistency(context.thread_id, &item)?;
+            self.ensure_call_id_consistency(context.chat_id, &item)?;
             let item_id = if let Some(previous_item_id) = previous_snapshot.get(index) {
                 if self.item_matches(previous_item_id, &item) {
                     previous_item_id.clone()
@@ -217,19 +217,19 @@ impl TraceReducer {
                     self.find_matching_snapshot_item(&previous_snapshot, &item_ids, &item)
                         .unwrap_or_else(|| {
                             self.create_conversation_item(
-                                context.thread_id,
-                                Some(context.codex_turn_id.to_string()),
+                                context.chat_id,
+                                Some(context.codex_interaction_id.to_string()),
                                 context.wall_time_unix_ms,
                                 item,
                                 context.produced_by.clone(),
                             )
                         })
                 } else {
-                    let codex_turn_id = context.codex_turn_id;
-                    let thread_id = context.thread_id;
+                    let codex_interaction_id = context.codex_interaction_id;
+                    let chat_id = context.chat_id;
                     bail!(
-                        "model conversation mismatch while reducing turn {codex_turn_id} for \
-                         thread {thread_id} at item index {index}: existing item \
+                        "model conversation mismatch while reducing turn {codex_interaction_id} for \
+                         thread {chat_id} at item index {index}: existing item \
                          {previous_item_id} does not match the current model payload item"
                     );
                 }
@@ -237,8 +237,8 @@ impl TraceReducer {
                 self.find_matching_snapshot_item(&previous_snapshot, &item_ids, &item)
                     .unwrap_or_else(|| {
                         self.create_conversation_item(
-                            context.thread_id,
-                            Some(context.codex_turn_id.to_string()),
+                            context.chat_id,
+                            Some(context.codex_interaction_id.to_string()),
                             context.wall_time_unix_ms,
                             item,
                             context.produced_by.clone(),
@@ -246,8 +246,8 @@ impl TraceReducer {
                     })
             } else {
                 self.create_conversation_item(
-                    context.thread_id,
-                    Some(context.codex_turn_id.to_string()),
+                    context.chat_id,
+                    Some(context.codex_interaction_id.to_string()),
                     context.wall_time_unix_ms,
                     item,
                     context.produced_by.clone(),
@@ -283,8 +283,8 @@ impl TraceReducer {
     pub(super) fn reduce_compaction_checkpoint(
         &mut self,
         wall_time_unix_ms: i64,
-        thread_id: &str,
-        codex_turn_id: &str,
+        chat_id: &str,
+        codex_interaction_id: &str,
         compaction_id: &CompactionId,
         checkpoint_payload: &RawPayloadRef,
     ) -> Result<ReducedCompactionCheckpoint> {
@@ -298,14 +298,14 @@ impl TraceReducer {
             normalize::normalize_model_items(replacement_history, checkpoint_payload)?;
         let input_candidates = self
             .thread_conversation_snapshots
-            .get(thread_id)
+            .get(chat_id)
             .cloned()
             .unwrap_or_default();
         let input_item_ids = self.reconcile_detached_conversation_items(
             input_items,
             DetachedReconcileItems {
-                thread_id,
-                codex_turn_id,
+                chat_id,
+                codex_interaction_id,
                 wall_time_unix_ms,
                 produced_by: Vec::new(),
                 candidates: input_candidates,
@@ -315,8 +315,8 @@ impl TraceReducer {
         // boundary where old live history ended. Then append the replacement items, including
         // the provider-visible summary item if the compact endpoint returned one.
         let marker_item_id = self.create_conversation_item(
-            thread_id,
-            Some(codex_turn_id.to_string()),
+            chat_id,
+            Some(codex_interaction_id.to_string()),
             wall_time_unix_ms,
             NormalizedConversationItem {
                 role: ConversationRole::Assistant,
@@ -335,8 +335,8 @@ impl TraceReducer {
         let replacement_item_ids = self.reconcile_detached_conversation_items(
             replacement_items,
             DetachedReconcileItems {
-                thread_id,
-                codex_turn_id,
+                chat_id,
+                codex_interaction_id,
                 wall_time_unix_ms,
                 produced_by: vec![ProducerRef::Compaction {
                     compaction_id: compaction_id.clone(),
@@ -347,9 +347,9 @@ impl TraceReducer {
                 candidates: Vec::new(),
             },
         )?;
-        self.append_thread_conversation_items(thread_id, &input_item_ids)?;
-        self.append_thread_conversation_items(thread_id, std::slice::from_ref(&marker_item_id))?;
-        self.append_thread_conversation_items(thread_id, &replacement_item_ids)?;
+        self.append_thread_conversation_items(chat_id, &input_item_ids)?;
+        self.append_thread_conversation_items(chat_id, std::slice::from_ref(&marker_item_id))?;
+        self.append_thread_conversation_items(chat_id, &replacement_item_ids)?;
         Ok(ReducedCompactionCheckpoint {
             input_item_ids,
             marker_item_id,
@@ -366,13 +366,13 @@ impl TraceReducer {
 
         for item in items {
             let tool_link_item = item.clone();
-            self.ensure_call_id_consistency(context.thread_id, &item)?;
+            self.ensure_call_id_consistency(context.chat_id, &item)?;
             let item_id = self
                 .find_matching_snapshot_item(&context.candidates, &item_ids, &item)
                 .unwrap_or_else(|| {
                     self.create_conversation_item(
-                        context.thread_id,
-                        Some(context.codex_turn_id.to_string()),
+                        context.chat_id,
+                        Some(context.codex_interaction_id.to_string()),
                         context.wall_time_unix_ms,
                         item,
                         context.produced_by.clone(),
@@ -403,8 +403,8 @@ impl TraceReducer {
 
     fn create_conversation_item(
         &mut self,
-        thread_id: &str,
-        codex_turn_id: Option<String>,
+        chat_id: &str,
+        codex_interaction_id: Option<String>,
         first_seen_at_unix_ms: i64,
         item: NormalizedConversationItem,
         produced_by: Vec<ProducerRef>,
@@ -414,8 +414,8 @@ impl TraceReducer {
             item_id.clone(),
             ConversationItem {
                 item_id: item_id.clone(),
-                thread_id: thread_id.to_string(),
-                codex_turn_id,
+                chat_id: chat_id.to_string(),
+                codex_interaction_id,
                 first_seen_at_unix_ms,
                 role: item.role,
                 channel: item.channel,
@@ -452,10 +452,10 @@ impl TraceReducer {
 
     fn append_thread_conversation_items(
         &mut self,
-        thread_id: &str,
+        chat_id: &str,
         item_ids: &[String],
     ) -> Result<()> {
-        let thread = self.thread_mut(thread_id)?;
+        let thread = self.thread_mut(chat_id)?;
         for item_id in item_ids {
             if !thread.conversation_item_ids.contains(item_id) {
                 thread.conversation_item_ids.push(item_id.clone());
@@ -480,14 +480,14 @@ impl TraceReducer {
 
     fn ensure_call_id_consistency(
         &self,
-        thread_id: &str,
+        chat_id: &str,
         normalized: &NormalizedConversationItem,
     ) -> Result<()> {
         let Some(call_id) = normalized.call_id.as_deref() else {
             return Ok(());
         };
         for item in self.rollout.conversation_items.values() {
-            if item.thread_id == thread_id
+            if item.chat_id == chat_id
                 && item.call_id.as_deref() == Some(call_id)
                 && item.kind == normalized.kind
                 && !conversation_item_matches(item, normalized)
@@ -526,8 +526,8 @@ enum ReconcileMode {
 }
 
 struct ReconcileItems<'a> {
-    thread_id: &'a str,
-    codex_turn_id: &'a str,
+    chat_id: &'a str,
+    codex_interaction_id: &'a str,
     wall_time_unix_ms: i64,
     produced_by: Vec<ProducerRef>,
     start_index: usize,
@@ -536,8 +536,8 @@ struct ReconcileItems<'a> {
 }
 
 struct DetachedReconcileItems<'a> {
-    thread_id: &'a str,
-    codex_turn_id: &'a str,
+    chat_id: &'a str,
+    codex_interaction_id: &'a str,
     wall_time_unix_ms: i64,
     produced_by: Vec<ProducerRef>,
     candidates: Vec<String>,

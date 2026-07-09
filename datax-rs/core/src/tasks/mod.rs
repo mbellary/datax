@@ -48,9 +48,9 @@ use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::MultiAgentVersion;
 use datax_protocol::protocol::TokenUsage;
-use datax_protocol::protocol::TurnAbortReason;
-use datax_protocol::protocol::TurnAbortedEvent;
-use datax_protocol::protocol::TurnCompleteEvent;
+use datax_protocol::protocol::InteractionAbortReason;
+use datax_protocol::protocol::InteractionAbortedEvent;
+use datax_protocol::protocol::InteractionCompleteEvent;
 use datax_protocol::protocol::WarningEvent;
 
 pub(crate) use compact::CompactTask;
@@ -100,11 +100,11 @@ pub(crate) fn interrupted_turn_history_marker(
     match marker {
         InterruptedTurnHistoryMarker::Disabled => None,
         InterruptedTurnHistoryMarker::ContextualUser => Some(ContextualUserFragment::into(
-            crate::context::TurnAborted::new(crate::context::TurnAborted::INTERRUPTED_GUIDANCE),
+            crate::context::InteractionAborted::new(crate::context::InteractionAborted::INTERRUPTED_GUIDANCE),
         )),
         InterruptedTurnHistoryMarker::Developer => {
-            let marker = crate::context::TurnAborted::new(
-                crate::context::TurnAborted::INTERRUPTED_DEVELOPER_GUIDANCE,
+            let marker = crate::context::InteractionAborted::new(
+                crate::context::InteractionAborted::INTERRUPTED_DEVELOPER_GUIDANCE,
             );
             Some(ResponseItem::Message {
                 id: None,
@@ -227,7 +227,7 @@ pub(crate) trait SessionTask: Send + Sync + 'static {
     /// abort; implementers should watch for it and terminate quickly once it
     /// fires. Returning [`Some`] yields a final message that
     /// [`Session::on_task_finished`] will emit to the client. Returning
-    /// [`CodexErr::TurnAborted`] completes the task through the aborted-turn
+    /// [`CodexErr::InteractionAborted`] completes the task through the aborted-turn
     /// lifecycle instead.
     fn run(
         self: Arc<Self>,
@@ -317,7 +317,7 @@ impl Session {
         input: Vec<TurnInput>,
         task: T,
     ) {
-        self.abort_all_tasks(TurnAbortReason::Replaced).await;
+        self.abort_all_tasks(InteractionAbortReason::Replaced).await;
         self.clear_connector_selection().await;
         self.start_task(turn_context, input, task).await;
     }
@@ -387,7 +387,7 @@ impl Session {
         let task_span = info_span!(
             "turn",
             otel.name = span_name,
-            thread.id = %self.thread_id,
+            thread.id = %self.chat_id,
             turn.id = %turn_context.sub_id,
             model = %turn_context.model_info.slug,
             codex.turn.reasoning_effort = %reasoning_effort,
@@ -489,7 +489,7 @@ impl Session {
             .await;
     }
 
-    pub async fn abort_all_tasks(self: &Arc<Self>, reason: TurnAbortReason) {
+    pub async fn abort_all_tasks(self: &Arc<Self>, reason: InteractionAbortReason) {
         let mut aborted_turn = false;
         let mut active_turn_to_clear = None;
         let mut turn_context = None;
@@ -511,25 +511,25 @@ impl Session {
         }
         if let Some(active_turn) = active_turn_to_clear {
             // Let interrupted tasks observe cancellation before dropping pending approvals, or an
-            // in-flight approval wait can surface as a model-visible rejection before TurnAborted.
+            // in-flight approval wait can surface as a model-visible rejection before InteractionAborted.
             self.input_queue.clear_pending(&active_turn).await;
         }
-        if reason == TurnAbortReason::Interrupted && aborted_turn {
+        if reason == InteractionAbortReason::Interrupted && aborted_turn {
             self.maybe_start_turn_for_pending_work().await;
         }
     }
 
     pub(crate) async fn abort_turn_if_active(
         self: &Arc<Self>,
-        turn_id: &str,
-        reason: TurnAbortReason,
+        interaction_id: &str,
+        reason: InteractionAbortReason,
     ) -> bool {
         let active_turn = {
             let mut active = self.active_turn.lock().await;
             if active
                 .as_ref()
                 .and_then(|active_turn| active_turn.task.as_ref())
-                .is_some_and(|task| task.turn_context.sub_id == turn_id)
+                .is_some_and(|task| task.turn_context.sub_id == interaction_id)
             {
                 active.take()
             } else {
@@ -550,10 +550,10 @@ impl Session {
                 .await;
         }
         // Let interrupted tasks observe cancellation before dropping pending approvals, or an
-        // in-flight approval wait can surface as a model-visible rejection before TurnAborted.
+        // in-flight approval wait can surface as a model-visible rejection before InteractionAborted.
         self.input_queue.clear_pending(&active_turn).await;
 
-        if reason == TurnAbortReason::Interrupted {
+        if reason == InteractionAbortReason::Interrupted {
             self.maybe_start_turn_for_pending_work().await;
         }
 
@@ -567,7 +567,7 @@ impl Session {
     ) {
         let (last_agent_message, abort_reason) = match task_result {
             Ok(last_agent_message) => (last_agent_message, None),
-            Err(CodexErr::TurnAborted) => (None, Some(TurnAbortReason::Interrupted)),
+            Err(CodexErr::InteractionAborted) => (None, Some(InteractionAbortReason::Interrupted)),
             Err(err) => {
                 warn!(%err, "session task returned an unexpected error");
                 (None, None)
@@ -704,8 +704,8 @@ impl Session {
             self.services
                 .analytics_events_client
                 .track_turn_token_usage(TurnTokenUsageFact {
-                    turn_id: turn_context.sub_id.clone(),
-                    thread_id: self.thread_id.to_string(),
+                    interaction_id: turn_context.sub_id.clone(),
+                    chat_id: self.chat_id.to_string(),
                     token_usage: turn_token_usage.clone(),
                 });
             self.services.session_telemetry.histogram(
@@ -747,14 +747,14 @@ impl Session {
         self.services
             .analytics_events_client
             .track_turn_profile(TurnProfileFact {
-                turn_id: turn_context.sub_id.clone(),
+                interaction_id: turn_context.sub_id.clone(),
                 profile: turn_context.turn_timing_state.complete_profile(),
             });
         let event = if let Some(reason) = abort_reason {
             self.emit_turn_abort_lifecycle(reason.clone(), turn_context.extension_data.as_ref())
                 .await;
-            EventMsg::TurnAborted(TurnAbortedEvent {
-                turn_id: Some(turn_context.sub_id.clone()),
+            EventMsg::InteractionAborted(InteractionAbortedEvent {
+                interaction_id: Some(turn_context.sub_id.clone()),
                 reason,
                 completed_at,
                 duration_ms,
@@ -766,8 +766,8 @@ impl Session {
                 .await;
             self.emit_turn_stop_lifecycle(turn_context.extension_data.as_ref())
                 .await;
-            EventMsg::TurnComplete(TurnCompleteEvent {
-                turn_id: turn_context.sub_id.clone(),
+            EventMsg::InteractionComplete(InteractionCompleteEvent {
+                interaction_id: turn_context.sub_id.clone(),
                 last_agent_message,
                 completed_at,
                 duration_ms,
@@ -796,7 +796,7 @@ impl Session {
         if !cleared_active_turn {
             return;
         }
-        self.emit_thread_idle_lifecycle_if_idle().await;
+        self.emit_chat_idle_lifecycle_if_idle().await;
     }
 
     async fn take_active_turn(&self) -> Option<ActiveTurn> {
@@ -822,7 +822,7 @@ impl Session {
             .await
     }
 
-    async fn handle_task_abort(self: &Arc<Self>, task: RunningTask, reason: TurnAbortReason) {
+    async fn handle_task_abort(self: &Arc<Self>, task: RunningTask, reason: InteractionAbortReason) {
         let sub_id = task.turn_context.sub_id.clone();
         if task.cancellation_token.is_cancelled() {
             return;
@@ -853,7 +853,7 @@ impl Session {
             .abort(session_ctx, Arc::clone(&task.turn_context))
             .await;
 
-        if reason == TurnAbortReason::Interrupted
+        if reason == InteractionAbortReason::Interrupted
             && let Some(marker) = interrupted_turn_history_marker(
                 InterruptedTurnHistoryMarker::from_config_and_version(
                     task.turn_context.config.as_ref(),
@@ -866,10 +866,10 @@ impl Session {
                 std::slice::from_ref(&marker),
             )
             .await;
-            // Ensure the marker is durably visible before emitting TurnAborted: some clients
+            // Ensure the marker is durably visible before emitting InteractionAborted: some clients
             // synchronously re-read the rollout on receipt of the abort event.
             if let Err(err) = self.flush_rollout().await {
-                warn!("failed to flush interrupted-turn marker before emitting TurnAborted: {err}");
+                warn!("failed to flush interrupted-turn marker before emitting InteractionAborted: {err}");
             }
         }
 
@@ -881,11 +881,11 @@ impl Session {
         self.services
             .analytics_events_client
             .track_turn_profile(TurnProfileFact {
-                turn_id: task.turn_context.sub_id.clone(),
+                interaction_id: task.turn_context.sub_id.clone(),
                 profile: task.turn_context.turn_timing_state.complete_profile(),
             });
-        let event = EventMsg::TurnAborted(TurnAbortedEvent {
-            turn_id: Some(task.turn_context.sub_id.clone()),
+        let event = EventMsg::InteractionAborted(InteractionAbortedEvent {
+            interaction_id: Some(task.turn_context.sub_id.clone()),
             reason,
             completed_at,
             duration_ms,

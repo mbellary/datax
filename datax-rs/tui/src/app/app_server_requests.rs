@@ -366,18 +366,18 @@ impl PendingAppServerRequests {
 
     fn pop_user_input_request_for_turn(
         &mut self,
-        turn_id: &str,
+        interaction_id: &str,
     ) -> Option<PendingUserInputRequest> {
         let pending = self
             .user_inputs
-            .get_mut(turn_id)
+            .get_mut(interaction_id)
             .and_then(VecDeque::pop_front);
         if self
             .user_inputs
-            .get(turn_id)
+            .get(interaction_id)
             .is_some_and(VecDeque::is_empty)
         {
-            self.user_inputs.remove(turn_id);
+            self.user_inputs.remove(interaction_id);
         }
         pending
     }
@@ -386,16 +386,16 @@ impl PendingAppServerRequests {
         &mut self,
         request_id: &AppServerRequestId,
     ) -> Option<PendingUserInputRequest> {
-        let (turn_id, index) = self.user_inputs.iter().find_map(|(turn_id, queue)| {
+        let (interaction_id, index) = self.user_inputs.iter().find_map(|(interaction_id, queue)| {
             queue
                 .iter()
                 .position(|pending| &pending.request_id == request_id)
-                .map(|index| (turn_id.clone(), index))
+                .map(|index| (interaction_id.clone(), index))
         })?;
-        let queue = self.user_inputs.get_mut(&turn_id)?;
+        let queue = self.user_inputs.get_mut(&interaction_id)?;
         let removed = queue.remove(index);
         if queue.is_empty() {
-            self.user_inputs.remove(&turn_id);
+            self.user_inputs.remove(&interaction_id);
         }
         removed
     }
@@ -477,7 +477,7 @@ mod tests {
         let resolution = pending
             .take_resolution(&Op::ExecApproval {
                 id: "approval-1".to_string(),
-                turn_id: None,
+                interaction_id: None,
                 decision: CommandExecutionApprovalDecision::Accept,
             })
             .expect("resolution should serialize")

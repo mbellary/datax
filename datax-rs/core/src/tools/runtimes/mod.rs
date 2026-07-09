@@ -286,8 +286,8 @@ pub(crate) fn maybe_wrap_shell_lc_with_snapshot(
         .map(|arg| format!(" '{}'", shell_single_quote(arg)))
         .collect::<String>();
     let mut override_env = explicit_env_overrides.clone();
-    if let Some(thread_id) = env.get(CODEX_THREAD_ID_ENV_VAR) {
-        override_env.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), thread_id.clone());
+    if let Some(chat_id) = env.get(CODEX_THREAD_ID_ENV_VAR) {
+        override_env.insert(CODEX_THREAD_ID_ENV_VAR.to_string(), chat_id.clone());
     }
     let (override_captures, override_exports) = build_override_exports(&override_env);
     let (proxy_captures, proxy_exports) = build_proxy_env_exports();

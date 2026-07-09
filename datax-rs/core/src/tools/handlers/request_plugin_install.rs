@@ -175,7 +175,7 @@ impl RequestPluginInstallHandler {
         let request_id = RequestId::String(format!("request_plugin_install_{call_id}").into());
         let params = build_request_plugin_install_elicitation_request(
             CODEX_APPS_MCP_SERVER_NAME,
-            session.thread_id.to_string(),
+            session.chat_id.to_string(),
             turn.sub_id.clone(),
             suggest_reason,
             &tool,

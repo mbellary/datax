@@ -52,7 +52,7 @@ use datax_login::AuthConfig;
 use datax_login::default_client::originator;
 use datax_login::default_client::set_default_client_residency_requirement;
 use datax_login::enforce_login_restrictions;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::AltScreenMode;
 use datax_protocol::config_types::SandboxMode;
 #[cfg(target_os = "windows")]
@@ -583,14 +583,14 @@ async fn shutdown_app_server_if_present(app_server: Option<AppServerSession>) {
 fn session_target_from_app_server_thread(
     thread: AppServerThread,
 ) -> Option<resume_picker::SessionTarget> {
-    match ThreadId::from_string(&thread.id) {
-        Ok(thread_id) => Some(resume_picker::SessionTarget {
+    match ChatId::from_string(&thread.id) {
+        Ok(chat_id) => Some(resume_picker::SessionTarget {
             path: thread.path,
-            chat_id: thread_id,
+            chat_id: chat_id,
         }),
         Err(err) => {
             warn!(
-                thread_id = thread.id,
+                chat_id = thread.id,
                 %err,
                 "Ignoring app-server thread with invalid thread id during TUI session lookup"
             );
@@ -650,8 +650,8 @@ async fn lookup_session_target_with_app_server(
     id_or_name: &str,
 ) -> color_eyre::Result<Option<resume_picker::SessionTarget>> {
     if Uuid::parse_str(id_or_name).is_ok() {
-        let thread_id = match ThreadId::from_string(id_or_name) {
-            Ok(thread_id) => thread_id,
+        let chat_id = match ChatId::from_string(id_or_name) {
+            Ok(chat_id) => chat_id,
             Err(err) => {
                 warn!(
                     session = id_or_name,
@@ -662,7 +662,7 @@ async fn lookup_session_target_with_app_server(
             }
         };
         return match app_server
-            .thread_read(thread_id, /*include_turns*/ false)
+            .thread_read(chat_id, /*include_turns*/ false)
             .await
         {
             Ok(thread) => Ok(session_target_from_app_server_thread(thread)),
@@ -1328,7 +1328,7 @@ async fn run_ratatui_app(
                     terminal_restore_guard.restore()?;
                     return Ok(AppExitInfo {
                         token_usage: crate::token_usage::TokenUsage::default(),
-                        thread_id: None,
+                        chat_id: None,
                         resume_hint: None,
                         update_action: Some(action),
                         exit_reason: ExitReason::UserRequested,
@@ -1421,7 +1421,7 @@ async fn run_ratatui_app(
             let _ = tui.terminal.clear();
             return Ok(AppExitInfo {
                 token_usage: crate::token_usage::TokenUsage::default(),
-                thread_id: None,
+                chat_id: None,
                 resume_hint: None,
                 update_action: None,
                 exit_reason: ExitReason::UserRequested,
@@ -1473,7 +1473,7 @@ async fn run_ratatui_app(
         let _ = tui.terminal.clear();
         Ok(AppExitInfo {
             token_usage: crate::token_usage::TokenUsage::default(),
-            thread_id: None,
+            chat_id: None,
             resume_hint: None,
             update_action: None,
             exit_reason: ExitReason::Fatal(format!(
@@ -1530,7 +1530,7 @@ async fn run_ratatui_app(
                     session_log::log_session_end();
                     return Ok(AppExitInfo {
                         token_usage: crate::token_usage::TokenUsage::default(),
-                        thread_id: None,
+                        chat_id: None,
                         resume_hint: None,
                         update_action: None,
                         exit_reason: ExitReason::UserRequested,
@@ -1591,7 +1591,7 @@ async fn run_ratatui_app(
                 session_log::log_session_end();
                 return Ok(AppExitInfo {
                     token_usage: crate::token_usage::TokenUsage::default(),
-                    thread_id: None,
+                    chat_id: None,
                     resume_hint: None,
                     update_action: None,
                     exit_reason: ExitReason::UserRequested,
@@ -1636,7 +1636,7 @@ async fn run_ratatui_app(
                         session_log::log_session_end();
                         return Ok(AppExitInfo {
                             token_usage: crate::token_usage::TokenUsage::default(),
-                            thread_id: None,
+                            chat_id: None,
                             resume_hint: None,
                             update_action: None,
                             exit_reason: ExitReason::UserRequested,
@@ -2034,10 +2034,10 @@ mod tests {
         preview: &str,
         model_provider: &str,
         cwd: &Path,
-    ) -> color_eyre::Result<ThreadId> {
+    ) -> color_eyre::Result<ChatId> {
         let uuid = Uuid::new_v4();
         let uuid_str = uuid.to_string();
-        let thread_id = ThreadId::from_string(&uuid_str)?;
+        let chat_id = ChatId::from_string(&uuid_str)?;
         let year = &filename_ts[0..4];
         let month = &filename_ts[5..7];
         let day = &filename_ts[8..10];
@@ -2053,8 +2053,8 @@ mod tests {
         std::fs::create_dir_all(parent)?;
 
         let session_meta = datax_protocol::protocol::SessionMeta {
-            session_id: thread_id.into(),
-            id: thread_id,
+            session_id: chat_id.into(),
+            id: chat_id,
             timestamp: meta_rfc3339.to_string(),
             cwd: cwd.to_path_buf(),
             originator: "codex".to_string(),
@@ -2104,7 +2104,7 @@ mod tests {
             .open(rollout_path)?
             .set_times(times)?;
 
-        Ok(thread_id)
+        Ok(chat_id)
     }
 
     #[test]
@@ -2162,14 +2162,14 @@ mod tests {
     }
 
     #[test]
-    fn session_target_display_label_falls_back_to_thread_id() {
-        let thread_id = ThreadId::new();
+    fn session_target_display_label_falls_back_to_chat_id() {
+        let chat_id = ChatId::new();
         let target = crate::resume_picker::SessionTarget {
             path: None,
-            chat_id: thread_id,
+            chat_id: chat_id,
         };
 
-        assert_eq!(target.display_label(), format!("thread {thread_id}"));
+        assert_eq!(target.display_label(), format!("thread {chat_id}"));
     }
 
     #[test]
@@ -2559,7 +2559,7 @@ mod tests {
             .build()
             .await?;
         let model_provider = config.model_provider_id.as_str();
-        let project_thread_id = write_session_rollout(
+        let project_chat_id = write_session_rollout(
             temp_dir.path(),
             "2025-01-02T10-00-00",
             "2025-01-02T10:00:00Z",
@@ -2567,7 +2567,7 @@ mod tests {
             model_provider,
             &project_cwd,
         )?;
-        let other_thread_id = write_session_rollout(
+        let other_chat_id = write_session_rollout(
             temp_dir.path(),
             "2025-01-02T12-00-00",
             "2025-01-02T12:00:00Z",
@@ -2608,8 +2608,8 @@ mod tests {
         .expect("expected global fork --last target");
         app_server.shutdown().await?;
 
-        assert_eq!(scoped_target.chat_id, project_thread_id);
-        assert_eq!(show_all_target.chat_id, other_thread_id);
+        assert_eq!(scoped_target.chat_id, project_chat_id);
+        assert_eq!(show_all_target.chat_id, other_chat_id);
         Ok(())
     }
 
@@ -2635,7 +2635,7 @@ mod tests {
         );
 
         // Simulate a legacy writer creating a rollout after the state DB backfill completed.
-        let thread_id = write_session_rollout(
+        let chat_id = write_session_rollout(
             temp_dir.path(),
             "2025-01-02T10-00-00",
             "2025-01-02T10:00:00Z",
@@ -2654,7 +2654,7 @@ mod tests {
         .expect("expected scan-and-repair fallback to find the rollout");
         app_server.shutdown().await?;
 
-        assert_eq!(target.chat_id, thread_id);
+        assert_eq!(target.chat_id, chat_id);
         Ok(())
     }
 
@@ -2804,11 +2804,11 @@ mod tests {
         Box::pin(async {
             let temp_dir = TempDir::new()?;
             let config = build_config(&temp_dir).await?;
-            let thread_id = ThreadId::new();
+            let chat_id = ChatId::new();
             let rollout_path = temp_dir
                 .path()
                 .join("sessions/2025/02/01")
-                .join(format!("rollout-2025-02-01T10-00-00-{thread_id}.jsonl"));
+                .join(format!("rollout-2025-02-01T10-00-00-{chat_id}.jsonl"));
             let rollout_dir = rollout_path.parent().expect("rollout parent");
             std::fs::create_dir_all(rollout_dir)?;
             std::fs::write(&rollout_path, "")?;
@@ -2830,7 +2830,7 @@ mod tests {
                 .expect("timestamp should parse")
                 .with_timezone(&chrono::Utc);
             let mut builder = datax_state::ThreadMetadataBuilder::new(
-                thread_id,
+                chat_id,
                 rollout_path.clone(),
                 created_at,
                 serde_json::from_value(serde_json::json!("cli"))
@@ -2856,7 +2856,7 @@ mod tests {
                     .await?;
             let target = target.expect("name lookup should find the saved thread");
             assert_eq!(target.path, Some(rollout_path));
-            assert_eq!(target.chat_id, thread_id);
+            assert_eq!(target.chat_id, chat_id);
 
             app_server.shutdown().await?;
             Ok(())

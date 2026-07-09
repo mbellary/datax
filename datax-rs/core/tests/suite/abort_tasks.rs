@@ -18,7 +18,7 @@ use regex_lite::Regex;
 use serde_json::json;
 
 /// Integration test: spawn a long‑running shell_command tool via a mocked Responses SSE
-/// function call, then interrupt the session and expect TurnAborted.
+/// function call, then interrupt the session and expect InteractionAborted.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn interrupt_long_running_tool_emits_turn_aborted() {
     let command = "sleep 60";
@@ -63,8 +63,8 @@ async fn interrupt_long_running_tool_emits_turn_aborted() {
 
     codex.submit(Op::Interrupt).await.unwrap();
 
-    // Expect TurnAborted soon after.
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnAborted(_))).await;
+    // Expect InteractionAborted soon after.
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionAborted(_))).await;
 }
 
 /// After an interrupt we expect the next request to the model to include both
@@ -120,7 +120,7 @@ async fn interrupt_tool_records_history_entries() {
     tokio::time::sleep(Duration::from_secs_f32(0.1)).await;
     codex.submit(Op::Interrupt).await.unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnAborted(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionAborted(_))).await;
 
     codex
         .submit(Op::UserInput {
@@ -136,7 +136,7 @@ async fn interrupt_tool_records_history_entries() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let requests = response_mock.requests();
     assert!(
@@ -224,7 +224,7 @@ async fn interrupt_persists_turn_aborted_marker_in_next_request() {
     tokio::time::sleep(Duration::from_secs_f32(0.1)).await;
     codex.submit(Op::Interrupt).await.unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnAborted(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionAborted(_))).await;
 
     codex
         .submit(Op::UserInput {
@@ -240,7 +240,7 @@ async fn interrupt_persists_turn_aborted_marker_in_next_request() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let requests = response_mock.requests();
     assert_eq!(requests.len(), 2, "expected two calls to the responses API");

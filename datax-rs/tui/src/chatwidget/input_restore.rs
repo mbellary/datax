@@ -26,8 +26,8 @@ impl ChatWidget {
             && !self.active_side_conversation;
     }
 
-    fn take_armed_cancel_edit_prompt(&mut self, reason: TurnAbortReason) -> Option<UserMessage> {
-        (reason == TurnAbortReason::Interrupted
+    fn take_armed_cancel_edit_prompt(&mut self, reason: InteractionAbortReason) -> Option<UserMessage> {
+        (reason == InteractionAbortReason::Interrupted
             && self.cancel_edit.armed
             && self.cancel_edit.eligible)
             .then(|| self.cancel_edit.prompt.take())
@@ -146,7 +146,7 @@ impl ChatWidget {
     /// or review completion.
     /// When there are queued user messages, restore them into the composer
     /// separated by newlines rather than auto-submitting the next one.
-    pub(super) fn on_interrupted_turn(&mut self, reason: TurnAbortReason) {
+    pub(super) fn on_interrupted_turn(&mut self, reason: InteractionAbortReason) {
         let cancelled_prompt = self.take_armed_cancel_edit_prompt(reason);
         // Finalize, log a gentle prompt, and clear running state.
         self.finalize_turn();

@@ -31,7 +31,7 @@ use datax_otel::SessionTelemetry;
 use datax_otel::TelemetryAuthMode;
 use datax_otel::current_span_w3c_trace_context;
 use datax_protocol::SessionId;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::account::PlanType;
 use datax_protocol::config_types::ReasoningSummary;
 use datax_protocol::config_types::ServiceTier;
@@ -102,7 +102,7 @@ struct WebsocketTestHarness {
     _codex_home: TempDir,
     client: ModelClient,
     session_id: SessionId,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     model_info: ModelInfo,
     effort: Option<ReasoningEffortConfig>,
     summary: ReasoningSummary,
@@ -111,36 +111,36 @@ struct WebsocketTestHarness {
 
 fn responses_metadata(
     harness: &WebsocketTestHarness,
-    turn_id: Option<&str>,
+    interaction_id: Option<&str>,
     request_kind: TestCodexResponsesRequestKind,
 ) -> CodexResponsesMetadata {
     test_responses_metadata(
         TEST_INSTALLATION_ID,
         &harness.session_id.to_string(),
-        &harness.thread_id.to_string(),
-        turn_id,
+        &harness.chat_id.to_string(),
+        interaction_id,
         TEST_WINDOW_ID.to_string(),
         &SessionSource::Exec,
-        /*parent_thread_id*/ None,
+        /*parent_chat_id*/ None,
         request_kind,
     )
 }
 
-fn turn_metadata(harness: &WebsocketTestHarness, turn_id: Option<&str>) -> CodexResponsesMetadata {
-    responses_metadata(harness, turn_id, TestCodexResponsesRequestKind::Turn)
+fn turn_metadata(harness: &WebsocketTestHarness, interaction_id: Option<&str>) -> CodexResponsesMetadata {
+    responses_metadata(harness, interaction_id, TestCodexResponsesRequestKind::Turn)
 }
 
 fn prewarm_metadata(
     harness: &WebsocketTestHarness,
-    turn_id: Option<&str>,
+    interaction_id: Option<&str>,
 ) -> CodexResponsesMetadata {
-    responses_metadata(harness, turn_id, TestCodexResponsesRequestKind::Prewarm)
+    responses_metadata(harness, interaction_id, TestCodexResponsesRequestKind::Prewarm)
 }
 
 fn websocket_connection_metadata(harness: &WebsocketTestHarness) -> CodexResponsesMetadata {
     responses_metadata(
         harness,
-        /*turn_id*/ None,
+        /*interaction_id*/ None,
         TestCodexResponsesRequestKind::WebsocketConnection,
     )
 }
@@ -178,7 +178,7 @@ async fn responses_websocket_streams_request() {
     );
     assert_eq!(
         handshake.header(X_CLIENT_REQUEST_ID_HEADER),
-        Some(harness.thread_id.to_string())
+        Some(harness.chat_id.to_string())
     );
     assert_eq!(
         handshake.header("session-id"),
@@ -186,7 +186,7 @@ async fn responses_websocket_streams_request() {
     );
     assert_eq!(
         handshake.header("thread-id"),
-        Some(harness.thread_id.to_string())
+        Some(harness.chat_id.to_string())
     );
     assert_eq!(
         handshake.header(USER_AGENT_HEADER),
@@ -388,7 +388,7 @@ async fn responses_websocket_request_prewarm_reuses_connection() {
     let harness = websocket_harness_with_options(&server, /*runtime_metrics_enabled*/ true).await;
     let mut client_session = harness.client.new_session();
     let prompt = prompt_with_input(vec![message_item("hello")]);
-    let responses_metadata = prewarm_metadata(&harness, /*turn_id*/ None);
+    let responses_metadata = prewarm_metadata(&harness, /*interaction_id*/ None);
     client_session
         .prewarm_websocket(
             &prompt,
@@ -452,7 +452,7 @@ async fn responses_websocket_request_prewarm_uses_caller_supplied_metadata() {
     let harness = websocket_harness_with_options(&server, /*runtime_metrics_enabled*/ true).await;
     let mut client_session = harness.client.new_session();
     let prompt = prompt_with_input(vec![message_item("hello")]);
-    let responses_metadata = turn_metadata(&harness, /*turn_id*/ None);
+    let responses_metadata = turn_metadata(&harness, /*interaction_id*/ None);
     client_session
         .prewarm_websocket(
             &prompt,
@@ -495,7 +495,7 @@ async fn responses_websocket_request_prewarm_traces_logical_request() {
     let harness = websocket_harness_with_options(&server, /*runtime_metrics_enabled*/ true).await;
     let mut client_session = harness.client.new_session();
     let prompt = prompt_with_input(vec![message_item("hello")]);
-    let prewarm_responses_metadata = prewarm_metadata(&harness, /*turn_id*/ None);
+    let prewarm_responses_metadata = prewarm_metadata(&harness, /*interaction_id*/ None);
 
     client_session
         .prewarm_websocket(
@@ -516,33 +516,33 @@ async fn responses_websocket_request_prewarm_traces_logical_request() {
             trace_dir.path(),
             "trace-1".to_string(),
             harness.session_id.to_string(),
-            harness.thread_id.to_string(),
+            harness.chat_id.to_string(),
         )
         .expect("trace writer"),
     );
     writer
         .append(RawTraceEventPayload::ThreadStarted {
-            thread_id: harness.thread_id.to_string(),
+            chat_id: harness.chat_id.to_string(),
             agent_path: "/root".to_string(),
             metadata_payload: None,
         })
         .expect("thread started");
     writer
-        .append(RawTraceEventPayload::CodexTurnStarted {
-            codex_turn_id: "turn-1".to_string(),
-            thread_id: harness.thread_id.to_string(),
+        .append(RawTraceEventPayload::CodexInteractionStarted {
+            codex_interaction_id: "turn-1".to_string(),
+            chat_id: harness.chat_id.to_string(),
         })
         .expect("turn started");
 
     let inference_trace = InferenceTraceContext::enabled(
         writer,
-        harness.thread_id.to_string(),
+        harness.chat_id.to_string(),
         "turn-1".to_string(),
         harness.model_info.slug.clone(),
         "test-provider".to_string(),
     );
 
-    let responses_metadata = turn_metadata(&harness, /*turn_id*/ None);
+    let responses_metadata = turn_metadata(&harness, /*interaction_id*/ None);
     let mut stream = client_session
         .stream(
             &prompt,
@@ -715,7 +715,7 @@ async fn responses_websocket_preconnect_is_reused_even_with_header_changes() {
         .await
         .expect("websocket preconnect failed");
     let prompt = prompt_with_input(vec![message_item("hello")]);
-    let responses_metadata = turn_metadata(&harness, /*turn_id*/ None);
+    let responses_metadata = turn_metadata(&harness, /*interaction_id*/ None);
     let mut stream = client_session
         .stream(
             &prompt,
@@ -755,7 +755,7 @@ async fn responses_websocket_request_prewarm_is_reused_even_with_header_changes(
     let harness = websocket_harness_with_options(&server, /*runtime_metrics_enabled*/ true).await;
     let mut client_session = harness.client.new_session();
     let prompt = prompt_with_input(vec![message_item("hello")]);
-    let prewarm_responses_metadata = prewarm_metadata(&harness, /*turn_id*/ None);
+    let prewarm_responses_metadata = prewarm_metadata(&harness, /*interaction_id*/ None);
     client_session
         .prewarm_websocket(
             &prompt,
@@ -768,7 +768,7 @@ async fn responses_websocket_request_prewarm_is_reused_even_with_header_changes(
         )
         .await
         .expect("websocket prewarm failed");
-    let responses_metadata = turn_metadata(&harness, /*turn_id*/ None);
+    let responses_metadata = turn_metadata(&harness, /*interaction_id*/ None);
     let mut stream = client_session
         .stream(
             &prompt,
@@ -823,7 +823,7 @@ async fn responses_websocket_prewarm_uses_v2_when_provider_supports_websockets()
     let harness = websocket_harness_with_options(&server, /*runtime_metrics_enabled*/ false).await;
     let mut client_session = harness.client.new_session();
     let prompt = prompt_with_input(vec![message_item("hello")]);
-    let responses_metadata = prewarm_metadata(&harness, /*turn_id*/ None);
+    let responses_metadata = prewarm_metadata(&harness, /*interaction_id*/ None);
     client_session
         .prewarm_websocket(
             &prompt,
@@ -1177,7 +1177,7 @@ async fn responses_websocket_emits_reasoning_included_event() {
     let harness = websocket_harness(&server).await;
     let mut client_session = harness.client.new_session();
     let prompt = prompt_with_input(vec![message_item("hello")]);
-    let responses_metadata = turn_metadata(&harness, /*turn_id*/ None);
+    let responses_metadata = turn_metadata(&harness, /*interaction_id*/ None);
 
     let mut stream = client_session
         .stream(
@@ -1252,7 +1252,7 @@ async fn responses_websocket_emits_rate_limit_events() {
     let harness = websocket_harness(&server).await;
     let mut client_session = harness.client.new_session();
     let prompt = prompt_with_input(vec![message_item("hello")]);
-    let responses_metadata = turn_metadata(&harness, /*turn_id*/ None);
+    let responses_metadata = turn_metadata(&harness, /*interaction_id*/ None);
 
     let mut stream = client_session
         .stream(
@@ -1566,7 +1566,7 @@ async fn responses_websocket_forwards_turn_metadata_on_initial_and_incremental_c
 
     let mut first_output_item = ev_assistant_message("msg-1", "assistant output");
     first_output_item["item"]["internal_chat_message_metadata_passthrough"] =
-        json!({"turn_id": "turn-123"});
+        json!({"interaction_id": "turn-123"});
     let server = start_websocket_server(vec![vec![
         vec![
             ev_response_created("resp-1"),
@@ -1581,7 +1581,7 @@ async fn responses_websocket_forwards_turn_metadata_on_initial_and_incremental_c
     let mut client_session = harness.client.new_session();
     let prompt_one = prompt_with_input(vec![message_item("hello")]);
     let mut prior_assistant_output = assistant_message_item("msg-1", "assistant output");
-    prior_assistant_output.set_turn_id_if_missing("turn-123");
+    prior_assistant_output.set_interaction_id_if_missing("turn-123");
     let prompt_two = prompt_with_input(vec![
         message_item("hello"),
         prior_assistant_output,
@@ -1628,15 +1628,15 @@ async fn responses_websocket_forwards_turn_metadata_on_initial_and_incremental_c
     )
     .expect("second metadata should be valid json");
 
-    assert_eq!(first_metadata["turn_id"].as_str(), Some("turn-123"));
-    assert_eq!(second_metadata["turn_id"].as_str(), Some("turn-456"));
+    assert_eq!(first_metadata["interaction_id"].as_str(), Some("turn-123"));
+    assert_eq!(second_metadata["interaction_id"].as_str(), Some("turn-456"));
     assert_eq!(
-        first["client_metadata"]["turn_id"].as_str(),
-        first_metadata["turn_id"].as_str()
+        first["client_metadata"]["interaction_id"].as_str(),
+        first_metadata["interaction_id"].as_str()
     );
     assert_eq!(
-        second["client_metadata"]["turn_id"].as_str(),
-        second_metadata["turn_id"].as_str()
+        second["client_metadata"]["interaction_id"].as_str(),
+        second_metadata["interaction_id"].as_str()
     );
 
     server.shutdown().await;
@@ -1679,10 +1679,10 @@ async fn responses_websocket_sends_canonical_turn_metadata() {
             .expect("turn metadata"),
     )
     .expect("valid turn metadata");
-    assert_eq!(turn_metadata["turn_id"].as_str(), Some("turn-123"));
+    assert_eq!(turn_metadata["interaction_id"].as_str(), Some("turn-123"));
     assert_eq!(
-        body["client_metadata"]["turn_id"].as_str(),
-        turn_metadata["turn_id"].as_str()
+        body["client_metadata"]["interaction_id"].as_str(),
+        turn_metadata["interaction_id"].as_str()
     );
 
     server.shutdown().await;
@@ -1909,7 +1909,7 @@ async fn responses_websocket_v2_after_error_uses_full_create_without_previous_re
 
     stream_until_complete(&mut session, &harness, &prompt_one).await;
 
-    let responses_metadata = turn_metadata(&harness, /*turn_id*/ None);
+    let responses_metadata = turn_metadata(&harness, /*interaction_id*/ None);
     let mut second_stream = session
         .stream(
             &prompt_two,
@@ -1998,7 +1998,7 @@ async fn responses_websocket_v2_surfaces_terminal_error_without_close_handshake(
 
     stream_until_complete(&mut session, &harness, &prompt_one).await;
 
-    let responses_metadata = turn_metadata(&harness, /*turn_id*/ None);
+    let responses_metadata = turn_metadata(&harness, /*interaction_id*/ None);
     let mut second_stream = session
         .stream(
             &prompt_two,
@@ -2162,7 +2162,7 @@ async fn websocket_harness_with_provider_options(
     }
     let config = Arc::new(config);
     let model_info = datax_core::test_support::construct_model_info_offline(MODEL, &config);
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let session_id = SessionId::new();
     let auth_manager =
         datax_core::test_support::auth_manager_from_auth(CodexAuth::from_api_key("Test API Key"));
@@ -2173,7 +2173,7 @@ async fn websocket_harness_with_provider_options(
     )
     .expect("in-memory metrics client");
     let session_telemetry = SessionTelemetry::new(
-        thread_id,
+        chat_id,
         MODEL,
         model_info.slug.as_str(),
         /*account_id*/ None,
@@ -2189,7 +2189,7 @@ async fn websocket_harness_with_provider_options(
     let summary = ReasoningSummary::Auto;
     let client = ModelClient::new(
         /*auth_manager*/ None,
-        thread_id,
+        chat_id,
         provider.clone(),
         SessionSource::Exec,
         config.model_verbosity,
@@ -2204,7 +2204,7 @@ async fn websocket_harness_with_provider_options(
         _codex_home: codex_home,
         client,
         session_id,
-        thread_id,
+        chat_id,
         model_info,
         effort,
         summary,
@@ -2233,7 +2233,7 @@ async fn stream_until_complete_with_model_info(
     model_info: &ModelInfo,
     expected_response_id: &str,
 ) {
-    let responses_metadata = turn_metadata(harness, /*turn_id*/ None);
+    let responses_metadata = turn_metadata(harness, /*interaction_id*/ None);
     let mut stream = client_session
         .stream(
             prompt,
@@ -2265,7 +2265,7 @@ async fn stream_until_complete_with_service_tier(
     prompt: &Prompt,
     service_tier: Option<ServiceTier>,
 ) {
-    let responses_metadata = turn_metadata(harness, /*turn_id*/ None);
+    let responses_metadata = turn_metadata(harness, /*interaction_id*/ None);
     stream_until_complete_with_metadata(
         client_session,
         harness,

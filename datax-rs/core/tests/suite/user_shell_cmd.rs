@@ -26,7 +26,7 @@ use datax_protocol::protocol::ExecCommandEndEvent;
 use datax_protocol::protocol::ExecCommandSource;
 use datax_protocol::protocol::ExecOutputStream;
 use datax_protocol::protocol::Op;
-use datax_protocol::protocol::TurnAbortReason;
+use datax_protocol::protocol::InteractionAbortReason;
 use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use regex_lite::escape;
@@ -162,17 +162,17 @@ async fn user_shell_cmd_can_be_interrupted() {
     .await;
     codex.submit(Op::Interrupt).await.unwrap();
 
-    // Expect a TurnAborted(Interrupted) notification.
+    // Expect a InteractionAborted(Interrupted) notification.
     let msg = wait_for_event_with_timeout(
         codex,
-        |ev| matches!(ev, EventMsg::TurnAborted(_)),
+        |ev| matches!(ev, EventMsg::InteractionAborted(_)),
         Duration::from_secs(60),
     )
     .await;
-    let EventMsg::TurnAborted(ev) = msg else {
+    let EventMsg::InteractionAborted(ev) = msg else {
         unreachable!()
     };
-    assert_eq!(ev.reason, TurnAbortReason::Interrupted);
+    assert_eq!(ev.reason, InteractionAbortReason::Interrupted);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -264,13 +264,13 @@ async fn user_shell_command_does_not_replace_active_turn() -> anyhow::Result<()>
             .context("timed out waiting for event")?
             .context("event stream ended unexpectedly")?;
         match event.msg {
-            EventMsg::TurnAborted(ev) if ev.reason == TurnAbortReason::Replaced => {
+            EventMsg::InteractionAborted(ev) if ev.reason == InteractionAbortReason::Replaced => {
                 saw_replaced_abort = true;
             }
             EventMsg::ExecCommandEnd(ev) if ev.source == ExecCommandSource::UserShell => {
                 saw_user_shell_end = true;
             }
-            EventMsg::TurnComplete(_) => {
+            EventMsg::InteractionComplete(_) => {
                 saw_turn_complete = true;
                 break;
             }
@@ -352,7 +352,7 @@ async fn user_shell_command_history_is_persisted_and_shared_with_model() -> anyh
     assert_eq!(end_event.exit_code, 0);
     assert_eq!(end_event.stdout.trim(), "not-set");
 
-    let _ = wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _ = wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let responses = vec![responses::sse(vec![
         responses::ev_response_created("resp-1"),
@@ -455,7 +455,7 @@ async fn user_shell_command_output_is_truncated_in_history() -> anyhow::Result<(
     .await;
     assert_eq!(end_event.exit_code, 0);
 
-    let _ = wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _ = wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let responses = vec![responses::sse(vec![
         responses::ev_response_created("resp-1"),

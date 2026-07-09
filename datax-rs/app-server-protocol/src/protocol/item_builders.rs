@@ -22,7 +22,7 @@ use crate::protocol::v2::MessageGuardianApprovalReviewCompletedNotification;
 use crate::protocol::v2::MessageGuardianApprovalReviewStartedNotification;
 use crate::protocol::v2::PatchApplyStatus;
 use crate::protocol::v2::PatchChangeKind;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::parse_command::ParsedCommand;
 use datax_protocol::protocol::ApplyPatchApprovalRequestEvent;
 use datax_protocol::protocol::ExecApprovalRequestEvent;
@@ -241,14 +241,14 @@ pub fn build_item_from_guardian_event(
 }
 
 pub fn guardian_auto_approval_review_notification(
-    conversation_id: &ThreadId,
-    event_turn_id: &str,
+    conversation_id: &ChatId,
+    event_interaction_id: &str,
     assessment: &GuardianAssessmentEvent,
 ) -> ServerNotification {
-    let interaction_id = if assessment.turn_id.is_empty() {
-        event_turn_id.to_string()
+    let interaction_id = if assessment.interaction_id.is_empty() {
+        event_interaction_id.to_string()
     } else {
-        assessment.turn_id.clone()
+        assessment.interaction_id.clone()
     };
     let review = GuardianApprovalReview {
         status: match assessment.status {

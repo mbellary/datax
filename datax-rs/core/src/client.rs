@@ -70,7 +70,7 @@ use datax_login::default_client::build_reqwest_client;
 use datax_otel::SessionTelemetry;
 use datax_otel::current_span_w3c_trace_context;
 
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
 use datax_protocol::config_types::Verbosity as VerbosityConfig;
 use datax_protocol::models::ResponseItem;
@@ -175,7 +175,7 @@ fn reasoning_effort_for_request(effort: ReasoningEffortConfig) -> ReasoningEffor
 /// configuration is per turn and is passed explicitly to streaming/unary methods.
 #[derive(Debug)]
 struct ModelClientState {
-    thread_id: ThreadId,
+    chat_id: ChatId,
     provider: SharedModelProvider,
     auth_env_telemetry: AuthEnvTelemetry,
     session_source: SessionSource,
@@ -377,7 +377,7 @@ impl ModelClient {
     /// are passed to [`ModelClientSession::stream`] (and other turn-scoped methods) explicitly.
     pub fn new(
         auth_manager: Option<Arc<AuthManager>>,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         provider_info: ModelProviderInfo,
         session_source: SessionSource,
         model_verbosity: Option<VerbosityConfig>,
@@ -397,7 +397,7 @@ impl ModelClient {
         let include_attestation = model_provider.supports_attestation();
         Self {
             state: Arc::new(ModelClientState {
-                thread_id,
+                chat_id,
                 provider: model_provider,
                 auth_env_telemetry,
                 session_source,
@@ -426,7 +426,7 @@ impl ModelClient {
     fn prompt_cache_key(&self) -> String {
         self.prompt_cache_key_override
             .clone()
-            .unwrap_or_else(|| self.state.thread_id.to_string())
+            .unwrap_or_else(|| self.state.chat_id.to_string())
     }
 
     /// Creates a fresh turn-scoped streaming session.
@@ -561,7 +561,7 @@ impl ModelClient {
         extra_headers.extend(self.build_responses_compatibility_headers(responses_metadata));
         extra_headers.extend(build_session_headers(
             Some(responses_metadata.session_id.to_string()),
-            Some(responses_metadata.thread_id.to_string()),
+            Some(responses_metadata.chat_id.to_string()),
         ));
         if let Some(header_value) = self.generate_attestation_header_for().await {
             extra_headers.insert(X_OAI_ATTESTATION_HEADER, header_value);
@@ -729,7 +729,7 @@ impl ModelClient {
             .attestation_provider
             .as_ref()?
             .header_for_request(AttestationContext {
-                thread_id: self.state.thread_id,
+                chat_id: self.state.chat_id,
             })
             .await
     }
@@ -973,12 +973,12 @@ impl ModelClient {
             self.state.beta_features_header.as_deref(),
             /*turn_state*/ None,
         );
-        if let Ok(header_value) = HeaderValue::from_str(&responses_metadata.thread_id) {
+        if let Ok(header_value) = HeaderValue::from_str(&responses_metadata.chat_id) {
             headers.insert("x-client-request-id", header_value);
         }
         headers.extend(build_session_headers(
             Some(responses_metadata.session_id.to_string()),
-            Some(responses_metadata.thread_id.to_string()),
+            Some(responses_metadata.chat_id.to_string()),
         ));
         headers.extend(self.build_responses_compatibility_headers(responses_metadata));
         if let Some(header_value) = self.generate_attestation_header_for().await {
@@ -1033,7 +1033,7 @@ impl ModelClientSession {
     ) -> ApiResponsesOptions {
         ApiResponsesOptions {
             session_id: Some(responses_metadata.session_id.to_string()),
-            thread_id: Some(responses_metadata.thread_id.to_string()),
+            chat_id: Some(responses_metadata.chat_id.to_string()),
             session_source: Some(self.client.state.session_source.clone()),
             extra_headers: {
                 let mut headers = build_responses_headers(

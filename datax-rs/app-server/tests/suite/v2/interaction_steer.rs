@@ -96,7 +96,7 @@ async fn turn_steer_requires_active_turn() -> Result<()> {
         "turn-does-not-exist"
     );
     assert_eq!(
-        event["event_params"]["accepted_turn_id"],
+        event["event_params"]["accepted_interaction_id"],
         serde_json::Value::Null
     );
     assert_eq!(event["event_params"]["rejection_reason"], "no_active_turn");
@@ -218,7 +218,7 @@ async fn turn_steer_rejects_oversized_text_input() -> Result<()> {
 }
 
 #[tokio::test]
-async fn turn_steer_returns_active_turn_id() -> Result<()> {
+async fn turn_steer_returns_active_interaction_id() -> Result<()> {
     #[cfg(target_os = "windows")]
     let shell_command = vec![
         "powershell".to_string(),
@@ -349,7 +349,7 @@ async fn turn_steer_returns_active_turn_id() -> Result<()> {
     assert_eq!(event["event_params"]["result"], "accepted");
     assert_eq!(event["event_params"]["num_input_images"], 0);
     assert_eq!(event["event_params"]["expected_interaction_id"], turn.id);
-    assert_eq!(event["event_params"]["accepted_turn_id"], turn.id);
+    assert_eq!(event["event_params"]["accepted_interaction_id"], turn.id);
     assert_eq!(
         event["event_params"]["rejection_reason"],
         serde_json::Value::Null

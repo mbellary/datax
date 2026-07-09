@@ -910,22 +910,22 @@ pub enum MessagePhase {
 /// approval and making the corresponding Responses API change.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq, JsonSchema, TS)]
 pub struct InternalChatMessageMetadataPassthrough {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, alias = "turn_id", skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub turn_id: Option<String>,
+    pub interaction_id: Option<String>,
 }
 
 impl InternalChatMessageMetadataPassthrough {
-    pub(crate) fn set_turn_id_if_missing(metadata: &mut Option<Self>, turn_id: &str) {
-        if turn_id.is_empty()
+    pub(crate) fn set_interaction_id_if_missing(metadata: &mut Option<Self>, interaction_id: &str) {
+        if interaction_id.is_empty()
             || metadata
                 .as_ref()
-                .and_then(|metadata| metadata.turn_id.as_deref())
-                .is_some_and(|turn_id| !turn_id.is_empty())
+                .and_then(|metadata| metadata.interaction_id.as_deref())
+                .is_some_and(|interaction_id| !interaction_id.is_empty())
         {
             return;
         }
-        metadata.get_or_insert_with(Self::default).turn_id = Some(turn_id.to_string());
+        metadata.get_or_insert_with(Self::default).interaction_id = Some(interaction_id.to_string());
     }
 }
 
@@ -1200,18 +1200,18 @@ impl ResponseItem {
     }
 
     /// Returns the non-empty turn ID stamped onto this item, if present.
-    pub fn turn_id(&self) -> Option<&str> {
+    pub fn interaction_id(&self) -> Option<&str> {
         self.internal_chat_message_metadata_passthrough()
-            .and_then(|metadata| metadata.turn_id.as_deref())
-            .filter(|turn_id| !turn_id.is_empty())
+            .and_then(|metadata| metadata.interaction_id.as_deref())
+            .filter(|interaction_id| !interaction_id.is_empty())
     }
 
-    /// Stamps the item with `turn_id` unless it already has a non-empty turn ID.
-    pub fn set_turn_id_if_missing(&mut self, turn_id: &str) {
+    /// Stamps the item with `interaction_id` unless it already has a non-empty turn ID.
+    pub fn set_interaction_id_if_missing(&mut self, interaction_id: &str) {
         let Some(metadata) = self.internal_chat_message_metadata_passthrough_mut() else {
             return;
         };
-        InternalChatMessageMetadataPassthrough::set_turn_id_if_missing(metadata, turn_id);
+        InternalChatMessageMetadataPassthrough::set_interaction_id_if_missing(metadata, interaction_id);
     }
 
     /// Removes internal chat message metadata passthrough before sending to a provider that does
@@ -2185,7 +2185,7 @@ mod tests {
     }
 
     #[test]
-    fn response_item_passthrough_metadata_round_trips_and_stamps_turn_ids() -> Result<()> {
+    fn response_item_passthrough_metadata_round_trips_and_stamps_interaction_ids() -> Result<()> {
         let mut item =
             response_item_with_passthrough_metadata(Some(passthrough_metadata("turn-1")));
         let round_trip: ResponseItem = serde_json::from_value(serde_json::to_value(&item)?)?;
@@ -2196,30 +2196,30 @@ mod tests {
             "role": "user",
             "content": [{"type": "input_text", "text": "hello"}],
             "internal_chat_message_metadata_passthrough": {
-                "turn_id": "turn-1",
+                "interaction_id": "turn-1",
                 "other": "ignored",
             },
         }))?;
         assert_eq!(unknown_metadata, item);
 
-        item.set_turn_id_if_missing("turn-2");
-        assert_eq!(item.turn_id(), Some("turn-1"));
+        item.set_interaction_id_if_missing("turn-2");
+        assert_eq!(item.interaction_id(), Some("turn-1"));
 
-        let mut empty_turn_id =
+        let mut empty_interaction_id =
             response_item_with_passthrough_metadata(Some(passthrough_metadata("")));
-        empty_turn_id.set_turn_id_if_missing("turn-1");
-        assert_eq!(empty_turn_id.turn_id(), Some("turn-1"));
+        empty_interaction_id.set_interaction_id_if_missing("turn-1");
+        assert_eq!(empty_interaction_id.interaction_id(), Some("turn-1"));
 
-        let mut missing_turn_id = response_item_with_passthrough_metadata(
+        let mut missing_interaction_id = response_item_with_passthrough_metadata(
             /*internal_chat_message_metadata_passthrough*/ None,
         );
-        missing_turn_id.set_turn_id_if_missing("");
-        missing_turn_id.set_turn_id_if_missing("turn-1");
-        assert_eq!(missing_turn_id.turn_id(), Some("turn-1"));
+        missing_interaction_id.set_interaction_id_if_missing("");
+        missing_interaction_id.set_interaction_id_if_missing("turn-1");
+        assert_eq!(missing_interaction_id.interaction_id(), Some("turn-1"));
 
         let mut other = ResponseItem::Other;
-        other.set_turn_id_if_missing("turn-1");
-        assert_eq!(other.turn_id(), None);
+        other.set_interaction_id_if_missing("turn-1");
+        assert_eq!(other.interaction_id(), None);
         Ok(())
     }
 
@@ -2253,9 +2253,9 @@ mod tests {
         }
     }
 
-    fn passthrough_metadata(turn_id: &str) -> InternalChatMessageMetadataPassthrough {
+    fn passthrough_metadata(interaction_id: &str) -> InternalChatMessageMetadataPassthrough {
         InternalChatMessageMetadataPassthrough {
-            turn_id: Some(turn_id.to_string()),
+            interaction_id: Some(interaction_id.to_string()),
         }
     }
 

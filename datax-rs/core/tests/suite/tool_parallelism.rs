@@ -64,7 +64,7 @@ async fn run_turn(test: &TestCodex, prompt: &str) -> anyhow::Result<()> {
         })
         .await?;
 
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     Ok(())
 }
@@ -413,7 +413,7 @@ async fn shell_tools_start_before_response_completed_when_stream_delayed() -> an
     .await??;
 
     let _ = completion_gate_tx.send(());
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let mut completion_iter = completion_receivers.into_iter();
     let completed_at = completion_iter

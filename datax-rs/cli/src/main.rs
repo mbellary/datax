@@ -704,7 +704,7 @@ fn format_exit_messages(exit_info: AppExitInfo, color_enabled: bool) -> Vec<Stri
     let is_fatal = matches!(&exit_info.exit_reason, ExitReason::Fatal(_));
     let AppExitInfo {
         token_usage,
-        thread_id: conversation_id,
+        chat_id: conversation_id,
         resume_hint,
         ..
     } = exit_info;
@@ -853,7 +853,7 @@ async fn run_session_archive_cli_command(
 }
 
 fn delete_action(target: &str, force: bool) -> anyhow::Result<datax_tui::SessionArchiveAction> {
-    if force && datax_protocol::ThreadId::from_string(target).is_err() {
+    if force && datax_protocol::ChatId::from_string(target).is_err() {
         anyhow::bail!("--force requires a session UUID; names must be confirmed interactively");
     }
     let confirmation = match force {
@@ -2493,7 +2493,7 @@ fn print_completion(cmd: CompletionCommand) {
 mod tests {
     use super::*;
     use assert_matches::assert_matches;
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use datax_tui::TokenUsage;
     use pretty_assertions::assert_eq;
 
@@ -3081,13 +3081,13 @@ mod tests {
             total_tokens: 2,
             ..Default::default()
         };
-        let thread_id = conversation_id
-            .map(ThreadId::from_string)
+        let chat_id = conversation_id
+            .map(ChatId::from_string)
             .map(Result::unwrap);
         AppExitInfo {
             token_usage,
-            thread_id,
-            resume_hint: datax_utils_cli::resume_hint(thread_name, thread_id),
+            chat_id,
+            resume_hint: datax_utils_cli::resume_hint(thread_name, chat_id),
             update_action: None,
             exit_reason: ExitReason::UserRequested,
         }
@@ -3097,7 +3097,7 @@ mod tests {
     fn format_exit_messages_skips_zero_usage() {
         let exit_info = AppExitInfo {
             token_usage: TokenUsage::default(),
-            thread_id: None,
+            chat_id: None,
             resume_hint: None,
             update_action: None,
             exit_reason: ExitReason::UserRequested,
@@ -3110,7 +3110,7 @@ mod tests {
     fn format_exit_messages_includes_session_id_for_fatal_exit_without_resume_hint() {
         let exit_info = AppExitInfo {
             token_usage: TokenUsage::default(),
-            thread_id: Some(ThreadId::from_string("123e4567-e89b-12d3-a456-426614174000").unwrap()),
+            chat_id: Some(ChatId::from_string("123e4567-e89b-12d3-a456-426614174000").unwrap()),
             resume_hint: None,
             update_action: None,
             exit_reason: ExitReason::Fatal("boom".to_string()),

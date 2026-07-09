@@ -228,7 +228,7 @@ impl PendingHostApproval {
 
 struct ActiveNetworkApprovalCall {
     registration_id: String,
-    turn_id: String,
+    interaction_id: String,
     trigger: GuardianNetworkAccessTrigger,
     command: String,
     environment_id: String,
@@ -278,7 +278,7 @@ impl NetworkApprovalService {
     async fn register_call(
         &self,
         registration_id: String,
-        turn_id: String,
+        interaction_id: String,
         trigger: GuardianNetworkAccessTrigger,
         command: String,
         environment_id: String,
@@ -290,7 +290,7 @@ impl NetworkApprovalService {
             key,
             Arc::new(ActiveNetworkApprovalCall {
                 registration_id,
-                turn_id,
+                interaction_id,
                 trigger,
                 command,
                 environment_id,
@@ -575,9 +575,9 @@ impl NetworkApprovalService {
                 review_id,
                 GuardianApprovalRequest::NetworkAccess {
                     id: guardian_approval_id.clone(),
-                    turn_id: owner_call
+                    interaction_id: owner_call
                         .as_ref()
-                        .map_or_else(|| turn_context.sub_id.clone(), |call| call.turn_id.clone()),
+                        .map_or_else(|| turn_context.sub_id.clone(), |call| call.interaction_id.clone()),
                     target,
                     host: request.host,
                     protocol,
@@ -786,7 +786,7 @@ pub(crate) fn build_network_policy_decider(
 
 pub(crate) async fn begin_network_approval(
     session: &Session,
-    turn_id: &str,
+    interaction_id: &str,
     managed_network_active: bool,
     spec: Option<NetworkApprovalSpec>,
 ) -> Option<ActiveNetworkApproval> {
@@ -808,7 +808,7 @@ pub(crate) async fn begin_network_approval(
         .network_approval
         .register_call(
             registration_id.clone(),
-            turn_id.to_string(),
+            interaction_id.to_string(),
             trigger,
             command,
             environment_id,

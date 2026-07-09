@@ -62,25 +62,25 @@ impl Handler {
         } = invocation;
         let arguments = function_arguments(payload)?;
         let args: WaitArgs = parse_arguments(&arguments)?;
-        let receiver_thread_ids = parse_agent_id_targets(args.targets)?;
-        let mut receiver_agents = Vec::with_capacity(receiver_thread_ids.len());
-        let mut target_by_thread_id = HashMap::with_capacity(receiver_thread_ids.len());
-        for receiver_thread_id in &receiver_thread_ids {
+        let receiver_chat_ids = parse_agent_id_targets(args.targets)?;
+        let mut receiver_agents = Vec::with_capacity(receiver_chat_ids.len());
+        let mut target_by_chat_id = HashMap::with_capacity(receiver_chat_ids.len());
+        for receiver_chat_id in &receiver_chat_ids {
             let agent_metadata = session
                 .services
                 .agent_control
-                .get_agent_metadata(*receiver_thread_id)
+                .get_agent_metadata(*receiver_chat_id)
                 .unwrap_or_default();
-            target_by_thread_id.insert(
-                *receiver_thread_id,
+            target_by_chat_id.insert(
+                *receiver_chat_id,
                 agent_metadata
                     .agent_path
                     .as_ref()
                     .map(ToString::to_string)
-                    .unwrap_or_else(|| receiver_thread_id.to_string()),
+                    .unwrap_or_else(|| receiver_chat_id.to_string()),
             );
             receiver_agents.push(CollabAgentRef {
-                thread_id: *receiver_thread_id,
+                chat_id: *receiver_chat_id,
                 agent_nickname: agent_metadata.agent_nickname,
                 agent_role: agent_metadata.agent_role,
             });
@@ -101,8 +101,8 @@ impl Handler {
                 &turn,
                 CollabWaitingBeginEvent {
                     started_at_ms: now_unix_timestamp_ms(),
-                    sender_thread_id: session.thread_id,
-                    receiver_thread_ids: receiver_thread_ids.clone(),
+                    sender_chat_id: session.chat_id,
+                    receiver_chat_ids: receiver_chat_ids.clone(),
                     receiver_agents: receiver_agents.clone(),
                     call_id: call_id.clone(),
                 }
@@ -110,9 +110,9 @@ impl Handler {
             )
             .await;
 
-        let mut status_rxs = Vec::with_capacity(receiver_thread_ids.len());
+        let mut status_rxs = Vec::with_capacity(receiver_chat_ids.len());
         let mut initial_final_statuses = Vec::new();
-        for id in &receiver_thread_ids {
+        for id in &receiver_chat_ids {
             match session.services.agent_control.subscribe_status(*id).await {
                 Ok(rx) => {
                     let status = rx.borrow().clone();
@@ -131,7 +131,7 @@ impl Handler {
                         .send_event(
                             &turn,
                             CollabWaitingEndEvent {
-                                sender_thread_id: session.thread_id,
+                                sender_chat_id: session.chat_id,
                                 call_id: call_id.clone(),
                                 completed_at_ms: now_unix_timestamp_ms(),
                                 agent_statuses: build_wait_agent_statuses(
@@ -186,9 +186,9 @@ impl Handler {
         let result = WaitAgentResult {
             status: statuses
                 .into_iter()
-                .filter_map(|(thread_id, status)| {
-                    target_by_thread_id
-                        .get(&thread_id)
+                .filter_map(|(chat_id, status)| {
+                    target_by_chat_id
+                        .get(&chat_id)
                         .cloned()
                         .map(|target| (target, status))
                 })
@@ -200,7 +200,7 @@ impl Handler {
             .send_event(
                 &turn,
                 CollabWaitingEndEvent {
-                    sender_thread_id: session.thread_id,
+                    sender_chat_id: session.chat_id,
                     call_id,
                     completed_at_ms: now_unix_timestamp_ms(),
                     agent_statuses,
@@ -253,22 +253,22 @@ impl ToolOutput for WaitAgentResult {
 
 async fn wait_for_final_status(
     session: Arc<Session>,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     mut status_rx: Receiver<AgentStatus>,
-) -> Option<(ThreadId, AgentStatus)> {
+) -> Option<(ChatId, AgentStatus)> {
     let mut status = status_rx.borrow().clone();
     if is_final(&status) {
-        return Some((thread_id, status));
+        return Some((chat_id, status));
     }
 
     loop {
         if status_rx.changed().await.is_err() {
-            let latest = session.services.agent_control.get_status(thread_id).await;
-            return is_final(&latest).then_some((thread_id, latest));
+            let latest = session.services.agent_control.get_status(chat_id).await;
+            return is_final(&latest).then_some((chat_id, latest));
         }
         status = status_rx.borrow().clone();
         if is_final(&status) {
-            return Some((thread_id, status));
+            return Some((chat_id, status));
         }
     }
 }

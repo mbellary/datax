@@ -1,4 +1,4 @@
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 #[cfg(test)]
 use datax_protocol::config_types::EnvironmentVariablePattern;
 use datax_protocol::config_types::ShellEnvironmentPolicy;
@@ -19,36 +19,36 @@ pub use datax_protocol::shell_environment::CODEX_THREAD_ID_ENV_VAR;
 /// `include_only` is set.
 pub fn create_env(
     policy: &ShellEnvironmentPolicy,
-    thread_id: Option<ThreadId>,
+    chat_id: Option<ChatId>,
 ) -> HashMap<String, String> {
-    let thread_id = thread_id.map(|thread_id| thread_id.to_string());
-    shell_environment::create_env(policy, thread_id.as_deref())
+    let chat_id = chat_id.map(|chat_id| chat_id.to_string());
+    shell_environment::create_env(policy, chat_id.as_deref())
 }
 
 #[cfg(all(test, target_os = "windows"))]
 fn create_env_from_vars<I>(
     vars: I,
     policy: &ShellEnvironmentPolicy,
-    thread_id: Option<ThreadId>,
+    chat_id: Option<ChatId>,
 ) -> HashMap<String, String>
 where
     I: IntoIterator<Item = (String, String)>,
 {
-    let thread_id = thread_id.map(|thread_id| thread_id.to_string());
-    shell_environment::create_env_from_vars(vars, policy, thread_id.as_deref())
+    let chat_id = chat_id.map(|chat_id| chat_id.to_string());
+    shell_environment::create_env_from_vars(vars, policy, chat_id.as_deref())
 }
 
 #[cfg(test)]
 fn populate_env<I>(
     vars: I,
     policy: &ShellEnvironmentPolicy,
-    thread_id: Option<ThreadId>,
+    chat_id: Option<ChatId>,
 ) -> HashMap<String, String>
 where
     I: IntoIterator<Item = (String, String)>,
 {
-    let thread_id = thread_id.map(|thread_id| thread_id.to_string());
-    shell_environment::populate_env(vars, policy, thread_id.as_deref())
+    let chat_id = chat_id.map(|chat_id| chat_id.to_string());
+    shell_environment::populate_env(vars, policy, chat_id.as_deref())
 }
 
 #[cfg(test)]

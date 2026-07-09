@@ -45,7 +45,7 @@ struct Args {
 
     /// Match one or more thread ids. Repeat to include multiple threads.
     #[arg(long = "thread-id")]
-    thread_id: Vec<String>,
+    chat_id: Vec<String>,
 
     /// Substring match against the rendered log body.
     #[arg(long)]
@@ -75,7 +75,7 @@ struct LogFilter {
     to_ts: Option<i64>,
     module_like: Vec<String>,
     file_like: Vec<String>,
-    thread_ids: Vec<String>,
+    chat_ids: Vec<String>,
     search: Option<String>,
     include_threadless: bool,
 }
@@ -175,10 +175,10 @@ fn build_filter(args: &Args) -> anyhow::Result<LogFilter> {
         .filter(|file| !file.is_empty())
         .cloned()
         .collect::<Vec<_>>();
-    let thread_ids = args
-        .thread_id
+    let chat_ids = args
+        .chat_id
         .iter()
-        .filter(|thread_id| !thread_id.is_empty())
+        .filter(|chat_id| !chat_id.is_empty())
         .cloned()
         .collect::<Vec<_>>();
 
@@ -188,7 +188,7 @@ fn build_filter(args: &Args) -> anyhow::Result<LogFilter> {
         to_ts,
         module_like,
         file_like,
-        thread_ids,
+        chat_ids,
         search: args.search.clone(),
         include_threadless: args.threadless,
     })
@@ -281,7 +281,7 @@ fn to_log_query(
         to_ts: filter.to_ts,
         module_like: filter.module_like.clone(),
         file_like: filter.file_like.clone(),
-        thread_ids: filter.thread_ids.clone(),
+        chat_ids: filter.chat_ids.clone(),
         search: filter.search.clone(),
         include_threadless: filter.include_threadless,
         after_id,
@@ -297,15 +297,15 @@ fn format_row(row: &LogRow, compact: bool) -> String {
     let message = row.message.as_deref().unwrap_or("");
     let level_colored = formatter::level(level);
     let timestamp_colored = timestamp.dimmed().to_string();
-    let thread_id = row.thread_id.as_deref().unwrap_or("-");
-    let thread_id_colored = thread_id.blue().dimmed().to_string();
+    let chat_id = row.chat_id.as_deref().unwrap_or("-");
+    let chat_id_colored = chat_id.blue().dimmed().to_string();
     let target_colored = target.dimmed().to_string();
     let message_colored = heuristic_formatting(message);
     if compact {
         format!("{timestamp_colored} {level_colored} {message_colored}")
     } else {
         format!(
-            "{timestamp_colored} {level_colored} [{thread_id_colored}] {target_colored} - {message_colored}"
+            "{timestamp_colored} {level_colored} [{chat_id_colored}] {target_colored} - {message_colored}"
         )
     }
 }

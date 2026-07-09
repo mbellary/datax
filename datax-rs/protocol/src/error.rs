@@ -1,4 +1,4 @@
-use crate::ThreadId;
+use crate::ChatId;
 use crate::auth::KnownPlan;
 use crate::auth::PlanType;
 pub use crate::auth::RefreshTokenFailedError;
@@ -67,7 +67,7 @@ pub enum SandboxErr {
 #[derive(Error, Debug)]
 pub enum CodexErr {
     #[error("turn aborted. Something went wrong? Hit `/feedback` to report the issue.")]
-    TurnAborted,
+    InteractionAborted,
 
     /// Returned by ResponsesClient when the SSE stream disconnects or errors out **after** the HTTP
     /// handshake has succeeded but **before** it finished emitting `response.completed`.
@@ -82,7 +82,7 @@ pub enum CodexErr {
     )]
     ContextWindowExceeded,
     #[error("no thread with id: {0}")]
-    ThreadNotFound(ThreadId),
+    ThreadNotFound(ChatId),
     #[error("agent thread limit reached")]
     AgentLimitReached { max_threads: usize },
     #[error("session configured event was not the first event in the stream")]
@@ -165,14 +165,14 @@ pub enum CodexErr {
 
 impl From<CancelErr> for CodexErr {
     fn from(_: CancelErr) -> Self {
-        CodexErr::TurnAborted
+        CodexErr::InteractionAborted
     }
 }
 
 impl CodexErr {
     pub fn is_retryable(&self) -> bool {
         match self {
-            CodexErr::TurnAborted
+            CodexErr::InteractionAborted
             | CodexErr::Interrupted
             | CodexErr::EnvVar(_)
             | CodexErr::Fatal(_)

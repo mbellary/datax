@@ -167,7 +167,7 @@ impl ChatWidget {
             );
             return;
         }
-        let Some(thread_id) = self.thread_id() else {
+        let Some(chat_id) = self.chat_id() else {
             self.add_error_message("That thread is no longer available.".to_string());
             return;
         };
@@ -197,7 +197,7 @@ impl ChatWidget {
                         search_value: Some(format!("{summary} {rationale}")),
                         actions: vec![Box::new(move |tx| {
                             tx.send(AppEvent::ApproveRecentAutoReviewDenial {
-                                thread_id,
+                                chat_id,
                                 id: id.clone(),
                             });
                         })],
@@ -219,14 +219,14 @@ impl ChatWidget {
         self.request_redraw();
     }
 
-    pub(crate) fn approve_recent_auto_review_denial(&mut self, thread_id: ThreadId, id: String) {
+    pub(crate) fn approve_recent_auto_review_denial(&mut self, chat_id: ChatId, id: String) {
         let Some(event) = self.review.recent_auto_review_denials.take(&id) else {
             self.add_error_message("That auto-review denial is no longer available.".to_string());
             return;
         };
 
         self.app_event_tx.send(AppEvent::SubmitThreadOp {
-            thread_id,
+            chat_id,
             op: AppCommand::approve_guardian_denied_action(event),
         });
         self.add_info_message(

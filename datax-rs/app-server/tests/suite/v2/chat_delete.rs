@@ -13,7 +13,7 @@ use datax_app_server_protocol::JSONRPCError;
 use datax_app_server_protocol::JSONRPCResponse;
 use datax_app_server_protocol::RequestId;
 use datax_core::find_thread_path_by_id_str;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_state::DirectionalThreadSpawnEdgeStatus;
 use datax_state::StateRuntime;
 use pretty_assertions::assert_eq;
@@ -34,19 +34,19 @@ async fn thread_delete_deletes_spawned_descendants() -> Result<()> {
 
     let state_db =
         StateRuntime::init(codex_home.path().to_path_buf(), "mock_provider".into()).await?;
-    let parent_chat_id = ThreadId::from_string(&parent_id)?;
-    let child_thread_id = ThreadId::from_string(&child_id)?;
-    let grandchild_thread_id = ThreadId::from_string(&grandchild_id)?;
+    let parent_chat_id = ChatId::from_string(&parent_id)?;
+    let child_chat_id = ChatId::from_string(&child_id)?;
+    let grandchild_chat_id = ChatId::from_string(&grandchild_id)?;
 
     for (parent, child, status) in [
         (
             parent_chat_id,
-            child_thread_id,
+            child_chat_id,
             DirectionalThreadSpawnEdgeStatus::Closed,
         ),
         (
-            child_thread_id,
-            grandchild_thread_id,
+            child_chat_id,
+            grandchild_chat_id,
             DirectionalThreadSpawnEdgeStatus::Open,
         ),
     ] {
@@ -86,7 +86,7 @@ async fn thread_delete_deletes_spawned_descendants() -> Result<()> {
     }
     assert_eq!(deleted_ids, vec![grandchild_id, child_id, parent_id]);
 
-    for chat_id in [parent_chat_id, child_thread_id, grandchild_thread_id] {
+    for chat_id in [parent_chat_id, child_chat_id, grandchild_chat_id] {
         let rollout_path = find_thread_path_by_id_str(
             codex_home.path(),
             &chat_id.to_string(),
@@ -102,7 +102,7 @@ async fn thread_delete_deletes_spawned_descendants() -> Result<()> {
         state_db
             .list_thread_spawn_descendants(parent_chat_id)
             .await?,
-        Vec::<ThreadId>::new()
+        Vec::<ChatId>::new()
     );
     Ok(())
 }

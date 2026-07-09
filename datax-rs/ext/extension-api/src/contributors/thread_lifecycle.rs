@@ -27,7 +27,7 @@ pub struct ThreadResumeInput<'a> {
 }
 
 /// Input supplied when the host has no immediately pending thread work.
-pub struct ThreadIdleInput<'a> {
+pub struct ChatIdleInput<'a> {
     /// Store scoped to the host session runtime.
     pub session_store: &'a ExtensionData,
     /// Store scoped to this thread runtime.

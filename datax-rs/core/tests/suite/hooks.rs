@@ -1123,29 +1123,29 @@ async fn stop_hook_can_block_multiple_times_in_same_turn() -> Result<()> {
 
     let hook_inputs = read_stop_hook_inputs(test.codex_home_path())?;
     assert_eq!(hook_inputs.len(), 3);
-    let stop_turn_ids = hook_inputs
+    let stop_interaction_ids = hook_inputs
         .iter()
         .map(|input| {
-            input["turn_id"]
+            input["interaction_id"]
                 .as_str()
-                .expect("stop hook input turn_id")
+                .expect("stop hook input interaction_id")
                 .to_string()
         })
         .collect::<Vec<_>>();
     assert!(
-        stop_turn_ids.iter().all(|turn_id| !turn_id.is_empty()),
+        stop_interaction_ids.iter().all(|interaction_id| !interaction_id.is_empty()),
         "stop hook turn ids should be non-empty",
     );
-    let first_stop_turn_id = stop_turn_ids
+    let first_stop_interaction_id = stop_interaction_ids
         .first()
         .expect("stop hook inputs should include a first turn id")
         .clone();
     assert_eq!(
-        stop_turn_ids,
+        stop_interaction_ids,
         vec![
-            first_stop_turn_id.clone(),
-            first_stop_turn_id.clone(),
-            first_stop_turn_id,
+            first_stop_interaction_id.clone(),
+            first_stop_interaction_id.clone(),
+            first_stop_interaction_id,
         ],
     );
     assert_eq!(
@@ -1402,7 +1402,7 @@ async fn compact_session_start_hook_records_additional_context_for_next_turn() -
     test.submit_turn("hello before compact").await?;
     test.codex.submit(Op::Compact).await?;
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
     test.submit_turn("hello after compact").await?;
@@ -1771,10 +1771,10 @@ async fn blocked_user_prompt_submit_persists_additional_context_for_next_turn() 
         ],
     );
     assert!(
-        hook_inputs.iter().all(|input| input["turn_id"]
+        hook_inputs.iter().all(|input| input["interaction_id"]
             .as_str()
-            .is_some_and(|turn_id| !turn_id.is_empty())),
-        "blocked and accepted prompt hooks should both receive a non-empty turn_id",
+            .is_some_and(|interaction_id| !interaction_id.is_empty())),
+        "blocked and accepted prompt hooks should both receive a non-empty interaction_id",
     );
 
     Ok(())
@@ -1909,29 +1909,29 @@ async fn blocked_queued_prompt_does_not_strand_earlier_accepted_prompt() -> Resu
             "blocked queued prompt".to_string(),
         ],
     );
-    let queued_turn_ids = hook_inputs
+    let queued_interaction_ids = hook_inputs
         .iter()
         .map(|input| {
-            input["turn_id"]
+            input["interaction_id"]
                 .as_str()
-                .expect("queued prompt hook turn_id")
+                .expect("queued prompt hook interaction_id")
                 .to_string()
         })
         .collect::<Vec<_>>();
     assert!(
-        queued_turn_ids.iter().all(|turn_id| !turn_id.is_empty()),
+        queued_interaction_ids.iter().all(|interaction_id| !interaction_id.is_empty()),
         "queued prompt hook turn ids should be non-empty",
     );
-    let first_queued_turn_id = queued_turn_ids
+    let first_queued_interaction_id = queued_interaction_ids
         .first()
         .expect("queued prompt hook inputs should include a first turn id")
         .clone();
     assert_eq!(
-        queued_turn_ids,
+        queued_interaction_ids,
         vec![
-            first_queued_turn_id.clone(),
-            first_queued_turn_id.clone(),
-            first_queued_turn_id,
+            first_queued_interaction_id.clone(),
+            first_queued_interaction_id.clone(),
+            first_queued_interaction_id,
         ],
     );
 
@@ -2004,9 +2004,9 @@ async fn permission_request_hook_allows_shell_command_without_user_approval() ->
         "PermissionRequest input should not include a tool_use_id",
     );
     assert!(
-        hook_inputs[0]["turn_id"]
+        hook_inputs[0]["interaction_id"]
             .as_str()
-            .is_some_and(|turn_id| !turn_id.is_empty())
+            .is_some_and(|interaction_id| !interaction_id.is_empty())
     );
 
     Ok(())
@@ -2434,9 +2434,9 @@ async fn pre_tool_use_blocks_shell_command_before_execution() -> Result<()> {
         "pre tool use hook transcript_path should be materialized on disk",
     );
     assert!(
-        hook_inputs[0]["turn_id"]
+        hook_inputs[0]["interaction_id"]
             .as_str()
-            .is_some_and(|turn_id| !turn_id.is_empty())
+            .is_some_and(|interaction_id| !interaction_id.is_empty())
     );
 
     Ok(())
@@ -3389,9 +3389,9 @@ async fn pre_tool_use_blocks_exec_command_before_execution() -> Result<()> {
     assert_eq!(hook_inputs[0]["tool_use_id"], call_id);
     assert_eq!(hook_inputs[0]["tool_input"]["command"], command);
     assert!(
-        hook_inputs[0]["turn_id"]
+        hook_inputs[0]["interaction_id"]
             .as_str()
-            .is_some_and(|turn_id| !turn_id.is_empty())
+            .is_some_and(|interaction_id| !interaction_id.is_empty())
     );
 
     Ok(())
@@ -3811,9 +3811,9 @@ async fn post_tool_use_records_additional_context_for_shell_command() -> Result<
         "post tool use hook transcript_path should be materialized on disk",
     );
     assert!(
-        hook_inputs[0]["turn_id"]
+        hook_inputs[0]["interaction_id"]
             .as_str()
-            .is_some_and(|turn_id| !turn_id.is_empty())
+            .is_some_and(|interaction_id| !interaction_id.is_empty())
     );
 
     Ok(())

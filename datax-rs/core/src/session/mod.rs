@@ -86,7 +86,7 @@ use datax_otel::current_span_trace_id;
 use datax_otel::current_span_w3c_trace_context;
 use datax_otel::set_parent_from_w3c_trace_context;
 use datax_protocol::SessionId;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::approvals::ElicitationRequestEvent;
 use datax_protocol::approvals::ExecPolicyAmendment;
 use datax_protocol::approvals::NetworkPolicyAmendment;
@@ -126,7 +126,7 @@ use datax_protocol::protocol::RolloutItem;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
 use datax_protocol::protocol::ThreadSource;
-use datax_protocol::protocol::TurnAbortReason;
+use datax_protocol::protocol::InteractionAbortReason;
 use datax_protocol::protocol::TurnContextItem;
 use datax_protocol::protocol::TurnContextNetworkItem;
 use datax_protocol::protocol::TurnEnvironmentSelection;
@@ -415,7 +415,7 @@ pub(crate) type SessionLoopTermination = Shared<BoxFuture<'static, ()>>;
 /// the unique session id.
 pub struct CodexSpawnOk {
     pub codex: Codex,
-    pub thread_id: ThreadId,
+    pub chat_id: ChatId,
 }
 
 pub(crate) struct CodexSpawnArgs {
@@ -431,8 +431,8 @@ pub(crate) struct CodexSpawnArgs {
     pub(crate) extensions: Arc<datax_extension_api::ExtensionRegistry<crate::config::Config>>,
     pub(crate) conversation_history: InitialHistory,
     pub(crate) session_source: SessionSource,
-    pub(crate) forked_from_thread_id: Option<ThreadId>,
-    pub(crate) parent_thread_id: Option<ThreadId>,
+    pub(crate) forked_from_chat_id: Option<ChatId>,
+    pub(crate) parent_chat_id: Option<ChatId>,
     pub(crate) thread_source: Option<ThreadSource>,
     pub(crate) agent_control: AgentControl,
     pub(crate) dynamic_tools: Vec<DynamicToolSpec>,
@@ -519,8 +519,8 @@ impl Codex {
             extensions,
             conversation_history,
             session_source,
-            forked_from_thread_id,
-            parent_thread_id,
+            forked_from_chat_id,
+            parent_chat_id,
             thread_source,
             agent_control,
             dynamic_tools,
@@ -648,8 +648,8 @@ impl Codex {
             app_server_client_name: None,
             app_server_client_version: None,
             session_source,
-            forked_from_thread_id,
-            parent_thread_id,
+            forked_from_chat_id,
+            parent_chat_id,
             thread_source,
             dynamic_tools,
             user_shell_override,
@@ -692,13 +692,13 @@ impl Codex {
             error!("Failed to create session: {e:#}");
             map_session_init_error(&e, &config.codex_home)
         })?;
-        let thread_id = session.thread_id;
+        let chat_id = session.chat_id;
 
         // This task will run until Op::Shutdown is received.
         let session_for_loop = Arc::clone(&session);
         let session_loop_handle = tokio::spawn(async move {
             submission_loop(session_for_loop, config, rx_sub)
-                .instrument(info_span!("session_loop", thread_id = %thread_id))
+                .instrument(info_span!("session_loop", chat_id = %chat_id))
                 .await;
         });
         let codex = Codex {
@@ -709,7 +709,7 @@ impl Codex {
             session_loop_termination: session_loop_termination_from_handle(session_loop_handle),
         };
 
-        Ok(CodexSpawnOk { codex, thread_id })
+        Ok(CodexSpawnOk { codex, chat_id })
     }
 
     /// Submit the `op` wrapped in a `Submission` with a unique ID.
@@ -799,7 +799,7 @@ impl Codex {
         &self,
         input: Vec<UserInput>,
         additional_context: BTreeMap<String, AdditionalContextEntry>,
-        expected_turn_id: Option<&str>,
+        expected_interaction_id: Option<&str>,
         client_user_message_id: Option<String>,
         responsesapi_client_metadata: Option<HashMap<String, String>>,
     ) -> Result<String, SteerInputError> {
@@ -807,7 +807,7 @@ impl Codex {
             .steer_input(
                 input,
                 additional_context,
-                expected_turn_id,
+                expected_interaction_id,
                 client_user_message_id,
                 responsesapi_client_metadata,
             )
@@ -905,7 +905,7 @@ pub(crate) fn session_loop_termination_from_handle(
 async fn thread_title_from_thread_store(
     live_thread: Option<&LiveThread>,
     thread_store: &Arc<dyn ThreadStore>,
-    conversation_id: ThreadId,
+    conversation_id: ChatId,
 ) -> Option<String> {
     let thread = match live_thread {
         Some(live_thread) => {
@@ -918,7 +918,7 @@ async fn thread_title_from_thread_store(
         None => {
             thread_store
                 .read_thread(ReadThreadParams {
-                    thread_id: conversation_id,
+                    chat_id: conversation_id,
                     include_archived: true,
                     include_history: false,
                 })
@@ -1355,7 +1355,7 @@ impl Session {
         level = "trace",
         skip_all,
         fields(
-            thread_id = %self.thread_id(),
+            chat_id = %self.chat_id(),
             rollout_item_count = rollout_items.len()
         )
     )]
@@ -1704,7 +1704,7 @@ impl Session {
         self.services
             .analytics_events_client
             .track_turn_codex_error(TurnCodexErrorFact::from_codex_err(
-                self.thread_id.to_string(),
+                self.chat_id.to_string(),
                 turn_context.sub_id.clone(),
                 error,
             ));
@@ -1763,12 +1763,12 @@ impl Session {
             return;
         }
 
-        if !matches!(msg, EventMsg::TurnComplete(_) | EventMsg::TurnAborted(_)) {
+        if !matches!(msg, EventMsg::InteractionComplete(_) | EventMsg::InteractionAborted(_)) {
             return;
         }
 
         let SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-            parent_thread_id,
+            parent_chat_id,
             agent_path: Some(child_agent_path),
             ..
         }) = &turn_context.session_source
@@ -1795,7 +1795,7 @@ impl Session {
 
         self.forward_child_completion_to_parent(
             turn_context,
-            *parent_thread_id,
+            *parent_chat_id,
             child_agent_path,
             status,
         )
@@ -1806,7 +1806,7 @@ impl Session {
     async fn forward_child_completion_to_parent(
         &self,
         turn_context: &TurnContext,
-        parent_thread_id: ThreadId,
+        parent_chat_id: ChatId,
         child_agent_path: &datax_protocol::AgentPath,
         status: AgentStatus,
     ) {
@@ -1842,10 +1842,10 @@ impl Session {
         if let Err(err) = self
             .services
             .agent_control
-            .send_inter_agent_communication(parent_thread_id, communication)
+            .send_inter_agent_communication(parent_chat_id, communication)
             .await
         {
-            debug!("failed to notify parent thread {parent_thread_id}: {err}");
+            debug!("failed to notify parent thread {parent_chat_id}: {err}");
             return;
         }
         if let Some(message) = trace_message {
@@ -1853,7 +1853,7 @@ impl Session {
                 .rollout_thread_trace
                 .record_agent_result_interaction(
                     turn_context.sub_id.as_str(),
-                    parent_thread_id,
+                    parent_chat_id,
                     &AgentResultTracePayload {
                         child_agent_path: child_agent_path.as_str(),
                         message: &message,
@@ -1876,7 +1876,7 @@ impl Session {
     }
 
     async fn maybe_clear_realtime_handoff_for_event(&self, msg: &EventMsg) {
-        if !matches!(msg, EventMsg::TurnComplete(_)) {
+        if !matches!(msg, EventMsg::InteractionComplete(_)) {
             return;
         }
         if let Err(err) = self.conversation.handoff_complete().await {
@@ -1909,8 +1909,8 @@ impl Session {
         self.send_event(
             turn_context,
             EventMsg::ItemStarted(ItemStartedEvent {
-                thread_id: self.thread_id,
-                turn_id: turn_context.sub_id.clone(),
+                chat_id: self.chat_id,
+                interaction_id: turn_context.sub_id.clone(),
                 item: item.clone(),
                 started_at_ms: now_unix_timestamp_ms(),
             }),
@@ -1927,8 +1927,8 @@ impl Session {
         self.send_event(
             turn_context,
             EventMsg::ItemCompleted(ItemCompletedEvent {
-                thread_id: self.thread_id,
-                turn_id: turn_context.sub_id.clone(),
+                chat_id: self.chat_id,
+                interaction_id: turn_context.sub_id.clone(),
                 item,
                 completed_at_ms: now_unix_timestamp_ms(),
             }),
@@ -2146,7 +2146,7 @@ impl Session {
         let event = EventMsg::ExecApprovalRequest(ExecApprovalRequestEvent {
             call_id,
             approval_id,
-            turn_id: turn_context.sub_id.clone(),
+            interaction_id: turn_context.sub_id.clone(),
             environment_id,
             started_at_ms: now_unix_timestamp_ms(),
             command,
@@ -2194,7 +2194,7 @@ impl Session {
 
         let event = EventMsg::ApplyPatchApprovalRequest(ApplyPatchApprovalRequestEvent {
             call_id,
-            turn_id: turn_context.sub_id.clone(),
+            interaction_id: turn_context.sub_id.clone(),
             started_at_ms: now_unix_timestamp_ms(),
             changes,
             reason,
@@ -2263,7 +2263,7 @@ impl Session {
             let turn = Arc::clone(turn_context);
             let request = crate::guardian::GuardianApprovalRequest::RequestPermissions {
                 id: call_id,
-                turn_id: turn_context.sub_id.clone(),
+                interaction_id: turn_context.sub_id.clone(),
                 reason: args.reason,
                 permissions: requested_permissions.clone(),
             };
@@ -2354,7 +2354,7 @@ impl Session {
 
         let event = EventMsg::RequestPermissions(RequestPermissionsEvent {
             call_id: call_id.clone(),
-            turn_id: turn_context.sub_id.clone(),
+            interaction_id: turn_context.sub_id.clone(),
             environment_id: Some(environment.environment_id.clone()),
             started_at_ms: now_unix_timestamp_ms(),
             reason: args.reason,
@@ -2440,7 +2440,7 @@ impl Session {
 
         let event = EventMsg::RequestUserInput(RequestUserInputEvent {
             call_id,
-            turn_id: turn_context.sub_id.clone(),
+            interaction_id: turn_context.sub_id.clone(),
             questions: args.questions,
             auto_resolution_ms: args.auto_resolution_ms,
         });
@@ -2693,7 +2693,7 @@ impl Session {
         prepare_response_items(items.to_mut());
         // Most response items get their passthrough turn ID at the durable history boundary.
         for item in items.to_mut() {
-            item.set_turn_id_if_missing(&turn_context.sub_id);
+            item.set_interaction_id_if_missing(&turn_context.sub_id);
         }
         if turn_context.config.features.enabled(Feature::ItemIds) {
             Self::assign_missing_response_item_ids(items)
@@ -2788,7 +2788,7 @@ impl Session {
         turn_context: &TurnContext,
         mut communication: InterAgentCommunication,
     ) {
-        communication.set_turn_id_if_missing(&turn_context.sub_id);
+        communication.set_interaction_id_if_missing(&turn_context.sub_id);
         let response_item = communication.to_model_input_item();
         let items = self.prepare_conversation_items_for_history(
             turn_context,
@@ -2990,8 +2990,8 @@ impl Session {
         for contributor in &context_contributors {
             for fragment in contributor
                 .contribute_turn_context(TurnContextContributionInput {
-                    thread_id: self.thread_id(),
-                    turn_id: turn_context.sub_id.as_str(),
+                    chat_id: self.chat_id(),
+                    interaction_id: turn_context.sub_id.as_str(),
                     session_store: &self.services.session_extension_data,
                     thread_store: &self.services.thread_extension_data,
                     turn_store: turn_context.extension_data.as_ref(),
@@ -3042,7 +3042,7 @@ impl Session {
         let environment_subagents = if turn_context.config.include_environment_context {
             self.services
                 .agent_control
-                .format_environment_context_subagents(self.thread_id)
+                .format_environment_context_subagents(self.chat_id)
                 .await
         } else {
             String::new()
@@ -3236,8 +3236,8 @@ impl Session {
         for contributor in &context_contributors {
             for fragment in contributor
                 .contribute_turn_context(TurnContextContributionInput {
-                    thread_id: self.thread_id(),
-                    turn_id: turn_context.sub_id.as_str(),
+                    chat_id: self.chat_id(),
+                    interaction_id: turn_context.sub_id.as_str(),
                     session_store: &self.services.session_extension_data,
                     thread_store: &self.services.thread_extension_data,
                     turn_store: turn_context.extension_data.as_ref(),
@@ -3266,7 +3266,7 @@ impl Session {
                     "thread_hint",
                     /*arguments*/ None,
                     Some(serde_json::json!({
-                        "threadId": self.thread_id().to_string(),
+                        "threadId": self.chat_id().to_string(),
                     })),
                 )
                 .await
@@ -3285,7 +3285,7 @@ impl Session {
                 });
             developer_sections.push(
                 crate::context::TokenBudgetContext::new(
-                    self.thread_id(),
+                    self.chat_id(),
                     auto_compact_window_ids.first_window_id,
                     auto_compact_window_ids.previous_window_id,
                     auto_compact_window_ids.window_id,
@@ -3356,7 +3356,7 @@ impl Session {
         }
         // New context windows and compaction install these items directly into replacement history.
         for item in &mut items {
-            item.set_turn_id_if_missing(&turn_context.sub_id);
+            item.set_interaction_id_if_missing(&turn_context.sub_id);
         }
         items
     }
@@ -3377,9 +3377,9 @@ impl Session {
 
     pub(crate) async fn current_window_id(&self) -> String {
         let state = self.state.lock().await;
-        let thread_id = self.thread_id;
+        let chat_id = self.chat_id;
         let window_number = state.auto_compact_window_number();
-        format!("{thread_id}:{window_number}")
+        format!("{chat_id}:{window_number}")
     }
 
     pub(crate) async fn advance_auto_compact_window(&self) -> (u64, AutoCompactWindowIds) {
@@ -3714,7 +3714,7 @@ impl Session {
         &self,
         input: Vec<UserInput>,
         additional_context: BTreeMap<String, AdditionalContextEntry>,
-        expected_turn_id: Option<&str>,
+        expected_interaction_id: Option<&str>,
         client_user_message_id: Option<String>,
         responsesapi_client_metadata: Option<HashMap<String, String>>,
     ) -> Result<String, SteerInputError> {
@@ -3726,14 +3726,14 @@ impl Session {
         let Some(active_task) = active_turn.task.as_ref() else {
             return Err(SteerInputError::NoActiveTurn(input));
         };
-        let active_turn_id = &active_task.turn_context.sub_id;
+        let active_interaction_id = &active_task.turn_context.sub_id;
 
-        if let Some(expected_turn_id) = expected_turn_id
-            && expected_turn_id != active_turn_id
+        if let Some(expected_interaction_id) = expected_interaction_id
+            && expected_interaction_id != active_interaction_id
         {
             return Err(SteerInputError::ExpectedTurnMismatch {
-                expected: expected_turn_id.to_string(),
-                actual: active_turn_id.clone(),
+                expected: expected_interaction_id.to_string(),
+                actual: active_interaction_id.clone(),
             });
         }
 
@@ -3782,7 +3782,7 @@ impl Session {
                 pending_input,
             )
             .await;
-        Ok(active_turn_id.clone())
+        Ok(active_interaction_id.clone())
     }
 
     pub(crate) async fn record_memory_citation_for_turn(&self, sub_id: &str) {
@@ -3799,7 +3799,7 @@ impl Session {
     pub async fn interrupt_task(self: &Arc<Self>) {
         info!("interrupt received: abort current task, if any");
         let had_active_turn = self.active_turn.lock().await.is_some();
-        self.abort_all_tasks(TurnAbortReason::Interrupted).await;
+        self.abort_all_tasks(InteractionAbortReason::Interrupted).await;
         if !had_active_turn {
             self.cancel_mcp_startup().await;
         }
@@ -3847,8 +3847,8 @@ pub(crate) fn emit_subagent_session_started(
     analytics_events_client: &AnalyticsEventsClient,
     client_metadata: AppServerClientMetadata,
     session_id: SessionId,
-    thread_id: ThreadId,
-    parent_thread_id: Option<ThreadId>,
+    chat_id: ChatId,
+    parent_chat_id: Option<ChatId>,
     thread_config: ThreadConfigSnapshot,
     subagent_source: SubAgentSource,
 ) {
@@ -3866,11 +3866,11 @@ pub(crate) fn emit_subagent_session_started(
         .as_secs();
     analytics_events_client.track_subagent_thread_started(SubAgentThreadStartedInput {
         session_id: session_id.to_string(),
-        thread_id: thread_id.to_string(),
-        parent_thread_id: parent_thread_id.map(|thread_id| thread_id.to_string()),
-        forked_from_thread_id: thread_config
-            .forked_from_thread_id
-            .map(|thread_id| thread_id.to_string()),
+        chat_id: chat_id.to_string(),
+        parent_chat_id: parent_chat_id.map(|chat_id| chat_id.to_string()),
+        forked_from_chat_id: thread_config
+            .forked_from_chat_id
+            .map(|chat_id| chat_id.to_string()),
         product_client_id: client_name.clone(),
         client_name,
         client_version,

@@ -297,7 +297,7 @@ fn assert_request_contains_realtime_end(request: &responses::ResponsesRequest) {
 async fn wait_for_turn_complete(codex: &datax_core::CodexThread) {
     wait_for_event_with_timeout(
         codex,
-        |ev| matches!(ev, EventMsg::TurnComplete(_)),
+        |ev| matches!(ev, EventMsg::InteractionComplete(_)),
         REMOTE_COMPACT_TURN_COMPLETE_TIMEOUT,
     )
     .await;
@@ -313,7 +313,7 @@ async fn remote_compact_replaces_history_for_followups() -> Result<()> {
     .await?;
     let codex = harness.test().codex.clone();
     let session_id = harness.test().session_configured.session_id.to_string();
-    let thread_id = harness.test().session_configured.thread_id.to_string();
+    let chat_id = harness.test().session_configured.chat_id.to_string();
 
     let responses_mock = responses::mount_sse_sequence(
         harness.server(),
@@ -388,7 +388,7 @@ async fn remote_compact_replaces_history_for_followups() -> Result<()> {
     );
     assert_eq!(
         compact_request.header("thread-id").as_deref(),
-        Some(thread_id.as_str())
+        Some(chat_id.as_str())
     );
     let compact_metadata: Value = serde_json::from_str(
         &compact_request
@@ -401,7 +401,7 @@ async fn remote_compact_replaces_history_for_followups() -> Result<()> {
         compact_metadata["installation_id"].as_str()
     );
     assert!(
-        compact_metadata["turn_id"]
+        compact_metadata["interaction_id"]
             .as_str()
             .is_some_and(|id| !id.is_empty()),
         "remote compact turn metadata should include its turn id"
@@ -438,7 +438,7 @@ async fn remote_compact_replaces_history_for_followups() -> Result<()> {
     )
     .expect("initial turn metadata should be valid json");
     assert_ne!(
-        first_response_metadata["turn_id"], compact_metadata["turn_id"],
+        first_response_metadata["interaction_id"], compact_metadata["interaction_id"],
         "manual compaction should use its own turn id"
     );
     assert_eq!(
@@ -489,7 +489,7 @@ async fn remote_compact_replaces_history_for_followups() -> Result<()> {
         "regular requests after compaction should not be marked as compact requests"
     );
     assert_ne!(
-        follow_up_metadata["turn_id"], compact_metadata["turn_id"],
+        follow_up_metadata["interaction_id"], compact_metadata["interaction_id"],
         "the following user turn should not reuse a manual compact turn id"
     );
     assert_eq!(
@@ -1244,7 +1244,7 @@ async fn remote_compact_runs_automatically() -> Result<()> {
     .await?;
     let codex = harness.test().codex.clone();
     let session_id = harness.test().session_configured.session_id.to_string();
-    let thread_id = harness.test().session_configured.thread_id.to_string();
+    let chat_id = harness.test().session_configured.chat_id.to_string();
 
     let initial_request = mount_sse_once(
         harness.server(),
@@ -1287,7 +1287,7 @@ async fn remote_compact_runs_automatically() -> Result<()> {
         _ => None,
     })
     .await;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
     assert!(message);
     assert_eq!(compact_mock.requests().len(), 1);
     assert_eq!(
@@ -1299,7 +1299,7 @@ async fn remote_compact_runs_automatically() -> Result<()> {
     );
     assert_eq!(
         compact_mock.single_request().header("thread-id").as_deref(),
-        Some(thread_id.as_str())
+        Some(chat_id.as_str())
     );
     let compact_metadata: Value = serde_json::from_str(
         &compact_mock
@@ -1330,7 +1330,7 @@ async fn remote_compact_runs_automatically() -> Result<()> {
     )
     .expect("initial turn metadata should be valid json");
     assert_eq!(
-        initial_metadata["turn_id"], compact_metadata["turn_id"],
+        initial_metadata["interaction_id"], compact_metadata["interaction_id"],
         "automatic mid-turn compaction should keep the current turn id"
     );
     assert_eq!(
@@ -1351,7 +1351,7 @@ async fn remote_compact_runs_automatically() -> Result<()> {
     );
     assert!(follow_up_metadata.get("compaction").is_none());
     assert_eq!(
-        follow_up_metadata["turn_id"], compact_metadata["turn_id"],
+        follow_up_metadata["interaction_id"], compact_metadata["interaction_id"],
         "automatic mid-turn continuation should keep the current turn id"
     );
     assert_ne!(
@@ -1418,7 +1418,7 @@ async fn remote_compact_trims_function_call_history_to_fit_context_window() -> R
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     codex
         .submit(Op::UserInput {
@@ -1432,7 +1432,7 @@ async fn remote_compact_trims_function_call_history_to_fit_context_window() -> R
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     let compact_mock = responses::mount_compact_user_history_with_summary_once(
         harness.server(),
@@ -1441,7 +1441,7 @@ async fn remote_compact_trims_function_call_history_to_fit_context_window() -> R
     .await;
 
     codex.submit(Op::Compact).await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     let compact_request = compact_mock.single_request();
     let user_messages = compact_request.message_input_texts("user");
@@ -1546,7 +1546,7 @@ async fn remote_compact_rewrites_multiple_trailing_function_call_outputs() -> Re
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     codex
         .submit(Op::UserInput {
@@ -1560,7 +1560,7 @@ async fn remote_compact_rewrites_multiple_trailing_function_call_outputs() -> Re
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     let compact_mock = responses::mount_compact_user_history_with_summary_once(
         harness.server(),
@@ -1569,7 +1569,7 @@ async fn remote_compact_rewrites_multiple_trailing_function_call_outputs() -> Re
     .await;
 
     codex.submit(Op::Compact).await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     let compact_request = compact_mock.single_request();
     assert!(
@@ -1672,7 +1672,7 @@ async fn auto_remote_compact_trims_function_call_history_to_fit_context_window()
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     codex
         .submit(Op::UserInput {
@@ -1686,7 +1686,7 @@ async fn auto_remote_compact_trims_function_call_history_to_fit_context_window()
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     let compact_mock = responses::mount_compact_user_history_with_summary_once(
         harness.server(),
@@ -1706,7 +1706,7 @@ async fn auto_remote_compact_trims_function_call_history_to_fit_context_window()
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
     assert_eq!(
         compact_mock.requests().len(),
         1,
@@ -1914,7 +1914,7 @@ async fn auto_remote_compact_failure_stops_agent_loop() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     codex
         .submit(Op::UserInput {
@@ -1934,7 +1934,7 @@ async fn auto_remote_compact_failure_stops_agent_loop() -> Result<()> {
         _ => None,
     })
     .await;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     assert!(
         error_message.contains("Error running remote compact task"),
@@ -2023,7 +2023,7 @@ async fn remote_compact_trim_estimate_uses_session_base_instructions() -> Result
         })
         .await?;
     wait_for_event(&baseline_codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -2040,7 +2040,7 @@ async fn remote_compact_trim_estimate_uses_session_base_instructions() -> Result
         })
         .await?;
     wait_for_event(&baseline_codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -2052,7 +2052,7 @@ async fn remote_compact_trim_estimate_uses_session_base_instructions() -> Result
 
     baseline_codex.submit(Op::Compact).await?;
     wait_for_event(&baseline_codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -2131,7 +2131,7 @@ async fn remote_compact_trim_estimate_uses_session_base_instructions() -> Result
         })
         .await?;
     wait_for_event(&override_codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -2148,7 +2148,7 @@ async fn remote_compact_trim_estimate_uses_session_base_instructions() -> Result
         })
         .await?;
     wait_for_event(&override_codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -2160,7 +2160,7 @@ async fn remote_compact_trim_estimate_uses_session_base_instructions() -> Result
 
     override_codex.submit(Op::Compact).await?;
     wait_for_event(&override_codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -2223,7 +2223,7 @@ async fn remote_manual_compact_emits_context_compaction_items() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     codex.submit(Op::Compact).await?;
 
@@ -2251,7 +2251,7 @@ async fn remote_manual_compact_emits_context_compaction_items() -> Result<()> {
             EventMsg::ContextCompacted(_) => {
                 legacy_event = true;
             }
-            EventMsg::TurnComplete(_) => {
+            EventMsg::InteractionComplete(_) => {
                 saw_turn_complete = true;
             }
             _ => {}
@@ -2304,7 +2304,7 @@ async fn remote_manual_compact_failure_emits_task_error_event() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     codex.submit(Op::Compact).await?;
 
@@ -2322,7 +2322,7 @@ async fn remote_manual_compact_failure_emits_task_error_event() -> Result<()> {
             || error_message.contains("invalid type: string"),
         "expected invalid compact payload details, got {error_message}"
     );
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
 
@@ -2391,10 +2391,10 @@ async fn remote_compact_persists_replacement_history_in_rollout() -> Result<()> 
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex.submit(Op::Compact).await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex.submit(Op::Shutdown).await?;
     wait_for_event(&codex, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
@@ -2539,10 +2539,10 @@ async fn remote_compact_and_resume_refresh_stale_developer_instructions() -> Res
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     initial.codex.submit(Op::Compact).await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     initial
         .codex
@@ -2557,7 +2557,7 @@ async fn remote_compact_and_resume_refresh_stale_developer_instructions() -> Res
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     initial.codex.submit(Op::Shutdown).await?;
     wait_for_event(&initial.codex, |ev| {
@@ -2582,7 +2582,7 @@ async fn remote_compact_and_resume_refresh_stale_developer_instructions() -> Res
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&resumed.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&resumed.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -2681,10 +2681,10 @@ async fn remote_compact_refreshes_stale_developer_instructions_without_resume() 
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     test.codex.submit(Op::Compact).await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     test.codex
         .submit(Op::UserInput {
@@ -2698,7 +2698,7 @@ async fn remote_compact_refreshes_stale_developer_instructions_without_resume() 
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -2770,7 +2770,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_sta
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     test.codex
         .submit(Op::UserInput {
@@ -2784,7 +2784,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_sta
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -2851,7 +2851,7 @@ async fn remote_request_uses_custom_experimental_realtime_start_instructions() -
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     assert_request_contains_custom_realtime_start(
         &responses_mock.single_request(),
@@ -2912,7 +2912,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_end
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     close_realtime_conversation(test.codex.as_ref()).await?;
 
@@ -2928,7 +2928,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_end
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -3003,10 +3003,10 @@ async fn snapshot_request_shape_remote_manual_compact_restates_realtime_start() 
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     test.codex.submit(Op::Compact).await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     test.codex
         .submit(Op::UserInput {
@@ -3020,7 +3020,7 @@ async fn snapshot_request_shape_remote_manual_compact_restates_realtime_start() 
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -3103,7 +3103,7 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_does_not_restate_real
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     close_realtime_conversation(test.codex.as_ref()).await?;
 
@@ -3119,7 +3119,7 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_does_not_restate_real
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -3210,12 +3210,12 @@ async fn snapshot_request_shape_remote_compact_resume_restates_realtime_end() ->
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     close_realtime_conversation(initial.codex.as_ref()).await?;
 
     initial.codex.submit(Op::Compact).await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     initial.codex.submit(Op::Shutdown).await?;
     wait_for_event(&initial.codex, |ev| {
@@ -3240,7 +3240,7 @@ async fn snapshot_request_shape_remote_compact_resume_restates_realtime_end() ->
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&resumed.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&resumed.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -3331,7 +3331,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_including_incoming_us
                 thread_settings: Default::default(),
             })
             .await?;
-        wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+        wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
     }
 
     assert_eq!(compact_mock.requests().len(), 1);
@@ -3418,7 +3418,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_strips_incoming_model
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     core_test_support::submit_thread_settings(
         &codex,
@@ -3440,7 +3440,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_strips_incoming_model
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     assert_eq!(
         compact_mock.requests().len(),
@@ -3559,7 +3559,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_context_window_exceed
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex
         .submit(Op::UserInput {
@@ -3578,7 +3578,7 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_context_window_exceed
         _ => None,
     })
     .await;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -4007,7 +4007,7 @@ async fn snapshot_request_shape_remote_mid_turn_continuation_compaction() -> Res
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -4087,7 +4087,7 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_summary_only_reinject
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     assert_eq!(
@@ -4173,10 +4173,10 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_multi_summary_reinjec
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex.submit(Op::Compact).await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex
         .submit(Op::UserInput {
@@ -4190,7 +4190,7 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_multi_summary_reinjec
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     assert_eq!(compact_mock.requests().len(), 2);
     assert_eq!(
@@ -4258,7 +4258,7 @@ async fn snapshot_request_shape_remote_manual_compact_without_previous_user_mess
             .await;
 
     codex.submit(Op::Compact).await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     codex
         .submit(Op::UserInput {
@@ -4272,7 +4272,7 @@ async fn snapshot_request_shape_remote_manual_compact_without_previous_user_mess
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     assert_eq!(
         compact_mock.requests().len(),

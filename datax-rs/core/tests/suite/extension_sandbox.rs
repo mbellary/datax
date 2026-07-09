@@ -272,7 +272,7 @@ async fn extension_tool_uses_granted_turn_permissions() -> Result<()> {
     let event = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::RequestPermissions(_) | EventMsg::TurnComplete(_)
+            EventMsg::RequestPermissions(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await;
@@ -291,7 +291,7 @@ async fn extension_tool_uses_granted_turn_permissions() -> Result<()> {
         })
         .await?;
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 

@@ -144,14 +144,14 @@ pub struct DiffOverlay {
     pub attempts: Vec<AttemptView>,
     pub selected_attempt: usize,
     pub current_view: DetailView,
-    pub base_turn_id: Option<String>,
-    pub sibling_turn_ids: Vec<String>,
+    pub base_interaction_id: Option<String>,
+    pub sibling_interaction_ids: Vec<String>,
     pub attempt_total_hint: Option<usize>,
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct AttemptView {
-    pub turn_id: Option<String>,
+    pub interaction_id: Option<String>,
     pub status: datax_cloud_tasks_client::AttemptStatus,
     pub attempt_placement: Option<i64>,
     pub diff_lines: Vec<String>,
@@ -185,8 +185,8 @@ impl DiffOverlay {
             attempts: vec![AttemptView::default()],
             selected_attempt: 0,
             current_view: DetailView::Prompt,
-            base_turn_id: None,
-            sibling_turn_ids: Vec::new(),
+            base_interaction_id: None,
+            sibling_interaction_ids: Vec::new(),
             attempt_total_hint,
         }
     }
@@ -317,8 +317,8 @@ pub enum AppEvent {
         title: String,
         messages: Vec<String>,
         prompt: Option<String>,
-        turn_id: Option<String>,
-        sibling_turn_ids: Vec<String>,
+        interaction_id: Option<String>,
+        sibling_interaction_ids: Vec<String>,
         attempt_placement: Option<i64>,
         attempt_status: datax_cloud_tasks_client::AttemptStatus,
     },
@@ -420,8 +420,8 @@ mod tests {
             Ok(datax_cloud_tasks_client::TaskText {
                 prompt: Some("Example prompt".to_string()),
                 messages: Vec::new(),
-                turn_id: Some("fake-turn".to_string()),
-                sibling_turn_ids: Vec::new(),
+                interaction_id: Some("fake-turn".to_string()),
+                sibling_interaction_ids: Vec::new(),
                 attempt_placement: Some(0),
                 attempt_status: datax_cloud_tasks_client::AttemptStatus::Completed,
             })
@@ -464,7 +464,7 @@ mod tests {
         fn list_sibling_attempts(
             &self,
             _task: TaskId,
-            _turn_id: String,
+            _interaction_id: String,
         ) -> CloudBackendFuture<'_, Vec<datax_cloud_tasks_client::TurnAttempt>> {
             Box::pin(async { Ok(Vec::new()) })
         }

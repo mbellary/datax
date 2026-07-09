@@ -182,7 +182,7 @@ async fn steer_user_input(codex: &CodexThread, text: &str) {
                 text_elements: Vec::new(),
             }],
             /*additional_context*/ Default::default(),
-            /*expected_turn_id*/ None,
+            /*expected_interaction_id*/ None,
             /*client_user_message_id*/ None,
             /*responsesapi_client_metadata*/ None,
         )
@@ -234,7 +234,7 @@ async fn wait_for_agent_message(codex: &CodexThread, text: &str) {
 }
 
 async fn wait_for_turn_complete(codex: &CodexThread) {
-    wait_for_event(codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 }
 
 async fn wait_for_sleep_item_started(codex: &CodexThread, call_id: &str, duration_ms: u64) {
@@ -567,7 +567,7 @@ async fn injected_user_input_triggers_follow_up_request_with_deltas() {
 
     let _ = gate_completed_tx.send(());
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     let requests = server.requests().await;
     assert_eq!(requests.len(), 2);
@@ -1010,7 +1010,7 @@ async fn steered_user_input_waits_when_tool_output_triggers_compact_before_next_
     let codex = test.codex.clone();
 
     submit_danger_full_access_user_turn(&test, "first prompt").await;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnStarted(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionStarted(_))).await;
     steer_user_input(&codex, "second prompt").await;
     let _ = gate_first_completed_tx.send(());
 

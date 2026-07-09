@@ -117,7 +117,7 @@ pub(crate) async fn run_pending_session_start_hooks(
             {
                 let context = subagent_hook_context(sess, agent_role);
                 StartHookTarget::SubagentStart {
-                    turn_id: turn_context.sub_id.clone(),
+                    interaction_id: turn_context.sub_id.clone(),
                     agent_id: context.agent_id,
                     agent_type: context.agent_type,
                 }
@@ -169,7 +169,7 @@ pub(crate) async fn run_pre_tool_use_hooks(
 ) -> PreToolUseHookResult {
     let request = PreToolUseRequest {
         session_id: sess.session_id().into(),
-        turn_id: turn_context.sub_id.clone(),
+        interaction_id: turn_context.sub_id.clone(),
         subagent: thread_spawn_subagent_hook_context(sess, turn_context),
         #[allow(deprecated)]
         cwd: turn_context.cwd.clone(),
@@ -230,7 +230,7 @@ pub(crate) async fn run_permission_request_hooks(
 ) -> Option<PermissionRequestDecision> {
     let request = PermissionRequestRequest {
         session_id: sess.session_id().into(),
-        turn_id: turn_context.sub_id.clone(),
+        interaction_id: turn_context.sub_id.clone(),
         subagent: thread_spawn_subagent_hook_context(sess, turn_context),
         #[allow(deprecated)]
         cwd: turn_context.cwd.to_path_buf(),
@@ -272,7 +272,7 @@ pub(crate) async fn run_post_tool_use_hooks(
 ) -> PostToolUseOutcome {
     let request = PostToolUseRequest {
         session_id: sess.session_id().into(),
-        turn_id: turn_context.sub_id.clone(),
+        interaction_id: turn_context.sub_id.clone(),
         subagent: thread_spawn_subagent_hook_context(sess, turn_context),
         #[allow(deprecated)]
         cwd: turn_context.cwd.clone(),
@@ -306,7 +306,7 @@ pub(crate) async fn run_turn_stop_hooks(
     let (target, transcript_path) = match &turn_context.session_source {
         SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
             agent_role,
-            parent_thread_id,
+            parent_chat_id,
             ..
         }) => {
             let context = subagent_hook_context(sess, agent_role);
@@ -315,7 +315,7 @@ pub(crate) async fn run_turn_stop_hooks(
                 .services
                 .thread_store
                 .read_thread(ReadThreadParams {
-                    thread_id: *parent_thread_id,
+                    chat_id: *parent_chat_id,
                     include_archived: true,
                     include_history: false,
                 })
@@ -324,7 +324,7 @@ pub(crate) async fn run_turn_stop_hooks(
                 Ok(thread) => thread.rollout_path,
                 Err(error) => {
                     tracing::warn!(
-                        parent_thread_id = %parent_thread_id,
+                        parent_chat_id = %parent_chat_id,
                         error = %error,
                         "failed to resolve parent transcript path for subagent hook"
                     );
@@ -347,7 +347,7 @@ pub(crate) async fn run_turn_stop_hooks(
     };
     let request = datax_hooks::StopRequest {
         session_id: sess.session_id().into(),
-        turn_id: turn_context.sub_id.clone(),
+        interaction_id: turn_context.sub_id.clone(),
         #[allow(deprecated)]
         cwd: turn_context.cwd.clone(),
         transcript_path,
@@ -372,7 +372,7 @@ pub(crate) async fn run_pre_compact_hooks(
 ) -> PreCompactHookOutcome {
     let request = datax_hooks::PreCompactRequest {
         session_id: sess.session_id().into(),
-        turn_id: turn_context.sub_id.clone(),
+        interaction_id: turn_context.sub_id.clone(),
         subagent: thread_spawn_subagent_hook_context(sess, turn_context),
         #[allow(deprecated)]
         cwd: turn_context.cwd.clone(),
@@ -409,7 +409,7 @@ pub(crate) async fn run_post_compact_hooks(
 ) -> PostCompactHookOutcome {
     let request = datax_hooks::PostCompactRequest {
         session_id: sess.session_id().into(),
-        turn_id: turn_context.sub_id.clone(),
+        interaction_id: turn_context.sub_id.clone(),
         subagent: thread_spawn_subagent_hook_context(sess, turn_context),
         #[allow(deprecated)]
         cwd: turn_context.cwd.clone(),
@@ -454,8 +454,8 @@ pub(crate) async fn run_legacy_after_agent_hook(
             triggered_at: chrono::Utc::now(),
             hook_event: datax_hooks::HookEvent::AfterAgent {
                 event: datax_hooks::HookEventAfterAgent {
-                    thread_id: sess.thread_id,
-                    turn_id: turn_context.sub_id.clone(),
+                    chat_id: sess.chat_id,
+                    interaction_id: turn_context.sub_id.clone(),
                     input_messages,
                     last_assistant_message,
                 },
@@ -475,7 +475,7 @@ pub(crate) async fn run_legacy_after_agent_hook(
             "continuing"
         };
         tracing::warn!(
-            turn_id = %turn_context.sub_id,
+            interaction_id = %turn_context.sub_id,
             hook_name = %hook_name,
             error = %error,
             "after_agent hook failed; {action}"
@@ -506,7 +506,7 @@ pub(crate) async fn inspect_pending_input(
         TurnInput::UserInput { content, .. } => {
             let request = UserPromptSubmitRequest {
                 session_id: sess.session_id().into(),
-                turn_id: turn_context.sub_id.clone(),
+                interaction_id: turn_context.sub_id.clone(),
                 subagent: thread_spawn_subagent_hook_context(sess, turn_context),
                 #[allow(deprecated)]
                 cwd: turn_context.cwd.clone(),
@@ -623,7 +623,7 @@ async fn emit_hook_started_events(
         sess.send_event(
             turn_context,
             EventMsg::HookStarted(HookStartedEvent {
-                turn_id: Some(turn_context.sub_id.clone()),
+                interaction_id: Some(turn_context.sub_id.clone()),
                 run,
             }),
         )
@@ -666,23 +666,23 @@ fn track_hook_completed_analytics(
     completed: &HookCompletedEvent,
 ) {
     let (tracking, hook) =
-        hook_run_analytics_payload(sess.thread_id.to_string(), turn_context, completed);
+        hook_run_analytics_payload(sess.chat_id.to_string(), turn_context, completed);
     sess.services
         .analytics_events_client
         .track_hook_run(tracking, hook);
 }
 
 fn hook_run_analytics_payload(
-    thread_id: String,
+    chat_id: String,
     turn_context: &TurnContext,
     completed: &HookCompletedEvent,
 ) -> (datax_analytics::TrackEventsContext, HookRunFact) {
     (
         build_track_events_context(
             turn_context.model_info.slug.clone(),
-            thread_id,
+            chat_id,
             completed
-                .turn_id
+                .interaction_id
                 .clone()
                 .unwrap_or_else(|| turn_context.sub_id.clone()),
         ),
@@ -760,7 +760,7 @@ fn thread_spawn_subagent_hook_context(
 
 fn subagent_hook_context(sess: &Arc<Session>, agent_role: &Option<String>) -> SubagentHookContext {
     SubagentHookContext {
-        agent_id: sess.thread_id().to_string(),
+        agent_id: sess.chat_id().to_string(),
         agent_type: agent_role
             .clone()
             .unwrap_or_else(|| crate::agent::role::DEFAULT_ROLE_NAME.to_string()),
@@ -829,18 +829,18 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn hook_run_analytics_payload_uses_completed_turn_id() {
+    async fn hook_run_analytics_payload_uses_completed_interaction_id() {
         let (_session, turn_context) = make_session_and_context().await;
         let completed = HookCompletedEvent {
-            turn_id: Some("turn-from-hook".to_string()),
+            interaction_id: Some("turn-from-hook".to_string()),
             run: sample_hook_run(HookRunStatus::Blocked, HookSource::Project),
         };
 
         let (tracking, hook) =
             hook_run_analytics_payload("thread-123".to_string(), &turn_context, &completed);
 
-        assert_eq!(tracking.thread_id, "thread-123");
-        assert_eq!(tracking.turn_id, "turn-from-hook");
+        assert_eq!(tracking.chat_id, "thread-123");
+        assert_eq!(tracking.interaction_id, "turn-from-hook");
         assert_eq!(tracking.model_slug, turn_context.model_info.slug);
         assert_eq!(hook.event_name, HookEventName::Stop);
         assert_eq!(hook.hook_source, HookSource::Project);
@@ -851,14 +851,14 @@ mod tests {
     async fn hook_run_analytics_payload_falls_back_to_turn_context_id() {
         let (_session, turn_context) = make_session_and_context().await;
         let completed = HookCompletedEvent {
-            turn_id: None,
+            interaction_id: None,
             run: sample_hook_run(HookRunStatus::Failed, HookSource::Unknown),
         };
 
         let (tracking, hook) =
             hook_run_analytics_payload("thread-123".to_string(), &turn_context, &completed);
 
-        assert_eq!(tracking.turn_id, turn_context.sub_id);
+        assert_eq!(tracking.interaction_id, turn_context.sub_id);
         assert_eq!(hook.hook_source, HookSource::Unknown);
         assert_eq!(hook.status, HookRunStatus::Failed);
     }

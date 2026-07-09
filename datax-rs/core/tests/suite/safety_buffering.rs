@@ -66,7 +66,7 @@ async fn emits_safety_buffering_with_the_requested_model() -> anyhow::Result<()>
         }
     );
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 

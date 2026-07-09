@@ -5,7 +5,7 @@ use crate::config::ConfigBuilder;
 use crate::config::ConfigOverrides;
 use crate::config::test_config;
 use crate::context::ContextualUserFragment;
-use crate::context::TurnAborted;
+use crate::context::InteractionAborted;
 use crate::environment_selection::ThreadEnvironments;
 use crate::function_tool::FunctionCallError;
 use crate::shell::default_user_shell;
@@ -36,7 +36,7 @@ use datax_models_manager::test_support::construct_model_info_offline_for_tests;
 use datax_models_manager::test_support::get_model_offline_for_tests;
 use datax_protocol::AgentPath;
 use datax_protocol::SessionId;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
 use datax_protocol::config_types::ServiceTier;
 use datax_protocol::config_types::TrustLevel;
@@ -152,9 +152,9 @@ use datax_protocol::protocol::ThreadSettingsOverrides;
 use datax_protocol::protocol::TokenCountEvent;
 use datax_protocol::protocol::TokenUsage;
 use datax_protocol::protocol::TokenUsageInfo;
-use datax_protocol::protocol::TurnAbortedEvent;
-use datax_protocol::protocol::TurnCompleteEvent;
-use datax_protocol::protocol::TurnStartedEvent;
+use datax_protocol::protocol::InteractionAbortedEvent;
+use datax_protocol::protocol::InteractionCompleteEvent;
+use datax_protocol::protocol::InteractionStartedEvent;
 use datax_protocol::protocol::UserMessageEvent;
 use datax_protocol::protocol::W3cTraceContext;
 use datax_rmcp_client::ElicitationAction;
@@ -242,7 +242,7 @@ fn test_session_telemetry_without_metadata() -> SessionTelemetry {
     )
     .expect("in-memory metrics client");
     SessionTelemetry::new(
-        ThreadId::new(),
+        ChatId::new(),
         "gpt-5.4",
         "gpt-5.4",
         /*account_id*/ None,
@@ -338,13 +338,13 @@ async fn regular_turn_emits_turn_started_with_trace_id_without_waiting_for_start
         .await
         .expect("expected turn started event without waiting for startup prewarm")
         .expect("channel open");
-    let EventMsg::TurnStarted(turn_started) = first.msg else {
+    let EventMsg::InteractionStarted(turn_started) = first.msg else {
         panic!("expected turn started event");
     };
-    assert_eq!(turn_started.turn_id, tc.sub_id);
+    assert_eq!(turn_started.interaction_id, tc.sub_id);
     assert_eq!(turn_started.trace_id, tc.trace_id);
 
-    sess.abort_all_tasks(TurnAbortReason::Interrupted).await;
+    sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
 }
 
 #[tokio::test]
@@ -366,7 +366,7 @@ async fn request_mcp_server_elicitation_auto_accepts_when_auto_deny_is_enabled()
             turn_context.as_ref(),
             RequestId::String("request-1".into()),
             McpServerElicitationRequestParams {
-                chat_id: session.thread_id.to_string(),
+                chat_id: session.chat_id.to_string(),
                 interaction_id: Some(turn_context.sub_id.clone()),
                 server_name: "codex_apps".to_string(),
                 request: McpServerElicitationRequest::Form {
@@ -420,10 +420,10 @@ async fn interrupting_regular_turn_waiting_on_startup_prewarm_emits_turn_aborted
         .expect("channel open");
     assert!(matches!(
         first.msg,
-        EventMsg::TurnStarted(TurnStartedEvent { turn_id, .. }) if turn_id == tc.sub_id
+        EventMsg::InteractionStarted(InteractionStartedEvent { interaction_id, .. }) if interaction_id == tc.sub_id
     ));
 
-    sess.abort_all_tasks(TurnAbortReason::Interrupted).await;
+    sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
 
     let marker_evt = tokio::time::timeout(std::time::Duration::from_secs(2), rx.recv())
         .await
@@ -435,8 +435,8 @@ async fn interrupting_regular_turn_waiting_on_startup_prewarm_emits_turn_aborted
         .await
         .expect("expected turn aborted event")
         .expect("channel open");
-    let EventMsg::TurnAborted(TurnAbortedEvent {
-        turn_id,
+    let EventMsg::InteractionAborted(InteractionAbortedEvent {
+        interaction_id,
         reason,
         completed_at,
         duration_ms,
@@ -444,18 +444,18 @@ async fn interrupting_regular_turn_waiting_on_startup_prewarm_emits_turn_aborted
     else {
         panic!("expected turn aborted event");
     };
-    assert_eq!(turn_id, Some(tc.sub_id.clone()));
-    assert_eq!(reason, TurnAbortReason::Interrupted);
+    assert_eq!(interaction_id, Some(tc.sub_id.clone()));
+    assert_eq!(reason, InteractionAbortReason::Interrupted);
     assert!(completed_at.is_some());
     assert!(duration_ms.is_some());
 }
 
 fn test_model_client_session() -> crate::client::ModelClientSession {
-    let thread_id = ThreadId::try_from("00000000-0000-4000-8000-000000000001")
+    let chat_id = ChatId::try_from("00000000-0000-4000-8000-000000000001")
         .expect("test thread id should be valid");
     crate::client::ModelClient::new(
         /*auth_manager*/ None,
-        thread_id,
+        chat_id,
         ModelProviderInfo::create_openai_provider(/* base_url */ /*base_url*/ None),
         datax_protocol::protocol::SessionSource::Exec,
         /*model_verbosity*/ None,
@@ -582,7 +582,7 @@ async fn preview_session_start_hooks(
 
     Ok(
         hooks.preview_session_start(&datax_hooks::SessionStartRequest {
-            session_id: ThreadId::new(),
+            session_id: ChatId::new(),
             cwd: config.cwd.clone(),
             transcript_path: None,
             model: "gpt-5.2".to_string(),
@@ -1354,7 +1354,7 @@ async fn reload_user_config_layer_refreshes_hooks() -> anyhow::Result<()> {
     }))?;
 
     let request = datax_hooks::SessionStartRequest {
-        session_id: session.thread_id,
+        session_id: session.chat_id,
         cwd: session.get_config().await.cwd.clone(),
         transcript_path: None,
         model: "gpt-5.2".to_string(),
@@ -1461,7 +1461,7 @@ async fn refresh_runtime_config_refreshes_hooks() -> anyhow::Result<()> {
     std::fs::write(&config_toml_path, toml::to_string(&trusted_user_config)?)?;
 
     let request = datax_hooks::SessionStartRequest {
-        session_id: session.thread_id,
+        session_id: session.chat_id,
         cwd: session.get_config().await.cwd.clone(),
         transcript_path: None,
         model: "gpt-5.2".to_string(),
@@ -1638,7 +1638,7 @@ async fn reconstruct_history_uses_replacement_history_verbatim() {
         }],
         phase: None,
         internal_chat_message_metadata_passthrough: Some(InternalChatMessageMetadataPassthrough {
-            turn_id: Some("compact-turn".to_string()),
+            interaction_id: Some("compact-turn".to_string()),
         }),
     };
     let replacement_history = vec![
@@ -1683,7 +1683,7 @@ async fn record_initial_history_reconstructs_resumed_transcript() {
 
     session
         .record_initial_history(InitialHistory::Resumed(ResumedHistory {
-            conversation_id: ThreadId::default(),
+            conversation_id: ChatId::default(),
             history: rollout_items,
             rollout_path: Some(PathBuf::from("/tmp/resume.jsonl")),
         }))
@@ -1694,18 +1694,18 @@ async fn record_initial_history_reconstructs_resumed_transcript() {
 }
 
 #[tokio::test]
-async fn record_conversation_items_stamps_missing_turn_id_and_preserves_existing_turn_id() {
+async fn record_conversation_items_stamps_missing_interaction_id_and_preserves_existing_interaction_id() {
     let (session, turn_context) = make_session_and_context().await;
     let fresh_item = user_message("fresh");
     let mut existing_item = assistant_message("existing");
-    existing_item.set_turn_id_if_missing("older-turn");
+    existing_item.set_interaction_id_if_missing("older-turn");
 
     session
         .record_conversation_items(&turn_context, &[fresh_item.clone(), existing_item.clone()])
         .await;
 
     let mut expected_fresh_item = fresh_item;
-    expected_fresh_item.set_turn_id_if_missing(&turn_context.sub_id);
+    expected_fresh_item.set_interaction_id_if_missing(&turn_context.sub_id);
     let expected_items = vec![expected_fresh_item, existing_item];
     assert_eq!(
         session.clone_history().await.raw_items(),
@@ -1714,7 +1714,7 @@ async fn record_conversation_items_stamps_missing_turn_id_and_preserves_existing
 }
 
 #[tokio::test]
-async fn record_inter_agent_communication_sets_turn_id_in_rollout_and_resume() {
+async fn record_inter_agent_communication_sets_interaction_id_in_rollout_and_resume() {
     let (mut session, turn_context) = make_session_and_context().await;
     let rollout_path = attach_thread_persistence(&mut session).await;
     let communication = InterAgentCommunication::new(
@@ -1725,7 +1725,7 @@ async fn record_inter_agent_communication_sets_turn_id_in_rollout_and_resume() {
         /*trigger_turn*/ false,
     );
     let mut expected_item = communication.to_model_input_item();
-    expected_item.set_turn_id_if_missing(&turn_context.sub_id);
+    expected_item.set_interaction_id_if_missing(&turn_context.sub_id);
 
     session
         .record_inter_agent_communication(&turn_context, communication)
@@ -1848,7 +1848,7 @@ async fn prepares_resumed_history_before_installing_it() {
 
     session
         .record_initial_history(InitialHistory::Resumed(ResumedHistory {
-            conversation_id: ThreadId::default(),
+            conversation_id: ChatId::default(),
             history: vec![RolloutItem::ResponseItem(resumed_item)],
             rollout_path: Some(PathBuf::from("/tmp/resume.jsonl")),
         }))
@@ -1879,7 +1879,7 @@ async fn prepares_resumed_history_before_installing_it() {
 
 #[test]
 fn resolve_multi_agent_version_handles_unset_and_legacy_history() {
-    let thread_id = ThreadId::default();
+    let chat_id = ChatId::default();
 
     assert_eq!(
         resolve_multi_agent_version(
@@ -1891,7 +1891,7 @@ fn resolve_multi_agent_version_handles_unset_and_legacy_history() {
     assert_eq!(
         resolve_multi_agent_version(
             &InitialHistory::Resumed(ResumedHistory {
-                conversation_id: thread_id,
+                conversation_id: chat_id,
                 history: Vec::new(),
                 rollout_path: None,
             }),
@@ -1902,7 +1902,7 @@ fn resolve_multi_agent_version_handles_unset_and_legacy_history() {
     assert_eq!(
         resolve_multi_agent_version(
             &InitialHistory::Resumed(ResumedHistory {
-                conversation_id: thread_id,
+                conversation_id: chat_id,
                 history: Vec::new(),
                 rollout_path: None,
             }),
@@ -1913,9 +1913,9 @@ fn resolve_multi_agent_version_handles_unset_and_legacy_history() {
     assert_eq!(
         resolve_multi_agent_version(
             &InitialHistory::Resumed(ResumedHistory {
-                conversation_id: thread_id,
+                conversation_id: chat_id,
                 history: vec![session_meta_item(
-                    thread_id,
+                    chat_id,
                     Some(MultiAgentVersion::Disabled)
                 )],
                 rollout_path: None,
@@ -1927,7 +1927,7 @@ fn resolve_multi_agent_version_handles_unset_and_legacy_history() {
     assert_eq!(
         resolve_multi_agent_version(
             &InitialHistory::Forked(vec![session_meta_item(
-                thread_id,
+                chat_id,
                 Some(MultiAgentVersion::V2)
             )]),
             Some(MultiAgentVersion::Disabled),
@@ -1956,13 +1956,13 @@ async fn record_initial_history_new_defers_initial_context_until_first_turn() {
 }
 
 fn session_meta_item(
-    thread_id: ThreadId,
+    chat_id: ChatId,
     multi_agent_version: Option<MultiAgentVersion>,
 ) -> RolloutItem {
     RolloutItem::SessionMeta(SessionMetaLine {
         meta: SessionMeta {
-            session_id: thread_id.into(),
-            id: thread_id,
+            session_id: chat_id.into(),
+            id: chat_id,
             multi_agent_version,
             ..SessionMeta::default()
         },
@@ -1977,7 +1977,7 @@ async fn resumed_history_injects_initial_context_on_first_context_update_only() 
 
     session
         .record_initial_history(InitialHistory::Resumed(ResumedHistory {
-            conversation_id: ThreadId::default(),
+            conversation_id: ChatId::default(),
             history: rollout_items,
             rollout_path: Some(PathBuf::from("/tmp/resume.jsonl")),
         }))
@@ -2071,7 +2071,7 @@ async fn record_initial_history_seeds_token_info_from_rollout() {
 
     session
         .record_initial_history(InitialHistory::Resumed(ResumedHistory {
-            conversation_id: ThreadId::default(),
+            conversation_id: ChatId::default(),
             history: rollout_items,
             rollout_path: Some(PathBuf::from("/tmp/resume.jsonl")),
         }))
@@ -2231,7 +2231,7 @@ async fn record_token_usage_info_notifies_extension_contributors() {
     let expected = vec![
         RecordedTokenUsage {
             session_level_id: session.session_id().to_string(),
-            thread_level_id: session.thread_id.to_string(),
+            thread_level_id: session.chat_id.to_string(),
             turn_level_id: turn_context.sub_id.clone(),
             token_usage: TokenUsageInfo {
                 total_token_usage: first_usage.clone(),
@@ -2243,7 +2243,7 @@ async fn record_token_usage_info_notifies_extension_contributors() {
         },
         RecordedTokenUsage {
             session_level_id: session.session_id().to_string(),
-            thread_level_id: session.thread_id.to_string(),
+            thread_level_id: session.chat_id.to_string(),
             turn_level_id: turn_context.sub_id.clone(),
             token_usage: TokenUsageInfo {
                 total_token_usage: expected_total_usage,
@@ -2272,7 +2272,7 @@ async fn turn_start_lifecycle_exposes_turn_metadata_and_token_baseline() {
         session_level_id: String,
         thread_level_id: String,
         turn_level_id: String,
-        turn_id: String,
+        interaction_id: String,
         collaboration_mode: CollaborationMode,
         token_usage_at_turn_start: TokenUsage,
         saw_session_store: bool,
@@ -2296,7 +2296,7 @@ async fn turn_start_lifecycle_exposes_turn_metadata_and_token_baseline() {
                         session_level_id: input.session_store.level_id().to_string(),
                         thread_level_id: input.thread_store.level_id().to_string(),
                         turn_level_id: input.turn_store.level_id().to_string(),
-                        turn_id: input.turn_id.to_string(),
+                        interaction_id: input.interaction_id.to_string(),
                         collaboration_mode: input.collaboration_mode.clone(),
                         token_usage_at_turn_start: input.token_usage_at_turn_start.clone(),
                         saw_session_store: input
@@ -2339,9 +2339,9 @@ async fn turn_start_lifecycle_exposes_turn_metadata_and_token_baseline() {
 
     let expected = RecordedTurnStart {
         session_level_id: session.session_id().to_string(),
-        thread_level_id: session.thread_id.to_string(),
+        thread_level_id: session.chat_id.to_string(),
         turn_level_id: turn_context.sub_id.clone(),
-        turn_id: turn_context.sub_id.clone(),
+        interaction_id: turn_context.sub_id.clone(),
         collaboration_mode: turn_context.collaboration_mode.clone(),
         token_usage_at_turn_start,
         saw_session_store: true,
@@ -2358,7 +2358,7 @@ async fn turn_start_lifecycle_exposes_turn_metadata_and_token_baseline() {
         },
     )
     .await;
-    sess.abort_all_tasks(TurnAbortReason::Interrupted).await;
+    sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
 
     let actual = records
         .lock()
@@ -2378,7 +2378,7 @@ async fn turn_error_lifecycle_exposes_error_and_stores() {
         session_level_id: String,
         thread_level_id: String,
         turn_level_id: String,
-        turn_id: String,
+        interaction_id: String,
         error: CodexErrorInfo,
         saw_session_store: bool,
         saw_thread_store: bool,
@@ -2401,7 +2401,7 @@ async fn turn_error_lifecycle_exposes_error_and_stores() {
                         session_level_id: input.session_store.level_id().to_string(),
                         thread_level_id: input.thread_store.level_id().to_string(),
                         turn_level_id: input.turn_store.level_id().to_string(),
-                        turn_id: input.turn_id.to_string(),
+                        interaction_id: input.interaction_id.to_string(),
                         error: input.error,
                         saw_session_store: input
                             .session_store
@@ -2434,9 +2434,9 @@ async fn turn_error_lifecycle_exposes_error_and_stores() {
 
     let expected = RecordedTurnError {
         session_level_id: session.session_id().to_string(),
-        thread_level_id: session.thread_id.to_string(),
+        thread_level_id: session.chat_id.to_string(),
         turn_level_id: turn_context.sub_id.clone(),
-        turn_id: turn_context.sub_id.clone(),
+        interaction_id: turn_context.sub_id.clone(),
         error: CodexErrorInfo::UsageLimitExceeded,
         saw_session_store: true,
         saw_thread_store: true,
@@ -2708,7 +2708,7 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
     // Forking reads the persisted rollout JSONL, so force the completed source turn to disk
     // before snapshotting from it.
     initial.codex.ensure_rollout_materialized().await;
@@ -2757,7 +2757,7 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
             },
         })
         .await?;
-    wait_for_event(&forked.thread, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&forked.thread, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = first_forked_request.single_request();
     let snapshot = context_snapshot::format_labeled_requests_snapshot(
@@ -2787,7 +2787,7 @@ async fn record_initial_history_forked_hydrates_previous_turn_settings() {
     let (session, turn_context) = make_session_and_context().await;
     let previous_model = "forked-rollout-model";
     let previous_context_item = TurnContextItem {
-        turn_id: Some(turn_context.sub_id.clone()),
+        interaction_id: Some(turn_context.sub_id.clone()),
         #[allow(deprecated)]
         cwd: turn_context.cwd.clone(),
         workspace_roots: None,
@@ -2808,14 +2808,14 @@ async fn record_initial_history_forked_hydrates_previous_turn_settings() {
         effort: turn_context.reasoning_effort.clone(),
         summary: datax_protocol::config_types::ReasoningSummary::Auto,
     };
-    let turn_id = previous_context_item
-        .turn_id
+    let interaction_id = previous_context_item
+        .interaction_id
         .clone()
-        .expect("thread settings should have turn_id");
+        .expect("thread settings should have interaction_id");
     let rollout_items = vec![
-        RolloutItem::EventMsg(EventMsg::TurnStarted(
-            datax_protocol::protocol::TurnStartedEvent {
-                turn_id: turn_id.clone(),
+        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+            datax_protocol::protocol::InteractionStartedEvent {
+                interaction_id: interaction_id.clone(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -2833,9 +2833,9 @@ async fn record_initial_history_forked_hydrates_previous_turn_settings() {
             },
         )),
         RolloutItem::TurnContext(previous_context_item.clone()),
-        RolloutItem::EventMsg(EventMsg::TurnComplete(
-            datax_protocol::protocol::TurnCompleteEvent {
-                turn_id,
+        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+            datax_protocol::protocol::InteractionCompleteEvent {
+                interaction_id,
                 last_agent_message: None,
                 completed_at: None,
                 duration_ms: None,
@@ -2995,26 +2995,26 @@ async fn thread_rollback_recomputes_previous_turn_settings_and_reference_context
     .await;
 
     let first_context_item = tc.to_turn_context_item();
-    let first_turn_id = first_context_item
-        .turn_id
+    let first_interaction_id = first_context_item
+        .interaction_id
         .clone()
-        .expect("thread settings should have turn_id");
+        .expect("thread settings should have interaction_id");
     let mut rolled_back_context_item = first_context_item.clone();
-    rolled_back_context_item.turn_id = Some("rolled-back-turn".to_string());
+    rolled_back_context_item.interaction_id = Some("rolled-back-turn".to_string());
     rolled_back_context_item.model = "rolled-back-model".to_string();
-    let rolled_back_turn_id = rolled_back_context_item
-        .turn_id
+    let rolled_back_interaction_id = rolled_back_context_item
+        .interaction_id
         .clone()
-        .expect("thread settings should have turn_id");
+        .expect("thread settings should have interaction_id");
     let turn_one_user = user_message("turn 1 user");
     let turn_one_assistant = assistant_message("turn 1 assistant");
     let turn_two_user = user_message("turn 2 user");
     let turn_two_assistant = assistant_message("turn 2 assistant");
 
     sess.persist_rollout_items(&[
-        RolloutItem::EventMsg(EventMsg::TurnStarted(
-            datax_protocol::protocol::TurnStartedEvent {
-                turn_id: first_turn_id.clone(),
+        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+            datax_protocol::protocol::InteractionStartedEvent {
+                interaction_id: first_interaction_id.clone(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -3034,16 +3034,16 @@ async fn thread_rollback_recomputes_previous_turn_settings_and_reference_context
         RolloutItem::TurnContext(first_context_item.clone()),
         RolloutItem::ResponseItem(turn_one_user.clone()),
         RolloutItem::ResponseItem(turn_one_assistant.clone()),
-        RolloutItem::EventMsg(EventMsg::TurnComplete(TurnCompleteEvent {
-            turn_id: first_turn_id,
+        RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+            interaction_id: first_interaction_id,
             last_agent_message: None,
             completed_at: None,
             duration_ms: None,
             time_to_first_token_ms: None,
         })),
-        RolloutItem::EventMsg(EventMsg::TurnStarted(
-            datax_protocol::protocol::TurnStartedEvent {
-                turn_id: rolled_back_turn_id.clone(),
+        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+            datax_protocol::protocol::InteractionStartedEvent {
+                interaction_id: rolled_back_interaction_id.clone(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -3063,8 +3063,8 @@ async fn thread_rollback_recomputes_previous_turn_settings_and_reference_context
         RolloutItem::TurnContext(rolled_back_context_item),
         RolloutItem::ResponseItem(turn_two_user),
         RolloutItem::ResponseItem(turn_two_assistant),
-        RolloutItem::EventMsg(EventMsg::TurnComplete(TurnCompleteEvent {
-            turn_id: rolled_back_turn_id,
+        RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+            interaction_id: rolled_back_interaction_id,
             last_agent_message: None,
             completed_at: None,
             duration_ms: None,
@@ -3117,12 +3117,12 @@ async fn thread_rollback_restores_cleared_reference_context_item_after_compactio
     .await;
 
     let first_context_item = tc.to_turn_context_item();
-    let first_turn_id = first_context_item
-        .turn_id
+    let first_interaction_id = first_context_item
+        .interaction_id
         .clone()
-        .expect("thread settings should have turn_id");
-    let compact_turn_id = "compact-turn".to_string();
-    let rolled_back_turn_id = "rolled-back-turn".to_string();
+        .expect("thread settings should have interaction_id");
+    let compact_interaction_id = "compact-turn".to_string();
+    let rolled_back_interaction_id = "rolled-back-turn".to_string();
     let compacted_history = vec![
         user_message("turn 1 user"),
         user_message("summary after compaction"),
@@ -3132,9 +3132,9 @@ async fn thread_rollback_restores_cleared_reference_context_item_after_compactio
     let compacted_window_id = Uuid::now_v7();
 
     sess.persist_rollout_items(&[
-        RolloutItem::EventMsg(EventMsg::TurnStarted(
-            datax_protocol::protocol::TurnStartedEvent {
-                turn_id: first_turn_id.clone(),
+        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+            datax_protocol::protocol::InteractionStartedEvent {
+                interaction_id: first_interaction_id.clone(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -3152,16 +3152,16 @@ async fn thread_rollback_restores_cleared_reference_context_item_after_compactio
         RolloutItem::TurnContext(first_context_item.clone()),
         RolloutItem::ResponseItem(user_message("turn 1 user")),
         RolloutItem::ResponseItem(assistant_message("turn 1 assistant")),
-        RolloutItem::EventMsg(EventMsg::TurnComplete(TurnCompleteEvent {
-            turn_id: first_turn_id,
+        RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+            interaction_id: first_interaction_id,
             last_agent_message: None,
             completed_at: None,
             duration_ms: None,
             time_to_first_token_ms: None,
         })),
-        RolloutItem::EventMsg(EventMsg::TurnStarted(
-            datax_protocol::protocol::TurnStartedEvent {
-                turn_id: compact_turn_id.clone(),
+        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+            datax_protocol::protocol::InteractionStartedEvent {
+                interaction_id: compact_interaction_id.clone(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -3176,16 +3176,16 @@ async fn thread_rollback_restores_cleared_reference_context_item_after_compactio
             previous_window_id: Some(previous_window_id.to_string()),
             window_id: Some(compacted_window_id.to_string()),
         }),
-        RolloutItem::EventMsg(EventMsg::TurnComplete(TurnCompleteEvent {
-            turn_id: compact_turn_id,
+        RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+            interaction_id: compact_interaction_id,
             last_agent_message: None,
             completed_at: None,
             duration_ms: None,
             time_to_first_token_ms: None,
         })),
-        RolloutItem::EventMsg(EventMsg::TurnStarted(
-            datax_protocol::protocol::TurnStartedEvent {
-                turn_id: rolled_back_turn_id.clone(),
+        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+            datax_protocol::protocol::InteractionStartedEvent {
+                interaction_id: rolled_back_interaction_id.clone(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -3201,15 +3201,15 @@ async fn thread_rollback_restores_cleared_reference_context_item_after_compactio
             ..Default::default()
         })),
         RolloutItem::TurnContext(TurnContextItem {
-            turn_id: Some(rolled_back_turn_id.clone()),
+            interaction_id: Some(rolled_back_interaction_id.clone()),
             model: "rolled-back-model".to_string(),
             comp_hash: None,
             ..first_context_item.clone()
         }),
         RolloutItem::ResponseItem(user_message("turn 2 user")),
         RolloutItem::ResponseItem(assistant_message("turn 2 assistant")),
-        RolloutItem::EventMsg(EventMsg::TurnComplete(TurnCompleteEvent {
-            turn_id: rolled_back_turn_id,
+        RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+            interaction_id: rolled_back_interaction_id,
             last_agent_message: None,
             completed_at: None,
             duration_ms: None,
@@ -3261,9 +3261,9 @@ async fn thread_rollback_persists_marker_and_replays_cumulatively() {
     let turn_context_item = tc.to_turn_context_item();
 
     sess.persist_rollout_items(&[
-        RolloutItem::EventMsg(EventMsg::TurnStarted(
-            datax_protocol::protocol::TurnStartedEvent {
-                turn_id: "turn-1".to_string(),
+        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+            datax_protocol::protocol::InteractionStartedEvent {
+                interaction_id: "turn-1".to_string(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -3281,16 +3281,16 @@ async fn thread_rollback_persists_marker_and_replays_cumulatively() {
         RolloutItem::TurnContext(turn_context_item.clone()),
         RolloutItem::ResponseItem(user_message("turn 1 user")),
         RolloutItem::ResponseItem(assistant_message("turn 1 assistant")),
-        RolloutItem::EventMsg(EventMsg::TurnComplete(TurnCompleteEvent {
-            turn_id: "turn-1".to_string(),
+        RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+            interaction_id: "turn-1".to_string(),
             last_agent_message: None,
             completed_at: None,
             duration_ms: None,
             time_to_first_token_ms: None,
         })),
-        RolloutItem::EventMsg(EventMsg::TurnStarted(
-            datax_protocol::protocol::TurnStartedEvent {
-                turn_id: "turn-2".to_string(),
+        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+            datax_protocol::protocol::InteractionStartedEvent {
+                interaction_id: "turn-2".to_string(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -3308,16 +3308,16 @@ async fn thread_rollback_persists_marker_and_replays_cumulatively() {
         RolloutItem::TurnContext(turn_context_item.clone()),
         RolloutItem::ResponseItem(user_message("turn 2 user")),
         RolloutItem::ResponseItem(assistant_message("turn 2 assistant")),
-        RolloutItem::EventMsg(EventMsg::TurnComplete(TurnCompleteEvent {
-            turn_id: "turn-2".to_string(),
+        RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+            interaction_id: "turn-2".to_string(),
             last_agent_message: None,
             completed_at: None,
             duration_ms: None,
             time_to_first_token_ms: None,
         })),
-        RolloutItem::EventMsg(EventMsg::TurnStarted(
-            datax_protocol::protocol::TurnStartedEvent {
-                turn_id: "turn-3".to_string(),
+        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+            datax_protocol::protocol::InteractionStartedEvent {
+                interaction_id: "turn-3".to_string(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: Some(128_000),
@@ -3335,8 +3335,8 @@ async fn thread_rollback_persists_marker_and_replays_cumulatively() {
         RolloutItem::TurnContext(turn_context_item),
         RolloutItem::ResponseItem(user_message("turn 3 user")),
         RolloutItem::ResponseItem(assistant_message("turn 3 assistant")),
-        RolloutItem::EventMsg(EventMsg::TurnComplete(TurnCompleteEvent {
-            turn_id: "turn-3".to_string(),
+        RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+            interaction_id: "turn-3".to_string(),
             last_agent_message: None,
             completed_at: None,
             duration_ms: None,
@@ -3459,8 +3459,8 @@ async fn set_rate_limits_retains_previous_credits() {
         app_server_client_name: None,
         app_server_client_version: None,
         session_source: SessionSource::Exec,
-        forked_from_thread_id: None,
-        parent_thread_id: None,
+        forked_from_chat_id: None,
+        parent_chat_id: None,
         thread_source: None,
         dynamic_tools: Vec::new(),
         user_shell_override: None,
@@ -3565,8 +3565,8 @@ async fn set_rate_limits_updates_plan_type_when_present() {
         app_server_client_name: None,
         app_server_client_version: None,
         session_source: SessionSource::Exec,
-        forked_from_thread_id: None,
-        parent_thread_id: None,
+        forked_from_chat_id: None,
+        parent_chat_id: None,
         thread_source: None,
         dynamic_tools: Vec::new(),
         user_shell_override: None,
@@ -3811,10 +3811,10 @@ async fn attach_thread_persistence(session: &mut Session) -> PathBuf {
         Arc::clone(&session.services.thread_store),
         CreateThreadParams {
             session_id: session.session_id(),
-            thread_id: session.thread_id,
+            chat_id: session.chat_id,
             extra_config: None,
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             source: SessionSource::Exec,
             thread_source: None,
             base_instructions: BaseInstructions::default(),
@@ -3862,7 +3862,7 @@ async fn build_test_config(codex_home: &Path) -> Config {
 }
 
 fn session_telemetry(
-    conversation_id: ThreadId,
+    conversation_id: ChatId,
     config: &Config,
     model_info: &ModelInfo,
     session_source: SessionSource,
@@ -4093,8 +4093,8 @@ pub(crate) async fn make_session_configuration_for_tests() -> SessionConfigurati
         app_server_client_name: None,
         app_server_client_version: None,
         session_source: SessionSource::Exec,
-        forked_from_thread_id: None,
-        parent_thread_id: None,
+        forked_from_chat_id: None,
+        parent_chat_id: None,
         thread_source: None,
         dynamic_tools: Vec::new(),
         user_shell_override: None,
@@ -4124,11 +4124,11 @@ async fn emit_subagent_session_started_includes_fork_lineage_from_session_config
         /*analytics_enabled*/ Some(true),
     );
 
-    let parent_thread_id = ThreadId::new();
-    let forked_from_thread_id = ThreadId::new();
-    let child_thread_id = ThreadId::new();
+    let parent_chat_id = ChatId::new();
+    let forked_from_chat_id = ChatId::new();
+    let child_chat_id = ChatId::new();
     let mut session_configuration = make_session_configuration_for_tests().await;
-    session_configuration.forked_from_thread_id = Some(forked_from_thread_id);
+    session_configuration.forked_from_chat_id = Some(forked_from_chat_id);
 
     emit_subagent_session_started(
         &analytics_events_client,
@@ -4136,12 +4136,12 @@ async fn emit_subagent_session_started_includes_fork_lineage_from_session_config
             client_name: Some("datax-tui".to_string()),
             client_version: Some("1.0.0".to_string()),
         },
-        SessionId::from(child_thread_id),
-        child_thread_id,
-        Some(parent_thread_id),
+        SessionId::from(child_chat_id),
+        child_chat_id,
+        Some(parent_chat_id),
         session_configuration.thread_config_snapshot(),
         SubAgentSource::ThreadSpawn {
-            parent_thread_id,
+            parent_chat_id,
             depth: 1,
             agent_path: None,
             agent_nickname: None,
@@ -4171,12 +4171,12 @@ async fn emit_subagent_session_started_includes_fork_lineage_from_session_config
     .expect("subagent initialization analytics should be emitted");
 
     assert_eq!(
-        event["event_params"]["parent_thread_id"],
-        parent_thread_id.to_string()
+        event["event_params"]["parent_chat_id"],
+        parent_chat_id.to_string()
     );
     assert_eq!(
-        event["event_params"]["forked_from_thread_id"],
-        forked_from_thread_id.to_string()
+        event["event_params"]["forked_from_chat_id"],
+        forked_from_chat_id.to_string()
     );
 }
 
@@ -4959,8 +4959,8 @@ async fn session_new_fails_when_zsh_fork_enabled_without_packaged_zsh() {
         app_server_client_name: None,
         app_server_client_version: None,
         session_source: SessionSource::Exec,
-        forked_from_thread_id: None,
-        parent_thread_id: None,
+        forked_from_chat_id: None,
+        parent_chat_id: None,
         thread_source: None,
         dynamic_tools: Vec::new(),
         user_shell_override: None,
@@ -5022,7 +5022,7 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
     let codex_home = tempfile::tempdir().expect("create temp dir");
     let config = build_test_config(codex_home.path()).await;
     let config = Arc::new(config);
-    let thread_id = ThreadId::default();
+    let chat_id = ChatId::default();
     let auth_manager = AuthManager::from_auth_for_testing(CodexAuth::from_api_key("Test API Key"));
     let models_manager = models_manager_with_provider(
         config.codex_home.to_path_buf(),
@@ -5071,8 +5071,8 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
         app_server_client_name: None,
         app_server_client_version: None,
         session_source: SessionSource::Exec,
-        forked_from_thread_id: None,
-        parent_thread_id: None,
+        forked_from_chat_id: None,
+        parent_chat_id: None,
         thread_source: None,
         dynamic_tools: Vec::new(),
         user_shell_override: None,
@@ -5084,7 +5084,7 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
         &per_turn_config.to_models_manager_config(),
     );
     let session_telemetry = session_telemetry(
-        thread_id,
+        chat_id,
         config.as_ref(),
         &model_info,
         session_configuration.session_source.clone(),
@@ -5155,7 +5155,7 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
         session_extension_data: datax_extension_api::ExtensionData::new(
             agent_control.session_id().to_string(),
         ),
-        thread_extension_data: datax_extension_api::ExtensionData::new(thread_id.to_string()),
+        thread_extension_data: datax_extension_api::ExtensionData::new(chat_id.to_string()),
         mcp_thread_init: datax_extension_api::ExtensionDataInit::default(),
         supports_openai_form_elicitation: std::sync::atomic::AtomicBool::new(false),
         agent_control,
@@ -5173,7 +5173,7 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
         time_provider: Arc::new(crate::current_time::SystemTimeProvider),
         model_client: ModelClient::new(
             Some(auth_manager.clone()),
-            thread_id,
+            chat_id,
             session_configuration.provider.clone(),
             session_configuration.session_source.clone(),
             config.model_verbosity,
@@ -5206,8 +5206,8 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
         .snapshot_for_config(&skills_input, Some(Arc::clone(&skill_fs)))
         .await;
     let turn_context = Session::make_turn_context(
-        thread_id,
-        SessionId::from(thread_id),
+        chat_id,
+        SessionId::from(chat_id),
         Some(Arc::clone(&auth_manager)),
         &session_telemetry,
         session_configuration.provider.clone(),
@@ -5222,12 +5222,12 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
         /*network*/ None,
         resolved_turn_environments,
         session_configuration.cwd().clone(),
-        "turn_id".to_string(),
+        "interaction_id".to_string(),
         skills_snapshot,
     );
 
     let session = Session {
-        thread_id,
+        chat_id,
         installation_id: "11111111-1111-4111-8111-111111111111".to_string(),
         tx_event,
         agent_status: agent_status_tx,
@@ -5316,8 +5316,8 @@ async fn make_session_with_config_and_rx(
         app_server_client_name: None,
         app_server_client_version: None,
         session_source: SessionSource::Exec,
-        forked_from_thread_id: None,
-        parent_thread_id: None,
+        forked_from_chat_id: None,
+        parent_chat_id: None,
         thread_source: None,
         dynamic_tools: Vec::new(),
         user_shell_override: None,
@@ -5422,8 +5422,8 @@ async fn make_session_with_history_source_and_agent_control_and_rx(
         app_server_client_name: None,
         app_server_client_version: None,
         session_source: session_source.clone(),
-        forked_from_thread_id: None,
-        parent_thread_id: None,
+        forked_from_chat_id: None,
+        parent_chat_id: None,
         thread_source: None,
         dynamic_tools: Vec::new(),
         user_shell_override: None,
@@ -5483,11 +5483,11 @@ async fn make_session_with_history_source_and_agent_control_and_rx(
 }
 
 #[tokio::test]
-async fn resumed_root_session_uses_thread_id_as_session_id() {
-    let thread_id = ThreadId::new();
+async fn resumed_root_session_uses_chat_id_as_session_id() {
+    let chat_id = ChatId::new();
     let (session, rx_event) = make_session_with_history_source_and_agent_control_and_rx(
         InitialHistory::Resumed(ResumedHistory {
-            conversation_id: thread_id,
+            conversation_id: chat_id,
             history: Vec::new(),
             rollout_path: None,
         }),
@@ -5497,24 +5497,24 @@ async fn resumed_root_session_uses_thread_id_as_session_id() {
     .await
     .expect("resume should succeed");
 
-    assert_eq!(session.thread_id(), thread_id);
-    assert_eq!(session.session_id(), SessionId::from(thread_id));
+    assert_eq!(session.chat_id(), chat_id);
+    assert_eq!(session.session_id(), SessionId::from(chat_id));
 
     let event = rx_event.recv().await.expect("session configured event");
     let EventMsg::SessionConfigured(event) = event.msg else {
         panic!("expected session configured event");
     };
-    assert_eq!(event.session_id, SessionId::from(thread_id));
-    assert_eq!(event.thread_id, thread_id);
+    assert_eq!(event.session_id, SessionId::from(chat_id));
+    assert_eq!(event.chat_id, chat_id);
 }
 
 #[tokio::test]
 async fn resumed_subagent_session_restores_persisted_session_id() {
-    let parent_thread_id = ThreadId::new();
-    let parent_session_id = SessionId::from(parent_thread_id);
-    let thread_id = ThreadId::new();
+    let parent_chat_id = ChatId::new();
+    let parent_session_id = SessionId::from(parent_chat_id);
+    let chat_id = ChatId::new();
     let session_source = SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-        parent_thread_id,
+        parent_chat_id,
         depth: 1,
         agent_path: None,
         agent_nickname: None,
@@ -5522,11 +5522,11 @@ async fn resumed_subagent_session_restores_persisted_session_id() {
     });
     let (session, rx_event) = make_session_with_history_source_and_agent_control_and_rx(
         InitialHistory::Resumed(ResumedHistory {
-            conversation_id: thread_id,
+            conversation_id: chat_id,
             history: vec![RolloutItem::SessionMeta(SessionMetaLine {
                 meta: SessionMeta {
                     session_id: parent_session_id,
-                    id: thread_id,
+                    id: chat_id,
                     source: session_source.clone(),
                     ..SessionMeta::default()
                 },
@@ -5540,7 +5540,7 @@ async fn resumed_subagent_session_restores_persisted_session_id() {
     .await
     .expect("resume should succeed");
 
-    assert_eq!(session.thread_id(), thread_id);
+    assert_eq!(session.chat_id(), chat_id);
     assert_eq!(session.session_id(), parent_session_id);
 
     let event = rx_event.recv().await.expect("session configured event");
@@ -5548,7 +5548,7 @@ async fn resumed_subagent_session_restores_persisted_session_id() {
         panic!("expected session configured event");
     };
     assert_eq!(event.session_id, parent_session_id);
-    assert_eq!(event.thread_id, thread_id);
+    assert_eq!(event.chat_id, chat_id);
 }
 
 #[tokio::test]
@@ -6623,7 +6623,7 @@ async fn spawn_task_turn_span_inherits_dispatch_trace_context() {
         .await
         .expect("timeout waiting for turn completion")
         .expect("event");
-    assert!(matches!(evt.msg, EventMsg::TurnComplete(_)));
+    assert!(matches!(evt.msg, EventMsg::InteractionComplete(_)));
 
     let task_trace = captured_trace
         .lock()
@@ -6655,10 +6655,10 @@ async fn shutdown_complete_does_not_append_to_thread_store_after_shutdown() {
         Arc::clone(&thread_store),
         CreateThreadParams {
             session_id: session.session_id(),
-            thread_id: session.thread_id,
+            chat_id: session.chat_id,
             extra_config: None,
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             source: SessionSource::Exec,
             thread_source: None,
             base_instructions: BaseInstructions::default(),
@@ -6700,7 +6700,7 @@ async fn submission_loop_channel_close_emits_thread_stop_lifecycle() {
 
     struct ThreadStopRecorder {
         calls: Arc<std::sync::atomic::AtomicUsize>,
-        expected_thread_id: ThreadId,
+        expected_chat_id: ChatId,
     }
 
     impl datax_extension_api::ThreadLifecycleContributor<crate::config::Config> for ThreadStopRecorder {
@@ -6710,7 +6710,7 @@ async fn submission_loop_channel_close_emits_thread_stop_lifecycle() {
         ) -> datax_extension_api::ExtensionFuture<'a, ()> {
             Box::pin(async move {
                 assert_eq!(
-                    self.expected_thread_id.to_string(),
+                    self.expected_chat_id.to_string(),
                     input.thread_store.level_id()
                 );
                 assert!(input.session_store.get::<SessionStopMarker>().is_some());
@@ -6725,7 +6725,7 @@ async fn submission_loop_channel_close_emits_thread_stop_lifecycle() {
     let mut builder = datax_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
     builder.thread_lifecycle_contributor(Arc::new(ThreadStopRecorder {
         calls: Arc::clone(&calls),
-        expected_thread_id: session.thread_id,
+        expected_chat_id: session.chat_id,
     }));
     session.services.extensions = Arc::new(builder.build());
     session
@@ -6749,8 +6749,8 @@ async fn submission_loop_channel_close_emits_thread_stop_lifecycle() {
 async fn submission_loop_channel_close_aborts_active_turn_before_thread_stop_lifecycle() {
     struct LifecycleRecorder {
         calls: Arc<std::sync::Mutex<Vec<&'static str>>>,
-        expected_thread_id: ThreadId,
-        expected_turn_id: String,
+        expected_chat_id: ChatId,
+        expected_interaction_id: String,
     }
 
     impl datax_extension_api::ThreadLifecycleContributor<crate::config::Config> for LifecycleRecorder {
@@ -6760,7 +6760,7 @@ async fn submission_loop_channel_close_aborts_active_turn_before_thread_stop_lif
         ) -> datax_extension_api::ExtensionFuture<'a, ()> {
             Box::pin(async move {
                 assert_eq!(
-                    self.expected_thread_id.to_string(),
+                    self.expected_chat_id.to_string(),
                     input.thread_store.level_id()
                 );
                 self.calls
@@ -6778,11 +6778,11 @@ async fn submission_loop_channel_close_aborts_active_turn_before_thread_stop_lif
         ) -> datax_extension_api::ExtensionFuture<'a, ()> {
             Box::pin(async move {
                 assert_eq!(
-                    self.expected_thread_id.to_string(),
+                    self.expected_chat_id.to_string(),
                     input.thread_store.level_id()
                 );
-                assert_eq!(self.expected_turn_id, input.turn_store.level_id());
-                assert_eq!(TurnAbortReason::Interrupted, input.reason);
+                assert_eq!(self.expected_interaction_id, input.turn_store.level_id());
+                assert_eq!(InteractionAbortReason::Interrupted, input.reason);
                 self.calls
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -6795,8 +6795,8 @@ async fn submission_loop_channel_close_aborts_active_turn_before_thread_stop_lif
     let calls = Arc::new(std::sync::Mutex::new(Vec::new()));
     let recorder = Arc::new(LifecycleRecorder {
         calls: Arc::clone(&calls),
-        expected_thread_id: session.thread_id,
-        expected_turn_id: turn_context.sub_id.clone(),
+        expected_chat_id: session.chat_id,
+        expected_interaction_id: turn_context.sub_id.clone(),
     });
     let mut builder = datax_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
     builder.thread_lifecycle_contributor(recorder.clone());
@@ -7088,7 +7088,7 @@ where
     configure_config(&mut config);
     let state_db = None;
     let config = Arc::new(config);
-    let thread_id = ThreadId::default();
+    let chat_id = ChatId::default();
     let auth_manager = AuthManager::from_auth_for_testing(auth);
     let models_manager = models_manager_with_provider(
         config.codex_home.to_path_buf(),
@@ -7137,8 +7137,8 @@ where
         app_server_client_name: None,
         app_server_client_version: None,
         session_source: SessionSource::Exec,
-        forked_from_thread_id: None,
-        parent_thread_id: None,
+        forked_from_chat_id: None,
+        parent_chat_id: None,
         thread_source: None,
         dynamic_tools,
         user_shell_override: None,
@@ -7150,7 +7150,7 @@ where
         &per_turn_config.to_models_manager_config(),
     );
     let session_telemetry = session_telemetry(
-        thread_id,
+        chat_id,
         config.as_ref(),
         &model_info,
         session_configuration.session_source.clone(),
@@ -7220,7 +7220,7 @@ where
         session_extension_data: datax_extension_api::ExtensionData::new(
             agent_control.session_id().to_string(),
         ),
-        thread_extension_data: datax_extension_api::ExtensionData::new(thread_id.to_string()),
+        thread_extension_data: datax_extension_api::ExtensionData::new(chat_id.to_string()),
         mcp_thread_init: datax_extension_api::ExtensionDataInit::default(),
         supports_openai_form_elicitation: std::sync::atomic::AtomicBool::new(false),
         agent_control,
@@ -7238,7 +7238,7 @@ where
         time_provider: Arc::new(crate::current_time::SystemTimeProvider),
         model_client: ModelClient::new(
             Some(Arc::clone(&auth_manager)),
-            thread_id,
+            chat_id,
             session_configuration.provider.clone(),
             session_configuration.session_source.clone(),
             config.model_verbosity,
@@ -7271,8 +7271,8 @@ where
         .snapshot_for_config(&skills_input, Some(Arc::clone(&skill_fs)))
         .await;
     let turn_context = Arc::new(Session::make_turn_context(
-        thread_id,
-        SessionId::from(thread_id),
+        chat_id,
+        SessionId::from(chat_id),
         Some(Arc::clone(&auth_manager)),
         &session_telemetry,
         session_configuration.provider.clone(),
@@ -7287,12 +7287,12 @@ where
         /*network*/ None,
         resolved_turn_environments,
         session_configuration.cwd().clone(),
-        "turn_id".to_string(),
+        "interaction_id".to_string(),
         skills_snapshot,
     ));
 
     let session = Arc::new(Session {
-        thread_id,
+        chat_id,
         installation_id: "11111111-1111-4111-8111-111111111111".to_string(),
         tx_event,
         agent_status: agent_status_tx,
@@ -7406,7 +7406,7 @@ async fn spawn_task_does_not_update_previous_turn_settings_for_non_run_turn_task
     )
     .await;
 
-    sess.abort_all_tasks(TurnAbortReason::Interrupted).await;
+    sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
     assert_eq!(sess.previous_turn_settings().await, None);
 }
 
@@ -7764,7 +7764,7 @@ impl datax_extension_api::ContextContributor for TurnContextExtensionTestContrib
             };
             (input.model_context_window == state.expected_model_context_window
                 && input.model_context_window.is_some()
-                && !input.turn_id.is_empty())
+                && !input.interaction_id.is_empty())
             .then(|| {
                 datax_extension_api::PromptFragment::developer_policy(
                     "turn context extension enabled",
@@ -7837,7 +7837,7 @@ async fn record_context_updates_includes_turn_context_fragments_on_steady_state_
             expected_model_context_window: Some(50),
         });
     let mut previous_context_item = turn_context.to_turn_context_item();
-    previous_context_item.turn_id = Some("previous-turn-id".to_string());
+    previous_context_item.interaction_id = Some("previous-turn-id".to_string());
     let world_state = session.build_world_state(&turn_context).await;
     {
         let mut state = session.state.lock().await;
@@ -7904,7 +7904,7 @@ async fn build_initial_context_adds_multi_agent_v2_subagent_usage_hint_as_develo
     let (session, mut turn_context) =
         make_multi_agent_v2_usage_hint_test_session(/*enable_multi_agent_v2*/ true).await;
     let session_source = SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-        parent_thread_id: ThreadId::new(),
+        parent_chat_id: ChatId::new(),
         depth: 1,
         agent_path: Some(AgentPath::try_from("/root/worker").expect("agent path should parse")),
         agent_nickname: Some("worker".to_string()),
@@ -8237,7 +8237,7 @@ async fn handle_output_item_done_records_image_save_history_message() {
     let call_id = "ig_history_records_message";
     let expected_saved_path = crate::stream_events_utils::image_generation_artifact_path(
         &turn_context.config.codex_home,
-        &session.thread_id.to_string(),
+        &session.chat_id.to_string(),
         call_id,
     );
     let _ = std::fs::remove_file(&expected_saved_path);
@@ -8265,7 +8265,7 @@ async fn handle_output_item_done_records_image_save_history_message() {
     let history = session.clone_history().await;
     let image_output_path = crate::stream_events_utils::image_generation_artifact_path(
         &turn_context.config.codex_home,
-        &session.thread_id.to_string(),
+        &session.chat_id.to_string(),
         "<image_id>",
     );
     let image_output_dir = image_output_path
@@ -8294,7 +8294,7 @@ async fn handle_output_item_done_skips_image_save_message_when_save_fails() {
     let call_id = "ig_history_no_message";
     let expected_saved_path = crate::stream_events_utils::image_generation_artifact_path(
         &turn_context.config.codex_home,
-        &session.thread_id.to_string(),
+        &session.chat_id.to_string(),
         call_id,
     );
     let _ = std::fs::remove_file(&expected_saved_path);
@@ -8700,7 +8700,7 @@ async fn run_user_shell_command_does_not_set_reference_context_item() {
             .await
             .expect("timeout waiting for event")
             .expect("event");
-        if matches!(evt.msg, EventMsg::TurnComplete(_)) {
+        if matches!(evt.msg, EventMsg::InteractionComplete(_)) {
             break;
         }
     }
@@ -8857,9 +8857,9 @@ async fn guardian_auto_review_interrupts_after_three_consecutive_denials() {
     let aborted = tokio::time::timeout(std::time::Duration::from_secs(5), async {
         loop {
             let event = rx.recv().await.expect("event");
-            if let EventMsg::TurnAborted(event) = &event.msg {
+            if let EventMsg::InteractionAborted(event) = &event.msg {
                 let event = event.clone();
-                observed.push(EventMsg::TurnAborted(event.clone()));
+                observed.push(EventMsg::InteractionAborted(event.clone()));
                 break event;
             }
             observed.push(event.msg);
@@ -8871,7 +8871,7 @@ async fn guardian_auto_review_interrupts_after_three_consecutive_denials() {
             "guardian denial circuit breaker should interrupt the turn; observed events: {observed:?}"
         )
     });
-    assert_eq!(aborted.reason, TurnAbortReason::Interrupted);
+    assert_eq!(aborted.reason, InteractionAbortReason::Interrupted);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -8896,7 +8896,7 @@ async fn guardian_helper_review_interrupts_after_three_consecutive_denials() {
 
     let session_for_review = Arc::clone(&sess);
     let turn_for_review = Arc::clone(&tc);
-    let turn_id = tc.sub_id.clone();
+    let interaction_id = tc.sub_id.clone();
     let review_thread = std::thread::spawn(move || {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -8907,7 +8907,7 @@ async fn guardian_helper_review_interrupts_after_three_consecutive_denials() {
                 crate::guardian::record_guardian_denial_for_test(
                     &session_for_review,
                     &turn_for_review,
-                    &turn_id,
+                    &interaction_id,
                 )
                 .await;
             }
@@ -8919,9 +8919,9 @@ async fn guardian_helper_review_interrupts_after_three_consecutive_denials() {
     let aborted = timeout(StdDuration::from_secs(5), async {
         loop {
             let event = rx.recv().await.expect("event");
-            if let EventMsg::TurnAborted(event) = &event.msg {
+            if let EventMsg::InteractionAborted(event) = &event.msg {
                 let event = event.clone();
-                observed.push(EventMsg::TurnAborted(event.clone()));
+                observed.push(EventMsg::InteractionAborted(event.clone()));
                 break event;
             }
             observed.push(event.msg);
@@ -8933,7 +8933,7 @@ async fn guardian_helper_review_interrupts_after_three_consecutive_denials() {
             "helper review circuit breaker should interrupt the turn; observed events: {observed:?}"
         )
     });
-    assert_eq!(aborted.reason, TurnAbortReason::Interrupted);
+    assert_eq!(aborted.reason, InteractionAbortReason::Interrupted);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -8957,7 +8957,7 @@ async fn abort_regular_task_emits_marker_before_turn_aborted() {
     )
     .await;
 
-    sess.abort_all_tasks(TurnAbortReason::Interrupted).await;
+    sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
 
     // Interrupts surface the model-visible `<turn_aborted>` marker before the abort event.
     let marker_evt = tokio::time::timeout(std::time::Duration::from_secs(2), rx.recv())
@@ -8971,7 +8971,7 @@ async fn abort_regular_task_emits_marker_before_turn_aborted() {
         .expect("timeout waiting for event")
         .expect("event");
     match evt.msg {
-        EventMsg::TurnAborted(e) => assert_eq!(TurnAbortReason::Interrupted, e.reason),
+        EventMsg::InteractionAborted(e) => assert_eq!(InteractionAbortReason::Interrupted, e.reason),
         other => panic!("unexpected event: {other:?}"),
     }
     // No extra events should be emitted after an abort.
@@ -8998,7 +8998,7 @@ async fn abort_gracefully_emits_marker_before_turn_aborted() {
     )
     .await;
 
-    sess.abort_all_tasks(TurnAbortReason::Interrupted).await;
+    sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
 
     // Gracefully cancelled tasks surface the model-visible marker before the abort event too.
     let marker_evt = tokio::time::timeout(std::time::Duration::from_secs(2), rx.recv())
@@ -9012,7 +9012,7 @@ async fn abort_gracefully_emits_marker_before_turn_aborted() {
         .expect("timeout waiting for event")
         .expect("event");
     match evt.msg {
-        EventMsg::TurnAborted(e) => assert_eq!(TurnAbortReason::Interrupted, e.reason),
+        EventMsg::InteractionAborted(e) => assert_eq!(InteractionAbortReason::Interrupted, e.reason),
         other => panic!("unexpected event: {other:?}"),
     }
     // No extra events should be emitted after an abort.
@@ -9132,31 +9132,31 @@ async fn task_finish_emits_turn_item_lifecycle_for_leftover_pending_user_input()
         .expect("channel open");
     assert!(matches!(
         fifth.msg,
-        EventMsg::TurnComplete(TurnCompleteEvent {
-            turn_id,
+        EventMsg::InteractionComplete(InteractionCompleteEvent {
+            interaction_id,
             last_agent_message: None,
             time_to_first_token_ms: None,
             ..
-        }) if turn_id == tc.sub_id
+        }) if interaction_id == tc.sub_id
     ));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn task_finish_emits_thread_idle_lifecycle_after_active_turn_clears() {
-    struct ThreadIdleRecorder {
+async fn task_finish_emits_chat_idle_lifecycle_after_active_turn_clears() {
+    struct ChatIdleRecorder {
         calls: Arc<std::sync::atomic::AtomicUsize>,
         idle_tx: async_channel::Sender<()>,
-        expected_thread_id: ThreadId,
+        expected_chat_id: ChatId,
     }
 
-    impl datax_extension_api::ThreadLifecycleContributor<crate::config::Config> for ThreadIdleRecorder {
-        fn on_thread_idle<'a>(
+    impl datax_extension_api::ThreadLifecycleContributor<crate::config::Config> for ChatIdleRecorder {
+        fn on_chat_idle<'a>(
             &'a self,
-            input: datax_extension_api::ThreadIdleInput<'a>,
+            input: datax_extension_api::ChatIdleInput<'a>,
         ) -> datax_extension_api::ExtensionFuture<'a, ()> {
             Box::pin(async move {
                 assert_eq!(
-                    self.expected_thread_id.to_string(),
+                    self.expected_chat_id.to_string(),
                     input.thread_store.level_id()
                 );
                 self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -9169,10 +9169,10 @@ async fn task_finish_emits_thread_idle_lifecycle_after_active_turn_clears() {
     let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let (idle_tx, idle_rx) = async_channel::bounded(1);
     let mut builder = datax_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
-    builder.thread_lifecycle_contributor(Arc::new(ThreadIdleRecorder {
+    builder.thread_lifecycle_contributor(Arc::new(ChatIdleRecorder {
         calls: Arc::clone(&calls),
         idle_tx,
-        expected_thread_id: session.thread_id,
+        expected_chat_id: session.chat_id,
     }));
     session.services.extensions = Arc::new(builder.build());
 
@@ -9190,15 +9190,15 @@ async fn task_finish_emits_thread_idle_lifecycle_after_active_turn_clears() {
 }
 
 #[tokio::test]
-async fn thread_idle_lifecycle_waits_for_trigger_turn_mailbox_work() {
-    struct ThreadIdleRecorder {
+async fn chat_idle_lifecycle_waits_for_trigger_turn_mailbox_work() {
+    struct ChatIdleRecorder {
         calls: Arc<std::sync::atomic::AtomicUsize>,
     }
 
-    impl datax_extension_api::ThreadLifecycleContributor<crate::config::Config> for ThreadIdleRecorder {
-        fn on_thread_idle<'a>(
+    impl datax_extension_api::ThreadLifecycleContributor<crate::config::Config> for ChatIdleRecorder {
+        fn on_chat_idle<'a>(
             &'a self,
-            _input: datax_extension_api::ThreadIdleInput<'a>,
+            _input: datax_extension_api::ChatIdleInput<'a>,
         ) -> datax_extension_api::ExtensionFuture<'a, ()> {
             Box::pin(async move {
                 self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -9209,7 +9209,7 @@ async fn thread_idle_lifecycle_waits_for_trigger_turn_mailbox_work() {
     let (mut session, _turn_context) = make_session_and_context().await;
     let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let mut builder = datax_extension_api::ExtensionRegistryBuilder::<crate::config::Config>::new();
-    builder.thread_lifecycle_contributor(Arc::new(ThreadIdleRecorder {
+    builder.thread_lifecycle_contributor(Arc::new(ChatIdleRecorder {
         calls: Arc::clone(&calls),
     }));
     session.services.extensions = Arc::new(builder.build());
@@ -9224,7 +9224,7 @@ async fn thread_idle_lifecycle_waits_for_trigger_turn_mailbox_work() {
         ))
         .await;
 
-    session.emit_thread_idle_lifecycle_if_idle().await;
+    session.emit_chat_idle_lifecycle_if_idle().await;
 
     assert_eq!(0, calls.load(std::sync::atomic::Ordering::SeqCst));
 }
@@ -9255,7 +9255,7 @@ async fn try_start_turn_if_idle_rejects_active_turn_without_injecting() {
         sess.input_queue.get_pending_input(&sess.active_turn).await
     );
 
-    sess.abort_all_tasks(TurnAbortReason::Interrupted).await;
+    sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
 }
 
 #[tokio::test]
@@ -9337,7 +9337,7 @@ async fn try_start_turn_if_idle_rejects_active_review_turn_without_injecting() {
         sess.input_queue.get_pending_input(&sess.active_turn).await
     );
 
-    sess.abort_all_tasks(TurnAbortReason::Interrupted).await;
+    sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
 }
 
 #[tokio::test]
@@ -9352,7 +9352,7 @@ async fn steer_input_requires_active_turn() {
         .steer_input(
             input,
             /*additional_context*/ Default::default(),
-            /*expected_turn_id*/ None,
+            /*expected_interaction_id*/ None,
             /*client_user_message_id*/ None,
             /*responsesapi_client_metadata*/ None,
         )
@@ -9363,7 +9363,7 @@ async fn steer_input_requires_active_turn() {
 }
 
 #[tokio::test]
-async fn steer_input_enforces_expected_turn_id() {
+async fn steer_input_enforces_expected_interaction_id() {
     let (sess, tc, _rx) = make_session_and_context_with_rx().await;
     let input = vec![TurnInput::UserInput {
         content: vec![UserInput::Text {
@@ -9441,7 +9441,7 @@ async fn steer_input_rejects_non_regular_turns() {
             .steer_input(
                 steer_input,
                 /*additional_context*/ Default::default(),
-                /*expected_turn_id*/ None,
+                /*expected_interaction_id*/ None,
                 /*client_user_message_id*/ None,
                 /*responsesapi_client_metadata*/ None,
             )
@@ -9450,12 +9450,12 @@ async fn steer_input_rejects_non_regular_turns() {
 
         assert_eq!(err, SteerInputError::ActiveTurnNotSteerable { turn_kind });
 
-        sess.abort_all_tasks(TurnAbortReason::Interrupted).await;
+        sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
     }
 }
 
 #[tokio::test]
-async fn steer_input_returns_active_turn_id() {
+async fn steer_input_returns_active_interaction_id() {
     let (sess, tc, _rx) = make_session_and_context_with_rx().await;
     let input = vec![TurnInput::UserInput {
         content: vec![UserInput::Text {
@@ -9478,7 +9478,7 @@ async fn steer_input_returns_active_turn_id() {
         text: "steer".to_string(),
         text_elements: Vec::new(),
     }];
-    let turn_id = sess
+    let interaction_id = sess
         .steer_input(
             steer_input,
             /*additional_context*/ Default::default(),
@@ -9489,7 +9489,7 @@ async fn steer_input_returns_active_turn_id() {
         .await
         .expect("steering with matching expected turn id should succeed");
 
-    assert_eq!(turn_id, tc.sub_id);
+    assert_eq!(interaction_id, tc.sub_id);
     assert!(sess.input_queue.has_pending_input(&sess.active_turn).await);
 }
 
@@ -9517,7 +9517,7 @@ async fn abort_empty_active_turn_preserves_pending_input() {
         )
         .await;
 
-    sess.abort_all_tasks(TurnAbortReason::Replaced).await;
+    sess.abort_all_tasks(InteractionAbortReason::Replaced).await;
 
     assert!(sess.active_turn.lock().await.is_none());
     assert_eq!(
@@ -9573,7 +9573,7 @@ async fn queue_only_mailbox_mail_waits_for_next_turn_after_answer_boundary() {
         Vec::new()
     );
 
-    sess.abort_all_tasks(TurnAbortReason::Replaced).await;
+    sess.abort_all_tasks(InteractionAbortReason::Replaced).await;
 
     assert_eq!(
         sess.input_queue.get_pending_input(&sess.active_turn).await,
@@ -9612,7 +9612,7 @@ async fn trigger_turn_mailbox_mail_waits_for_next_turn_after_answer_boundary() {
         "trigger-turn mailbox mail should not extend the current turn after its answer boundary"
     );
 
-    sess.abort_all_tasks(TurnAbortReason::Replaced).await;
+    sess.abort_all_tasks(InteractionAbortReason::Replaced).await;
 
     assert!(sess.input_queue.has_trigger_turn_mailbox_items().await);
 }
@@ -9797,7 +9797,7 @@ async fn abort_review_task_emits_exited_then_aborted_and_records_history() {
     sess.spawn_task(Arc::clone(&tc), input, ReviewTask::new())
         .await;
 
-    sess.abort_all_tasks(TurnAbortReason::Interrupted).await;
+    sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
 
     // Aborting a review task should exit review mode before surfacing the abort to the client.
     // We scan for these events (rather than relying on fixed ordering) since unrelated events
@@ -9819,8 +9819,8 @@ async fn abort_review_task_emits_exited_then_aborted_and_records_history() {
                 assert!(ev.review_output.is_none());
                 exited_review_mode_idx = Some(event_idx);
             }
-            EventMsg::TurnAborted(ev) => {
-                assert_eq!(TurnAbortReason::Interrupted, ev.reason);
+            EventMsg::InteractionAborted(ev) => {
+                assert_eq!(InteractionAbortReason::Interrupted, ev.reason);
                 turn_aborted_idx = Some(event_idx);
                 break;
             }
@@ -9833,11 +9833,11 @@ async fn abort_review_task_emits_exited_then_aborted_and_records_history() {
     );
     assert!(
         turn_aborted_idx.is_some(),
-        "expected TurnAborted after abort"
+        "expected InteractionAborted after abort"
     );
     assert!(
         exited_review_mode_idx.unwrap() < turn_aborted_idx.unwrap(),
-        "expected ExitedReviewMode before TurnAborted"
+        "expected ExitedReviewMode before InteractionAborted"
     );
 
     let history = sess.clone_history().await;
@@ -9854,7 +9854,7 @@ async fn abort_review_task_emits_exited_then_aborted_and_records_history() {
                 let ContentItem::InputText { text } = content_item else {
                     return false;
                 };
-                TurnAborted::matches_text(text)
+                InteractionAborted::matches_text(text)
             })
         }),
         "expected a model-visible turn aborted marker in history after interrupt"

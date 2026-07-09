@@ -168,12 +168,12 @@ async fn remote_models_config_context_window_override_clamps_to_max_context_wind
     let turn_started_event = wait_for_event(&codex, |event| {
         matches!(
             event,
-            EventMsg::TurnStarted(started)
+            EventMsg::InteractionStarted(started)
                 if started.model_context_window == Some(400_000)
         )
     })
     .await;
-    let EventMsg::TurnStarted(turn_started) = turn_started_event else {
+    let EventMsg::InteractionStarted(turn_started) = turn_started_event else {
         unreachable!("wait_for_event returned unexpected event");
     };
 
@@ -235,12 +235,12 @@ async fn remote_models_config_override_above_max_uses_max_context_window() -> Re
     let turn_started_event = wait_for_event(&codex, |event| {
         matches!(
             event,
-            EventMsg::TurnStarted(started)
+            EventMsg::InteractionStarted(started)
                 if started.model_context_window == Some(400_000)
         )
     })
     .await;
-    let EventMsg::TurnStarted(turn_started) = turn_started_event else {
+    let EventMsg::InteractionStarted(turn_started) = turn_started_event else {
         unreachable!("wait_for_event returned unexpected event");
     };
 
@@ -301,12 +301,12 @@ async fn remote_models_use_context_window_when_config_override_is_absent() -> Re
     let turn_started_event = wait_for_event(&codex, |event| {
         matches!(
             event,
-            EventMsg::TurnStarted(started)
+            EventMsg::InteractionStarted(started)
                 if started.model_context_window == Some(273_000)
         )
     })
     .await;
-    let EventMsg::TurnStarted(turn_started) = turn_started_event else {
+    let EventMsg::InteractionStarted(turn_started) = turn_started_event else {
         unreachable!("wait_for_event returned unexpected event");
     };
 
@@ -378,7 +378,7 @@ async fn remote_models_long_model_slug_is_sent_with_custom_reasoning() -> Result
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     let request = response_mock.single_request();
     let body = request.body_json();
@@ -437,7 +437,7 @@ async fn namespaced_model_slug_uses_catalog_metadata_without_fallback_warning() 
             {
                 fallback_warning_count += 1;
             }
-            EventMsg::TurnComplete(_) => break,
+            EventMsg::InteractionComplete(_) => break,
             _ => {}
         }
     }
@@ -601,7 +601,7 @@ async fn remote_models_remote_model_uses_unified_exec() -> Result<()> {
 
     assert_eq!(begin_event.source, ExecCommandSource::UnifiedExecStartup);
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     Ok(())
 }
@@ -821,7 +821,7 @@ async fn remote_models_apply_remote_base_instructions() -> Result<()> {
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     let base_model_info = models_manager
         .get_model_info("gpt-5.2", &config.to_models_manager_config())

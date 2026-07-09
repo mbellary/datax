@@ -4,7 +4,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
 use datax_core::ThreadManager;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::ThreadGoal;
 
@@ -37,7 +37,7 @@ pub(crate) enum ActiveGoalStopReason {
 }
 
 struct GoalRuntimeInner {
-    thread_id: ThreadId,
+    chat_id: ChatId,
     state_dbs: Arc<datax_state::StateRuntime>,
     analytics: GoalAnalytics,
     event_emitter: GoalEventEmitter,
@@ -79,7 +79,7 @@ impl std::fmt::Debug for GoalRuntimeHandle {
 
 impl GoalRuntimeHandle {
     pub(crate) fn new(
-        thread_id: ThreadId,
+        chat_id: ChatId,
         state_dbs: Arc<datax_state::StateRuntime>,
         event_emitter: GoalEventEmitter,
         metrics: GoalMetrics,
@@ -89,7 +89,7 @@ impl GoalRuntimeHandle {
     ) -> Self {
         Self {
             inner: Arc::new(GoalRuntimeInner {
-                thread_id,
+                chat_id,
                 state_dbs,
                 analytics: config.analytics,
                 event_emitter,
@@ -115,8 +115,8 @@ impl GoalRuntimeHandle {
         self.is_enabled() && self.inner.tools_available_for_thread
     }
 
-    pub(crate) fn thread_id(&self) -> ThreadId {
-        self.inner.thread_id
+    pub(crate) fn chat_id(&self) -> ChatId {
+        self.inner.chat_id
     }
 
     pub(crate) fn accounting_state(&self) -> Arc<GoalAccountingState> {
@@ -136,10 +136,10 @@ impl GoalRuntimeHandle {
             return Ok(());
         }
 
-        if let Some(turn_id) = self.inner.accounting_state.current_turn_id() {
+        if let Some(interaction_id) = self.inner.accounting_state.current_interaction_id() {
             self.account_active_goal_progress(
-                turn_id.as_str(),
-                &format!("{turn_id}:external-goal-mutation"),
+                interaction_id.as_str(),
+                &format!("{interaction_id}:external-goal-mutation"),
                 datax_state::GoalAccountingMode::ActiveOnly,
                 BudgetLimitedGoalDisposition::ClearActive,
             )
@@ -148,7 +148,7 @@ impl GoalRuntimeHandle {
         }
 
         self.account_idle_goal_progress(
-            &format!("{}:external-goal-mutation", self.inner.thread_id),
+            &format!("{}:external-goal-mutation", self.inner.chat_id),
             datax_state::GoalAccountingMode::ActiveOnly,
             BudgetLimitedGoalDisposition::ClearActive,
         )
@@ -191,7 +191,7 @@ impl GoalRuntimeHandle {
         });
         match goal.status {
             datax_state::ThreadGoalStatus::Active => {
-                if self.inner.accounting_state.current_turn_id().is_some() {
+                if self.inner.accounting_state.current_interaction_id().is_some() {
                     let _ = self
                         .inner
                         .accounting_state
@@ -208,7 +208,7 @@ impl GoalRuntimeHandle {
                 self.continue_if_idle().await?;
             }
             datax_state::ThreadGoalStatus::BudgetLimited => {
-                if self.inner.accounting_state.current_turn_id().is_none() {
+                if self.inner.accounting_state.current_interaction_id().is_none() {
                     self.inner.accounting_state.clear_active_goal();
                 }
             }
@@ -235,15 +235,15 @@ impl GoalRuntimeHandle {
         Ok(())
     }
 
-    pub async fn usage_limit_active_goal_for_turn(&self, turn_id: &str) -> Result<(), String> {
-        self.stop_active_goal_for_turn(turn_id, ActiveGoalStopReason::UsageLimit)
+    pub async fn usage_limit_active_goal_for_turn(&self, interaction_id: &str) -> Result<(), String> {
+        self.stop_active_goal_for_turn(interaction_id, ActiveGoalStopReason::UsageLimit)
             .await
     }
 
     /// Accounts the ending turn and stops its active goal after a terminal error.
     pub(crate) async fn stop_active_goal_for_turn(
         &self,
-        turn_id: &str,
+        interaction_id: &str,
         reason: ActiveGoalStopReason,
     ) -> Result<(), String> {
         if !self.is_enabled() {
@@ -256,7 +256,7 @@ impl GoalRuntimeHandle {
         if !self
             .inner
             .accounting_state
-            .turn_is_current_active_goal(turn_id)
+            .turn_is_current_active_goal(interaction_id)
         {
             return Ok(());
         }
@@ -270,8 +270,8 @@ impl GoalRuntimeHandle {
             }
         };
         self.account_active_goal_progress(
-            turn_id,
-            &format!("{turn_id}:{event_name}-progress"),
+            interaction_id,
+            &format!("{interaction_id}:{event_name}-progress"),
             datax_state::GoalAccountingMode::ActiveOnly,
             BudgetLimitedGoalDisposition::ClearActive,
         )
@@ -281,7 +281,7 @@ impl GoalRuntimeHandle {
             .inner
             .state_dbs
             .thread_goals()
-            .get_thread_goal(self.thread_id())
+            .get_thread_goal(self.chat_id())
             .await
             .map_err(|err| err.to_string())?
         else {
@@ -301,7 +301,7 @@ impl GoalRuntimeHandle {
             .state_dbs
             .thread_goals()
             .update_thread_goal(
-                self.thread_id(),
+                self.chat_id(),
                 datax_state::GoalUpdate {
                     objective: None,
                     status: Some(status),
@@ -320,13 +320,13 @@ impl GoalRuntimeHandle {
         self.inner.analytics.status_changed(
             &goal,
             previous_status,
-            GoalEventAttribution::Turn(turn_id),
+            GoalEventAttribution::Turn(interaction_id),
         );
         self.inner.accounting_state.clear_active_goal();
         let goal = protocol_goal_from_state(goal);
         self.inner.event_emitter.thread_goal_updated(
-            format!("{turn_id}:{event_name}"),
-            Some(turn_id.to_string()),
+            format!("{interaction_id}:{event_name}"),
+            Some(interaction_id.to_string()),
             goal,
         );
         Ok(())
@@ -341,7 +341,7 @@ impl GoalRuntimeHandle {
             .inner
             .state_dbs
             .thread_goals()
-            .get_thread_goal(self.thread_id())
+            .get_thread_goal(self.chat_id())
             .await
             .map_err(|err| err.to_string())?;
         match goal {
@@ -369,7 +369,7 @@ impl GoalRuntimeHandle {
             tracing::debug!("skipping goal continuation because thread manager is unavailable");
             return Ok(());
         };
-        let Ok(thread) = thread_manager.get_thread(self.inner.thread_id).await else {
+        let Ok(thread) = thread_manager.get_thread(self.inner.chat_id).await else {
             tracing::debug!("skipping goal continuation because live thread is unavailable");
             return Ok(());
         };
@@ -378,7 +378,7 @@ impl GoalRuntimeHandle {
             .inner
             .state_dbs
             .thread_goals()
-            .get_thread_goal(self.thread_id())
+            .get_thread_goal(self.chat_id())
             .await
             .map_err(|err| err.to_string())?
         else {
@@ -402,11 +402,11 @@ impl GoalRuntimeHandle {
         let current_turn_is_goal_active = self
             .inner
             .accounting_state
-            .current_turn_id()
-            .is_some_and(|turn_id| {
+            .current_interaction_id()
+            .is_some_and(|interaction_id| {
                 self.inner
                     .accounting_state
-                    .turn_is_current_active_goal(turn_id.as_str())
+                    .turn_is_current_active_goal(interaction_id.as_str())
             });
         if !current_turn_is_goal_active {
             self.inner.accounting_state.clear_active_goal();
@@ -419,7 +419,7 @@ impl GoalRuntimeHandle {
             tracing::debug!("skipping goal steering because thread manager is unavailable");
             return;
         };
-        let Ok(thread) = thread_manager.get_thread(self.inner.thread_id).await else {
+        let Ok(thread) = thread_manager.get_thread(self.inner.chat_id).await else {
             tracing::debug!("skipping goal steering because live thread is unavailable");
             return;
         };
@@ -430,7 +430,7 @@ impl GoalRuntimeHandle {
 
     pub(crate) async fn account_active_goal_progress(
         &self,
-        turn_id: &str,
+        interaction_id: &str,
         event_id: &str,
         mode: datax_state::GoalAccountingMode,
         budget_limited_goal_disposition: BudgetLimitedGoalDisposition,
@@ -440,7 +440,7 @@ impl GoalRuntimeHandle {
             .progress_accounting_permit()
             .await
             .map_err(|err| err.to_string())?;
-        let Some(snapshot) = accounting.progress_snapshot(turn_id) else {
+        let Some(snapshot) = accounting.progress_snapshot(interaction_id) else {
             return Ok(None);
         };
         let previous_status = self
@@ -451,7 +451,7 @@ impl GoalRuntimeHandle {
             .state_dbs
             .thread_goals()
             .account_thread_goal_usage(
-                self.thread_id(),
+                self.chat_id(),
                 snapshot.time_delta_seconds,
                 snapshot.token_delta,
                 mode,
@@ -467,14 +467,14 @@ impl GoalRuntimeHandle {
                     .record_terminal_if_status_changed(previous_status, &goal);
                 self.inner
                     .analytics
-                    .usage_accounted(&goal, GoalEventAttribution::Turn(turn_id));
+                    .usage_accounted(&goal, GoalEventAttribution::Turn(interaction_id));
                 self.inner.analytics.status_changed(
                     &goal,
                     previous_status,
-                    GoalEventAttribution::Turn(turn_id),
+                    GoalEventAttribution::Turn(interaction_id),
                 );
                 accounting.mark_progress_accounted_for_status(
-                    turn_id,
+                    interaction_id,
                     &snapshot,
                     goal.status,
                     budget_limited_goal_disposition,
@@ -482,7 +482,7 @@ impl GoalRuntimeHandle {
                 let goal = protocol_goal_from_state(goal);
                 self.inner.event_emitter.thread_goal_updated(
                     event_id.to_string(),
-                    Some(turn_id.to_string()),
+                    Some(interaction_id.to_string()),
                     goal.clone(),
                 );
                 Some(AccountedGoalProgress { goal, goal_id })
@@ -513,7 +513,7 @@ impl GoalRuntimeHandle {
             .state_dbs
             .thread_goals()
             .account_thread_goal_usage(
-                self.thread_id(),
+                self.chat_id(),
                 snapshot.time_delta_seconds,
                 /*token_delta*/ 0,
                 mode,
@@ -543,7 +543,7 @@ impl GoalRuntimeHandle {
                 let goal = protocol_goal_from_state(goal);
                 self.inner.event_emitter.thread_goal_updated(
                     event_id.to_string(),
-                    /*turn_id*/ None,
+                    /*interaction_id*/ None,
                     goal.clone(),
                 );
                 Some(AccountedGoalProgress { goal, goal_id })
@@ -563,7 +563,7 @@ impl GoalRuntimeHandle {
             .inner
             .state_dbs
             .thread_goals()
-            .get_thread_goal(self.thread_id())
+            .get_thread_goal(self.chat_id())
             .await
             .map_err(|err| err.to_string())?;
         Ok(goal.and_then(|goal| {

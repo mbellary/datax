@@ -133,7 +133,7 @@ macro_rules! serialization_scope_expr {
             chat_id: $actual_params.$field.clone(),
         })
     };
-    ($actual_params:ident, optional_thread_id($params:ident . $field:ident)) => {
+    ($actual_params:ident, optional_chat_id($params:ident . $field:ident)) => {
         $actual_params
             .$field
             .clone()
@@ -964,7 +964,7 @@ client_request_definitions! {
 
     McpResourceRead => "mcpServer/resource/read" {
         params: v2::McpResourceReadParams,
-        serialization: optional_thread_id(params.chat_id),
+        serialization: optional_chat_id(params.chat_id),
         response: v2::McpResourceReadResponse,
     },
 
@@ -1704,7 +1704,7 @@ client_notification_definitions! {
 mod tests {
     use super::*;
     use anyhow::Result;
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use datax_protocol::account::AmazonBedrockCredentialSource;
     use datax_protocol::account::PlanType;
     use datax_protocol::config_types::MultiAgentMode;
@@ -2164,8 +2164,8 @@ mod tests {
     fn serialize_get_conversation_summary() -> Result<()> {
         let request = ClientRequest::GetConversationSummary {
             request_id: RequestId::Integer(42),
-            params: v1::GetConversationSummaryParams::ThreadId {
-                conversation_id: ThreadId::from_string("67e55044-10b1-426f-9247-bb680e5fe0c8")?,
+            params: v1::GetConversationSummaryParams::ChatId {
+                conversation_id: ChatId::from_string("67e55044-10b1-426f-9247-bb680e5fe0c8")?,
             },
         };
         assert_eq!(
@@ -2279,7 +2279,7 @@ mod tests {
 
     #[test]
     fn conversation_id_serializes_as_plain_string() -> Result<()> {
-        let id = ThreadId::from_string("67e55044-10b1-426f-9247-bb680e5fe0c8")?;
+        let id = ChatId::from_string("67e55044-10b1-426f-9247-bb680e5fe0c8")?;
 
         assert_eq!(
             json!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
@@ -2290,10 +2290,10 @@ mod tests {
 
     #[test]
     fn conversation_id_deserializes_from_plain_string() -> Result<()> {
-        let id: ThreadId = serde_json::from_value(json!("67e55044-10b1-426f-9247-bb680e5fe0c8"))?;
+        let id: ChatId = serde_json::from_value(json!("67e55044-10b1-426f-9247-bb680e5fe0c8"))?;
 
         assert_eq!(
-            ThreadId::from_string("67e55044-10b1-426f-9247-bb680e5fe0c8")?,
+            ChatId::from_string("67e55044-10b1-426f-9247-bb680e5fe0c8")?,
             id,
         );
         Ok(())
@@ -2314,7 +2314,7 @@ mod tests {
 
     #[test]
     fn serialize_server_request() -> Result<()> {
-        let conversation_id = ThreadId::from_string("67e55044-10b1-426f-9247-bb680e5fe0c8")?;
+        let conversation_id = ChatId::from_string("67e55044-10b1-426f-9247-bb680e5fe0c8")?;
         let params = v1::ExecCommandApprovalParams {
             conversation_id,
             call_id: "call-42".to_string(),
@@ -3087,7 +3087,7 @@ mod tests {
     }
 
     #[test]
-    fn serialize_list_experimental_features_with_thread_id() -> Result<()> {
+    fn serialize_list_experimental_features_with_chat_id() -> Result<()> {
         let request = ClientRequest::ExperimentalFeatureList {
             request_id: RequestId::Integer(8),
             params: v2::ExperimentalFeatureListParams {

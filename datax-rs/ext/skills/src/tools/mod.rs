@@ -59,14 +59,14 @@ struct SkillToolContext {
 }
 
 impl SkillToolContext {
-    async fn catalog(&self, turn_id: &str, authority: SkillToolAuthority) -> SkillCatalog {
+    async fn catalog(&self, interaction_id: &str, authority: SkillToolAuthority) -> SkillCatalog {
         match authority {
             SkillToolAuthority::Orchestrator => {
                 self.thread_state
                     .orchestrator_catalog_snapshot(
                         self.mcp_resources.as_deref(),
                         self.providers.list_orchestrator_for_turn(SkillListQuery {
-                            turn_id: turn_id.to_string(),
+                            interaction_id: interaction_id.to_string(),
                             executor_roots: Vec::new(),
                             host_snapshot: None,
                             include_host_skills: false,

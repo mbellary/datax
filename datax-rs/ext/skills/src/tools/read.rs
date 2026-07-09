@@ -62,7 +62,7 @@ impl ToolExecutor<ToolCall> for ReadTool {
             validate_handle("package", &args.package, MAX_HANDLE_BYTES)?;
             validate_handle("resource", &args.resource, MAX_HANDLE_BYTES)?;
 
-            let catalog = self.context.catalog(&call.turn_id, args.authority).await;
+            let catalog = self.context.catalog(&call.interaction_id, args.authority).await;
             let package_is_available = catalog.entries.iter().any(|entry| {
                 entry.enabled && entry.authority == authority && entry.id.0 == args.package
             });
@@ -90,7 +90,7 @@ impl ToolExecutor<ToolCall> for ReadTool {
                 .map_err(|err| {
                     tracing::warn!(
                         error = %err,
-                        turn_id = %call.turn_id,
+                        interaction_id = %call.interaction_id,
                         call_id = %call.call_id,
                         resource = requested_resource.as_str(),
                         "skills.read provider request failed"

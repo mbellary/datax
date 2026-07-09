@@ -695,7 +695,7 @@ async fn handle_any_tool(
     {
         state_db::mark_thread_memory_mode_polluted(
             invocation.session.services.state_db.as_deref(),
-            invocation.session.thread_id,
+            invocation.session.chat_id,
             "tool_output",
         )
         .await;

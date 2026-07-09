@@ -49,9 +49,9 @@ use crate::exec_events::ThreadItemDetails;
 use crate::exec_events::ThreadStartedEvent;
 use crate::exec_events::TodoItem;
 use crate::exec_events::TodoListItem;
-use crate::exec_events::TurnCompletedEvent;
+use crate::exec_events::InteractionCompletedEvent;
 use crate::exec_events::TurnFailedEvent;
-use crate::exec_events::TurnStartedEvent;
+use crate::exec_events::InteractionStartedEvent;
 use crate::exec_events::Usage;
 use crate::exec_events::WebSearchItem;
 
@@ -232,8 +232,8 @@ impl EventProcessorWithJsonOutput {
             }),
             Message::CollabAgentToolCall {
                 tool,
-                sender_thread_id,
-                receiver_thread_ids,
+                sender_chat_id,
+                receiver_chat_ids,
                 prompt,
                 agents_states,
                 status,
@@ -248,14 +248,14 @@ impl EventProcessorWithJsonOutput {
                         CollabAgentTool::Wait => CollabTool::Wait,
                         CollabAgentTool::CloseAgent => CollabTool::CloseAgent,
                     },
-                    sender_thread_id,
-                    receiver_thread_ids,
+                    sender_chat_id,
+                    receiver_chat_ids,
                     prompt,
                     agents_states: agents_states
                         .into_iter()
-                        .map(|(thread_id, state)| {
+                        .map(|(chat_id, state)| {
                             (
-                                thread_id,
+                                chat_id,
                                 CollabAgentState {
                                     status: match state.status {
                                         datax_app_server_protocol::CollabAgentStatus::PendingInit => {
@@ -389,7 +389,7 @@ impl EventProcessorWithJsonOutput {
 
     pub fn thread_started_event(session_configured: &SessionConfiguredEvent) -> ThreadEvent {
         ThreadEvent::ThreadStarted(ThreadStartedEvent {
-            thread_id: session_configured.thread_id.to_string(),
+            chat_id: session_configured.chat_id.to_string(),
         })
     }
 
@@ -517,7 +517,7 @@ impl EventProcessorWithJsonOutput {
                             self.final_message = Some(final_message);
                         }
                         self.emit_final_message_on_shutdown = true;
-                        events.push(ThreadEvent::TurnCompleted(TurnCompletedEvent {
+                        events.push(ThreadEvent::InteractionCompleted(InteractionCompletedEvent {
                             usage: self.usage_from_last_total(),
                         }));
                         CodexStatus::InitiateShutdown
@@ -579,7 +579,7 @@ impl EventProcessorWithJsonOutput {
                 CodexStatus::Running
             }
             ServerNotification::InteractionStarted(_) => {
-                events.push(ThreadEvent::TurnStarted(TurnStartedEvent {}));
+                events.push(ThreadEvent::InteractionStarted(InteractionStartedEvent {}));
                 CodexStatus::Running
             }
             _ => CodexStatus::Running,

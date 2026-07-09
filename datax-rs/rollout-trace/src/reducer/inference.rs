@@ -21,8 +21,8 @@ use crate::raw_event::RawTraceEventPayload;
 /// adjacent strings whose ordering is easy to mix up.
 pub(super) struct StartedInferenceCall {
     pub(super) inference_call_id: InferenceCallId,
-    pub(super) thread_id: String,
-    pub(super) codex_turn_id: String,
+    pub(super) chat_id: String,
+    pub(super) codex_interaction_id: String,
     pub(super) model: String,
     pub(super) provider_name: String,
     pub(super) request_payload: RawPayloadRef,
@@ -51,38 +51,38 @@ impl TraceReducer {
         }
 
         let inference_call_id = started.inference_call_id.clone();
-        let thread_id = started.thread_id.clone();
-        let codex_turn_id = started.codex_turn_id.clone();
+        let chat_id = started.chat_id.clone();
+        let codex_interaction_id = started.codex_interaction_id.clone();
         let request_payload = started.request_payload.clone();
-        let Some(turn) = self.rollout.codex_turns.get(&codex_turn_id) else {
+        let Some(turn) = self.rollout.codex_turns.get(&codex_interaction_id) else {
             bail!(
-                "inference start {inference_call_id} referenced unknown codex turn {codex_turn_id}"
+                "inference start {inference_call_id} referenced unknown codex turn {codex_interaction_id}"
             );
         };
-        if turn.thread_id != thread_id {
+        if turn.chat_id != chat_id {
             bail!(
-                "inference start {inference_call_id} used thread {thread_id}, \
-                 but codex turn {codex_turn_id} belongs to {}",
-                turn.thread_id
+                "inference start {inference_call_id} used thread {chat_id}, \
+                 but codex turn {codex_interaction_id} belongs to {}",
+                turn.chat_id
             );
         }
 
         let request_item_ids = self.reduce_inference_request(
             wall_time_unix_ms,
             &inference_call_id,
-            &thread_id,
-            &codex_turn_id,
+            &chat_id,
+            &codex_interaction_id,
             &request_payload,
         )?;
 
-        self.thread_mut(&thread_id)?;
+        self.thread_mut(&chat_id)?;
 
         self.rollout.inference_calls.insert(
             inference_call_id.clone(),
             InferenceCall {
                 inference_call_id,
-                thread_id,
-                codex_turn_id,
+                chat_id,
+                codex_interaction_id,
                 execution: ExecutionWindow {
                     started_at_unix_ms: wall_time_unix_ms,
                     started_seq: seq,
@@ -114,7 +114,7 @@ impl TraceReducer {
         &mut self,
         seq: RawEventSeq,
         wall_time_unix_ms: i64,
-        codex_turn_id: &str,
+        codex_interaction_id: &str,
         turn_status: &ExecutionStatus,
     ) {
         let inference_status = match turn_status {
@@ -124,7 +124,7 @@ impl TraceReducer {
             ExecutionStatus::Aborted => ExecutionStatus::Aborted,
         };
         for inference in self.rollout.inference_calls.values_mut() {
-            if inference.codex_turn_id == codex_turn_id
+            if inference.codex_interaction_id == codex_interaction_id
                 && inference.execution.status == ExecutionStatus::Running
             {
                 inference.execution.ended_at_unix_ms = Some(wall_time_unix_ms);

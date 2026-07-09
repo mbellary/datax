@@ -10,7 +10,7 @@ use datax_core::config::ConfigBuilder;
 use datax_core::find_archived_thread_path_by_id_str;
 use datax_core::find_thread_meta_by_name_str;
 use datax_core::find_thread_path_by_id_str;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::models::BaseInstructions;
 use datax_protocol::protocol::SessionSource;
 use datax_rollout::StateDbHandle;
@@ -63,7 +63,7 @@ fn write_minimal_rollout_with_id(codex_home: &Path, id: Uuid) -> PathBuf {
 
 async fn upsert_thread_metadata(
     codex_home: &Path,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     rollout_path: PathBuf,
 ) -> StateDbHandle {
     let runtime = StateRuntime::init(codex_home.to_path_buf(), "test-provider".to_string())
@@ -74,7 +74,7 @@ async fn upsert_thread_metadata(
         .await
         .unwrap();
     let mut builder = ThreadMetadataBuilder::new(
-        thread_id,
+        chat_id,
         rollout_path,
         Utc::now(),
         SessionSource::default(),
@@ -120,14 +120,14 @@ async fn find_handles_gitignore_covering_codex_home_directory() {
 async fn find_prefers_sqlite_path_by_id() {
     let home = TempDir::new().unwrap();
     let id = Uuid::new_v4();
-    let thread_id = ThreadId::from_string(&id.to_string()).unwrap();
+    let chat_id = ChatId::from_string(&id.to_string()).unwrap();
     let db_path = home.path().join(format!(
         "sessions/2030/12/30/rollout-2030-12-30T00-00-00-{id}.jsonl"
     ));
     std::fs::create_dir_all(db_path.parent().unwrap()).unwrap();
     write_minimal_rollout_with_id_at_path(&db_path, id);
     write_minimal_rollout_with_id(home.path(), id);
-    let state_db = upsert_thread_metadata(home.path(), thread_id, db_path.clone()).await;
+    let state_db = upsert_thread_metadata(home.path(), chat_id, db_path.clone()).await;
 
     let found = find_thread_path_by_id_str(home.path(), &id.to_string(), Some(&state_db))
         .await
@@ -142,11 +142,11 @@ async fn find_falls_back_to_filesystem_when_sqlite_has_no_match() {
     let id = Uuid::new_v4();
     let expected = write_minimal_rollout_with_id(home.path(), id);
     let unrelated_id = Uuid::new_v4();
-    let unrelated_thread_id = ThreadId::from_string(&unrelated_id.to_string()).unwrap();
+    let unrelated_chat_id = ChatId::from_string(&unrelated_id.to_string()).unwrap();
     let unrelated_path = home
         .path()
         .join("sessions/2030/12/30/rollout-2030-12-30T00-00-00-unrelated.jsonl");
-    let state_db = upsert_thread_metadata(home.path(), unrelated_thread_id, unrelated_path).await;
+    let state_db = upsert_thread_metadata(home.path(), unrelated_chat_id, unrelated_path).await;
 
     let found = find_thread_path_by_id_str(home.path(), &id.to_string(), Some(&state_db))
         .await
@@ -178,14 +178,14 @@ async fn find_locates_rollout_file_written_by_recorder() -> std::io::Result<()> 
         .codex_home(home.path().to_path_buf())
         .build()
         .await?;
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let thread_name = "named thread";
     let recorder = RolloutRecorder::new(
         &config,
         RolloutRecorderParams::new(
-            thread_id,
+            chat_id,
             /*forked_from_id*/ None,
-            /*parent_thread_id*/ None,
+            /*parent_chat_id*/ None,
             SessionSource::Exec,
             /*thread_source*/ None,
             BaseInstructions::default(),
@@ -202,7 +202,7 @@ async fn find_locates_rollout_file_written_by_recorder() -> std::io::Result<()> 
         format!(
             "{}\n",
             serde_json::json!({
-                "id": thread_id,
+                "id": chat_id,
                 "thread_name": thread_name,
                 "updated_at": "2024-01-01T00:00:00Z"
             })
@@ -213,10 +213,10 @@ async fn find_locates_rollout_file_written_by_recorder() -> std::io::Result<()> 
         find_thread_meta_by_name_str(home.path(), thread_name, /*state_db_ctx*/ None).await?;
 
     let (path, session_meta) = found.expect("expected rollout path to be found");
-    assert_eq!(session_meta.meta.id, thread_id);
+    assert_eq!(session_meta.meta.id, chat_id);
     assert!(path.exists());
     let contents = std::fs::read_to_string(&path)?;
-    assert!(contents.contains(&thread_id.to_string()));
+    assert!(contents.contains(&chat_id.to_string()));
     recorder.shutdown().await?;
     Ok(())
 }

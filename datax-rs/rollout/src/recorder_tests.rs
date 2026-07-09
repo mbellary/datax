@@ -4,7 +4,7 @@ use super::*;
 use crate::config::RolloutConfig;
 use chrono::TimeZone;
 use datax_protocol::SessionId;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::AgentMessageEvent;
 use datax_protocol::protocol::AskForApproval;
@@ -74,7 +74,7 @@ fn write_session_file(root: &Path, ts: &str, uuid: Uuid) -> std::io::Result<Path
 async fn state_db_init_backfills_before_returning() -> anyhow::Result<()> {
     let home = TempDir::new().expect("temp dir");
     let uuid = Uuid::new_v4();
-    let thread_id = ThreadId::from_string(&uuid.to_string())?;
+    let chat_id = ChatId::from_string(&uuid.to_string())?;
     let rollout_path = home.path().join(format!(
         "sessions/2026/01/27/rollout-2026-01-27T12-34-56-{uuid}.jsonl"
     ));
@@ -85,10 +85,10 @@ async fn state_db_init_backfills_before_returning() -> anyhow::Result<()> {
 
     let session_meta_line = SessionMetaLine {
         meta: SessionMeta {
-            session_id: thread_id.into(),
-            id: thread_id,
+            session_id: chat_id.into(),
+            id: chat_id,
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             timestamp: "2026-01-27T12:34:56Z".to_string(),
             cwd: home.path().to_path_buf(),
             originator: "test".to_string(),
@@ -135,7 +135,7 @@ async fn state_db_init_backfills_before_returning() -> anyhow::Result<()> {
         .expect("state db should initialize");
 
     let metadata = runtime
-        .get_thread(thread_id)
+        .get_thread(chat_id)
         .await?
         .expect("thread should be backfilled before init returns");
     assert_eq!(metadata.rollout_path, rollout_path);
@@ -152,7 +152,7 @@ async fn load_rollout_items_defaults_legacy_session_id() -> std::io::Result<()> 
     let home = TempDir::new().expect("temp dir");
     let rollout_path = home.path().join("rollout.jsonl");
     let mut file = File::create(&rollout_path)?;
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let ts = "2025-01-03T12:00:00Z";
 
     writeln!(
@@ -162,7 +162,7 @@ async fn load_rollout_items_defaults_legacy_session_id() -> std::io::Result<()> 
             "timestamp": ts,
             "type": "session_meta",
             "payload": {
-                "id": thread_id,
+                "id": chat_id,
                 "timestamp": ts,
                 "cwd": ".",
                 "originator": "test_originator",
@@ -207,16 +207,16 @@ async fn load_rollout_items_defaults_legacy_session_id() -> std::io::Result<()> 
         })
     )?;
 
-    let (items, loaded_thread_id, parse_errors) =
+    let (items, loaded_chat_id, parse_errors) =
         RolloutRecorder::load_rollout_items(&rollout_path).await?;
 
-    assert_eq!(loaded_thread_id, Some(thread_id));
+    assert_eq!(loaded_chat_id, Some(chat_id));
     assert_eq!(parse_errors, 0);
     assert_eq!(items.len(), 2);
     let RolloutItem::SessionMeta(session_meta) = &items[0] else {
         panic!("expected session metadata");
     };
-    assert_eq!(session_meta.meta.session_id, SessionId::from(thread_id));
+    assert_eq!(session_meta.meta.session_id, SessionId::from(chat_id));
     assert!(matches!(
         items[1],
         RolloutItem::ResponseItem(ResponseItem::Message { .. })
@@ -230,7 +230,7 @@ async fn load_rollout_items_preserves_legacy_guardian_assessment_lines() -> std:
     let home = TempDir::new().expect("temp dir");
     let rollout_path = home.path().join("rollout.jsonl");
     let mut file = File::create(&rollout_path)?;
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let ts = "2025-01-03T12:00:00Z";
 
     writeln!(
@@ -240,8 +240,8 @@ async fn load_rollout_items_preserves_legacy_guardian_assessment_lines() -> std:
             "timestamp": ts,
             "type": "session_meta",
             "payload": {
-                "session_id": thread_id,
-                "id": thread_id,
+                "session_id": chat_id,
+                "id": chat_id,
                 "timestamp": ts,
                 "cwd": ".",
                 "originator": "test_originator",
@@ -260,7 +260,7 @@ async fn load_rollout_items_preserves_legacy_guardian_assessment_lines() -> std:
             "payload": {
                 "type": "guardian_assessment",
                 "id": "guardian-1",
-                "turn_id": "turn-1",
+                "interaction_id": "turn-1",
                 "status": "in_progress",
                 "action": {
                     "type": "command",
@@ -272,17 +272,17 @@ async fn load_rollout_items_preserves_legacy_guardian_assessment_lines() -> std:
         })
     )?;
 
-    let (items, loaded_thread_id, parse_errors) =
+    let (items, loaded_chat_id, parse_errors) =
         RolloutRecorder::load_rollout_items(&rollout_path).await?;
 
-    assert_eq!(loaded_thread_id, Some(thread_id));
+    assert_eq!(loaded_chat_id, Some(chat_id));
     assert_eq!(parse_errors, 0);
     assert_eq!(items.len(), 2);
     let RolloutItem::EventMsg(EventMsg::GuardianAssessment(assessment)) = &items[1] else {
         panic!("expected guardian assessment rollout item");
     };
     assert_eq!(assessment.id, "guardian-1");
-    assert_eq!(assessment.turn_id, "turn-1");
+    assert_eq!(assessment.interaction_id, "turn-1");
     assert_eq!(assessment.started_at_ms, 0);
 
     Ok(())
@@ -294,7 +294,7 @@ async fn load_rollout_items_filters_legacy_ghost_snapshots_from_compaction_histo
     let home = TempDir::new().expect("temp dir");
     let rollout_path = home.path().join("rollout.jsonl");
     let mut file = File::create(&rollout_path)?;
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let ts = "2025-01-03T12:00:00Z";
 
     writeln!(
@@ -304,8 +304,8 @@ async fn load_rollout_items_filters_legacy_ghost_snapshots_from_compaction_histo
             "timestamp": ts,
             "type": "session_meta",
             "payload": {
-                "session_id": thread_id,
-                "id": thread_id,
+                "session_id": chat_id,
+                "id": chat_id,
                 "timestamp": ts,
                 "cwd": ".",
                 "originator": "test_originator",
@@ -347,10 +347,10 @@ async fn load_rollout_items_filters_legacy_ghost_snapshots_from_compaction_histo
         })
     )?;
 
-    let (items, loaded_thread_id, parse_errors) =
+    let (items, loaded_chat_id, parse_errors) =
         RolloutRecorder::load_rollout_items(&rollout_path).await?;
 
-    assert_eq!(loaded_thread_id, Some(thread_id));
+    assert_eq!(loaded_chat_id, Some(chat_id));
     assert_eq!(parse_errors, 0);
     assert_eq!(items.len(), 2);
     let RolloutItem::Compacted(compacted) = &items[1] else {
@@ -374,13 +374,13 @@ async fn recorder_materializes_on_flush_with_pending_items() -> std::io::Result<
     let home = TempDir::new().expect("temp dir");
     let config = test_config(home.path());
     let session_id = SessionId::default();
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let recorder = RolloutRecorder::new(
         &config,
         RolloutRecorderParams::new(
-            thread_id,
+            chat_id,
             /*forked_from_id*/ None,
-            /*parent_thread_id*/ None,
+            /*parent_chat_id*/ None,
             SessionSource::Exec,
             /*thread_source*/ None,
             BaseInstructions::default(),
@@ -458,13 +458,13 @@ async fn recorder_materializes_on_flush_with_pending_items() -> std::io::Result<
 async fn persist_reports_filesystem_error_and_retries_buffered_items() -> std::io::Result<()> {
     let home = TempDir::new().expect("temp dir");
     let config = test_config(home.path());
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let recorder = RolloutRecorder::new(
         &config,
         RolloutRecorderParams::new(
-            thread_id,
+            chat_id,
             /*forked_from_id*/ None,
-            /*parent_thread_id*/ None,
+            /*parent_chat_id*/ None,
             SessionSource::Exec,
             /*thread_source*/ None,
             BaseInstructions::default(),
@@ -591,7 +591,7 @@ async fn list_threads_db_enabled_drops_missing_rollout_paths() -> std::io::Resul
     let config = test_config(home.path());
 
     let uuid = Uuid::from_u128(9010);
-    let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+    let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
     let stale_path = home.path().join(format!(
         "sessions/2099/01/01/rollout-2099-01-01T00-00-00-{uuid}.jsonl"
     ));
@@ -611,7 +611,7 @@ async fn list_threads_db_enabled_drops_missing_rollout_paths() -> std::io::Resul
         .single()
         .expect("valid datetime");
     let mut builder = datax_state::ThreadMetadataBuilder::new(
-        thread_id,
+        chat_id,
         stale_path,
         created_at,
         SessionSource::Cli,
@@ -643,7 +643,7 @@ async fn list_threads_db_enabled_drops_missing_rollout_paths() -> std::io::Resul
     .await?;
     assert_eq!(page.items.len(), 0);
     let stored_path = runtime
-        .find_rollout_path_by_id(thread_id, Some(false))
+        .find_rollout_path_by_id(chat_id, Some(false))
         .await
         .expect("state db lookup should succeed");
     assert_eq!(stored_path, None);
@@ -656,7 +656,7 @@ async fn list_threads_db_enabled_repairs_stale_rollout_paths() -> std::io::Resul
     let config = test_config(home.path());
 
     let uuid = Uuid::from_u128(9011);
-    let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+    let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
     let real_path = write_session_file(home.path(), "2025-01-03T13-00-00", uuid)?;
     let stale_path = home.path().join(format!(
         "sessions/2099/01/01/rollout-2099-01-01T00-00-00-{uuid}.jsonl"
@@ -677,7 +677,7 @@ async fn list_threads_db_enabled_repairs_stale_rollout_paths() -> std::io::Resul
         .single()
         .expect("valid datetime");
     let mut builder = datax_state::ThreadMetadataBuilder::new(
-        thread_id,
+        chat_id,
         stale_path,
         created_at,
         SessionSource::Cli,
@@ -711,7 +711,7 @@ async fn list_threads_db_enabled_repairs_stale_rollout_paths() -> std::io::Resul
     assert_eq!(page.items[0].path, real_path);
 
     let repaired_path = runtime
-        .find_rollout_path_by_id(thread_id, Some(false))
+        .find_rollout_path_by_id(chat_id, Some(false))
         .await
         .expect("state db lookup should succeed");
     assert_eq!(repaired_path, Some(real_path));
@@ -823,7 +823,7 @@ async fn list_threads_default_filter_returns_filesystem_scan_results() -> std::i
     let config = test_config(home.path());
 
     let uuid = Uuid::from_u128(9013);
-    let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+    let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
     let real_path = write_session_file(home.path(), "2025-01-03T13-00-00", uuid)?;
     let stale_cwd = home.path().join("stale-cwd");
 
@@ -842,7 +842,7 @@ async fn list_threads_default_filter_returns_filesystem_scan_results() -> std::i
         .single()
         .expect("valid datetime");
     let mut builder = datax_state::ThreadMetadataBuilder::new(
-        thread_id,
+        chat_id,
         real_path,
         created_at,
         SessionSource::Cli,
@@ -914,7 +914,7 @@ async fn list_threads_metadata_filter_overlays_state_db_list_metadata() -> std::
     let config = test_config(home.path());
 
     let uuid = Uuid::from_u128(9015);
-    let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+    let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
     let rollout_path = write_session_file(home.path(), "2025-01-03T16-00-00", uuid)?;
 
     let runtime = datax_state::StateRuntime::init(
@@ -932,7 +932,7 @@ async fn list_threads_metadata_filter_overlays_state_db_list_metadata() -> std::
         .single()
         .expect("valid datetime");
     let mut builder = datax_state::ThreadMetadataBuilder::new(
-        thread_id,
+        chat_id,
         rollout_path,
         created_at,
         SessionSource::Cli,
@@ -977,13 +977,13 @@ async fn list_threads_metadata_filter_overlays_state_db_list_metadata() -> std::
 
 #[test]
 fn fill_missing_thread_item_metadata_preserves_identity_and_prefers_state_git_fields() {
-    let filesystem_thread_id = ThreadId::new();
-    let state_thread_id = ThreadId::new();
+    let filesystem_chat_id = ChatId::new();
+    let state_chat_id = ChatId::new();
     let filesystem_path = PathBuf::from("/tmp/filesystem-rollout.jsonl");
     let state_path = PathBuf::from("/tmp/state-rollout.jsonl");
     let mut item = ThreadItem {
         path: filesystem_path.clone(),
-        thread_id: Some(filesystem_thread_id),
+        chat_id: Some(filesystem_chat_id),
         first_user_message: Some("filesystem message".to_string()),
         preview: Some("filesystem preview".to_string()),
         cwd: None,
@@ -991,7 +991,7 @@ fn fill_missing_thread_item_metadata_preserves_identity_and_prefers_state_git_fi
         git_sha: Some("filesystem-sha".to_string()),
         git_origin_url: Some("https://example.com/filesystem.git".to_string()),
         source: None,
-        parent_thread_id: None,
+        parent_chat_id: None,
         agent_nickname: None,
         agent_role: None,
         model_provider: None,
@@ -1002,7 +1002,7 @@ fn fill_missing_thread_item_metadata_preserves_identity_and_prefers_state_git_fi
     };
     let state_item = ThreadItem {
         path: state_path,
-        thread_id: Some(state_thread_id),
+        chat_id: Some(state_chat_id),
         first_user_message: Some("state message".to_string()),
         preview: Some("state preview".to_string()),
         cwd: Some(PathBuf::from("/tmp/state-cwd")),
@@ -1010,7 +1010,7 @@ fn fill_missing_thread_item_metadata_preserves_identity_and_prefers_state_git_fi
         git_sha: Some("state-sha".to_string()),
         git_origin_url: Some("https://example.com/state.git".to_string()),
         source: Some(SessionSource::Exec),
-        parent_thread_id: None,
+        parent_chat_id: None,
         agent_nickname: Some("state-agent".to_string()),
         agent_role: Some("state-role".to_string()),
         model_provider: Some("state-provider".to_string()),
@@ -1023,7 +1023,7 @@ fn fill_missing_thread_item_metadata_preserves_identity_and_prefers_state_git_fi
     fill_missing_thread_item_metadata(&mut item, state_item);
 
     assert_eq!(item.path, filesystem_path);
-    assert_eq!(item.thread_id, Some(filesystem_thread_id));
+    assert_eq!(item.chat_id, Some(filesystem_chat_id));
     assert_eq!(
         item.first_user_message.as_deref(),
         Some("filesystem message")
@@ -1052,7 +1052,7 @@ async fn list_threads_search_repairs_stale_state_db_hits_before_returning() -> s
     let config = test_config(home.path());
 
     let uuid = Uuid::from_u128(9014);
-    let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+    let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
     let real_path = write_session_file(home.path(), "2025-01-03T15-00-00", uuid)?;
 
     let runtime = datax_state::StateRuntime::init(
@@ -1070,7 +1070,7 @@ async fn list_threads_search_repairs_stale_state_db_hits_before_returning() -> s
         .single()
         .expect("valid datetime");
     let mut builder = datax_state::ThreadMetadataBuilder::new(
-        thread_id,
+        chat_id,
         real_path,
         created_at,
         SessionSource::Cli,
@@ -1149,7 +1149,7 @@ async fn resume_candidate_matches_cwd_reads_latest_turn_context() -> std::io::Re
     let turn_context = RolloutLine {
         timestamp: "2025-01-03T13:00:01Z".to_string(),
         item: RolloutItem::TurnContext(TurnContextItem {
-            turn_id: Some("turn-1".to_string()),
+            interaction_id: Some("turn-1".to_string()),
             cwd: serde_json::from_value(serde_json::json!(&latest_cwd))
                 .expect("absolute latest cwd"),
             workspace_roots: None,

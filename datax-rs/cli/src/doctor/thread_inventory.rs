@@ -28,7 +28,7 @@ struct RolloutAuditFile {
     path: PathBuf,
     key: PathBuf,
     archived: bool,
-    thread_id: String,
+    chat_id: String,
 }
 
 #[derive(Default)]
@@ -39,7 +39,7 @@ struct RolloutScan {
     reached_scan_cap: bool,
 }
 
-enum RolloutThreadId {
+enum RolloutChatId {
     Id(String),
     MalformedName,
     Unusable(String),
@@ -256,7 +256,7 @@ fn parity_check_from_scan_and_rows(
     } else {
         Vec::new()
     };
-    let duplicate_rollout_thread_ids = duplicate_rollout_thread_ids(&scan.files);
+    let duplicate_rollout_chat_ids = duplicate_rollout_chat_ids(&scan.files);
     let duplicate_db_paths = duplicate_db_paths(&rows_by_key);
     let archived_rows = rows.iter().filter(|row| row.archived).count();
     let active_rows = rows.len() - archived_rows;
@@ -280,7 +280,7 @@ fn parity_check_from_scan_and_rows(
         ),
         format!(
             "rollout DB duplicate rollout thread ids: {}",
-            duplicate_rollout_thread_ids.len()
+            duplicate_rollout_chat_ids.len()
         ),
         format!(
             "rollout DB duplicate DB paths: {}",
@@ -320,7 +320,7 @@ fn parity_check_from_scan_and_rows(
     push_samples(
         &mut details,
         "rollout DB duplicate rollout thread id sample",
-        duplicate_rollout_thread_ids.iter().map(String::as_str),
+        duplicate_rollout_chat_ids.iter().map(String::as_str),
     );
     push_path_samples(
         &mut details,
@@ -335,7 +335,7 @@ fn parity_check_from_scan_and_rows(
         && missing_archived.is_empty()
         && stale_rows.is_empty()
         && archive_mismatches.is_empty()
-        && duplicate_rollout_thread_ids.is_empty()
+        && duplicate_rollout_chat_ids.is_empty()
         && duplicate_db_paths.is_empty()
     {
         CheckStatus::Ok
@@ -386,7 +386,7 @@ fn parity_check_from_scan_and_rows(
             ),
         );
     }
-    if !duplicate_rollout_thread_ids.is_empty() || !duplicate_db_paths.is_empty() {
+    if !duplicate_rollout_chat_ids.is_empty() || !duplicate_db_paths.is_empty() {
         check = check.issue(
             DoctorIssue::new(
                 CheckStatus::Warning,
@@ -394,7 +394,7 @@ fn parity_check_from_scan_and_rows(
             )
             .measured(format!(
                 "{} duplicate rollout thread ids, {} duplicate DB paths",
-                duplicate_rollout_thread_ids.len(),
+                duplicate_rollout_chat_ids.len(),
                 duplicate_db_paths.len()
             ))
             .expected("one rollout path and thread id per thread")
@@ -481,13 +481,13 @@ async fn scan_rollout_root(root: &Path, archived: bool, scan: &mut RolloutScan) 
                 scan.reached_scan_cap = true;
                 return;
             }
-            let thread_id = match thread_id_from_rollout(&path).await {
-                RolloutThreadId::Id(thread_id) => thread_id,
-                RolloutThreadId::MalformedName => {
+            let chat_id = match chat_id_from_rollout(&path).await {
+                RolloutChatId::Id(chat_id) => chat_id,
+                RolloutChatId::MalformedName => {
                     scan.record_malformed_name(path.clone());
                     continue;
                 }
-                RolloutThreadId::Unusable(reason) => {
+                RolloutChatId::Unusable(reason) => {
                     scan.record_scan_error(format!("{} ({reason})", path.display()));
                     continue;
                 }
@@ -496,23 +496,23 @@ async fn scan_rollout_root(root: &Path, archived: bool, scan: &mut RolloutScan) 
                 key: path_key(&path),
                 path,
                 archived,
-                thread_id,
+                chat_id,
             });
         }
     }
 }
 
-async fn thread_id_from_rollout(path: &Path) -> RolloutThreadId {
+async fn chat_id_from_rollout(path: &Path) -> RolloutChatId {
     let items = match RolloutRecorder::load_rollout_items(path).await {
         Ok((items, _, _)) => items,
-        Err(err) => return RolloutThreadId::Unusable(err.to_string()),
+        Err(err) => return RolloutChatId::Unusable(err.to_string()),
     };
     if items.is_empty() {
-        return RolloutThreadId::Unusable("no parseable rollout items".to_string());
+        return RolloutChatId::Unusable("no parseable rollout items".to_string());
     }
     datax_rollout::builder_from_items(items.as_slice(), path)
-        .map(|builder| RolloutThreadId::Id(builder.id.to_string()))
-        .unwrap_or(RolloutThreadId::MalformedName)
+        .map(|builder| RolloutChatId::Id(builder.id.to_string()))
+        .unwrap_or(RolloutChatId::MalformedName)
 }
 
 fn is_rollout_file(path: &Path) -> bool {
@@ -565,15 +565,15 @@ fn has_matching_thread_row(
     let Some(rows) = rows_by_key.get(&file.key) else {
         return false;
     };
-    rows.iter().any(|row| row.id == file.thread_id.as_str())
+    rows.iter().any(|row| row.id == file.chat_id.as_str())
 }
 
-fn duplicate_rollout_thread_ids(files: &[RolloutAuditFile]) -> Vec<String> {
+fn duplicate_rollout_chat_ids(files: &[RolloutAuditFile]) -> Vec<String> {
     let mut seen = HashSet::new();
     let mut duplicates = HashSet::new();
-    for thread_id in files.iter().map(|file| file.thread_id.as_str()) {
-        if !seen.insert(thread_id) {
-            duplicates.insert(thread_id.to_string());
+    for chat_id in files.iter().map(|file| file.chat_id.as_str()) {
+        if !seen.insert(chat_id) {
+            duplicates.insert(chat_id.to_string());
         }
     }
     let mut duplicates = duplicates.into_iter().collect::<Vec<_>>();
@@ -677,7 +677,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use datax_protocol::protocol::RolloutItem;
     use datax_protocol::protocol::RolloutLine;
     use pretty_assertions::assert_eq;
@@ -808,21 +808,21 @@ mod tests {
             }
         }
 
-        fn write_rollout(&self, archived: bool, timestamp: &str, thread_id: &str) -> PathBuf {
+        fn write_rollout(&self, archived: bool, timestamp: &str, chat_id: &str) -> PathBuf {
             let root = if archived {
                 self.codex_home.path().join("archived_sessions")
             } else {
                 self.codex_home.path().join("sessions/2025/01/02")
             };
             std::fs::create_dir_all(&root).expect("rollout dir");
-            let path = root.join(format!("rollout-{timestamp}-{thread_id}.jsonl"));
-            let parsed_thread_id = ThreadId::from_string(thread_id).expect("thread id");
+            let path = root.join(format!("rollout-{timestamp}-{chat_id}.jsonl"));
+            let parsed_chat_id = ChatId::from_string(chat_id).expect("thread id");
             let rollout_line = RolloutLine {
                 timestamp: timestamp.to_string(),
                 item: RolloutItem::SessionMeta(datax_protocol::protocol::SessionMetaLine {
                     meta: datax_protocol::protocol::SessionMeta {
-                        session_id: parsed_thread_id.into(),
-                        id: parsed_thread_id,
+                        session_id: parsed_chat_id.into(),
+                        id: parsed_chat_id,
                         timestamp: timestamp.to_string(),
                         cwd: self.codex_home.path().to_path_buf(),
                         originator: "test".to_string(),
@@ -905,7 +905,7 @@ INSERT INTO threads (
         );
         assert_eq!(
             source_category(
-                r#"{"subagent":{"thread_spawn":{"parent_thread_id":"00000000-0000-0000-0000-000000000001","depth":2}}}"#,
+                r#"{"subagent":{"thread_spawn":{"parent_chat_id":"00000000-0000-0000-0000-000000000001","depth":2}}}"#,
             ),
             "subagent:thread_spawn"
         );

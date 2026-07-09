@@ -16,8 +16,8 @@ pub struct AcceptedLineFingerprintSummary {
 
 pub(crate) struct AcceptedLineFingerprintEventInput {
     pub(crate) event_type: &'static str,
-    pub(crate) turn_id: String,
-    pub(crate) thread_id: String,
+    pub(crate) interaction_id: String,
+    pub(crate) chat_id: String,
     pub(crate) product_surface: Option<String>,
     pub(crate) model_slug: Option<String>,
     pub(crate) completed_at: u64,
@@ -96,8 +96,8 @@ pub(crate) fn accepted_line_fingerprint_event_requests(
 ) -> Vec<TrackEventRequest> {
     let AcceptedLineFingerprintEventInput {
         event_type,
-        turn_id,
-        thread_id,
+        interaction_id,
+        chat_id,
         product_surface,
         model_slug,
         completed_at,
@@ -112,8 +112,8 @@ pub(crate) fn accepted_line_fingerprint_event_requests(
             event_type: "codex_accepted_line_fingerprints",
             event_params: CodexAcceptedLineFingerprintsEventParams {
                 event_type,
-                turn_id,
-                thread_id,
+                interaction_id,
+                chat_id,
                 product_surface,
                 model_slug,
                 completed_at,

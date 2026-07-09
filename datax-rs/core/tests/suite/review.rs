@@ -35,7 +35,7 @@ use uuid::Uuid;
 use wiremock::MockServer;
 
 /// Verify that submitting `Op::Review` spawns a child task and emits
-/// EnteredReviewMode -> ExitedReviewMode(None) -> TurnComplete
+/// EnteredReviewMode -> ExitedReviewMode(None) -> InteractionComplete
 /// in that order when the model returns a structured review JSON payload.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn review_op_emits_lifecycle_and_review_output() {
@@ -83,7 +83,7 @@ async fn review_op_emits_lifecycle_and_review_output() {
         .await
         .unwrap();
 
-    // Verify lifecycle: Entered -> Exited(Some(review)) -> TurnComplete.
+    // Verify lifecycle: Entered -> Exited(Some(review)) -> InteractionComplete.
     let _entered = wait_for_event(&codex, |ev| matches!(ev, EventMsg::EnteredReviewMode(_))).await;
     let closed = wait_for_event(&codex, |ev| matches!(ev, EventMsg::ExitedReviewMode(_))).await;
     let review = match closed {
@@ -110,11 +110,11 @@ async fn review_op_emits_lifecycle_and_review_output() {
         overall_confidence_score: 0.8,
     };
     assert_eq!(expected, review);
-    let _complete = wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _complete = wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let path = codex.rollout_path().expect("rollout path");
     let text = std::fs::read_to_string(&path).expect("read rollout file");
-    let parent_thread_id = text
+    let parent_chat_id = text
         .lines()
         .filter(|line| !line.trim().is_empty())
         .find_map(|line| {
@@ -137,10 +137,10 @@ async fn review_op_emits_lifecycle_and_review_output() {
             .expect("review request turn metadata"),
     )
     .expect("review request turn metadata json");
-    assert!(turn_metadata.get("forked_from_thread_id").is_none());
+    assert!(turn_metadata.get("forked_from_chat_id").is_none());
     assert_eq!(
-        turn_metadata["parent_thread_id"].as_str(),
-        Some(parent_thread_id.as_str())
+        turn_metadata["parent_chat_id"].as_str(),
+        Some(parent_chat_id.as_str())
     );
 
     // Also verify that a user message with the header and a formatted finding
@@ -244,7 +244,7 @@ async fn review_op_with_plain_text_emits_review_fallback() {
         ..Default::default()
     };
     assert_eq!(expected, review);
-    let _complete = wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _complete = wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let _codex_home_guard = codex_home;
     server.verify().await;
@@ -288,9 +288,9 @@ async fn review_filters_agent_message_related_events() {
     let mut saw_entered = false;
     let mut saw_exited = false;
 
-    // Drain until TurnComplete; assert streaming-related events never surface.
+    // Drain until InteractionComplete; assert streaming-related events never surface.
     wait_for_event(&codex, |event| match event {
-        EventMsg::TurnComplete(_) => true,
+        EventMsg::InteractionComplete(_) => true,
         EventMsg::EnteredReviewMode(_) => {
             saw_entered = true;
             false
@@ -359,13 +359,13 @@ async fn review_does_not_emit_agent_message_on_structured_output() {
         .await
         .unwrap();
 
-    // Drain events until TurnComplete; ensure we only see a final
+    // Drain events until InteractionComplete; ensure we only see a final
     // AgentMessage (no streaming assistant messages).
     let mut saw_entered = false;
     let mut saw_exited = false;
     let mut agent_messages = 0;
     wait_for_event(&codex, |event| match event {
-        EventMsg::TurnComplete(_) => true,
+        EventMsg::InteractionComplete(_) => true,
         EventMsg::AgentMessage(_) => {
             agent_messages += 1;
             false
@@ -427,7 +427,7 @@ async fn review_uses_custom_review_model_from_config() {
         )
     })
     .await;
-    let _complete = wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _complete = wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     // Assert the request body model equals the configured review model
     let request = request_log.single_request();
@@ -476,7 +476,7 @@ async fn review_uses_session_model_when_review_model_unset() {
         )
     })
     .await;
-    let _complete = wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _complete = wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let request = request_log.single_request();
     assert_eq!(request.path(), "/v1/responses");
@@ -592,7 +592,7 @@ async fn review_input_isolated_from_parent_history() {
         )
     })
     .await;
-    let _complete = wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _complete = wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     // Assert the request `input` contains the environment context followed by the user review prompt.
     let request = request_log.single_request();
@@ -703,7 +703,7 @@ async fn review_history_surfaces_in_parent_session() {
         )
     })
     .await;
-    let _complete = wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _complete = wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     // 2) Continue in the parent session; request input must not include any review items.
     let followup = "back to parent".to_string();
@@ -720,7 +720,7 @@ async fn review_history_surfaces_in_parent_session() {
         })
         .await
         .unwrap();
-    let _complete = wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _complete = wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     // Inspect the second request (parent turn) input contents.
     // Parent turns include session initial messages (user_instructions, environment_context).
@@ -844,7 +844,7 @@ async fn review_uses_overridden_cwd_for_base_branch_merge_base() {
         .unwrap();
 
     let _entered = wait_for_event(&codex, |ev| matches!(ev, EventMsg::EnteredReviewMode(_))).await;
-    let _complete = wait_for_event(&codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _complete = wait_for_event(&codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let requests = request_log.requests();
     assert_eq!(requests.len(), 1);

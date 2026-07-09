@@ -267,12 +267,12 @@ async fn report_agent_job_result_rejects_wrong_thread() -> Result<()> {
         .list_agent_job_items(job.id.as_str(), /*status*/ None, Some(10))
         .await?;
     let item = items.first().expect("item");
-    let wrong_thread_id = "00000000-0000-0000-0000-000000000000";
+    let wrong_chat_id = "00000000-0000-0000-0000-000000000000";
     let accepted = db
         .report_agent_job_item_result(
             job.id.as_str(),
             item.item_id.as_str(),
-            wrong_thread_id,
+            wrong_chat_id,
             &json!({ "wrong": true }),
         )
         .await?;

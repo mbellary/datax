@@ -238,7 +238,7 @@ Required task-oriented body shape (strict):
 
 ### rollout_summary_files
 
-- <rollout_summaries/file1.md> (cwd=<path>, rollout_path=<path>, updated_at=<timestamp>, thread_id=<thread_id>, <optional status/usefulness note>)
+- <rollout_summaries/file1.md> (cwd=<path>, rollout_path=<path>, updated_at=<timestamp>, chat_id=<chat_id>, <optional status/usefulness note>)
 
 ### keywords
 

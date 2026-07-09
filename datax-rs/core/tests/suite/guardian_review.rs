@@ -76,7 +76,7 @@ async fn guardian_session_prewarms_and_is_reused_for_first_review() -> Result<()
         })
         .expect("guardian startup prewarm request");
     assert_eq!(guardian_prewarm["generate"].as_bool(), Some(false));
-    let guardian_thread_id = guardian_prewarm["client_metadata"]["thread_id"]
+    let guardian_chat_id = guardian_prewarm["client_metadata"]["chat_id"]
         .as_str()
         .expect("guardian thread id");
 
@@ -100,8 +100,8 @@ async fn guardian_session_prewarms_and_is_reused_for_first_review() -> Result<()
         Some("guardian")
     );
     assert_eq!(
-        guardian_review["client_metadata"]["thread_id"].as_str(),
-        Some(guardian_thread_id)
+        guardian_review["client_metadata"]["chat_id"].as_str(),
+        Some(guardian_chat_id)
     );
     assert_eq!(guardian_review.get("generate"), None);
 
@@ -209,7 +209,7 @@ printf '%s\n' "${@: -1}" >> "${payload_path}""#,
         })
         .await?;
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 

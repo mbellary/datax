@@ -93,7 +93,7 @@ impl ChatWidget {
                 self.current_goal_status_indicator = None;
                 self.current_goal_status = None;
                 self.turn_lifecycle.goal_status_active_turn_started_at = None;
-                self.turn_lifecycle.budget_limited_turn_ids.clear();
+                self.turn_lifecycle.budget_limited_interaction_ids.clear();
                 self.update_collaboration_mode_indicator();
             }
         }
@@ -358,14 +358,14 @@ impl ChatWidget {
         &mut self,
         notification: ChatSettingsUpdatedNotification,
     ) {
-        let Ok(thread_id) = ThreadId::from_string(&notification.chat_id) else {
+        let Ok(chat_id) = ChatId::from_string(&notification.chat_id) else {
             tracing::warn!(
-                thread_id = notification.chat_id,
-                "ignoring app-server ThreadSettingsUpdated with invalid thread_id"
+                chat_id = notification.chat_id,
+                "ignoring app-server ThreadSettingsUpdated with invalid chat_id"
             );
             return;
         };
-        if self.thread_id != Some(thread_id) {
+        if self.chat_id != Some(chat_id) {
             return;
         }
 
@@ -378,7 +378,7 @@ impl ChatWidget {
     }
 
     pub(super) fn is_session_configured(&self) -> bool {
-        self.thread_id.is_some()
+        self.chat_id.is_some()
     }
 
     pub(super) fn collaboration_modes_enabled(&self) -> bool {
@@ -387,7 +387,7 @@ impl ChatWidget {
 
     /// Returns the dismissal scope that applies to the currently visible draft.
     fn plan_mode_nudge_scope(&self) -> PlanModeNudgeScope {
-        self.thread_id
+        self.chat_id
             .map_or(PlanModeNudgeScope::NewThread, PlanModeNudgeScope::Chat)
     }
 
@@ -642,9 +642,9 @@ impl ChatWidget {
         })
     }
 
-    pub(super) fn on_thread_goal_updated(&mut self, goal: AppThreadGoal, turn_id: Option<String>) {
-        if let Some(active_thread_id) = self.thread_id
-            && active_thread_id.to_string() != goal.chat_id
+    pub(super) fn on_thread_goal_updated(&mut self, goal: AppThreadGoal, interaction_id: Option<String>) {
+        if let Some(active_chat_id) = self.chat_id
+            && active_chat_id.to_string() != goal.chat_id
         {
             return;
         }
@@ -655,9 +655,9 @@ impl ChatWidget {
             return;
         }
         if goal.status == AppThreadGoalStatus::BudgetLimited
-            && let Some(turn_id) = turn_id
+            && let Some(interaction_id) = interaction_id
         {
-            self.turn_lifecycle.mark_budget_limited(turn_id);
+            self.turn_lifecycle.mark_budget_limited(interaction_id);
         }
         self.current_goal_status = Some(GoalStatusState::new(goal, Instant::now()));
         self.update_collaboration_mode_indicator();
@@ -730,11 +730,11 @@ impl ChatWidget {
     }
 
     fn submit_collaboration_mode_settings_update(&self) {
-        let Some(thread_id) = self.thread_id else {
+        let Some(chat_id) = self.chat_id else {
             return;
         };
         self.app_event_tx.send(AppEvent::SubmitThreadOp {
-            thread_id,
+            chat_id,
             op: AppCommand::override_turn_context(
                 /*cwd*/ None,
                 /*approval_policy*/ None,

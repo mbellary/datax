@@ -96,12 +96,12 @@ pub(crate) enum GuardianRejectionCircuitBreakerAction {
 }
 
 impl GuardianRejectionCircuitBreaker {
-    pub(crate) fn clear_turn(&mut self, turn_id: &str) {
-        self.turns.remove(turn_id);
+    pub(crate) fn clear_turn(&mut self, interaction_id: &str) {
+        self.turns.remove(interaction_id);
     }
 
-    pub(crate) fn record_denial(&mut self, turn_id: &str) -> GuardianRejectionCircuitBreakerAction {
-        let turn = self.turns.entry(turn_id.to_string()).or_default();
+    pub(crate) fn record_denial(&mut self, interaction_id: &str) -> GuardianRejectionCircuitBreakerAction {
+        let turn = self.turns.entry(interaction_id.to_string()).or_default();
         turn.consecutive_denials = turn.consecutive_denials.saturating_add(1);
         Self::record_recent_review(turn, /*denied*/ true);
         let recent_denials = turn.recent_denials.iter().filter(|denied| **denied).count() as u32;
@@ -119,8 +119,8 @@ impl GuardianRejectionCircuitBreaker {
         }
     }
 
-    pub(crate) fn record_non_denial(&mut self, turn_id: &str) {
-        let turn = self.turns.entry(turn_id.to_string()).or_default();
+    pub(crate) fn record_non_denial(&mut self, interaction_id: &str) {
+        let turn = self.turns.entry(interaction_id.to_string()).or_default();
         turn.consecutive_denials = 0;
         Self::record_recent_review(turn, /*denied*/ false);
     }
@@ -138,7 +138,7 @@ use approval_request::format_guardian_action_pretty;
 #[cfg(test)]
 use approval_request::guardian_assessment_action;
 #[cfg(test)]
-use approval_request::guardian_request_turn_id;
+use approval_request::guardian_request_interaction_id;
 #[cfg(test)]
 use prompt::GuardianPromptMode;
 #[cfg(test)]

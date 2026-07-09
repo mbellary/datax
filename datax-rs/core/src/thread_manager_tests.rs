@@ -24,7 +24,7 @@ use datax_protocol::protocol::InternalSessionSource;
 use datax_protocol::protocol::ResumedHistory;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::ThreadSource;
-use datax_protocol::protocol::TurnStartedEvent;
+use datax_protocol::protocol::InteractionStartedEvent;
 use datax_protocol::protocol::UserMessageEvent;
 use datax_utils_path_uri::PathUri;
 use pretty_assertions::assert_eq;
@@ -105,7 +105,7 @@ fn truncates_before_requested_user_message() {
         /*n*/ 1,
         &SnapshotTurnState {
             ends_mid_turn: false,
-            active_turn_id: None,
+            active_interaction_id: None,
             active_turn_start_index: None,
         },
     );
@@ -130,7 +130,7 @@ fn truncates_before_requested_user_message() {
         /*n*/ 2,
         &SnapshotTurnState {
             ends_mid_turn: false,
-            active_turn_id: None,
+            active_interaction_id: None,
             active_turn_start_index: None,
         },
     );
@@ -154,7 +154,7 @@ fn out_of_range_truncation_drops_only_unfinished_suffix_mid_turn() {
         usize::MAX,
         &SnapshotTurnState {
             ends_mid_turn: true,
-            active_turn_id: None,
+            active_interaction_id: None,
             active_turn_start_index: None,
         },
     );
@@ -189,8 +189,8 @@ fn out_of_range_truncation_drops_pre_user_active_turn_prefix() {
     let items = vec![
         RolloutItem::ResponseItem(user_msg("u1")),
         RolloutItem::ResponseItem(assistant_msg("a1")),
-        RolloutItem::EventMsg(EventMsg::TurnStarted(TurnStartedEvent {
-            turn_id: "turn-2".to_string(),
+        RolloutItem::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
+            interaction_id: "turn-2".to_string(),
             trace_id: None,
             started_at: None,
             model_context_window: None,
@@ -205,7 +205,7 @@ fn out_of_range_truncation_drops_pre_user_active_turn_prefix() {
         snapshot_state,
         SnapshotTurnState {
             ends_mid_turn: true,
-            active_turn_id: Some("turn-2".to_string()),
+            active_interaction_id: Some("turn-2".to_string()),
             active_turn_start_index: Some(2),
         },
     );
@@ -242,7 +242,7 @@ async fn ignores_session_prefix_messages_when_truncating() {
         /*n*/ 1,
         &SnapshotTurnState {
             ends_mid_turn: false,
-            active_turn_id: None,
+            active_interaction_id: None,
             active_turn_start_index: None,
         },
     );
@@ -279,12 +279,12 @@ async fn shutdown_all_threads_bounded_submits_shutdown_to_every_thread() {
         .start_thread(config.clone())
         .await
         .expect("start first thread")
-        .thread_id;
+        .chat_id;
     let thread_2 = manager
         .start_thread(config.clone())
         .await
         .expect("start second thread")
-        .thread_id;
+        .chat_id;
 
     let report = manager
         .shutdown_all_threads_bounded(Duration::from_secs(10))
@@ -295,7 +295,7 @@ async fn shutdown_all_threads_bounded_submits_shutdown_to_every_thread() {
     assert_eq!(report.completed, expected_completed);
     assert!(report.submit_failed.is_empty());
     assert!(report.timed_out.is_empty());
-    assert!(manager.list_thread_ids().await.is_empty());
+    assert!(manager.list_chat_ids().await.is_empty());
 }
 
 #[tokio::test]
@@ -330,16 +330,16 @@ async fn start_thread_keeps_internal_threads_hidden_from_normal_lookups() {
         .await
         .expect("internal thread should start");
 
-    assert_eq!(manager.list_thread_ids().await, Vec::new());
-    assert!(manager.get_thread(thread.thread_id).await.is_err());
+    assert_eq!(manager.list_chat_ids().await, Vec::new());
+    assert!(manager.get_thread(thread.chat_id).await.is_err());
 
     let report = manager
         .shutdown_all_threads_bounded(Duration::from_secs(10))
         .await;
-    assert_eq!(report.completed, vec![thread.thread_id]);
+    assert_eq!(report.completed, vec![thread.chat_id]);
     assert!(report.submit_failed.is_empty());
     assert!(report.timed_out.is_empty());
-    assert!(manager.list_thread_ids().await.is_empty());
+    assert!(manager.list_chat_ids().await.is_empty());
 }
 
 #[tokio::test]
@@ -492,9 +492,9 @@ async fn start_thread_seeds_extension_data_for_mcp_and_lifecycle_contributors() 
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner),
         vec![
-            (first_thread.thread_id.to_string(), "selected-a".to_string()),
+            (first_thread.chat_id.to_string(), "selected-a".to_string()),
             (
-                second_thread.thread_id.to_string(),
+                second_thread.chat_id.to_string(),
                 "selected-b".to_string()
             ),
         ]
@@ -591,7 +591,7 @@ async fn resume_and_fork_do_not_restore_thread_environments_from_rollout() {
         .shutdown_and_wait()
         .await
         .expect("shutdown source thread before resume");
-    let _ = manager.remove_thread(&source.thread_id).await;
+    let _ = manager.remove_thread(&source.chat_id).await;
 
     let resumed = manager
         .resume_thread_from_rollout(
@@ -689,7 +689,7 @@ async fn explicit_installation_id_skips_codex_home_file() {
         .shutdown_and_wait()
         .await
         .expect("shutdown thread");
-    let _ = manager.remove_thread(&thread.thread_id).await;
+    let _ = manager.remove_thread(&thread.chat_id).await;
 }
 
 #[tokio::test]
@@ -742,7 +742,7 @@ async fn resume_active_thread_from_rollout_returns_running_thread() {
         )
         .await
         .expect("resume active source thread");
-    assert_eq!(resumed.thread_id, source.thread_id);
+    assert_eq!(resumed.chat_id, source.chat_id);
     assert!(Arc::ptr_eq(&resumed.thread, &source.thread));
 
     source
@@ -807,7 +807,7 @@ async fn resume_stopped_thread_from_rollout_spawns_new_thread() {
         )
         .await
         .expect("resume stopped source thread");
-    assert_eq!(resumed.thread_id, source.thread_id);
+    assert_eq!(resumed.chat_id, source.chat_id);
     assert!(!Arc::ptr_eq(&resumed.thread, &source.thread));
 
     resumed
@@ -874,7 +874,7 @@ async fn resume_stopped_thread_from_rollout_preserves_thread_source() {
         .shutdown_and_wait()
         .await
         .expect("shutdown source thread before resume");
-    let _ = manager.remove_thread(&source.thread_id).await;
+    let _ = manager.remove_thread(&source.chat_id).await;
 
     let resumed = manager
         .resume_thread_from_rollout(
@@ -947,7 +947,7 @@ async fn rollout_path_resume_and_fork_read_history_through_thread_store() {
         .shutdown_and_wait()
         .await
         .expect("shutdown source thread");
-    let _ = manager.remove_thread(&source.thread_id).await;
+    let _ = manager.remove_thread(&source.chat_id).await;
 
     let rollout_path = config
         .codex_home
@@ -957,7 +957,7 @@ async fn rollout_path_resume_and_fork_read_history_through_thread_store() {
         .resume_thread_with_history(
             config.clone(),
             InitialHistory::Resumed(ResumedHistory {
-                conversation_id: source.thread_id,
+                conversation_id: source.chat_id,
                 history: vec![RolloutItem::ResponseItem(user_msg("hello"))],
                 rollout_path: Some(rollout_path.clone()),
             }),
@@ -972,7 +972,7 @@ async fn rollout_path_resume_and_fork_read_history_through_thread_store() {
         .shutdown_and_wait()
         .await
         .expect("shutdown seeded resumed thread");
-    let _ = manager.remove_thread(&resumed.thread_id).await;
+    let _ = manager.remove_thread(&resumed.chat_id).await;
 
     let resumed_from_path = manager
         .resume_thread_from_rollout(
@@ -984,7 +984,7 @@ async fn rollout_path_resume_and_fork_read_history_through_thread_store() {
         )
         .await
         .expect("resume from rollout path");
-    assert_eq!(resumed_from_path.thread_id, resumed.thread_id);
+    assert_eq!(resumed_from_path.chat_id, resumed.chat_id);
 
     let forked = manager
         .fork_thread(
@@ -996,7 +996,7 @@ async fn rollout_path_resume_and_fork_read_history_through_thread_store() {
         )
         .await
         .expect("fork from rollout path");
-    assert_ne!(forked.thread_id, resumed.thread_id);
+    assert_ne!(forked.chat_id, resumed.chat_id);
 
     let calls = in_memory_store.calls().await;
     assert_eq!(calls.read_thread_by_rollout_path, 2);
@@ -1056,7 +1056,7 @@ fn interrupted_fork_snapshot_appends_interrupt_boundary() {
         serde_json::to_value(
             append_interrupted_boundary(
                 committed_history,
-                /*turn_id*/ None,
+                /*interaction_id*/ None,
                 InterruptedTurnHistoryMarker::ContextualUser,
             )
             .get_rollout_items()
@@ -1065,9 +1065,9 @@ fn interrupted_fork_snapshot_appends_interrupt_boundary() {
         serde_json::to_value(vec![
             RolloutItem::ResponseItem(user_msg("hello")),
             RolloutItem::ResponseItem(contextual_user_interrupted_marker()),
-            RolloutItem::EventMsg(EventMsg::TurnAborted(TurnAbortedEvent {
-                turn_id: None,
-                reason: TurnAbortReason::Interrupted,
+            RolloutItem::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
+                interaction_id: None,
+                reason: InteractionAbortReason::Interrupted,
                 completed_at: None,
                 duration_ms: None,
             })),
@@ -1078,7 +1078,7 @@ fn interrupted_fork_snapshot_appends_interrupt_boundary() {
         serde_json::to_value(
             append_interrupted_boundary(
                 InitialHistory::New,
-                /*turn_id*/ None,
+                /*interaction_id*/ None,
                 InterruptedTurnHistoryMarker::ContextualUser,
             )
             .get_rollout_items()
@@ -1086,9 +1086,9 @@ fn interrupted_fork_snapshot_appends_interrupt_boundary() {
         .expect("serialize interrupted empty fork history"),
         serde_json::to_value(vec![
             RolloutItem::ResponseItem(contextual_user_interrupted_marker()),
-            RolloutItem::EventMsg(EventMsg::TurnAborted(TurnAbortedEvent {
-                turn_id: None,
-                reason: TurnAbortReason::Interrupted,
+            RolloutItem::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
+                interaction_id: None,
+                reason: InteractionAbortReason::Interrupted,
                 completed_at: None,
                 duration_ms: None,
             })),
@@ -1106,7 +1106,7 @@ fn disabled_interrupted_fork_snapshot_appends_only_interrupt_event() {
         serde_json::to_value(
             append_interrupted_boundary(
                 committed_history,
-                /*turn_id*/ None,
+                /*interaction_id*/ None,
                 InterruptedTurnHistoryMarker::Disabled,
             )
             .get_rollout_items()
@@ -1114,9 +1114,9 @@ fn disabled_interrupted_fork_snapshot_appends_only_interrupt_event() {
         .expect("serialize disabled interrupted fork history"),
         serde_json::to_value(vec![
             RolloutItem::ResponseItem(user_msg("hello")),
-            RolloutItem::EventMsg(EventMsg::TurnAborted(TurnAbortedEvent {
-                turn_id: None,
-                reason: TurnAbortReason::Interrupted,
+            RolloutItem::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
+                interaction_id: None,
+                reason: InteractionAbortReason::Interrupted,
                 completed_at: None,
                 duration_ms: None,
             })),
@@ -1127,16 +1127,16 @@ fn disabled_interrupted_fork_snapshot_appends_only_interrupt_event() {
         serde_json::to_value(
             append_interrupted_boundary(
                 InitialHistory::New,
-                /*turn_id*/ None,
+                /*interaction_id*/ None,
                 InterruptedTurnHistoryMarker::Disabled,
             )
             .get_rollout_items()
         )
         .expect("serialize disabled interrupted empty fork history"),
-        serde_json::to_value(vec![RolloutItem::EventMsg(EventMsg::TurnAborted(
-            TurnAbortedEvent {
-                turn_id: None,
-                reason: TurnAbortReason::Interrupted,
+        serde_json::to_value(vec![RolloutItem::EventMsg(EventMsg::InteractionAborted(
+            InteractionAbortedEvent {
+                interaction_id: None,
+                reason: InteractionAbortReason::Interrupted,
                 completed_at: None,
                 duration_ms: None,
             },
@@ -1151,9 +1151,9 @@ fn interrupted_snapshot_is_not_mid_turn() {
         RolloutItem::ResponseItem(user_msg("hello")),
         RolloutItem::ResponseItem(assistant_msg("partial")),
         RolloutItem::ResponseItem(contextual_user_interrupted_marker()),
-        RolloutItem::EventMsg(EventMsg::TurnAborted(TurnAbortedEvent {
-            turn_id: Some("turn-1".to_string()),
-            reason: TurnAbortReason::Interrupted,
+        RolloutItem::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
+            interaction_id: Some("turn-1".to_string()),
+            reason: InteractionAbortReason::Interrupted,
             completed_at: None,
             duration_ms: None,
         })),
@@ -1163,7 +1163,7 @@ fn interrupted_snapshot_is_not_mid_turn() {
         snapshot_turn_state(&interrupted_history),
         SnapshotTurnState {
             ends_mid_turn: false,
-            active_turn_id: None,
+            active_interaction_id: None,
             active_turn_start_index: None,
         },
     );
@@ -1181,7 +1181,7 @@ fn multi_agent_v2_interrupted_marker_uses_developer_input_message() {
         matches!(
             content.as_slice(),
             [ContentItem::InputText { text }]
-                if text.contains(crate::context::TurnAborted::INTERRUPTED_DEVELOPER_GUIDANCE)
+                if text.contains(crate::context::InteractionAborted::INTERRUPTED_DEVELOPER_GUIDANCE)
         ),
         "expected interrupted marker to use developer InputText content"
     );
@@ -1209,7 +1209,7 @@ fn completed_legacy_event_history_is_not_mid_turn() {
         snapshot_turn_state(&completed_history),
         SnapshotTurnState {
             ends_mid_turn: false,
-            active_turn_id: None,
+            active_interaction_id: None,
             active_turn_start_index: None,
         },
     );
@@ -1233,14 +1233,14 @@ fn mixed_response_and_legacy_user_event_history_is_mid_turn() {
         snapshot_turn_state(&mixed_history),
         SnapshotTurnState {
             ends_mid_turn: true,
-            active_turn_id: None,
+            active_interaction_id: None,
             active_turn_start_index: None,
         },
     );
 }
 
 #[tokio::test]
-async fn interrupted_fork_snapshot_does_not_synthesize_turn_id_for_legacy_history() {
+async fn interrupted_fork_snapshot_does_not_synthesize_interaction_id_for_legacy_history() {
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
     config.codex_home = temp_dir.path().join("datax-home").abs();
@@ -1287,8 +1287,8 @@ async fn interrupted_fork_snapshot_does_not_synthesize_turn_id_for_legacy_histor
         .expect("read source rollout history");
     let source_snapshot_state = snapshot_turn_state(&source_history);
     assert!(source_snapshot_state.ends_mid_turn);
-    let expected_turn_id = source_snapshot_state.active_turn_id.clone();
-    assert_eq!(expected_turn_id, None);
+    let expected_interaction_id = source_snapshot_state.active_interaction_id.clone();
+    assert_eq!(expected_interaction_id, None);
 
     let forked = manager
         .fork_thread(
@@ -1318,9 +1318,9 @@ async fn interrupted_fork_snapshot_does_not_synthesize_turn_id_for_legacy_histor
     ))
     .expect("serialize interrupted marker");
     let interrupted_abort_json = serde_json::to_value(RolloutItem::EventMsg(
-        EventMsg::TurnAborted(TurnAbortedEvent {
-            turn_id: expected_turn_id,
-            reason: TurnAbortReason::Interrupted,
+        EventMsg::InteractionAborted(InteractionAbortedEvent {
+            interaction_id: expected_interaction_id,
+            reason: InteractionAbortReason::Interrupted,
             completed_at: None,
             duration_ms: None,
         }),
@@ -1349,7 +1349,7 @@ async fn interrupted_fork_snapshot_does_not_synthesize_turn_id_for_legacy_histor
 }
 
 #[tokio::test]
-async fn interrupted_fork_snapshot_preserves_explicit_turn_id() {
+async fn interrupted_fork_snapshot_preserves_explicit_interaction_id() {
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
     config.codex_home = temp_dir.path().join("datax-home").abs();
@@ -1378,8 +1378,8 @@ async fn interrupted_fork_snapshot_preserves_explicit_turn_id() {
         .resume_thread_with_history(
             config.clone(),
             InitialHistory::Forked(vec![
-                RolloutItem::EventMsg(EventMsg::TurnStarted(TurnStartedEvent {
-                    turn_id: "turn-explicit".to_string(),
+                RolloutItem::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
+                    interaction_id: "turn-explicit".to_string(),
                     trace_id: None,
                     started_at: None,
                     model_context_window: None,
@@ -1406,7 +1406,7 @@ async fn interrupted_fork_snapshot_preserves_explicit_turn_id() {
         source_snapshot_state,
         SnapshotTurnState {
             ends_mid_turn: true,
-            active_turn_id: Some("turn-explicit".to_string()),
+            active_interaction_id: Some("turn-explicit".to_string()),
             active_turn_start_index: Some(1),
         },
     );
@@ -1437,12 +1437,12 @@ async fn interrupted_fork_snapshot_preserves_explicit_turn_id() {
     assert!(rollout_items.iter().any(|item| {
         matches!(
             item,
-            RolloutItem::EventMsg(EventMsg::TurnAborted(TurnAbortedEvent {
-                turn_id: Some(turn_id),
-                reason: TurnAbortReason::Interrupted,
+            RolloutItem::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
+                interaction_id: Some(interaction_id),
+                reason: InteractionAbortReason::Interrupted,
             completed_at: None,
             duration_ms: None,
-            })) if turn_id == "turn-explicit"
+            })) if interaction_id == "turn-explicit"
         )
     }));
 }
@@ -1494,7 +1494,7 @@ async fn interrupted_fork_snapshot_uses_persisted_mid_turn_history_without_live_
         .await
         .expect("read source rollout history");
     assert!(snapshot_turn_state(&source_history).ends_mid_turn);
-    manager.remove_thread(&source.thread_id).await;
+    manager.remove_thread(&source.chat_id).await;
 
     let forked = manager
         .fork_thread(
@@ -1535,7 +1535,7 @@ async fn interrupted_fork_snapshot_uses_persisted_mid_turn_history_without_live_
         1,
     );
 
-    manager.remove_thread(&forked.thread_id).await;
+    manager.remove_thread(&forked.chat_id).await;
     let reforked = manager
         .fork_thread(
             ForkSnapshot::Interrupted,
@@ -1575,8 +1575,8 @@ async fn interrupted_fork_snapshot_uses_persisted_mid_turn_history_without_live_
             .filter(|item| {
                 matches!(
                     item,
-                    RolloutItem::EventMsg(EventMsg::TurnAborted(TurnAbortedEvent {
-                        reason: TurnAbortReason::Interrupted,
+                    RolloutItem::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
+                        reason: InteractionAbortReason::Interrupted,
                         ..
                     }))
                 )

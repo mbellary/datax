@@ -18,7 +18,7 @@ use crate::legacy_core::config::Config;
 use crate::legacy_core::config::edit::ConfigEditsBuilder;
 use crate::markdown::append_markdown;
 use crate::pager_overlay::Overlay;
-use crate::session_resume::resolve_session_thread_id;
+use crate::session_resume::resolve_session_chat_id;
 use crate::status::format_directory_display;
 use crate::terminal_palette::best_color;
 use crate::terminal_palette::default_bg;
@@ -44,7 +44,7 @@ use datax_app_server_protocol::ChatListParams;
 use datax_app_server_protocol::ChatSortKey;
 use datax_app_server_protocol::Message;
 use datax_config::types::SessionPickerViewMode;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_utils_path as path_utils;
 use ratatui::layout::Constraint;
 use ratatui::layout::Layout;
@@ -81,7 +81,7 @@ const PICKER_LIST_HORIZONTAL_INSET: u16 = 4;
 #[derive(Debug, Clone)]
 pub struct SessionTarget {
     pub path: Option<PathBuf>,
-    pub chat_id: ThreadId,
+    pub chat_id: ChatId,
 }
 
 impl SessionTarget {
@@ -128,7 +128,7 @@ impl SessionPickerAction {
         }
     }
 
-    fn selection(self, path: Option<PathBuf>, chat_id: ThreadId) -> SessionSelection {
+    fn selection(self, path: Option<PathBuf>, chat_id: ChatId) -> SessionSelection {
         let target_session = SessionTarget { path, chat_id };
         match self {
             SessionPickerAction::Resume => SessionSelection::Resume(target_session),
@@ -149,8 +149,8 @@ struct PageLoadRequest {
 
 enum PickerLoadRequest {
     Page(PageLoadRequest),
-    Preview { chat_id: ThreadId },
-    Transcript { chat_id: ThreadId },
+    Preview { chat_id: ChatId },
+    Transcript { chat_id: ChatId },
 }
 
 #[derive(Clone)]
@@ -246,11 +246,11 @@ enum BackgroundEvent {
         page: std::io::Result<PickerPage>,
     },
     Preview {
-        chat_id: ThreadId,
+        chat_id: ChatId,
         preview: std::io::Result<Vec<TranscriptPreviewLine>>,
     },
     Transcript {
-        chat_id: ThreadId,
+        chat_id: ChatId,
         transcript: std::io::Result<TranscriptCells>,
     },
 }
@@ -656,10 +656,10 @@ struct PickerState {
     action: SessionPickerAction,
     sort_key: ChatSortKey,
     inline_error: Option<String>,
-    expanded_thread_id: Option<ThreadId>,
-    transcript_previews: HashMap<ThreadId, TranscriptPreviewState>,
-    transcript_cells: HashMap<ThreadId, SessionTranscriptState>,
-    pending_transcript_open: Option<ThreadId>,
+    expanded_chat_id: Option<ChatId>,
+    transcript_previews: HashMap<ChatId, TranscriptPreviewState>,
+    transcript_cells: HashMap<ChatId, SessionTranscriptState>,
+    pending_transcript_open: Option<ChatId>,
     transcript_loading_frame_shown: bool,
     overlay: Option<Overlay>,
     pager_keymap: PagerKeymap,
@@ -761,7 +761,7 @@ async fn load_app_server_page(
 
 async fn load_transcript_preview(
     app_server: &mut AppServerSession,
-    chat_id: ThreadId,
+    chat_id: ChatId,
 ) -> std::io::Result<Vec<TranscriptPreviewLine>> {
     const MAX_PREVIEW_LINES: usize = 6;
 
@@ -828,7 +828,7 @@ impl SearchState {
 struct Row {
     path: Option<PathBuf>,
     preview: String,
-    chat_id: Option<ThreadId>,
+    chat_id: Option<ChatId>,
     thread_name: Option<String>,
     created_at: Option<DateTime<Utc>>,
     updated_at: Option<DateTime<Utc>>,
@@ -839,7 +839,7 @@ struct Row {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum SeenRowKey {
     Path(PathBuf),
-    Chat(ThreadId),
+    Chat(ChatId),
 }
 
 impl Row {
@@ -865,7 +865,7 @@ impl Row {
         }
         if self
             .chat_id
-            .is_some_and(|thread_id| thread_id.to_string().to_lowercase().contains(query))
+            .is_some_and(|chat_id| chat_id.to_string().to_lowercase().contains(query))
         {
             return true;
         }
@@ -930,7 +930,7 @@ impl PickerState {
             action,
             sort_key: ChatSortKey::UpdatedAt,
             inline_error: None,
-            expanded_thread_id: None,
+            expanded_chat_id: None,
             transcript_previews: HashMap::new(),
             transcript_cells: HashMap::new(),
             pending_transcript_open: None,
@@ -962,10 +962,10 @@ impl PickerState {
         if !self.transcript_loading_frame_shown {
             return;
         }
-        let Some(thread_id) = self.pending_transcript_open else {
+        let Some(chat_id) = self.pending_transcript_open else {
             return;
         };
-        let Some(SessionTranscriptState::Loaded(cells)) = self.transcript_cells.get(&thread_id)
+        let Some(SessionTranscriptState::Loaded(cells)) = self.transcript_cells.get(&chat_id)
         else {
             return;
         };
@@ -978,7 +978,7 @@ impl PickerState {
         self.request_frame();
     }
 
-    fn begin_transcript_loading(&mut self, chat_id: ThreadId) {
+    fn begin_transcript_loading(&mut self, chat_id: ChatId) {
         self.pending_transcript_open = Some(chat_id);
         self.transcript_loading_frame_shown = false;
         self.request_frame();
@@ -1000,24 +1000,24 @@ impl PickerState {
         let Some(row) = self.filtered_rows.get(self.selected) else {
             return;
         };
-        let Some(thread_id) = row.chat_id else {
+        let Some(chat_id) = row.chat_id else {
             self.inline_error = Some("No transcript available for this session".to_string());
             self.request_frame();
             return;
         };
 
-        match self.transcript_cells.get(&thread_id) {
+        match self.transcript_cells.get(&chat_id) {
             Some(SessionTranscriptState::Loaded(_)) => {
-                self.begin_transcript_loading(thread_id);
+                self.begin_transcript_loading(chat_id);
             }
             Some(SessionTranscriptState::Loading) => {
-                self.begin_transcript_loading(thread_id);
+                self.begin_transcript_loading(chat_id);
             }
             Some(SessionTranscriptState::Failed) | None => {
                 self.transcript_cells
-                    .insert(thread_id, SessionTranscriptState::Loading);
-                self.begin_transcript_loading(thread_id);
-                (self.picker_loader)(PickerLoadRequest::Transcript { chat_id: thread_id });
+                    .insert(chat_id, SessionTranscriptState::Loading);
+                self.begin_transcript_loading(chat_id);
+                (self.picker_loader)(PickerLoadRequest::Transcript { chat_id: chat_id });
             }
         }
     }
@@ -1104,18 +1104,18 @@ impl PickerState {
             _ if self.list_keymap.accept.is_pressed(key) => {
                 if let Some(row) = self.filtered_rows.get(self.selected) {
                     let path = row.path.clone();
-                    let thread_id = match row.chat_id {
-                        Some(thread_id) => Some(thread_id),
+                    let chat_id = match row.chat_id {
+                        Some(chat_id) => Some(chat_id),
                         None => match path.as_ref() {
                             Some(path) => {
-                                resolve_session_thread_id(path.as_path(), /*id_str_if_uuid*/ None)
+                                resolve_session_chat_id(path.as_path(), /*id_str_if_uuid*/ None)
                                     .await
                             }
                             None => None,
                         },
                     };
-                    if let Some(thread_id) = thread_id {
-                        return Ok(Some(self.action.selection(path, thread_id)));
+                    if let Some(chat_id) = chat_id {
+                        return Ok(Some(self.action.selection(path, chat_id)));
                     }
                     self.inline_error = Some(match path {
                         Some(path) => {
@@ -1298,11 +1298,11 @@ impl PickerState {
                 self.continue_search_if_token_matches(completed_token);
             }
             BackgroundEvent::Preview {
-                chat_id: thread_id,
+                chat_id: chat_id,
                 preview,
             } => {
                 self.transcript_previews.insert(
-                    thread_id,
+                    chat_id,
                     match preview {
                         Ok(lines) => TranscriptPreviewState::Loaded(lines),
                         Err(_) => TranscriptPreviewState::Failed,
@@ -1311,13 +1311,13 @@ impl PickerState {
                 self.request_frame();
             }
             BackgroundEvent::Transcript {
-                chat_id: thread_id,
+                chat_id: chat_id,
                 transcript,
             } => match transcript {
                 Ok(cells) => {
-                    let should_open = self.pending_transcript_open == Some(thread_id);
+                    let should_open = self.pending_transcript_open == Some(chat_id);
                     self.transcript_cells
-                        .insert(thread_id, SessionTranscriptState::Loaded(cells.clone()));
+                        .insert(chat_id, SessionTranscriptState::Loaded(cells.clone()));
                     if should_open {
                         self.open_pending_transcript_if_ready();
                     }
@@ -1325,8 +1325,8 @@ impl PickerState {
                 }
                 Err(_) => {
                     self.transcript_cells
-                        .insert(thread_id, SessionTranscriptState::Failed);
-                    if self.pending_transcript_open == Some(thread_id) {
+                        .insert(chat_id, SessionTranscriptState::Failed);
+                    if self.pending_transcript_open == Some(chat_id) {
                         self.pending_transcript_open = None;
                         self.transcript_loading_frame_shown = false;
                         self.inline_error = Some("Could not load transcript preview".to_string());
@@ -1678,20 +1678,20 @@ impl PickerState {
         let Some(row) = self.filtered_rows.get(self.selected) else {
             return;
         };
-        let Some(thread_id) = row.chat_id else {
+        let Some(chat_id) = row.chat_id else {
             return;
         };
-        if self.expanded_thread_id == Some(thread_id) {
-            self.expanded_thread_id = None;
+        if self.expanded_chat_id == Some(chat_id) {
+            self.expanded_chat_id = None;
             self.request_frame();
             return;
         }
-        self.expanded_thread_id = Some(thread_id);
+        self.expanded_chat_id = Some(chat_id);
         if let std::collections::hash_map::Entry::Vacant(e) =
-            self.transcript_previews.entry(thread_id)
+            self.transcript_previews.entry(chat_id)
         {
             e.insert(TranscriptPreviewState::Loading);
-            (self.picker_loader)(PickerLoadRequest::Preview { chat_id: thread_id });
+            (self.picker_loader)(PickerLoadRequest::Preview { chat_id: chat_id });
         }
         self.request_frame();
     }
@@ -1706,7 +1706,7 @@ impl PickerState {
                 let row_idx = start + offset;
                 let is_selected = row_idx == self.selected;
                 let is_expanded =
-                    is_selected && row.chat_id.is_some() && self.expanded_thread_id == row.chat_id;
+                    is_selected && row.chat_id.is_some() && self.expanded_chat_id == row.chat_id;
                 render_session_lines(
                     row,
                     self,
@@ -1738,7 +1738,7 @@ impl PickerState {
             let row_idx = self.scroll_top + offset;
             let is_selected = row_idx == self.selected;
             let is_expanded =
-                is_selected && row.chat_id.is_some() && self.expanded_thread_id == row.chat_id;
+                is_selected && row.chat_id.is_some() && self.expanded_chat_id == row.chat_id;
             let row_height = render_session_lines(
                 row,
                 self,
@@ -1776,10 +1776,10 @@ impl PickerState {
 }
 
 fn row_from_app_server_thread(thread: Chat) -> Option<Row> {
-    let thread_id = match ThreadId::from_string(&thread.id) {
-        Ok(thread_id) => thread_id,
+    let chat_id = match ChatId::from_string(&thread.id) {
+        Ok(chat_id) => chat_id,
         Err(err) => {
-            warn!(thread_id = thread.id, %err, "Skipping app-server picker row with invalid id");
+            warn!(chat_id = thread.id, %err, "Skipping app-server picker row with invalid id");
             return None;
         }
     };
@@ -1791,7 +1791,7 @@ fn row_from_app_server_thread(thread: Chat) -> Option<Row> {
         } else {
             preview.to_string()
         },
-        chat_id: Some(thread_id),
+        chat_id: Some(chat_id),
         thread_name: thread.name,
         created_at: chrono::DateTime::from_timestamp(thread.created_at, 0)
             .map(|dt| dt.with_timezone(&Utc)),
@@ -2453,7 +2453,7 @@ fn render_list(frame: &mut crate::custom_terminal::Frame, area: Rect, state: &Pi
         let row_idx = start + idx;
         let is_selected = row_idx == state.selected;
         let is_expanded =
-            is_selected && row.chat_id.is_some() && state.expanded_thread_id == row.chat_id;
+            is_selected && row.chat_id.is_some() && state.expanded_chat_id == row.chat_id;
         let is_zebra = row_idx.is_multiple_of(2);
         for line in render_session_lines(row, state, is_selected, is_expanded, is_zebra, area.width)
         {
@@ -2914,10 +2914,10 @@ fn render_transcript_preview_lines(
     width: u16,
 ) -> Vec<Line<'static>> {
     let mut details = render_expanded_session_details(row, state, width);
-    let Some(thread_id) = row.chat_id else {
+    let Some(chat_id) = row.chat_id else {
         return details;
     };
-    let preview_lines = match state.transcript_previews.get(&thread_id) {
+    let preview_lines = match state.transcript_previews.get(&chat_id) {
         Some(TranscriptPreviewState::Loading) => {
             vec![vec!["  │ ".dim(), "Loading recent transcript...".italic().dim()].into()]
         }
@@ -2944,9 +2944,9 @@ fn render_expanded_session_details(
 ) -> Vec<Line<'static>> {
     let reference = state.relative_time_reference.unwrap_or_else(Utc::now);
     let session = match (row.thread_name.as_deref(), row.chat_id) {
-        (Some(thread_name), Some(thread_id)) => format!("{thread_name} ({thread_id})"),
+        (Some(thread_name), Some(chat_id)) => format!("{thread_name} ({chat_id})"),
         (Some(thread_name), None) => thread_name.to_string(),
-        (None, Some(thread_id)) => thread_id.to_string(),
+        (None, Some(chat_id)) => chat_id.to_string(),
         (None, None) => "-".to_string(),
     };
     let directory = row
@@ -3198,7 +3198,7 @@ mod tests {
     use chrono::Duration;
     use datax_app_server_protocol::ChatSourceKind;
     use datax_config::CONFIG_TOML_FILE;
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use datax_utils_absolute_path::test_support::PathBufExt;
     use datax_utils_absolute_path::test_support::test_path_buf;
 
@@ -3321,12 +3321,12 @@ mod tests {
 
     #[test]
     fn row_search_matches_metadata_fields() {
-        let thread_id =
-            ThreadId::from_string("019dabc1-0ef5-7431-b81c-03037f51f62c").expect("thread id");
+        let chat_id =
+            ChatId::from_string("019dabc1-0ef5-7431-b81c-03037f51f62c").expect("thread id");
         let row = Row {
             path: Some(PathBuf::from("/tmp/a.jsonl")),
             preview: String::from("first message"),
-            chat_id: Some(thread_id),
+            chat_id: Some(chat_id),
             thread_name: Some(String::from("My session")),
             created_at: None,
             updated_at: None,
@@ -3336,7 +3336,7 @@ mod tests {
 
         assert!(row.matches_query("session-picker"));
         assert!(row.matches_query("fcoury"));
-        assert!(row.matches_query(&thread_id.to_string()[..8]));
+        assert!(row.matches_query(&chat_id.to_string()[..8]));
     }
 
     #[test]
@@ -3371,8 +3371,8 @@ mod tests {
 
     #[test]
     fn expanded_session_details_include_metadata() {
-        let thread_id =
-            ThreadId::from_string("019dabc1-0ef5-7431-b81c-03037f51f62c").expect("thread id");
+        let chat_id =
+            ChatId::from_string("019dabc1-0ef5-7431-b81c-03037f51f62c").expect("thread id");
         let loader = page_only_loader(|_| {});
         let mut state = PickerState::new(
             FrameRequester::test_dummy(),
@@ -3386,7 +3386,7 @@ mod tests {
         let row = Row {
             path: Some(PathBuf::from("/tmp/a.jsonl")),
             preview: String::from("first message"),
-            chat_id: Some(thread_id),
+            chat_id: Some(chat_id),
             thread_name: Some(String::from("feat(tui): add raw scrollback mode")),
             created_at: parse_timestamp_str("2026-05-02T14:31:08Z"),
             updated_at: parse_timestamp_str("2026-05-02T14:48:19Z"),
@@ -3596,7 +3596,7 @@ mod tests {
         let row = Row {
             path: None,
             preview: String::from("remote session"),
-            chat_id: Some(ThreadId::new()),
+            chat_id: Some(ChatId::new()),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -3621,7 +3621,7 @@ mod tests {
         let row = Row {
             path: None,
             preview: String::from("remote session"),
-            chat_id: Some(ThreadId::new()),
+            chat_id: Some(ChatId::new()),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -3908,7 +3908,7 @@ mod tests {
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
         );
-        state.pending_transcript_open = Some(ThreadId::new());
+        state.pending_transcript_open = Some(ChatId::new());
 
         let rendered = footer_lines_text(&state, /*width*/ 80);
 
@@ -4081,12 +4081,12 @@ mod tests {
 
     #[tokio::test]
     async fn ctrl_t_requests_selected_session_transcript() {
-        let thread_id = ThreadId::new();
-        let recorded_requests: Arc<Mutex<Vec<ThreadId>>> = Arc::new(Mutex::new(Vec::new()));
+        let chat_id = ChatId::new();
+        let recorded_requests: Arc<Mutex<Vec<ChatId>>> = Arc::new(Mutex::new(Vec::new()));
         let request_sink = recorded_requests.clone();
         let loader: PickerLoader = Arc::new(move |request| {
-            if let PickerLoadRequest::Transcript { chat_id: thread_id } = request {
-                request_sink.lock().unwrap().push(thread_id);
+            if let PickerLoadRequest::Transcript { chat_id: chat_id } = request {
+                request_sink.lock().unwrap().push(chat_id);
             }
         });
         let mut state = PickerState::new(
@@ -4100,7 +4100,7 @@ mod tests {
         state.filtered_rows = vec![Row {
             path: None,
             preview: String::from("preview"),
-            chat_id: Some(thread_id),
+            chat_id: Some(chat_id),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -4114,10 +4114,10 @@ mod tests {
             .unwrap();
 
         assert_eq!(state.density, SessionListDensity::Comfortable);
-        assert_eq!(*recorded_requests.lock().unwrap(), vec![thread_id]);
-        assert_eq!(state.pending_transcript_open, Some(thread_id));
+        assert_eq!(*recorded_requests.lock().unwrap(), vec![chat_id]);
+        assert_eq!(state.pending_transcript_open, Some(chat_id));
         assert!(matches!(
-            state.transcript_cells.get(&thread_id),
+            state.transcript_cells.get(&chat_id),
             Some(SessionTranscriptState::Loading)
         ));
     }
@@ -4125,7 +4125,7 @@ mod tests {
     #[tokio::test]
     async fn transcript_loading_consumes_picker_input() {
         let loader = page_only_loader(|_| {});
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let mut state = PickerState::new(
             FrameRequester::test_dummy(),
             loader,
@@ -4138,7 +4138,7 @@ mod tests {
             Row {
                 path: None,
                 preview: String::from("one"),
-                chat_id: Some(ThreadId::new()),
+                chat_id: Some(ChatId::new()),
                 thread_name: None,
                 created_at: None,
                 updated_at: None,
@@ -4148,7 +4148,7 @@ mod tests {
             Row {
                 path: None,
                 preview: String::from("two"),
-                chat_id: Some(ThreadId::new()),
+                chat_id: Some(ChatId::new()),
                 thread_name: None,
                 created_at: None,
                 updated_at: None,
@@ -4156,7 +4156,7 @@ mod tests {
                 git_branch: None,
             },
         ];
-        state.pending_transcript_open = Some(thread_id);
+        state.pending_transcript_open = Some(chat_id);
 
         let selection = state
             .handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE))
@@ -4187,7 +4187,7 @@ mod tests {
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
         );
-        state.pending_transcript_open = Some(ThreadId::new());
+        state.pending_transcript_open = Some(ChatId::new());
 
         let selection = state
             .handle_key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL))
@@ -4211,13 +4211,13 @@ mod tests {
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
         );
-        let thread_id = ThreadId::new();
-        state.pending_transcript_open = Some(thread_id);
+        let chat_id = ChatId::new();
+        state.pending_transcript_open = Some(chat_id);
         state.filtered_rows = vec![
             Row {
                 path: None,
                 preview: String::from("Find pending threads and emails"),
-                chat_id: Some(thread_id),
+                chat_id: Some(chat_id),
                 thread_name: None,
                 created_at: None,
                 updated_at: None,
@@ -4227,7 +4227,7 @@ mod tests {
             Row {
                 path: None,
                 preview: String::from("Plan raw scrollback mode"),
-                chat_id: Some(ThreadId::new()),
+                chat_id: Some(ChatId::new()),
                 thread_name: None,
                 created_at: None,
                 updated_at: None,
@@ -4263,12 +4263,12 @@ mod tests {
 
     #[tokio::test]
     async fn raw_ctrl_t_requests_selected_session_transcript() {
-        let thread_id = ThreadId::new();
-        let recorded_requests: Arc<Mutex<Vec<ThreadId>>> = Arc::new(Mutex::new(Vec::new()));
+        let chat_id = ChatId::new();
+        let recorded_requests: Arc<Mutex<Vec<ChatId>>> = Arc::new(Mutex::new(Vec::new()));
         let request_sink = recorded_requests.clone();
         let loader: PickerLoader = Arc::new(move |request| {
-            if let PickerLoadRequest::Transcript { chat_id: thread_id } = request {
-                request_sink.lock().unwrap().push(thread_id);
+            if let PickerLoadRequest::Transcript { chat_id: chat_id } = request {
+                request_sink.lock().unwrap().push(chat_id);
             }
         });
         let mut state = PickerState::new(
@@ -4282,7 +4282,7 @@ mod tests {
         state.filtered_rows = vec![Row {
             path: None,
             preview: String::from("preview"),
-            chat_id: Some(thread_id),
+            chat_id: Some(chat_id),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -4295,11 +4295,11 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(*recorded_requests.lock().unwrap(), vec![thread_id]);
+        assert_eq!(*recorded_requests.lock().unwrap(), vec![chat_id]);
     }
 
     #[tokio::test]
-    async fn ctrl_t_on_row_without_thread_id_shows_inline_error() {
+    async fn ctrl_t_on_row_without_chat_id_shows_inline_error() {
         let loader = page_only_loader(|_| {});
         let mut state = PickerState::new(
             FrameRequester::test_dummy(),
@@ -4335,7 +4335,7 @@ mod tests {
     async fn loaded_transcript_waits_for_loading_frame_before_opening_overlay() {
         use crate::history_cell::PlainHistoryCell;
 
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let loader = page_only_loader(|_| {});
         let mut state = PickerState::new(
             FrameRequester::test_dummy(),
@@ -4345,22 +4345,22 @@ mod tests {
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
         );
-        state.pending_transcript_open = Some(thread_id);
+        state.pending_transcript_open = Some(chat_id);
         let cells: TranscriptCells =
             vec![Arc::new(PlainHistoryCell::new(vec!["transcript".into()]))];
 
         state
             .handle_background_event(BackgroundEvent::Transcript {
-                chat_id: thread_id,
+                chat_id: chat_id,
                 transcript: Ok(cells),
             })
             .await
             .unwrap();
 
         assert!(state.overlay.is_none());
-        assert_eq!(state.pending_transcript_open, Some(thread_id));
+        assert_eq!(state.pending_transcript_open, Some(chat_id));
         assert!(matches!(
-            state.transcript_cells.get(&thread_id),
+            state.transcript_cells.get(&chat_id),
             Some(SessionTranscriptState::Loaded(_))
         ));
 
@@ -4375,7 +4375,7 @@ mod tests {
     async fn cached_transcript_still_shows_loading_frame_before_opening_overlay() {
         use crate::history_cell::PlainHistoryCell;
 
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let loader = page_only_loader(|_| {});
         let mut state = PickerState::new(
             FrameRequester::test_dummy(),
@@ -4388,7 +4388,7 @@ mod tests {
         state.filtered_rows = vec![Row {
             path: None,
             preview: String::from("preview"),
-            chat_id: Some(thread_id),
+            chat_id: Some(chat_id),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -4396,7 +4396,7 @@ mod tests {
             git_branch: None,
         }];
         state.transcript_cells.insert(
-            thread_id,
+            chat_id,
             SessionTranscriptState::Loaded(vec![Arc::new(PlainHistoryCell::new(vec![
                 "transcript".into(),
             ]))]),
@@ -4408,7 +4408,7 @@ mod tests {
             .unwrap();
 
         assert!(state.overlay.is_none());
-        assert_eq!(state.pending_transcript_open, Some(thread_id));
+        assert_eq!(state.pending_transcript_open, Some(chat_id));
 
         assert!(state.note_transcript_loading_frame_drawn());
         state.open_pending_transcript_if_ready();
@@ -4528,17 +4528,17 @@ session_picker_view = "dense"
             .unwrap();
 
         assert_eq!(state.query, "resize r");
-        assert_eq!(state.expanded_thread_id, None);
+        assert_eq!(state.expanded_chat_id, None);
     }
 
     #[tokio::test]
     async fn ctrl_e_toggles_selected_session_expansion() {
-        let thread_id = ThreadId::new();
-        let recorded_requests: Arc<Mutex<Vec<ThreadId>>> = Arc::new(Mutex::new(Vec::new()));
+        let chat_id = ChatId::new();
+        let recorded_requests: Arc<Mutex<Vec<ChatId>>> = Arc::new(Mutex::new(Vec::new()));
         let request_sink = recorded_requests.clone();
         let loader: PickerLoader = Arc::new(move |request| {
-            if let PickerLoadRequest::Preview { chat_id: thread_id } = request {
-                request_sink.lock().unwrap().push(thread_id);
+            if let PickerLoadRequest::Preview { chat_id: chat_id } = request {
+                request_sink.lock().unwrap().push(chat_id);
             }
         });
         let mut state = PickerState::new(
@@ -4552,7 +4552,7 @@ session_picker_view = "dense"
         state.filtered_rows = vec![Row {
             path: None,
             preview: String::from("preview"),
-            chat_id: Some(thread_id),
+            chat_id: Some(chat_id),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -4565,20 +4565,20 @@ session_picker_view = "dense"
             .await
             .unwrap();
 
-        assert_eq!(state.expanded_thread_id, Some(thread_id));
-        assert_eq!(*recorded_requests.lock().unwrap(), vec![thread_id]);
+        assert_eq!(state.expanded_chat_id, Some(chat_id));
+        assert_eq!(*recorded_requests.lock().unwrap(), vec![chat_id]);
 
         state
             .handle_key(KeyEvent::new(KeyCode::Char('e'), KeyModifiers::CONTROL))
             .await
             .unwrap();
 
-        assert_eq!(state.expanded_thread_id, None);
+        assert_eq!(state.expanded_chat_id, None);
     }
 
     #[tokio::test]
     async fn raw_ctrl_e_toggles_selected_session_expansion() {
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let loader = page_only_loader(|_| {});
         let mut state = PickerState::new(
             FrameRequester::test_dummy(),
@@ -4591,7 +4591,7 @@ session_picker_view = "dense"
         state.filtered_rows = vec![Row {
             path: None,
             preview: String::from("preview"),
-            chat_id: Some(thread_id),
+            chat_id: Some(chat_id),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -4604,7 +4604,7 @@ session_picker_view = "dense"
             .await
             .unwrap();
 
-        assert_eq!(state.expanded_thread_id, Some(thread_id));
+        assert_eq!(state.expanded_chat_id, Some(chat_id));
     }
 
     #[test]
@@ -4666,7 +4666,7 @@ session_picker_view = "dense"
                 "Propose session picker redesign with enough title text to exercise truncation",
             ),
             chat_id: Some(
-                ThreadId::from_string("019dabc1-0ef5-7431-b81c-03037f51f62c").expect("thread id"),
+                ChatId::from_string("019dabc1-0ef5-7431-b81c-03037f51f62c").expect("thread id"),
             ),
             thread_name: None,
             created_at: parse_timestamp_str("2026-04-28T16:30:00Z"),
@@ -4916,12 +4916,12 @@ session_picker_view = "dense"
         use crate::test_backend::VT100Backend;
 
         let loader = page_only_loader(|_| {});
-        let thread_id =
-            ThreadId::from_string("019dabc1-0ef5-7431-b81c-03037f51f62c").expect("thread id");
+        let chat_id =
+            ChatId::from_string("019dabc1-0ef5-7431-b81c-03037f51f62c").expect("thread id");
         let row = Row {
             path: Some(PathBuf::from("/tmp/a.jsonl")),
             preview: String::from("Investigate picker expansion"),
-            chat_id: Some(thread_id),
+            chat_id: Some(chat_id),
             thread_name: None,
             created_at: parse_timestamp_str("2026-04-28T16:30:00Z"),
             updated_at: parse_timestamp_str("2026-04-28T17:45:00Z"),
@@ -4940,9 +4940,9 @@ session_picker_view = "dense"
         state.filtered_rows = vec![row];
         state.relative_time_reference =
             Some(parse_timestamp_str("2026-04-28T18:00:00Z").expect("timestamp"));
-        state.expanded_thread_id = Some(thread_id);
+        state.expanded_chat_id = Some(chat_id);
         state.transcript_previews.insert(
-            thread_id,
+            chat_id,
             TranscriptPreviewState::Loaded(vec![
                 TranscriptPreviewLine {
                     speaker: TranscriptPreviewSpeaker::User,
@@ -4989,7 +4989,7 @@ session_picker_view = "dense"
             path: Some(PathBuf::from("/tmp/a.jsonl")),
             preview: String::from("Investigate picker expansion"),
             chat_id: Some(
-                ThreadId::from_string("019dabc1-0ef5-7431-b81c-03037f51f62c").expect("thread id"),
+                ChatId::from_string("019dabc1-0ef5-7431-b81c-03037f51f62c").expect("thread id"),
             ),
             thread_name: None,
             created_at: parse_timestamp_str("2026-04-28T16:30:00Z"),
@@ -5637,7 +5637,7 @@ session_picker_view = "dense"
     }
 
     #[tokio::test]
-    async fn enter_on_row_without_resolvable_thread_id_shows_inline_error() {
+    async fn enter_on_row_without_resolvable_chat_id_shows_inline_error() {
         let loader = page_only_loader(|_| {});
         let mut state = PickerState::new(
             FrameRequester::test_dummy(),
@@ -5676,7 +5676,7 @@ session_picker_view = "dense"
     }
 
     #[tokio::test]
-    async fn enter_on_pathless_thread_uses_thread_id() {
+    async fn enter_on_pathless_thread_uses_chat_id() {
         let loader = page_only_loader(|_| {});
         let mut state = PickerState::new(
             FrameRequester::test_dummy(),
@@ -5686,11 +5686,11 @@ session_picker_view = "dense"
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
         );
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let row = Row {
             path: None,
             preview: String::from("pathless thread"),
-            chat_id: Some(thread_id),
+            chat_id: Some(chat_id),
             thread_name: None,
             created_at: None,
             updated_at: None,
@@ -5708,18 +5708,18 @@ session_picker_view = "dense"
         match selection {
             Some(SessionSelection::Resume(SessionTarget {
                 path: None,
-                chat_id: selected_thread_id,
-            })) => assert_eq!(selected_thread_id, thread_id),
+                chat_id: selected_chat_id,
+            })) => assert_eq!(selected_chat_id, chat_id),
             other => panic!("unexpected selection: {other:?}"),
         }
     }
 
     #[test]
     fn app_server_row_keeps_pathless_threads() {
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let thread = Chat {
-            id: thread_id.to_string(),
-            session_id: thread_id.to_string(),
+            id: chat_id.to_string(),
+            session_id: chat_id.to_string(),
             forked_from_id: None,
             parent_chat_id: None,
             preview: String::from("remote thread"),
@@ -5744,7 +5744,7 @@ session_picker_view = "dense"
         let row = row_from_app_server_thread(thread).expect("row should be preserved");
 
         assert_eq!(row.path, None);
-        assert_eq!(row.chat_id, Some(thread_id));
+        assert_eq!(row.chat_id, Some(chat_id));
         assert_eq!(row.thread_name, Some(String::from("Named thread")));
     }
 
@@ -5752,10 +5752,10 @@ session_picker_view = "dense"
     fn thread_to_transcript_cells_renders_core_message_types() {
         use crate::thread_transcript::thread_to_transcript_cells;
 
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let thread = Chat {
-            id: thread_id.to_string(),
-            session_id: thread_id.to_string(),
+            id: chat_id.to_string(),
+            session_id: chat_id.to_string(),
             forked_from_id: None,
             parent_chat_id: None,
             preview: String::from("preview"),
@@ -5822,10 +5822,10 @@ session_picker_view = "dense"
     fn thread_to_transcript_cells_hides_raw_reasoning_when_not_enabled() {
         use crate::thread_transcript::thread_to_transcript_cells;
 
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let thread = Chat {
-            id: thread_id.to_string(),
-            session_id: thread_id.to_string(),
+            id: chat_id.to_string(),
+            session_id: chat_id.to_string(),
             forked_from_id: None,
             parent_chat_id: None,
             preview: String::from("preview"),
@@ -5881,10 +5881,10 @@ session_picker_view = "dense"
     fn thread_to_transcript_cells_shows_raw_reasoning_over_summary_when_enabled() {
         use crate::thread_transcript::thread_to_transcript_cells;
 
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let thread = Chat {
-            id: thread_id.to_string(),
-            session_id: thread_id.to_string(),
+            id: chat_id.to_string(),
+            session_id: chat_id.to_string(),
             forked_from_id: None,
             parent_chat_id: None,
             preview: String::from("preview"),

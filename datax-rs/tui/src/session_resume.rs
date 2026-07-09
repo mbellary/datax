@@ -13,7 +13,7 @@ use crate::cwd_prompt::CwdPromptAction;
 use crate::cwd_prompt::CwdPromptOutcome;
 use crate::cwd_prompt::CwdSelection;
 use crate::tui::Tui;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_rollout::open_rollout_line_reader;
 use datax_state::StateRuntime;
 use datax_utils_path as path_utils;
@@ -22,14 +22,14 @@ use serde_json::Value;
 
 #[derive(Default)]
 struct RolloutResumeState {
-    thread_id: Option<ThreadId>,
+    chat_id: Option<ChatId>,
     cwd: Option<PathBuf>,
     model: Option<String>,
 }
 
 #[derive(Deserialize)]
 struct SessionMetadata {
-    id: ThreadId,
+    id: ChatId,
     cwd: PathBuf,
 }
 
@@ -51,26 +51,26 @@ pub(crate) enum ResolveCwdOutcome {
     Exit,
 }
 
-pub(crate) async fn resolve_session_thread_id(
+pub(crate) async fn resolve_session_chat_id(
     path: &Path,
     id_str_if_uuid: Option<&str>,
-) -> Option<ThreadId> {
+) -> Option<ChatId> {
     match id_str_if_uuid {
-        Some(id_str) => ThreadId::from_string(id_str).ok(),
+        Some(id_str) => ChatId::from_string(id_str).ok(),
         None => read_rollout_resume_state(path)
             .await
             .ok()
-            .and_then(|state| state.thread_id),
+            .and_then(|state| state.chat_id),
     }
 }
 
 pub(crate) async fn read_session_model(
     state_db_ctx: Option<&StateRuntime>,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     path: Option<&Path>,
 ) -> Option<String> {
     if let Some(state_db_ctx) = state_db_ctx
-        && let Ok(Some(metadata)) = state_db_ctx.get_thread(thread_id).await
+        && let Ok(Some(metadata)) = state_db_ctx.get_thread(chat_id).await
         && let Some(model) = metadata.model
     {
         return Some(model);
@@ -87,12 +87,12 @@ pub(crate) async fn resolve_cwd_for_resume_or_fork(
     tui: &mut Tui,
     state_db_ctx: Option<&StateRuntime>,
     current_cwd: &Path,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     path: Option<&Path>,
     action: CwdPromptAction,
     allow_prompt: bool,
 ) -> color_eyre::Result<ResolveCwdOutcome> {
-    let Some(history_cwd) = read_session_cwd(state_db_ctx, thread_id, path).await else {
+    let Some(history_cwd) = read_session_cwd(state_db_ctx, chat_id, path).await else {
         return Ok(ResolveCwdOutcome::Continue(None));
     };
     if allow_prompt && cwds_differ(current_cwd, &history_cwd) {
@@ -113,11 +113,11 @@ pub(crate) async fn resolve_cwd_for_resume_or_fork(
 
 async fn read_session_cwd(
     state_db_ctx: Option<&StateRuntime>,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     path: Option<&Path>,
 ) -> Option<PathBuf> {
     if let Some(state_db_ctx) = state_db_ctx
-        && let Ok(Some(metadata)) = state_db_ctx.get_thread(thread_id).await
+        && let Ok(Some(metadata)) = state_db_ctx.get_thread(chat_id).await
     {
         return Some(metadata.cwd);
     }
@@ -160,9 +160,9 @@ async fn read_rollout_resume_state(path: &Path) -> io::Result<RolloutResumeState
         };
 
         match record.item_type.as_str() {
-            "session_meta" if state.thread_id.is_none() => {
+            "session_meta" if state.chat_id.is_none() => {
                 if let Ok(metadata) = serde_json::from_value::<SessionMetadata>(payload) {
-                    state.thread_id = Some(metadata.id);
+                    state.chat_id = Some(metadata.id);
                     state.cwd.get_or_insert(metadata.cwd);
                 }
             }
@@ -217,7 +217,7 @@ mod tests {
     #[tokio::test]
     async fn rollout_resume_state_prefers_latest_turn_context() -> std::io::Result<()> {
         let temp_dir = TempDir::new()?;
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let original = temp_dir.path().join("original");
         let latest = temp_dir.path().join("latest");
         let rollout_path = temp_dir.path().join("rollout.jsonl");
@@ -228,7 +228,7 @@ mod tests {
                     "t0",
                     "session_meta",
                     serde_json::json!({
-                        "id": thread_id,
+                        "id": chat_id,
                         "cwd": original,
                         "originator": "test",
                         "cli_version": "test",
@@ -249,7 +249,7 @@ mod tests {
 
         let state = read_rollout_resume_state(&rollout_path).await?;
 
-        assert_eq!(state.thread_id, Some(thread_id));
+        assert_eq!(state.chat_id, Some(chat_id));
         assert_eq!(state.cwd, Some(latest));
         assert_eq!(state.model, Some("latest".to_string()));
         Ok(())
@@ -258,7 +258,7 @@ mod tests {
     #[tokio::test]
     async fn rollout_resume_state_falls_back_to_session_meta() -> std::io::Result<()> {
         let temp_dir = TempDir::new()?;
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let cwd = temp_dir.path().join("session");
         let rollout_path = temp_dir.path().join("rollout.jsonl");
         write_rollout_lines(
@@ -267,7 +267,7 @@ mod tests {
                 "t0",
                 "session_meta",
                 serde_json::json!({
-                    "id": thread_id,
+                    "id": chat_id,
                     "cwd": cwd.clone(),
                     "originator": "test",
                     "cli_version": "test",
@@ -277,7 +277,7 @@ mod tests {
 
         let state = read_rollout_resume_state(&rollout_path).await?;
 
-        assert_eq!(state.thread_id, Some(thread_id));
+        assert_eq!(state.chat_id, Some(chat_id));
         assert_eq!(state.cwd, Some(cwd));
         assert_eq!(state.model, None);
         Ok(())
@@ -286,14 +286,14 @@ mod tests {
     #[tokio::test]
     async fn rollout_resume_state_skips_malformed_lines() -> std::io::Result<()> {
         let temp_dir = TempDir::new()?;
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let cwd = temp_dir.path().join("session");
         let rollout_path = temp_dir.path().join("rollout.jsonl");
         let valid_line = serde_json::to_string(&rollout_line(
             "t0",
             "session_meta",
             serde_json::json!({
-                "id": thread_id,
+                "id": chat_id,
                 "cwd": cwd.clone(),
                 "originator": "test",
                 "cli_version": "test",
@@ -304,7 +304,7 @@ mod tests {
 
         let state = read_rollout_resume_state(&rollout_path).await?;
 
-        assert_eq!(state.thread_id, Some(thread_id));
+        assert_eq!(state.chat_id, Some(chat_id));
         assert_eq!(state.cwd, Some(cwd));
         Ok(())
     }

@@ -6,7 +6,7 @@ use std::sync::MutexGuard;
 use std::sync::OnceLock;
 
 use chrono::Utc;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::models::PermissionProfile;
 use datax_protocol::protocol::AskForApproval;
 use datax_protocol::protocol::RolloutItem;
@@ -56,11 +56,11 @@ mod tests {
     #[tokio::test]
     async fn default_turn_pagination_methods_return_unsupported() {
         let store = InMemoryThreadStore::default();
-        let thread_id = ThreadId::default();
+        let chat_id = ChatId::default();
 
         let turns_err = store
             .list_turns(ListTurnsParams {
-                thread_id,
+                chat_id,
                 include_archived: true,
                 cursor: None,
                 page_size: 10,
@@ -78,8 +78,8 @@ mod tests {
 
         let items_err = store
             .list_items(ListItemsParams {
-                thread_id,
-                turn_id: None,
+                chat_id,
+                interaction_id: None,
                 include_archived: true,
                 cursor: None,
                 page_size: 10,
@@ -96,25 +96,25 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn list_threads_filters_by_parent_thread_id() {
+    async fn list_threads_filters_by_parent_chat_id() {
         let store = InMemoryThreadStore::default();
-        let parent_thread_id = ThreadId::default();
-        let child_thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000001").expect("valid thread id");
-        let unrelated_thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000002").expect("valid thread id");
+        let parent_chat_id = ChatId::default();
+        let child_chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000001").expect("valid thread id");
+        let unrelated_chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000002").expect("valid thread id");
 
-        for (thread_id, parent_thread_id) in [
-            (child_thread_id, Some(parent_thread_id)),
-            (unrelated_thread_id, None),
+        for (chat_id, parent_chat_id) in [
+            (child_chat_id, Some(parent_chat_id)),
+            (unrelated_chat_id, None),
         ] {
             store
                 .create_thread(CreateThreadParams {
-                    session_id: thread_id.into(),
-                    thread_id,
+                    session_id: chat_id.into(),
+                    chat_id,
                     extra_config: None,
                     forked_from_id: None,
-                    parent_thread_id,
+                    parent_chat_id,
                     source: SessionSource::Exec,
                     thread_source: None,
                     base_instructions: BaseInstructions::default(),
@@ -142,7 +142,7 @@ mod tests {
                 cwd_filters: None,
                 archived: false,
                 search_term: None,
-                parent_thread_id: Some(parent_thread_id),
+                parent_chat_id: Some(parent_chat_id),
                 use_state_db_only: false,
             },
         )
@@ -152,9 +152,9 @@ mod tests {
         assert_eq!(
             page.items
                 .into_iter()
-                .map(|item| item.thread_id)
+                .map(|item| item.chat_id)
                 .collect::<Vec<_>>(),
-            vec![child_thread_id]
+            vec![child_chat_id]
         );
     }
 }
@@ -200,11 +200,11 @@ pub struct InMemoryThreadStore {
 #[derive(Default)]
 struct InMemoryThreadStoreState {
     calls: InMemoryThreadStoreCalls,
-    created_threads: HashMap<ThreadId, CreateThreadParams>,
-    histories: HashMap<ThreadId, Vec<RolloutItem>>,
-    metadata_updates: HashMap<ThreadId, ThreadMetadataPatch>,
-    names: HashMap<ThreadId, Option<String>>,
-    rollout_paths: HashMap<PathBuf, ThreadId>,
+    created_threads: HashMap<ChatId, CreateThreadParams>,
+    histories: HashMap<ChatId, Vec<RolloutItem>>,
+    metadata_updates: HashMap<ChatId, ThreadMetadataPatch>,
+    names: HashMap<ChatId, Option<String>>,
+    rollout_paths: HashMap<PathBuf, ChatId>,
 }
 
 impl InMemoryThreadStore {
@@ -233,9 +233,9 @@ impl InMemoryThreadStore {
         state.calls.create_thread += 1;
         let session_meta = SessionMeta {
             session_id: params.session_id,
-            id: params.thread_id,
+            id: params.chat_id,
             forked_from_id: params.forked_from_id,
-            parent_thread_id: params.parent_thread_id,
+            parent_chat_id: params.parent_chat_id,
             cwd: params.metadata.cwd.clone().unwrap_or_default(),
             agent_nickname: params.source.get_nickname(),
             agent_role: params.source.get_agent_role(),
@@ -252,13 +252,13 @@ impl InMemoryThreadStore {
         };
         state
             .histories
-            .entry(params.thread_id)
+            .entry(params.chat_id)
             .or_default()
             .push(RolloutItem::SessionMeta(SessionMetaLine {
                 meta: session_meta,
                 git: None,
             }));
-        state.created_threads.insert(params.thread_id, params);
+        state.created_threads.insert(params.chat_id, params);
         Ok(())
     }
 
@@ -266,12 +266,12 @@ impl InMemoryThreadStore {
         let mut state = self.state.lock().await;
         state.calls.resume_thread += 1;
         if let Some(history) = params.history {
-            state.histories.insert(params.thread_id, history);
+            state.histories.insert(params.chat_id, history);
         } else {
-            state.histories.entry(params.thread_id).or_default();
+            state.histories.entry(params.chat_id).or_default();
         }
         if let Some(rollout_path) = params.rollout_path {
-            state.rollout_paths.insert(rollout_path, params.thread_id);
+            state.rollout_paths.insert(rollout_path, params.chat_id);
         }
         Ok(())
     }
@@ -285,7 +285,7 @@ impl InMemoryThreadStore {
         state.calls.append_items += 1;
         state
             .histories
-            .entry(params.thread_id)
+            .entry(params.chat_id)
             .or_default()
             .extend(canonical_items);
         Ok(())
@@ -297,13 +297,13 @@ impl InMemoryThreadStore {
     ) -> ThreadStoreResult<StoredThreadHistory> {
         let mut state = self.state.lock().await;
         state.calls.load_history += 1;
-        let items = state.histories.get(&params.thread_id).cloned().ok_or(
+        let items = state.histories.get(&params.chat_id).cloned().ok_or(
             ThreadStoreError::ThreadNotFound {
-                thread_id: params.thread_id,
+                chat_id: params.chat_id,
             },
         )?;
         Ok(StoredThreadHistory {
-            thread_id: params.thread_id,
+            chat_id: params.chat_id,
             items,
         })
     }
@@ -314,7 +314,7 @@ impl InMemoryThreadStore {
         if params.include_history {
             state.calls.read_thread_with_history += 1;
         }
-        stored_thread_from_state(&state, params.thread_id, params.include_history)
+        stored_thread_from_state(&state, params.chat_id, params.include_history)
     }
 
     async fn read_thread_by_rollout_path(
@@ -323,7 +323,7 @@ impl InMemoryThreadStore {
     ) -> ThreadStoreResult<StoredThread> {
         let mut state = self.state.lock().await;
         state.calls.read_thread_by_rollout_path += 1;
-        let Some(thread_id) = state.rollout_paths.get(&params.rollout_path).copied() else {
+        let Some(chat_id) = state.rollout_paths.get(&params.rollout_path).copied() else {
             return Err(ThreadStoreError::InvalidRequest {
                 message: format!(
                     "in-memory thread store does not know rollout path {}",
@@ -331,7 +331,7 @@ impl InMemoryThreadStore {
                 ),
             });
         };
-        stored_thread_from_state(&state, thread_id, params.include_history)
+        stored_thread_from_state(&state, chat_id, params.include_history)
     }
 
     async fn list_threads(&self) -> ThreadStoreResult<ThreadPage> {
@@ -340,11 +340,11 @@ impl InMemoryThreadStore {
         let mut items = state
             .created_threads
             .keys()
-            .map(|thread_id| {
-                stored_thread_from_state(&state, *thread_id, /*include_history*/ false)
+            .map(|chat_id| {
+                stored_thread_from_state(&state, *chat_id, /*include_history*/ false)
             })
             .collect::<ThreadStoreResult<Vec<_>>>()?;
-        items.sort_by_key(|item| item.thread_id.to_string());
+        items.sort_by_key(|item| item.chat_id.to_string());
         Ok(ThreadPage {
             items,
             next_cursor: None,
@@ -358,31 +358,31 @@ impl InMemoryThreadStore {
         let mut state = self.state.lock().await;
         state.calls.update_thread_metadata += 1;
         if let Some(name) = params.patch.name.clone() {
-            state.names.insert(params.thread_id, name);
+            state.names.insert(params.chat_id, name);
         }
         state
             .metadata_updates
-            .entry(params.thread_id)
+            .entry(params.chat_id)
             .or_default()
             .merge(params.patch);
-        stored_thread_from_state(&state, params.thread_id, /*include_history*/ false)
+        stored_thread_from_state(&state, params.chat_id, /*include_history*/ false)
     }
 
     async fn delete_thread(&self, params: DeleteThreadParams) -> ThreadStoreResult<()> {
         let mut state = self.state.lock().await;
         state.calls.delete_thread += 1;
-        let existed = state.histories.remove(&params.thread_id).is_some();
-        state.created_threads.remove(&params.thread_id);
-        state.names.remove(&params.thread_id);
-        state.metadata_updates.remove(&params.thread_id);
+        let existed = state.histories.remove(&params.chat_id).is_some();
+        state.created_threads.remove(&params.chat_id);
+        state.names.remove(&params.chat_id);
+        state.metadata_updates.remove(&params.chat_id);
         state
             .rollout_paths
-            .retain(|_, thread_id| *thread_id != params.thread_id);
+            .retain(|_, chat_id| *chat_id != params.chat_id);
         if existed {
             Ok(())
         } else {
             Err(ThreadStoreError::ThreadNotFound {
-                thread_id: params.thread_id,
+                chat_id: params.chat_id,
             })
         }
     }
@@ -405,28 +405,28 @@ impl ThreadStore for InMemoryThreadStore {
         Box::pin(InMemoryThreadStore::append_items(self, params))
     }
 
-    fn persist_thread(&self, _thread_id: ThreadId) -> ThreadStoreFuture<'_, ()> {
+    fn persist_thread(&self, _chat_id: ChatId) -> ThreadStoreFuture<'_, ()> {
         Box::pin(async move {
             self.state.lock().await.calls.persist_thread += 1;
             Ok(())
         })
     }
 
-    fn flush_thread(&self, _thread_id: ThreadId) -> ThreadStoreFuture<'_, ()> {
+    fn flush_thread(&self, _chat_id: ChatId) -> ThreadStoreFuture<'_, ()> {
         Box::pin(async move {
             self.state.lock().await.calls.flush_thread += 1;
             Ok(())
         })
     }
 
-    fn shutdown_thread(&self, _thread_id: ThreadId) -> ThreadStoreFuture<'_, ()> {
+    fn shutdown_thread(&self, _chat_id: ChatId) -> ThreadStoreFuture<'_, ()> {
         Box::pin(async move {
             self.state.lock().await.calls.shutdown_thread += 1;
             Ok(())
         })
     }
 
-    fn discard_thread(&self, _thread_id: ThreadId) -> ThreadStoreFuture<'_, ()> {
+    fn discard_thread(&self, _chat_id: ChatId) -> ThreadStoreFuture<'_, ()> {
         Box::pin(async move {
             self.state.lock().await.calls.discard_thread += 1;
             Ok(())
@@ -456,9 +456,9 @@ impl ThreadStore for InMemoryThreadStore {
     fn list_threads(&self, params: ListThreadsParams) -> ThreadStoreFuture<'_, ThreadPage> {
         Box::pin(async move {
             let mut page = InMemoryThreadStore::list_threads(self).await?;
-            if let Some(parent_thread_id) = params.parent_thread_id {
+            if let Some(parent_chat_id) = params.parent_chat_id {
                 page.items
-                    .retain(|thread| thread.parent_thread_id == Some(parent_thread_id));
+                    .retain(|thread| thread.parent_chat_id == Some(parent_chat_id));
             }
             Ok(page)
         })
@@ -482,7 +482,7 @@ impl ThreadStore for InMemoryThreadStore {
         Box::pin(async move {
             let mut state = self.state.lock().await;
             state.calls.unarchive_thread += 1;
-            stored_thread_from_state(&state, params.thread_id, /*include_history*/ false)
+            stored_thread_from_state(&state, params.chat_id, /*include_history*/ false)
         })
     }
 
@@ -493,35 +493,35 @@ impl ThreadStore for InMemoryThreadStore {
 
 fn stored_thread_from_state(
     state: &InMemoryThreadStoreState,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     include_history: bool,
 ) -> ThreadStoreResult<StoredThread> {
     let created = state
         .created_threads
-        .get(&thread_id)
-        .ok_or(ThreadStoreError::ThreadNotFound { thread_id })?;
-    let history_items = state.histories.get(&thread_id).cloned().unwrap_or_default();
+        .get(&chat_id)
+        .ok_or(ThreadStoreError::ThreadNotFound { chat_id })?;
+    let history_items = state.histories.get(&chat_id).cloned().unwrap_or_default();
     let history = include_history.then(|| StoredThreadHistory {
-        thread_id,
+        chat_id,
         items: history_items.clone(),
     });
-    let name = state.names.get(&thread_id).cloned().flatten();
-    let metadata = state.metadata_updates.get(&thread_id);
+    let name = state.names.get(&chat_id).cloned().flatten();
+    let metadata = state.metadata_updates.get(&chat_id);
     let rollout_path = state
         .rollout_paths
         .iter()
-        .find_map(|(path, mapped_thread_id)| {
-            (*mapped_thread_id == thread_id).then(|| path.clone())
+        .find_map(|(path, mapped_chat_id)| {
+            (*mapped_chat_id == chat_id).then(|| path.clone())
         });
 
     Ok(StoredThread {
-        thread_id,
+        chat_id,
         extra_config: created.extra_config.clone(),
         rollout_path: metadata
             .and_then(|metadata| metadata.rollout_path.clone())
             .or(rollout_path),
         forked_from_id: created.forked_from_id,
-        parent_thread_id: created.parent_thread_id,
+        parent_chat_id: created.parent_chat_id,
         preview: metadata
             .and_then(|metadata| metadata.preview.clone())
             .unwrap_or_default(),

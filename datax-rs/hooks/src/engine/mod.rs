@@ -23,7 +23,7 @@ use crate::events::user_prompt_submit::UserPromptSubmitRequest;
 use crate::output_spill::HookOutputSpiller;
 use datax_config::ConfigLayerStack;
 use datax_plugin::PluginHookSource;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::HookEventName;
 use datax_protocol::protocol::HookHandlerType;
 use datax_protocol::protocol::HookRunSummary;
@@ -169,11 +169,11 @@ impl ClaudeHooksEngine {
     pub(crate) async fn run_session_start(
         &self,
         request: SessionStartRequest,
-        turn_id: Option<String>,
+        interaction_id: Option<String>,
     ) -> SessionStartOutcome {
         let session_id = request.session_id;
         let mut outcome =
-            crate::events::session_start::run(&self.handlers, &self.shell, request, turn_id).await;
+            crate::events::session_start::run(&self.handlers, &self.shell, request, interaction_id).await;
         outcome.additional_contexts = self
             .maybe_spill_texts(session_id, outcome.additional_contexts)
             .await;
@@ -265,13 +265,13 @@ impl ClaudeHooksEngine {
         outcome
     }
 
-    async fn maybe_spill_texts(&self, session_id: ThreadId, texts: Vec<String>) -> Vec<String> {
+    async fn maybe_spill_texts(&self, session_id: ChatId, texts: Vec<String>) -> Vec<String> {
         self.output_spiller
             .maybe_spill_texts(session_id, texts)
             .await
     }
 
-    async fn maybe_spill_text(&self, session_id: ThreadId, text: Option<String>) -> Option<String> {
+    async fn maybe_spill_text(&self, session_id: ChatId, text: Option<String>) -> Option<String> {
         match text {
             Some(text) => Some(self.output_spiller.maybe_spill_text(session_id, text).await),
             None => None,
@@ -280,7 +280,7 @@ impl ClaudeHooksEngine {
 
     async fn maybe_spill_prompt_fragments(
         &self,
-        session_id: ThreadId,
+        session_id: ChatId,
         fragments: Vec<datax_protocol::items::HookPromptFragment>,
     ) -> Vec<datax_protocol::items::HookPromptFragment> {
         self.output_spiller

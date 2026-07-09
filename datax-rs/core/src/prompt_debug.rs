@@ -66,7 +66,7 @@ pub async fn build_prompt_input(
 
     let output = build_prompt_input_from_session(thread.thread.codex.session.as_ref(), input).await;
     let shutdown = thread.thread.shutdown_and_wait().await;
-    let _removed = thread_manager.remove_thread(&thread.thread_id).await;
+    let _removed = thread_manager.remove_thread(&thread.chat_id).await;
 
     shutdown?;
     output

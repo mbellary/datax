@@ -34,7 +34,7 @@ use datax_model_provider_info::ModelProviderInfo;
 use datax_model_provider_info::OPENAI_PROVIDER_ID;
 use datax_models_manager::manager::RefreshStrategy;
 use datax_models_manager::manager::SharedModelsManager;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::CollaborationModeMask;
 use datax_protocol::error::CodexErr;
 use datax_protocol::error::Result as CodexResult;
@@ -50,8 +50,8 @@ use datax_protocol::protocol::SessionConfiguredEvent;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
 use datax_protocol::protocol::ThreadSource;
-use datax_protocol::protocol::TurnAbortReason;
-use datax_protocol::protocol::TurnAbortedEvent;
+use datax_protocol::protocol::InteractionAbortReason;
+use datax_protocol::protocol::InteractionAbortedEvent;
 use datax_protocol::protocol::TurnEnvironmentSelection;
 use datax_protocol::protocol::W3cTraceContext;
 use datax_rollout::state_db::StateDbHandle;
@@ -89,7 +89,7 @@ const THREAD_CREATED_CHANNEL_CAPACITY: usize = 1024;
 /// must not be toggled.
 static FORCE_TEST_THREAD_MANAGER_BEHAVIOR: AtomicBool = AtomicBool::new(false);
 
-type CapturedOps = Vec<(ThreadId, Op)>;
+type CapturedOps = Vec<(ChatId, Op)>;
 type SharedCapturedOps = Arc<std::sync::Mutex<CapturedOps>>;
 
 pub(crate) fn set_thread_manager_test_mode_for_tests(enabled: bool) {
@@ -113,7 +113,7 @@ impl Drop for TempCodexHomeGuard {
 /// Represents a newly created Codex thread (formerly called a conversation), including the first event
 /// (which is [`EventMsg::SessionConfigured`]).
 pub struct NewThread {
-    pub thread_id: ThreadId,
+    pub chat_id: ChatId,
     pub thread: Arc<CodexThread>,
     pub session_configured: SessionConfiguredEvent,
 }
@@ -159,9 +159,9 @@ impl From<usize> for ForkSnapshot {
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ThreadShutdownReport {
-    pub completed: Vec<ThreadId>,
-    pub submit_failed: Vec<ThreadId>,
-    pub timed_out: Vec<ThreadId>,
+    pub completed: Vec<ChatId>,
+    pub submit_failed: Vec<ChatId>,
+    pub timed_out: Vec<ChatId>,
 }
 
 enum ShutdownOutcome {
@@ -195,7 +195,7 @@ pub(crate) struct ResumeThreadWithHistoryOptions {
     pub(crate) initial_history: InitialHistory,
     pub(crate) agent_control: AgentControl,
     pub(crate) session_source: SessionSource,
-    pub(crate) parent_thread_id: Option<ThreadId>,
+    pub(crate) parent_chat_id: Option<ChatId>,
     pub(crate) inherited_environments: Option<TurnEnvironmentSnapshot>,
     pub(crate) inherited_exec_policy: Option<Arc<crate::exec_policy::ExecPolicyManager>>,
 }
@@ -204,8 +204,8 @@ pub(crate) struct ResumeThreadWithHistoryOptions {
 /// `Arc` reference that can be downgraded to by `AgentControl` while preventing every single
 /// function to require an `Arc<&Self>`.
 pub(crate) struct ThreadManagerState {
-    threads: Arc<RwLock<HashMap<ThreadId, Arc<CodexThread>>>>,
-    thread_created_tx: broadcast::Sender<ThreadId>,
+    threads: Arc<RwLock<HashMap<ChatId, Arc<CodexThread>>>>,
+    thread_created_tx: broadcast::Sender<ChatId>,
     auth_manager: Arc<AuthManager>,
     models_manager: SharedModelsManager,
     environment_manager: Arc<EnvironmentManager>,
@@ -493,16 +493,16 @@ impl ThreadManager {
         self.state.models_manager.list_collaboration_modes()
     }
 
-    pub async fn list_thread_ids(&self) -> Vec<ThreadId> {
-        self.state.list_thread_ids().await
+    pub async fn list_chat_ids(&self) -> Vec<ChatId> {
+        self.state.list_chat_ids().await
     }
 
-    pub fn subscribe_thread_created(&self) -> broadcast::Receiver<ThreadId> {
+    pub fn subscribe_thread_created(&self) -> broadcast::Receiver<ChatId> {
         self.state.thread_created_tx.subscribe()
     }
 
-    pub async fn get_thread(&self, thread_id: ThreadId) -> CodexResult<Arc<CodexThread>> {
-        self.state.get_thread(thread_id).await
+    pub async fn get_thread(&self, chat_id: ChatId) -> CodexResult<Arc<CodexThread>> {
+        self.state.get_thread(chat_id).await
     }
 
     /// Updates metadata for loaded and cold threads through one entrypoint.
@@ -512,46 +512,46 @@ impl ThreadManager {
     /// compatibility and SQLite metadata updates.
     pub async fn update_thread_metadata(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         patch: ThreadMetadataPatch,
         include_archived: bool,
     ) -> CodexResult<StoredThread> {
-        if let Ok(thread) = self.get_thread(thread_id).await {
+        if let Ok(thread) = self.get_thread(chat_id).await {
             if thread.config_snapshot().await.ephemeral {
                 return Err(CodexErr::InvalidRequest(format!(
-                    "ephemeral thread does not support metadata updates: {thread_id}"
+                    "ephemeral thread does not support metadata updates: {chat_id}"
                 )));
             }
             return thread
                 .update_thread_metadata(patch, include_archived)
                 .await
-                .map_err(|err| thread_store_metadata_update_error(thread_id, err));
+                .map_err(|err| thread_store_metadata_update_error(chat_id, err));
         }
         self.state
             .thread_store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch,
                 include_archived,
             })
             .await
             .map_err(|err| match err {
-                ThreadStoreError::ThreadNotFound { thread_id } => {
-                    CodexErr::ThreadNotFound(thread_id)
+                ThreadStoreError::ThreadNotFound { chat_id } => {
+                    CodexErr::ThreadNotFound(chat_id)
                 }
-                err => thread_store_metadata_update_error(thread_id, err),
+                err => thread_store_metadata_update_error(chat_id, err),
             })
     }
 
-    /// List `thread_id` plus all known descendants in its spawn subtree.
-    pub async fn list_agent_subtree_thread_ids(
+    /// List `chat_id` plus all known descendants in its spawn subtree.
+    pub async fn list_agent_subtree_chat_ids(
         &self,
-        thread_id: ThreadId,
-    ) -> CodexResult<Vec<ThreadId>> {
-        let mut subtree_thread_ids = Vec::new();
-        let mut seen_thread_ids = HashSet::new();
-        subtree_thread_ids.push(thread_id);
-        seen_thread_ids.insert(thread_id);
+        chat_id: ChatId,
+    ) -> CodexResult<Vec<ChatId>> {
+        let mut subtree_chat_ids = Vec::new();
+        let mut seen_chat_ids = HashSet::new();
+        subtree_chat_ids.push(chat_id);
+        seen_chat_ids.insert(chat_id);
 
         if let Some(state_db_ctx) = self.state.state_db() {
             for status in [
@@ -559,14 +559,14 @@ impl ThreadManager {
                 DirectionalThreadSpawnEdgeStatus::Closed,
             ] {
                 for descendant_id in state_db_ctx
-                    .list_thread_spawn_descendants_with_status(thread_id, status)
+                    .list_thread_spawn_descendants_with_status(chat_id, status)
                     .await
                     .map_err(|err| {
                         CodexErr::Fatal(format!("failed to load thread-spawn descendants: {err}"))
                     })?
                 {
-                    if seen_thread_ids.insert(descendant_id) {
-                        subtree_thread_ids.push(descendant_id);
+                    if seen_chat_ids.insert(descendant_id) {
+                        subtree_chat_ids.push(descendant_id);
                     }
                 }
             }
@@ -574,15 +574,15 @@ impl ThreadManager {
 
         for descendant_id in self
             .agent_control()
-            .list_live_agent_subtree_thread_ids(thread_id)
+            .list_live_agent_subtree_chat_ids(chat_id)
             .await?
         {
-            if seen_thread_ids.insert(descendant_id) {
-                subtree_thread_ids.push(descendant_id);
+            if seen_chat_ids.insert(descendant_id) {
+                subtree_chat_ids.push(descendant_id);
             }
         }
 
-        Ok(subtree_thread_ids)
+        Ok(subtree_chat_ids)
     }
 
     pub async fn start_thread(&self, config: Config) -> CodexResult<NewThread> {
@@ -619,14 +619,14 @@ impl ThreadManager {
         &self,
         options: StartThreadOptions,
     ) -> CodexResult<NewThread> {
-        self.start_thread_with_options_and_fork_source(options, /*forked_from_thread_id*/ None)
+        self.start_thread_with_options_and_fork_source(options, /*forked_from_chat_id*/ None)
             .await
     }
 
     async fn start_thread_with_options_and_fork_source(
         &self,
         options: StartThreadOptions,
-        forked_from_thread_id: Option<ThreadId>,
+        forked_from_chat_id: Option<ChatId>,
     ) -> CodexResult<NewThread> {
         let agent_control = self.agent_control_for_config(&options.config);
         let (resumed_session_source, resumed_thread_source) = options
@@ -641,8 +641,8 @@ impl ThreadManager {
             Arc::clone(&self.state.auth_manager),
             agent_control,
             session_source,
-            /*parent_thread_id*/ None,
-            forked_from_thread_id,
+            /*parent_chat_id*/ None,
+            forked_from_chat_id,
             thread_source,
             options.dynamic_tools,
             options.metrics_service_name,
@@ -658,13 +658,13 @@ impl ThreadManager {
     }
 
     // TODO(jif) merge with fork_agent
-    /// Spawn a subagent by forking persisted history from `forked_from_thread_id`.
+    /// Spawn a subagent by forking persisted history from `forked_from_chat_id`.
     pub async fn spawn_subagent(
         &self,
-        forked_from_thread_id: ThreadId,
+        forked_from_chat_id: ChatId,
         mut options: StartThreadOptions,
     ) -> CodexResult<NewThread> {
-        let fork_source = self.get_thread(forked_from_thread_id).await?;
+        let fork_source = self.get_thread(forked_from_chat_id).await?;
         // Persist queued rollout updates before reading the fork snapshot.
         fork_source.ensure_rollout_materialized().await;
         fork_source.flush_rollout().await?;
@@ -675,7 +675,7 @@ impl ThreadManager {
             .await
             .map_err(|err| {
                 CodexErr::Fatal(format!(
-                    "failed to read subagent fork source {forked_from_thread_id}: {err}"
+                    "failed to read subagent fork source {forked_from_chat_id}: {err}"
                 ))
             })?;
         let history = stored_thread_to_initial_history(stored_thread, fork_source.rollout_path())?;
@@ -690,7 +690,7 @@ impl ThreadManager {
                 inherited_multi_agent_version,
             ),
         );
-        self.start_thread_with_options_and_fork_source(options, Some(forked_from_thread_id))
+        self.start_thread_with_options_and_fork_source(options, Some(forked_from_chat_id))
             .await
     }
 
@@ -736,8 +736,8 @@ impl ThreadManager {
             auth_manager,
             agent_control,
             session_source,
-            /*parent_thread_id*/ None,
-            /*forked_from_thread_id*/ None,
+            /*parent_chat_id*/ None,
+            /*forked_from_chat_id*/ None,
             thread_source,
             Vec::new(),
             /*metrics_service_name*/ None,
@@ -768,8 +768,8 @@ impl ThreadManager {
             InitialHistory::New,
             Arc::clone(&self.state.auth_manager),
             agent_control,
-            /*parent_thread_id*/ None,
-            /*forked_from_thread_id*/ None,
+            /*parent_chat_id*/ None,
+            /*forked_from_chat_id*/ None,
             /*thread_source*/ None,
             Vec::new(),
             /*metrics_service_name*/ None,
@@ -805,8 +805,8 @@ impl ThreadManager {
             auth_manager,
             agent_control,
             session_source,
-            /*parent_thread_id*/ None,
-            /*forked_from_thread_id*/ None,
+            /*parent_chat_id*/ None,
+            /*forked_from_chat_id*/ None,
             thread_source,
             Vec::new(),
             /*metrics_service_name*/ None,
@@ -824,8 +824,8 @@ impl ThreadManager {
     /// Removes the thread from the manager's internal map, though the thread is stored
     /// as `Arc<CodexThread>`, it is possible that other references to it exist elsewhere.
     /// Returns the thread if the thread was found and removed.
-    pub async fn remove_thread(&self, thread_id: &ThreadId) -> Option<Arc<CodexThread>> {
-        self.state.threads.write().await.remove(thread_id)
+    pub async fn remove_thread(&self, chat_id: &ChatId) -> Option<Arc<CodexThread>> {
+        self.state.threads.write().await.remove(chat_id)
     }
 
     /// Tries to shut down all tracked threads concurrently within the provided timeout.
@@ -836,35 +836,35 @@ impl ThreadManager {
             let threads = self.state.threads.read().await;
             threads
                 .iter()
-                .map(|(thread_id, thread)| (*thread_id, Arc::clone(thread)))
+                .map(|(chat_id, thread)| (*chat_id, Arc::clone(thread)))
                 .collect::<Vec<_>>()
         };
 
         let mut shutdowns = threads
             .into_iter()
-            .map(|(thread_id, thread)| async move {
+            .map(|(chat_id, thread)| async move {
                 let outcome = match tokio::time::timeout(timeout, thread.shutdown_and_wait()).await
                 {
                     Ok(Ok(())) => ShutdownOutcome::Complete,
                     Ok(Err(_)) => ShutdownOutcome::SubmitFailed,
                     Err(_) => ShutdownOutcome::TimedOut,
                 };
-                (thread_id, outcome)
+                (chat_id, outcome)
             })
             .collect::<FuturesUnordered<_>>();
         let mut report = ThreadShutdownReport::default();
 
-        while let Some((thread_id, outcome)) = shutdowns.next().await {
+        while let Some((chat_id, outcome)) = shutdowns.next().await {
             match outcome {
-                ShutdownOutcome::Complete => report.completed.push(thread_id),
-                ShutdownOutcome::SubmitFailed => report.submit_failed.push(thread_id),
-                ShutdownOutcome::TimedOut => report.timed_out.push(thread_id),
+                ShutdownOutcome::Complete => report.completed.push(chat_id),
+                ShutdownOutcome::SubmitFailed => report.submit_failed.push(chat_id),
+                ShutdownOutcome::TimedOut => report.timed_out.push(chat_id),
             }
         }
 
         let mut tracked_threads = self.state.threads.write().await;
-        for thread_id in &report.completed {
-            tracked_threads.remove(thread_id);
+        for chat_id in &report.completed {
+            tracked_threads.remove(chat_id);
         }
 
         report
@@ -960,7 +960,7 @@ impl ThreadManager {
     ) -> CodexResult<NewThread> {
         // `forked_from_id()` describes this history's existing lineage. When
         // forking a resumed thread, the child copies the resumed thread itself.
-        let source_thread_id = match &history {
+        let source_chat_id = match &history {
             InitialHistory::Resumed(resumed) => Some(resumed.conversation_id),
             InitialHistory::Forked(_) => history.forked_from_id(),
             InitialHistory::New | InitialHistory::Cleared => None,
@@ -970,8 +970,8 @@ impl ThreadManager {
             .effective_multi_agent_version_for_spawn(
                 &history,
                 /*session_source*/ None,
-                /*parent_thread_id*/ None,
-                source_thread_id,
+                /*parent_chat_id*/ None,
+                source_chat_id,
                 &config,
             )
             .await;
@@ -988,8 +988,8 @@ impl ThreadManager {
             history,
             Arc::clone(&self.state.auth_manager),
             agent_control,
-            /*parent_thread_id*/ None,
-            source_thread_id,
+            /*parent_chat_id*/ None,
+            source_chat_id,
             thread_source,
             Vec::new(),
             /*metrics_service_name*/ None,
@@ -1011,7 +1011,7 @@ impl ThreadManager {
     }
 
     #[cfg(test)]
-    pub(crate) fn captured_ops(&self) -> Vec<(ThreadId, Op)> {
+    pub(crate) fn captured_ops(&self) -> Vec<(ChatId, Op)> {
         self.state
             .ops_log
             .as_ref()
@@ -1025,32 +1025,32 @@ impl ThreadManagerState {
         self.state_db.clone()
     }
 
-    pub(crate) async fn list_thread_ids(&self) -> Vec<ThreadId> {
+    pub(crate) async fn list_chat_ids(&self) -> Vec<ChatId> {
         self.threads
             .read()
             .await
             .iter()
-            .filter_map(|(thread_id, thread)| {
-                (!thread.session_source.is_internal()).then_some(*thread_id)
+            .filter_map(|(chat_id, thread)| {
+                (!thread.session_source.is_internal()).then_some(*chat_id)
             })
             .collect()
     }
 
     /// List parent-child edges for currently loaded thread-spawn agents.
-    pub(crate) async fn list_live_thread_spawn_edges(&self) -> Vec<(ThreadId, ThreadId)> {
+    pub(crate) async fn list_live_thread_spawn_edges(&self) -> Vec<(ChatId, ChatId)> {
         self.threads
             .read()
             .await
             .iter()
-            .filter_map(|(thread_id, thread)| {
+            .filter_map(|(chat_id, thread)| {
                 if thread.session_source.is_internal() {
                     return None;
                 }
                 match &thread.session_source {
                     SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-                        parent_thread_id,
+                        parent_chat_id,
                         ..
-                    }) => Some((*parent_thread_id, *thread_id)),
+                    }) => Some((*parent_chat_id, *chat_id)),
                     _ => None,
                 }
             })
@@ -1058,11 +1058,11 @@ impl ThreadManagerState {
     }
 
     /// Fetch a thread by ID or return ThreadNotFound.
-    pub(crate) async fn get_thread(&self, thread_id: ThreadId) -> CodexResult<Arc<CodexThread>> {
+    pub(crate) async fn get_thread(&self, chat_id: ChatId) -> CodexResult<Arc<CodexThread>> {
         let threads = self.threads.read().await;
-        match threads.get(&thread_id) {
+        match threads.get(&chat_id) {
             Some(thread) if !thread.session_source.is_internal() => Ok(thread.clone()),
-            Some(_) | None => Err(CodexErr::ThreadNotFound(thread_id)),
+            Some(_) | None => Err(CodexErr::ThreadNotFound(chat_id)),
         }
     }
 
@@ -1070,56 +1070,56 @@ impl ThreadManagerState {
         &self,
         params: ReadThreadParams,
     ) -> CodexResult<StoredThread> {
-        let thread_id = params.thread_id;
+        let chat_id = params.chat_id;
         self.thread_store
             .read_thread(params)
             .await
             .map_err(|err| match err {
-                ThreadStoreError::ThreadNotFound { thread_id } => {
-                    CodexErr::ThreadNotFound(thread_id)
+                ThreadStoreError::ThreadNotFound { chat_id } => {
+                    CodexErr::ThreadNotFound(chat_id)
                 }
                 ThreadStoreError::InvalidRequest { message } => {
                     if message.starts_with("no rollout found for thread id ") {
-                        CodexErr::ThreadNotFound(thread_id)
+                        CodexErr::ThreadNotFound(chat_id)
                     } else {
                         CodexErr::Fatal(format!(
-                            "failed to read stored thread {thread_id}: invalid thread-store request: {message}"
+                            "failed to read stored thread {chat_id}: invalid thread-store request: {message}"
                         ))
                     }
                 }
-                err => CodexErr::Fatal(format!("failed to read stored thread {thread_id}: {err}")),
+                err => CodexErr::Fatal(format!("failed to read stored thread {chat_id}: {err}")),
             })
     }
 
     /// Send an operation to a thread by ID.
-    pub(crate) async fn send_op(&self, thread_id: ThreadId, op: Op) -> CodexResult<String> {
-        let thread = self.get_thread(thread_id).await?;
+    pub(crate) async fn send_op(&self, chat_id: ChatId, op: Op) -> CodexResult<String> {
+        let thread = self.get_thread(chat_id).await?;
         if let Some(ops_log) = &self.ops_log
             && let Ok(mut log) = ops_log.lock()
         {
-            log.push((thread_id, op.clone()));
+            log.push((chat_id, op.clone()));
         }
         thread.submit(op).await
     }
 
     /// Remove a thread from the manager by ID, returning it when present.
-    pub(crate) async fn remove_thread(&self, thread_id: &ThreadId) -> Option<Arc<CodexThread>> {
-        self.threads.write().await.remove(thread_id)
+    pub(crate) async fn remove_thread(&self, chat_id: &ChatId) -> Option<Arc<CodexThread>> {
+        self.threads.write().await.remove(chat_id)
     }
 
     pub(crate) async fn effective_multi_agent_version_for_spawn(
         &self,
         initial_history: &InitialHistory,
         session_source: Option<&SessionSource>,
-        parent_thread_id: Option<ThreadId>,
-        forked_from_thread_id: Option<ThreadId>,
+        parent_chat_id: Option<ChatId>,
+        forked_from_chat_id: Option<ChatId>,
         config: &Config,
     ) -> MultiAgentVersion {
         self.initial_multi_agent_version_for_spawn(
             initial_history,
             session_source,
-            parent_thread_id,
-            forked_from_thread_id,
+            parent_chat_id,
+            forked_from_chat_id,
         )
         .await
         .unwrap_or_else(|| config.multi_agent_version_from_features())
@@ -1129,22 +1129,22 @@ impl ThreadManagerState {
         &self,
         initial_history: &InitialHistory,
         session_source: Option<&SessionSource>,
-        parent_thread_id: Option<ThreadId>,
-        forked_from_thread_id: Option<ThreadId>,
+        parent_chat_id: Option<ChatId>,
+        forked_from_chat_id: Option<ChatId>,
     ) -> Option<MultiAgentVersion> {
-        let inherited_thread_id = match session_source {
+        let inherited_chat_id = match session_source {
             Some(SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-                parent_thread_id, ..
-            })) => Some(*parent_thread_id),
+                parent_chat_id, ..
+            })) => Some(*parent_chat_id),
             _ => match initial_history {
                 InitialHistory::Resumed(resumed) => Some(resumed.conversation_id),
-                InitialHistory::Forked(_) => forked_from_thread_id.or(parent_thread_id),
-                InitialHistory::New | InitialHistory::Cleared => parent_thread_id,
+                InitialHistory::Forked(_) => forked_from_chat_id.or(parent_chat_id),
+                InitialHistory::New | InitialHistory::Cleared => parent_chat_id,
             },
         };
-        let inherited_multi_agent_version = match inherited_thread_id {
-            Some(thread_id) => self
-                .get_thread(thread_id)
+        let inherited_multi_agent_version = match inherited_chat_id {
+            Some(chat_id) => self
+                .get_thread(chat_id)
                 .await
                 .ok()
                 .and_then(|thread| thread.multi_agent_version()),
@@ -1171,8 +1171,8 @@ impl ThreadManagerState {
     async fn user_instructions_for_spawn(
         &self,
         session_source: &SessionSource,
-        parent_thread_id: Option<ThreadId>,
-        forked_from_thread_id: Option<ThreadId>,
+        parent_chat_id: Option<ChatId>,
+        forked_from_chat_id: Option<ChatId>,
     ) -> LoadedUserInstructions {
         let is_root_agent = !session_source.is_non_root_agent();
         if is_root_agent {
@@ -1182,16 +1182,16 @@ impl ThreadManagerState {
                 .await;
         }
 
-        let inherited_thread_id = match session_source {
+        let inherited_chat_id = match session_source {
             SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-                parent_thread_id, ..
-            }) => Some(*parent_thread_id),
-            _ => parent_thread_id.or(forked_from_thread_id),
+                parent_chat_id, ..
+            }) => Some(*parent_chat_id),
+            _ => parent_chat_id.or(forked_from_chat_id),
         };
-        let instructions = match inherited_thread_id {
+        let instructions = match inherited_chat_id {
             // The spawn path retains only thread IDs, so look up the live
             // runtime again here to inherit its user instructions.
-            Some(thread_id) => match self.get_thread(thread_id).await {
+            Some(chat_id) => match self.get_thread(chat_id).await {
                 Ok(thread) => thread.codex.session.user_instructions().await,
                 Err(_) => None,
             },
@@ -1213,8 +1213,8 @@ impl ThreadManagerState {
             config,
             agent_control,
             self.session_source.clone(),
-            /*parent_thread_id*/ None,
-            /*forked_from_thread_id*/ None,
+            /*parent_chat_id*/ None,
+            /*forked_from_chat_id*/ None,
             /*thread_source*/ None,
             /*metrics_service_name*/ None,
             /*inherited_environments*/ None,
@@ -1230,8 +1230,8 @@ impl ThreadManagerState {
         config: Config,
         agent_control: AgentControl,
         session_source: SessionSource,
-        parent_thread_id: Option<ThreadId>,
-        forked_from_thread_id: Option<ThreadId>,
+        parent_chat_id: Option<ChatId>,
+        forked_from_chat_id: Option<ChatId>,
         thread_source: Option<ThreadSource>,
         metrics_service_name: Option<String>,
         inherited_environments: Option<TurnEnvironmentSnapshot>,
@@ -1247,8 +1247,8 @@ impl ThreadManagerState {
             Arc::clone(&self.auth_manager),
             agent_control,
             session_source,
-            parent_thread_id,
-            forked_from_thread_id,
+            parent_chat_id,
+            forked_from_chat_id,
             thread_source,
             Vec::new(),
             metrics_service_name,
@@ -1272,7 +1272,7 @@ impl ThreadManagerState {
             initial_history,
             agent_control,
             session_source,
-            parent_thread_id,
+            parent_chat_id,
             inherited_environments,
             inherited_exec_policy,
         } = options;
@@ -1285,8 +1285,8 @@ impl ThreadManagerState {
             Arc::clone(&self.auth_manager),
             agent_control,
             session_source,
-            parent_thread_id,
-            /*forked_from_thread_id*/ None,
+            parent_chat_id,
+            /*forked_from_chat_id*/ None,
             thread_source,
             Vec::new(),
             /*metrics_service_name*/ None,
@@ -1309,8 +1309,8 @@ impl ThreadManagerState {
         agent_control: AgentControl,
         session_source: SessionSource,
         thread_source: Option<ThreadSource>,
-        parent_thread_id: Option<ThreadId>,
-        forked_from_thread_id: Option<ThreadId>,
+        parent_chat_id: Option<ChatId>,
+        forked_from_chat_id: Option<ChatId>,
         inherited_environments: Option<TurnEnvironmentSnapshot>,
         inherited_exec_policy: Option<Arc<crate::exec_policy::ExecPolicyManager>>,
         environments: Option<Vec<TurnEnvironmentSelection>>,
@@ -1324,8 +1324,8 @@ impl ThreadManagerState {
             Arc::clone(&self.auth_manager),
             agent_control,
             session_source,
-            parent_thread_id,
-            forked_from_thread_id,
+            parent_chat_id,
+            forked_from_chat_id,
             thread_source,
             Vec::new(),
             /*metrics_service_name*/ None,
@@ -1348,8 +1348,8 @@ impl ThreadManagerState {
         initial_history: InitialHistory,
         auth_manager: Arc<AuthManager>,
         agent_control: AgentControl,
-        parent_thread_id: Option<ThreadId>,
-        forked_from_thread_id: Option<ThreadId>,
+        parent_chat_id: Option<ChatId>,
+        forked_from_chat_id: Option<ChatId>,
         thread_source: Option<ThreadSource>,
         dynamic_tools: Vec<datax_protocol::dynamic_tools::DynamicToolSpec>,
         metrics_service_name: Option<String>,
@@ -1365,8 +1365,8 @@ impl ThreadManagerState {
             auth_manager,
             agent_control,
             self.session_source.clone(),
-            parent_thread_id,
-            forked_from_thread_id,
+            parent_chat_id,
+            forked_from_chat_id,
             thread_source,
             dynamic_tools,
             metrics_service_name,
@@ -1389,8 +1389,8 @@ impl ThreadManagerState {
         auth_manager: Arc<AuthManager>,
         agent_control: AgentControl,
         session_source: SessionSource,
-        parent_thread_id: Option<ThreadId>,
-        forked_from_thread_id: Option<ThreadId>,
+        parent_chat_id: Option<ChatId>,
+        forked_from_chat_id: Option<ChatId>,
         thread_source: Option<ThreadSource>,
         dynamic_tools: Vec<datax_protocol::dynamic_tools::DynamicToolSpec>,
         metrics_service_name: Option<String>,
@@ -1416,7 +1416,7 @@ impl ThreadManagerState {
                         )));
                     }
                     return Ok(NewThread {
-                        thread_id: resumed.conversation_id,
+                        chat_id: resumed.conversation_id,
                         session_configured: thread.session_configured(),
                         thread,
                     });
@@ -1425,7 +1425,7 @@ impl ThreadManagerState {
             }
         }
         let user_instructions = self
-            .user_instructions_for_spawn(&session_source, parent_thread_id, forked_from_thread_id)
+            .user_instructions_for_spawn(&session_source, parent_chat_id, forked_from_chat_id)
             .await;
         let parent_rollout_thread_trace = self
             .parent_rollout_thread_trace_for_source(&session_source, &initial_history)
@@ -1435,12 +1435,12 @@ impl ThreadManagerState {
             .initial_multi_agent_version_for_spawn(
                 &initial_history,
                 Some(&session_source),
-                parent_thread_id,
-                forked_from_thread_id,
+                parent_chat_id,
+                forked_from_chat_id,
             )
             .await;
         let CodexSpawnOk {
-            codex, thread_id, ..
+            codex, chat_id, ..
         } = Box::pin(Codex::spawn(CodexSpawnArgs {
             config,
             user_instructions,
@@ -1454,8 +1454,8 @@ impl ThreadManagerState {
             extensions: Arc::clone(&self.extensions),
             conversation_history: initial_history,
             session_source,
-            forked_from_thread_id,
-            parent_thread_id,
+            forked_from_chat_id,
+            parent_chat_id,
             thread_source,
             agent_control,
             dynamic_tools,
@@ -1476,7 +1476,7 @@ impl ThreadManagerState {
         }))
         .await?;
         let new_thread = self
-            .finalize_thread_spawn(codex, thread_id, tracked_session_source)
+            .finalize_thread_spawn(codex, chat_id, tracked_session_source)
             .await?;
         if is_resumed_thread {
             new_thread.thread.emit_thread_resume_lifecycle().await;
@@ -1487,7 +1487,7 @@ impl ThreadManagerState {
     async fn finalize_thread_spawn(
         &self,
         codex: Codex,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         session_source: SessionSource,
     ) -> CodexResult<NewThread> {
         let event = codex.next_event().await?;
@@ -1503,7 +1503,7 @@ impl ThreadManagerState {
 
         {
             let mut threads = self.threads.write().await;
-            if let std::collections::hash_map::Entry::Vacant(e) = threads.entry(thread_id) {
+            if let std::collections::hash_map::Entry::Vacant(e) = threads.entry(chat_id) {
                 let thread = Arc::new(CodexThread::new(
                     codex,
                     session_configured.clone(),
@@ -1512,7 +1512,7 @@ impl ThreadManagerState {
                 ));
                 e.insert(thread.clone());
                 return Ok(NewThread {
-                    thread_id,
+                    chat_id,
                     thread,
                     session_configured,
                 });
@@ -1520,15 +1520,15 @@ impl ThreadManagerState {
         }
 
         if let Err(err) = codex.shutdown_and_wait().await {
-            warn!("failed to shut down duplicate thread {thread_id}: {err}");
+            warn!("failed to shut down duplicate thread {chat_id}: {err}");
         }
         Err(CodexErr::InvalidRequest(format!(
-            "thread {thread_id} is already running"
+            "thread {chat_id} is already running"
         )))
     }
 
-    pub(crate) fn notify_thread_created(&self, thread_id: ThreadId) {
-        let _ = self.thread_created_tx.send(thread_id);
+    pub(crate) fn notify_thread_created(&self, chat_id: ChatId) {
+        let _ = self.thread_created_tx.send(chat_id);
     }
 
     async fn parent_rollout_thread_trace_for_source(
@@ -1542,7 +1542,7 @@ impl ThreadManagerState {
         // for this thread id; deriving a child trace during resume would write
         // that start event again and make the bundle unreplayable.
         let SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-            parent_thread_id, ..
+            parent_chat_id, ..
         }) = session_source
         else {
             return datax_rollout_trace::ThreadTraceContext::disabled();
@@ -1554,7 +1554,7 @@ impl ThreadManagerState {
         // spawn preparation and session construction. Tracing is diagnostic, so
         // that race should not block child creation; the child simply starts
         // without a parent rollout trace.
-        self.get_thread(*parent_thread_id)
+        self.get_thread(*parent_chat_id)
             .await
             .ok()
             .map(|thread| thread.codex.session.services.rollout_thread_trace.clone())
@@ -1566,14 +1566,14 @@ fn stored_thread_to_initial_history(
     stored_thread: StoredThread,
     rollout_path: Option<PathBuf>,
 ) -> CodexResult<InitialHistory> {
-    let thread_id = stored_thread.thread_id;
+    let chat_id = stored_thread.chat_id;
     let history = stored_thread.history.ok_or_else(|| {
         CodexErr::Fatal(format!(
-            "thread {thread_id} did not include persisted history"
+            "thread {chat_id} did not include persisted history"
         ))
     })?;
     Ok(InitialHistory::Resumed(ResumedHistory {
-        conversation_id: thread_id,
+        conversation_id: chat_id,
         history: history.items,
         rollout_path: rollout_path.or(stored_thread.rollout_path),
     }))
@@ -1581,21 +1581,21 @@ fn stored_thread_to_initial_history(
 
 fn thread_store_rollout_read_error(err: ThreadStoreError) -> CodexErr {
     match err {
-        ThreadStoreError::ThreadNotFound { thread_id } => CodexErr::ThreadNotFound(thread_id),
+        ThreadStoreError::ThreadNotFound { chat_id } => CodexErr::ThreadNotFound(chat_id),
         ThreadStoreError::InvalidRequest { message } => CodexErr::InvalidRequest(message),
         err => CodexErr::Fatal(format!("failed to read thread by rollout path: {err}")),
     }
 }
 
-fn thread_store_metadata_update_error(thread_id: ThreadId, err: ThreadStoreError) -> CodexErr {
+fn thread_store_metadata_update_error(chat_id: ChatId, err: ThreadStoreError) -> CodexErr {
     match err {
-        ThreadStoreError::ThreadNotFound { thread_id } => CodexErr::ThreadNotFound(thread_id),
+        ThreadStoreError::ThreadNotFound { chat_id } => CodexErr::ThreadNotFound(chat_id),
         ThreadStoreError::InvalidRequest { message } => CodexErr::InvalidRequest(message),
         ThreadStoreError::Unsupported { operation } => CodexErr::UnsupportedOperation(format!(
             "thread metadata update is not supported by this store: {operation}"
         )),
         err => CodexErr::Fatal(format!(
-            "failed to update thread metadata {thread_id}: {err}"
+            "failed to update thread metadata {chat_id}: {err}"
         )),
     }
 }
@@ -1636,7 +1636,7 @@ fn truncate_before_nth_user_message(
 #[derive(Debug, Eq, PartialEq)]
 struct SnapshotTurnState {
     ends_mid_turn: bool,
-    active_turn_id: Option<String>,
+    active_interaction_id: Option<String>,
     active_turn_start_index: Option<usize>,
 }
 
@@ -1646,8 +1646,8 @@ fn snapshot_turn_state(history: &InitialHistory) -> SnapshotTurnState {
     for item in &rollout_items {
         builder.handle_rollout_item(item);
     }
-    let active_turn_id = builder.active_turn_id_if_explicit();
-    if builder.has_active_turn() && active_turn_id.is_some() {
+    let active_interaction_id = builder.active_interaction_id_if_explicit();
+    if builder.has_active_turn() && active_interaction_id.is_some() {
         let active_turn_snapshot = builder.active_turn_snapshot();
         if active_turn_snapshot
             .as_ref()
@@ -1655,14 +1655,14 @@ fn snapshot_turn_state(history: &InitialHistory) -> SnapshotTurnState {
         {
             return SnapshotTurnState {
                 ends_mid_turn: false,
-                active_turn_id: None,
+                active_interaction_id: None,
                 active_turn_start_index: None,
             };
         }
 
         return SnapshotTurnState {
             ends_mid_turn: true,
-            active_turn_id,
+            active_interaction_id,
             active_turn_start_index: builder.active_turn_start_index(),
         };
     }
@@ -1673,7 +1673,7 @@ fn snapshot_turn_state(history: &InitialHistory) -> SnapshotTurnState {
     else {
         return SnapshotTurnState {
             ends_mid_turn: false,
-            active_turn_id: None,
+            active_interaction_id: None,
             active_turn_start_index: None,
         };
     };
@@ -1685,10 +1685,10 @@ fn snapshot_turn_state(history: &InitialHistory) -> SnapshotTurnState {
         ends_mid_turn: !rollout_items[last_user_position + 1..].iter().any(|item| {
             matches!(
                 item,
-                RolloutItem::EventMsg(EventMsg::TurnComplete(_) | EventMsg::TurnAborted(_))
+                RolloutItem::EventMsg(EventMsg::InteractionComplete(_) | EventMsg::InteractionAborted(_))
             )
         }),
-        active_turn_id: None,
+        active_interaction_id: None,
         active_turn_start_index: None,
     }
 }
@@ -1713,7 +1713,7 @@ fn fork_history_from_snapshot(
             if snapshot_state.ends_mid_turn {
                 append_interrupted_boundary(
                     history,
-                    snapshot_state.active_turn_id,
+                    snapshot_state.active_interaction_id,
                     interrupted_marker,
                 )
             } else {
@@ -1728,12 +1728,12 @@ fn fork_history_from_snapshot(
 /// be mid-turn.
 fn append_interrupted_boundary(
     history: InitialHistory,
-    turn_id: Option<String>,
+    interaction_id: Option<String>,
     interrupted_marker: InterruptedTurnHistoryMarker,
 ) -> InitialHistory {
-    let aborted_event = RolloutItem::EventMsg(EventMsg::TurnAborted(TurnAbortedEvent {
-        turn_id,
-        reason: TurnAbortReason::Interrupted,
+    let aborted_event = RolloutItem::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
+        interaction_id,
+        reason: InteractionAbortReason::Interrupted,
         completed_at: None,
         duration_ms: None,
     }));

@@ -20,7 +20,7 @@ use datax_git_utils::get_git_remote_urls_assume_git_repo;
 use datax_git_utils::get_git_repo_root;
 use datax_git_utils::get_has_changes;
 use datax_git_utils::get_head_commit_hash;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::WindowsSandboxLevel;
 use datax_protocol::models::PermissionProfile;
 use datax_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
@@ -67,7 +67,7 @@ impl From<WorkspaceGitMetadata> for TurnMetadataWorkspace {
 pub async fn detached_memory_responses_metadata(
     installation_id: String,
     session_id: String,
-    thread_id: String,
+    chat_id: String,
     window_id: String,
     session_source: &SessionSource,
     cwd: &AbsolutePathBuf,
@@ -78,7 +78,7 @@ pub async fn detached_memory_responses_metadata(
         subagent_header: subagent_header_value(session_source),
         sandbox: sandbox.map(ToString::to_string),
         workspaces: memory_workspaces(cwd).await,
-        ..CodexResponsesMetadata::new(installation_id, session_id, thread_id, window_id)
+        ..CodexResponsesMetadata::new(installation_id, session_id, chat_id, window_id)
     }
 }
 
@@ -87,13 +87,13 @@ pub(crate) struct TurnMetadataState {
     cwd: AbsolutePathBuf,
     repo_root: Option<String>,
     session_id: String,
-    thread_id: String,
-    forked_from_thread_id: Option<ThreadId>,
-    parent_thread_id: Option<ThreadId>,
+    chat_id: String,
+    forked_from_chat_id: Option<ChatId>,
+    parent_chat_id: Option<ChatId>,
     subagent_header: Option<String>,
     subagent_kind: Option<String>,
     thread_source: Option<ThreadSource>,
-    turn_id: String,
+    interaction_id: String,
     sandbox: Option<String>,
     enriched_workspaces: Arc<RwLock<Option<BTreeMap<String, TurnMetadataWorkspace>>>>,
     turn_started_at_unix_ms: Arc<RwLock<Option<i64>>>,
@@ -106,12 +106,12 @@ impl TurnMetadataState {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         session_id: String,
-        thread_id: String,
-        forked_from_thread_id: Option<ThreadId>,
-        parent_thread_id: Option<ThreadId>,
+        chat_id: String,
+        forked_from_chat_id: Option<ChatId>,
+        parent_chat_id: Option<ChatId>,
         session_source: &SessionSource,
         thread_source: Option<ThreadSource>,
-        turn_id: String,
+        interaction_id: String,
         cwd: AbsolutePathBuf,
         permission_profile: &PermissionProfile,
         windows_sandbox_level: WindowsSandboxLevel,
@@ -130,13 +130,13 @@ impl TurnMetadataState {
             cwd,
             repo_root,
             session_id,
-            thread_id,
-            forked_from_thread_id,
-            parent_thread_id,
+            chat_id,
+            forked_from_chat_id,
+            parent_chat_id,
             subagent_header: subagent_header_value(session_source),
             subagent_kind: subagent_metadata_kind(session_source),
             thread_source,
-            turn_id,
+            interaction_id,
             sandbox,
             enriched_workspaces: Arc::new(RwLock::new(None)),
             turn_started_at_unix_ms: Arc::new(RwLock::new(None)),
@@ -224,9 +224,9 @@ impl TurnMetadataState {
 
     fn responses_metadata_template(&self) -> CodexResponsesMetadata {
         CodexResponsesMetadata {
-            turn_id: Some(self.turn_id.clone()),
-            forked_from_thread_id: self.forked_from_thread_id,
-            parent_thread_id: self.parent_thread_id,
+            interaction_id: Some(self.interaction_id.clone()),
+            forked_from_chat_id: self.forked_from_chat_id,
+            parent_chat_id: self.parent_chat_id,
             subagent_header: self.subagent_header.clone(),
             subagent_kind: self.subagent_kind.clone(),
             thread_source: self.thread_source.clone(),
@@ -241,7 +241,7 @@ impl TurnMetadataState {
             ..CodexResponsesMetadata::new(
                 String::new(),
                 self.session_id.clone(),
-                self.thread_id.clone(),
+                self.chat_id.clone(),
                 String::new(),
             )
         }

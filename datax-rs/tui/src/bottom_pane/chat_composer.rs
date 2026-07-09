@@ -207,7 +207,7 @@ use crate::render::RectExt;
 use crate::render::renderable::Renderable;
 use crate::slash_command::SlashCommand;
 use crate::style::user_message_style;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::user_input::ByteRange;
 use datax_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS;
 use datax_protocol::user_input::TextElement;
@@ -810,11 +810,11 @@ impl ChatComposer {
     /// cross-session history.
     pub(crate) fn set_history_metadata(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         log_id: u64,
         entry_count: usize,
     ) {
-        self.history.set_metadata(thread_id, log_id, entry_count);
+        self.history.set_metadata(chat_id, log_id, entry_count);
     }
 
     /// Integrate an asynchronous response to an on-demand history lookup.

@@ -114,7 +114,7 @@ async fn user_turn_includes_skill_instructions() -> Result<()> {
         .await?;
 
     core_test_support::wait_for_event(test.codex.as_ref(), |event| {
-        matches!(event, datax_protocol::protocol::EventMsg::TurnComplete(_))
+        matches!(event, datax_protocol::protocol::EventMsg::InteractionComplete(_))
     })
     .await;
 

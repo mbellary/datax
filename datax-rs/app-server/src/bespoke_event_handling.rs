@@ -90,7 +90,7 @@ use datax_core::CodexThread;
 use datax_core::ThreadManager;
 use datax_core::review_format::format_review_findings_block;
 use datax_core::review_prompts;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::items::parse_hook_prompt_message;
 use datax_protocol::models::AdditionalPermissionProfile as CoreAdditionalPermissionProfile;
 use datax_protocol::plan_tool::UpdatePlanArgs;
@@ -104,8 +104,8 @@ use datax_protocol::protocol::ReviewDecision;
 use datax_protocol::protocol::ReviewOutputEvent;
 use datax_protocol::protocol::SubAgentActivityKind;
 use datax_protocol::protocol::TokenCountEvent;
-use datax_protocol::protocol::TurnAbortedEvent;
-use datax_protocol::protocol::TurnCompleteEvent;
+use datax_protocol::protocol::InteractionAbortedEvent;
+use datax_protocol::protocol::InteractionCompleteEvent;
 use datax_protocol::protocol::TurnDiffEvent;
 use datax_protocol::request_permissions::PermissionGrantScope as CorePermissionGrantScope;
 use datax_protocol::request_permissions::RequestPermissionProfile as CoreRequestPermissionProfile;
@@ -139,7 +139,7 @@ struct CommandExecutionCompletionItem {
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn apply_bespoke_event_handling(
     event: Event,
-    conversation_id: ThreadId,
+    conversation_id: ChatId,
     conversation: Arc<CodexThread>,
     thread_manager: Arc<ThreadManager>,
     outgoing: ThreadScopedOutgoingMessageSender,
@@ -149,12 +149,12 @@ pub(crate) async fn apply_bespoke_event_handling(
     fallback_model_provider: String,
 ) {
     let Event {
-        id: event_turn_id,
+        id: event_interaction_id,
         msg,
     } = event;
     match msg {
-        EventMsg::TurnStarted(payload) => {
-            // While not technically necessary as it was already done on TurnComplete, be extra cautios and abort any pending server requests.
+        EventMsg::InteractionStarted(payload) => {
+            // While not technically necessary as it was already done on InteractionComplete, be extra cautios and abort any pending server requests.
             outgoing.abort_pending_server_requests().await;
             thread_watch_manager
                 .note_turn_started(&conversation_id.to_string())
@@ -162,7 +162,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             let turn = {
                 let state = thread_state.lock().await;
                 let mut turn = state.active_turn_snapshot().unwrap_or_else(|| Interaction {
-                    id: payload.turn_id.clone(),
+                    id: payload.interaction_id.clone(),
                     messages: Vec::new(),
                     messages_view: InteractionMessagesView::NotLoaded,
                     error: None,
@@ -183,7 +183,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .send_server_notification(InteractionStarted(notification))
                 .await;
         }
-        EventMsg::TurnComplete(turn_complete_event) => {
+        EventMsg::InteractionComplete(turn_complete_event) => {
             // All per-thread requests are bound to a turn, so abort them.
             outgoing.abort_pending_server_requests().await;
             respond_to_pending_interrupts(&thread_state, &outgoing).await;
@@ -193,7 +193,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .await;
             handle_turn_complete(
                 conversation_id,
-                event_turn_id,
+                event_interaction_id,
                 turn_complete_event,
                 &outgoing,
                 &thread_state,
@@ -264,10 +264,10 @@ pub(crate) async fn apply_bespoke_event_handling(
                 )),
                 Some(_) | None => None,
             };
-            let assessment_turn_id = if assessment.turn_id.is_empty() {
-                event_turn_id.clone()
+            let assessment_interaction_id = if assessment.interaction_id.is_empty() {
+                event_interaction_id.clone()
             } else {
-                assessment.turn_id.clone()
+                assessment.interaction_id.clone()
             };
             if assessment.status == datax_protocol::protocol::GuardianAssessmentStatus::InProgress
                 && let Some((target_message_id, completion_item)) =
@@ -275,7 +275,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             {
                 start_command_execution_item(
                     &conversation_id,
-                    assessment_turn_id.clone(),
+                    assessment_interaction_id.clone(),
                     target_message_id.clone(),
                     completion_item.command.clone(),
                     completion_item.cwd.clone(),
@@ -288,7 +288,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             }
             let notification = guardian_auto_approval_review_notification(
                 &conversation_id,
-                &event_turn_id,
+                &event_interaction_id,
                 &assessment,
             );
             outgoing.send_server_notification(notification).await;
@@ -308,7 +308,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             {
                 complete_command_execution_item(
                     &conversation_id,
-                    assessment_turn_id,
+                    assessment_interaction_id,
                     target_message_id,
                     completion_item.command,
                     completion_item.cwd,
@@ -325,7 +325,7 @@ pub(crate) async fn apply_bespoke_event_handling(
         EventMsg::ModelReroute(event) => {
             let notification = ModelReroutedNotification {
                 chat_id: conversation_id.to_string(),
-                interaction_id: event_turn_id.clone(),
+                interaction_id: event_interaction_id.clone(),
                 from_model: event.from_model,
                 to_model: event.to_model,
                 reason: event.reason.into(),
@@ -337,7 +337,7 @@ pub(crate) async fn apply_bespoke_event_handling(
         EventMsg::ModelVerification(event) => {
             let notification = ModelVerificationNotification {
                 chat_id: conversation_id.to_string(),
-                interaction_id: event_turn_id.clone(),
+                interaction_id: event_interaction_id.clone(),
                 verifications: event.verifications.into_iter().map(Into::into).collect(),
             };
             outgoing
@@ -347,7 +347,7 @@ pub(crate) async fn apply_bespoke_event_handling(
         EventMsg::TurnModerationMetadata(event) => {
             let notification = InteractionModerationMetadataNotification {
                 chat_id: conversation_id.to_string(),
-                interaction_id: event_turn_id.clone(),
+                interaction_id: event_interaction_id.clone(),
                 metadata: event.metadata,
             };
             outgoing
@@ -359,7 +359,7 @@ pub(crate) async fn apply_bespoke_event_handling(
         EventMsg::SafetyBuffering(event) => {
             let notification = ModelSafetyBufferingUpdatedNotification {
                 chat_id: conversation_id.to_string(),
-                interaction_id: event_turn_id.clone(),
+                interaction_id: event_interaction_id.clone(),
                 model: event.model,
                 use_cases: event.use_cases,
                 reasons: event.reasons,
@@ -538,7 +538,7 @@ pub(crate) async fn apply_bespoke_event_handling(
 
             let params = FileChangeRequestApprovalParams {
                 chat_id: conversation_id.to_string(),
-                interaction_id: event.turn_id.clone(),
+                interaction_id: event.interaction_id.clone(),
                 message_id: message_id.clone(),
                 started_at_ms: event.started_at_ms,
                 reason: event.reason.clone(),
@@ -571,7 +571,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             let ExecApprovalRequestEvent {
                 call_id,
                 approval_id,
-                turn_id: interaction_id,
+                interaction_id: interaction_id,
                 environment_id,
                 started_at_ms,
                 command,
@@ -620,7 +620,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             {
                 start_command_execution_item(
                     &conversation_id,
-                    event_turn_id.clone(),
+                    event_interaction_id.clone(),
                     call_id.clone(),
                     completion_item.command.clone(),
                     completion_item.cwd.clone(),
@@ -667,7 +667,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .await;
             tokio::spawn(async move {
                 on_command_execution_request_approval_response(
-                    event_turn_id,
+                    event_interaction_id,
                     conversation_id,
                     approval_id,
                     call_id,
@@ -708,7 +708,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .collect();
             let params = ToolRequestUserInputParams {
                 chat_id: conversation_id.to_string(),
-                interaction_id: request.turn_id,
+                interaction_id: request.interaction_id,
                 message_id: request.call_id,
                 questions,
                 auto_resolution_ms: request.auto_resolution_ms,
@@ -718,7 +718,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .await;
             tokio::spawn(async move {
                 on_request_user_input_response(
-                    event_turn_id,
+                    event_interaction_id,
                     pending_request_id,
                     rx,
                     conversation,
@@ -732,7 +732,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             let permission_guard = thread_watch_manager
                 .note_permission_requested(&conversation_id.to_string())
                 .await;
-            let interaction_id = match request.turn_id.clone() {
+            let interaction_id = match request.interaction_id.clone() {
                 Some(interaction_id) => Some(interaction_id),
                 None => {
                     let state = thread_state.lock().await;
@@ -797,7 +797,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             };
             let params = PermissionsRequestApprovalParams {
                 chat_id: conversation_id.to_string(),
-                interaction_id: request.turn_id.clone(),
+                interaction_id: request.interaction_id.clone(),
                 message_id: request.call_id.clone(),
                 environment_id: request.environment_id.clone(),
                 started_at_ms: request.started_at_ms,
@@ -811,7 +811,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             let pending_response = PendingRequestPermissionsResponse {
                 call_id: request.call_id,
                 conversation_id,
-                interaction_id: request.turn_id,
+                interaction_id: request.interaction_id,
                 requested_permissions,
                 request_cwd,
                 pending_request_id,
@@ -825,7 +825,7 @@ pub(crate) async fn apply_bespoke_event_handling(
         }
         EventMsg::DynamicToolCallRequest(request) => {
             let call_id = request.call_id;
-            let interaction_id = request.turn_id;
+            let interaction_id = request.interaction_id;
             let namespace = request.namespace;
             let tool = request.tool;
             let arguments = request.arguments;
@@ -885,42 +885,42 @@ pub(crate) async fn apply_bespoke_event_handling(
             let notification = item_event_to_server_notification(
                 msg,
                 &conversation_id.to_string(),
-                &event_turn_id,
+                &event_interaction_id,
             );
             outgoing.send_server_notification(notification).await;
         }
         EventMsg::SubAgentActivity(activity) => {
             if activity.kind == SubAgentActivityKind::Interrupted
                 && thread_manager
-                    .get_thread(activity.agent_thread_id)
+                    .get_thread(activity.agent_chat_id)
                     .await
                     .is_err()
             {
                 thread_watch_manager
-                    .remove_thread(&activity.agent_thread_id.to_string())
+                    .remove_thread(&activity.agent_chat_id.to_string())
                     .await;
             }
             let notification = item_event_to_server_notification(
                 EventMsg::SubAgentActivity(activity),
                 &conversation_id.to_string(),
-                &event_turn_id,
+                &event_interaction_id,
             );
             outgoing.send_server_notification(notification).await;
         }
         EventMsg::CollabCloseEnd(end_event) => {
             if thread_manager
-                .get_thread(end_event.receiver_thread_id)
+                .get_thread(end_event.receiver_chat_id)
                 .await
                 .is_err()
             {
                 thread_watch_manager
-                    .remove_thread(&end_event.receiver_thread_id.to_string())
+                    .remove_thread(&end_event.receiver_chat_id.to_string())
                     .await;
             }
             let notification = item_event_to_server_notification(
                 EventMsg::CollabCloseEnd(end_event),
                 &conversation_id.to_string(),
-                &event_turn_id,
+                &event_interaction_id,
             );
             outgoing.send_server_notification(notification).await;
         }
@@ -938,7 +938,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .await;
         }
         EventMsg::TokenCount(token_count_event) => {
-            handle_token_count_event(conversation_id, event_turn_id, token_count_event, &outgoing)
+            handle_token_count_event(conversation_id, event_interaction_id, token_count_event, &outgoing)
                 .await;
         }
         EventMsg::Error(ev) => {
@@ -976,7 +976,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             };
             handle_error_notification(
                 conversation_id,
-                &event_turn_id,
+                &event_interaction_id,
                 turn_error,
                 &outgoing,
                 &thread_state,
@@ -996,7 +996,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                     error: turn_error,
                     will_retry: true,
                     chat_id: conversation_id.to_string(),
-                    interaction_id: event_turn_id.clone(),
+                    interaction_id: event_interaction_id.clone(),
                 }))
                 .await;
         }
@@ -1006,12 +1006,12 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .user_facing_hint
                 .unwrap_or_else(|| review_prompts::user_facing_hint(&review_request.target));
             let item = Message::EnteredReviewMode {
-                id: event_turn_id.clone(),
+                id: event_interaction_id.clone(),
                 review,
             };
             let started = MessageStartedNotification {
                 chat_id: conversation_id.to_string(),
-                interaction_id: event_turn_id.clone(),
+                interaction_id: event_interaction_id.clone(),
                 started_at_ms: now_unix_timestamp_ms(),
                 item: item.clone(),
             };
@@ -1020,7 +1020,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .await;
             let completed = MessageCompletedNotification {
                 chat_id: conversation_id.to_string(),
-                interaction_id: event_turn_id.clone(),
+                interaction_id: event_interaction_id.clone(),
                 completed_at_ms: now_unix_timestamp_ms(),
                 item,
             };
@@ -1035,14 +1035,14 @@ pub(crate) async fn apply_bespoke_event_handling(
             let notification = item_event_to_server_notification(
                 msg,
                 &conversation_id.to_string(),
-                &event_turn_id,
+                &event_interaction_id,
             );
             outgoing.send_server_notification(notification).await;
         }
         EventMsg::HookStarted(event) => {
             let notification = HookStartedNotification {
                 chat_id: conversation_id.to_string(),
-                interaction_id: event.turn_id,
+                interaction_id: event.interaction_id,
                 run: event.run.into(),
             };
             outgoing
@@ -1052,7 +1052,7 @@ pub(crate) async fn apply_bespoke_event_handling(
         EventMsg::HookCompleted(event) => {
             let notification = HookCompletedNotification {
                 chat_id: conversation_id.to_string(),
-                interaction_id: event.turn_id,
+                interaction_id: event.interaction_id,
                 run: event.run.into(),
             };
             outgoing
@@ -1065,12 +1065,12 @@ pub(crate) async fn apply_bespoke_event_handling(
                 None => REVIEW_FALLBACK_MESSAGE.to_string(),
             };
             let item = Message::ExitedReviewMode {
-                id: event_turn_id.clone(),
+                id: event_interaction_id.clone(),
                 review,
             };
             let started = MessageStartedNotification {
                 chat_id: conversation_id.to_string(),
-                interaction_id: event_turn_id.clone(),
+                interaction_id: event_interaction_id.clone(),
                 started_at_ms: now_unix_timestamp_ms(),
                 item: item.clone(),
             };
@@ -1079,7 +1079,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .await;
             let completed = MessageCompletedNotification {
                 chat_id: conversation_id.to_string(),
-                interaction_id: event_turn_id.clone(),
+                interaction_id: event_interaction_id.clone(),
                 completed_at_ms: now_unix_timestamp_ms(),
                 item,
             };
@@ -1090,14 +1090,14 @@ pub(crate) async fn apply_bespoke_event_handling(
         EventMsg::RawResponseItem(raw_response_item_event) => {
             maybe_emit_hook_prompt_item_completed(
                 conversation_id,
-                &event_turn_id,
+                &event_interaction_id,
                 &raw_response_item_event.item,
                 &outgoing,
             )
             .await;
             maybe_emit_raw_response_item_completed(
                 conversation_id,
-                &event_turn_id,
+                &event_interaction_id,
                 raw_response_item_event.item,
                 &outgoing,
             )
@@ -1129,7 +1129,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                 let notification = item_event_to_server_notification(
                     EventMsg::ExecCommandBegin(exec_command_begin_event),
                     &conversation_id.to_string(),
-                    &event_turn_id,
+                    &event_interaction_id,
                 );
                 outgoing.send_server_notification(notification).await;
             }
@@ -1138,7 +1138,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             let notification = item_event_to_server_notification(
                 EventMsg::ExecCommandOutputDelta(exec_command_output_delta_event),
                 &conversation_id.to_string(),
-                &event_turn_id,
+                &event_interaction_id,
             );
             outgoing.send_server_notification(notification).await;
         }
@@ -1163,12 +1163,12 @@ pub(crate) async fn apply_bespoke_event_handling(
             let notification = item_event_to_server_notification(
                 EventMsg::ExecCommandEnd(exec_command_end_event),
                 &conversation_id.to_string(),
-                &event_turn_id,
+                &event_interaction_id,
             );
             outgoing.send_server_notification(notification).await;
         }
-        // If this is a TurnAborted, reply to any pending interrupt requests.
-        EventMsg::TurnAborted(turn_aborted_event) => {
+        // If this is a InteractionAborted, reply to any pending interrupt requests.
+        EventMsg::InteractionAborted(turn_aborted_event) => {
             // All per-thread requests are bound to a turn, so abort them.
             outgoing.abort_pending_server_requests().await;
             respond_to_pending_interrupts(&thread_state, &outgoing).await;
@@ -1178,7 +1178,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .await;
             handle_turn_interrupted(
                 conversation_id,
-                event_turn_id,
+                event_interaction_id,
                 turn_aborted_event,
                 &outgoing,
                 &thread_state,
@@ -1250,8 +1250,8 @@ pub(crate) async fn apply_bespoke_event_handling(
         }
         EventMsg::ThreadGoalUpdated(thread_goal_event) => {
             let notification = ChatGoalUpdatedNotification {
-                chat_id: thread_goal_event.thread_id.to_string(),
-                interaction_id: thread_goal_event.turn_id,
+                chat_id: thread_goal_event.chat_id.to_string(),
+                interaction_id: thread_goal_event.interaction_id,
                 goal: thread_goal_event.goal.clone().into(),
             };
             outgoing
@@ -1277,12 +1277,12 @@ pub(crate) async fn apply_bespoke_event_handling(
             }
         }
         EventMsg::TurnDiff(turn_diff_event) => {
-            handle_turn_diff(conversation_id, &event_turn_id, turn_diff_event, &outgoing).await;
+            handle_turn_diff(conversation_id, &event_interaction_id, turn_diff_event, &outgoing).await;
         }
         EventMsg::PlanUpdate(plan_update_event) => {
             handle_turn_plan_update(
                 conversation_id,
-                &event_turn_id,
+                &event_interaction_id,
                 plan_update_event,
                 &outgoing,
             )
@@ -1299,14 +1299,14 @@ pub(crate) async fn apply_bespoke_event_handling(
 }
 
 async fn handle_turn_diff(
-    conversation_id: ThreadId,
-    event_turn_id: &str,
+    conversation_id: ChatId,
+    event_interaction_id: &str,
     turn_diff_event: TurnDiffEvent,
     outgoing: &ThreadScopedOutgoingMessageSender,
 ) {
     let notification = InteractionDiffUpdatedNotification {
         chat_id: conversation_id.to_string(),
-        interaction_id: event_turn_id.to_string(),
+        interaction_id: event_interaction_id.to_string(),
         diff: turn_diff_event.unified_diff,
     };
     outgoing
@@ -1315,15 +1315,15 @@ async fn handle_turn_diff(
 }
 
 async fn handle_turn_plan_update(
-    conversation_id: ThreadId,
-    event_turn_id: &str,
+    conversation_id: ChatId,
+    event_interaction_id: &str,
     plan_update_event: UpdatePlanArgs,
     outgoing: &ThreadScopedOutgoingMessageSender,
 ) {
     // `update_plan` is a todo/checklist tool; it is not related to plan-mode updates
     let notification = InteractionPlanUpdatedNotification {
         chat_id: conversation_id.to_string(),
-        interaction_id: event_turn_id.to_string(),
+        interaction_id: event_interaction_id.to_string(),
         explanation: plan_update_event.explanation,
         plan: plan_update_event
             .plan
@@ -1345,15 +1345,15 @@ struct TurnCompletionMetadata {
 }
 
 async fn emit_turn_completed_with_status(
-    conversation_id: ThreadId,
-    event_turn_id: String,
+    conversation_id: ChatId,
+    event_interaction_id: String,
     turn_completion_metadata: TurnCompletionMetadata,
     outgoing: &ThreadScopedOutgoingMessageSender,
 ) {
     let notification = InteractionCompletedNotification {
         chat_id: conversation_id.to_string(),
         turn: Interaction {
-            id: event_turn_id,
+            id: event_interaction_id,
             messages: vec![],
             messages_view: InteractionMessagesView::NotLoaded,
             error: turn_completion_metadata.error,
@@ -1370,7 +1370,7 @@ async fn emit_turn_completed_with_status(
 
 #[allow(clippy::too_many_arguments)]
 async fn start_command_execution_item(
-    conversation_id: &ThreadId,
+    conversation_id: &ChatId,
     interaction_id: String,
     message_id: String,
     command: String,
@@ -1414,7 +1414,7 @@ async fn start_command_execution_item(
 
 #[allow(clippy::too_many_arguments)]
 async fn complete_command_execution_item(
-    conversation_id: &ThreadId,
+    conversation_id: &ChatId,
     interaction_id: String,
     message_id: String,
     command: String,
@@ -1460,7 +1460,7 @@ async fn complete_command_execution_item(
 }
 
 async fn maybe_emit_raw_response_item_completed(
-    conversation_id: ThreadId,
+    conversation_id: ChatId,
     interaction_id: &str,
     item: datax_protocol::models::ResponseItem,
     outgoing: &ThreadScopedOutgoingMessageSender,
@@ -1476,7 +1476,7 @@ async fn maybe_emit_raw_response_item_completed(
 }
 
 pub(crate) async fn maybe_emit_hook_prompt_item_completed(
-    conversation_id: ThreadId,
+    conversation_id: ChatId,
     interaction_id: &str,
     item: &datax_protocol::models::ResponseItem,
     outgoing: &ThreadScopedOutgoingMessageSender,
@@ -1515,7 +1515,7 @@ pub(crate) async fn maybe_emit_hook_prompt_item_completed(
 }
 
 async fn find_and_remove_turn_summary(
-    _conversation_id: ThreadId,
+    _conversation_id: ChatId,
     thread_state: &Arc<Mutex<ThreadState>>,
 ) -> TurnSummary {
     let mut state = thread_state.lock().await;
@@ -1523,9 +1523,9 @@ async fn find_and_remove_turn_summary(
 }
 
 async fn handle_turn_complete(
-    conversation_id: ThreadId,
-    event_turn_id: String,
-    turn_complete_event: TurnCompleteEvent,
+    conversation_id: ChatId,
+    event_interaction_id: String,
+    turn_complete_event: InteractionCompleteEvent,
     outgoing: &ThreadScopedOutgoingMessageSender,
     thread_state: &Arc<Mutex<ThreadState>>,
 ) {
@@ -1538,7 +1538,7 @@ async fn handle_turn_complete(
 
     emit_turn_completed_with_status(
         conversation_id,
-        event_turn_id,
+        event_interaction_id,
         TurnCompletionMetadata {
             status,
             error,
@@ -1552,9 +1552,9 @@ async fn handle_turn_complete(
 }
 
 async fn handle_turn_interrupted(
-    conversation_id: ThreadId,
-    event_turn_id: String,
-    turn_aborted_event: TurnAbortedEvent,
+    conversation_id: ChatId,
+    event_interaction_id: String,
+    turn_aborted_event: InteractionAbortedEvent,
     outgoing: &ThreadScopedOutgoingMessageSender,
     thread_state: &Arc<Mutex<ThreadState>>,
 ) {
@@ -1562,7 +1562,7 @@ async fn handle_turn_interrupted(
 
     emit_turn_completed_with_status(
         conversation_id,
-        event_turn_id,
+        event_interaction_id,
         TurnCompletionMetadata {
             status: InteractionStatus::Interrupted,
             error: None,
@@ -1576,7 +1576,7 @@ async fn handle_turn_interrupted(
 }
 
 async fn handle_thread_rollback_failed(
-    _conversation_id: ThreadId,
+    _conversation_id: ChatId,
     message: String,
     thread_state: &Arc<Mutex<ThreadState>>,
     outgoing: &ThreadScopedOutgoingMessageSender,
@@ -1597,7 +1597,7 @@ fn thread_rollback_response_from_stored_thread(
     fallback_cwd: &AbsolutePathBuf,
     loaded_status: ChatStatus,
 ) -> std::result::Result<ChatRollbackResponse, String> {
-    let chat_id = stored_thread.thread_id;
+    let chat_id = stored_thread.chat_id;
     let (mut thread, history) =
         chat_from_stored_thread(stored_thread, fallback_model_provider, fallback_cwd);
     thread.session_id = session_id;
@@ -1628,7 +1628,7 @@ async fn respond_to_pending_interrupts(
 }
 
 async fn handle_token_count_event(
-    conversation_id: ThreadId,
+    conversation_id: ChatId,
     interaction_id: String,
     token_count_event: TokenCountEvent,
     outgoing: &ThreadScopedOutgoingMessageSender,
@@ -1656,7 +1656,7 @@ async fn handle_token_count_event(
 }
 
 async fn handle_error(
-    _conversation_id: ThreadId,
+    _conversation_id: ChatId,
     error: InteractionError,
     thread_state: &Arc<Mutex<ThreadState>>,
 ) {
@@ -1665,8 +1665,8 @@ async fn handle_error(
 }
 
 async fn handle_error_notification(
-    conversation_id: ThreadId,
-    event_turn_id: &str,
+    conversation_id: ChatId,
+    event_interaction_id: &str,
     error: InteractionError,
     outgoing: &ThreadScopedOutgoingMessageSender,
     thread_state: &Arc<Mutex<ThreadState>>,
@@ -1677,13 +1677,13 @@ async fn handle_error_notification(
             error,
             will_retry: false,
             chat_id: conversation_id.to_string(),
-            interaction_id: event_turn_id.to_string(),
+            interaction_id: event_interaction_id.to_string(),
         }))
         .await;
 }
 
 async fn on_request_user_input_response(
-    event_turn_id: String,
+    event_interaction_id: String,
     pending_request_id: RequestId,
     receiver: oneshot::Receiver<ClientRequestResult>,
     conversation: Arc<CodexThread>,
@@ -1703,7 +1703,7 @@ async fn on_request_user_input_response(
             };
             if let Err(err) = conversation
                 .submit(Op::UserInputAnswer {
-                    id: event_turn_id,
+                    id: event_interaction_id,
                     response: empty,
                 })
                 .await
@@ -1719,7 +1719,7 @@ async fn on_request_user_input_response(
             };
             if let Err(err) = conversation
                 .submit(Op::UserInputAnswer {
-                    id: event_turn_id,
+                    id: event_interaction_id,
                     response: empty,
                 })
                 .await
@@ -1754,7 +1754,7 @@ async fn on_request_user_input_response(
 
     if let Err(err) = conversation
         .submit(Op::UserInputAnswer {
-            id: event_turn_id,
+            id: event_interaction_id,
             response,
         })
         .await
@@ -1893,7 +1893,7 @@ async fn on_request_permissions_response(
 
 struct PendingRequestPermissionsResponse {
     call_id: String,
-    conversation_id: ThreadId,
+    conversation_id: ChatId,
     interaction_id: String,
     requested_permissions: CoreRequestPermissionProfile,
     request_cwd: AbsolutePathBuf,
@@ -2044,8 +2044,8 @@ async fn on_file_change_request_approval_response(
 
 #[allow(clippy::too_many_arguments)]
 async fn on_command_execution_request_approval_response(
-    event_turn_id: String,
-    conversation_id: ThreadId,
+    event_interaction_id: String,
+    conversation_id: ChatId,
     approval_id: Option<String>,
     message_id: String,
     completion_item: Option<CommandExecutionCompletionItem>,
@@ -2141,7 +2141,7 @@ async fn on_command_execution_request_approval_response(
     {
         complete_command_execution_item(
             &conversation_id,
-            event_turn_id.clone(),
+            event_interaction_id.clone(),
             message_id.clone(),
             completion_item.command,
             completion_item.cwd,
@@ -2158,7 +2158,7 @@ async fn on_command_execution_request_approval_response(
     if let Err(err) = conversation
         .submit(Op::ExecApproval {
             id: approval_id.unwrap_or_else(|| message_id.clone()),
-            turn_id: Some(event_turn_id),
+            interaction_id: Some(event_interaction_id),
             decision,
         })
         .await
@@ -2251,7 +2251,7 @@ mod tests {
 
     #[test]
     fn rollback_response_rebuilds_pathless_thread_from_stored_history() -> Result<()> {
-        let chat_id = ThreadId::from_string("00000000-0000-0000-0000-000000000789")?;
+        let chat_id = ChatId::from_string("00000000-0000-0000-0000-000000000789")?;
         let created_at = Utc::now();
         let history_items = vec![
             RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
@@ -2269,11 +2269,11 @@ mod tests {
             })),
         ];
         let stored_thread = StoredThread {
-            thread_id: chat_id,
+            chat_id: chat_id,
             extra_config: None,
             rollout_path: None,
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             preview: "fallback preview".to_string(),
             name: Some("Rollback thread".to_string()),
             model_provider: "openai".to_string(),
@@ -2296,7 +2296,7 @@ mod tests {
             token_usage: None,
             first_user_message: Some("before rollback".to_string()),
             history: Some(StoredThreadHistory {
-                thread_id: chat_id,
+                chat_id: chat_id,
                 items: history_items,
             }),
         };
@@ -2321,9 +2321,9 @@ mod tests {
         Ok(())
     }
 
-    fn turn_complete_event(interaction_id: &str) -> TurnCompleteEvent {
-        TurnCompleteEvent {
-            turn_id: interaction_id.to_string(),
+    fn turn_complete_event(interaction_id: &str) -> InteractionCompleteEvent {
+        InteractionCompleteEvent {
+            interaction_id: interaction_id.to_string(),
             last_agent_message: None,
             completed_at: Some(TEST_TURN_COMPLETED_AT),
             duration_ms: Some(TEST_TURN_DURATION_MS),
@@ -2331,10 +2331,10 @@ mod tests {
         }
     }
 
-    fn turn_aborted_event(interaction_id: &str) -> TurnAbortedEvent {
-        TurnAbortedEvent {
-            turn_id: Some(interaction_id.to_string()),
-            reason: datax_protocol::protocol::TurnAbortReason::Interrupted,
+    fn turn_aborted_event(interaction_id: &str) -> InteractionAbortedEvent {
+        InteractionAbortedEvent {
+            interaction_id: Some(interaction_id.to_string()),
+            reason: datax_protocol::protocol::InteractionAbortReason::Interrupted,
             completed_at: Some(TEST_TURN_COMPLETED_AT),
             duration_ms: Some(TEST_TURN_DURATION_MS),
         }
@@ -2375,7 +2375,7 @@ mod tests {
         GuardianAssessmentEvent {
             id: format!("review-{id}"),
             target_item_id: Some(id.to_string()),
-            turn_id: interaction_id.to_string(),
+            interaction_id: interaction_id.to_string(),
             started_at_ms: 1_000,
             completed_at_ms: (!matches!(status, GuardianAssessmentStatus::InProgress))
                 .then_some(1_042),
@@ -2399,7 +2399,7 @@ mod tests {
     }
 
     struct GuardianAssessmentTestContext {
-        conversation_id: ThreadId,
+        conversation_id: ChatId,
         conversation: Arc<CodexThread>,
         thread_manager: Arc<ThreadManager>,
         outgoing: ThreadScopedOutgoingMessageSender,
@@ -2409,10 +2409,10 @@ mod tests {
 
     impl GuardianAssessmentTestContext {
         async fn apply_guardian_assessment_event(&self, assessment: GuardianAssessmentEvent) {
-            let event_turn_id = assessment.turn_id.clone();
+            let event_interaction_id = assessment.interaction_id.clone();
             apply_bespoke_event_handling(
                 Event {
-                    id: event_turn_id,
+                    id: event_interaction_id,
                     msg: EventMsg::GuardianAssessment(assessment),
                 },
                 self.conversation_id,
@@ -2429,8 +2429,8 @@ mod tests {
     }
 
     #[test]
-    fn guardian_assessment_started_uses_event_turn_id_fallback() {
-        let conversation_id = ThreadId::new();
+    fn guardian_assessment_started_uses_event_interaction_id_fallback() {
+        let conversation_id = ChatId::new();
         let action = datax_protocol::protocol::GuardianAssessmentAction::Command {
             source: datax_protocol::protocol::GuardianCommandSource::Shell,
             command: "rm -rf /tmp/example.sqlite".to_string(),
@@ -2442,7 +2442,7 @@ mod tests {
             &GuardianAssessmentEvent {
                 id: "review-1".to_string(),
                 target_item_id: Some("item-1".to_string()),
-                turn_id: String::new(),
+                interaction_id: String::new(),
                 started_at_ms: 1_000,
                 completed_at_ms: None,
                 status: datax_protocol::protocol::GuardianAssessmentStatus::InProgress,
@@ -2476,7 +2476,7 @@ mod tests {
 
     #[test]
     fn guardian_assessment_completed_emits_review_payload() {
-        let conversation_id = ThreadId::new();
+        let conversation_id = ChatId::new();
         let action = datax_protocol::protocol::GuardianAssessmentAction::Command {
             source: datax_protocol::protocol::GuardianCommandSource::Shell,
             command: "rm -rf /tmp/example.sqlite".to_string(),
@@ -2488,7 +2488,7 @@ mod tests {
             &GuardianAssessmentEvent {
                 id: "review-2".to_string(),
                 target_item_id: Some("item-2".to_string()),
-                turn_id: "turn-from-assessment".to_string(),
+                interaction_id: "turn-from-assessment".to_string(),
                 started_at_ms: 1_000,
                 completed_at_ms: Some(1_042),
                 status: datax_protocol::protocol::GuardianAssessmentStatus::Denied,
@@ -2529,7 +2529,7 @@ mod tests {
 
     #[test]
     fn guardian_assessment_aborted_emits_completed_review_payload() {
-        let conversation_id = ThreadId::new();
+        let conversation_id = ChatId::new();
         let action = datax_protocol::protocol::GuardianAssessmentAction::NetworkAccess {
             target: "api.openai.com:443".to_string(),
             host: "api.openai.com".to_string(),
@@ -2542,7 +2542,7 @@ mod tests {
             &GuardianAssessmentEvent {
                 id: "review-3".to_string(),
                 target_item_id: None,
-                turn_id: "turn-from-assessment".to_string(),
+                interaction_id: "turn-from-assessment".to_string(),
                 started_at_ms: 1_000,
                 completed_at_ms: Some(1_042),
                 status: datax_protocol::protocol::GuardianAssessmentStatus::Aborted,
@@ -2575,7 +2575,7 @@ mod tests {
 
     #[tokio::test]
     async fn command_execution_started_helper_emits_once() -> Result<()> {
-        let conversation_id = ThreadId::new();
+        let conversation_id = ChatId::new();
         let thread_state = new_thread_state();
         let (tx, mut rx) = mpsc::channel(CHANNEL_CAPACITY);
         let outgoing = Arc::new(OutgoingMessageSender::new(
@@ -2585,7 +2585,7 @@ mod tests {
         let outgoing = ThreadScopedOutgoingMessageSender::new(
             outgoing,
             vec![ConnectionId(1)],
-            ThreadId::new(),
+            ChatId::new(),
         );
         let completion_item = command_execution_completion_item("printf hi");
 
@@ -2647,7 +2647,7 @@ mod tests {
     #[tokio::test]
     async fn complete_command_execution_item_emits_declined_once_for_pending_command() -> Result<()>
     {
-        let conversation_id = ThreadId::new();
+        let conversation_id = ChatId::new();
         let thread_state = new_thread_state();
         let (tx, mut rx) = mpsc::channel(CHANNEL_CAPACITY);
         let outgoing = Arc::new(OutgoingMessageSender::new(
@@ -2657,7 +2657,7 @@ mod tests {
         let outgoing = ThreadScopedOutgoingMessageSender::new(
             outgoing,
             vec![ConnectionId(1)],
-            ThreadId::new(),
+            ChatId::new(),
         );
         let completion_item = command_execution_completion_item("printf hi");
 
@@ -2736,7 +2736,7 @@ mod tests {
             ),
         );
         let datax_core::NewThread {
-            thread_id: conversation_id,
+            chat_id: conversation_id,
             chat: conversation,
             ..
         } = thread_manager.start_thread(config.clone()).await?;
@@ -3283,7 +3283,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_handle_error_records_message() -> Result<()> {
-        let conversation_id = ThreadId::new();
+        let conversation_id = ChatId::new();
         let thread_state = new_thread_state();
 
         handle_error(
@@ -3322,7 +3322,7 @@ mod tests {
             ),
         );
         let datax_core::NewThread {
-            thread_id: conversation_id,
+            chat_id: conversation_id,
             chat: conversation,
             ..
         } = thread_manager.start_thread(config.clone()).await?;
@@ -3331,8 +3331,8 @@ mod tests {
             let mut state = thread_state.lock().await;
             state.track_current_turn_event(
                 "turn-1",
-                &EventMsg::TurnStarted(datax_protocol::protocol::TurnStartedEvent {
-                    turn_id: "turn-1".to_string(),
+                &EventMsg::InteractionStarted(datax_protocol::protocol::InteractionStartedEvent {
+                    interaction_id: "turn-1".to_string(),
                     trace_id: None,
                     started_at: Some(42),
                     model_context_window: None,
@@ -3366,8 +3366,8 @@ mod tests {
         apply_bespoke_event_handling(
             Event {
                 id: "turn-1".to_string(),
-                msg: EventMsg::TurnStarted(datax_protocol::protocol::TurnStartedEvent {
-                    turn_id: "turn-1".to_string(),
+                msg: EventMsg::InteractionStarted(datax_protocol::protocol::InteractionStartedEvent {
+                    interaction_id: "turn-1".to_string(),
                     trace_id: None,
                     started_at: Some(42),
                     model_context_window: None,
@@ -3413,15 +3413,15 @@ mod tests {
             ),
         );
         let datax_core::NewThread {
-            thread_id: conversation_id,
+            chat_id: conversation_id,
             chat: conversation,
             ..
         } = thread_manager.start_thread(config).await?;
-        let child_thread_id = ThreadId::new();
-        let child_thread_id_string = child_thread_id.to_string();
+        let child_chat_id = ChatId::new();
+        let child_chat_id_string = child_chat_id.to_string();
         let thread_watch_manager = ThreadWatchManager::new();
         thread_watch_manager
-            .note_turn_started(&child_thread_id_string)
+            .note_turn_started(&child_chat_id_string)
             .await;
         assert_eq!(thread_watch_manager.running_turn_count().await, 1);
         let (tx, mut rx) = mpsc::channel(CHANNEL_CAPACITY);
@@ -3441,7 +3441,7 @@ mod tests {
                 msg: EventMsg::SubAgentActivity(SubAgentActivityEvent {
                     event_id: "activity-1".to_string(),
                     occurred_at_ms: 42,
-                    agent_thread_id: child_thread_id,
+                    agent_chat_id: child_chat_id,
                     agent_path: AgentPath::try_from("/root/worker")
                         .expect("agent path should parse"),
                     kind: SubAgentActivityKind::Interrupted,
@@ -3460,7 +3460,7 @@ mod tests {
 
         assert_eq!(
             thread_watch_manager
-                .loaded_status_for_thread(&child_thread_id_string)
+                .loaded_status_for_thread(&child_chat_id_string)
                 .await,
             ChatStatus::NotLoaded
         );
@@ -3475,7 +3475,7 @@ mod tests {
                 item: Message::SubAgentActivity {
                     id: "activity-1".to_string(),
                     kind: datax_app_server_protocol::SubAgentActivityKind::Interrupted,
-                    agent_thread_id: child_thread_id_string,
+                    agent_chat_id: child_chat_id_string,
                     agent_path: "/root/worker".to_string(),
                 },
                 chat_id: conversation_id.to_string(),
@@ -3488,8 +3488,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_handle_turn_complete_emits_completed_without_error() -> Result<()> {
-        let conversation_id = ThreadId::new();
-        let event_turn_id = "complete1".to_string();
+        let conversation_id = ChatId::new();
+        let event_interaction_id = "complete1".to_string();
         let (tx, mut rx) = mpsc::channel(CHANNEL_CAPACITY);
         let outgoing = Arc::new(OutgoingMessageSender::new(
             tx,
@@ -3498,15 +3498,15 @@ mod tests {
         let outgoing = ThreadScopedOutgoingMessageSender::new(
             outgoing,
             vec![ConnectionId(1)],
-            ThreadId::new(),
+            ChatId::new(),
         );
         let thread_state = new_thread_state();
         {
             let mut state = thread_state.lock().await;
             state.track_current_turn_event(
-                &event_turn_id,
-                &EventMsg::TurnStarted(datax_protocol::protocol::TurnStartedEvent {
-                    turn_id: event_turn_id.clone(),
+                &event_interaction_id,
+                &EventMsg::InteractionStarted(datax_protocol::protocol::InteractionStartedEvent {
+                    interaction_id: event_interaction_id.clone(),
                     trace_id: None,
                     started_at: Some(42),
                     model_context_window: None,
@@ -3514,15 +3514,15 @@ mod tests {
                 }),
             );
             state.track_current_turn_event(
-                &event_turn_id,
-                &EventMsg::TurnComplete(turn_complete_event(&event_turn_id)),
+                &event_interaction_id,
+                &EventMsg::InteractionComplete(turn_complete_event(&event_interaction_id)),
             );
         }
 
         handle_turn_complete(
             conversation_id,
-            event_turn_id.clone(),
-            turn_complete_event(&event_turn_id),
+            event_interaction_id.clone(),
+            turn_complete_event(&event_interaction_id),
             &outgoing,
             &thread_state,
         )
@@ -3531,7 +3531,7 @@ mod tests {
         let msg = recv_broadcast_message(&mut rx).await?;
         match msg {
             OutgoingMessage::AppServerNotification(InteractionCompleted(n)) => {
-                assert_eq!(n.interaction.id, event_turn_id);
+                assert_eq!(n.interaction.id, event_interaction_id);
                 assert_eq!(n.interaction.status, InteractionStatus::Completed);
                 assert_eq!(
                     n.interaction.messages_view,
@@ -3551,8 +3551,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_handle_turn_interrupted_emits_interrupted_with_error() -> Result<()> {
-        let conversation_id = ThreadId::new();
-        let event_turn_id = "interrupt1".to_string();
+        let conversation_id = ChatId::new();
+        let event_interaction_id = "interrupt1".to_string();
         let thread_state = new_thread_state();
         handle_error(
             conversation_id,
@@ -3572,13 +3572,13 @@ mod tests {
         let outgoing = ThreadScopedOutgoingMessageSender::new(
             outgoing,
             vec![ConnectionId(1)],
-            ThreadId::new(),
+            ChatId::new(),
         );
 
         handle_turn_interrupted(
             conversation_id,
-            event_turn_id.clone(),
-            turn_aborted_event(&event_turn_id),
+            event_interaction_id.clone(),
+            turn_aborted_event(&event_interaction_id),
             &outgoing,
             &thread_state,
         )
@@ -3587,7 +3587,7 @@ mod tests {
         let msg = recv_broadcast_message(&mut rx).await?;
         match msg {
             OutgoingMessage::AppServerNotification(InteractionCompleted(n)) => {
-                assert_eq!(n.interaction.id, event_turn_id);
+                assert_eq!(n.interaction.id, event_interaction_id);
                 assert_eq!(n.interaction.status, InteractionStatus::Interrupted);
                 assert_eq!(n.interaction.error, None);
                 assert_eq!(n.interaction.completed_at, Some(TEST_TURN_COMPLETED_AT));
@@ -3601,8 +3601,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_handle_turn_complete_emits_failed_with_error() -> Result<()> {
-        let conversation_id = ThreadId::new();
-        let event_turn_id = "complete_err1".to_string();
+        let conversation_id = ChatId::new();
+        let event_interaction_id = "complete_err1".to_string();
         let thread_state = new_thread_state();
         handle_error(
             conversation_id,
@@ -3622,13 +3622,13 @@ mod tests {
         let outgoing = ThreadScopedOutgoingMessageSender::new(
             outgoing,
             vec![ConnectionId(1)],
-            ThreadId::new(),
+            ChatId::new(),
         );
 
         handle_turn_complete(
             conversation_id,
-            event_turn_id.clone(),
-            turn_complete_event(&event_turn_id),
+            event_interaction_id.clone(),
+            turn_complete_event(&event_interaction_id),
             &outgoing,
             &thread_state,
         )
@@ -3637,7 +3637,7 @@ mod tests {
         let msg = recv_broadcast_message(&mut rx).await?;
         match msg {
             OutgoingMessage::AppServerNotification(InteractionCompleted(n)) => {
-                assert_eq!(n.interaction.id, event_turn_id);
+                assert_eq!(n.interaction.id, event_interaction_id);
                 assert_eq!(n.interaction.status, InteractionStatus::Failed);
                 assert_eq!(
                     n.interaction.error,
@@ -3666,7 +3666,7 @@ mod tests {
         let outgoing = ThreadScopedOutgoingMessageSender::new(
             outgoing,
             vec![ConnectionId(1)],
-            ThreadId::new(),
+            ChatId::new(),
         );
         let update = UpdatePlanArgs {
             explanation: Some("need plan".to_string()),
@@ -3682,7 +3682,7 @@ mod tests {
             ],
         };
 
-        let conversation_id = ThreadId::new();
+        let conversation_id = ChatId::new();
 
         handle_turn_plan_update(conversation_id, "turn-123", update, &outgoing).await;
 
@@ -3706,7 +3706,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_handle_token_count_event_emits_usage_and_rate_limits() -> Result<()> {
-        let conversation_id = ThreadId::new();
+        let conversation_id = ChatId::new();
         let interaction_id = "turn-123".to_string();
         let (tx, mut rx) = mpsc::channel(CHANNEL_CAPACITY);
         let outgoing = Arc::new(OutgoingMessageSender::new(
@@ -3716,7 +3716,7 @@ mod tests {
         let outgoing = ThreadScopedOutgoingMessageSender::new(
             outgoing,
             vec![ConnectionId(1)],
-            ThreadId::new(),
+            ChatId::new(),
         );
 
         let info = TokenUsageInfo {
@@ -3797,7 +3797,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_handle_token_count_event_without_usage_info() -> Result<()> {
-        let conversation_id = ThreadId::new();
+        let conversation_id = ChatId::new();
         let interaction_id = "turn-456".to_string();
         let (tx, mut rx) = mpsc::channel(CHANNEL_CAPACITY);
         let outgoing = Arc::new(OutgoingMessageSender::new(
@@ -3807,7 +3807,7 @@ mod tests {
         let outgoing = ThreadScopedOutgoingMessageSender::new(
             outgoing,
             vec![ConnectionId(1)],
-            ThreadId::new(),
+            ChatId::new(),
         );
 
         handle_token_count_event(
@@ -3831,8 +3831,8 @@ mod tests {
     #[tokio::test]
     async fn test_handle_turn_complete_emits_error_multiple_turns() -> Result<()> {
         // Conversation A will have two interactions; Conversation B will have one turn.
-        let conversation_a = ThreadId::new();
-        let conversation_b = ThreadId::new();
+        let conversation_a = ChatId::new();
+        let conversation_b = ChatId::new();
         let thread_state = new_thread_state();
 
         let (tx, mut rx) = mpsc::channel(CHANNEL_CAPACITY);
@@ -3843,7 +3843,7 @@ mod tests {
         let outgoing = ThreadScopedOutgoingMessageSender::new(
             outgoing,
             vec![ConnectionId(1)],
-            ThreadId::new(),
+            ChatId::new(),
         );
 
         // Interaction 1 on conversation A
@@ -3960,10 +3960,10 @@ mod tests {
         let outgoing = ThreadScopedOutgoingMessageSender::new(
             outgoing,
             vec![ConnectionId(1)],
-            ThreadId::new(),
+            ChatId::new(),
         );
         let unified_diff = "--- a\n+++ b\n".to_string();
-        let conversation_id = ThreadId::new();
+        let conversation_id = ChatId::new();
 
         handle_turn_diff(
             conversation_id,
@@ -3995,7 +3995,7 @@ mod tests {
             tx,
             datax_analytics::AnalyticsEventsClient::disabled(),
         ));
-        let conversation_id = ThreadId::new();
+        let conversation_id = ChatId::new();
         let outgoing = ThreadScopedOutgoingMessageSender::new(
             outgoing,
             vec![ConnectionId(1)],

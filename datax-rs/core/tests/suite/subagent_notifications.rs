@@ -25,7 +25,7 @@ use datax_core::StartThreadOptions;
 use datax_core::ThreadConfigSnapshot;
 use datax_core::config::AgentRoleConfig;
 use datax_features::Feature;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::models::PermissionProfile;
 use datax_protocol::openai_models::ReasoningEffort;
 use datax_protocol::protocol::AskForApproval;
@@ -295,13 +295,13 @@ async fn wait_for_hook_log(
     }
 }
 
-async fn wait_for_spawned_thread_id(test: &TestCodex) -> Result<String> {
+async fn wait_for_spawned_chat_id(test: &TestCodex) -> Result<String> {
     let deadline = Instant::now() + Duration::from_secs(2);
     loop {
-        let ids = test.thread_manager.list_thread_ids().await;
+        let ids = test.thread_manager.list_chat_ids().await;
         if let Some(spawned_id) = ids
             .iter()
-            .find(|id| **id != test.session_configured.thread_id)
+            .find(|id| **id != test.session_configured.chat_id)
         {
             return Ok(spawned_id.to_string());
         }
@@ -444,7 +444,7 @@ async fn setup_turn_one_with_custom_spawned_child(
             sleep(Duration::from_millis(10)).await;
         }
     }
-    let spawned_id = wait_for_spawned_thread_id(&test).await?;
+    let spawned_id = wait_for_spawned_chat_id(&test).await?;
 
     Ok((test, spawned_id, child_request_log))
 }
@@ -464,10 +464,10 @@ async fn spawn_child_and_capture_snapshot(
         configure_test,
     )
     .await?;
-    let thread_id = ThreadId::from_string(&spawned_id)?;
+    let chat_id = ChatId::from_string(&spawned_id)?;
     Ok(test
         .thread_manager
-        .get_thread(thread_id)
+        .get_thread(chat_id)
         .await?
         .config_snapshot()
         .await)
@@ -553,7 +553,7 @@ async fn subagent_start_replaces_session_start_and_injects_context() -> Result<(
     .await?;
     assert_eq!(start_inputs.len(), 1);
     assert_eq!(start_inputs[0]["agent_type"].as_str(), Some("worker"));
-    let spawned_id = wait_for_spawned_thread_id(&test).await?;
+    let spawned_id = wait_for_spawned_chat_id(&test).await?;
     assert_eq!(
         start_inputs[0]["agent_id"].as_str(),
         Some(spawned_id.as_str())
@@ -781,13 +781,13 @@ async fn subagent_stop_replaces_stop_and_skips_internal_subagents() -> Result<()
             },
         })
         .await?;
-    let turn_id = wait_for_event_match(internal_thread.thread.as_ref(), |event| match event {
-        EventMsg::TurnStarted(event) => Some(event.turn_id.clone()),
+    let interaction_id = wait_for_event_match(internal_thread.thread.as_ref(), |event| match event {
+        EventMsg::InteractionStarted(event) => Some(event.interaction_id.clone()),
         _ => None,
     })
     .await;
     wait_for_event_match(internal_thread.thread.as_ref(), |event| match event {
-        EventMsg::TurnComplete(event) if event.turn_id == turn_id => Some(()),
+        EventMsg::InteractionComplete(event) if event.interaction_id == interaction_id => Some(()),
         _ => None,
     })
     .await;

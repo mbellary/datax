@@ -43,77 +43,77 @@ pub(crate) fn create_started_agent_writer(temp: &TempDir) -> anyhow::Result<Trac
 
 pub(crate) fn create_started_writer_for_thread(
     temp: &TempDir,
-    thread_id: &str,
+    chat_id: &str,
     agent_path: &str,
 ) -> anyhow::Result<TraceWriter> {
     let writer = TraceWriter::create(
         temp.path(),
         "trace-1".to_string(),
         "rollout-1".to_string(),
-        thread_id.to_string(),
+        chat_id.to_string(),
     )?;
-    start_thread(&writer, thread_id, agent_path)?;
+    start_thread(&writer, chat_id, agent_path)?;
     Ok(writer)
 }
 
 pub(crate) fn start_thread(
     writer: &TraceWriter,
-    thread_id: &str,
+    chat_id: &str,
     agent_path: &str,
 ) -> anyhow::Result<()> {
     writer.append(RawTraceEventPayload::ThreadStarted {
-        thread_id: thread_id.to_string(),
+        chat_id: chat_id.to_string(),
         agent_path: agent_path.to_string(),
         metadata_payload: None,
     })?;
     Ok(())
 }
 
-pub(crate) fn start_turn(writer: &TraceWriter, turn_id: &str) -> anyhow::Result<()> {
-    start_turn_for_thread(writer, ROOT_THREAD_ID, turn_id)
+pub(crate) fn start_turn(writer: &TraceWriter, interaction_id: &str) -> anyhow::Result<()> {
+    start_turn_for_thread(writer, ROOT_THREAD_ID, interaction_id)
 }
 
-pub(crate) fn start_agent_turn(writer: &TraceWriter, turn_id: &str) -> anyhow::Result<()> {
-    start_turn_for_thread(writer, AGENT_ROOT_THREAD_ID, turn_id)
+pub(crate) fn start_agent_turn(writer: &TraceWriter, interaction_id: &str) -> anyhow::Result<()> {
+    start_turn_for_thread(writer, AGENT_ROOT_THREAD_ID, interaction_id)
 }
 
 pub(crate) fn start_turn_for_thread(
     writer: &TraceWriter,
-    thread_id: &str,
-    turn_id: &str,
+    chat_id: &str,
+    interaction_id: &str,
 ) -> anyhow::Result<()> {
-    writer.append(RawTraceEventPayload::CodexTurnStarted {
-        codex_turn_id: turn_id.to_string(),
-        thread_id: thread_id.to_string(),
+    writer.append(RawTraceEventPayload::CodexInteractionStarted {
+        codex_interaction_id: interaction_id.to_string(),
+        chat_id: chat_id.to_string(),
     })?;
     Ok(())
 }
 
-pub(crate) fn trace_context(turn_id: &str) -> RawTraceEventContext {
-    trace_context_for_thread(ROOT_THREAD_ID, turn_id)
+pub(crate) fn trace_context(interaction_id: &str) -> RawTraceEventContext {
+    trace_context_for_thread(ROOT_THREAD_ID, interaction_id)
 }
 
-pub(crate) fn trace_context_for_agent(turn_id: &str) -> RawTraceEventContext {
-    trace_context_for_thread(AGENT_ROOT_THREAD_ID, turn_id)
+pub(crate) fn trace_context_for_agent(interaction_id: &str) -> RawTraceEventContext {
+    trace_context_for_thread(AGENT_ROOT_THREAD_ID, interaction_id)
 }
 
-pub(crate) fn trace_context_for_thread(thread_id: &str, turn_id: &str) -> RawTraceEventContext {
+pub(crate) fn trace_context_for_thread(chat_id: &str, interaction_id: &str) -> RawTraceEventContext {
     RawTraceEventContext {
-        thread_id: Some(thread_id.to_string()),
-        codex_turn_id: Some(turn_id.to_string()),
+        chat_id: Some(chat_id.to_string()),
+        codex_interaction_id: Some(interaction_id.to_string()),
     }
 }
 
 pub(crate) fn append_inference_start(
     writer: &TraceWriter,
     inference_call_id: &str,
-    codex_turn_id: &str,
+    codex_interaction_id: &str,
     request_payload: RawPayloadRef,
 ) -> anyhow::Result<()> {
     append_inference_start_for_thread(
         writer,
         ROOT_THREAD_ID,
-        codex_turn_id,
+        codex_interaction_id,
         inference_call_id,
         request_payload,
     )
@@ -121,15 +121,15 @@ pub(crate) fn append_inference_start(
 
 pub(crate) fn append_inference_start_for_thread(
     writer: &TraceWriter,
-    thread_id: &str,
-    codex_turn_id: &str,
+    chat_id: &str,
+    codex_interaction_id: &str,
     inference_call_id: &str,
     request_payload: RawPayloadRef,
 ) -> anyhow::Result<()> {
     writer.append(RawTraceEventPayload::InferenceStarted {
         inference_call_id: inference_call_id.to_string(),
-        thread_id: thread_id.to_string(),
-        codex_turn_id: codex_turn_id.to_string(),
+        chat_id: chat_id.to_string(),
+        codex_interaction_id: codex_interaction_id.to_string(),
         model: "gpt-test".to_string(),
         provider_name: "test-provider".to_string(),
         request_payload,
@@ -154,25 +154,25 @@ pub(crate) fn append_inference_completion(
 
 pub(crate) fn append_inference_request(
     writer: &TraceWriter,
-    thread_id: &str,
-    turn_id: &str,
+    chat_id: &str,
+    interaction_id: &str,
     inference_id: &str,
     input: Vec<serde_json::Value>,
 ) -> anyhow::Result<()> {
     let request =
         writer.write_json_payload(RawPayloadKind::InferenceRequest, &json!({ "input": input }))?;
-    append_inference_start_for_thread(writer, thread_id, turn_id, inference_id, request)
+    append_inference_start_for_thread(writer, chat_id, interaction_id, inference_id, request)
 }
 
 pub(crate) fn append_completed_inference(
     writer: &TraceWriter,
-    thread_id: &str,
-    turn_id: &str,
+    chat_id: &str,
+    interaction_id: &str,
     inference_id: &str,
     input: Vec<serde_json::Value>,
     output_items: Vec<serde_json::Value>,
 ) -> anyhow::Result<()> {
-    append_inference_request(writer, thread_id, turn_id, inference_id, input)?;
+    append_inference_request(writer, chat_id, interaction_id, inference_id, input)?;
     let response = writer.write_json_payload(
         RawPayloadKind::InferenceResponse,
         &json!({
@@ -181,7 +181,7 @@ pub(crate) fn append_completed_inference(
         }),
     )?;
     writer.append_with_context(
-        trace_context_for_thread(thread_id, turn_id),
+        trace_context_for_thread(chat_id, interaction_id),
         RawTraceEventPayload::InferenceCompleted {
             inference_call_id: inference_id.to_string(),
             response_id: Some(format!("resp-{inference_id}")),

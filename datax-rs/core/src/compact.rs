@@ -35,7 +35,7 @@ use datax_protocol::models::ResponseInputItem;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::CompactedItem;
 use datax_protocol::protocol::EventMsg;
-use datax_protocol::protocol::TurnStartedEvent;
+use datax_protocol::protocol::InteractionStartedEvent;
 use datax_protocol::protocol::WarningEvent;
 use datax_protocol::user_input::UserInput;
 use datax_rollout_trace::InferenceTraceContext;
@@ -107,8 +107,8 @@ pub(crate) async fn run_compact_task(
     turn_context: Arc<TurnContext>,
     input: Vec<UserInput>,
 ) -> CodexResult<()> {
-    let start_event = EventMsg::TurnStarted(TurnStartedEvent {
-        turn_id: turn_context.sub_id.clone(),
+    let start_event = EventMsg::InteractionStarted(InteractionStartedEvent {
+        interaction_id: turn_context.sub_id.clone(),
         trace_id: turn_context.trace_id.clone(),
         started_at: turn_context.turn_timing_state.started_at_unix_secs().await,
         model_context_window: turn_context.model_context_window(),
@@ -152,7 +152,7 @@ async fn run_compact_task_inner(
     match pre_compact_outcome {
         PreCompactHookOutcome::Continue => {}
         PreCompactHookOutcome::Stopped => {
-            let error = CodexErr::TurnAborted;
+            let error = CodexErr::InteractionAborted;
             attempt
                 .track(
                     sess.as_ref(),
@@ -185,7 +185,7 @@ async fn run_compact_task_inner(
                     CompactionAnalyticsDetails::default(),
                 )
                 .await;
-            return Err(CodexErr::TurnAborted);
+            return Err(CodexErr::InteractionAborted);
         }
     }
     attempt
@@ -254,7 +254,7 @@ async fn run_compact_task_inner_impl(
             Ok(()) => {
                 break;
             }
-            Err(err @ (CodexErr::Interrupted | CodexErr::TurnAborted)) => {
+            Err(err @ (CodexErr::Interrupted | CodexErr::InteractionAborted)) => {
                 return Err(err);
             }
             Err(e @ CodexErr::ContextWindowExceeded) => {
@@ -305,7 +305,7 @@ async fn run_compact_task_inner_impl(
     if let Some(summary_item) = new_history.last_mut() {
         // This replacement history skips `record_conversation_items`; only the appended summary
         // belongs to this compaction turn.
-        summary_item.set_turn_id_if_missing(&turn_context.sub_id);
+        summary_item.set_interaction_id_if_missing(&turn_context.sub_id);
     }
     let (window_number, window_ids) = sess.advance_auto_compact_window().await;
 
@@ -348,8 +348,8 @@ async fn run_compact_task_inner_impl(
 }
 
 pub(crate) struct CompactionAnalyticsAttempt {
-    thread_id: String,
-    turn_id: String,
+    chat_id: String,
+    interaction_id: String,
     trigger: CompactionTrigger,
     reason: CompactionReason,
     implementation: CompactionImplementation,
@@ -378,8 +378,8 @@ impl CompactionAnalyticsAttempt {
     ) -> Self {
         let active_context_tokens_before = sess.get_total_token_usage().await;
         Self {
-            thread_id: sess.thread_id.to_string(),
-            turn_id: turn_context.sub_id.clone(),
+            chat_id: sess.chat_id.to_string(),
+            interaction_id: turn_context.sub_id.clone(),
             trigger,
             reason,
             implementation,
@@ -409,8 +409,8 @@ impl CompactionAnalyticsAttempt {
         sess.services
             .analytics_events_client
             .track_compaction(CodexCompactionEvent {
-                thread_id: self.thread_id,
-                turn_id: self.turn_id,
+                chat_id: self.chat_id,
+                interaction_id: self.interaction_id,
                 trigger: self.trigger,
                 reason: self.reason,
                 implementation: self.implementation,
@@ -437,7 +437,7 @@ impl CompactionAnalyticsAttempt {
 pub(crate) fn compaction_status_from_result<T>(result: &CodexResult<T>) -> CompactionStatus {
     match result {
         Ok(_) => CompactionStatus::Completed,
-        Err(CodexErr::Interrupted | CodexErr::TurnAborted) => CompactionStatus::Interrupted,
+        Err(CodexErr::Interrupted | CodexErr::InteractionAborted) => CompactionStatus::Interrupted,
         Err(_) => CompactionStatus::Failed,
     }
 }

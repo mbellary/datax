@@ -23,7 +23,7 @@ use crate::multi_agents::SubAgentActivityDisplay;
 use crate::multi_agents::format_agent_picker_item_name;
 use crate::multi_agents::next_agent_shortcut;
 use crate::multi_agents::previous_agent_shortcut;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use ratatui::text::Span;
 use std::collections::HashMap;
 
@@ -39,9 +39,9 @@ use std::collections::HashMap;
 #[derive(Debug, Default)]
 pub(crate) struct AgentNavigationState {
     /// Latest picker metadata for each tracked thread id.
-    threads: HashMap<ThreadId, AgentPickerThreadEntry>,
+    threads: HashMap<ChatId, AgentPickerThreadEntry>,
     /// Stable first-seen traversal order for picker rows and keyboard cycling.
-    order: Vec<ThreadId>,
+    order: Vec<ChatId>,
 }
 
 /// Direction of keyboard traversal through the stable picker order.
@@ -60,8 +60,8 @@ impl AgentNavigationState {
     /// metadata captured for picker or footer rendering. If a caller assumes every tracked thread
     /// must be present here, shutdown races can turn that assumption into a panic elsewhere, so
     /// this stays optional.
-    pub(crate) fn get(&self, thread_id: &ThreadId) -> Option<&AgentPickerThreadEntry> {
-        self.threads.get(thread_id)
+    pub(crate) fn get(&self, chat_id: &ChatId) -> Option<&AgentPickerThreadEntry> {
+        self.threads.get(chat_id)
     }
 
     /// Returns whether the picker cache currently knows about any threads.
@@ -79,21 +79,21 @@ impl AgentNavigationState {
     /// they must not move the thread in the cycle or keyboard navigation would feel unstable.
     pub(crate) fn upsert(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         agent_nickname: Option<String>,
         agent_role: Option<String>,
         is_closed: bool,
     ) {
-        if !self.threads.contains_key(&thread_id) {
-            self.order.push(thread_id);
+        if !self.threads.contains_key(&chat_id) {
+            self.order.push(chat_id);
         }
         let (previous_agent_path, previous_is_running) = self
             .threads
-            .get(&thread_id)
+            .get(&chat_id)
             .map(|entry| (entry.agent_path.clone(), entry.is_running))
             .unwrap_or((None, false));
         self.threads.insert(
-            thread_id,
+            chat_id,
             AgentPickerThreadEntry {
                 agent_nickname,
                 agent_role,
@@ -105,12 +105,12 @@ impl AgentNavigationState {
     }
 
     pub(crate) fn record_sub_agent_activity(&mut self, activity: SubAgentActivityDisplay) {
-        if !self.threads.contains_key(&activity.thread_id) {
-            self.order.push(activity.thread_id);
+        if !self.threads.contains_key(&activity.chat_id) {
+            self.order.push(activity.chat_id);
         }
         let entry =
             self.threads
-                .entry(activity.thread_id)
+                .entry(activity.chat_id)
                 .or_insert_with(|| AgentPickerThreadEntry {
                     agent_nickname: None,
                     agent_role: None,
@@ -123,15 +123,15 @@ impl AgentNavigationState {
         entry.is_closed = false;
     }
 
-    pub(crate) fn set_running(&mut self, thread_id: ThreadId, is_running: bool) {
-        if let Some(entry) = self.threads.get_mut(&thread_id) {
+    pub(crate) fn set_running(&mut self, chat_id: ChatId, is_running: bool) {
+        if let Some(entry) = self.threads.get_mut(&chat_id) {
             entry.is_running = is_running;
         }
     }
 
-    pub(crate) fn set_agent_path(&mut self, thread_id: ThreadId, agent_path: Option<String>) {
+    pub(crate) fn set_agent_path(&mut self, chat_id: ChatId, agent_path: Option<String>) {
         if let Some(agent_path) = agent_path
-            && let Some(entry) = self.threads.get_mut(&thread_id)
+            && let Some(entry) = self.threads.get_mut(&chat_id)
         {
             entry.agent_path = Some(agent_path);
         }
@@ -143,13 +143,13 @@ impl AgentNavigationState {
     /// next/previous navigation does not reshuffle around disappearing entries. If a caller "cleans
     /// this up" by deleting the entry instead, wraparound navigation will silently change shape
     /// mid-session.
-    pub(crate) fn mark_closed(&mut self, thread_id: ThreadId) {
-        if let Some(entry) = self.threads.get_mut(&thread_id) {
+    pub(crate) fn mark_closed(&mut self, chat_id: ChatId) {
+        if let Some(entry) = self.threads.get_mut(&chat_id) {
             entry.is_closed = true;
             entry.is_running = false;
         } else {
             self.upsert(
-                thread_id, /*agent_nickname*/ None, /*agent_role*/ None,
+                chat_id, /*agent_nickname*/ None, /*agent_role*/ None,
                 /*is_closed*/ true,
             );
         }
@@ -169,9 +169,9 @@ impl AgentNavigationState {
     /// This is reserved for entries that were only discovered opportunistically and never became
     /// replayable local threads. Keeping those around after the backend confirms they are gone
     /// would leave ghost rows in `/agent`.
-    pub(crate) fn remove(&mut self, thread_id: ThreadId) {
-        self.threads.remove(&thread_id);
-        self.order.retain(|candidate| *candidate != thread_id);
+    pub(crate) fn remove(&mut self, chat_id: ChatId) {
+        self.threads.remove(&chat_id);
+        self.order.retain(|candidate| *candidate != chat_id);
     }
 
     /// Returns whether there is at least one tracked thread other than the primary one.
@@ -179,10 +179,10 @@ impl AgentNavigationState {
     /// `App` uses this to decide whether the picker should be available even when the collaboration
     /// feature flag is currently disabled, because already-existing sub-agent threads should remain
     /// inspectable.
-    pub(crate) fn has_non_primary_thread(&self, primary_thread_id: Option<ThreadId>) -> bool {
+    pub(crate) fn has_non_primary_thread(&self, primary_chat_id: Option<ChatId>) -> bool {
         self.threads
             .keys()
-            .any(|thread_id| Some(*thread_id) != primary_thread_id)
+            .any(|chat_id| Some(*chat_id) != primary_chat_id)
     }
 
     /// Returns live picker rows in the same order users cycle through them.
@@ -190,21 +190,21 @@ impl AgentNavigationState {
     /// The `order` vector is intentionally historical and may briefly contain thread ids that no
     /// longer have cached metadata, so this filters through the map instead of assuming both
     /// collections are perfectly synchronized.
-    pub(crate) fn ordered_threads(&self) -> Vec<(ThreadId, &AgentPickerThreadEntry)> {
+    pub(crate) fn ordered_threads(&self) -> Vec<(ChatId, &AgentPickerThreadEntry)> {
         self.order
             .iter()
-            .filter_map(|thread_id| self.threads.get(thread_id).map(|entry| (*thread_id, entry)))
+            .filter_map(|chat_id| self.threads.get(chat_id).map(|entry| (*chat_id, entry)))
             .collect()
     }
 
     pub(crate) fn ordered_path_backed_subagent_threads(
         &self,
-        primary_thread_id: Option<ThreadId>,
-    ) -> Vec<(ThreadId, &AgentPickerThreadEntry)> {
+        primary_chat_id: Option<ChatId>,
+    ) -> Vec<(ChatId, &AgentPickerThreadEntry)> {
         self.ordered_threads()
             .into_iter()
-            .filter(|(thread_id, entry)| {
-                Some(*thread_id) != primary_thread_id
+            .filter(|(chat_id, entry)| {
+                Some(*chat_id) != primary_chat_id
                     && entry
                         .agent_path
                         .as_deref()
@@ -214,10 +214,10 @@ impl AgentNavigationState {
     }
 
     /// Returns tracked thread ids in the same stable order used by the picker.
-    pub(crate) fn tracked_thread_ids(&self) -> Vec<ThreadId> {
+    pub(crate) fn tracked_chat_ids(&self) -> Vec<ChatId> {
         self.ordered_threads()
             .into_iter()
-            .map(|(thread_id, _)| thread_id)
+            .map(|(chat_id, _)| chat_id)
             .collect()
     }
 
@@ -227,20 +227,20 @@ impl AgentNavigationState {
     /// just whichever thread bookkeeping most recently marked active. If the wrong current thread
     /// is supplied, next/previous navigation will jump in a way that feels nondeterministic even
     /// though the cache itself is correct.
-    pub(crate) fn adjacent_thread_id(
+    pub(crate) fn adjacent_chat_id(
         &self,
-        current_displayed_thread_id: Option<ThreadId>,
+        current_displayed_chat_id: Option<ChatId>,
         direction: AgentNavigationDirection,
-    ) -> Option<ThreadId> {
+    ) -> Option<ChatId> {
         let ordered_threads = self.ordered_threads();
         if ordered_threads.len() < 2 {
             return None;
         }
 
-        let current_thread_id = current_displayed_thread_id?;
+        let current_chat_id = current_displayed_chat_id?;
         let current_idx = ordered_threads
             .iter()
-            .position(|(thread_id, _)| *thread_id == current_thread_id)?;
+            .position(|(chat_id, _)| *chat_id == current_chat_id)?;
         let next_idx = match direction {
             AgentNavigationDirection::Next => (current_idx + 1) % ordered_threads.len(),
             AgentNavigationDirection::Previous => {
@@ -262,18 +262,18 @@ impl AgentNavigationState {
     /// by the picker.
     pub(crate) fn active_agent_label(
         &self,
-        current_displayed_thread_id: Option<ThreadId>,
-        primary_thread_id: Option<ThreadId>,
+        current_displayed_chat_id: Option<ChatId>,
+        primary_chat_id: Option<ChatId>,
     ) -> Option<String> {
         if self.threads.len() <= 1 {
             return None;
         }
 
-        let thread_id = current_displayed_thread_id?;
-        let is_primary = primary_thread_id == Some(thread_id);
+        let chat_id = current_displayed_chat_id?;
+        let is_primary = primary_chat_id == Some(chat_id);
         Some(
             self.threads
-                .get(&thread_id)
+                .get(&chat_id)
                 .map(|entry| {
                     if !is_primary
                         && let Some(agent_path) = entry
@@ -315,10 +315,10 @@ impl AgentNavigationState {
     ///
     /// This helper exists so tests can assert on ordering without embedding the full picker entry
     /// payload in every expectation.
-    pub(crate) fn ordered_thread_ids(&self) -> Vec<ThreadId> {
+    pub(crate) fn ordered_chat_ids(&self) -> Vec<ChatId> {
         self.ordered_threads()
             .into_iter()
-            .map(|(thread_id, _)| thread_id)
+            .map(|(chat_id, _)| chat_id)
             .collect()
     }
 }
@@ -328,17 +328,17 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
 
-    fn populated_state() -> (AgentNavigationState, ThreadId, ThreadId, ThreadId) {
+    fn populated_state() -> (AgentNavigationState, ChatId, ChatId, ChatId) {
         let mut state = AgentNavigationState::default();
-        let main_thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000101").expect("valid thread");
+        let main_chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000101").expect("valid thread");
         let first_agent_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000102").expect("valid thread");
+            ChatId::from_string("00000000-0000-0000-0000-000000000102").expect("valid thread");
         let second_agent_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000103").expect("valid thread");
+            ChatId::from_string("00000000-0000-0000-0000-000000000103").expect("valid thread");
 
         state.upsert(
-            main_thread_id,
+            main_chat_id,
             /*agent_nickname*/ None,
             /*agent_role*/ None,
             /*is_closed*/ false,
@@ -356,12 +356,12 @@ mod tests {
             /*is_closed*/ false,
         );
 
-        (state, main_thread_id, first_agent_id, second_agent_id)
+        (state, main_chat_id, first_agent_id, second_agent_id)
     }
 
     #[test]
     fn upsert_preserves_first_seen_order() {
-        let (mut state, main_thread_id, first_agent_id, second_agent_id) = populated_state();
+        let (mut state, main_chat_id, first_agent_id, second_agent_id) = populated_state();
 
         state.upsert(
             first_agent_id,
@@ -371,25 +371,25 @@ mod tests {
         );
 
         assert_eq!(
-            state.ordered_thread_ids(),
-            vec![main_thread_id, first_agent_id, second_agent_id]
+            state.ordered_chat_ids(),
+            vec![main_chat_id, first_agent_id, second_agent_id]
         );
     }
 
     #[test]
-    fn adjacent_thread_id_wraps_in_spawn_order() {
-        let (state, main_thread_id, first_agent_id, second_agent_id) = populated_state();
+    fn adjacent_chat_id_wraps_in_spawn_order() {
+        let (state, main_chat_id, first_agent_id, second_agent_id) = populated_state();
 
         assert_eq!(
-            state.adjacent_thread_id(Some(second_agent_id), AgentNavigationDirection::Next),
-            Some(main_thread_id)
+            state.adjacent_chat_id(Some(second_agent_id), AgentNavigationDirection::Next),
+            Some(main_chat_id)
         );
         assert_eq!(
-            state.adjacent_thread_id(Some(second_agent_id), AgentNavigationDirection::Previous),
+            state.adjacent_chat_id(Some(second_agent_id), AgentNavigationDirection::Previous),
             Some(first_agent_id)
         );
         assert_eq!(
-            state.adjacent_thread_id(Some(main_thread_id), AgentNavigationDirection::Previous),
+            state.adjacent_chat_id(Some(main_chat_id), AgentNavigationDirection::Previous),
             Some(second_agent_id)
         );
     }
@@ -406,14 +406,14 @@ mod tests {
 
     #[test]
     fn active_agent_label_tracks_current_thread() {
-        let (state, main_thread_id, first_agent_id, _) = populated_state();
+        let (state, main_chat_id, first_agent_id, _) = populated_state();
 
         assert_eq!(
-            state.active_agent_label(Some(first_agent_id), Some(main_thread_id)),
+            state.active_agent_label(Some(first_agent_id), Some(main_chat_id)),
             Some("Robie [explorer]".to_string())
         );
         assert_eq!(
-            state.active_agent_label(Some(main_thread_id), Some(main_thread_id)),
+            state.active_agent_label(Some(main_chat_id), Some(main_chat_id)),
             Some("Main [default]".to_string())
         );
     }

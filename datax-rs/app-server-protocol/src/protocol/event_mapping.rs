@@ -67,7 +67,7 @@ pub fn item_event_to_server_notification(
             };
             ServerNotification::MessageCompleted(MessageCompletedNotification {
                 chat_id,
-                interaction_id: response.turn_id,
+                interaction_id: response.interaction_id,
                 item,
                 completed_at_ms: response.completed_at_ms,
             })
@@ -77,8 +77,8 @@ pub fn item_event_to_server_notification(
                 id: begin_event.call_id,
                 tool: CollabAgentTool::SpawnAgent,
                 status: CollabAgentToolCallStatus::InProgress,
-                sender_thread_id: begin_event.sender_thread_id.to_string(),
-                receiver_thread_ids: Vec::new(),
+                sender_chat_id: begin_event.sender_chat_id.to_string(),
+                receiver_chat_ids: Vec::new(),
                 prompt: Some(begin_event.prompt),
                 model: Some(begin_event.model),
                 reasoning_effort: Some(begin_event.reasoning_effort),
@@ -92,7 +92,7 @@ pub fn item_event_to_server_notification(
             })
         }
         EventMsg::CollabAgentSpawnEnd(end_event) => {
-            let has_receiver = end_event.new_thread_id.is_some();
+            let has_receiver = end_event.new_chat_id.is_some();
             let status = match &end_event.status {
                 datax_protocol::protocol::AgentStatus::Errored(_)
                 | datax_protocol::protocol::AgentStatus::NotFound => {
@@ -101,7 +101,7 @@ pub fn item_event_to_server_notification(
                 _ if has_receiver => CollabAgentToolCallStatus::Completed,
                 _ => CollabAgentToolCallStatus::Failed,
             };
-            let (receiver_thread_ids, agents_states) = match end_event.new_thread_id {
+            let (receiver_chat_ids, agents_states) = match end_event.new_chat_id {
                 Some(id) => {
                     let receiver_id = id.to_string();
                     let received_status = CollabAgentState::from(end_event.status.clone());
@@ -116,8 +116,8 @@ pub fn item_event_to_server_notification(
                 id: end_event.call_id,
                 tool: CollabAgentTool::SpawnAgent,
                 status,
-                sender_thread_id: end_event.sender_thread_id.to_string(),
-                receiver_thread_ids,
+                sender_chat_id: end_event.sender_chat_id.to_string(),
+                receiver_chat_ids,
                 prompt: Some(end_event.prompt),
                 model: Some(end_event.model),
                 reasoning_effort: Some(end_event.reasoning_effort),
@@ -131,13 +131,13 @@ pub fn item_event_to_server_notification(
             })
         }
         EventMsg::CollabAgentInteractionBegin(begin_event) => {
-            let receiver_thread_ids = vec![begin_event.receiver_thread_id.to_string()];
+            let receiver_chat_ids = vec![begin_event.receiver_chat_id.to_string()];
             let item = Message::CollabAgentToolCall {
                 id: begin_event.call_id,
                 tool: CollabAgentTool::SendInput,
                 status: CollabAgentToolCallStatus::InProgress,
-                sender_thread_id: begin_event.sender_thread_id.to_string(),
-                receiver_thread_ids,
+                sender_chat_id: begin_event.sender_chat_id.to_string(),
+                receiver_chat_ids,
                 prompt: Some(begin_event.prompt),
                 model: None,
                 reasoning_effort: None,
@@ -158,14 +158,14 @@ pub fn item_event_to_server_notification(
                 }
                 _ => CollabAgentToolCallStatus::Completed,
             };
-            let receiver_id = end_event.receiver_thread_id.to_string();
+            let receiver_id = end_event.receiver_chat_id.to_string();
             let received_status = CollabAgentState::from(end_event.status);
             let item = Message::CollabAgentToolCall {
                 id: end_event.call_id,
                 tool: CollabAgentTool::SendInput,
                 status,
-                sender_thread_id: end_event.sender_thread_id.to_string(),
-                receiver_thread_ids: vec![receiver_id.clone()],
+                sender_chat_id: end_event.sender_chat_id.to_string(),
+                receiver_chat_ids: vec![receiver_id.clone()],
                 prompt: Some(end_event.prompt),
                 model: None,
                 reasoning_effort: None,
@@ -182,7 +182,7 @@ pub fn item_event_to_server_notification(
             let item = Message::SubAgentActivity {
                 id: activity.event_id,
                 kind: activity.kind.into(),
-                agent_thread_id: activity.agent_thread_id.to_string(),
+                agent_chat_id: activity.agent_chat_id.to_string(),
                 agent_path: String::from(activity.agent_path),
             };
             ServerNotification::MessageCompleted(MessageCompletedNotification {
@@ -193,8 +193,8 @@ pub fn item_event_to_server_notification(
             })
         }
         EventMsg::CollabWaitingBegin(begin_event) => {
-            let receiver_thread_ids = begin_event
-                .receiver_thread_ids
+            let receiver_chat_ids = begin_event
+                .receiver_chat_ids
                 .iter()
                 .map(ToString::to_string)
                 .collect();
@@ -202,8 +202,8 @@ pub fn item_event_to_server_notification(
                 id: begin_event.call_id,
                 tool: CollabAgentTool::Wait,
                 status: CollabAgentToolCallStatus::InProgress,
-                sender_thread_id: begin_event.sender_thread_id.to_string(),
-                receiver_thread_ids,
+                sender_chat_id: begin_event.sender_chat_id.to_string(),
+                receiver_chat_ids,
                 prompt: None,
                 model: None,
                 reasoning_effort: None,
@@ -228,7 +228,7 @@ pub fn item_event_to_server_notification(
             } else {
                 CollabAgentToolCallStatus::Completed
             };
-            let receiver_thread_ids = end_event.statuses.keys().map(ToString::to_string).collect();
+            let receiver_chat_ids = end_event.statuses.keys().map(ToString::to_string).collect();
             let agents_states = end_event
                 .statuses
                 .iter()
@@ -238,8 +238,8 @@ pub fn item_event_to_server_notification(
                 id: end_event.call_id,
                 tool: CollabAgentTool::Wait,
                 status,
-                sender_thread_id: end_event.sender_thread_id.to_string(),
-                receiver_thread_ids,
+                sender_chat_id: end_event.sender_chat_id.to_string(),
+                receiver_chat_ids,
                 prompt: None,
                 model: None,
                 reasoning_effort: None,
@@ -257,8 +257,8 @@ pub fn item_event_to_server_notification(
                 id: begin_event.call_id,
                 tool: CollabAgentTool::CloseAgent,
                 status: CollabAgentToolCallStatus::InProgress,
-                sender_thread_id: begin_event.sender_thread_id.to_string(),
-                receiver_thread_ids: vec![begin_event.receiver_thread_id.to_string()],
+                sender_chat_id: begin_event.sender_chat_id.to_string(),
+                receiver_chat_ids: vec![begin_event.receiver_chat_id.to_string()],
                 prompt: None,
                 model: None,
                 reasoning_effort: None,
@@ -279,7 +279,7 @@ pub fn item_event_to_server_notification(
                 }
                 _ => CollabAgentToolCallStatus::Completed,
             };
-            let receiver_id = end_event.receiver_thread_id.to_string();
+            let receiver_id = end_event.receiver_chat_id.to_string();
             let agents_states = [(
                 receiver_id.clone(),
                 CollabAgentState::from(end_event.status),
@@ -290,8 +290,8 @@ pub fn item_event_to_server_notification(
                 id: end_event.call_id,
                 tool: CollabAgentTool::CloseAgent,
                 status,
-                sender_thread_id: end_event.sender_thread_id.to_string(),
-                receiver_thread_ids: vec![receiver_id],
+                sender_chat_id: end_event.sender_chat_id.to_string(),
+                receiver_chat_ids: vec![receiver_id],
                 prompt: None,
                 model: None,
                 reasoning_effort: None,
@@ -309,8 +309,8 @@ pub fn item_event_to_server_notification(
                 id: begin_event.call_id,
                 tool: CollabAgentTool::ResumeAgent,
                 status: CollabAgentToolCallStatus::InProgress,
-                sender_thread_id: begin_event.sender_thread_id.to_string(),
-                receiver_thread_ids: vec![begin_event.receiver_thread_id.to_string()],
+                sender_chat_id: begin_event.sender_chat_id.to_string(),
+                receiver_chat_ids: vec![begin_event.receiver_chat_id.to_string()],
                 prompt: None,
                 model: None,
                 reasoning_effort: None,
@@ -331,7 +331,7 @@ pub fn item_event_to_server_notification(
                 }
                 _ => CollabAgentToolCallStatus::Completed,
             };
-            let receiver_id = end_event.receiver_thread_id.to_string();
+            let receiver_id = end_event.receiver_chat_id.to_string();
             let agents_states = [(
                 receiver_id.clone(),
                 CollabAgentState::from(end_event.status),
@@ -342,8 +342,8 @@ pub fn item_event_to_server_notification(
                 id: end_event.call_id,
                 tool: CollabAgentTool::ResumeAgent,
                 status,
-                sender_thread_id: end_event.sender_thread_id.to_string(),
-                receiver_thread_ids: vec![receiver_id],
+                sender_chat_id: end_event.sender_chat_id.to_string(),
+                receiver_chat_ids: vec![receiver_id],
                 prompt: None,
                 model: None,
                 reasoning_effort: None,
@@ -466,7 +466,7 @@ pub fn item_event_to_server_notification(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use datax_protocol::protocol::CollabResumeBeginEvent;
     use datax_protocol::protocol::CollabResumeEndEvent;
     use datax_protocol::protocol::ExecCommandOutputDeltaEvent;
@@ -510,8 +510,8 @@ mod tests {
         let event = CollabResumeBeginEvent {
             call_id: "call-1".to_string(),
             started_at_ms: 123,
-            sender_thread_id: ThreadId::new(),
-            receiver_thread_id: ThreadId::new(),
+            sender_chat_id: ChatId::new(),
+            receiver_chat_id: ChatId::new(),
             receiver_agent_nickname: None,
             receiver_agent_role: None,
         };
@@ -531,8 +531,8 @@ mod tests {
                     id: event.call_id,
                     tool: CollabAgentTool::ResumeAgent,
                     status: CollabAgentToolCallStatus::InProgress,
-                    sender_thread_id: event.sender_thread_id.to_string(),
-                    receiver_thread_ids: vec![event.receiver_thread_id.to_string()],
+                    sender_chat_id: event.sender_chat_id.to_string(),
+                    receiver_chat_ids: vec![event.receiver_chat_id.to_string()],
                     prompt: None,
                     model: None,
                     reasoning_effort: None,
@@ -547,14 +547,14 @@ mod tests {
         let event = CollabResumeEndEvent {
             call_id: "call-2".to_string(),
             completed_at_ms: 456,
-            sender_thread_id: ThreadId::new(),
-            receiver_thread_id: ThreadId::new(),
+            sender_chat_id: ChatId::new(),
+            receiver_chat_id: ChatId::new(),
             receiver_agent_nickname: None,
             receiver_agent_role: None,
             status: datax_protocol::protocol::AgentStatus::NotFound,
         };
 
-        let receiver_id = event.receiver_thread_id.to_string();
+        let receiver_id = event.receiver_chat_id.to_string();
         let notification = item_event_to_server_notification(
             EventMsg::CollabResumeEnd(event.clone()),
             "thread-2",
@@ -570,8 +570,8 @@ mod tests {
                     id: event.call_id,
                     tool: CollabAgentTool::ResumeAgent,
                     status: CollabAgentToolCallStatus::Failed,
-                    sender_thread_id: event.sender_thread_id.to_string(),
-                    receiver_thread_ids: vec![receiver_id.clone()],
+                    sender_chat_id: event.sender_chat_id.to_string(),
+                    receiver_chat_ids: vec![receiver_id.clone()],
                     prompt: None,
                     model: None,
                     reasoning_effort: None,

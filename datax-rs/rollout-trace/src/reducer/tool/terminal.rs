@@ -37,7 +37,7 @@ impl TraceReducer {
         &mut self,
         seq: RawEventSeq,
         wall_time_unix_ms: i64,
-        thread_id: &str,
+        chat_id: &str,
         tool_call_id: &str,
         kind: &ToolCallKind,
         invocation_payload: Option<&RawPayloadRef>,
@@ -63,7 +63,7 @@ impl TraceReducer {
         self.insert_terminal_operation(TerminalOperationStart {
             seq,
             wall_time_unix_ms,
-            thread_id,
+            chat_id,
             tool_call_id,
             operation_kind,
             raw_payload: invocation_payload,
@@ -76,7 +76,7 @@ impl TraceReducer {
         &mut self,
         seq: RawEventSeq,
         wall_time_unix_ms: i64,
-        thread_id: &str,
+        chat_id: &str,
         tool_call_id: &str,
         kind: &ToolCallKind,
         runtime_payload: &RawPayloadRef,
@@ -97,7 +97,7 @@ impl TraceReducer {
         self.insert_terminal_operation(TerminalOperationStart {
             seq,
             wall_time_unix_ms,
-            thread_id,
+            chat_id,
             tool_call_id,
             operation_kind,
             raw_payload: runtime_payload,
@@ -138,7 +138,7 @@ impl TraceReducer {
 
         if let Some(terminal_id) = terminal_id {
             self.ensure_terminal_session(
-                start.thread_id,
+                start.chat_id,
                 &terminal_id,
                 &operation_id,
                 start.wall_time_unix_ms,
@@ -157,7 +157,7 @@ impl TraceReducer {
         &mut self,
         seq: RawEventSeq,
         wall_time_unix_ms: i64,
-        thread_id: &str,
+        chat_id: &str,
         operation_id: &str,
         status: ExecutionStatus,
         response_payload: Option<&RawPayloadRef>,
@@ -219,7 +219,7 @@ impl TraceReducer {
 
         if let Some(terminal_id) = terminal_id {
             self.ensure_terminal_session(
-                thread_id,
+                chat_id,
                 &terminal_id,
                 operation_id,
                 started_at_unix_ms,
@@ -232,7 +232,7 @@ impl TraceReducer {
 
     fn ensure_terminal_session(
         &mut self,
-        thread_id: &str,
+        chat_id: &str,
         terminal_id: &str,
         operation_id: &str,
         started_at_unix_ms: i64,
@@ -243,7 +243,7 @@ impl TraceReducer {
                 terminal_id.to_string(),
                 TerminalSession {
                     terminal_id: terminal_id.to_string(),
-                    thread_id: thread_id.to_string(),
+                    chat_id: chat_id.to_string(),
                     created_by_operation_id: operation_id.to_string(),
                     operation_ids: Vec::new(),
                     execution: ExecutionWindow {
@@ -263,10 +263,10 @@ impl TraceReducer {
         let Some(session) = self.rollout.terminal_sessions.get_mut(terminal_id) else {
             bail!("terminal session {terminal_id} disappeared during reduction");
         };
-        if session.thread_id != thread_id {
+        if session.chat_id != chat_id {
             bail!(
-                "terminal session {terminal_id} belongs to thread {}, not {thread_id}",
-                session.thread_id
+                "terminal session {terminal_id} belongs to thread {}, not {chat_id}",
+                session.chat_id
             );
         }
         push_unique(&mut session.operation_ids, operation_id);
@@ -343,7 +343,7 @@ fn terminal_operation_kind(kind: &ToolCallKind) -> Option<TerminalOperationKind>
 struct TerminalOperationStart<'a> {
     seq: RawEventSeq,
     wall_time_unix_ms: i64,
-    thread_id: &'a str,
+    chat_id: &'a str,
     tool_call_id: &'a str,
     operation_kind: TerminalOperationKind,
     raw_payload: &'a RawPayloadRef,

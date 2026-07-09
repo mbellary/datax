@@ -19,7 +19,7 @@ use datax_app_server_protocol::Interaction;
 use datax_app_server_protocol::InteractionStatus;
 use datax_app_server_protocol::ServerNotification::*;
 use datax_core::CodexThread;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::RolloutItem;
 
@@ -36,17 +36,17 @@ use crate::outgoing_message::OutgoingMessageSender;
 pub(super) async fn send_thread_token_usage_update_to_connection(
     outgoing: &Arc<OutgoingMessageSender>,
     connection_id: ConnectionId,
-    chat_id: ThreadId,
+    chat_id: ChatId,
     thread: &Chat,
     conversation: &CodexThread,
-    token_usage_turn_id: Option<String>,
+    token_usage_interaction_id: Option<String>,
 ) {
     let Some(info) = conversation.token_usage_info().await else {
         return;
     };
     let notification = ChatTokenUsageUpdatedNotification {
         chat_id: chat_id.to_string(),
-        interaction_id: token_usage_turn_id.unwrap_or_else(|| latest_token_usage_turn_id(thread)),
+        interaction_id: token_usage_interaction_id.unwrap_or_else(|| latest_token_usage_interaction_id(thread)),
         token_usage: ChatTokenUsage::from(info),
     };
     outgoing
@@ -66,7 +66,7 @@ struct TokenUsageTurnOwner {
     position: Option<usize>,
 }
 
-pub(super) fn latest_token_usage_turn_id_from_rollout_items(
+pub(super) fn latest_token_usage_interaction_id_from_rollout_items(
     rollout_items: &[RolloutItem],
     interactions: &[Interaction],
 ) -> Option<String> {
@@ -102,7 +102,7 @@ pub(super) fn latest_token_usage_turn_id_from_rollout_items(
 /// Normal replay derives the owner from the rollout position of the latest
 /// `TokenCount` event. This fallback only preserves a stable wire shape for
 /// unusual histories where that rollout information cannot be read.
-fn latest_token_usage_turn_id(thread: &Chat) -> String {
+fn latest_token_usage_interaction_id(thread: &Chat) -> String {
     thread
         .interactions
         .iter()
@@ -133,7 +133,7 @@ mod tests {
         let interactions = build_turns_from_rollout_items(&rollout_items);
 
         assert_eq!(
-            latest_token_usage_turn_id_from_rollout_items(&rollout_items, interactions.as_slice()),
+            latest_token_usage_interaction_id_from_rollout_items(&rollout_items, interactions.as_slice()),
             Some(interactions[0].id.clone())
         );
     }
@@ -145,7 +145,7 @@ mod tests {
         interactions[0].id = "rebuilt-turn-id".to_string();
 
         assert_eq!(
-            latest_token_usage_turn_id_from_rollout_items(&rollout_items, interactions.as_slice()),
+            latest_token_usage_interaction_id_from_rollout_items(&rollout_items, interactions.as_slice()),
             Some("rebuilt-turn-id".to_string())
         );
     }

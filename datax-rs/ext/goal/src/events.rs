@@ -19,14 +19,14 @@ impl GoalEventEmitter {
     pub(crate) fn thread_goal_updated(
         &self,
         event_id: impl Into<String>,
-        turn_id: Option<String>,
+        interaction_id: Option<String>,
         goal: ThreadGoal,
     ) {
         self.sink.emit(Event {
             id: event_id.into(),
             msg: EventMsg::ThreadGoalUpdated(ThreadGoalUpdatedEvent {
-                thread_id: goal.thread_id,
-                turn_id,
+                chat_id: goal.chat_id,
+                interaction_id,
                 goal,
             }),
         });

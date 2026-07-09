@@ -9,7 +9,7 @@ use datax_analytics::GuardianReviewAnalyticsResult;
 use datax_analytics::GuardianReviewSessionAnalyticsParams;
 use datax_analytics::GuardianReviewSessionKind;
 use datax_extension_api::UserInstructions;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::AutoCompactTokenLimitScope;
 use datax_protocol::config_types::Personality;
 use datax_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
@@ -203,7 +203,7 @@ impl GuardianReviewSessionReuseKey {
 
 pub(crate) fn prompt_cache_key_override_for_review_session(
     session_source: &SessionSource,
-    parent_thread_id: Option<ThreadId>,
+    parent_chat_id: Option<ChatId>,
 ) -> Option<String> {
     let SessionSource::SubAgent(SubAgentSource::Other(name)) = session_source else {
         return None;
@@ -211,8 +211,8 @@ pub(crate) fn prompt_cache_key_override_for_review_session(
     if name != GUARDIAN_REVIEWER_NAME {
         return None;
     }
-    let parent_thread_id = parent_thread_id?;
-    Some(format!("guardian:{parent_thread_id}"))
+    let parent_chat_id = parent_chat_id?;
+    Some(format!("guardian:{parent_chat_id}"))
 }
 
 impl GuardianReviewSession {
@@ -730,7 +730,7 @@ async fn run_review_on_session(
     };
     let mut analytics_result =
         GuardianReviewAnalyticsResult::from_session(GuardianReviewSessionAnalyticsParams {
-            guardian_thread_id: review_session.codex.session.thread_id.to_string(),
+            guardian_chat_id: review_session.codex.session.chat_id.to_string(),
             guardian_session_kind,
             guardian_model: params.model.clone(),
             guardian_reasoning_effort: guardian_reasoning_effort.map(|effort| effort.to_string()),
@@ -833,8 +833,8 @@ async fn run_review_on_session(
         })),
     )
     .await;
-    let child_turn_id = match submit_result {
-        Ok(Ok(child_turn_id)) => child_turn_id,
+    let child_interaction_id = match submit_result {
+        Ok(Ok(child_interaction_id)) => child_interaction_id,
         Ok(Err(err)) => {
             return (
                 GuardianReviewSessionOutcome::SessionFailed {
@@ -851,7 +851,7 @@ async fn run_review_on_session(
 
     let outcome = wait_for_guardian_review(
         review_session,
-        child_turn_id.as_str(),
+        child_interaction_id.as_str(),
         deadline,
         params.external_cancel.as_ref(),
         &mut analytics_result,
@@ -894,7 +894,7 @@ async fn load_rollout_items_for_fork(
 
 async fn wait_for_guardian_review(
     review_session: &GuardianReviewSession,
-    expected_turn_id: &str,
+    expected_interaction_id: &str,
     deadline: tokio::time::Instant,
     external_cancel: Option<&CancellationToken>,
     analytics_result: &mut GuardianReviewAnalyticsResult,
@@ -908,7 +908,7 @@ async fn wait_for_guardian_review(
             _ = &mut timeout => {
                 let keep_review_session = interrupt_and_drain_turn(
                     &review_session.codex,
-                    expected_turn_id,
+                    expected_interaction_id,
                 )
                 .await
                 .is_ok();
@@ -923,7 +923,7 @@ async fn wait_for_guardian_review(
             } => {
                 let keep_review_session = interrupt_and_drain_turn(
                     &review_session.codex,
-                    expected_turn_id,
+                    expected_interaction_id,
                 )
                 .await
                 .is_ok();
@@ -931,9 +931,9 @@ async fn wait_for_guardian_review(
             }
             event = review_session.codex.next_event() => {
                 match event {
-                    Ok(event) if !event_matches_turn(&event, expected_turn_id) => {}
+                    Ok(event) if !event_matches_turn(&event, expected_interaction_id) => {}
                     Ok(event) => match event.msg {
-                        EventMsg::TurnComplete(turn_complete) => {
+                        EventMsg::InteractionComplete(turn_complete) => {
                             analytics_result.time_to_first_token_ms = turn_complete
                                 .time_to_first_token_ms
                                 .and_then(|ms| u64::try_from(ms).ok());
@@ -958,7 +958,7 @@ async fn wait_for_guardian_review(
                         EventMsg::Error(error) => {
                             last_error = Some(error);
                         }
-                        EventMsg::TurnAborted(_) => {
+                        EventMsg::InteractionAborted(_) => {
                             return (GuardianReviewSessionOutcome::Aborted, true, false);
                         }
                         _ => {}
@@ -976,15 +976,15 @@ async fn wait_for_guardian_review(
     }
 }
 
-fn event_matches_turn(event: &Event, expected_turn_id: &str) -> bool {
-    if event.id != expected_turn_id {
+fn event_matches_turn(event: &Event, expected_interaction_id: &str) -> bool {
+    if event.id != expected_interaction_id {
         return false;
     }
 
     match &event.msg {
-        EventMsg::TurnComplete(turn_complete) => turn_complete.turn_id == expected_turn_id,
-        EventMsg::TurnAborted(turn_aborted) => {
-            turn_aborted.turn_id.as_deref() == Some(expected_turn_id)
+        EventMsg::InteractionComplete(turn_complete) => turn_complete.interaction_id == expected_interaction_id,
+        EventMsg::InteractionAborted(turn_aborted) => {
+            turn_aborted.interaction_id.as_deref() == Some(expected_interaction_id)
         }
         _ => true,
     }
@@ -1099,16 +1099,16 @@ async fn run_before_review_deadline_with_cancel<T>(
     result
 }
 
-async fn interrupt_and_drain_turn(codex: &Codex, expected_turn_id: &str) -> anyhow::Result<()> {
+async fn interrupt_and_drain_turn(codex: &Codex, expected_interaction_id: &str) -> anyhow::Result<()> {
     let _ = codex.submit(Op::Interrupt).await;
 
     tokio::time::timeout(GUARDIAN_INTERRUPT_DRAIN_TIMEOUT, async {
         loop {
             let event = codex.next_event().await?;
-            if event_matches_turn(&event, expected_turn_id)
+            if event_matches_turn(&event, expected_interaction_id)
                 && matches!(
                     event.msg,
-                    EventMsg::TurnAborted(_) | EventMsg::TurnComplete(_)
+                    EventMsg::InteractionAborted(_) | EventMsg::InteractionComplete(_)
                 )
             {
                 return Ok::<(), anyhow::Error>(());
@@ -1127,9 +1127,9 @@ mod tests {
     use datax_protocol::protocol::AgentStatus;
     use datax_protocol::protocol::ErrorEvent;
     use datax_protocol::protocol::Submission;
-    use datax_protocol::protocol::TurnAbortReason;
-    use datax_protocol::protocol::TurnAbortedEvent;
-    use datax_protocol::protocol::TurnCompleteEvent;
+    use datax_protocol::protocol::InteractionAbortReason;
+    use datax_protocol::protocol::InteractionAbortedEvent;
+    use datax_protocol::protocol::InteractionCompleteEvent;
 
     async fn test_review_session() -> (
         GuardianReviewSession,
@@ -1170,14 +1170,14 @@ mod tests {
     }
 
     fn turn_complete_event(
-        turn_id: &str,
+        interaction_id: &str,
         last_agent_message: Option<&str>,
         time_to_first_token_ms: Option<i64>,
     ) -> Event {
         Event {
-            id: turn_id.to_string(),
-            msg: EventMsg::TurnComplete(TurnCompleteEvent {
-                turn_id: turn_id.to_string(),
+            id: interaction_id.to_string(),
+            msg: EventMsg::InteractionComplete(InteractionCompleteEvent {
+                interaction_id: interaction_id.to_string(),
                 last_agent_message: last_agent_message.map(str::to_string),
                 completed_at: None,
                 duration_ms: None,
@@ -1186,12 +1186,12 @@ mod tests {
         }
     }
 
-    fn turn_aborted_event(turn_id: &str) -> Event {
+    fn turn_aborted_event(interaction_id: &str) -> Event {
         Event {
-            id: turn_id.to_string(),
-            msg: EventMsg::TurnAborted(TurnAbortedEvent {
-                turn_id: Some(turn_id.to_string()),
-                reason: TurnAbortReason::Interrupted,
+            id: interaction_id.to_string(),
+            msg: EventMsg::InteractionAborted(InteractionAbortedEvent {
+                interaction_id: Some(interaction_id.to_string()),
+                reason: InteractionAbortReason::Interrupted,
                 completed_at: None,
                 duration_ms: None,
             }),
@@ -1285,38 +1285,38 @@ mod tests {
     async fn guardian_prompt_cache_key_is_scoped_to_parent_thread() {
         let session_source =
             SessionSource::SubAgent(SubAgentSource::Other(GUARDIAN_REVIEWER_NAME.to_string()));
-        let parent_thread_id = ThreadId::new();
+        let parent_chat_id = ChatId::new();
         let key =
-            prompt_cache_key_override_for_review_session(&session_source, Some(parent_thread_id))
+            prompt_cache_key_override_for_review_session(&session_source, Some(parent_chat_id))
                 .expect("guardian prompt cache key");
 
-        assert_eq!(key, format!("guardian:{parent_thread_id}"));
+        assert_eq!(key, format!("guardian:{parent_chat_id}"));
         assert!(
             key.len() <= 64,
             "guardian prompt cache key should fit the Responses API limit"
         );
         assert_eq!(
             key,
-            prompt_cache_key_override_for_review_session(&session_source, Some(parent_thread_id))
+            prompt_cache_key_override_for_review_session(&session_source, Some(parent_chat_id))
                 .expect("same guardian prompt cache key")
         );
         assert_ne!(
             key,
-            prompt_cache_key_override_for_review_session(&session_source, Some(ThreadId::new()))
+            prompt_cache_key_override_for_review_session(&session_source, Some(ChatId::new()))
                 .expect("different parent guardian prompt cache key")
         );
         assert_eq!(
             None,
             prompt_cache_key_override_for_review_session(
                 &SessionSource::Cli,
-                Some(parent_thread_id)
+                Some(parent_chat_id)
             )
         );
         assert_eq!(
             None,
             prompt_cache_key_override_for_review_session(
                 &session_source,
-                /*parent_thread_id*/ None
+                /*parent_chat_id*/ None
             )
         );
     }

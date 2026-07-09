@@ -65,7 +65,7 @@ impl ThreadGoalRequestProcessor {
 
     pub(crate) async fn emit_resume_goal_snapshot_and_continue(
         &self,
-        chat_id: ThreadId,
+        chat_id: ChatId,
         thread: &CodexThread,
     ) {
         if !self.config.features.enabled(Feature::Goals) {
@@ -74,7 +74,7 @@ impl ThreadGoalRequestProcessor {
         self.emit_thread_goal_snapshot(chat_id).await;
         // App-server owns resume response and snapshot ordering, so wait until
         // those are sent before letting extensions react to the idle thread.
-        thread.emit_thread_idle_lifecycle_if_idle().await;
+        thread.emit_chat_idle_lifecycle_if_idle().await;
     }
 
     pub(crate) async fn pending_resume_goal_state(
@@ -103,7 +103,7 @@ impl ThreadGoalRequestProcessor {
             return Err(invalid_request("goals feature is disabled"));
         }
 
-        let chat_id = parse_thread_id_for_request(params.chat_id.as_str())?;
+        let chat_id = parse_chat_id_for_request(params.chat_id.as_str())?;
         let state_db = self.state_db_for_materialized_thread(chat_id).await?;
         self.reconcile_thread_goal_rollout(chat_id, &state_db)
             .await?;
@@ -121,7 +121,7 @@ impl ThreadGoalRequestProcessor {
             .set_thread_goal(
                 &state_db,
                 GoalSetRequest {
-                    thread_id: chat_id,
+                    chat_id: chat_id,
                     objective: objective
                         .map(GoalObjectiveUpdate::Set)
                         .unwrap_or(GoalObjectiveUpdate::Keep),
@@ -170,7 +170,7 @@ impl ThreadGoalRequestProcessor {
             return Err(invalid_request("goals feature is disabled"));
         }
 
-        let chat_id = parse_thread_id_for_request(params.chat_id.as_str())?;
+        let chat_id = parse_chat_id_for_request(params.chat_id.as_str())?;
         let state_db = self.state_db_for_materialized_thread(chat_id).await?;
         let goal = self
             .goal_service
@@ -190,7 +190,7 @@ impl ThreadGoalRequestProcessor {
             return Err(invalid_request("goals feature is disabled"));
         }
 
-        let chat_id = parse_thread_id_for_request(params.chat_id.as_str())?;
+        let chat_id = parse_chat_id_for_request(params.chat_id.as_str())?;
         let state_db = self.state_db_for_materialized_thread(chat_id).await?;
         self.reconcile_thread_goal_rollout(chat_id, &state_db)
             .await?;
@@ -218,7 +218,7 @@ impl ThreadGoalRequestProcessor {
 
     async fn state_db_for_materialized_thread(
         &self,
-        chat_id: ThreadId,
+        chat_id: ChatId,
     ) -> Result<StateDbHandle, JSONRPCErrorError> {
         if let Ok(thread) = self.thread_manager.get_thread(chat_id).await {
             if thread.rollout_path().is_none() {
@@ -247,7 +247,7 @@ impl ThreadGoalRequestProcessor {
 
     async fn reconcile_thread_goal_rollout(
         &self,
-        chat_id: ThreadId,
+        chat_id: ChatId,
         state_db: &StateDbHandle,
     ) -> Result<(), JSONRPCErrorError> {
         let running_thread = self.thread_manager.get_thread(chat_id).await.ok();
@@ -279,7 +279,7 @@ impl ThreadGoalRequestProcessor {
         Ok(())
     }
 
-    async fn emit_thread_goal_snapshot(&self, chat_id: ThreadId) {
+    async fn emit_thread_goal_snapshot(&self, chat_id: ChatId) {
         let state_db = match self.state_db_for_materialized_thread(chat_id).await {
             Ok(state_db) => state_db,
             Err(err) => {
@@ -311,7 +311,7 @@ impl ThreadGoalRequestProcessor {
 
     async fn emit_thread_goal_updated_ordered(
         &self,
-        chat_id: ThreadId,
+        chat_id: ChatId,
         goal: ChatGoal,
         listener_command_tx: Option<tokio::sync::mpsc::UnboundedSender<ThreadListenerCommand>>,
     ) {
@@ -338,7 +338,7 @@ impl ThreadGoalRequestProcessor {
 
     async fn emit_thread_goal_cleared_ordered(
         &self,
-        chat_id: ThreadId,
+        chat_id: ChatId,
         listener_command_tx: Option<tokio::sync::mpsc::UnboundedSender<ThreadListenerCommand>>,
     ) {
         if let Some(listener_command_tx) = listener_command_tx {
@@ -360,7 +360,7 @@ impl ThreadGoalRequestProcessor {
 
 pub(super) fn api_thread_goal_from_state(goal: datax_state::ThreadGoal) -> ChatGoal {
     ChatGoal {
-        chat_id: goal.thread_id.to_string(),
+        chat_id: goal.chat_id.to_string(),
         objective: goal.objective,
         status: api_thread_goal_status_from_state(goal.status),
         token_budget: goal.token_budget,
@@ -389,7 +389,7 @@ fn goal_service_error(err: GoalServiceError) -> JSONRPCErrorError {
     }
 }
 
-fn parse_thread_id_for_request(chat_id: &str) -> Result<ThreadId, JSONRPCErrorError> {
-    ThreadId::from_string(chat_id)
+fn parse_chat_id_for_request(chat_id: &str) -> Result<ChatId, JSONRPCErrorError> {
+    ChatId::from_string(chat_id)
         .map_err(|err| invalid_request(format!("invalid thread id: {err}")))
 }

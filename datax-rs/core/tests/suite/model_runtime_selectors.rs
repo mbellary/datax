@@ -144,7 +144,7 @@ async fn response_for_remote_model(
     loop {
         match wait_for_event(&test.codex, |_| true).await {
             EventMsg::Warning(warning) => warnings.push(warning.message),
-            EventMsg::TurnComplete(_) => break,
+            EventMsg::InteractionComplete(_) => break,
             _ => {}
         }
     }
@@ -304,7 +304,7 @@ async fn unsupported_code_mode_warning_is_emitted_each_turn() -> Result<()> {
                 {
                     warning_count += 1;
                 }
-                EventMsg::TurnComplete(_) => break,
+                EventMsg::InteractionComplete(_) => break,
                 _ => {}
             }
         }
@@ -418,7 +418,7 @@ async fn remote_multi_agent_selector_uses_model_selected_before_first_turn() -> 
         })
         .await?;
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 

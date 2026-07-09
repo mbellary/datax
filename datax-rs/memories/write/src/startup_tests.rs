@@ -27,7 +27,7 @@ use datax_model_provider::ProviderAccountResult;
 use datax_model_provider::SharedModelProvider;
 use datax_model_provider::create_model_provider;
 use datax_model_provider_info::ModelProviderInfo;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::ServiceTier;
 use datax_protocol::models::ContentItem;
 use datax_protocol::models::ResponseItem;
@@ -155,7 +155,7 @@ async fn memories_startup_phase2_prunes_old_extension_resources() -> anyhow::Res
     let home = Arc::new(TempDir::new()?);
     let db = init_state_db(&home).await?;
     let now = chrono::Utc::now();
-    let _thread_id = seed_stage1_output(
+    let _chat_id = seed_stage1_output(
         db.as_ref(),
         home.path(),
         now - chrono::Duration::hours(1),
@@ -299,7 +299,7 @@ async fn memories_startup_phase1_uses_live_thread_service_tier_and_detached_meta
     let context = crate::runtime::MemoryStartupContext::new(
         Arc::clone(&test.thread_manager),
         test.thread_manager.auth_manager(),
-        test.session_configured.thread_id,
+        test.session_configured.chat_id,
         Arc::clone(&test.codex),
         &test.config,
         config_snapshot.session_source.clone(),
@@ -340,8 +340,8 @@ async fn memories_startup_phase1_uses_live_thread_service_tier_and_detached_meta
         serde_json::from_str(&metadata_header).expect("turn metadata json");
     assert_eq!(metadata["request_kind"].as_str(), Some("memory"));
     assert!(metadata.get("session_id").is_none());
-    assert!(metadata.get("thread_id").is_none());
-    assert!(metadata.get("turn_id").is_none());
+    assert!(metadata.get("chat_id").is_none());
+    assert!(metadata.get("interaction_id").is_none());
     assert!(metadata.get("window_id").is_none());
     assert!(metadata.get("workspaces").is_some());
 
@@ -551,7 +551,7 @@ async fn trigger_memories_startup(test: &TestCodex) {
     start_memories_startup_task(
         Arc::clone(&test.thread_manager),
         test.thread_manager.auth_manager(),
-        test.session_configured.thread_id,
+        test.session_configured.chat_id,
         Arc::clone(&test.codex),
         Arc::new(config),
         &config_snapshot.session_source,
@@ -572,7 +572,7 @@ async fn memory_startup_context_with_provider(
     let context = Arc::new(MemoryStartupContext::new_for_testing(
         Arc::clone(&test.thread_manager),
         test.thread_manager.auth_manager(),
-        test.session_configured.thread_id,
+        test.session_configured.chat_id,
         Arc::clone(&test.codex),
         config.as_ref(),
         config_snapshot.session_source,
@@ -641,11 +641,11 @@ async fn seed_stage1_output(
     raw_memory: &str,
     rollout_summary: &str,
     rollout_slug: &str,
-) -> anyhow::Result<ThreadId> {
-    let thread_id = ThreadId::new();
+) -> anyhow::Result<ChatId> {
+    let chat_id = ChatId::new();
     let mut metadata_builder = datax_state::ThreadMetadataBuilder::new(
-        thread_id,
-        codex_home.join(format!("rollout-{thread_id}.jsonl")),
+        chat_id,
+        codex_home.join(format!("rollout-{chat_id}.jsonl")),
         updated_at,
         SessionSource::Cli,
     );
@@ -657,7 +657,7 @@ async fn seed_stage1_output(
 
     seed_stage1_output_for_existing_thread(
         db,
-        thread_id,
+        chat_id,
         updated_at.timestamp(),
         raw_memory,
         rollout_summary,
@@ -665,7 +665,7 @@ async fn seed_stage1_output(
     )
     .await?;
 
-    Ok(thread_id)
+    Ok(chat_id)
 }
 
 async fn seed_stage1_candidate(
@@ -673,9 +673,9 @@ async fn seed_stage1_candidate(
     codex_home: &Path,
     updated_at: chrono::DateTime<chrono::Utc>,
     rollout_slug: &str,
-) -> anyhow::Result<ThreadId> {
-    let thread_id = ThreadId::new();
-    let rollout_path = codex_home.join(format!("rollout-{thread_id}.jsonl"));
+) -> anyhow::Result<ChatId> {
+    let chat_id = ChatId::new();
+    let rollout_path = codex_home.join(format!("rollout-{chat_id}.jsonl"));
     let line = RolloutLine {
         timestamp: updated_at.to_rfc3339(),
         item: RolloutItem::ResponseItem(ResponseItem::Message {
@@ -692,7 +692,7 @@ async fn seed_stage1_candidate(
     tokio::fs::write(&rollout_path, format!("{jsonl}\n")).await?;
 
     let mut metadata_builder = datax_state::ThreadMetadataBuilder::new(
-        thread_id,
+        chat_id,
         rollout_path,
         updated_at,
         SessionSource::Cli,
@@ -704,9 +704,9 @@ async fn seed_stage1_candidate(
     metadata.preview = Some("remember this startup test conversation".to_string());
     metadata.first_user_message = metadata.preview.clone();
     db.upsert_thread(&metadata).await?;
-    db.set_thread_memory_mode(thread_id, "enabled").await?;
+    db.set_thread_memory_mode(chat_id, "enabled").await?;
 
-    Ok(thread_id)
+    Ok(chat_id)
 }
 
 async fn wait_for_single_request(mock: &ResponseMock) -> ResponsesRequest {
@@ -805,17 +805,17 @@ async fn wait_for_phase2_workspace_reset(memory_root: &Path) -> anyhow::Result<(
 
 async fn seed_stage1_output_for_existing_thread(
     db: &datax_state::StateRuntime,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     updated_at: i64,
     raw_memory: &str,
     rollout_summary: &str,
     rollout_slug: Option<&str>,
 ) -> anyhow::Result<()> {
-    let owner = ThreadId::new();
+    let owner = ChatId::new();
     let claim = db
         .memories()
         .try_claim_stage1_job(
-            thread_id, owner, updated_at, /*lease_seconds*/ 3_600,
+            chat_id, owner, updated_at, /*lease_seconds*/ 3_600,
             /*max_running_jobs*/ 64,
         )
         .await?;
@@ -827,7 +827,7 @@ async fn seed_stage1_output_for_existing_thread(
     assert!(
         db.memories()
             .mark_stage1_job_succeeded(
-                thread_id,
+                chat_id,
                 &ownership_token,
                 updated_at,
                 raw_memory,

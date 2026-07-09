@@ -7,7 +7,7 @@ use datax_extension_api::ToolExecutor;
 use datax_extension_api::ToolName;
 use datax_extension_api::ToolOutput;
 use datax_extension_api::ToolSpec;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::ThreadGoal;
 use datax_protocol::protocol::ThreadGoalStatus;
 use datax_protocol::protocol::validate_thread_goal_objective;
@@ -30,7 +30,7 @@ use crate::spec::create_update_goal_tool;
 #[derive(Clone)]
 pub(crate) struct GoalToolExecutor {
     kind: GoalToolKind,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     state_db: Arc<datax_state::StateRuntime>,
     accounting_state: Arc<GoalAccountingState>,
     analytics: GoalAnalytics,
@@ -74,7 +74,7 @@ enum CompletionBudgetReport {
 
 impl GoalToolExecutor {
     pub(crate) fn get(
-        thread_id: ThreadId,
+        chat_id: ChatId,
         state_db: Arc<datax_state::StateRuntime>,
         accounting_state: Arc<GoalAccountingState>,
         analytics: GoalAnalytics,
@@ -83,7 +83,7 @@ impl GoalToolExecutor {
     ) -> Self {
         Self {
             kind: GoalToolKind::Get,
-            thread_id,
+            chat_id,
             state_db,
             accounting_state,
             analytics,
@@ -93,7 +93,7 @@ impl GoalToolExecutor {
     }
 
     pub(crate) fn create(
-        thread_id: ThreadId,
+        chat_id: ChatId,
         state_db: Arc<datax_state::StateRuntime>,
         accounting_state: Arc<GoalAccountingState>,
         analytics: GoalAnalytics,
@@ -102,7 +102,7 @@ impl GoalToolExecutor {
     ) -> Self {
         Self {
             kind: GoalToolKind::Create,
-            thread_id,
+            chat_id,
             state_db,
             accounting_state,
             analytics,
@@ -112,7 +112,7 @@ impl GoalToolExecutor {
     }
 
     pub(crate) fn update(
-        thread_id: ThreadId,
+        chat_id: ChatId,
         state_db: Arc<datax_state::StateRuntime>,
         accounting_state: Arc<GoalAccountingState>,
         analytics: GoalAnalytics,
@@ -121,7 +121,7 @@ impl GoalToolExecutor {
     ) -> Self {
         Self {
             kind: GoalToolKind::Update,
-            thread_id,
+            chat_id,
             state_db,
             accounting_state,
             analytics,
@@ -168,7 +168,7 @@ impl GoalToolExecutor {
         let goal = self
             .state_db
             .thread_goals()
-            .get_thread_goal(self.thread_id)
+            .get_thread_goal(self.chat_id)
             .await
             .map(|goal| goal.map(protocol_goal_from_state))
             .map_err(|err| {
@@ -191,7 +191,7 @@ impl GoalToolExecutor {
             .state_db
             .thread_goals()
             .insert_thread_goal(
-                self.thread_id,
+                self.chat_id,
                 request.objective.as_str(),
                 datax_state::ThreadGoalStatus::Active,
                 request.token_budget,
@@ -204,17 +204,17 @@ impl GoalToolExecutor {
                         .to_string(),
                 )
             })?;
-        fill_empty_thread_preview_if_possible(self.state_db.as_ref(), self.thread_id, &goal).await;
-        let turn_id = self
+        fill_empty_thread_preview_if_possible(self.state_db.as_ref(), self.chat_id, &goal).await;
+        let interaction_id = self
             .accounting_state
             .mark_current_turn_goal_active(goal.goal_id.clone());
         self.metrics.record_created();
         self.analytics.created(
             &goal,
-            GoalEventAttribution::Turn(invocation.turn_id.as_str()),
+            GoalEventAttribution::Turn(invocation.interaction_id.as_str()),
         );
         let goal = protocol_goal_from_state(goal);
-        self.emit_goal_updated_from_tool_call(&invocation, turn_id, goal.clone());
+        self.emit_goal_updated_from_tool_call(&invocation, interaction_id, goal.clone());
         goal_response(Some(goal), CompletionBudgetReport::Omit)
     }
 
@@ -253,7 +253,7 @@ impl GoalToolExecutor {
             .state_db
             .thread_goals()
             .update_thread_goal(
-                self.thread_id,
+                self.chat_id,
                 datax_state::GoalUpdate {
                     objective: None,
                     status: Some(state_status_from_protocol(args.status)),
@@ -275,11 +275,11 @@ impl GoalToolExecutor {
         self.analytics.status_changed(
             &goal,
             previous_status,
-            GoalEventAttribution::Turn(invocation.turn_id.as_str()),
+            GoalEventAttribution::Turn(invocation.interaction_id.as_str()),
         );
         let goal = protocol_goal_from_state(goal);
-        let turn_id = self.accounting_state.clear_current_turn_goal();
-        self.emit_goal_updated_from_tool_call(&invocation, turn_id, goal.clone());
+        let interaction_id = self.accounting_state.clear_current_turn_goal();
+        self.emit_goal_updated_from_tool_call(&invocation, interaction_id, goal.clone());
         goal_response(
             Some(goal),
             if args.status == ThreadGoalStatus::Complete {
@@ -293,11 +293,11 @@ impl GoalToolExecutor {
     fn emit_goal_updated_from_tool_call(
         &self,
         invocation: &ToolCall,
-        turn_id: Option<String>,
+        interaction_id: Option<String>,
         goal: ThreadGoal,
     ) {
         self.event_emitter
-            .thread_goal_updated(invocation.call_id.clone(), turn_id, goal);
+            .thread_goal_updated(invocation.call_id.clone(), interaction_id, goal);
     }
 
     async fn account_active_goal_progress(
@@ -306,7 +306,7 @@ impl GoalToolExecutor {
         event_id: &str,
         budget_limited_goal_disposition: BudgetLimitedGoalDisposition,
     ) -> Result<Option<ThreadGoal>, FunctionCallError> {
-        let Some(turn_id) = self.accounting_state.current_turn_id() else {
+        let Some(interaction_id) = self.accounting_state.current_interaction_id() else {
             return Ok(None);
         };
         let _accounting_permit = self
@@ -318,7 +318,7 @@ impl GoalToolExecutor {
                     "goal progress accounting semaphore closed: {err}"
                 ))
             })?;
-        let Some(snapshot) = self.accounting_state.progress_snapshot(turn_id.as_str()) else {
+        let Some(snapshot) = self.accounting_state.progress_snapshot(interaction_id.as_str()) else {
             return Ok(None);
         };
         let previous_status = self
@@ -328,7 +328,7 @@ impl GoalToolExecutor {
             .state_db
             .thread_goals()
             .account_thread_goal_usage(
-                self.thread_id,
+                self.chat_id,
                 snapshot.time_delta_seconds,
                 snapshot.token_delta,
                 mode,
@@ -343,14 +343,14 @@ impl GoalToolExecutor {
                 self.metrics
                     .record_terminal_if_status_changed(previous_status, &goal);
                 self.analytics
-                    .usage_accounted(&goal, GoalEventAttribution::Turn(turn_id.as_str()));
+                    .usage_accounted(&goal, GoalEventAttribution::Turn(interaction_id.as_str()));
                 self.analytics.status_changed(
                     &goal,
                     previous_status,
-                    GoalEventAttribution::Turn(turn_id.as_str()),
+                    GoalEventAttribution::Turn(interaction_id.as_str()),
                 );
                 self.accounting_state.mark_progress_accounted_for_status(
-                    turn_id.as_str(),
+                    interaction_id.as_str(),
                     &snapshot,
                     goal.status,
                     budget_limited_goal_disposition,
@@ -358,7 +358,7 @@ impl GoalToolExecutor {
                 let goal = protocol_goal_from_state(goal);
                 self.event_emitter.thread_goal_updated(
                     event_id.to_string(),
-                    Some(turn_id),
+                    Some(interaction_id),
                     goal.clone(),
                 );
                 Some(goal)
@@ -374,7 +374,7 @@ impl GoalToolExecutor {
         let goal = self
             .state_db
             .thread_goals()
-            .get_thread_goal(self.thread_id)
+            .get_thread_goal(self.chat_id)
             .await
             .map_err(|err| {
                 FunctionCallError::RespondToModel(format!(
@@ -438,22 +438,22 @@ impl GoalToolResponse {
 
 pub(crate) async fn fill_empty_thread_preview_if_possible(
     state_db: &datax_state::StateRuntime,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     goal: &datax_state::ThreadGoal,
 ) {
     if let Err(err) = state_db
-        .set_thread_preview_if_empty(thread_id, goal.objective.as_str())
+        .set_thread_preview_if_empty(chat_id, goal.objective.as_str())
         .await
     {
         tracing::warn!(
-            "failed to set empty thread preview from goal objective for {thread_id}: {err}"
+            "failed to set empty thread preview from goal objective for {chat_id}: {err}"
         );
     }
 }
 
 pub(crate) fn protocol_goal_from_state(goal: datax_state::ThreadGoal) -> ThreadGoal {
     ThreadGoal {
-        thread_id: goal.thread_id,
+        chat_id: goal.chat_id,
         objective: goal.objective,
         status: protocol_status_from_state(goal.status),
         token_budget: goal.token_budget,

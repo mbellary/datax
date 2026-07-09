@@ -2,7 +2,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use chrono::Utc;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::GitInfo;
 use datax_protocol::protocol::RolloutItem;
 use datax_protocol::protocol::SessionSource;
@@ -38,13 +38,13 @@ pub(super) async fn update_thread_metadata(
     store: &LocalThreadStore,
     params: UpdateThreadMetadataParams,
 ) -> ThreadStoreResult<StoredThread> {
-    let thread_id = params.thread_id;
+    let chat_id = params.chat_id;
     let patch = params.patch;
     if patch.is_empty() {
         return read_thread::read_thread(
             store,
             ReadThreadParams {
-                thread_id,
+                chat_id,
                 include_archived: params.include_archived,
                 include_history: false,
             },
@@ -56,7 +56,7 @@ pub(super) async fn update_thread_metadata(
     let require_sqlite_write = sqlite_write_failure_should_block(&patch);
     let updated = apply_metadata_update(
         store,
-        thread_id,
+        chat_id,
         patch.clone(),
         params.include_archived,
         require_sqlite_write,
@@ -66,15 +66,15 @@ pub(super) async fn update_thread_metadata(
         return Ok(updated);
     }
 
-    if live_writer::rollout_path(store, thread_id).await.is_ok() {
-        live_writer::persist_thread(store, thread_id).await?;
+    if live_writer::rollout_path(store, chat_id).await.is_ok() {
+        live_writer::persist_thread(store, chat_id).await?;
     }
     let mut resolved_rollout_path =
-        resolve_rollout_path(store, thread_id, params.include_archived).await?;
+        resolve_rollout_path(store, chat_id, params.include_archived).await?;
     let name = patch.name;
     let git_info = patch.git_info;
     if let Some(memory_mode) = patch.memory_mode {
-        apply_thread_memory_mode(resolved_rollout_path.path.as_path(), thread_id, memory_mode)
+        apply_thread_memory_mode(resolved_rollout_path.path.as_path(), chat_id, memory_mode)
             .await?;
         refresh_resolved_rollout_path(&mut resolved_rollout_path).await;
     }
@@ -92,35 +92,35 @@ pub(super) async fn update_thread_metadata(
     .await;
 
     if let Some(name) = name {
-        apply_thread_name(store, thread_id, name.unwrap_or_default()).await?;
+        apply_thread_name(store, chat_id, name.unwrap_or_default()).await?;
     }
 
     let resolved_git_info = match git_info {
         Some(git_info) => {
             let Some(state_db) = store.state_db().await else {
                 return Err(ThreadStoreError::Internal {
-                    message: format!("sqlite state db unavailable for thread {thread_id}"),
+                    message: format!("sqlite state db unavailable for thread {chat_id}"),
                 });
             };
             let metadata =
                 state_db
-                    .get_thread(thread_id)
+                    .get_thread(chat_id)
                     .await
                     .map_err(|err| ThreadStoreError::Internal {
                         message: format!(
-                            "failed to read git metadata for thread {thread_id}: {err}"
+                            "failed to read git metadata for thread {chat_id}: {err}"
                         ),
                     })?;
             let Some(metadata) = metadata else {
                 return Err(ThreadStoreError::Internal {
-                    message: format!("thread metadata unavailable before git update: {thread_id}"),
+                    message: format!("thread metadata unavailable before git update: {chat_id}"),
                 });
             };
             let memory_mode = state_db
-                .get_thread_memory_mode(thread_id)
+                .get_thread_memory_mode(chat_id)
                 .await
                 .map_err(|err| ThreadStoreError::Internal {
-                    message: format!("failed to read memory mode for thread {thread_id}: {err}"),
+                    message: format!("failed to read memory mode for thread {chat_id}: {err}"),
                 })?;
             let existing_git_info = git_info_from_parts(
                 metadata.git_sha,
@@ -137,7 +137,7 @@ pub(super) async fn update_thread_metadata(
     if let Some(((sha, branch, origin_url), memory_mode)) = resolved_git_info.as_ref() {
         apply_thread_git_info_to_rollout(
             resolved_rollout_path.path.as_path(),
-            thread_id,
+            chat_id,
             sha,
             branch,
             origin_url,
@@ -145,13 +145,13 @@ pub(super) async fn update_thread_metadata(
         )
         .await?;
         refresh_resolved_rollout_path(&mut resolved_rollout_path).await;
-        apply_thread_git_info(store, thread_id, sha, branch, origin_url).await?;
+        apply_thread_git_info(store, chat_id, sha, branch, origin_url).await?;
     }
 
     let mut thread = match read_thread::read_thread(
         store,
         ReadThreadParams {
-            thread_id,
+            chat_id,
             include_archived: params.include_archived,
             include_history: false,
         },
@@ -183,12 +183,12 @@ async fn refresh_resolved_rollout_path(resolved: &mut ResolvedRolloutPath) {
 
 async fn apply_metadata_update(
     store: &LocalThreadStore,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     patch: ThreadMetadataPatch,
     include_archived: bool,
     require_sqlite_write: bool,
 ) -> ThreadStoreResult<StoredThread> {
-    let live_rollout_path = live_writer::rollout_path(store, thread_id).await.ok();
+    let live_rollout_path = live_writer::rollout_path(store, chat_id).await.ok();
     let mut rollout_path = patch.rollout_path.clone().or(live_rollout_path);
     let mut rollout_path_archived = rollout_path
         .as_deref()
@@ -199,14 +199,14 @@ async fn apply_metadata_update(
         async {
             let existing =
                 state_db
-                    .get_thread(thread_id)
+                    .get_thread(chat_id)
                     .await
                     .map_err(|err| ThreadStoreError::Internal {
-                        message: format!("failed to read thread metadata for {thread_id}: {err}"),
+                        message: format!("failed to read thread metadata for {chat_id}: {err}"),
                     })?;
             let advance_recency_at = patch.advance_recency_at;
             if existing.is_none() && rollout_path.is_none() {
-                let resolved = resolve_rollout_path(store, thread_id, include_archived).await?;
+                let resolved = resolve_rollout_path(store, chat_id, include_archived).await?;
                 rollout_path_archived = resolved.archived;
                 rollout_path = Some(resolved.path);
             }
@@ -216,7 +216,7 @@ async fn apply_metadata_update(
                     .or(patch.updated_at)
                     .unwrap_or_else(Utc::now);
                 let mut builder = ThreadMetadataBuilder::new(
-                    thread_id,
+                    chat_id,
                     rollout_path.clone().unwrap_or_default(),
                     created_at,
                     patch.source.clone().unwrap_or(SessionSource::Unknown),
@@ -314,26 +314,26 @@ async fn apply_metadata_update(
                 .upsert_thread(&metadata)
                 .await
                 .map_err(|err| ThreadStoreError::Internal {
-                    message: format!("failed to update thread metadata for {thread_id}: {err}"),
+                    message: format!("failed to update thread metadata for {chat_id}: {err}"),
                 })?;
             if existing.is_some()
                 && let Some(recency_at) = advance_recency_at
             {
                 state_db
-                    .touch_thread_recency_at(thread_id, recency_at)
+                    .touch_thread_recency_at(chat_id, recency_at)
                     .await
                     .map_err(|err| ThreadStoreError::Internal {
                         message: format!(
-                            "failed to advance thread recency_at for {thread_id}: {err}"
+                            "failed to advance thread recency_at for {chat_id}: {err}"
                         ),
                     })?;
             }
             if let Some(memory_mode) = patch.memory_mode {
                 state_db
-                    .set_thread_memory_mode(thread_id, memory_mode_as_str(memory_mode))
+                    .set_thread_memory_mode(chat_id, memory_mode_as_str(memory_mode))
                     .await
                     .map_err(|err| ThreadStoreError::Internal {
-                        message: format!("failed to update memory mode for {thread_id}: {err}"),
+                        message: format!("failed to update memory mode for {chat_id}: {err}"),
                     })?;
             }
             Ok(())
@@ -348,21 +348,21 @@ async fn apply_metadata_update(
             return Err(err);
         }
         (true, Err(err)) => {
-            warn!("state db update_thread_metadata failed for {thread_id}: {err}");
+            warn!("state db update_thread_metadata failed for {chat_id}: {err}");
         }
         (false, Ok(())) => {}
         (false, Err(err)) if require_sqlite_write || !sqlite_write_error_is_best_effort(&err) => {
             return Err(err);
         }
         (false, Err(err)) => {
-            warn!("state db update_thread_metadata failed for {thread_id}: {err}");
+            warn!("state db update_thread_metadata failed for {chat_id}: {err}");
         }
     }
 
     read_thread::read_thread(
         store,
         ReadThreadParams {
-            thread_id,
+            chat_id,
             include_archived,
             include_history: false,
         },
@@ -428,32 +428,32 @@ fn normalize_cwd(cwd: PathBuf) -> PathBuf {
 
 async fn apply_thread_git_info(
     store: &LocalThreadStore,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     sha: &Option<String>,
     branch: &Option<String>,
     origin_url: &Option<String>,
 ) -> ThreadStoreResult<()> {
     let Some(state_db) = store.state_db().await else {
         return Err(ThreadStoreError::Internal {
-            message: format!("sqlite state db unavailable for thread {thread_id}"),
+            message: format!("sqlite state db unavailable for thread {chat_id}"),
         });
     };
     let updated = state_db
         .update_thread_git_info(
-            thread_id,
+            chat_id,
             Some(sha.as_deref()),
             Some(branch.as_deref()),
             Some(origin_url.as_deref()),
         )
         .await
         .map_err(|err| ThreadStoreError::Internal {
-            message: format!("failed to update git metadata for thread {thread_id}: {err}"),
+            message: format!("failed to update git metadata for thread {chat_id}: {err}"),
         })?;
     if updated {
         Ok(())
     } else {
         Err(ThreadStoreError::Internal {
-            message: format!("thread metadata disappeared before update completed: {thread_id}"),
+            message: format!("thread metadata disappeared before update completed: {chat_id}"),
         })
     }
 }
@@ -478,7 +478,7 @@ fn resolve_git_info_patch(
 
 async fn apply_thread_git_info_to_rollout(
     rollout_path: &Path,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     sha: &Option<String>,
     branch: &Option<String>,
     origin_url: &Option<String>,
@@ -490,10 +490,10 @@ async fn apply_thread_git_info_to_rollout(
             .map_err(|err| ThreadStoreError::Internal {
                 message: format!("failed to set thread git metadata: {err}"),
             })?;
-    if session_meta.meta.id != thread_id {
+    if session_meta.meta.id != chat_id {
         return Err(ThreadStoreError::Internal {
             message: format!(
-                "failed to set thread git metadata: rollout session metadata id mismatch: expected {thread_id}, found {}",
+                "failed to set thread git metadata: rollout session metadata id mismatch: expected {chat_id}, found {}",
                 session_meta.meta.id
             ),
         });
@@ -514,24 +514,24 @@ async fn apply_thread_git_info_to_rollout(
 
 async fn apply_thread_name(
     store: &LocalThreadStore,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     name: String,
 ) -> ThreadStoreResult<()> {
     if let Some(state_db) = store.state_db().await {
         let updated = state_db
-            .update_thread_title(thread_id, &name)
+            .update_thread_title(chat_id, &name)
             .await
             .map_err(|err| ThreadStoreError::Internal {
                 message: format!("failed to set thread name: {err}"),
             })?;
         if !updated {
             return Err(ThreadStoreError::Internal {
-                message: format!("thread metadata unavailable before name update: {thread_id}"),
+                message: format!("thread metadata unavailable before name update: {chat_id}"),
             });
         }
     }
 
-    append_thread_name(store.config.codex_home.as_path(), thread_id, &name)
+    append_thread_name(store.config.codex_home.as_path(), chat_id, &name)
         .await
         .map_err(|err| ThreadStoreError::Internal {
             message: format!("failed to index thread name: {err}"),
@@ -540,7 +540,7 @@ async fn apply_thread_name(
 
 async fn apply_thread_memory_mode(
     rollout_path: &Path,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     memory_mode: ThreadMemoryMode,
 ) -> ThreadStoreResult<()> {
     let mut session_meta =
@@ -549,10 +549,10 @@ async fn apply_thread_memory_mode(
             .map_err(|err| ThreadStoreError::Internal {
                 message: format!("failed to set thread memory mode: {err}"),
             })?;
-    if session_meta.meta.id != thread_id {
+    if session_meta.meta.id != chat_id {
         return Err(ThreadStoreError::Internal {
             message: format!(
-                "failed to set thread memory mode: rollout session metadata id mismatch: expected {thread_id}, found {}",
+                "failed to set thread memory mode: rollout session metadata id mismatch: expected {chat_id}, found {}",
                 session_meta.meta.id
             ),
         });
@@ -578,10 +578,10 @@ fn memory_mode_as_str(mode: ThreadMemoryMode) -> &'static str {
 
 async fn resolve_rollout_path(
     store: &LocalThreadStore,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     include_archived: bool,
 ) -> ThreadStoreResult<ResolvedRolloutPath> {
-    if let Ok(path) = live_writer::rollout_path(store, thread_id).await {
+    if let Ok(path) = live_writer::rollout_path(store, chat_id).await {
         let archived = rollout_path_is_archived(store, path.as_path());
         return Ok(ResolvedRolloutPath { path, archived });
     }
@@ -589,12 +589,12 @@ async fn resolve_rollout_path(
     let state_db_ctx = store.state_db().await;
     let active_path = find_thread_path_by_id_str(
         store.config.codex_home.as_path(),
-        &thread_id.to_string(),
+        &chat_id.to_string(),
         state_db_ctx.as_deref(),
     )
     .await
     .map_err(|err| ThreadStoreError::InvalidRequest {
-        message: format!("failed to locate thread id {thread_id}: {err}"),
+        message: format!("failed to locate thread id {chat_id}: {err}"),
     })?;
     if let Some(path) = active_path {
         return Ok(ResolvedRolloutPath {
@@ -604,24 +604,24 @@ async fn resolve_rollout_path(
     }
     if !include_archived {
         return Err(ThreadStoreError::InvalidRequest {
-            message: format!("thread not found: {thread_id}"),
+            message: format!("thread not found: {chat_id}"),
         });
     }
     find_archived_thread_path_by_id_str(
         store.config.codex_home.as_path(),
-        &thread_id.to_string(),
+        &chat_id.to_string(),
         state_db_ctx.as_deref(),
     )
     .await
     .map_err(|err| ThreadStoreError::InvalidRequest {
-        message: format!("failed to locate archived thread id {thread_id}: {err}"),
+        message: format!("failed to locate archived thread id {chat_id}: {err}"),
     })?
     .map(|path| ResolvedRolloutPath {
         path,
         archived: true,
     })
     .ok_or_else(|| ThreadStoreError::InvalidRequest {
-        message: format!("thread not found: {thread_id}"),
+        message: format!("thread not found: {chat_id}"),
     })
 }
 
@@ -657,12 +657,12 @@ mod tests {
         let home = TempDir::new().expect("temp dir");
         let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
         let uuid = Uuid::from_u128(301);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         write_session_file(home.path(), "2025-01-03T14-00-00", uuid).expect("session file");
 
         let thread = store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     name: Some(Some("A sharper name".to_string())),
                     ..Default::default()
@@ -673,7 +673,7 @@ mod tests {
             .expect("set thread name");
 
         assert_eq!(thread.name.as_deref(), Some("A sharper name"));
-        let latest_name = datax_rollout::find_thread_name_by_id(home.path(), &thread_id)
+        let latest_name = datax_rollout::find_thread_name_by_id(home.path(), &chat_id)
             .await
             .expect("find thread name");
         assert_eq!(latest_name.as_deref(), Some("A sharper name"));
@@ -684,7 +684,7 @@ mod tests {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let uuid = Uuid::from_u128(302);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let path =
             write_session_file(home.path(), "2025-01-03T14-30-00", uuid).expect("session file");
         let runtime = datax_state::StateRuntime::init(
@@ -697,7 +697,7 @@ mod tests {
 
         let thread = store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     memory_mode: Some(ThreadMemoryMode::Disabled),
                     ..Default::default()
@@ -707,13 +707,13 @@ mod tests {
             .await
             .expect("set thread memory mode");
 
-        assert_eq!(thread.thread_id, thread_id);
+        assert_eq!(thread.chat_id, chat_id);
         let appended = last_rollout_item(path.as_path());
         assert_eq!(appended["type"], "session_meta");
-        assert_eq!(appended["payload"]["id"], thread_id.to_string());
+        assert_eq!(appended["payload"]["id"], chat_id.to_string());
         assert_eq!(appended["payload"]["memory_mode"], "disabled");
         let memory_mode = runtime
-            .get_thread_memory_mode(thread_id)
+            .get_thread_memory_mode(chat_id)
             .await
             .expect("thread memory mode should be readable");
         assert_eq!(memory_mode.as_deref(), Some("disabled"));
@@ -724,7 +724,7 @@ mod tests {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let uuid = Uuid::from_u128(312);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let path =
             write_session_file(home.path(), "2025-01-03T18-30-00", uuid).expect("session file");
         let runtime = datax_state::StateRuntime::init(
@@ -737,7 +737,7 @@ mod tests {
 
         store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     memory_mode: Some(ThreadMemoryMode::Disabled),
                     ..Default::default()
@@ -749,7 +749,7 @@ mod tests {
 
         let thread = store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     git_info: Some(GitInfoPatch {
                         branch: Some(Some("feature".to_string())),
@@ -782,7 +782,7 @@ mod tests {
         )
         .await;
         let memory_mode = runtime
-            .get_thread_memory_mode(thread_id)
+            .get_thread_memory_mode(chat_id)
             .await
             .expect("thread memory mode should be readable");
         assert_eq!(memory_mode.as_deref(), Some("disabled"));
@@ -794,13 +794,13 @@ mod tests {
         let external_home = TempDir::new().expect("external temp dir");
         let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
         let uuid = Uuid::from_u128(307);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let path = write_session_file(external_home.path(), "2025-01-03T14-45-00", uuid)
             .expect("external session file");
 
         store
             .resume_thread(ResumeThreadParams {
-                thread_id,
+                chat_id,
                 rollout_path: Some(path.clone()),
                 history: None,
                 include_archived: true,
@@ -811,7 +811,7 @@ mod tests {
 
         let thread = store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     memory_mode: Some(ThreadMemoryMode::Disabled),
                     ..Default::default()
@@ -821,7 +821,7 @@ mod tests {
             .await
             .expect("set memory mode on external live thread");
 
-        assert_eq!(thread.thread_id, thread_id);
+        assert_eq!(thread.chat_id, chat_id);
         assert!(thread.rollout_path.is_some());
         let appended = last_rollout_item(path.as_path());
         assert_eq!(appended["type"], "session_meta");
@@ -840,12 +840,12 @@ mod tests {
         .expect("state db should initialize");
         let store = LocalThreadStore::new(config, Some(runtime));
         let uuid = Uuid::from_u128(309);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         write_session_file(home.path(), "2025-01-03T17-00-00", uuid).expect("session file");
 
         let thread = store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     git_info: Some(GitInfoPatch {
                         sha: Some(Some("abc123".to_string())),
@@ -883,12 +883,12 @@ mod tests {
         .expect("state db should initialize");
         let store = LocalThreadStore::new(config, Some(runtime.clone()));
         let uuid = Uuid::from_u128(317);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         write_session_file(home.path(), "2025-01-03T20-30-00", uuid).expect("session file");
 
         let thread = store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     permission_profile: Some(PermissionProfile::Disabled),
                     ..Default::default()
@@ -900,7 +900,7 @@ mod tests {
 
         assert_eq!(thread.permission_profile, PermissionProfile::Disabled);
         let metadata = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("sqlite metadata read")
             .expect("sqlite metadata");
@@ -923,12 +923,12 @@ mod tests {
         .expect("state db should initialize");
         let store = LocalThreadStore::new(config, Some(runtime));
         let uuid = Uuid::from_u128(310);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         write_session_file(home.path(), "2025-01-03T17-30-00", uuid).expect("session file");
 
         store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     git_info: Some(GitInfoPatch {
                         sha: Some(Some("abc123".to_string())),
@@ -944,7 +944,7 @@ mod tests {
 
         let thread = store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     git_info: Some(GitInfoPatch {
                         branch: Some(Some("feature".to_string())),
@@ -981,13 +981,13 @@ mod tests {
         .expect("state db should initialize");
         let store = LocalThreadStore::new(config.clone(), Some(runtime.clone()));
         let uuid = Uuid::from_u128(311);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let path =
             write_session_file(home.path(), "2025-01-03T18-00-00", uuid).expect("session file");
 
         store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     git_info: Some(GitInfoPatch {
                         sha: Some(Some("abc123".to_string())),
@@ -1003,7 +1003,7 @@ mod tests {
 
         let thread = store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     git_info: Some(GitInfoPatch {
                         sha: Some(None),
@@ -1034,7 +1034,7 @@ mod tests {
         .await;
         let thread = store
             .read_thread(ReadThreadParams {
-                thread_id,
+                chat_id,
                 include_archived: false,
                 include_history: false,
             })
@@ -1044,7 +1044,7 @@ mod tests {
 
         store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     memory_mode: Some(ThreadMemoryMode::Disabled),
                     ..Default::default()
@@ -1068,7 +1068,7 @@ mod tests {
         .await;
         let thread = store
             .read_thread(ReadThreadParams {
-                thread_id,
+                chat_id,
                 include_archived: false,
                 include_history: false,
             })
@@ -1078,14 +1078,14 @@ mod tests {
 
         assert_eq!(
             runtime
-                .delete_thread(thread_id)
+                .delete_thread(chat_id)
                 .await
                 .expect("delete sqlite thread row"),
             1
         );
         let thread = store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     git_info: Some(GitInfoPatch {
                         branch: Some(Some("feature".to_string())),
@@ -1104,7 +1104,7 @@ mod tests {
 
         store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     memory_mode: Some(ThreadMemoryMode::Disabled),
                     ..Default::default()
@@ -1128,7 +1128,7 @@ mod tests {
         .await;
         let thread = store
             .read_thread(ReadThreadParams {
-                thread_id,
+                chat_id,
                 include_archived: false,
                 include_history: false,
             })
@@ -1146,7 +1146,7 @@ mod tests {
         let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
         let filename_uuid = Uuid::from_u128(303);
         let metadata_uuid = Uuid::from_u128(304);
-        let thread_id = ThreadId::from_string(&filename_uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&filename_uuid.to_string()).expect("valid thread id");
         let path = write_session_file(home.path(), "2025-01-03T15-00-00", filename_uuid)
             .expect("session file");
         let content = std::fs::read_to_string(&path).expect("read rollout");
@@ -1158,7 +1158,7 @@ mod tests {
 
         let err = store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     memory_mode: Some(ThreadMemoryMode::Enabled),
                     ..Default::default()
@@ -1184,13 +1184,13 @@ mod tests {
         .expect("state db should initialize");
         let store = LocalThreadStore::new(config, Some(runtime.clone()));
         let uuid = Uuid::from_u128(305);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let path =
             write_session_file(home.path(), "2025-01-03T15-30-00", uuid).expect("session file");
 
         let thread = store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     name: Some(Some("Combined metadata".to_string())),
                     memory_mode: Some(ThreadMemoryMode::Disabled),
@@ -1214,12 +1214,12 @@ mod tests {
         assert_eq!(appended["type"], "session_meta");
         assert_eq!(appended["payload"]["memory_mode"], "disabled");
         assert_eq!(appended["payload"]["git"]["branch"], "combined");
-        let latest_name = datax_rollout::find_thread_name_by_id(home.path(), &thread_id)
+        let latest_name = datax_rollout::find_thread_name_by_id(home.path(), &chat_id)
             .await
             .expect("find thread name");
         assert_eq!(latest_name.as_deref(), Some("Combined metadata"));
         let memory_mode = runtime
-            .get_thread_memory_mode(thread_id)
+            .get_thread_memory_mode(chat_id)
             .await
             .expect("thread memory mode should be readable");
         assert_eq!(memory_mode.as_deref(), Some("disabled"));
@@ -1277,12 +1277,12 @@ mod tests {
         .expect("state db should initialize");
         let store = LocalThreadStore::new(config, Some(runtime));
         let uuid = Uuid::from_u128(306);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         write_session_file(home.path(), "2025-01-03T15-45-00", uuid).expect("session file");
 
         store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     name: Some(Some("User chosen name".to_string())),
                     ..Default::default()
@@ -1294,7 +1294,7 @@ mod tests {
 
         let thread = store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     title: Some("Derived first message".to_string()),
                     preview: Some("Derived first message".to_string()),
@@ -1320,12 +1320,12 @@ mod tests {
         .expect("state db should initialize");
         let store = LocalThreadStore::new(config, Some(runtime.clone()));
         let uuid = Uuid::from_u128(313);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         write_session_file(home.path(), "2025-01-03T19-00-00", uuid).expect("session file");
 
         store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     preview: Some("Original preview".to_string()),
                     first_user_message: Some("Original first message".to_string()),
@@ -1338,7 +1338,7 @@ mod tests {
 
         let thread = store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     preview: Some("Later preview".to_string()),
                     first_user_message: Some("Later first message".to_string()),
@@ -1355,7 +1355,7 @@ mod tests {
             Some("Hello from user")
         );
         let metadata = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("sqlite metadata read")
             .expect("sqlite metadata");
@@ -1378,11 +1378,11 @@ mod tests {
         .expect("state db should initialize");
         let store = LocalThreadStore::new(config, Some(runtime.clone()));
         let uuid = Uuid::from_u128(314);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
 
         let err = store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     preview: Some("phantom".to_string()),
                     ..Default::default()
@@ -1395,10 +1395,10 @@ mod tests {
         assert!(matches!(
             err,
             ThreadStoreError::InvalidRequest { message }
-                if message == format!("thread not found: {thread_id}")
+                if message == format!("thread not found: {chat_id}")
         ));
         let metadata = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("sqlite metadata read");
         assert!(metadata.is_none());
@@ -1409,7 +1409,7 @@ mod tests {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let uuid = Uuid::from_u128(315);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         write_archived_session_file(home.path(), "2025-01-03T19-30-00", uuid)
             .expect("archived session file");
         let runtime = datax_state::StateRuntime::init(
@@ -1422,7 +1422,7 @@ mod tests {
 
         let thread = store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     preview: Some("Archived missing sqlite row".to_string()),
                     ..Default::default()
@@ -1435,7 +1435,7 @@ mod tests {
         assert!(thread.archived_at.is_some());
         assert!(
             runtime
-                .get_thread(thread_id)
+                .get_thread(chat_id)
                 .await
                 .expect("get metadata")
                 .expect("metadata")
@@ -1456,7 +1456,7 @@ mod tests {
         .expect("state db should initialize");
         let store = LocalThreadStore::new(config, Some(runtime.clone()));
         let uuid = Uuid::from_u128(316);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         write_session_file(home.path(), "2025-01-03T20-00-00", uuid).expect("session file");
         let workspace = home.path().join("workspace");
         let child = workspace.join("child");
@@ -1467,7 +1467,7 @@ mod tests {
 
         store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     cwd: Some(unnormalized_cwd),
                     preview: Some("cwd preview".to_string()),
@@ -1479,7 +1479,7 @@ mod tests {
             .expect("update observed cwd");
 
         let metadata = runtime
-            .get_thread(thread_id)
+            .get_thread(chat_id)
             .await
             .expect("get metadata")
             .expect("metadata");
@@ -1495,7 +1495,7 @@ mod tests {
                 cwd_filters: Some(vec![workspace]),
                 archived: false,
                 search_term: None,
-                parent_thread_id: None,
+                parent_chat_id: None,
                 use_state_db_only: true,
             })
             .await
@@ -1503,9 +1503,9 @@ mod tests {
         assert_eq!(
             page.items
                 .iter()
-                .map(|thread| thread.thread_id)
+                .map(|thread| thread.chat_id)
                 .collect::<Vec<_>>(),
-            vec![thread_id]
+            vec![chat_id]
         );
     }
 
@@ -1514,7 +1514,7 @@ mod tests {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let uuid = Uuid::from_u128(307);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let archived_path = write_archived_session_file(home.path(), "2025-01-03T16-00-00", uuid)
             .expect("archived session file");
         let runtime = datax_state::StateRuntime::init(
@@ -1540,7 +1540,7 @@ mod tests {
         .await;
         assert!(
             runtime
-                .get_thread(thread_id)
+                .get_thread(chat_id)
                 .await
                 .expect("get metadata")
                 .expect("metadata")
@@ -1550,7 +1550,7 @@ mod tests {
 
         let thread = store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     name: Some(Some("Archived title".to_string())),
                     ..Default::default()
@@ -1563,7 +1563,7 @@ mod tests {
         assert!(thread.archived_at.is_some());
         assert!(
             runtime
-                .get_thread(thread_id)
+                .get_thread(chat_id)
                 .await
                 .expect("get metadata")
                 .expect("metadata")
@@ -1577,7 +1577,7 @@ mod tests {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let uuid = Uuid::from_u128(308);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let archived_path = write_archived_session_file(home.path(), "2025-01-03T16-30-00", uuid)
             .expect("archived session file");
         let runtime = datax_state::StateRuntime::init(
@@ -1603,7 +1603,7 @@ mod tests {
         .await;
         store
             .resume_thread(ResumeThreadParams {
-                thread_id,
+                chat_id,
                 rollout_path: Some(archived_path.clone()),
                 history: None,
                 include_archived: true,
@@ -1614,7 +1614,7 @@ mod tests {
 
         let thread = store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id,
+                chat_id,
                 patch: ThreadMetadataPatch {
                     name: Some(Some("Live archived title".to_string())),
                     ..Default::default()
@@ -1627,7 +1627,7 @@ mod tests {
         assert!(thread.archived_at.is_some());
         assert!(
             runtime
-                .get_thread(thread_id)
+                .get_thread(chat_id)
                 .await
                 .expect("get metadata")
                 .expect("metadata")

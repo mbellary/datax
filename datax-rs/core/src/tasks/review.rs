@@ -164,7 +164,7 @@ async fn process_review_events(
                 ..
             })
             | EventMsg::AgentMessageContentDelta(AgentMessageContentDeltaEvent { .. }) => {}
-            EventMsg::TurnComplete(task_complete) => {
+            EventMsg::InteractionComplete(task_complete) => {
                 // Parse review output from the last agent message (if present).
                 let out = task_complete
                     .last_agent_message
@@ -172,7 +172,7 @@ async fn process_review_events(
                     .map(parse_review_output_event);
                 return out;
             }
-            EventMsg::TurnAborted(_) => {
+            EventMsg::InteractionAborted(_) => {
                 // Cancellation or abort: consumer will finalize with None.
                 return None;
             }
@@ -184,7 +184,7 @@ async fn process_review_events(
             }
         }
     }
-    // Channel closed without TurnComplete: treat as interrupted.
+    // Channel closed without InteractionComplete: treat as interrupted.
     None
 }
 

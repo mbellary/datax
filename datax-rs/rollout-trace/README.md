@@ -53,7 +53,7 @@ flowchart TD
     Writer["TraceWriter\nassigns seq and writes payloads before events"]
 
     subgraph Bundle["trace bundle"]
-        Manifest["manifest.json\ntrace_id, rollout_id, root_thread_id"]
+        Manifest["manifest.json\ntrace_id, rollout_id, root_chat_id"]
         Events["trace.jsonl\nordered raw event spine"]
         Payloads["payloads/*.json\nlarge raw evidence"]
     end

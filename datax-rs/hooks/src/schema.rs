@@ -273,7 +273,7 @@ pub(crate) enum PreToolUseDecisionWire {
 pub(crate) struct PreToolUseCommandInput {
     pub session_id: String,
     /// Codex extension: expose the active turn id to internal turn-scoped hooks.
-    pub turn_id: String,
+    pub interaction_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -296,7 +296,7 @@ pub(crate) struct PreToolUseCommandInput {
 pub(crate) struct PermissionRequestCommandInput {
     pub session_id: String,
     /// Codex extension: expose the active turn id to internal turn-scoped hooks.
-    pub turn_id: String,
+    pub interaction_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -318,7 +318,7 @@ pub(crate) struct PermissionRequestCommandInput {
 pub(crate) struct PostToolUseCommandInput {
     pub session_id: String,
     /// Codex extension: expose the active turn id to internal turn-scoped hooks.
-    pub turn_id: String,
+    pub interaction_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -342,7 +342,7 @@ pub(crate) struct PostToolUseCommandInput {
 pub(crate) struct PreCompactCommandInput {
     pub session_id: String,
     /// Codex extension: expose the active turn id to internal turn-scoped hooks.
-    pub turn_id: String,
+    pub interaction_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -362,7 +362,7 @@ pub(crate) struct PreCompactCommandInput {
 pub(crate) struct PostCompactCommandInput {
     pub session_id: String,
     /// Codex extension: expose the active turn id to internal turn-scoped hooks.
-    pub turn_id: String,
+    pub interaction_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -522,7 +522,7 @@ impl SessionStartCommandInput {
 pub(crate) struct SubagentStartCommandInput {
     pub session_id: String,
     /// Codex extension: expose the active turn id to internal turn-scoped hooks.
-    pub turn_id: String,
+    pub interaction_id: String,
     pub transcript_path: NullableString,
     pub cwd: String,
     #[schemars(schema_with = "subagent_start_hook_event_name_schema")]
@@ -540,7 +540,7 @@ pub(crate) struct SubagentStartCommandInput {
 pub(crate) struct UserPromptSubmitCommandInput {
     pub session_id: String,
     /// Codex extension: expose the active turn id to internal turn-scoped hooks.
-    pub turn_id: String,
+    pub interaction_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -561,7 +561,7 @@ pub(crate) struct UserPromptSubmitCommandInput {
 pub(crate) struct StopCommandInput {
     pub session_id: String,
     /// Codex extension: expose the active turn id to internal turn-scoped hooks.
-    pub turn_id: String,
+    pub interaction_id: String,
     pub transcript_path: NullableString,
     pub cwd: String,
     #[schemars(schema_with = "stop_hook_event_name_schema")]
@@ -579,7 +579,7 @@ pub(crate) struct StopCommandInput {
 pub(crate) struct SubagentStopCommandInput {
     pub session_id: String,
     /// Codex extension: expose the active turn id to internal turn-scoped hooks.
-    pub turn_id: String,
+    pub interaction_id: String,
     pub transcript_path: NullableString,
     pub agent_transcript_path: NullableString,
     pub cwd: String,
@@ -1015,7 +1015,7 @@ mod tests {
     }
 
     #[test]
-    fn turn_scoped_hook_inputs_include_codex_turn_id_extension() {
+    fn turn_scoped_hook_inputs_include_codex_interaction_id_extension() {
         // Codex intentionally diverges from Claude's public hook docs here so
         // internal hook consumers can key off the active turn.
         let pre_tool_use: Value = serde_json::from_slice(
@@ -1071,12 +1071,12 @@ mod tests {
             &subagent_stop,
             &stop,
         ] {
-            assert_eq!(schema["properties"]["turn_id"]["type"], "string");
+            assert_eq!(schema["properties"]["interaction_id"]["type"], "string");
             assert!(
                 schema["required"]
                     .as_array()
                     .expect("schema required fields")
-                    .contains(&Value::String("turn_id".to_string()))
+                    .contains(&Value::String("interaction_id".to_string()))
             );
         }
     }
@@ -1114,7 +1114,7 @@ mod tests {
         }));
         let input = PreToolUseCommandInput {
             session_id: "session-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             agent_id: subagent.agent_id,
             agent_type: subagent.agent_type,
             transcript_path: NullableString::from_path(/*path*/ None),
@@ -1131,7 +1131,7 @@ mod tests {
             serde_json::to_value(input).expect("serialize subagent hook input"),
             json!({
                 "session_id": "session-1",
-                "turn_id": "turn-1",
+                "interaction_id": "turn-1",
                 "agent_id": "agent-1",
                 "agent_type": "worker",
                 "transcript_path": null,
@@ -1147,7 +1147,7 @@ mod tests {
 
         let root_input = PreToolUseCommandInput {
             session_id: "session-1".to_string(),
-            turn_id: "turn-1".to_string(),
+            interaction_id: "turn-1".to_string(),
             agent_id: None,
             agent_type: None,
             transcript_path: NullableString::from_path(/*path*/ None),

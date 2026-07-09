@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use datax_core::CodexThread;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::FileChange;
 use datax_protocol::protocol::Op;
 use datax_protocol::protocol::ReviewDecision;
@@ -23,7 +23,7 @@ pub struct PatchApprovalElicitRequestParams {
     #[serde(rename = "requestedSchema")]
     pub requested_schema: Value,
     #[serde(rename = "threadId")]
-    pub thread_id: ThreadId,
+    pub chat_id: ChatId,
     pub codex_elicitation: String,
     pub codex_mcp_tool_call_id: String,
     pub codex_event_id: String,
@@ -51,7 +51,7 @@ pub(crate) async fn handle_patch_approval_request(
     request_id: RequestId,
     tool_call_id: String,
     event_id: String,
-    thread_id: ThreadId,
+    chat_id: ChatId,
 ) {
     let approval_id = call_id.clone();
     let mut message_lines = Vec::new();
@@ -63,7 +63,7 @@ pub(crate) async fn handle_patch_approval_request(
     let params = PatchApprovalElicitRequestParams {
         message: message_lines.join("\n"),
         requested_schema: json!({"type":"object","properties":{}}),
-        thread_id,
+        chat_id,
         codex_elicitation: "patch-approval".to_string(),
         codex_mcp_tool_call_id: tool_call_id.clone(),
         codex_event_id: event_id.clone(),

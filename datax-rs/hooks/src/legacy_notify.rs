@@ -14,9 +14,9 @@ use crate::command_from_argv;
 #[serde(tag = "type", rename_all = "kebab-case")]
 enum UserNotification {
     #[serde(rename_all = "kebab-case")]
-    AgentTurnComplete {
-        thread_id: String,
-        turn_id: String,
+    AgentInteractionComplete {
+        chat_id: String,
+        interaction_id: String,
         cwd: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         client: Option<String>,
@@ -28,9 +28,9 @@ enum UserNotification {
 pub fn legacy_notify_json(payload: &HookPayload) -> Result<String, serde_json::Error> {
     match &payload.hook_event {
         HookEvent::AfterAgent { event } => {
-            serde_json::to_string(&UserNotification::AgentTurnComplete {
-                thread_id: event.thread_id.to_string(),
-                turn_id: event.turn_id.clone(),
+            serde_json::to_string(&UserNotification::AgentInteractionComplete {
+                chat_id: event.chat_id.to_string(),
+                interaction_id: event.interaction_id.clone(),
                 cwd: payload.cwd.display().to_string(),
                 client: payload.client.clone(),
                 input_messages: event.input_messages.clone(),
@@ -72,7 +72,7 @@ pub fn notify_hook(argv: Vec<String>) -> Hook {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use datax_utils_absolute_path::test_support::PathBufExt;
     use datax_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
@@ -97,9 +97,9 @@ mod tests {
 
     #[test]
     fn test_user_notification() -> Result<()> {
-        let notification = UserNotification::AgentTurnComplete {
-            thread_id: "b5f6c1c2-1111-2222-3333-444455556666".to_string(),
-            turn_id: "12345".to_string(),
+        let notification = UserNotification::AgentInteractionComplete {
+            chat_id: "b5f6c1c2-1111-2222-3333-444455556666".to_string(),
+            interaction_id: "12345".to_string(),
             cwd: test_path_buf("/Users/example/project")
                 .display()
                 .to_string(),
@@ -118,15 +118,15 @@ mod tests {
     #[test]
     fn legacy_notify_json_matches_historical_wire_shape() -> Result<()> {
         let payload = HookPayload {
-            session_id: ThreadId::new(),
+            session_id: ChatId::new(),
             cwd: test_path_buf("/Users/example/project").abs(),
             client: Some("datax-tui".to_string()),
             triggered_at: chrono::Utc::now(),
             hook_event: HookEvent::AfterAgent {
                 event: HookEventAfterAgent {
-                    thread_id: ThreadId::from_string("b5f6c1c2-1111-2222-3333-444455556666")
+                    chat_id: ChatId::from_string("b5f6c1c2-1111-2222-3333-444455556666")
                         .expect("valid thread id"),
-                    turn_id: "12345".to_string(),
+                    interaction_id: "12345".to_string(),
                     input_messages: vec![
                         "Rename `foo` to `bar` and update the callsites.".to_string(),
                     ],

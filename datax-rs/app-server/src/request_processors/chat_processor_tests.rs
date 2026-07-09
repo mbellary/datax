@@ -120,7 +120,7 @@ mod thread_processor_behavior_tests {
     use datax_config::ThreadConfigSource;
     use datax_model_provider_info::ModelProviderInfo;
     use datax_model_provider_info::WireApi;
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use datax_protocol::config_types::CollaborationMode;
     use datax_protocol::config_types::ModeKind;
     use datax_protocol::config_types::Settings;
@@ -464,13 +464,13 @@ mod thread_processor_behavior_tests {
         let updated_at =
             DateTime::parse_from_rfc3339("2025-01-02T03:04:06.789Z").expect("valid timestamp");
         let chat_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000123").expect("valid thread");
+            ChatId::from_string("00000000-0000-0000-0000-000000000123").expect("valid thread");
         let stored_thread = StoredThread {
-            thread_id: chat_id,
+            chat_id: chat_id,
             extra_config: None,
             rollout_path: Some(PathBuf::from("/tmp/thread.jsonl")),
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             preview: "preview".to_string(),
             name: None,
             model_provider: "openai".to_string(),
@@ -777,8 +777,8 @@ mod thread_processor_behavior_tests {
                 },
             },
             session_source: SessionSource::Cli,
-            forked_from_thread_id: None,
-            parent_thread_id: None,
+            forked_from_chat_id: None,
+            parent_chat_id: None,
             thread_source: None,
         };
 
@@ -792,7 +792,7 @@ mod thread_processor_behavior_tests {
         model: Option<&str>,
         reasoning_effort: Option<ReasoningEffort>,
     ) -> Result<ThreadMetadata> {
-        let chat_id = ThreadId::from_string("3f941c35-29b3-493b-b0a4-e25800d9aeb0")?;
+        let chat_id = ChatId::from_string("3f941c35-29b3-493b-b0a4-e25800d9aeb0")?;
         let mut builder = ThreadMetadataBuilder::new(
             chat_id,
             PathBuf::from("/tmp/rollout.jsonl"),
@@ -999,7 +999,7 @@ mod thread_processor_behavior_tests {
         let temp_dir = TempDir::new()?;
         let path = temp_dir.path().join("rollout.jsonl");
 
-        let conversation_id = ThreadId::from_string("bfd12a78-5900-467b-9bc5-d3d35df08191")?;
+        let conversation_id = ChatId::from_string("bfd12a78-5900-467b-9bc5-d3d35df08191")?;
         let timestamp = "2025-09-05T16:53:11.850Z".to_string();
 
         let session_meta = SessionMeta {
@@ -1055,8 +1055,8 @@ mod thread_processor_behavior_tests {
         let temp_dir = TempDir::new()?;
         let path = temp_dir.path().join("rollout.jsonl");
 
-        let conversation_id = ThreadId::from_string("bfd12a78-5900-467b-9bc5-d3d35df08191")?;
-        let parent_chat_id = ThreadId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
+        let conversation_id = ChatId::from_string("bfd12a78-5900-467b-9bc5-d3d35df08191")?;
+        let parent_chat_id = ChatId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
         let timestamp = "2025-09-05T16:53:11.850Z".to_string();
 
         let session_meta = SessionMeta {
@@ -1064,7 +1064,7 @@ mod thread_processor_behavior_tests {
             id: conversation_id,
             timestamp: timestamp.clone(),
             source: SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-                parent_thread_id: parent_chat_id,
+                parent_chat_id: parent_chat_id,
                 depth: 1,
                 agent_path: None,
                 agent_nickname: None,
@@ -1106,8 +1106,8 @@ mod thread_processor_behavior_tests {
         let temp_dir = TempDir::new()?;
         let path = temp_dir.path().join("rollout.jsonl");
 
-        let conversation_id = ThreadId::from_string("bfd12a78-5900-467b-9bc5-d3d35df08191")?;
-        let forked_from_id = ThreadId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
+        let conversation_id = ChatId::from_string("bfd12a78-5900-467b-9bc5-d3d35df08191")?;
+        let forked_from_id = ChatId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
         let timestamp = "2025-09-05T16:53:11.850Z".to_string();
 
         let session_meta = SessionMeta {
@@ -1137,7 +1137,7 @@ mod thread_processor_behavior_tests {
 
     #[tokio::test]
     async fn aborting_pending_request_clears_pending_state() -> Result<()> {
-        let chat_id = ThreadId::from_string("bfd12a78-5900-467b-9bc5-d3d35df08191")?;
+        let chat_id = ChatId::from_string("bfd12a78-5900-467b-9bc5-d3d35df08191")?;
         let connection_id = ConnectionId(7);
 
         let (outgoing_tx, mut outgoing_rx) = tokio::sync::mpsc::channel(8);
@@ -1198,10 +1198,10 @@ mod thread_processor_behavior_tests {
 
     #[test]
     fn summary_from_state_db_metadata_preserves_agent_nickname() -> Result<()> {
-        let conversation_id = ThreadId::from_string("bfd12a78-5900-467b-9bc5-d3d35df08191")?;
+        let conversation_id = ChatId::from_string("bfd12a78-5900-467b-9bc5-d3d35df08191")?;
         let source =
             serde_json::to_string(&SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-                parent_thread_id: ThreadId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?,
+                parent_chat_id: ChatId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?,
                 depth: 1,
                 agent_path: None,
                 agent_nickname: None,
@@ -1238,7 +1238,7 @@ mod thread_processor_behavior_tests {
     #[tokio::test]
     async fn removing_thread_state_clears_listener_and_active_turn_history() -> Result<()> {
         let manager = ThreadStateManager::new();
-        let chat_id = ThreadId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
+        let chat_id = ChatId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
         let connection = ConnectionId(1);
         let (cancel_tx, cancel_rx) = oneshot::channel();
 
@@ -1257,8 +1257,8 @@ mod thread_processor_behavior_tests {
             state.cancel_tx = Some(cancel_tx);
             state.track_current_turn_event(
                 "turn-1",
-                &EventMsg::TurnStarted(datax_protocol::protocol::TurnStartedEvent {
-                    turn_id: "turn-1".to_string(),
+                &EventMsg::InteractionStarted(datax_protocol::protocol::InteractionStartedEvent {
+                    interaction_id: "turn-1".to_string(),
                     trace_id: None,
                     started_at: None,
                     model_context_window: None,
@@ -1283,7 +1283,7 @@ mod thread_processor_behavior_tests {
     async fn removing_auto_attached_connection_preserves_listener_for_other_connections()
     -> Result<()> {
         let manager = ThreadStateManager::new();
-        let chat_id = ThreadId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
+        let chat_id = ChatId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
         let connection_a = ConnectionId(1);
         let connection_b = ConnectionId(2);
         let (cancel_tx, mut cancel_rx) = oneshot::channel();
@@ -1316,7 +1316,7 @@ mod thread_processor_behavior_tests {
         }
 
         let threads_to_unload = manager.remove_connection(connection_a).await;
-        assert_eq!(threads_to_unload, Vec::<ThreadId>::new());
+        assert_eq!(threads_to_unload, Vec::<ChatId>::new());
         assert!(
             tokio::time::timeout(Duration::from_millis(20), &mut cancel_rx)
                 .await
@@ -1333,7 +1333,7 @@ mod thread_processor_behavior_tests {
     #[tokio::test]
     async fn adding_connection_to_thread_updates_has_connections_watcher() -> Result<()> {
         let manager = ThreadStateManager::new();
-        let chat_id = ThreadId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
+        let chat_id = ChatId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
         let connection_a = ConnectionId(1);
         let connection_b = ConnectionId(2);
 
@@ -1384,7 +1384,7 @@ mod thread_processor_behavior_tests {
     #[tokio::test]
     async fn wait_for_thread_subscriber_unblocks_after_connection_attaches() -> Result<()> {
         let manager = ThreadStateManager::new();
-        let chat_id = ThreadId::from_string("ba62fd70-2ec2-4b1b-9d94-355694332dd2")?;
+        let chat_id = ChatId::from_string("ba62fd70-2ec2-4b1b-9d94-355694332dd2")?;
         let connection = ConnectionId(1);
         manager
             .connection_initialized(connection, ConnectionCapabilities::default())
@@ -1409,14 +1409,14 @@ mod thread_processor_behavior_tests {
     #[tokio::test]
     async fn closed_connection_cannot_be_reintroduced_by_auto_subscribe() -> Result<()> {
         let manager = ThreadStateManager::new();
-        let chat_id = ThreadId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
+        let chat_id = ChatId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
         let connection = ConnectionId(1);
 
         manager
             .connection_initialized(connection, ConnectionCapabilities::default())
             .await;
         let threads_to_unload = manager.remove_connection(connection).await;
-        assert_eq!(threads_to_unload, Vec::<ThreadId>::new());
+        assert_eq!(threads_to_unload, Vec::<ChatId>::new());
 
         assert!(
             manager
@@ -1434,8 +1434,8 @@ mod thread_processor_behavior_tests {
     async fn first_attestation_capable_connection_for_thread_only_uses_thread_subscribers()
     -> Result<()> {
         let manager = ThreadStateManager::new();
-        let chat_id = ThreadId::from_string("dfbd9a95-2f44-470a-8bd8-1cfc04efc243")?;
-        let other_thread_id = ThreadId::from_string("6c9a74e4-5e59-479e-90bf-5c5798bb50aa")?;
+        let chat_id = ChatId::from_string("dfbd9a95-2f44-470a-8bd8-1cfc04efc243")?;
+        let other_chat_id = ChatId::from_string("6c9a74e4-5e59-479e-90bf-5c5798bb50aa")?;
         let unrelated_supported_connection = ConnectionId(1);
         let earlier_supported_connection = ConnectionId(2);
         let later_supported_connection = ConnectionId(3);
@@ -1471,7 +1471,7 @@ mod thread_processor_behavior_tests {
 
         assert!(
             manager
-                .try_add_connection_to_thread(other_thread_id, unrelated_supported_connection)
+                .try_add_connection_to_thread(other_chat_id, unrelated_supported_connection)
                 .await
         );
         assert!(
@@ -1498,7 +1498,7 @@ mod thread_processor_behavior_tests {
         );
         assert_eq!(
             manager
-                .first_attestation_capable_connection_for_thread(other_thread_id)
+                .first_attestation_capable_connection_for_thread(other_chat_id)
                 .await,
             Some(unrelated_supported_connection)
         );

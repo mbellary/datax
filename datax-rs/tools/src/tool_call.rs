@@ -81,7 +81,7 @@ impl TurnItemEmitter for NoopTurnItemEmitter {
 
 #[derive(Clone)]
 pub struct ToolCall {
-    pub turn_id: String,
+    pub interaction_id: String,
     pub call_id: String,
     pub tool_name: ToolName,
     pub model: String,
@@ -95,7 +95,7 @@ pub struct ToolCall {
 impl std::fmt::Debug for ToolCall {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ToolCall")
-            .field("turn_id", &self.turn_id)
+            .field("interaction_id", &self.interaction_id)
             .field("call_id", &self.call_id)
             .field("tool_name", &self.tool_name)
             .field("model", &self.model)

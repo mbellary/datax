@@ -52,7 +52,7 @@ const IMAGEGEN_DESCRIPTION: &str = include_str!("../imagegen_description.md");
 pub(crate) struct ImageGenerationTool {
     backend: CodexImagesBackend,
     codex_home: AbsolutePathBuf,
-    thread_id: String,
+    chat_id: String,
 }
 
 impl ImageGenerationTool {
@@ -60,12 +60,12 @@ impl ImageGenerationTool {
     pub(crate) fn new(
         backend: CodexImagesBackend,
         codex_home: AbsolutePathBuf,
-        thread_id: String,
+        chat_id: String,
     ) -> Self {
         Self {
             backend,
             codex_home,
-            thread_id,
+            chat_id,
         }
     }
 }
@@ -155,7 +155,7 @@ impl ImageGenerationTool {
             }))
             .await;
         let output_path =
-            image_generation_artifact_path(&self.codex_home, &self.thread_id, &call.call_id);
+            image_generation_artifact_path(&self.codex_home, &self.chat_id, &call.call_id);
         let output_dir = output_path
             .parent()
             .unwrap_or_else(|| self.codex_home.clone());

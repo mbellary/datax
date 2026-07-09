@@ -19,7 +19,7 @@ use crate::session::turn_context::TurnContext;
 use crate::tools::parallel::ToolCallRuntime;
 use crate::tools::router::ToolRouter;
 use datax_memories_read::citations::parse_memory_citation;
-use datax_memories_read::citations::thread_ids_from_memory_citation;
+use datax_memories_read::citations::chat_ids_from_memory_citation;
 use datax_protocol::error::CodexErr;
 use datax_protocol::error::Result;
 use datax_protocol::memory_citation::MemoryCitation;
@@ -133,7 +133,7 @@ pub(crate) async fn persist_image_generation_item(
     image_item: &mut ImageGenerationItem,
 ) -> Option<AbsolutePathBuf> {
     image_item.saved_path = None;
-    let session_id = sess.thread_id.to_string();
+    let session_id = sess.chat_id.to_string();
     match save_image_generation_result(
         &turn_context.config.codex_home,
         &session_id,
@@ -173,7 +173,7 @@ async fn record_image_generation_instructions(
     if image_item.saved_path.is_none() {
         return;
     }
-    let session_id = sess.thread_id.to_string();
+    let session_id = sess.chat_id.to_string();
     let image_output_path =
         image_generation_artifact_path(&turn_context.config.codex_home, &session_id, "<image_id>");
     let image_output_dir = image_output_path
@@ -264,7 +264,7 @@ pub(crate) async fn mark_thread_memory_mode_polluted_if_external_context(
     }
     state_db::mark_thread_memory_mode_polluted(
         sess.services.state_db.as_deref(),
-        sess.thread_id,
+        sess.chat_id,
         "record_completed_response_item",
     )
     .await;
@@ -289,13 +289,13 @@ async fn record_stage1_output_usage_for_memory_citation(
     state_db_ctx: Option<&state_db::StateDbHandle>,
     memory_citation: &MemoryCitation,
 ) -> bool {
-    let thread_ids = thread_ids_from_memory_citation(memory_citation);
-    if thread_ids.is_empty() {
+    let chat_ids = chat_ids_from_memory_citation(memory_citation);
+    if chat_ids.is_empty() {
         return true;
     }
 
     if let Some(db) = state_db_ctx {
-        let _ = db.memories().record_stage1_output_usage(&thread_ids).await;
+        let _ = db.memories().record_stage1_output_usage(&chat_ids).await;
     }
     true
 }
@@ -423,7 +423,7 @@ pub(crate) async fn handle_output_item_done(
 
             let payload_preview = call.payload.log_payload().into_owned();
             tracing::info!(
-                thread_id = %ctx.sess.thread_id,
+                chat_id = %ctx.sess.chat_id,
                 "ToolCall: {} {}",
                 call.tool_name,
                 payload_preview

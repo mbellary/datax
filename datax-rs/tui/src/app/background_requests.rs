@@ -38,29 +38,29 @@ impl App {
         &mut self,
         app_server: &AppServerSession,
         detail: McpServerStatusDetail,
-        thread_id: Option<ThreadId>,
+        chat_id: Option<ChatId>,
     ) {
         let request_handle = app_server.request_handle();
         let app_event_tx = self.app_event_tx.clone();
-        let request_thread_id = self.mcp_inventory_request_thread_id(thread_id);
+        let request_chat_id = self.mcp_inventory_request_chat_id(chat_id);
         tokio::spawn(async move {
-            let result = fetch_all_mcp_server_statuses(request_handle, detail, request_thread_id)
+            let result = fetch_all_mcp_server_statuses(request_handle, detail, request_chat_id)
                 .await
                 .map_err(|err| err.to_string());
             app_event_tx.send(AppEvent::McpInventoryLoaded {
                 result,
                 detail,
-                thread_id,
+                chat_id,
             });
         });
     }
 
-    fn mcp_inventory_request_thread_id(&self, thread_id: Option<ThreadId>) -> Option<ThreadId> {
-        thread_id.filter(|thread_id| {
-            self.active_thread_id == Some(*thread_id)
+    fn mcp_inventory_request_chat_id(&self, chat_id: Option<ChatId>) -> Option<ChatId> {
+        chat_id.filter(|chat_id| {
+            self.active_chat_id == Some(*chat_id)
                 && self
                     .agent_navigation
-                    .get(thread_id)
+                    .get(chat_id)
                     .is_none_or(|entry| !entry.is_closed)
         })
     }
@@ -224,11 +224,11 @@ impl App {
     ) {
         let request_handle = app_server.request_handle();
         let app_event_tx = self.app_event_tx.clone();
-        let thread_id = self
-            .current_displayed_thread_id()
-            .map(|thread_id| thread_id.to_string());
+        let chat_id = self
+            .current_displayed_chat_id()
+            .map(|chat_id| chat_id.to_string());
         tokio::spawn(async move {
-            let result = fetch_connectors_list(request_handle, force_refetch, thread_id)
+            let result = fetch_connectors_list(request_handle, force_refetch, chat_id)
                 .await
                 .map_err(|err| err.to_string());
             app_event_tx.send(AppEvent::ConnectorsLoaded {
@@ -559,23 +559,23 @@ impl App {
         app_server: &AppServerSession,
         category: FeedbackCategory,
         reason: Option<String>,
-        turn_id: Option<String>,
+        interaction_id: Option<String>,
         include_logs: bool,
     ) {
         let request_handle = app_server.request_handle();
         let app_event_tx = self.app_event_tx.clone();
-        let origin_thread_id = self.chat_widget.thread_id();
+        let origin_chat_id = self.chat_widget.chat_id();
         let rollout_path = if include_logs {
             self.chat_widget.rollout_path()
         } else {
             None
         };
         let params = build_feedback_upload_params(
-            origin_thread_id,
+            origin_chat_id,
             rollout_path,
             category,
             reason,
-            turn_id,
+            interaction_id,
             include_logs,
         );
         tokio::spawn(async move {
@@ -584,7 +584,7 @@ impl App {
                 .map(|response| response.chat_id)
                 .map_err(|err| err.to_string());
             app_event_tx.send(AppEvent::FeedbackSubmitted {
-                origin_thread_id,
+                origin_chat_id,
                 category,
                 include_logs,
                 result,
@@ -594,12 +594,12 @@ impl App {
 
     pub(super) fn handle_feedback_thread_event(&mut self, event: FeedbackThreadEvent) {
         match event.result {
-            Ok(thread_id) => {
+            Ok(chat_id) => {
                 self.chat_widget
                     .add_to_history(crate::bottom_pane::feedback_success_cell(
                         event.category,
                         event.include_logs,
-                        &thread_id,
+                        &chat_id,
                         event.feedback_audience,
                     ))
             }
@@ -613,11 +613,11 @@ impl App {
 
     pub(super) async fn enqueue_thread_feedback_event(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         event: FeedbackThreadEvent,
     ) {
         let (sender, store) = {
-            let channel = self.ensure_thread_channel(thread_id);
+            let channel = self.ensure_thread_channel(chat_id);
             (channel.sender.clone(), Arc::clone(&channel.store))
         };
 
@@ -643,12 +643,12 @@ impl App {
                 Err(TrySendError::Full(event)) => {
                     tokio::spawn(async move {
                         if let Err(err) = sender.send(event).await {
-                            tracing::warn!("thread {thread_id} event channel closed: {err}");
+                            tracing::warn!("thread {chat_id} event channel closed: {err}");
                         }
                     });
                 }
                 Err(TrySendError::Closed(_)) => {
-                    tracing::warn!("thread {thread_id} event channel closed");
+                    tracing::warn!("thread {chat_id} event channel closed");
                 }
             }
         }
@@ -656,7 +656,7 @@ impl App {
 
     pub(super) async fn handle_feedback_submitted(
         &mut self,
-        origin_thread_id: Option<ThreadId>,
+        origin_chat_id: Option<ChatId>,
         category: FeedbackCategory,
         include_logs: bool,
         result: Result<String, String>,
@@ -667,8 +667,8 @@ impl App {
             feedback_audience: self.feedback_audience,
             result,
         };
-        if let Some(thread_id) = origin_thread_id {
-            self.enqueue_thread_feedback_event(thread_id, event).await;
+        if let Some(chat_id) = origin_chat_id {
+            self.enqueue_thread_feedback_event(chat_id, event).await;
         } else {
             self.handle_feedback_thread_event(event);
         }
@@ -683,9 +683,9 @@ impl App {
         &mut self,
         result: Result<Vec<McpServerStatus>, String>,
         detail: McpServerStatusDetail,
-        thread_id: Option<ThreadId>,
+        chat_id: Option<ChatId>,
     ) {
-        if thread_id.is_some() && thread_id != self.current_displayed_thread_id() {
+        if chat_id.is_some() && chat_id != self.current_displayed_chat_id() {
             return;
         }
 
@@ -732,11 +732,11 @@ impl App {
 pub(super) async fn fetch_all_mcp_server_statuses(
     request_handle: AppServerRequestHandle,
     detail: McpServerStatusDetail,
-    thread_id: Option<ThreadId>,
+    chat_id: Option<ChatId>,
 ) -> Result<Vec<McpServerStatus>> {
     let mut cursor = None;
     let mut statuses = Vec::new();
-    let thread_id = thread_id.map(|id| id.to_string());
+    let chat_id = chat_id.map(|id| id.to_string());
 
     loop {
         let request_id = RequestId::String(format!("mcp-inventory-{}", Uuid::new_v4()));
@@ -747,7 +747,7 @@ pub(super) async fn fetch_all_mcp_server_statuses(
                     cursor: cursor.clone(),
                     limit: Some(100),
                     detail: Some(detail),
-                    chat_id: thread_id.clone(),
+                    chat_id: chat_id.clone(),
                 },
             })
             .await
@@ -854,7 +854,7 @@ pub(super) async fn fetch_skills_list(
 pub(super) async fn fetch_connectors_list(
     request_handle: AppServerRequestHandle,
     force_refetch: bool,
-    thread_id: Option<String>,
+    chat_id: Option<String>,
 ) -> Result<ConnectorsSnapshot> {
     let request_id = RequestId::String(format!("apps-list-{}", Uuid::new_v4()));
     let response: AppsListResponse = request_handle
@@ -863,7 +863,7 @@ pub(super) async fn fetch_connectors_list(
             params: AppsListParams {
                 cursor: None,
                 limit: None,
-                chat_id: thread_id,
+                chat_id: chat_id,
                 force_refetch,
             },
         })
@@ -1206,11 +1206,11 @@ pub(super) async fn write_hook_enabled(
 }
 
 pub(super) fn build_feedback_upload_params(
-    origin_thread_id: Option<ThreadId>,
+    origin_chat_id: Option<ChatId>,
     rollout_path: Option<PathBuf>,
     category: FeedbackCategory,
     reason: Option<String>,
-    turn_id: Option<String>,
+    interaction_id: Option<String>,
     include_logs: bool,
 ) -> FeedbackUploadParams {
     let extra_log_files = if include_logs {
@@ -1218,11 +1218,11 @@ pub(super) fn build_feedback_upload_params(
     } else {
         None
     };
-    let tags = turn_id.map(|turn_id| BTreeMap::from([(String::from("turn_id"), turn_id)]));
+    let tags = interaction_id.map(|interaction_id| BTreeMap::from([(String::from("interaction_id"), interaction_id)]));
     FeedbackUploadParams {
         classification: crate::bottom_pane::feedback_classification(category).to_string(),
         reason,
-        chat_id: origin_thread_id.map(|thread_id| thread_id.to_string()),
+        chat_id: origin_chat_id.map(|chat_id| chat_id.to_string()),
         include_logs,
         extra_log_files,
         tags,
@@ -1490,32 +1490,32 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn mcp_inventory_omits_thread_id_for_closed_agent_thread() {
+    async fn mcp_inventory_omits_chat_id_for_closed_agent_thread() {
         let mut app = make_test_app().await;
-        let thread_id = ThreadId::new();
-        app.active_thread_id = Some(thread_id);
+        let chat_id = ChatId::new();
+        app.active_chat_id = Some(chat_id);
         app.agent_navigation.upsert(
-            thread_id, /*agent_nickname*/ None, /*agent_role*/ None,
+            chat_id, /*agent_nickname*/ None, /*agent_role*/ None,
             /*is_closed*/ false,
         );
 
         assert_eq!(
-            app.mcp_inventory_request_thread_id(Some(thread_id)),
-            Some(thread_id)
+            app.mcp_inventory_request_chat_id(Some(chat_id)),
+            Some(chat_id)
         );
 
-        app.agent_navigation.mark_closed(thread_id);
+        app.agent_navigation.mark_closed(chat_id);
 
-        assert_eq!(app.mcp_inventory_request_thread_id(Some(thread_id)), None);
+        assert_eq!(app.mcp_inventory_request_chat_id(Some(chat_id)), None);
     }
 
     #[test]
-    fn build_feedback_upload_params_includes_thread_id_and_rollout_path() {
-        let thread_id = ThreadId::new();
+    fn build_feedback_upload_params_includes_chat_id_and_rollout_path() {
+        let chat_id = ChatId::new();
         let rollout_path = PathBuf::from("/tmp/rollout.jsonl");
 
         let params = build_feedback_upload_params(
-            Some(thread_id),
+            Some(chat_id),
             Some(rollout_path.clone()),
             FeedbackCategory::SafetyCheck,
             Some("needs follow-up".to_string()),
@@ -1525,12 +1525,12 @@ mod tests {
 
         assert_eq!(params.classification, "safety_check");
         assert_eq!(params.reason, Some("needs follow-up".to_string()));
-        assert_eq!(params.chat_id, Some(thread_id.to_string()));
+        assert_eq!(params.chat_id, Some(chat_id.to_string()));
         assert_eq!(
             params
                 .tags
                 .as_ref()
-                .and_then(|tags| tags.get("turn_id"))
+                .and_then(|tags| tags.get("interaction_id"))
                 .map(String::as_str),
             Some("turn-123")
         );
@@ -1541,11 +1541,11 @@ mod tests {
     #[test]
     fn build_feedback_upload_params_omits_rollout_path_without_logs() {
         let params = build_feedback_upload_params(
-            /*origin_thread_id*/ None,
+            /*origin_chat_id*/ None,
             Some(PathBuf::from("/tmp/rollout.jsonl")),
             FeedbackCategory::GoodResult,
             /*reason*/ None,
-            /*turn_id*/ None,
+            /*interaction_id*/ None,
             /*include_logs*/ false,
         );
 

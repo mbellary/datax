@@ -17,7 +17,7 @@ pub struct TurnInputEnvironment {
 #[derive(Debug, Clone)]
 pub struct TurnInputContext {
     /// Stable host-owned turn identifier.
-    pub turn_id: String,
+    pub interaction_id: String,
     /// User input submitted for this turn.
     pub user_input: Vec<UserInput>,
     /// Resolved turn environments, in host priority order.

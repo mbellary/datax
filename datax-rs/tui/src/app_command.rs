@@ -61,7 +61,7 @@ pub(crate) enum AppCommand {
     },
     ExecApproval {
         id: String,
-        turn_id: Option<String>,
+        interaction_id: Option<String>,
         decision: CommandExecutionApprovalDecision,
     },
     PatchApproval {
@@ -194,12 +194,12 @@ impl AppCommand {
 
     pub(crate) fn exec_approval(
         id: String,
-        turn_id: Option<String>,
+        interaction_id: Option<String>,
         decision: CommandExecutionApprovalDecision,
     ) -> Self {
         Self::ExecApproval {
             id,
-            turn_id,
+            interaction_id,
             decision,
         }
     }

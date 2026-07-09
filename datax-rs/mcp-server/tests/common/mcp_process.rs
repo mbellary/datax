@@ -308,7 +308,7 @@ impl McpProcess {
         }
     }
 
-    /// Reads notifications until a legacy TurnComplete event is observed:
+    /// Reads notifications until a legacy InteractionComplete event is observed:
     /// Method "codex/event" with params.msg.type == "task_complete".
     pub async fn read_stream_until_legacy_task_complete_notification(
         &mut self,

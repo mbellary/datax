@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::HookCompletedEvent;
 use datax_protocol::protocol::HookEventName;
 use datax_protocol::protocol::HookOutputEntry;
@@ -21,8 +21,8 @@ use crate::schema::UserPromptSubmitCommandInput;
 
 #[derive(Debug, Clone)]
 pub struct UserPromptSubmitRequest {
-    pub session_id: ThreadId,
-    pub turn_id: String,
+    pub session_id: ChatId,
+    pub interaction_id: String,
     pub subagent: Option<common::SubagentHookContext>,
     pub cwd: AbsolutePathBuf,
     pub transcript_path: Option<PathBuf>,
@@ -82,7 +82,7 @@ pub(crate) async fn run(
     let subagent = SubagentCommandInputFields::from(request.subagent.as_ref());
     let input_json = match serde_json::to_string(&UserPromptSubmitCommandInput {
         session_id: request.session_id.to_string(),
-        turn_id: request.turn_id.clone(),
+        interaction_id: request.interaction_id.clone(),
         agent_id: subagent.agent_id,
         agent_type: subagent.agent_type,
         transcript_path: NullableString::from_path(request.transcript_path.clone()),
@@ -96,7 +96,7 @@ pub(crate) async fn run(
         Err(error) => {
             return serialization_failure_outcome(common::serialization_failure_hook_events(
                 matched,
-                Some(request.turn_id),
+                Some(request.interaction_id),
                 format!("failed to serialize user prompt submit hook input: {error}"),
             ));
         }
@@ -107,7 +107,7 @@ pub(crate) async fn run(
         matched,
         input_json,
         request.cwd.as_path(),
-        Some(request.turn_id),
+        Some(request.interaction_id),
         parse_completed,
     )
     .await;
@@ -133,7 +133,7 @@ pub(crate) async fn run(
 fn parse_completed(
     handler: &ConfiguredHandler,
     run_result: CommandRunResult,
-    turn_id: Option<String>,
+    interaction_id: Option<String>,
 ) -> dispatcher::ParsedHandler<UserPromptSubmitHandlerData> {
     let mut entries = Vec::new();
     let mut status = HookRunStatus::Completed;
@@ -249,7 +249,7 @@ fn parse_completed(
     }
 
     let completed = HookCompletedEvent {
-        turn_id,
+        interaction_id,
         run: dispatcher::completed_summary(handler, &run_result, status, entries),
     };
 

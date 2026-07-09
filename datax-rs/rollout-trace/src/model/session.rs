@@ -4,7 +4,7 @@ use serde::Serialize;
 use crate::raw_event::RawEventSeq;
 
 use super::AgentPath;
-use super::AgentThreadId;
+use super::AgentChatId;
 use super::CodexTurnId;
 use super::ConversationItemId;
 use super::EdgeId;
@@ -31,7 +31,7 @@ pub enum RolloutStatus {
 /// here because compaction/reconciliation makes it semantic.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AgentThread {
-    pub thread_id: AgentThreadId,
+    pub chat_id: AgentChatId,
     /// Stable routing identity. Viewer/search should prefer this over nickname.
     pub agent_path: AgentPath,
     /// Presentation hint. It can collide and must not be used as identity.
@@ -55,7 +55,7 @@ pub struct AgentThread {
 pub enum AgentOrigin {
     Root,
     Spawned {
-        parent_thread_id: AgentThreadId,
+        parent_chat_id: AgentChatId,
         /// Interaction edge that carried the spawn task.
         spawn_edge_id: EdgeId,
         /// Stable path segment/task name selected by the parent/tool call.
@@ -102,8 +102,8 @@ pub enum ExecutionStatus {
 /// `ConversationItem`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CodexTurn {
-    pub codex_turn_id: CodexTurnId,
-    pub thread_id: AgentThreadId,
+    pub codex_interaction_id: CodexTurnId,
+    pub chat_id: AgentChatId,
     pub execution: ExecutionWindow,
     /// Conversation items that directly triggered this activation, when known.
     pub input_item_ids: Vec<ConversationItemId>,

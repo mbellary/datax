@@ -43,7 +43,7 @@ pub(super) struct ThreadEventStore {
     pub(super) turns: Vec<Interaction>,
     pub(super) buffer: VecDeque<ThreadBufferedEvent>,
     pub(super) pending_interactive_replay: PendingInteractiveReplayState,
-    pub(super) active_turn_id: Option<String>,
+    pub(super) active_interaction_id: Option<String>,
     pub(super) input_state: Option<ThreadInputState>,
     pub(super) capacity: usize,
     pub(super) active: bool,
@@ -67,7 +67,7 @@ impl ThreadEventStore {
             turns: Vec::new(),
             buffer: VecDeque::new(),
             pending_interactive_replay: PendingInteractiveReplayState::default(),
-            active_turn_id: None,
+            active_interaction_id: None,
             input_state: None,
             capacity,
             active: false,
@@ -96,7 +96,7 @@ impl ThreadEventStore {
     }
 
     pub(super) fn set_turns(&mut self, turns: Vec<Interaction>) {
-        self.active_turn_id = turns
+        self.active_interaction_id = turns
             .iter()
             .rev()
             .find(|turn| matches!(turn.status, InteractionStatus::InProgress))
@@ -109,15 +109,15 @@ impl ThreadEventStore {
             .note_server_notification(&notification);
         match &notification {
             ServerNotification::InteractionStarted(turn) => {
-                self.active_turn_id = Some(turn.turn.id.clone());
+                self.active_interaction_id = Some(turn.turn.id.clone());
             }
             ServerNotification::InteractionCompleted(turn)
-                if self.active_turn_id.as_deref() == Some(turn.turn.id.as_str()) =>
+                if self.active_interaction_id.as_deref() == Some(turn.turn.id.as_str()) =>
             {
-                self.active_turn_id = None;
+                self.active_interaction_id = None;
             }
             ServerNotification::ChatClosed(_) => {
-                self.active_turn_id = None;
+                self.active_interaction_id = None;
             }
             _ => {}
         }
@@ -166,7 +166,7 @@ impl ThreadEventStore {
 
     pub(super) fn file_change_changes(
         &self,
-        turn_id: &str,
+        interaction_id: &str,
         item_id: &str,
     ) -> Option<Vec<datax_app_server_protocol::FileUpdateChange>> {
         self.buffer
@@ -175,12 +175,12 @@ impl ThreadEventStore {
             .find_map(|event| match event {
                 ThreadBufferedEvent::Notification(ServerNotification::MessageStarted(
                     notification,
-                )) if turn_id_matches(turn_id, &notification.interaction_id) => {
+                )) if interaction_id_matches(interaction_id, &notification.interaction_id) => {
                     file_change_item_changes(&notification.item, item_id)
                 }
                 ThreadBufferedEvent::Notification(ServerNotification::MessageCompleted(
                     notification,
-                )) if turn_id_matches(turn_id, &notification.interaction_id) => {
+                )) if interaction_id_matches(interaction_id, &notification.interaction_id) => {
                     file_change_item_changes(&notification.item, item_id)
                 }
                 ThreadBufferedEvent::Request(_)
@@ -192,7 +192,7 @@ impl ThreadEventStore {
                 self.turns
                     .iter()
                     .rev()
-                    .filter(|turn| turn_id_matches(turn_id, &turn.id))
+                    .filter(|turn| interaction_id_matches(interaction_id, &turn.id))
                     .flat_map(|turn| turn.messages.iter().rev())
                     .find_map(|item| file_change_item_changes(item, item_id))
             })
@@ -202,7 +202,7 @@ impl ThreadEventStore {
         self.turns = response.thread.interactions.clone();
         self.buffer.clear();
         self.pending_interactive_replay = PendingInteractiveReplayState::default();
-        self.active_turn_id = None;
+        self.active_interaction_id = None;
     }
 
     pub(super) fn snapshot(&self) -> ThreadEventSnapshot {
@@ -263,17 +263,17 @@ impl ThreadEventStore {
         }
     }
 
-    pub(super) fn active_turn_id(&self) -> Option<&str> {
-        self.active_turn_id.as_deref()
+    pub(super) fn active_interaction_id(&self) -> Option<&str> {
+        self.active_interaction_id.as_deref()
     }
 
-    pub(super) fn clear_active_turn_id(&mut self) {
-        self.active_turn_id = None;
+    pub(super) fn clear_active_interaction_id(&mut self) {
+        self.active_interaction_id = None;
     }
 }
 
-fn turn_id_matches(request_turn_id: &str, candidate_turn_id: &str) -> bool {
-    request_turn_id.is_empty() || request_turn_id == candidate_turn_id
+fn interaction_id_matches(request_interaction_id: &str, candidate_interaction_id: &str) -> bool {
+    request_interaction_id.is_empty() || request_interaction_id == candidate_interaction_id
 }
 
 fn file_change_item_changes(
@@ -356,9 +356,9 @@ mod tests {
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
 
-    fn test_thread_session(thread_id: ThreadId, cwd: PathBuf) -> ThreadSessionState {
+    fn test_thread_session(chat_id: ChatId, cwd: PathBuf) -> ThreadSessionState {
         ThreadSessionState {
-            thread_id,
+            chat_id,
             forked_from_id: None,
             fork_parent_title: None,
             thread_name: None,
@@ -398,9 +398,9 @@ mod tests {
         }
     }
 
-    fn turn_started_notification(thread_id: ThreadId, interaction_id: &str) -> ServerNotification {
+    fn turn_started_notification(chat_id: ChatId, interaction_id: &str) -> ServerNotification {
         ServerNotification::InteractionStarted(InteractionStartedNotification {
-            chat_id: thread_id.to_string(),
+            chat_id: chat_id.to_string(),
             turn: Interaction {
                 started_at: Some(0),
                 ..test_turn(interaction_id, InteractionStatus::InProgress, Vec::new())
@@ -409,12 +409,12 @@ mod tests {
     }
 
     fn turn_completed_notification(
-        thread_id: ThreadId,
+        chat_id: ChatId,
         interaction_id: &str,
         status: InteractionStatus,
     ) -> ServerNotification {
         ServerNotification::InteractionCompleted(InteractionCompletedNotification {
-            chat_id: thread_id.to_string(),
+            chat_id: chat_id.to_string(),
             turn: Interaction {
                 completed_at: Some(0),
                 duration_ms: Some(1),
@@ -423,9 +423,9 @@ mod tests {
         })
     }
 
-    fn hook_started_notification(thread_id: ThreadId, interaction_id: &str) -> ServerNotification {
+    fn hook_started_notification(chat_id: ChatId, interaction_id: &str) -> ServerNotification {
         ServerNotification::HookStarted(HookStartedNotification {
-            chat_id: thread_id.to_string(),
+            chat_id: chat_id.to_string(),
             interaction_id: Some(interaction_id.to_string()),
             run: AppServerHookRunSummary {
                 id: "user-prompt-submit:0:/tmp/hooks.json".to_string(),
@@ -447,11 +447,11 @@ mod tests {
     }
 
     fn hook_completed_notification(
-        thread_id: ThreadId,
+        chat_id: ChatId,
         interaction_id: &str,
     ) -> ServerNotification {
         ServerNotification::HookCompleted(HookCompletedNotification {
-            chat_id: thread_id.to_string(),
+            chat_id: chat_id.to_string(),
             interaction_id: Some(interaction_id.to_string()),
             run: AppServerHookRunSummary {
                 id: "user-prompt-submit:0:/tmp/hooks.json".to_string(),
@@ -482,7 +482,7 @@ mod tests {
     }
 
     fn exec_approval_request(
-        thread_id: ThreadId,
+        chat_id: ChatId,
         interaction_id: &str,
         message_id: &str,
         approval_id: Option<&str>,
@@ -490,7 +490,7 @@ mod tests {
         ServerRequest::CommandExecutionRequestApproval {
             request_id: AppServerRequestId::Integer(1),
             params: CommandExecutionRequestApprovalParams {
-                chat_id: thread_id.to_string(),
+                chat_id: chat_id.to_string(),
                 interaction_id: interaction_id.to_string(),
                 message_id: message_id.to_string(),
                 started_at_ms: 0,
@@ -512,31 +512,31 @@ mod tests {
     #[test]
     fn thread_event_store_tracks_active_turn_lifecycle() {
         let mut store = ThreadEventStore::new(/*capacity*/ 8);
-        assert_eq!(store.active_turn_id(), None);
+        assert_eq!(store.active_interaction_id(), None);
 
-        let thread_id = ThreadId::new();
-        store.push_notification(turn_started_notification(thread_id, "turn-1"));
-        assert_eq!(store.active_turn_id(), Some("turn-1"));
+        let chat_id = ChatId::new();
+        store.push_notification(turn_started_notification(chat_id, "turn-1"));
+        assert_eq!(store.active_interaction_id(), Some("turn-1"));
 
         store.push_notification(turn_completed_notification(
-            thread_id,
+            chat_id,
             "turn-2",
             InteractionStatus::Completed,
         ));
-        assert_eq!(store.active_turn_id(), Some("turn-1"));
+        assert_eq!(store.active_interaction_id(), Some("turn-1"));
 
         store.push_notification(turn_completed_notification(
-            thread_id,
+            chat_id,
             "turn-1",
             InteractionStatus::Interrupted,
         ));
-        assert_eq!(store.active_turn_id(), None);
+        assert_eq!(store.active_interaction_id(), None);
     }
 
     #[test]
     fn thread_event_store_restores_active_turn_from_snapshot_turns() {
-        let thread_id = ThreadId::new();
-        let session = test_thread_session(thread_id, test_path_buf("/tmp/project"));
+        let chat_id = ChatId::new();
+        let session = test_thread_session(chat_id, test_path_buf("/tmp/project"));
         let turns = vec![
             test_turn("turn-1", InteractionStatus::Completed, Vec::new()),
             test_turn("turn-2", InteractionStatus::InProgress, Vec::new()),
@@ -544,30 +544,30 @@ mod tests {
 
         let store =
             ThreadEventStore::new_with_session(/*capacity*/ 8, session.clone(), turns.clone());
-        assert_eq!(store.active_turn_id(), Some("turn-2"));
+        assert_eq!(store.active_interaction_id(), Some("turn-2"));
 
         let mut refreshed_store = ThreadEventStore::new(/*capacity*/ 8);
         refreshed_store.set_session(session, turns);
-        assert_eq!(refreshed_store.active_turn_id(), Some("turn-2"));
+        assert_eq!(refreshed_store.active_interaction_id(), Some("turn-2"));
     }
 
     #[test]
-    fn thread_event_store_clear_active_turn_id_resets_cached_turn() {
+    fn thread_event_store_clear_active_interaction_id_resets_cached_turn() {
         let mut store = ThreadEventStore::new(/*capacity*/ 8);
-        let thread_id = ThreadId::new();
-        store.push_notification(turn_started_notification(thread_id, "turn-1"));
+        let chat_id = ChatId::new();
+        store.push_notification(turn_started_notification(chat_id, "turn-1"));
 
-        store.clear_active_turn_id();
+        store.clear_active_interaction_id();
 
-        assert_eq!(store.active_turn_id(), None);
+        assert_eq!(store.active_interaction_id(), None);
     }
 
     #[test]
     fn thread_event_store_rebase_preserves_resolved_request_state() {
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let mut store = ThreadEventStore::new(/*capacity*/ 8);
         store.push_request(exec_approval_request(
-            thread_id,
+            chat_id,
             "turn-approval",
             "call-approval",
             /*approval_id*/ None,
@@ -575,7 +575,7 @@ mod tests {
         store.push_notification(ServerNotification::ServerRequestResolved(
             datax_app_server_protocol::ServerRequestResolvedNotification {
                 request_id: AppServerRequestId::Integer(1),
-                chat_id: thread_id.to_string(),
+                chat_id: chat_id.to_string(),
             },
         ));
 
@@ -588,10 +588,10 @@ mod tests {
 
     #[test]
     fn thread_event_store_rebase_preserves_hook_notifications() {
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let mut store = ThreadEventStore::new(/*capacity*/ 8);
-        store.push_notification(hook_started_notification(thread_id, "turn-hook"));
-        store.push_notification(hook_completed_notification(thread_id, "turn-hook"));
+        store.push_notification(hook_started_notification(chat_id, "turn-hook"));
+        store.push_notification(hook_completed_notification(chat_id, "turn-hook"));
 
         store.rebase_buffer_after_session_refresh();
 
@@ -609,9 +609,9 @@ mod tests {
         assert_eq!(
             hook_notifications,
             vec![
-                serde_json::to_value(hook_started_notification(thread_id, "turn-hook"))
+                serde_json::to_value(hook_started_notification(chat_id, "turn-hook"))
                     .expect("hook notification should serialize"),
-                serde_json::to_value(hook_completed_notification(thread_id, "turn-hook"))
+                serde_json::to_value(hook_completed_notification(chat_id, "turn-hook"))
                     .expect("hook notification should serialize"),
             ]
         );
@@ -619,10 +619,10 @@ mod tests {
 
     #[test]
     fn thread_event_store_rebase_preserves_mcp_startup_notifications() {
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let notification = ServerNotification::McpServerStatusUpdated(
             datax_app_server_protocol::McpServerStatusUpdatedNotification {
-                chat_id: Some(thread_id.to_string()),
+                chat_id: Some(chat_id.to_string()),
                 name: "sentry".to_string(),
                 status: datax_app_server_protocol::McpServerStartupState::Failed,
                 error: Some("sentry is not logged in".to_string()),

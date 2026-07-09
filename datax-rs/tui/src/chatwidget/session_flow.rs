@@ -12,17 +12,17 @@ impl ChatWidget {
         self.transcript.reset_copy_history();
         let history_metadata = session.message_history.unwrap_or_default();
         self.bottom_pane.set_history_metadata(
-            session.thread_id,
+            session.chat_id,
             history_metadata.log_id,
             history_metadata.entry_count,
         );
         self.set_skills(/*skills*/ None);
         self.session_network_proxy = session.network_proxy.clone();
-        let previous_thread_id = self.thread_id;
-        self.thread_id = Some(session.thread_id);
+        let previous_chat_id = self.chat_id;
+        self.chat_id = Some(session.chat_id);
         self.bottom_pane
             .set_queue_submissions(/*queue_submissions*/ false);
-        if previous_thread_id != self.thread_id {
+        if previous_chat_id != self.chat_id {
             self.review.recent_auto_review_denials = RecentAutoReviewDenials::default();
         }
         self.refresh_plan_mode_nudge();
@@ -177,7 +177,7 @@ impl ChatWidget {
 
     pub(super) fn emit_forked_thread_event(
         &mut self,
-        forked_from_id: ThreadId,
+        forked_from_id: ChatId,
         fork_parent_title: Option<String>,
     ) {
         let forked_from_id_text = forked_from_id.to_string();
@@ -208,12 +208,12 @@ impl ChatWidget {
 
     pub(super) fn on_thread_name_updated(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         thread_name: Option<String>,
     ) {
-        if self.thread_id == Some(thread_id) {
+        if self.chat_id == Some(chat_id) {
             if let Some(name) = thread_name.as_deref() {
-                let cell = Self::rename_confirmation_cell(name, self.thread_id);
+                let cell = Self::rename_confirmation_cell(name, self.chat_id);
                 self.add_boxed_history(Box::new(cell));
             }
             self.thread_name = thread_name;

@@ -1,7 +1,7 @@
 use datax_extension_api::ExtensionData;
 use datax_protocol::protocol::CodexErrorInfo;
 use datax_protocol::protocol::TokenUsage;
-use datax_protocol::protocol::TurnAbortReason;
+use datax_protocol::protocol::InteractionAbortReason;
 
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
@@ -15,7 +15,7 @@ impl Session {
         for contributor in self.services.extensions.turn_lifecycle_contributors() {
             contributor
                 .on_turn_start(datax_extension_api::TurnStartInput {
-                    turn_id: turn_context.sub_id.as_str(),
+                    interaction_id: turn_context.sub_id.as_str(),
                     collaboration_mode: &turn_context.collaboration_mode,
                     token_usage_at_turn_start,
                     session_store: &self.services.session_extension_data,
@@ -38,7 +38,7 @@ impl Session {
         }
     }
 
-    pub(crate) async fn emit_thread_idle_lifecycle_if_idle(&self) {
+    pub(crate) async fn emit_chat_idle_lifecycle_if_idle(&self) {
         if self.active_turn.lock().await.is_some()
             || self.input_queue.has_trigger_turn_mailbox_items().await
         {
@@ -47,7 +47,7 @@ impl Session {
 
         for contributor in self.services.extensions.thread_lifecycle_contributors() {
             contributor
-                .on_thread_idle(datax_extension_api::ThreadIdleInput {
+                .on_chat_idle(datax_extension_api::ChatIdleInput {
                     session_store: &self.services.session_extension_data,
                     thread_store: &self.services.thread_extension_data,
                 })
@@ -57,7 +57,7 @@ impl Session {
 
     pub(super) async fn emit_turn_abort_lifecycle(
         &self,
-        reason: TurnAbortReason,
+        reason: InteractionAbortReason,
         turn_store: &ExtensionData,
     ) {
         for contributor in self.services.extensions.turn_lifecycle_contributors() {
@@ -80,7 +80,7 @@ impl Session {
         for contributor in self.services.extensions.turn_lifecycle_contributors() {
             contributor
                 .on_turn_error(datax_extension_api::TurnErrorInput {
-                    turn_id: turn_context.sub_id.as_str(),
+                    interaction_id: turn_context.sub_id.as_str(),
                     error: error.clone(),
                     session_store: &self.services.session_extension_data,
                     thread_store: &self.services.thread_extension_data,

@@ -362,7 +362,7 @@ async fn builtin_image_generation_call_persisted() -> anyhow::Result<()> {
     let call_id = "ig_image_saved_to_temp_dir_default";
     let expected_saved_path = image_generation_artifact_path(
         config.codex_home.as_path(),
-        &session_configured.thread_id.to_string(),
+        &session_configured.chat_id.to_string(),
         call_id,
     );
     let _ = std::fs::remove_file(&expected_saved_path);
@@ -449,7 +449,7 @@ async fn image_generation_call_event_is_emitted_when_image_save_fails() -> anyho
     } = test_codex().build(&server).await?;
     let expected_saved_path = image_generation_artifact_path(
         config.codex_home.as_path(),
-        &session_configured.thread_id.to_string(),
+        &session_configured.chat_id.to_string(),
         "ig_invalid",
     );
     let _ = std::fs::remove_file(&expected_saved_path);
@@ -530,12 +530,12 @@ async fn agent_message_content_delta_has_item_metadata() -> anyhow::Result<()> {
         })
         .await?;
 
-    let (started_turn_id, started_item) = wait_for_event_match(&codex, |ev| match ev {
+    let (started_interaction_id, started_item) = wait_for_event_match(&codex, |ev| match ev {
         EventMsg::ItemStarted(ItemStartedEvent {
-            turn_id,
+            interaction_id,
             item: TurnItem::AgentMessage(item),
             ..
-        }) => Some((turn_id.clone(), item.clone())),
+        }) => Some((interaction_id.clone(), item.clone())),
         _ => None,
     })
     .await;
@@ -554,9 +554,9 @@ async fn agent_message_content_delta_has_item_metadata() -> anyhow::Result<()> {
     })
     .await;
 
-    let thread_id = session_configured.thread_id.to_string();
-    assert_eq!(delta_event.thread_id, thread_id);
-    assert_eq!(delta_event.turn_id, started_turn_id);
+    let chat_id = session_configured.chat_id.to_string();
+    assert_eq!(delta_event.chat_id, chat_id);
+    assert_eq!(delta_event.interaction_id, started_interaction_id);
     assert_eq!(delta_event.item_id, started_item.id);
     assert_eq!(delta_event.delta, "streamed response");
     assert_eq!(completed_item.id, started_item.id);
@@ -620,8 +620,8 @@ async fn plan_mode_emits_plan_item_from_proposed_plan_block() -> anyhow::Result<
     .await;
 
     assert_eq!(
-        plan_delta.thread_id,
-        session_configured.thread_id.to_string()
+        plan_delta.chat_id,
+        session_configured.chat_id.to_string()
     );
     assert_eq!(plan_delta.delta, "- Step 1\n- Step 2\n");
     assert_eq!(plan_completed.text, "- Step 1\n- Step 2\n");
@@ -827,7 +827,7 @@ async fn plan_mode_streaming_citations_are_stripped_across_added_deltas_and_done
                 plan_completed_idx = Some(idx);
                 plan_completed = Some(item);
             }
-            EventMsg::TurnComplete(_) => {
+            EventMsg::InteractionComplete(_) => {
                 break idx;
             }
             _ => {}
@@ -969,7 +969,7 @@ async fn plan_mode_streaming_proposed_plan_tag_split_across_added_and_delta_is_p
                 item: TurnItem::Plan(item),
                 ..
             }) => plan_completed = Some(item),
-            EventMsg::TurnComplete(_) => break,
+            EventMsg::InteractionComplete(_) => break,
             _ => {}
         }
     }

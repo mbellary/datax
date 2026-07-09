@@ -14,10 +14,10 @@ use std::collections::VecDeque;
 async fn submission_preserves_text_elements_and_local_images() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let rollout_file = NamedTempFile::new().unwrap();
     let configured = crate::session_state::ThreadSessionState {
-        thread_id,
+        chat_id,
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -100,7 +100,7 @@ async fn submission_preserves_text_elements_and_local_images() {
 async fn submission_includes_configured_active_permission_profile() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let rollout_file = NamedTempFile::new().unwrap();
     let expected_permission_profile: PermissionProfile = PermissionProfile::Managed {
         network: NetworkSandboxPolicy::Restricted,
@@ -124,7 +124,7 @@ async fn submission_includes_configured_active_permission_profile() {
     };
     let expected_active_permission_profile = ActivePermissionProfile::new("custom");
     let configured = crate::session_state::ThreadSessionState {
-        thread_id,
+        chat_id,
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -172,14 +172,14 @@ async fn submission_includes_configured_active_permission_profile() {
 async fn submission_omits_active_permission_profile_for_legacy_snapshot() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let rollout_file = NamedTempFile::new().unwrap();
     let expected_permission_profile: PermissionProfile = PermissionProfile::Managed {
         network: NetworkSandboxPolicy::Restricted,
         file_system: ManagedFileSystemPermissions::Unrestricted,
     };
     let configured = crate::session_state::ThreadSessionState {
-        thread_id,
+        chat_id,
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -221,10 +221,10 @@ async fn submission_omits_active_permission_profile_for_legacy_snapshot() {
 async fn submission_with_remote_and_local_images_keeps_local_placeholder_numbering() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let rollout_file = NamedTempFile::new().unwrap();
     let configured = crate::session_state::ThreadSessionState {
-        thread_id,
+        chat_id,
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -319,10 +319,10 @@ async fn submission_with_remote_and_local_images_keeps_local_placeholder_numberi
 async fn enter_with_only_remote_images_submits_user_turn() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let rollout_file = NamedTempFile::new().unwrap();
     let configured = crate::session_state::ThreadSessionState {
-        thread_id,
+        chat_id,
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -386,10 +386,10 @@ async fn enter_with_only_remote_images_submits_user_turn() {
 async fn shift_enter_with_only_remote_images_does_not_submit_user_turn() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let rollout_file = NamedTempFile::new().unwrap();
     let configured = crate::session_state::ThreadSessionState {
-        thread_id,
+        chat_id,
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -427,10 +427,10 @@ async fn shift_enter_with_only_remote_images_does_not_submit_user_turn() {
 async fn enter_with_only_remote_images_does_not_submit_when_modal_is_active() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let rollout_file = NamedTempFile::new().unwrap();
     let configured = crate::session_state::ThreadSessionState {
-        thread_id,
+        chat_id,
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -468,10 +468,10 @@ async fn enter_with_only_remote_images_does_not_submit_when_modal_is_active() {
 async fn enter_with_only_remote_images_does_not_submit_when_input_disabled() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let rollout_file = NamedTempFile::new().unwrap();
     let configured = crate::session_state::ThreadSessionState {
-        thread_id,
+        chat_id,
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -512,10 +512,10 @@ async fn enter_with_only_remote_images_does_not_submit_when_input_disabled() {
 async fn submission_prefers_selected_duplicate_skill_path() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let rollout_file = NamedTempFile::new().unwrap();
     let configured = crate::session_state::ThreadSessionState {
-        thread_id,
+        chat_id,
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -739,7 +739,7 @@ async fn queued_restore_with_remote_images_keeps_local_placeholder_mapping() {
 #[tokio::test]
 async fn interrupted_turn_restore_keeps_active_mode_for_resubmission() {
     let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(Some("gpt-5")).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.set_feature_enabled(Feature::CollaborationModes, /*enabled*/ true);
 
     let plan_mask = collaboration_modes::plan_mask(chat.model_catalog.as_ref())
@@ -1241,7 +1241,7 @@ fn queued_message_edit_binding_mapping_covers_special_terminals_and_tmux() {
 #[tokio::test]
 async fn enqueueing_history_prompt_multiple_times_is_stable() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
 
     // Submit an initial prompt to seed history.
     chat.bottom_pane
@@ -1269,7 +1269,7 @@ async fn enqueueing_history_prompt_multiple_times_is_stable() {
 #[tokio::test]
 async fn submit_user_message_ignores_inaccessible_app_mentions_from_bindings() {
     let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     set_chatgpt_auth(&mut chat);
     chat.config
         .features

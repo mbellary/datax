@@ -164,16 +164,16 @@ impl App {
                 );
                 let summary = session_summary(
                     self.chat_widget.token_usage(),
-                    self.chat_widget.thread_id(),
+                    self.chat_widget.chat_id(),
                     self.chat_widget.thread_name(),
                     self.chat_widget.rollout_path().as_deref(),
                 );
                 self.chat_widget
                     .add_plain_history_lines(vec!["/fork".magenta().into()]);
-                if let Some(thread_id) = self.chat_widget.thread_id() {
+                if let Some(chat_id) = self.chat_widget.chat_id() {
                     self.refresh_in_memory_config_from_disk_best_effort("forking the thread")
                         .await;
-                    match app_server.fork_thread(self.config.clone(), thread_id).await {
+                    match app_server.fork_thread(self.config.clone(), chat_id).await {
                         Ok(forked) => {
                             self.shutdown_current_thread(app_server).await;
                             match self
@@ -340,34 +340,34 @@ impl App {
             AppEvent::RestoreCancelledTurn(prompt) => {
                 self.apply_cancelled_turn_edit(prompt);
             }
-            AppEvent::AppendMessageHistoryEntry { thread_id, text } => {
-                self.append_message_history_entry(thread_id, text);
+            AppEvent::AppendMessageHistoryEntry { chat_id, text } => {
+                self.append_message_history_entry(chat_id, text);
             }
-            AppEvent::SyncThreadGitBranch { thread_id, branch } => {
+            AppEvent::SyncThreadGitBranch { chat_id, branch } => {
                 if let Err(err) = app_server
-                    .thread_metadata_update_branch(thread_id, branch)
+                    .thread_metadata_update_branch(chat_id, branch)
                     .await
                 {
                     tracing::warn!("failed to sync thread git branch from directive: {err}");
                 }
             }
             AppEvent::LookupMessageHistoryEntry {
-                thread_id,
+                chat_id,
                 offset,
                 log_id,
             } => {
-                self.lookup_message_history_entry(thread_id, offset, log_id)
+                self.lookup_message_history_entry(chat_id, offset, log_id)
                     .await?;
             }
-            AppEvent::ApproveRecentAutoReviewDenial { thread_id, id } => {
+            AppEvent::ApproveRecentAutoReviewDenial { chat_id, id } => {
                 self.chat_widget
-                    .approve_recent_auto_review_denial(thread_id, id);
+                    .approve_recent_auto_review_denial(chat_id, id);
             }
-            AppEvent::SubmitThreadOp { thread_id, op } => {
-                self.submit_thread_op(app_server, thread_id, op).await?;
+            AppEvent::SubmitThreadOp { chat_id, op } => {
+                self.submit_thread_op(app_server, chat_id, op).await?;
             }
-            AppEvent::ThreadHistoryEntryResponse { thread_id, event } => {
-                self.enqueue_thread_history_entry_response(thread_id, event)
+            AppEvent::ThreadHistoryEntryResponse { chat_id, event } => {
+                self.enqueue_thread_history_entry_response(chat_id, event)
                     .await?;
             }
             AppEvent::DiffResult(text) => {
@@ -413,8 +413,8 @@ impl App {
             AppEvent::OpenUrlInBrowser { url } => {
                 self.open_url_in_browser(url);
             }
-            AppEvent::OpenDesktopThread { thread_id } => {
-                self.open_desktop_thread(thread_id);
+            AppEvent::OpenDesktopThread { chat_id } => {
+                self.open_desktop_thread(chat_id);
             }
             AppEvent::PetSelected { pet_id } => {
                 self.handle_pet_selected(tui, pet_id);
@@ -691,15 +691,15 @@ impl App {
                         .on_plugin_enabled_set(cwd, plugin_id, enabled, result);
                 }
             }
-            AppEvent::FetchMcpInventory { detail, thread_id } => {
-                self.fetch_mcp_inventory(app_server, detail, thread_id);
+            AppEvent::FetchMcpInventory { detail, chat_id } => {
+                self.fetch_mcp_inventory(app_server, detail, chat_id);
             }
             AppEvent::McpInventoryLoaded {
                 result,
                 detail,
-                thread_id,
+                chat_id,
             } => {
-                self.handle_mcp_inventory_result(result, detail, thread_id);
+                self.handle_mcp_inventory_result(result, detail, chat_id);
             }
             AppEvent::SkillsListLoaded { result } => {
                 self.handle_skills_list_result(
@@ -722,26 +722,26 @@ impl App {
             AppEvent::RefreshStatusLineWorkspaceHeadline { request_id } => {
                 self.refresh_status_line_workspace_headline(app_server, request_id);
             }
-            AppEvent::OpenThreadGoalMenu { thread_id } => {
-                self.open_thread_goal_menu(app_server, thread_id).await;
+            AppEvent::OpenThreadGoalMenu { chat_id } => {
+                self.open_thread_goal_menu(app_server, chat_id).await;
             }
-            AppEvent::OpenThreadGoalEditor { thread_id } => {
-                self.open_thread_goal_editor(app_server, thread_id).await;
+            AppEvent::OpenThreadGoalEditor { chat_id } => {
+                self.open_thread_goal_editor(app_server, chat_id).await;
             }
             AppEvent::SetThreadGoalDraft {
-                thread_id,
+                chat_id,
                 draft,
                 mode,
             } => {
-                self.set_thread_goal_draft(app_server, thread_id, draft, mode)
+                self.set_thread_goal_draft(app_server, chat_id, draft, mode)
                     .await;
             }
-            AppEvent::SetThreadGoalStatus { thread_id, status } => {
-                self.set_thread_goal_status(app_server, thread_id, status)
+            AppEvent::SetThreadGoalStatus { chat_id, status } => {
+                self.set_thread_goal_status(app_server, chat_id, status)
                     .await;
             }
-            AppEvent::ClearThreadGoal { thread_id } => {
-                self.clear_thread_goal(app_server, thread_id).await;
+            AppEvent::ClearThreadGoal { chat_id } => {
+                self.clear_thread_goal(app_server, chat_id).await;
             }
             AppEvent::SendAddCreditsNudgeEmail { credit_type } => {
                 if self
@@ -991,18 +991,18 @@ impl App {
             AppEvent::SubmitFeedback {
                 category,
                 reason,
-                turn_id,
+                interaction_id,
                 include_logs,
             } => {
-                self.submit_feedback(app_server, category, reason, turn_id, include_logs);
+                self.submit_feedback(app_server, category, reason, interaction_id, include_logs);
             }
             AppEvent::FeedbackSubmitted {
-                origin_thread_id,
+                origin_chat_id,
                 category,
                 include_logs,
                 result,
             } => {
-                self.handle_feedback_submitted(origin_thread_id, category, include_logs, result)
+                self.handle_feedback_submitted(origin_chat_id, category, include_logs, result)
                     .await;
             }
             AppEvent::LaunchExternalEditor => {
@@ -1822,16 +1822,16 @@ impl App {
             AppEvent::OpenAgentPicker => {
                 self.open_agent_picker(app_server).await;
             }
-            AppEvent::SelectAgentThread(thread_id) => {
-                self.select_agent_thread_and_discard_side(tui, app_server, thread_id)
+            AppEvent::SelectAgentThread(chat_id) => {
+                self.select_agent_thread_and_discard_side(tui, app_server, chat_id)
                     .await?;
             }
             AppEvent::StartSide {
-                parent_thread_id,
+                parent_chat_id,
                 user_message,
             } => {
                 return self
-                    .handle_start_side(tui, app_server, parent_thread_id, user_message)
+                    .handle_start_side(tui, app_server, parent_chat_id, user_message)
                     .await;
             }
             AppEvent::OpenSkillsList => {
@@ -2299,9 +2299,9 @@ impl App {
             ExitMode::ShutdownFirst => {
                 // Mark the thread we are explicitly shutting down for exit so
                 // its shutdown completion does not trigger agent failover.
-                self.pending_shutdown_exit_thread_id =
-                    self.active_thread_id.or(self.chat_widget.thread_id());
-                if self.pending_shutdown_exit_thread_id.is_some() {
+                self.pending_shutdown_exit_chat_id =
+                    self.active_chat_id.or(self.chat_widget.chat_id());
+                if self.pending_shutdown_exit_chat_id.is_some() {
                     // This is a UI escape-hatch budget, not a protocol
                     // deadline. A healthy local thread/unsubscribe round trip
                     // should finish comfortably inside two seconds, while a
@@ -2317,11 +2317,11 @@ impl App {
                         tracing::warn!("timed out waiting for app-server thread shutdown");
                     }
                 }
-                self.pending_shutdown_exit_thread_id = None;
+                self.pending_shutdown_exit_chat_id = None;
                 AppRunControl::Exit(ExitReason::UserRequested)
             }
             ExitMode::Immediate => {
-                self.pending_shutdown_exit_thread_id = None;
+                self.pending_shutdown_exit_chat_id = None;
                 AppRunControl::Exit(ExitReason::UserRequested)
             }
         }
@@ -2331,12 +2331,12 @@ impl App {
         &mut self,
         app_server: &mut AppServerSession,
     ) -> AppRunControl {
-        let Some(thread_id) = self.active_thread_id.or(self.chat_widget.thread_id()) else {
+        let Some(chat_id) = self.active_chat_id.or(self.chat_widget.chat_id()) else {
             self.chat_widget
                 .add_error_message("A thread must start before it can be archived.".to_string());
             return AppRunControl::Continue;
         };
-        if self.side_threads.contains_key(&thread_id) {
+        if self.side_threads.contains_key(&chat_id) {
             self.chat_widget.add_error_message(
                 "'/archive' is unavailable in side conversations. Press Ctrl+C to return to the main thread first."
                     .to_string(),
@@ -2344,7 +2344,7 @@ impl App {
             return AppRunControl::Continue;
         }
 
-        match app_server.thread_archive(thread_id).await {
+        match app_server.thread_archive(chat_id).await {
             Ok(()) => AppRunControl::Exit(ExitReason::UserRequested),
             Err(err) => {
                 self.chat_widget
@@ -2358,12 +2358,12 @@ impl App {
         &mut self,
         app_server: &mut AppServerSession,
     ) -> AppRunControl {
-        let Some(thread_id) = self.active_thread_id.or(self.chat_widget.thread_id()) else {
+        let Some(chat_id) = self.active_chat_id.or(self.chat_widget.chat_id()) else {
             self.chat_widget
                 .add_error_message("A thread must start before it can be deleted.".to_string());
             return AppRunControl::Continue;
         };
-        if self.side_threads.contains_key(&thread_id) {
+        if self.side_threads.contains_key(&chat_id) {
             self.chat_widget.add_error_message(
                 "'/delete' is unavailable in side conversations. Press Ctrl+C to return to the main thread first."
                     .to_string(),
@@ -2371,7 +2371,7 @@ impl App {
             return AppRunControl::Continue;
         }
 
-        match app_server.thread_delete(thread_id).await {
+        match app_server.thread_delete(chat_id).await {
             Ok(()) => AppRunControl::Exit(ExitReason::UserRequested),
             Err(err) => {
                 self.chat_widget

@@ -695,7 +695,7 @@ async fn external_agent_config_import_creates_session_rollouts() -> Result<()> {
         session_success.source.as_deref(),
         Some(session_source.as_str())
     );
-    let imported_thread_id = session_success
+    let imported_chat_id = session_success
         .target
         .as_deref()
         .expect("session success should include imported thread id")
@@ -727,7 +727,7 @@ async fn external_agent_config_import_creates_session_rollouts() -> Result<()> {
         .first()
         .expect("expected imported thread")
         .clone();
-    assert_eq!(imported_thread_id, thread.id.to_string());
+    assert_eq!(imported_chat_id, thread.id.to_string());
     assert_eq!(thread.preview, "first request");
     assert_eq!(thread.name.as_deref(), Some("source session title"));
 

@@ -166,7 +166,7 @@ where
             span.extensions_mut().insert(SpanLogContext {
                 name: span.metadata().name().to_string(),
                 formatted_fields: format_fields(attrs),
-                thread_id: visitor.thread_id,
+                chat_id: visitor.chat_id,
             });
         }
     }
@@ -183,15 +183,15 @@ where
         if let Some(span) = ctx.span(id) {
             let mut extensions = span.extensions_mut();
             if let Some(log_context) = extensions.get_mut::<SpanLogContext>() {
-                if let Some(thread_id) = visitor.thread_id {
-                    log_context.thread_id = Some(thread_id);
+                if let Some(chat_id) = visitor.chat_id {
+                    log_context.chat_id = Some(chat_id);
                 }
                 append_fields(&mut log_context.formatted_fields, values);
             } else {
                 extensions.insert(SpanLogContext {
                     name: span.metadata().name().to_string(),
                     formatted_fields: format_fields(values),
-                    thread_id: visitor.thread_id,
+                    chat_id: visitor.chat_id,
                 });
             }
         }
@@ -212,10 +212,10 @@ where
 
         let mut visitor = MessageVisitor::default();
         event.record(&mut visitor);
-        let thread_id = visitor
-            .thread_id
+        let chat_id = visitor
+            .chat_id
             .clone()
-            .or_else(|| event_thread_id(event, &ctx));
+            .or_else(|| event_chat_id(event, &ctx));
         let feedback_log_body = format_feedback_log_body(event, &ctx);
 
         let now = SystemTime::now()
@@ -228,7 +228,7 @@ where
             target: metadata.target().to_string(),
             message: visitor.message,
             feedback_log_body: Some(feedback_log_body),
-            thread_id,
+            chat_id,
             process_uuid: Some(self.process_uuid.clone()),
             module_path: metadata.module_path().map(ToString::to_string),
             file: metadata.file().map(ToString::to_string),
@@ -257,18 +257,18 @@ enum LogDbCommand {
 struct SpanLogContext {
     name: String,
     formatted_fields: String,
-    thread_id: Option<String>,
+    chat_id: Option<String>,
 }
 
 #[derive(Default)]
 struct SpanFieldVisitor {
-    thread_id: Option<String>,
+    chat_id: Option<String>,
 }
 
 impl SpanFieldVisitor {
     fn record_field(&mut self, field: &Field, value: String) {
-        if field.name() == "thread_id" && self.thread_id.is_none() {
-            self.thread_id = Some(value);
+        if field.name() == "chat_id" && self.chat_id.is_none() {
+            self.chat_id = Some(value);
         }
     }
 }
@@ -303,25 +303,25 @@ impl Visit for SpanFieldVisitor {
     }
 }
 
-fn event_thread_id<S>(
+fn event_chat_id<S>(
     event: &Event<'_>,
     ctx: &tracing_subscriber::layer::Context<'_, S>,
 ) -> Option<String>
 where
     S: tracing::Subscriber + for<'a> LookupSpan<'a>,
 {
-    let mut thread_id = None;
+    let mut chat_id = None;
     if let Some(scope) = ctx.event_scope(event) {
         for span in scope.from_root() {
             let extensions = span.extensions();
             if let Some(log_context) = extensions.get::<SpanLogContext>()
-                && log_context.thread_id.is_some()
+                && log_context.chat_id.is_some()
             {
-                thread_id = log_context.thread_id.clone();
+                chat_id = log_context.chat_id.clone();
             }
         }
     }
-    thread_id
+    chat_id
 }
 
 fn format_feedback_log_body<S>(
@@ -428,7 +428,7 @@ async fn flush(state_db: &StateRuntime, buffer: &mut Vec<LogEntry>) {
 #[derive(Default)]
 struct MessageVisitor {
     message: Option<String>,
-    thread_id: Option<String>,
+    chat_id: Option<String>,
 }
 
 impl MessageVisitor {
@@ -436,8 +436,8 @@ impl MessageVisitor {
         if field.name() == "message" && self.message.is_none() {
             self.message = Some(value.clone());
         }
-        if field.name() == "thread_id" && self.thread_id.is_none() {
-            self.thread_id = Some(value);
+        if field.name() == "chat_id" && self.chat_id.is_none() {
+            self.chat_id = Some(value);
         }
     }
 }
@@ -521,7 +521,7 @@ mod tests {
             target: "test".to_string(),
             message: Some(message.to_string()),
             feedback_log_body: Some(message.to_string()),
-            thread_id: Some("thread-1".to_string()),
+            chat_id: Some("thread-1".to_string()),
             process_uuid: Some("process-1".to_string()),
             module_path: Some("module".to_string()),
             file: Some("file.rs".to_string()),
@@ -594,7 +594,7 @@ mod tests {
         let guard = subscriber.set_default();
 
         tracing::trace!("threadless-before");
-        tracing::info_span!("feedback-thread", thread_id = "thread-1", turn = 1).in_scope(|| {
+        tracing::info_span!("feedback-thread", chat_id = "thread-1", turn = 1).in_scope(|| {
             tracing::info!(foo = 2, "thread-scoped");
         });
         tracing::debug!("threadless-after");

@@ -193,7 +193,7 @@ async fn approved_mcp_tool_call_metadata_records_prior_user_input_request() -> R
     let EventMsg::ElicitationRequest(request) = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::ElicitationRequest(_) | EventMsg::TurnComplete(_)
+            EventMsg::ElicitationRequest(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await
@@ -212,7 +212,7 @@ async fn approved_mcp_tool_call_metadata_records_prior_user_input_request() -> R
         .await?;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -303,12 +303,12 @@ async fn apps_default_prompt_with_auto_review_routes_actual_mcp_approval_to_guar
     let route_event = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::ElicitationRequest(_) | EventMsg::TurnComplete(_)
+            EventMsg::ElicitationRequest(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await;
     assert!(
-        matches!(route_event, EventMsg::TurnComplete(_)),
+        matches!(route_event, EventMsg::InteractionComplete(_)),
         "expected apps._default auto_review to route the app approval to Guardian"
     );
 
@@ -421,7 +421,7 @@ async fn mcp_tool_call_metadata_records_prior_request_user_input_tool() -> Resul
 
     test.codex
         .submit(Op::UserInputAnswer {
-            id: request.turn_id,
+            id: request.interaction_id,
             response: RequestUserInputResponse {
                 answers: HashMap::from([(
                     "confirm_path".to_string(),
@@ -443,7 +443,7 @@ async fn mcp_tool_call_metadata_records_prior_request_user_input_tool() -> Resul
     assert_eq!(begin.call_id, calendar_call_id);
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 

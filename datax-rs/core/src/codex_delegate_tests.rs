@@ -18,8 +18,8 @@ use datax_protocol::protocol::GuardianCommandSource;
 use datax_protocol::protocol::McpInvocation;
 use datax_protocol::protocol::RawResponseItemEvent;
 use datax_protocol::protocol::ReviewDecision;
-use datax_protocol::protocol::TurnAbortReason;
-use datax_protocol::protocol::TurnAbortedEvent;
+use datax_protocol::protocol::InteractionAbortReason;
+use datax_protocol::protocol::InteractionAbortedEvent;
 use datax_protocol::request_permissions::RequestPermissionProfile;
 use datax_protocol::request_permissions::RequestPermissionsEvent;
 use datax_protocol::request_permissions::RequestPermissionsResponse;
@@ -51,9 +51,9 @@ async fn forward_events_cancelled_while_send_blocked_shuts_down_delegate() {
     tx_out
         .send(Event {
             id: "full".to_string(),
-            msg: EventMsg::TurnAborted(TurnAbortedEvent {
-                turn_id: Some("turn-1".to_string()),
-                reason: TurnAbortReason::Interrupted,
+            msg: EventMsg::InteractionAborted(InteractionAbortedEvent {
+                interaction_id: Some("turn-1".to_string()),
+                reason: InteractionAbortReason::Interrupted,
                 completed_at: None,
                 duration_ms: None,
             }),
@@ -179,7 +179,7 @@ async fn run_codex_thread_interactive_respects_pre_cancelled_spawn() {
     .await
     .expect("cancelled delegate spawn should not hang");
 
-    assert!(matches!(result, Err(CodexErr::TurnAborted)));
+    assert!(matches!(result, Err(CodexErr::InteractionAborted)));
 }
 
 #[tokio::test]
@@ -230,7 +230,7 @@ async fn handle_request_permissions_uses_tool_call_id_for_round_trip() {
                 &parent_ctx,
                 RequestPermissionsEvent {
                     call_id: request_call_id,
-                    turn_id: "child-turn-1".to_string(),
+                    interaction_id: "child-turn-1".to_string(),
                     environment_id: Some("remote".to_string()),
                     started_at_ms: 0,
                     reason: Some("need access".to_string()),
@@ -321,7 +321,7 @@ async fn handle_exec_approval_uses_call_id_for_guardian_review_and_approval_id_f
                 ExecApprovalRequestEvent {
                     call_id: "command-item-1".to_string(),
                     approval_id: Some("callback-approval-1".to_string()),
-                    turn_id: "child-turn-1".to_string(),
+                    interaction_id: "child-turn-1".to_string(),
                     environment_id: Some("remote".to_string()),
                     started_at_ms: 0,
                     command: vec!["rm".to_string(), "-rf".to_string(), "tmp".to_string()],
@@ -363,7 +363,7 @@ async fn handle_exec_approval_uses_call_id_for_guardian_review_and_approval_id_f
         assessment_event.target_item_id.as_deref(),
         Some("command-item-1")
     );
-    assert_eq!(assessment_event.turn_id, parent_ctx.sub_id);
+    assert_eq!(assessment_event.interaction_id, parent_ctx.sub_id);
     assert_eq!(
         assessment_event.status,
         GuardianAssessmentStatus::InProgress
@@ -389,7 +389,7 @@ async fn handle_exec_approval_uses_call_id_for_guardian_review_and_approval_id_f
         submission.op,
         Op::ExecApproval {
             id: "callback-approval-1".to_string(),
-            turn_id: Some("child-turn-1".to_string()),
+            interaction_id: Some("child-turn-1".to_string()),
             decision: ReviewDecision::Abort,
         }
     );
@@ -426,7 +426,7 @@ async fn delegated_mcp_guardian_abort_returns_synthetic_decline_answer() {
         &pending_mcp_invocations,
         &RequestUserInputEvent {
             call_id: "call-1".to_string(),
-            turn_id: "child-turn-1".to_string(),
+            interaction_id: "child-turn-1".to_string(),
             questions: vec![RequestUserInputQuestion {
                 id: format!("{MCP_TOOL_APPROVAL_QUESTION_ID_PREFIX}_call-1"),
                 header: "Approve app tool call?".to_string(),
@@ -470,7 +470,7 @@ async fn delegated_mcp_user_reviewer_returns_none_without_metadata() {
 
     let event = RequestUserInputEvent {
         call_id: "call-1".to_string(),
-        turn_id: "child-turn-1".to_string(),
+        interaction_id: "child-turn-1".to_string(),
         questions: vec![RequestUserInputQuestion {
             id: format!("{MCP_TOOL_APPROVAL_QUESTION_ID_PREFIX}_call-1"),
             header: "Approve app tool call?".to_string(),

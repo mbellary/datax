@@ -63,7 +63,7 @@ impl FeedbackRequestProcessor {
         let mut upload_tags = tags.unwrap_or_default();
 
         let conversation_id = match chat_id.as_deref() {
-            Some(chat_id) => match ThreadId::from_string(chat_id) {
+            Some(chat_id) => match ChatId::from_string(chat_id) {
                 Ok(conversation_id) => Some(conversation_id),
                 Err(err) => return Err(invalid_request(format!("invalid thread id: {err}"))),
             },
@@ -85,16 +85,16 @@ impl FeedbackRequestProcessor {
             tracing::info!(target: "feedback_tags", account_id);
         }
         let snapshot = self.feedback.snapshot(conversation_id);
-        let chat_id = snapshot.thread_id.clone();
-        let (feedback_thread_ids, sqlite_feedback_logs, state_db_ctx) = if include_logs {
+        let chat_id = snapshot.chat_id.clone();
+        let (feedback_chat_ids, sqlite_feedback_logs, state_db_ctx) = if include_logs {
             if let Some(log_db) = self.log_db.as_ref() {
                 log_db.flush().await;
             }
             let state_db_ctx = self.state_db.clone();
-            let feedback_thread_ids = match conversation_id {
+            let feedback_chat_ids = match conversation_id {
                 Some(conversation_id) => match self
                     .thread_manager
-                    .list_agent_subtree_thread_ids(conversation_id)
+                    .list_agent_subtree_chat_ids(conversation_id)
                     .await
                 {
                     Ok(chat_ids) => chat_ids,
@@ -127,46 +127,46 @@ impl FeedbackRequestProcessor {
                 },
                 None => Vec::new(),
             };
-            let mut feedback_thread_ids = feedback_thread_ids;
-            let original_len = feedback_thread_ids.len();
+            let mut feedback_chat_ids = feedback_chat_ids;
+            let original_len = feedback_chat_ids.len();
             if let Some(conversation_id) = conversation_id {
-                let mut descendant_thread_ids = feedback_thread_ids
+                let mut descendant_chat_ids = feedback_chat_ids
                     .into_iter()
                     .filter(|chat_id| *chat_id != conversation_id)
                     .collect::<Vec<_>>();
                 // Chat ids are UUIDv7, so lexicographic order tracks creation time.
-                descendant_thread_ids.sort_unstable_by_key(ToString::to_string);
+                descendant_chat_ids.sort_unstable_by_key(ToString::to_string);
                 if original_len > MAX_FEEDBACK_TREE_THREADS {
                     let keep_descendants = MAX_FEEDBACK_TREE_THREADS.saturating_sub(1);
-                    let split_index = descendant_thread_ids.len().saturating_sub(keep_descendants);
-                    descendant_thread_ids = descendant_thread_ids.split_off(split_index);
+                    let split_index = descendant_chat_ids.len().saturating_sub(keep_descendants);
+                    descendant_chat_ids = descendant_chat_ids.split_off(split_index);
                     warn!(
                         "feedback log upload for chat_id={conversation_id:?} truncated from {original_len} threads to root plus {keep_descendants} most recent descendants"
                     );
                 }
-                feedback_thread_ids = Vec::with_capacity(descendant_thread_ids.len() + 1);
-                feedback_thread_ids.push(conversation_id);
-                feedback_thread_ids.extend(descendant_thread_ids);
+                feedback_chat_ids = Vec::with_capacity(descendant_chat_ids.len() + 1);
+                feedback_chat_ids.push(conversation_id);
+                feedback_chat_ids.extend(descendant_chat_ids);
             }
             let sqlite_feedback_logs = if let Some(state_db_ctx) = state_db_ctx.as_ref()
-                && !feedback_thread_ids.is_empty()
+                && !feedback_chat_ids.is_empty()
             {
-                let thread_id_texts = feedback_thread_ids
+                let chat_id_texts = feedback_chat_ids
                     .iter()
                     .map(ToString::to_string)
                     .collect::<Vec<_>>();
-                let thread_id_refs = thread_id_texts
+                let chat_id_refs = chat_id_texts
                     .iter()
                     .map(String::as_str)
                     .collect::<Vec<_>>();
                 match state_db_ctx
-                    .query_feedback_logs_for_threads(&thread_id_refs)
+                    .query_feedback_logs_for_threads(&chat_id_refs)
                     .await
                 {
                     Ok(logs) if logs.is_empty() => None,
                     Ok(logs) => Some(logs),
                     Err(err) => {
-                        let chat_ids = thread_id_texts.join(", ");
+                        let chat_ids = chat_id_texts.join(", ");
                         warn!(
                             "failed to query feedback logs from sqlite for chat_ids=[{chat_ids}]: {err}"
                         );
@@ -176,7 +176,7 @@ impl FeedbackRequestProcessor {
             } else {
                 None
             };
-            (feedback_thread_ids, sqlite_feedback_logs, state_db_ctx)
+            (feedback_chat_ids, sqlite_feedback_logs, state_db_ctx)
         } else {
             (Vec::new(), None, None)
         };
@@ -184,9 +184,9 @@ impl FeedbackRequestProcessor {
         let mut attachment_paths = Vec::new();
         let mut seen_attachment_paths = HashSet::new();
         if include_logs {
-            for feedback_thread_id in &feedback_thread_ids {
+            for feedback_chat_id in &feedback_chat_ids {
                 let Some(rollout_path) = self
-                    .resolve_rollout_path(*feedback_thread_id, state_db_ctx.as_ref())
+                    .resolve_rollout_path(*feedback_chat_id, state_db_ctx.as_ref())
                     .await
                 else {
                     continue;
@@ -272,7 +272,7 @@ impl FeedbackRequestProcessor {
 
     async fn resolve_rollout_path(
         &self,
-        conversation_id: ThreadId,
+        conversation_id: ChatId,
         state_db_ctx: Option<&StateDbHandle>,
     ) -> Option<PathBuf> {
         if let Ok(conversation) = self.thread_manager.get_thread(conversation_id).await
@@ -292,7 +292,7 @@ impl FeedbackRequestProcessor {
     }
 }
 
-fn auto_review_rollout_filename(chat_id: ThreadId) -> String {
+fn auto_review_rollout_filename(chat_id: ChatId) -> String {
     format!("auto-review-rollout-{chat_id}.jsonl")
 }
 

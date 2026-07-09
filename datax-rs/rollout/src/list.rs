@@ -21,7 +21,7 @@ use super::compression;
 use crate::protocol::EventMsg;
 use crate::state_db;
 use datax_file_search as file_search;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::RolloutItem;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::protocol::SessionMetaLine;
@@ -47,7 +47,7 @@ pub struct ThreadItem {
     /// Absolute path to the rollout file.
     pub path: PathBuf,
     /// Thread ID from session metadata.
-    pub thread_id: Option<ThreadId>,
+    pub chat_id: Option<ChatId>,
     /// First user message captured for this thread, if any.
     pub first_user_message: Option<String>,
     /// Best available user-facing preview for discovery and list display.
@@ -63,7 +63,7 @@ pub struct ThreadItem {
     /// Session source from session metadata.
     pub source: Option<SessionSource>,
     /// Immediate control/spawn parent thread id from session metadata.
-    pub parent_thread_id: Option<ThreadId>,
+    pub parent_chat_id: Option<ChatId>,
     /// Random unique nickname from session metadata for AgentControl-spawned sub-agents.
     pub agent_nickname: Option<String>,
     /// Role (agent_role) from session metadata for AgentControl-spawned sub-agents.
@@ -91,7 +91,7 @@ pub type ConversationsPage = ThreadsPage;
 #[derive(Default)]
 struct HeadTailSummary {
     saw_session_meta: bool,
-    thread_id: Option<ThreadId>,
+    chat_id: Option<ChatId>,
     first_user_message: Option<String>,
     preview: Option<String>,
     cwd: Option<PathBuf>,
@@ -99,7 +99,7 @@ struct HeadTailSummary {
     git_sha: Option<String>,
     git_origin_url: Option<String>,
     source: Option<SessionSource>,
-    parent_thread_id: Option<ThreadId>,
+    parent_chat_id: Option<ChatId>,
     agent_nickname: Option<String>,
     agent_role: Option<String>,
     model_provider: Option<String>,
@@ -144,7 +144,7 @@ pub struct ThreadListConfig<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cursor {
     ts: OffsetDateTime,
-    id: Option<ThreadId>,
+    id: Option<ChatId>,
 }
 
 impl Cursor {
@@ -152,7 +152,7 @@ impl Cursor {
         Self { ts, id: None }
     }
 
-    pub(crate) fn with_thread_id(ts: OffsetDateTime, id: ThreadId) -> Self {
+    pub(crate) fn with_chat_id(ts: OffsetDateTime, id: ChatId) -> Self {
         Self { ts, id: Some(id) }
     }
 
@@ -160,7 +160,7 @@ impl Cursor {
         self.ts
     }
 
-    pub(crate) fn thread_id(&self) -> Option<ThreadId> {
+    pub(crate) fn chat_id(&self) -> Option<ChatId> {
         self.id
     }
 }
@@ -720,7 +720,7 @@ async fn traverse_flat_paths_updated(
 /// Pagination cursor token format: an RFC3339 timestamp with an optional thread ID tie-breaker.
 pub fn parse_cursor(token: &str) -> Option<Cursor> {
     let (timestamp, id) = match token.rsplit_once('|') {
-        Some((timestamp, id)) => (timestamp, Some(ThreadId::from_string(id).ok()?)),
+        Some((timestamp, id)) => (timestamp, Some(ChatId::from_string(id).ok()?)),
         None => (token, None),
     };
 
@@ -753,9 +753,9 @@ fn build_next_cursor(items: &[ThreadItem], sort_key: ThreadSortKey) -> Option<Cu
         }
     };
     match sort_key {
-        ThreadSortKey::RecencyAt => Some(Cursor::with_thread_id(
+        ThreadSortKey::RecencyAt => Some(Cursor::with_chat_id(
             ts,
-            ThreadId::from_string(&id.to_string()).ok()?,
+            ChatId::from_string(&id.to_string()).ok()?,
         )),
         ThreadSortKey::CreatedAt | ThreadSortKey::UpdatedAt => Some(Cursor::new(ts)),
     }
@@ -798,7 +798,7 @@ async fn build_thread_item(
     // Apply filters: must have session meta and a discoverable preview.
     if summary.saw_session_meta && summary.preview.is_some() {
         let HeadTailSummary {
-            thread_id,
+            chat_id,
             first_user_message,
             preview,
             cwd,
@@ -806,7 +806,7 @@ async fn build_thread_item(
             git_sha,
             git_origin_url,
             source,
-            parent_thread_id,
+            parent_chat_id,
             agent_nickname,
             agent_role,
             model_provider,
@@ -820,7 +820,7 @@ async fn build_thread_item(
         }
         return Some(ThreadItem {
             path,
-            thread_id,
+            chat_id,
             first_user_message,
             preview,
             cwd,
@@ -828,7 +828,7 @@ async fn build_thread_item(
             git_sha,
             git_origin_url,
             source,
-            parent_thread_id,
+            parent_chat_id,
             agent_nickname,
             agent_role,
             model_provider,
@@ -1123,11 +1123,11 @@ async fn read_head_summary(path: &Path, head_limit: usize) -> io::Result<HeadTai
             RolloutItem::SessionMeta(session_meta_line) => {
                 if !summary.saw_session_meta {
                     summary.source = Some(session_meta_line.meta.source.clone());
-                    summary.parent_thread_id = session_meta_line.meta.parent_thread_id;
+                    summary.parent_chat_id = session_meta_line.meta.parent_chat_id;
                     summary.agent_nickname = session_meta_line.meta.agent_nickname.clone();
                     summary.agent_role = session_meta_line.meta.agent_role.clone();
                     summary.model_provider = session_meta_line.meta.model_provider.clone();
-                    summary.thread_id = Some(session_meta_line.meta.id);
+                    summary.chat_id = Some(session_meta_line.meta.id);
                     summary.cwd = Some(session_meta_line.meta.cwd.clone());
                     summary.git_branch = session_meta_line
                         .git
@@ -1306,14 +1306,14 @@ async fn find_thread_path_by_id_str_in_subdir(
         ARCHIVED_SESSIONS_SUBDIR => Some(true),
         _ => None,
     };
-    let thread_id = ThreadId::from_string(id_str).ok();
+    let chat_id = ChatId::from_string(id_str).ok();
     let mut unverified_db_path = None;
     let mut fallback_reason = state_db_ctx.is_none().then_some("db_unavailable");
     if let Some(state_db_ctx) = state_db_ctx
-        && let Some(thread_id) = thread_id
+        && let Some(chat_id) = chat_id
     {
         match state_db_ctx
-            .find_rollout_path_by_id(thread_id, archived_only)
+            .find_rollout_path_by_id(chat_id, archived_only)
             .await
         {
             Ok(Some(db_path)) => {
@@ -1321,7 +1321,7 @@ async fn find_thread_path_by_id_str_in_subdir(
                     compression::existing_rollout_path(db_path.as_path()).await
                 {
                     match read_session_meta_line(&existing_db_path).await {
-                        Ok(meta_line) if meta_line.meta.id == thread_id => {
+                        Ok(meta_line) if meta_line.meta.id == chat_id => {
                             return Ok(Some(existing_db_path));
                         }
                         Ok(meta_line) => {
@@ -1442,7 +1442,7 @@ async fn find_thread_path_by_id_str_in_subdir(
         }
         state_db::read_repair_rollout_path(
             state_db_ctx,
-            thread_id,
+            chat_id,
             archived_only,
             found_path.as_path(),
         )

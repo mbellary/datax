@@ -5,7 +5,7 @@ use crate::payload::RawPayloadId;
 use crate::raw_event::RawEventSeq;
 
 use super::AgentPath;
-use super::AgentThreadId;
+use super::AgentChatId;
 use super::CodeCellId;
 use super::CodeModeRuntimeToolId;
 use super::CodexTurnId;
@@ -31,8 +31,8 @@ pub struct CodeCell {
     /// later waits and nested code-mode tools.
     pub code_cell_id: CodeCellId,
     pub model_visible_call_id: ModelVisibleCallId,
-    pub thread_id: AgentThreadId,
-    pub codex_turn_id: CodexTurnId,
+    pub chat_id: AgentChatId,
+    pub codex_interaction_id: CodexTurnId,
     /// Conversation item containing the model-authored JavaScript.
     pub source_item_id: ConversationItemId,
     pub output_item_ids: Vec<ConversationItemId>,
@@ -78,8 +78,8 @@ pub enum CodeCellRuntimeStatus {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Compaction {
     pub compaction_id: CompactionId,
-    pub thread_id: AgentThreadId,
-    pub codex_turn_id: CodexTurnId,
+    pub chat_id: AgentChatId,
+    pub codex_interaction_id: CodexTurnId,
     pub installed_at_unix_ms: i64,
     /// Structural conversation item marking where pre-compaction history ended.
     pub marker_item_id: ConversationItemId,
@@ -96,8 +96,8 @@ pub struct Compaction {
 pub struct CompactionRequest {
     pub compaction_request_id: CompactionRequestId,
     pub compaction_id: CompactionId,
-    pub thread_id: AgentThreadId,
-    pub codex_turn_id: CodexTurnId,
+    pub chat_id: AgentChatId,
+    pub codex_interaction_id: CodexTurnId,
     pub execution: ExecutionWindow,
     pub model: String,
     pub provider_name: String,
@@ -120,9 +120,9 @@ pub struct ToolCall {
     pub model_visible_call_id: Option<ModelVisibleCallId>,
     /// Code-mode runtime's internal tool invocation ID, if this call came from JS.
     pub code_mode_runtime_tool_id: Option<CodeModeRuntimeToolId>,
-    pub thread_id: AgentThreadId,
+    pub chat_id: AgentChatId,
     /// Runtime activation that started the tool. Background work may outlive this turn.
-    pub started_by_codex_turn_id: Option<CodexTurnId>,
+    pub started_by_codex_interaction_id: Option<CodexTurnId>,
     pub execution: ExecutionWindow,
     pub requester: ToolCallRequester,
     pub kind: ToolCallKind,
@@ -214,7 +214,7 @@ pub enum ToolCallSummary {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TerminalSession {
     pub terminal_id: TerminalId,
-    pub thread_id: AgentThreadId,
+    pub chat_id: AgentChatId,
     pub created_by_operation_id: TerminalOperationId,
     pub operation_ids: Vec<TerminalOperationId>,
     /// Terminal lifetime. This can outlive the operation that created it.
@@ -330,5 +330,5 @@ pub enum InteractionEdgeKind {
 pub enum TraceAnchor {
     ConversationItem { item_id: ConversationItemId },
     ToolCall { tool_call_id: ToolCallId },
-    Thread { thread_id: AgentThreadId },
+    Thread { chat_id: AgentChatId },
 }

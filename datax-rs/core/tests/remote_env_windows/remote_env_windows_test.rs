@@ -175,7 +175,7 @@ async fn windows_exec_server_runs_with_native_shell_and_cwd() -> Result<()> {
                     EventMsg::PatchApplyEnd(event) if event.call_id == PATCH_CALL_ID => {
                         patch_end = Some(event)
                     }
-                    EventMsg::TurnComplete(_) => turn_complete = true,
+                    EventMsg::InteractionComplete(_) => turn_complete = true,
                     _ => {}
                 }
                 if turn_complete && end.is_some() {
@@ -312,7 +312,7 @@ async fn app_server_starts_thread_with_windows_environment_native_cwd() -> Resul
 
             let turn_request_id = app_server
                 .send_interaction_start_request(InteractionStartParams {
-                    thread_id: response.thread.id,
+                    chat_id: response.thread.id,
                     client_user_message_id: None,
                     input: vec![V2UserInput::Text {
                         text: "say done".to_string(),

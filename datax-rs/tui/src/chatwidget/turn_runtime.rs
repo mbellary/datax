@@ -183,7 +183,7 @@ impl ChatWidget {
         if !from_replay && !self.has_queued_follow_up_messages() && !had_pending_steers {
             self.maybe_prompt_plan_implementation();
         }
-        // Keep this flag for replayed completion events so a subsequent live TurnComplete can
+        // Keep this flag for replayed completion events so a subsequent live InteractionComplete can
         // still show the prompt once after thread switch replay.
         if !from_replay {
             self.transcript.saw_plan_item_this_turn = false;
@@ -199,7 +199,7 @@ impl ChatWidget {
         // next turn immediately, so notifying at that boundary would feel like
         // a false "needs attention".
         if !follow_up_started && !active_goal_continuing {
-            self.notify(Notification::AgentTurnComplete {
+            self.notify(Notification::AgentInteractionComplete {
                 response: notification_response,
             });
         }
@@ -473,8 +473,8 @@ impl ChatWidget {
         self.add_to_history(history_cell::new_plan_update(update));
     }
 
-    pub(super) fn interrupted_turn_message(&self, reason: TurnAbortReason) -> String {
-        if reason == TurnAbortReason::BudgetLimited {
+    pub(super) fn interrupted_turn_message(&self, reason: InteractionAbortReason) -> String {
+        if reason == InteractionAbortReason::BudgetLimited {
             return "Goal budget reached - the turn was stopped.".to_string();
         }
 

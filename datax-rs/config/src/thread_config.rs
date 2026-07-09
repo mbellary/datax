@@ -18,7 +18,7 @@ pub use remote::RemoteThreadConfigLoader;
 /// Context available to implementations when loading thread-scoped config.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct ThreadConfigContext {
-    pub thread_id: Option<String>,
+    pub chat_id: Option<String>,
     pub cwd: Option<AbsolutePathBuf>,
 }
 
@@ -233,7 +233,7 @@ mod tests {
 
         let sources = loader
             .load(ThreadConfigContext {
-                thread_id: Some("thread-1".to_string()),
+                chat_id: Some("thread-1".to_string()),
                 ..Default::default()
             })
             .await

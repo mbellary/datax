@@ -1,7 +1,7 @@
 use super::CompletedExternalAgentSessionImport;
 use super::ImportedExternalAgentSessionLedger;
 use super::record_completed_session_imports;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use sha2::Digest;
 use sha2::Sha256;
 use tempfile::TempDir;
@@ -27,14 +27,14 @@ fn completed_imports_do_not_read_source_files() {
     std::fs::write(&source_path, contents).expect("source");
     let source_path = std::fs::canonicalize(&source_path).expect("canonical source");
     std::fs::remove_file(&source_path).expect("remove source");
-    let imported_thread_id = ThreadId::new();
+    let imported_chat_id = ChatId::new();
 
     record_completed_session_imports(
         &codex_home,
         vec![CompletedExternalAgentSessionImport {
             source_path: source_path.clone(),
             source_content_sha256: format!("{:x}", Sha256::digest(contents)),
-            imported_thread_id,
+            imported_chat_id,
         }],
     )
     .expect("record completed imports");
@@ -42,7 +42,7 @@ fn completed_imports_do_not_read_source_files() {
     let ledger = super::load_import_ledger(&codex_home).expect("ledger");
     assert_eq!(ledger.records.len(), 1);
     assert_eq!(ledger.records[0].source_path, source_path);
-    assert_eq!(ledger.records[0].imported_thread_id, imported_thread_id);
+    assert_eq!(ledger.records[0].imported_chat_id, imported_chat_id);
     assert_eq!(ledger.records[0].source_modified_at, None);
 }
 
@@ -55,15 +55,15 @@ fn completed_import_refreshes_existing_record_metadata() {
     std::fs::write(&source_path, contents).expect("source");
     let source_path = std::fs::canonicalize(source_path).expect("canonical source");
     let content_sha256 = format!("{:x}", Sha256::digest(contents));
-    let first_thread_id = ThreadId::new();
-    let second_thread_id = ThreadId::new();
+    let first_chat_id = ChatId::new();
+    let second_chat_id = ChatId::new();
 
     record_completed_session_imports(
         &codex_home,
         vec![CompletedExternalAgentSessionImport {
             source_path: source_path.clone(),
             source_content_sha256: content_sha256.clone(),
-            imported_thread_id: first_thread_id,
+            imported_chat_id: first_chat_id,
         }],
     )
     .expect("record first import");
@@ -72,7 +72,7 @@ fn completed_import_refreshes_existing_record_metadata() {
         vec![CompletedExternalAgentSessionImport {
             source_path: source_path.clone(),
             source_content_sha256: content_sha256,
-            imported_thread_id: second_thread_id,
+            imported_chat_id: second_chat_id,
         }],
     )
     .expect("record replacement import");
@@ -80,6 +80,6 @@ fn completed_import_refreshes_existing_record_metadata() {
     let ledger = super::load_import_ledger(&codex_home).expect("ledger");
     assert_eq!(ledger.records.len(), 1);
     assert_eq!(ledger.records[0].source_path, source_path);
-    assert_eq!(ledger.records[0].imported_thread_id, second_thread_id);
+    assert_eq!(ledger.records[0].imported_chat_id, second_chat_id);
     assert!(ledger.records[0].source_modified_at.is_some());
 }

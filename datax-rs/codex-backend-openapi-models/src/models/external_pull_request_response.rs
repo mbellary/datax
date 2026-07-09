@@ -16,8 +16,8 @@ use serde::Serialize;
 pub struct ExternalPullRequestResponse {
     #[serde(rename = "id")]
     pub id: String,
-    #[serde(rename = "assistant_turn_id")]
-    pub assistant_turn_id: String,
+    #[serde(rename = "assistant_interaction_id")]
+    pub assistant_interaction_id: String,
     #[serde(rename = "pull_request")]
     pub pull_request: Box<models::GitPullRequest>,
     #[serde(rename = "codex_updated_sha", skip_serializing_if = "Option::is_none")]
@@ -27,12 +27,12 @@ pub struct ExternalPullRequestResponse {
 impl ExternalPullRequestResponse {
     pub fn new(
         id: String,
-        assistant_turn_id: String,
+        assistant_interaction_id: String,
         pull_request: models::GitPullRequest,
     ) -> ExternalPullRequestResponse {
         ExternalPullRequestResponse {
             id,
-            assistant_turn_id,
+            assistant_interaction_id,
             pull_request: Box::new(pull_request),
             codex_updated_sha: None,
         }

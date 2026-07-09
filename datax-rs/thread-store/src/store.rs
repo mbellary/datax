@@ -1,4 +1,4 @@
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use std::any::Any;
 use std::future::Future;
 use std::pin::Pin;
@@ -46,20 +46,20 @@ pub trait ThreadStore: Any + Send + Sync {
     fn append_items(&self, params: AppendThreadItemsParams) -> ThreadStoreFuture<'_, ()>;
 
     /// Materializes the thread if persistence is lazy, then persists all queued items.
-    fn persist_thread(&self, thread_id: ThreadId) -> ThreadStoreFuture<'_, ()>;
+    fn persist_thread(&self, chat_id: ChatId) -> ThreadStoreFuture<'_, ()>;
 
     /// Flushes all queued items and returns once they are durable/readable.
-    fn flush_thread(&self, thread_id: ThreadId) -> ThreadStoreFuture<'_, ()>;
+    fn flush_thread(&self, chat_id: ChatId) -> ThreadStoreFuture<'_, ()>;
 
     /// Flushes pending items and closes the live thread writer.
-    fn shutdown_thread(&self, thread_id: ThreadId) -> ThreadStoreFuture<'_, ()>;
+    fn shutdown_thread(&self, chat_id: ChatId) -> ThreadStoreFuture<'_, ()>;
 
     /// Discards the live thread writer without forcing pending in-memory items to become durable.
     ///
     /// Core calls this when session initialization fails after a live writer has been created.
     /// Implementations should release any live writer resources for the thread while preserving
     /// already-durable thread data.
-    fn discard_thread(&self, thread_id: ThreadId) -> ThreadStoreFuture<'_, ()>;
+    fn discard_thread(&self, chat_id: ChatId) -> ThreadStoreFuture<'_, ()>;
 
     /// Loads persisted history for resume, fork, rollback, and memory jobs.
     fn load_history(

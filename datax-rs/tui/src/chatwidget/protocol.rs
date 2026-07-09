@@ -8,9 +8,9 @@ impl ChatWidget {
     ) {
         // Reject misrouted child updates before shared notification handling mutates parent state.
         if let ServerNotification::McpServerStatusUpdated(notification) = &notification
-            && let (Some(notification_thread_id), Some(thread_id)) =
-                (notification.chat_id.as_deref(), self.thread_id())
-            && notification_thread_id != thread_id.to_string()
+            && let (Some(notification_chat_id), Some(chat_id)) =
+                (notification.chat_id.as_deref(), self.chat_id())
+            && notification_chat_id != chat_id.to_string()
         {
             return;
         }
@@ -35,15 +35,15 @@ impl ChatWidget {
                 )));
             }
             ServerNotification::ChatNameUpdated(notification) => {
-                match ThreadId::from_string(&notification.chat_id) {
-                    Ok(thread_id) => {
-                        self.on_thread_name_updated(thread_id, notification.thread_name)
+                match ChatId::from_string(&notification.chat_id) {
+                    Ok(chat_id) => {
+                        self.on_thread_name_updated(chat_id, notification.thread_name)
                     }
                     Err(err) => {
                         tracing::warn!(
-                            thread_id = notification.chat_id,
+                            chat_id = notification.chat_id,
                             error = %err,
-                            "ignoring app-server ThreadNameUpdated with invalid thread_id"
+                            "ignoring app-server ThreadNameUpdated with invalid chat_id"
                         );
                     }
                 }
@@ -58,7 +58,7 @@ impl ChatWidget {
                 self.on_thread_settings_updated(notification);
             }
             ServerNotification::InteractionStarted(notification) => {
-                self.turn_lifecycle.last_turn_id = Some(notification.turn.id);
+                self.turn_lifecycle.last_interaction_id = Some(notification.turn.id);
                 self.last_non_retry_error = None;
                 if !matches!(replay_kind, Some(ReplayKind::ResumeInitialMessages)) {
                     self.on_task_started();
@@ -255,9 +255,9 @@ impl ChatWidget {
                     .turn_lifecycle
                     .take_budget_limited(notification.turn.id.as_str())
                 {
-                    TurnAbortReason::BudgetLimited
+                    InteractionAbortReason::BudgetLimited
                 } else {
-                    TurnAbortReason::Interrupted
+                    InteractionAbortReason::Interrupted
                 };
                 self.on_interrupted_turn(reason);
             }
@@ -302,8 +302,8 @@ impl ChatWidget {
                 id,
                 tool,
                 status,
-                sender_thread_id,
-                receiver_thread_ids,
+                sender_chat_id,
+                receiver_chat_ids,
                 prompt,
                 model,
                 reasoning_effort,
@@ -312,8 +312,8 @@ impl ChatWidget {
                 id,
                 tool,
                 status,
-                sender_thread_id,
-                receiver_thread_ids,
+                sender_chat_id,
+                receiver_chat_ids,
                 prompt,
                 model,
                 reasoning_effort,

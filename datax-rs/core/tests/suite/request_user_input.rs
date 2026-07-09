@@ -205,13 +205,13 @@ async fn request_user_input_round_trip_for_mode(
     let response = RequestUserInputResponse { answers };
     codex
         .submit(Op::UserInputAnswer {
-            id: request.turn_id.clone(),
+            id: request.interaction_id.clone(),
             response,
         })
         .await?;
 
     wait_for_event(&codex, |event| matches!(event, EventMsg::TokenCount(_))).await;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     let req = second_mock.single_request();
     let output_text = call_output(&req, call_id);
@@ -332,7 +332,7 @@ async fn request_user_input_interrupt_emits_deferred_token_count() -> anyhow::Re
             .map(|info| info.total_token_usage.total_tokens),
         Some(77)
     );
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnAborted(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionAborted(_))).await;
 
     assert_eq!(request.call_id, call_id);
     Ok(())
@@ -410,7 +410,7 @@ where
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     let req = second_mock.single_request();
     let (output, success) = call_output_content_and_success(&req, &call_id);

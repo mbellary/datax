@@ -59,7 +59,7 @@ fn exec_tool_reduces_to_terminal_operation_and_session() -> anyhow::Result<()> {
         RawPayloadKind::ToolRuntimeEvent,
         &json!({
             "call_id": "tool-1",
-            "turn_id": "turn-1",
+            "interaction_id": "turn-1",
             "command": ["cargo", "test"],
             "cwd": "/repo"
         }),
@@ -78,7 +78,7 @@ fn exec_tool_reduces_to_terminal_operation_and_session() -> anyhow::Result<()> {
         &json!({
             "call_id": "tool-1",
             "process_id": "pty-1",
-            "turn_id": "turn-1",
+            "interaction_id": "turn-1",
             "command": ["cargo", "test"],
             "cwd": "/repo",
             "stdout": "ok\n",
@@ -198,7 +198,7 @@ fn exec_tool_reduces_to_terminal_operation_and_session() -> anyhow::Result<()> {
         rollout.terminal_sessions["pty-1"],
         TerminalSession {
             terminal_id: "pty-1".to_string(),
-            thread_id: "thread-root".to_string(),
+            chat_id: "thread-root".to_string(),
             created_by_operation_id: operation_id.clone(),
             operation_ids: vec![operation_id],
             execution: ExecutionWindow {
@@ -225,7 +225,7 @@ fn write_stdin_operation_reuses_existing_terminal_session() -> anyhow::Result<()
         &json!({
             "call_id": "tool-start",
             "process_id": "pty-1",
-            "turn_id": "turn-1",
+            "interaction_id": "turn-1",
             "command": ["bash"],
             "cwd": "/repo"
         }),
@@ -255,7 +255,7 @@ fn write_stdin_operation_reuses_existing_terminal_session() -> anyhow::Result<()
         &json!({
             "call_id": "tool-stdin",
             "process_id": "pty-1",
-            "turn_id": "turn-1",
+            "interaction_id": "turn-1",
             "command": ["bash"],
             "cwd": "/repo",
             "interaction_input": "echo hi\n"
@@ -422,7 +422,7 @@ fn dispatch_write_stdin_payload_reduces_to_terminal_operation() -> anyhow::Resul
         rollout.terminal_sessions["123"],
         TerminalSession {
             terminal_id: "123".to_string(),
-            thread_id: "thread-root".to_string(),
+            chat_id: "thread-root".to_string(),
             created_by_operation_id: operation_id.clone(),
             operation_ids: vec![operation_id],
             execution: ExecutionWindow {
@@ -529,8 +529,8 @@ fn append_inference_with_tool_call(writer: &TraceWriter) -> anyhow::Result<()> {
     )?;
     writer.append(RawTraceEventPayload::InferenceStarted {
         inference_call_id: "inference-1".to_string(),
-        thread_id: "thread-root".to_string(),
-        codex_turn_id: "turn-1".to_string(),
+        chat_id: "thread-root".to_string(),
+        codex_interaction_id: "turn-1".to_string(),
         model: "gpt-test".to_string(),
         provider_name: "test-provider".to_string(),
         request_payload: request,
@@ -571,8 +571,8 @@ fn append_followup_with_tool_output(writer: &TraceWriter) -> anyhow::Result<()> 
     )?;
     writer.append(RawTraceEventPayload::InferenceStarted {
         inference_call_id: "inference-2".to_string(),
-        thread_id: "thread-root".to_string(),
-        codex_turn_id: "turn-2".to_string(),
+        chat_id: "thread-root".to_string(),
+        codex_interaction_id: "turn-2".to_string(),
         model: "gpt-test".to_string(),
         provider_name: "test-provider".to_string(),
         request_payload: request,

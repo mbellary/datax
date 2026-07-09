@@ -13,7 +13,7 @@ use datax_core::CodexThread;
 use datax_core::NewThread;
 use datax_core::ThreadManager;
 use datax_core::config::Config as CodexConfig;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::AgentMessageEvent;
 use datax_protocol::protocol::ApplyPatchApprovalRequestEvent;
 use datax_protocol::protocol::Event;
@@ -21,7 +21,7 @@ use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::ExecApprovalRequestEvent;
 use datax_protocol::protocol::Op;
 use datax_protocol::protocol::Submission;
-use datax_protocol::protocol::TurnCompleteEvent;
+use datax_protocol::protocol::InteractionCompleteEvent;
 use datax_protocol::user_input::UserInput;
 use rmcp::model::CallToolResult;
 use rmcp::model::Content;
@@ -33,15 +33,15 @@ use tokio::sync::Mutex;
 /// `threadId` in the `structured_content` field of the response.
 /// Some MCP clients ignore `content` when `structuredContent` is present, so
 /// mirror the text there as well.
-pub(crate) fn create_call_tool_result_with_thread_id(
-    thread_id: ThreadId,
+pub(crate) fn create_call_tool_result_with_chat_id(
+    chat_id: ChatId,
     text: String,
     is_error: Option<bool>,
 ) -> CallToolResult {
     let content_text = text;
     let content = vec![Content::text(content_text.clone())];
     let structured_content = json!({
-        "threadId": thread_id,
+        "threadId": chat_id,
         "content": content_text,
     });
     let mut result = CallToolResult::success(content);
@@ -60,10 +60,10 @@ pub async fn run_codex_tool_session(
     config: CodexConfig,
     outgoing: Arc<OutgoingMessageSender>,
     thread_manager: Arc<ThreadManager>,
-    running_requests_id_to_codex_uuid: Arc<Mutex<HashMap<RequestId, ThreadId>>>,
+    running_requests_id_to_codex_uuid: Arc<Mutex<HashMap<RequestId, ChatId>>>,
 ) {
     let NewThread {
-        thread_id,
+        chat_id,
         thread,
         session_configured,
     } = match thread_manager.start_thread(config.clone()).await {
@@ -87,7 +87,7 @@ pub async fn run_codex_tool_session(
             &session_configured_event,
             Some(OutgoingNotificationMeta {
                 request_id: Some(id.clone()),
-                thread_id: Some(thread_id),
+                chat_id: Some(chat_id),
             }),
         )
         .await;
@@ -99,7 +99,7 @@ pub async fn run_codex_tool_session(
     running_requests_id_to_codex_uuid
         .lock()
         .await
-        .insert(id.clone(), thread_id);
+        .insert(id.clone(), chat_id);
     let submission = Submission {
         id: sub_id.clone(),
         op: Op::UserInput {
@@ -119,8 +119,8 @@ pub async fn run_codex_tool_session(
 
     if let Err(e) = thread.submit_with_id(submission).await {
         tracing::error!("Failed to submit initial prompt: {e}");
-        let result = create_call_tool_result_with_thread_id(
-            thread_id,
+        let result = create_call_tool_result_with_chat_id(
+            chat_id,
             format!("Failed to submit initial prompt: {e}"),
             Some(true),
         );
@@ -131,7 +131,7 @@ pub async fn run_codex_tool_session(
     }
 
     run_codex_tool_session_inner(
-        thread_id,
+        chat_id,
         thread,
         outgoing,
         id,
@@ -141,17 +141,17 @@ pub async fn run_codex_tool_session(
 }
 
 pub async fn run_codex_tool_session_reply(
-    thread_id: ThreadId,
+    chat_id: ChatId,
     thread: Arc<CodexThread>,
     outgoing: Arc<OutgoingMessageSender>,
     request_id: RequestId,
     prompt: String,
-    running_requests_id_to_codex_uuid: Arc<Mutex<HashMap<RequestId, ThreadId>>>,
+    running_requests_id_to_codex_uuid: Arc<Mutex<HashMap<RequestId, ChatId>>>,
 ) {
     running_requests_id_to_codex_uuid
         .lock()
         .await
-        .insert(request_id.clone(), thread_id);
+        .insert(request_id.clone(), chat_id);
     if let Err(e) = thread
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
@@ -167,8 +167,8 @@ pub async fn run_codex_tool_session_reply(
         .await
     {
         tracing::error!("Failed to submit user input: {e}");
-        let result = create_call_tool_result_with_thread_id(
-            thread_id,
+        let result = create_call_tool_result_with_chat_id(
+            chat_id,
             format!("Failed to submit user input: {e}"),
             Some(true),
         );
@@ -182,7 +182,7 @@ pub async fn run_codex_tool_session_reply(
     }
 
     run_codex_tool_session_inner(
-        thread_id,
+        chat_id,
         thread,
         outgoing,
         request_id,
@@ -192,11 +192,11 @@ pub async fn run_codex_tool_session_reply(
 }
 
 async fn run_codex_tool_session_inner(
-    thread_id: ThreadId,
+    chat_id: ChatId,
     thread: Arc<CodexThread>,
     outgoing: Arc<OutgoingMessageSender>,
     request_id: RequestId,
-    running_requests_id_to_codex_uuid: Arc<Mutex<HashMap<RequestId, ThreadId>>>,
+    running_requests_id_to_codex_uuid: Arc<Mutex<HashMap<RequestId, ChatId>>>,
 ) {
     let request_id_str = request_id.to_string();
 
@@ -210,7 +210,7 @@ async fn run_codex_tool_session_inner(
                         &event,
                         Some(OutgoingNotificationMeta {
                             request_id: Some(request_id.clone()),
-                            thread_id: Some(thread_id),
+                            chat_id: Some(chat_id),
                         }),
                     )
                     .await;
@@ -219,7 +219,7 @@ async fn run_codex_tool_session_inner(
                     EventMsg::ExecApprovalRequest(ev) => {
                         let approval_id = ev.effective_approval_id();
                         let ExecApprovalRequestEvent {
-                            turn_id: _,
+                            interaction_id: _,
                             environment_id: _,
                             started_at_ms: _,
                             command,
@@ -245,7 +245,7 @@ async fn run_codex_tool_session_inner(
                             call_id,
                             approval_id,
                             parsed_cmd,
-                            thread_id,
+                            chat_id,
                         )
                         .await;
                         continue;
@@ -255,8 +255,8 @@ async fn run_codex_tool_session_inner(
                     }
                     EventMsg::Error(err_event) => {
                         // Always respond in tools/call's expected shape, and include conversationId so the client can resume.
-                        let result = create_call_tool_result_with_thread_id(
-                            thread_id,
+                        let result = create_call_tool_result_with_chat_id(
+                            chat_id,
                             err_event.message,
                             Some(true),
                         );
@@ -279,7 +279,7 @@ async fn run_codex_tool_session_inner(
                     }
                     EventMsg::ApplyPatchApprovalRequest(ApplyPatchApprovalRequestEvent {
                         call_id,
-                        turn_id: _,
+                        interaction_id: _,
                         started_at_ms: _,
                         reason,
                         grant_root,
@@ -295,20 +295,20 @@ async fn run_codex_tool_session_inner(
                             request_id.clone(),
                             request_id_str.clone(),
                             event.id.clone(),
-                            thread_id,
+                            chat_id,
                         )
                         .await;
                         continue;
                     }
-                    EventMsg::TurnComplete(TurnCompleteEvent {
+                    EventMsg::InteractionComplete(InteractionCompleteEvent {
                         last_agent_message, ..
                     }) => {
                         let text = match last_agent_message {
                             Some(msg) => msg,
                             None => "".to_string(),
                         };
-                        let result = create_call_tool_result_with_thread_id(
-                            thread_id, text, /*is_error*/ None,
+                        let result = create_call_tool_result_with_chat_id(
+                            chat_id, text, /*is_error*/ None,
                         );
                         outgoing.send_response(request_id.clone(), result).await;
                         // unregister the id so we don't keep it in the map
@@ -331,7 +331,7 @@ async fn run_codex_tool_session_inner(
                         // TODO: think how we want to support this in the MCP
                     }
                     EventMsg::AgentReasoningRawContent(_)
-                    | EventMsg::TurnStarted(_)
+                    | EventMsg::InteractionStarted(_)
                     | EventMsg::ThreadSettingsApplied(_)
                     | EventMsg::TokenCount(_)
                     | EventMsg::AgentReasoning(_)
@@ -351,7 +351,7 @@ async fn run_codex_tool_session_inner(
                     | EventMsg::WebSearchBegin(_)
                     | EventMsg::WebSearchEnd(_)
                     | EventMsg::PlanUpdate(_)
-                    | EventMsg::TurnAborted(_)
+                    | EventMsg::InteractionAborted(_)
                     | EventMsg::UserMessage(_)
                     | EventMsg::ShutdownComplete
                     | EventMsg::ImageGenerationBegin(_)
@@ -400,8 +400,8 @@ async fn run_codex_tool_session_inner(
                 }
             }
             Err(e) => {
-                let result = create_call_tool_result_with_thread_id(
-                    thread_id,
+                let result = create_call_tool_result_with_chat_id(
+                    chat_id,
                     format!("Codex runtime error: {e}"),
                     Some(true),
                 );
@@ -418,17 +418,17 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn call_tool_result_includes_thread_id_in_structured_content() {
-        let thread_id = ThreadId::new();
-        let result = create_call_tool_result_with_thread_id(
-            thread_id,
+    fn call_tool_result_includes_chat_id_in_structured_content() {
+        let chat_id = ChatId::new();
+        let result = create_call_tool_result_with_chat_id(
+            chat_id,
             "done".to_string(),
             /*is_error*/ None,
         );
         assert_eq!(
             result.structured_content,
             Some(json!({
-                "threadId": thread_id,
+                "threadId": chat_id,
                 "content": "done",
             }))
         );

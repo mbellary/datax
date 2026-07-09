@@ -93,7 +93,7 @@ async fn handle_spawn_agent(
     apply_spawn_agent_runtime_overrides(&mut config, turn.as_ref())?;
 
     let spawn_source = thread_spawn_source(
-        session.thread_id,
+        session.chat_id,
         &turn.session_source,
         child_depth,
         role_name,
@@ -127,18 +127,18 @@ async fn handle_spawn_agent(
             SpawnAgentOptions {
                 fork_parent_spawn_call_id: fork_mode.as_ref().map(|_| call_id.clone()),
                 fork_mode,
-                parent_thread_id: Some(session.thread_id),
+                parent_chat_id: Some(session.chat_id),
                 environments: Some(turn.environments.to_selections()),
             },
         ),
     )
     .await
     .map_err(collab_spawn_error)?;
-    let new_thread_id = spawned_agent.thread_id;
+    let new_chat_id = spawned_agent.chat_id;
     let agent_snapshot = session
         .services
         .agent_control
-        .get_agent_config_snapshot(new_thread_id)
+        .get_agent_config_snapshot(new_chat_id)
         .await;
     let nickname = agent_snapshot
         .as_ref()
@@ -150,7 +150,7 @@ async fn handle_spawn_agent(
             SubAgentActivityEvent {
                 event_id: call_id,
                 occurred_at_ms: now_unix_timestamp_ms(),
-                agent_thread_id: new_thread_id,
+                agent_chat_id: new_chat_id,
                 agent_path: new_agent_path.clone(),
                 kind: SubAgentActivityKind::Started,
             }

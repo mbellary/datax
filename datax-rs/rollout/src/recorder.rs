@@ -11,7 +11,7 @@ use std::sync::Mutex;
 
 use chrono::SecondsFormat;
 use datax_protocol::SessionId;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::dynamic_tools::DynamicToolSpec;
 use datax_protocol::models::BaseInstructions;
 use serde_json::Value;
@@ -83,9 +83,9 @@ pub struct RolloutRecorder {
 pub enum RolloutRecorderParams {
     Create {
         session_id: SessionId,
-        conversation_id: ThreadId,
-        forked_from_id: Option<ThreadId>,
-        parent_thread_id: Option<ThreadId>,
+        conversation_id: ChatId,
+        forked_from_id: Option<ChatId>,
+        parent_chat_id: Option<ChatId>,
         source: Box<SessionSource>,
         thread_source: Option<ThreadSource>,
         base_instructions: BaseInstructions,
@@ -160,9 +160,9 @@ fn clone_io_error(err: &IoError) -> IoError {
 
 impl RolloutRecorderParams {
     pub fn new(
-        conversation_id: ThreadId,
-        forked_from_id: Option<ThreadId>,
-        parent_thread_id: Option<ThreadId>,
+        conversation_id: ChatId,
+        forked_from_id: Option<ChatId>,
+        parent_chat_id: Option<ChatId>,
         source: SessionSource,
         thread_source: Option<ThreadSource>,
         base_instructions: BaseInstructions,
@@ -172,7 +172,7 @@ impl RolloutRecorderParams {
             session_id: conversation_id.into(),
             conversation_id,
             forked_from_id,
-            parent_thread_id,
+            parent_chat_id,
             source: Box::new(source),
             thread_source,
             base_instructions,
@@ -386,7 +386,7 @@ impl RolloutRecorder {
                 allowed_sources,
                 model_providers,
                 cwd_filters,
-                /*parent_thread_id*/ None,
+                /*parent_chat_id*/ None,
                 archived,
                 search_term,
             )
@@ -453,10 +453,10 @@ impl RolloutRecorder {
 
         // For metadata-filtered listings the filesystem page is the page we return. Track those
         // IDs so the later DB page only triggers full reconciliation for DB-only hits.
-        let fs_page_thread_ids = fs_page
+        let fs_page_chat_ids = fs_page
             .items
             .iter()
-            .filter_map(|item| item.thread_id)
+            .filter_map(|item| item.chat_id)
             .collect::<HashSet<_>>();
 
         // Warm the DB by repairing every filesystem hit before querying SQLite. Source/provider/cwd
@@ -477,7 +477,7 @@ impl RolloutRecorder {
             } else {
                 state_db::read_repair_rollout_path(
                     state_db_ctx.as_deref(),
-                    item.thread_id,
+                    item.chat_id,
                     Some(archived),
                     item.path.as_path(),
                 )
@@ -495,7 +495,7 @@ impl RolloutRecorder {
             allowed_sources,
             model_providers,
             cwd_filters,
-            /*parent_thread_id*/ None,
+            /*parent_chat_id*/ None,
             archived,
             search_term,
         )
@@ -524,7 +524,7 @@ impl RolloutRecorder {
                     allowed_sources,
                     model_providers,
                     cwd_filters,
-                    /*parent_thread_id*/ None,
+                    /*parent_chat_id*/ None,
                     archived,
                     search_term,
                 )
@@ -539,7 +539,7 @@ impl RolloutRecorder {
                     // Rows that also appeared in the filesystem page were just validated from the
                     // rollout head. Rows only found by SQLite may be stale filter matches, so fully
                     // reconcile those before returning the filesystem-backed page.
-                    if fs_page_thread_ids.contains(&item.id) {
+                    if fs_page_chat_ids.contains(&item.id) {
                         continue;
                     }
                     state_db::reconcile_rollout(
@@ -564,7 +564,7 @@ impl RolloutRecorder {
                         allowed_sources,
                         model_providers,
                         cwd_filters,
-                        /*parent_thread_id*/ None,
+                        /*parent_chat_id*/ None,
                         archived,
                         search_term,
                     )
@@ -642,7 +642,7 @@ impl RolloutRecorder {
                     allowed_sources,
                     model_providers,
                     cwd_filter.as_ref().map(std::slice::from_ref),
-                    /*parent_thread_id*/ None,
+                    /*parent_chat_id*/ None,
                     /*archived*/ false,
                     /*search_term*/ None,
                 )
@@ -709,7 +709,7 @@ impl RolloutRecorder {
                 session_id,
                 conversation_id,
                 forked_from_id,
-                parent_thread_id,
+                parent_chat_id,
                 source,
                 thread_source,
                 base_instructions,
@@ -718,7 +718,7 @@ impl RolloutRecorder {
             } => {
                 let log_file_info = precompute_log_file_info(config, conversation_id)?;
                 let path = log_file_info.path.clone();
-                let thread_id = log_file_info.conversation_id;
+                let chat_id = log_file_info.conversation_id;
                 let started_at = log_file_info.timestamp;
 
                 let timestamp_format: &[FormatItem] = format_description!(
@@ -731,9 +731,9 @@ impl RolloutRecorder {
 
                 let session_meta = SessionMeta {
                     session_id,
-                    id: thread_id,
+                    id: chat_id,
                     forked_from_id,
-                    parent_thread_id,
+                    parent_chat_id,
                     timestamp,
                     cwd: config.cwd().to_path_buf(),
                     originator: originator().value,
@@ -878,10 +878,10 @@ impl RolloutRecorder {
 
     pub async fn load_rollout_items(
         path: &Path,
-    ) -> std::io::Result<(Vec<RolloutItem>, Option<ThreadId>, usize)> {
+    ) -> std::io::Result<(Vec<RolloutItem>, Option<ChatId>, usize)> {
         trace!("Resuming rollout from {path:?}");
         let mut items: Vec<RolloutItem> = Vec::new();
-        let mut thread_id: Option<ThreadId> = None;
+        let mut chat_id: Option<ChatId> = None;
         let mut parse_errors = 0usize;
         let mut reader = compression::open_rollout_line_reader(path).await?;
         let mut saw_non_empty_line = false;
@@ -909,10 +909,10 @@ impl RolloutRecorder {
                     let item = rollout_line.item;
                     // Use the FIRST SessionMeta encountered in the file as the canonical
                     // thread id and main session information. Keep all items intact.
-                    if thread_id.is_none()
+                    if chat_id.is_none()
                         && let RolloutItem::SessionMeta(session_meta_line) = &item
                     {
-                        thread_id = Some(session_meta_line.meta.id);
+                        chat_id = Some(session_meta_line.meta.id);
                     }
                     items.push(item);
                 }
@@ -929,15 +929,15 @@ impl RolloutRecorder {
         tracing::debug!(
             "Resumed rollout with {} items, thread ID: {:?}, parse errors: {}",
             items.len(),
-            thread_id,
+            chat_id,
             parse_errors,
         );
-        Ok((items, thread_id, parse_errors))
+        Ok((items, chat_id, parse_errors))
     }
 
     pub async fn get_rollout_history(path: &Path) -> std::io::Result<InitialHistory> {
-        let (items, thread_id, _parse_errors) = Self::load_rollout_items(path).await?;
-        let conversation_id = thread_id
+        let (items, chat_id, _parse_errors) = Self::load_rollout_items(path).await?;
+        let conversation_id = chat_id
             .ok_or_else(|| IoError::other("failed to parse thread ID from rollout file"))?;
 
         if items.is_empty() {
@@ -1050,10 +1050,10 @@ async fn fill_missing_thread_item_metadata_from_state_db(
     };
 
     for item in &mut page.items {
-        let Some(thread_id) = item.thread_id else {
+        let Some(chat_id) = item.chat_id else {
             continue;
         };
-        let metadata = match state_db_ctx.get_thread(thread_id).await {
+        let metadata = match state_db_ctx.get_thread(chat_id).await {
             Ok(Some(metadata)) => metadata,
             Ok(None) => continue,
             Err(err) => {
@@ -1072,7 +1072,7 @@ async fn fill_missing_thread_item_metadata_from_state_db(
 fn fill_missing_thread_item_metadata(item: &mut ThreadItem, state_item: ThreadItem) {
     let ThreadItem {
         path: _state_path,
-        thread_id: _state_thread_id,
+        chat_id: _state_chat_id,
         first_user_message,
         preview,
         cwd,
@@ -1080,7 +1080,7 @@ fn fill_missing_thread_item_metadata(item: &mut ThreadItem, state_item: ThreadIt
         git_sha,
         git_origin_url,
         source,
-        parent_thread_id,
+        parent_chat_id,
         agent_nickname,
         agent_role,
         model_provider,
@@ -1111,8 +1111,8 @@ fn fill_missing_thread_item_metadata(item: &mut ThreadItem, state_item: ThreadIt
     if item.source.is_none() {
         item.source = source;
     }
-    if item.parent_thread_id.is_none() {
-        item.parent_thread_id = parent_thread_id;
+    if item.parent_chat_id.is_none() {
+        item.parent_chat_id = parent_chat_id;
     }
     if item.agent_nickname.is_none() {
         item.agent_nickname = agent_nickname;
@@ -1314,7 +1314,7 @@ async fn list_threads_from_files_asc(
         let anchor = (
             cursor.timestamp(),
             cursor
-                .thread_id()
+                .chat_id()
                 .and_then(|id| uuid::Uuid::parse_str(&id.to_string()).ok()),
         );
         all_items.retain(|item| {
@@ -1357,14 +1357,14 @@ async fn filter_thread_items_by_search_term(
     // The file-backed fallback only has the thread title in the sidecar session index.
     // Match the SQLite path's title substring filter so search pagination behaves the same
     // whether the state DB is available or not.
-    let thread_ids = items
+    let chat_ids = items
         .iter()
-        .filter_map(|item| item.thread_id)
+        .filter_map(|item| item.chat_id)
         .collect::<HashSet<_>>();
-    let thread_names = find_thread_names_by_ids(codex_home, &thread_ids).await?;
+    let thread_names = find_thread_names_by_ids(codex_home, &chat_ids).await?;
     items.retain(|item| {
-        item.thread_id
-            .and_then(|thread_id| thread_names.get(&thread_id))
+        item.chat_id
+            .and_then(|chat_id| thread_names.get(&chat_id))
             .is_some_and(|title| title.contains(search_term))
     });
     Ok(())
@@ -1397,9 +1397,9 @@ fn thread_item_sort_key(
 fn cursor_from_thread_item(item: &ThreadItem, sort_key: ThreadSortKey) -> Option<Cursor> {
     let (timestamp, id) = thread_item_sort_key(item, sort_key)?;
     match sort_key {
-        ThreadSortKey::RecencyAt => Some(Cursor::with_thread_id(
+        ThreadSortKey::RecencyAt => Some(Cursor::with_chat_id(
             timestamp,
-            ThreadId::from_string(&id.to_string()).ok()?,
+            ChatId::from_string(&id.to_string()).ok()?,
         )),
         ThreadSortKey::CreatedAt | ThreadSortKey::UpdatedAt => Some(Cursor::new(timestamp)),
     }
@@ -1410,7 +1410,7 @@ struct LogFileInfo {
     path: PathBuf,
 
     /// Session ID (also embedded in filename).
-    conversation_id: ThreadId,
+    conversation_id: ChatId,
 
     /// Timestamp for the start of the session.
     timestamp: OffsetDateTime,
@@ -1418,7 +1418,7 @@ struct LogFileInfo {
 
 fn precompute_log_file_info(
     config: &impl RolloutConfigView,
-    conversation_id: ThreadId,
+    conversation_id: ChatId,
 ) -> std::io::Result<LogFileInfo> {
     // Resolve ~/.datax/sessions/YYYY/MM/DD path.
     let timestamp = OffsetDateTime::now_local()
@@ -1772,7 +1772,7 @@ impl From<datax_state::ThreadsPage> for ThreadsPage {
 fn thread_item_from_state_metadata(item: datax_state::ThreadMetadata) -> ThreadItem {
     ThreadItem {
         path: item.rollout_path,
-        thread_id: Some(item.id),
+        chat_id: Some(item.id),
         first_user_message: item.first_user_message,
         preview: item.preview,
         cwd: Some(item.cwd),
@@ -1784,7 +1784,7 @@ fn thread_item_from_state_metadata(item: datax_state::ThreadMetadata) -> ThreadI
                 .or_else(|_| serde_json::from_value(Value::String(item.source)))
                 .unwrap_or(SessionSource::Unknown),
         ),
-        parent_thread_id: None,
+        parent_chat_id: None,
         agent_nickname: item.agent_nickname,
         agent_role: item.agent_role,
         model_provider: Some(item.model_provider),

@@ -647,7 +647,7 @@ mod tests {
                 ),
             ],
             &policy,
-            /*thread_id*/ None,
+            /*chat_id*/ None,
         );
 
         assert_eq!(env.get("PATH").map(String::as_str), Some("/remote/bin"));

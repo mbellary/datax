@@ -5,11 +5,11 @@ use datax_protocol::protocol::EventMsg;
 /// Returns `None` when the event does not affect status tracking.
 pub(crate) fn agent_status_from_event(msg: &EventMsg) -> Option<AgentStatus> {
     match msg {
-        EventMsg::TurnStarted(_) => Some(AgentStatus::Running),
-        EventMsg::TurnComplete(ev) => Some(AgentStatus::Completed(ev.last_agent_message.clone())),
-        EventMsg::TurnAborted(ev) => match ev.reason {
-            datax_protocol::protocol::TurnAbortReason::Interrupted
-            | datax_protocol::protocol::TurnAbortReason::BudgetLimited => {
+        EventMsg::InteractionStarted(_) => Some(AgentStatus::Running),
+        EventMsg::InteractionComplete(ev) => Some(AgentStatus::Completed(ev.last_agent_message.clone())),
+        EventMsg::InteractionAborted(ev) => match ev.reason {
+            datax_protocol::protocol::InteractionAbortReason::Interrupted
+            | datax_protocol::protocol::InteractionAbortReason::BudgetLimited => {
                 Some(AgentStatus::Interrupted)
             }
             _ => Some(AgentStatus::Errored(format!("{:?}", ev.reason))),

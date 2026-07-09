@@ -19,7 +19,7 @@ pub use runtime::*;
 pub use session::*;
 
 /// Codex conversation/session UUID.
-pub type AgentThreadId = String;
+pub type AgentChatId = String;
 /// Stable multi-agent routing path such as `/root` or `/root/search_docs`.
 pub type AgentPath = String;
 /// Runtime submission/activation UUID. This is not a chat turn.
@@ -67,8 +67,8 @@ pub struct RolloutTrace {
     /// Wall-clock timestamp for terminal rollout status. `None` means running or partial trace.
     pub ended_at_unix_ms: Option<i64>,
     pub status: RolloutStatus,
-    pub root_thread_id: AgentThreadId,
-    pub threads: BTreeMap<AgentThreadId, AgentThread>,
+    pub root_chat_id: AgentChatId,
+    pub threads: BTreeMap<AgentChatId, AgentThread>,
     pub codex_turns: BTreeMap<CodexTurnId, CodexTurn>,
     pub conversation_items: BTreeMap<ConversationItemId, ConversationItem>,
     pub inference_calls: BTreeMap<InferenceCallId, InferenceCall>,
@@ -95,7 +95,7 @@ impl RolloutTrace {
         schema_version: u32,
         trace_id: String,
         rollout_id: String,
-        root_thread_id: AgentThreadId,
+        root_chat_id: AgentChatId,
         started_at_unix_ms: i64,
     ) -> Self {
         Self {
@@ -105,7 +105,7 @@ impl RolloutTrace {
             started_at_unix_ms,
             ended_at_unix_ms: None,
             status: RolloutStatus::Running,
-            root_thread_id,
+            root_chat_id,
             threads: BTreeMap::new(),
             codex_turns: BTreeMap::new(),
             conversation_items: BTreeMap::new(),

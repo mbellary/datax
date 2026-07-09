@@ -637,7 +637,7 @@ mod tests {
         fs::write(root.join("MEMORY.md"), "old").expect("write memory");
         fs::write(
             root.join("rollout_summaries/deleted.md"),
-            "thread_id: 00000000-0000-4000-8000-000000000001\nimportant stale evidence\n",
+            "chat_id: 00000000-0000-4000-8000-000000000001\nimportant stale evidence\n",
         )
         .expect("write rollout summary");
         reset_git_repository(&root).await.expect("reset repo");
@@ -683,7 +683,7 @@ mod tests {
         assert!(diff.unified_diff.contains("deleted file mode 100644"));
         assert!(
             diff.unified_diff
-                .contains("-thread_id: 00000000-0000-4000-8000-000000000001")
+                .contains("-chat_id: 00000000-0000-4000-8000-000000000001")
         );
         assert!(diff.unified_diff.contains("-important stale evidence"));
     }

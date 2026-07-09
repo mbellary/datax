@@ -144,7 +144,7 @@ async fn snapshot_model_visible_layout_turn_overrides() -> Result<()> {
         })
         .await?;
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -180,7 +180,7 @@ async fn snapshot_model_visible_layout_turn_overrides() -> Result<()> {
         })
         .await?;
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -270,7 +270,7 @@ async fn snapshot_model_visible_layout_cwd_change_does_not_refresh_agents() -> R
         })
         .await?;
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -303,7 +303,7 @@ async fn snapshot_model_visible_layout_cwd_change_does_not_refresh_agents() -> R
         })
         .await?;
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -371,7 +371,7 @@ async fn snapshot_model_visible_layout_resume_with_personality_change() -> Resul
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
     let initial_request = initial_mock.single_request();
 
     let resumed_mock = mount_sse_once(
@@ -429,7 +429,7 @@ async fn snapshot_model_visible_layout_resume_with_personality_change() -> Resul
         })
         .await?;
     wait_for_event(&resumed.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -486,7 +486,7 @@ async fn snapshot_model_visible_layout_resume_override_matches_rollout_model() -
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
     let initial_request = initial_mock.single_request();
 
     let resumed_mock = mount_sse_once(
@@ -529,7 +529,7 @@ async fn snapshot_model_visible_layout_resume_override_matches_rollout_model() -
         })
         .await?;
     wait_for_event(&resumed.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 

@@ -398,16 +398,16 @@ impl Client {
     pub async fn list_sibling_turns(
         &self,
         task_id: &str,
-        turn_id: &str,
+        interaction_id: &str,
     ) -> Result<TurnAttemptsSiblingTurnsResponse> {
         let url = match self.path_style {
             PathStyle::CodexApi => format!(
                 "{}/api/codex/tasks/{}/turns/{}/sibling_turns",
-                self.base_url, task_id, turn_id
+                self.base_url, task_id, interaction_id
             ),
             PathStyle::ChatGptApi => format!(
                 "{}/wham/tasks/{}/turns/{}/sibling_turns",
-                self.base_url, task_id, turn_id
+                self.base_url, task_id, interaction_id
             ),
         };
         let req = self.http.get(&url).headers(self.headers());

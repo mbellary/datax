@@ -130,7 +130,7 @@ async fn expect_patch_approval(
     let event = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::ApplyPatchApprovalRequest(_) | EventMsg::TurnComplete(_)
+            EventMsg::ApplyPatchApprovalRequest(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await;
@@ -140,7 +140,7 @@ async fn expect_patch_approval(
             assert_eq!(approval.call_id, expected_call_id);
             approval
         }
-        EventMsg::TurnComplete(_) => panic!("expected patch approval request before completion"),
+        EventMsg::InteractionComplete(_) => panic!("expected patch approval request before completion"),
         other => panic!("unexpected event: {other:?}"),
     }
 }
@@ -149,13 +149,13 @@ async fn wait_for_completion_without_patch_approval(test: &TestCodex) {
     let event = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::ApplyPatchApprovalRequest(_) | EventMsg::TurnComplete(_)
+            EventMsg::ApplyPatchApprovalRequest(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await;
 
     match event {
-        EventMsg::TurnComplete(_) => {}
+        EventMsg::InteractionComplete(_) => {}
         EventMsg::ApplyPatchApprovalRequest(event) => {
             panic!("unexpected patch approval request: {:?}", event.call_id)
         }
@@ -392,7 +392,7 @@ async fn remote_sandbox_denial_requests_approval_and_retries() -> Result<()> {
     let event = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
+            EventMsg::ExecApprovalRequest(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await;
@@ -412,12 +412,12 @@ async fn remote_sandbox_denial_requests_approval_and_retries() -> Result<()> {
     test.codex
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
-            turn_id: None,
+            interaction_id: None,
             decision: ReviewDecision::Approved,
         })
         .await?;
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -632,7 +632,7 @@ async fn deferred_executor_updates_model_context_after_startup() -> Result<()> {
     serve_environment_info(listener).await;
     test.codex
         .submit(Op::UserInputAnswer {
-            id: request.turn_id,
+            id: request.interaction_id,
             response: RequestUserInputResponse {
                 answers: HashMap::from([(
                     "continue".to_string(),
@@ -644,7 +644,7 @@ async fn deferred_executor_updates_model_context_after_startup() -> Result<()> {
         })
         .await?;
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -987,7 +987,7 @@ async fn remote_request_permissions_grant_unblocks_later_remote_exec() -> Result
     let event = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::RequestPermissions(_) | EventMsg::TurnComplete(_)
+            EventMsg::RequestPermissions(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await;
@@ -1012,12 +1012,12 @@ async fn remote_request_permissions_grant_unblocks_later_remote_exec() -> Result
     let event = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
+            EventMsg::ExecApprovalRequest(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await;
     match event {
-        EventMsg::TurnComplete(_) => {}
+        EventMsg::InteractionComplete(_) => {}
         EventMsg::ExecApprovalRequest(approval) => {
             panic!("remote request_permissions grant should preapprove exec: {approval:?}");
         }
@@ -1273,7 +1273,7 @@ async fn apply_patch_approvals_are_remembered_per_environment() -> Result<()> {
         })
         .await?;
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
     assert_eq!(fs::read_to_string(&target_path)?, "local\n");
@@ -1293,7 +1293,7 @@ async fn apply_patch_approvals_are_remembered_per_environment() -> Result<()> {
         })
         .await?;
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
     assert_eq!(

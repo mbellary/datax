@@ -557,7 +557,7 @@ impl ServerHandler for TestToolServer {
                 Ok(Self::structured_result(json!({ "cwd": cwd })))
             }
             "thread_hint" => {
-                let thread_id = context
+                let chat_id = context
                     .meta
                     .0
                     .get("threadId")
@@ -567,7 +567,7 @@ impl ServerHandler for TestToolServer {
                     })?;
                 Ok(CallToolResult::success(vec![
                     rmcp::model::Content::text(format!(
-                        "manual history hint for thread {thread_id}"
+                        "manual history hint for thread {chat_id}"
                     )),
                     rmcp::model::Content::text("unstructured notes/thread_hint fixture result"),
                 ]))

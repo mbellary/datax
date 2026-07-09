@@ -17,7 +17,7 @@ use serde::Serialize;
 use serde_json::Value as JsonValue;
 use uuid::Uuid;
 
-use crate::model::AgentThreadId;
+use crate::model::AgentChatId;
 use crate::model::CodexTurnId;
 use crate::model::InferenceCallId;
 use crate::payload::RawPayloadKind;
@@ -47,8 +47,8 @@ enum InferenceTraceContextState {
 #[derive(Clone, Debug)]
 struct EnabledInferenceTraceContext {
     writer: Arc<TraceWriter>,
-    thread_id: AgentThreadId,
-    codex_turn_id: CodexTurnId,
+    chat_id: AgentChatId,
+    codex_interaction_id: CodexTurnId,
     model: String,
     provider_name: String,
 }
@@ -102,16 +102,16 @@ impl InferenceTraceContext {
     /// Builds an enabled context for all upstream attempts made by one Codex turn.
     pub fn enabled(
         writer: Arc<TraceWriter>,
-        thread_id: AgentThreadId,
-        codex_turn_id: CodexTurnId,
+        chat_id: AgentChatId,
+        codex_interaction_id: CodexTurnId,
         model: String,
         provider_name: String,
     ) -> Self {
         Self {
             state: InferenceTraceContextState::Enabled(EnabledInferenceTraceContext {
                 writer,
-                thread_id,
-                codex_turn_id,
+                chat_id,
+                codex_interaction_id,
                 model,
                 provider_name,
             }),
@@ -187,8 +187,8 @@ impl InferenceTraceAttempt {
             &attempt.context,
             RawTraceEventPayload::InferenceStarted {
                 inference_call_id: attempt.inference_call_id.clone(),
-                thread_id: attempt.context.thread_id.clone(),
-                codex_turn_id: attempt.context.codex_turn_id.clone(),
+                chat_id: attempt.context.chat_id.clone(),
+                codex_interaction_id: attempt.context.codex_interaction_id.clone(),
                 model: attempt.context.model.clone(),
                 provider_name: attempt.context.provider_name.clone(),
                 request_payload,
@@ -381,8 +381,8 @@ fn append_with_context_best_effort(
     payload: RawTraceEventPayload,
 ) {
     let event_context = RawTraceEventContext {
-        thread_id: Some(context.thread_id.clone()),
-        codex_turn_id: Some(context.codex_turn_id.clone()),
+        chat_id: Some(context.chat_id.clone()),
+        codex_interaction_id: Some(context.codex_interaction_id.clone()),
     };
     let _ = context.writer.append_with_context(event_context, payload);
 }
@@ -449,13 +449,13 @@ mod tests {
             "thread-root".to_string(),
         )?);
         writer.append(RawTraceEventPayload::ThreadStarted {
-            thread_id: "thread-root".to_string(),
+            chat_id: "thread-root".to_string(),
             agent_path: "/root".to_string(),
             metadata_payload: None,
         })?;
-        writer.append(RawTraceEventPayload::CodexTurnStarted {
-            codex_turn_id: "turn-1".to_string(),
-            thread_id: "thread-root".to_string(),
+        writer.append(RawTraceEventPayload::CodexInteractionStarted {
+            codex_interaction_id: "turn-1".to_string(),
+            chat_id: "thread-root".to_string(),
         })?;
         let context = InferenceTraceContext::enabled(
             writer,
@@ -484,8 +484,8 @@ mod tests {
             .expect("recorded inference call");
 
         assert_eq!(rollout.inference_calls.len(), 1);
-        assert_eq!(inference.thread_id, "thread-root");
-        assert_eq!(inference.codex_turn_id, "turn-1");
+        assert_eq!(inference.chat_id, "thread-root");
+        assert_eq!(inference.codex_interaction_id, "turn-1");
         assert_eq!(inference.execution.status, ExecutionStatus::Completed);
         assert_eq!(inference.upstream_request_id, Some("req-1".to_string()));
         assert_eq!(rollout.raw_payloads.len(), 2);

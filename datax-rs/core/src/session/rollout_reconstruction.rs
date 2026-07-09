@@ -41,7 +41,7 @@ enum TurnReferenceContextItem {
 
 #[derive(Debug, Default)]
 struct ActiveReplaySegment<'a> {
-    turn_id: Option<String>,
+    interaction_id: Option<String>,
     counts_as_user_turn: bool,
     previous_turn_settings: Option<PreviousTurnSettings>,
     reference_context_item: TurnReferenceContextItem,
@@ -49,9 +49,9 @@ struct ActiveReplaySegment<'a> {
     window: Option<ReconstructedWindow>,
 }
 
-fn turn_ids_are_compatible(active_turn_id: Option<&str>, item_turn_id: Option<&str>) -> bool {
-    active_turn_id
-        .is_none_or(|turn_id| item_turn_id.is_none_or(|item_turn_id| item_turn_id == turn_id))
+fn interaction_ids_are_compatible(active_interaction_id: Option<&str>, item_interaction_id: Option<&str>) -> bool {
+    active_interaction_id
+        .is_none_or(|interaction_id| item_interaction_id.is_none_or(|item_interaction_id| item_interaction_id == interaction_id))
 }
 
 fn finalize_active_segment<'a>(
@@ -124,7 +124,7 @@ impl Session {
         // checkpoint. If no such checkpoint exists, this remains the full rollout.
         let mut rollout_suffix = rollout_items;
         // Reverse replay accumulates rollout items into the newest in-progress turn segment until
-        // we hit its matching `TurnStarted`, at which point the segment can be finalized.
+        // we hit its matching `InteractionStarted`, at which point the segment can be finalized.
         let mut active_segment: Option<ActiveReplaySegment<'_>> = None;
 
         for (index, item) in rollout_items.iter().enumerate().rev() {
@@ -164,25 +164,25 @@ impl Session {
                     pending_rollback_turns = pending_rollback_turns
                         .saturating_add(usize::try_from(rollback.num_turns).unwrap_or(usize::MAX));
                 }
-                RolloutItem::EventMsg(EventMsg::TurnComplete(event)) => {
+                RolloutItem::EventMsg(EventMsg::InteractionComplete(event)) => {
                     let active_segment =
                         active_segment.get_or_insert_with(ActiveReplaySegment::default);
-                    // Reverse replay often sees `TurnComplete` before any turn-scoped metadata.
+                    // Reverse replay often sees `InteractionComplete` before any turn-scoped metadata.
                     // Capture the turn id early so later `TurnContext` / abort items can match it.
-                    if active_segment.turn_id.is_none() {
-                        active_segment.turn_id = Some(event.turn_id.clone());
+                    if active_segment.interaction_id.is_none() {
+                        active_segment.interaction_id = Some(event.interaction_id.clone());
                     }
                 }
-                RolloutItem::EventMsg(EventMsg::TurnAborted(event)) => {
+                RolloutItem::EventMsg(EventMsg::InteractionAborted(event)) => {
                     if let Some(active_segment) = active_segment.as_mut() {
-                        if active_segment.turn_id.is_none()
-                            && let Some(turn_id) = &event.turn_id
+                        if active_segment.interaction_id.is_none()
+                            && let Some(interaction_id) = &event.interaction_id
                         {
-                            active_segment.turn_id = Some(turn_id.clone());
+                            active_segment.interaction_id = Some(interaction_id.clone());
                         }
-                    } else if let Some(turn_id) = &event.turn_id {
+                    } else if let Some(interaction_id) = &event.interaction_id {
                         active_segment = Some(ActiveReplaySegment {
-                            turn_id: Some(turn_id.clone()),
+                            interaction_id: Some(interaction_id.clone()),
                             ..Default::default()
                         });
                     }
@@ -197,12 +197,12 @@ impl Session {
                         active_segment.get_or_insert_with(ActiveReplaySegment::default);
                     // `TurnContextItem` can attach metadata to an existing segment, but only a
                     // real `UserMessage` event should make the segment count as a user turn.
-                    if active_segment.turn_id.is_none() {
-                        active_segment.turn_id = ctx.turn_id.clone();
+                    if active_segment.interaction_id.is_none() {
+                        active_segment.interaction_id = ctx.interaction_id.clone();
                     }
-                    if turn_ids_are_compatible(
-                        active_segment.turn_id.as_deref(),
-                        ctx.turn_id.as_deref(),
+                    if interaction_ids_are_compatible(
+                        active_segment.interaction_id.as_deref(),
+                        ctx.interaction_id.as_deref(),
                     ) {
                         active_segment.previous_turn_settings = Some(PreviousTurnSettings {
                             model: ctx.model.clone(),
@@ -218,12 +218,12 @@ impl Session {
                         }
                     }
                 }
-                RolloutItem::EventMsg(EventMsg::TurnStarted(event)) => {
-                    // `TurnStarted` is the oldest boundary of the active reverse segment.
+                RolloutItem::EventMsg(EventMsg::InteractionStarted(event)) => {
+                    // `InteractionStarted` is the oldest boundary of the active reverse segment.
                     if active_segment.as_ref().is_some_and(|active_segment| {
-                        turn_ids_are_compatible(
-                            active_segment.turn_id.as_deref(),
-                            Some(event.turn_id.as_str()),
+                        interaction_ids_are_compatible(
+                            active_segment.interaction_id.as_deref(),
+                            Some(event.interaction_id.as_str()),
                         )
                     }) && let Some(active_segment) = active_segment.take()
                     {

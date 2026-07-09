@@ -110,7 +110,7 @@ async fn create_clean_git_repo(repo_name: &str) -> (TempDir, AbsolutePathBuf) {
 }
 
 #[tokio::test]
-async fn detached_memory_responses_metadata_omits_turn_identity() {
+async fn detached_memory_responses_metadata_omits_interaction_identity() {
     let (_temp_dir, repo_path) = create_clean_git_repo("repo-東京").await;
 
     let header = detached_memory_responses_metadata(
@@ -130,9 +130,9 @@ async fn detached_memory_responses_metadata_omits_turn_identity() {
     let parsed: Value = serde_json::from_str(&header).expect("valid json");
     assert_eq!(parsed["request_kind"].as_str(), Some("memory"));
     assert!(parsed.get("session_id").is_none());
-    assert!(parsed.get("thread_id").is_none());
-    assert!(parsed.get("forked_from_thread_id").is_none());
-    assert!(parsed.get("turn_id").is_none());
+    assert!(parsed.get("chat_id").is_none());
+    assert!(parsed.get("forked_from_chat_id").is_none());
+    assert!(parsed.get("interaction_id").is_none());
     assert!(parsed.get(WINDOW_ID_KEY).is_none());
 
     let expected_repo_path = repo_path.to_string_lossy().into_owned();
@@ -185,8 +185,8 @@ fn turn_metadata_state_uses_platform_sandbox_tag() {
     let state = TurnMetadataState::new(
         "session-a".to_string(),
         "thread-a".to_string(),
-        /*forked_from_thread_id*/ None,
-        /*parent_thread_id*/ None,
+        /*forked_from_chat_id*/ None,
+        /*parent_chat_id*/ None,
         &SessionSource::Exec,
         /*thread_source*/ None,
         "turn-a".to_string(),
@@ -200,7 +200,7 @@ fn turn_metadata_state_uses_platform_sandbox_tag() {
     let json: Value = serde_json::from_str(&header).expect("json");
     let sandbox_name = json.get("sandbox").and_then(Value::as_str);
     let session_id = json.get("session_id").and_then(Value::as_str);
-    let thread_id = json.get("thread_id").and_then(Value::as_str);
+    let chat_id = json.get("chat_id").and_then(Value::as_str);
 
     assert!(json.get("request_kind").is_none());
     let expected_sandbox = permission_profile_sandbox_tag(
@@ -210,9 +210,9 @@ fn turn_metadata_state_uses_platform_sandbox_tag() {
     );
     assert_eq!(sandbox_name, Some(expected_sandbox));
     assert_eq!(session_id, Some("session-a"));
-    assert_eq!(thread_id, Some("thread-a"));
-    assert!(json.get("forked_from_thread_id").is_none());
-    assert!(json.get("parent_thread_id").is_none());
+    assert_eq!(chat_id, Some("thread-a"));
+    assert!(json.get("forked_from_chat_id").is_none());
+    assert!(json.get("parent_chat_id").is_none());
     assert!(json.get("subagent_kind").is_none());
     assert!(json.get("session_source").is_none());
 }
@@ -222,14 +222,14 @@ fn turn_metadata_state_includes_root_fork_lineage() {
     let temp_dir = TempDir::new().expect("temp dir");
     let cwd = temp_dir.path().abs();
     let permission_profile = PermissionProfile::read_only();
-    let source_thread_id =
-        ThreadId::from_string("11111111-1111-4111-8111-111111111111").expect("thread id");
+    let source_chat_id =
+        ChatId::from_string("11111111-1111-4111-8111-111111111111").expect("thread id");
 
     let state = TurnMetadataState::new(
         "session-a".to_string(),
         "thread-a".to_string(),
-        Some(source_thread_id),
-        /*parent_thread_id*/ None,
+        Some(source_chat_id),
+        /*parent_chat_id*/ None,
         &SessionSource::Exec,
         /*thread_source*/ None,
         "turn-a".to_string(),
@@ -243,10 +243,10 @@ fn turn_metadata_state_includes_root_fork_lineage() {
     let json: Value = serde_json::from_str(&header).expect("json");
 
     assert_eq!(
-        json["forked_from_thread_id"].as_str(),
+        json["forked_from_chat_id"].as_str(),
         Some("11111111-1111-4111-8111-111111111111")
     );
-    assert!(json.get("parent_thread_id").is_none());
+    assert!(json.get("parent_chat_id").is_none());
     assert!(json.get("subagent_kind").is_none());
 }
 
@@ -255,16 +255,16 @@ fn turn_metadata_state_includes_thread_spawn_subagent_parent_without_fork() {
     let temp_dir = TempDir::new().expect("temp dir");
     let cwd = temp_dir.path().abs();
     let permission_profile = PermissionProfile::read_only();
-    let parent_thread_id =
-        ThreadId::from_string("22222222-2222-4222-8222-222222222222").expect("thread id");
+    let parent_chat_id =
+        ChatId::from_string("22222222-2222-4222-8222-222222222222").expect("thread id");
 
     let state = TurnMetadataState::new(
         "session-a".to_string(),
         "thread-a".to_string(),
-        /*forked_from_thread_id*/ None,
-        Some(parent_thread_id),
+        /*forked_from_chat_id*/ None,
+        Some(parent_chat_id),
         &SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-            parent_thread_id,
+            parent_chat_id,
             depth: 1,
             agent_path: None,
             agent_nickname: None,
@@ -281,9 +281,9 @@ fn turn_metadata_state_includes_thread_spawn_subagent_parent_without_fork() {
     let header = test_turn_metadata_header(&state);
     let json: Value = serde_json::from_str(&header).expect("json");
 
-    assert!(json.get("forked_from_thread_id").is_none());
+    assert!(json.get("forked_from_chat_id").is_none());
     assert_eq!(
-        json["parent_thread_id"].as_str(),
+        json["parent_chat_id"].as_str(),
         Some("22222222-2222-4222-8222-222222222222")
     );
     assert_eq!(json["subagent_kind"].as_str(), Some("thread_spawn"));
@@ -294,16 +294,16 @@ fn turn_metadata_state_includes_forked_thread_spawn_subagent_lineage() {
     let temp_dir = TempDir::new().expect("temp dir");
     let cwd = temp_dir.path().abs();
     let permission_profile = PermissionProfile::read_only();
-    let parent_thread_id =
-        ThreadId::from_string("33333333-3333-4333-8333-333333333333").expect("thread id");
+    let parent_chat_id =
+        ChatId::from_string("33333333-3333-4333-8333-333333333333").expect("thread id");
 
     let state = TurnMetadataState::new(
         "session-a".to_string(),
         "thread-a".to_string(),
-        Some(parent_thread_id),
-        Some(parent_thread_id),
+        Some(parent_chat_id),
+        Some(parent_chat_id),
         &SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-            parent_thread_id,
+            parent_chat_id,
             depth: 1,
             agent_path: None,
             agent_nickname: None,
@@ -321,11 +321,11 @@ fn turn_metadata_state_includes_forked_thread_spawn_subagent_lineage() {
     let json: Value = serde_json::from_str(&header).expect("json");
 
     assert_eq!(
-        json["forked_from_thread_id"].as_str(),
+        json["forked_from_chat_id"].as_str(),
         Some("33333333-3333-4333-8333-333333333333")
     );
     assert_eq!(
-        json["parent_thread_id"].as_str(),
+        json["parent_chat_id"].as_str(),
         Some("33333333-3333-4333-8333-333333333333")
     );
     assert_eq!(json["subagent_kind"].as_str(), Some("thread_spawn"));
@@ -336,8 +336,8 @@ fn turn_metadata_state_includes_known_parent_for_non_thread_spawn_subagents_with
     let temp_dir = TempDir::new().expect("temp dir");
     let cwd = temp_dir.path().abs();
     let permission_profile = PermissionProfile::read_only();
-    let parent_thread_id =
-        ThreadId::from_string("44444444-4444-4444-8444-444444444444").expect("thread id");
+    let parent_chat_id =
+        ChatId::from_string("44444444-4444-4444-8444-444444444444").expect("thread id");
     let sources = [
         (SubAgentSource::Review, "review"),
         (SubAgentSource::Other("guardian".to_string()), "guardian"),
@@ -351,8 +351,8 @@ fn turn_metadata_state_includes_known_parent_for_non_thread_spawn_subagents_with
         let state = TurnMetadataState::new(
             "session-a".to_string(),
             "thread-a".to_string(),
-            /*forked_from_thread_id*/ None,
-            Some(parent_thread_id),
+            /*forked_from_chat_id*/ None,
+            Some(parent_chat_id),
             &SessionSource::SubAgent(subagent_source),
             /*thread_source*/ None,
             "turn-a".to_string(),
@@ -365,9 +365,9 @@ fn turn_metadata_state_includes_known_parent_for_non_thread_spawn_subagents_with
         let header = test_turn_metadata_header(&state);
         let json: Value = serde_json::from_str(&header).expect("json");
 
-        assert!(json.get("forked_from_thread_id").is_none());
+        assert!(json.get("forked_from_chat_id").is_none());
         assert_eq!(
-            json["parent_thread_id"].as_str(),
+            json["parent_chat_id"].as_str(),
             Some("44444444-4444-4444-8444-444444444444")
         );
         assert_eq!(json["subagent_kind"].as_str(), Some(subagent_kind));
@@ -383,8 +383,8 @@ fn turn_metadata_state_includes_turn_started_at_unix_ms_after_start() {
     let state = TurnMetadataState::new(
         "session-a".to_string(),
         "thread-a".to_string(),
-        /*forked_from_thread_id*/ None,
-        /*parent_thread_id*/ None,
+        /*forked_from_chat_id*/ None,
+        /*parent_chat_id*/ None,
         &SessionSource::Exec,
         /*thread_source*/ None,
         "turn-a".to_string(),
@@ -413,8 +413,8 @@ fn turn_metadata_state_includes_model_and_reasoning_effort_only_in_request_meta(
     let state = TurnMetadataState::new(
         "session-a".to_string(),
         "thread-a".to_string(),
-        /*forked_from_thread_id*/ None,
-        /*parent_thread_id*/ None,
+        /*forked_from_chat_id*/ None,
+        /*parent_chat_id*/ None,
         &SessionSource::Exec,
         /*thread_source*/ None,
         "turn-a".to_string(),
@@ -462,8 +462,8 @@ fn turn_metadata_state_marks_user_input_requested_during_turn_only_for_mcp_reque
     let state = TurnMetadataState::new(
         "session-a".to_string(),
         "thread-a".to_string(),
-        /*forked_from_thread_id*/ None,
-        /*parent_thread_id*/ None,
+        /*forked_from_chat_id*/ None,
+        /*parent_chat_id*/ None,
         &SessionSource::Exec,
         /*thread_source*/ None,
         "turn-a".to_string(),
@@ -515,8 +515,8 @@ fn turn_metadata_state_ignores_client_reserved_metadata_before_start() {
     let state = TurnMetadataState::new(
         "session-a".to_string(),
         "thread-a".to_string(),
-        /*forked_from_thread_id*/ None,
-        /*parent_thread_id*/ None,
+        /*forked_from_chat_id*/ None,
+        /*parent_chat_id*/ None,
         &SessionSource::Exec,
         /*thread_source*/ None,
         "turn-a".to_string(),
@@ -531,11 +531,11 @@ fn turn_metadata_state_ignores_client_reserved_metadata_before_start() {
             "client-supplied".to_string(),
         ),
         (
-            "forked_from_thread_id".to_string(),
+            "forked_from_chat_id".to_string(),
             "client-supplied".to_string(),
         ),
         (
-            "parent_thread_id".to_string(),
+            "parent_chat_id".to_string(),
             "client-supplied".to_string(),
         ),
         ("subagent_kind".to_string(), "client-supplied".to_string()),
@@ -545,8 +545,8 @@ fn turn_metadata_state_ignores_client_reserved_metadata_before_start() {
     let json: Value = serde_json::from_str(&header).expect("json");
 
     assert!(json.get("turn_started_at_unix_ms").is_none());
-    assert!(json.get("forked_from_thread_id").is_none());
-    assert!(json.get("parent_thread_id").is_none());
+    assert!(json.get("forked_from_chat_id").is_none());
+    assert!(json.get("parent_chat_id").is_none());
     assert!(json.get("subagent_kind").is_none());
 }
 
@@ -555,18 +555,18 @@ fn turn_metadata_state_merges_client_metadata_without_replacing_reserved_fields(
     let temp_dir = TempDir::new().expect("temp dir");
     let cwd = temp_dir.path().abs();
     let permission_profile = PermissionProfile::read_only();
-    let source_thread_id =
-        ThreadId::from_string("44444444-4444-4444-8444-444444444444").expect("thread id");
-    let parent_thread_id =
-        ThreadId::from_string("55555555-5555-4555-8555-555555555555").expect("thread id");
+    let source_chat_id =
+        ChatId::from_string("44444444-4444-4444-8444-444444444444").expect("thread id");
+    let parent_chat_id =
+        ChatId::from_string("55555555-5555-4555-8555-555555555555").expect("thread id");
 
     let state = TurnMetadataState::new(
         "session-a".to_string(),
         "thread-a".to_string(),
-        Some(source_thread_id),
-        Some(parent_thread_id),
+        Some(source_chat_id),
+        Some(parent_chat_id),
         &SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-            parent_thread_id,
+            parent_chat_id,
             depth: 1,
             agent_path: None,
             agent_nickname: None,
@@ -589,7 +589,7 @@ fn turn_metadata_state_merges_client_metadata_without_replacing_reserved_fields(
             "client-supplied".to_string(),
         ),
         ("session_id".to_string(), "client-supplied".to_string()),
-        ("thread_id".to_string(), "client-supplied".to_string()),
+        ("chat_id".to_string(), "client-supplied".to_string()),
         ("installation_id".to_string(), "client-supplied".to_string()),
         (
             "x-codex-installation-id".to_string(),
@@ -604,15 +604,15 @@ fn turn_metadata_state_merges_client_metadata_without_replacing_reserved_fields(
             "client-supplied".to_string(),
         ),
         (
-            "forked_from_thread_id".to_string(),
+            "forked_from_chat_id".to_string(),
             "client-supplied".to_string(),
         ),
         (
-            "parent_thread_id".to_string(),
+            "parent_chat_id".to_string(),
             "client-supplied".to_string(),
         ),
         ("subagent_kind".to_string(), "client-supplied".to_string()),
-        ("turn_id".to_string(), "client-supplied".to_string()),
+        ("interaction_id".to_string(), "client-supplied".to_string()),
         (WINDOW_ID_KEY.to_string(), "client-supplied".to_string()),
         ("thread_source".to_string(), "client-supplied".to_string()),
         ("request_kind".to_string(), "client-supplied".to_string()),
@@ -634,22 +634,22 @@ fn turn_metadata_state_merges_client_metadata_without_replacing_reserved_fields(
     assert_eq!(json["model"].as_str(), Some("client-supplied"));
     assert_eq!(json["reasoning_effort"].as_str(), Some("client-supplied"));
     assert_eq!(json["session_id"].as_str(), Some("session-a"));
-    assert_eq!(json["thread_id"].as_str(), Some("thread-a"));
+    assert_eq!(json["chat_id"].as_str(), Some("thread-a"));
     assert!(json.get(INSTALLATION_ID_KEY).is_none());
     assert!(json.get("x-codex-installation-id").is_none());
     assert!(json.get("x-codex-parent-thread-id").is_none());
     assert!(json.get("x-openai-subagent").is_none());
     assert_eq!(
-        json["forked_from_thread_id"].as_str(),
+        json["forked_from_chat_id"].as_str(),
         Some("44444444-4444-4444-8444-444444444444")
     );
     assert_eq!(
-        json["parent_thread_id"].as_str(),
+        json["parent_chat_id"].as_str(),
         Some("55555555-5555-4555-8555-555555555555")
     );
     assert_eq!(json["subagent_kind"].as_str(), Some("thread_spawn"));
     assert_eq!(json["thread_source"].as_str(), Some("automation"));
-    assert_eq!(json["turn_id"].as_str(), Some("turn-a"));
+    assert_eq!(json["interaction_id"].as_str(), Some("turn-a"));
     assert!(json.get("request_kind").is_none());
     assert!(json.get(WINDOW_ID_KEY).is_none());
     assert_eq!(
@@ -691,8 +691,8 @@ fn turn_metadata_state_overlays_compaction_only_on_compaction_requests() {
     let state = TurnMetadataState::new(
         "session-a".to_string(),
         "thread-a".to_string(),
-        /*forked_from_thread_id*/ None,
-        /*parent_thread_id*/ None,
+        /*forked_from_chat_id*/ None,
+        /*parent_chat_id*/ None,
         &SessionSource::Exec,
         /*thread_source*/ None,
         "turn-a".to_string(),
@@ -718,7 +718,7 @@ fn turn_metadata_state_overlays_compaction_only_on_compaction_requests() {
     );
     let compact_json: Value = serde_json::from_str(&compact_header).expect("json");
     assert_eq!(compact_json["request_kind"].as_str(), Some("compaction"));
-    assert_eq!(compact_json["turn_id"].as_str(), Some("turn-a"));
+    assert_eq!(compact_json["interaction_id"].as_str(), Some("turn-a"));
     assert_eq!(compact_json[WINDOW_ID_KEY].as_str(), Some("thread-a:2"));
     assert_eq!(
         compact_json["compaction"],
@@ -743,15 +743,15 @@ async fn turn_metadata_state_preserves_lineage_after_git_enrichment() {
     let (_temp_dir, repo_path) = create_clean_git_repo("repo").await;
 
     let permission_profile = PermissionProfile::read_only();
-    let parent_thread_id =
-        ThreadId::from_string("66666666-6666-4666-8666-666666666666").expect("thread id");
+    let parent_chat_id =
+        ChatId::from_string("66666666-6666-4666-8666-666666666666").expect("thread id");
     let state = TurnMetadataState::new(
         "session-a".to_string(),
         "thread-a".to_string(),
-        Some(parent_thread_id),
-        Some(parent_thread_id),
+        Some(parent_chat_id),
+        Some(parent_chat_id),
         &SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-            parent_thread_id,
+            parent_chat_id,
             depth: 1,
             agent_path: None,
             agent_nickname: None,
@@ -785,11 +785,11 @@ async fn turn_metadata_state_preserves_lineage_after_git_enrichment() {
     .expect("git enrichment should complete");
 
     assert_eq!(
-        json["forked_from_thread_id"].as_str(),
+        json["forked_from_chat_id"].as_str(),
         Some("66666666-6666-4666-8666-666666666666")
     );
     assert_eq!(
-        json["parent_thread_id"].as_str(),
+        json["parent_chat_id"].as_str(),
         Some("66666666-6666-4666-8666-666666666666")
     );
     assert_eq!(json["subagent_kind"].as_str(), Some("thread_spawn"));

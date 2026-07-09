@@ -12,7 +12,7 @@ use datax_app_server_protocol::McpServerElicitationAction;
 use datax_app_server_protocol::RequestId as AppServerRequestId;
 use datax_app_server_protocol::ReviewTarget;
 use datax_app_server_protocol::ToolRequestUserInputResponse;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::request_permissions::RequestPermissionsResponse;
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -79,43 +79,43 @@ impl AppEventSender {
 
     pub(crate) fn exec_approval(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         id: String,
         decision: CommandExecutionApprovalDecision,
     ) {
         self.send(AppEvent::SubmitThreadOp {
-            thread_id,
-            op: AppCommand::exec_approval(id, /*turn_id*/ None, decision),
+            chat_id,
+            op: AppCommand::exec_approval(id, /*interaction_id*/ None, decision),
         });
     }
 
     pub(crate) fn request_permissions_response(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         id: String,
         response: RequestPermissionsResponse,
     ) {
         self.send(AppEvent::SubmitThreadOp {
-            thread_id,
+            chat_id,
             op: AppCommand::request_permissions_response(id, response),
         });
     }
 
     pub(crate) fn patch_approval(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         id: String,
         decision: FileChangeApprovalDecision,
     ) {
         self.send(AppEvent::SubmitThreadOp {
-            thread_id,
+            chat_id,
             op: AppCommand::patch_approval(id, decision),
         });
     }
 
     pub(crate) fn resolve_elicitation(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         server_name: String,
         request_id: AppServerRequestId,
         decision: McpServerElicitationAction,
@@ -123,7 +123,7 @@ impl AppEventSender {
         meta: Option<serde_json::Value>,
     ) {
         self.send(AppEvent::SubmitThreadOp {
-            thread_id,
+            chat_id,
             op: AppCommand::resolve_elicitation(server_name, request_id, decision, content, meta),
         });
     }

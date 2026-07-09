@@ -311,8 +311,8 @@ impl AppsRequestProcessor {
     async fn load_thread(
         &self,
         chat_id: &str,
-    ) -> Result<(ThreadId, Arc<CodexThread>), JSONRPCErrorError> {
-        let chat_id = ThreadId::from_string(chat_id)
+    ) -> Result<(ChatId, Arc<CodexThread>), JSONRPCErrorError> {
+        let chat_id = ChatId::from_string(chat_id)
             .map_err(|err| invalid_request(format!("invalid thread id: {err}")))?;
 
         let thread = self

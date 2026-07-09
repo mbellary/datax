@@ -132,13 +132,13 @@ fn wait_for_plugin_usage(
     let mut attempts = 0;
     loop {
         attempts += 1;
-        let turn_id = run_plugin_turn(client, expected)?;
+        let interaction_id = run_plugin_turn(client, expected)?;
         // Interaction completion is queued after plugin usage, so its captured event is the
         // barrier that tells us whether this attempt resolved the plugin.
-        let events = wait_for_turn_analytics(capture_path, &turn_id)?;
+        let events = wait_for_turn_analytics(capture_path, &interaction_id)?;
         if events.iter().any(|event| {
             event["event_type"] == "codex_plugin_used"
-                && event["event_params"]["turn_id"].as_str() == Some(turn_id.as_str())
+                && event["event_params"]["interaction_id"].as_str() == Some(interaction_id.as_str())
                 && event["event_params"]["plugin_id"].as_str() == Some(expected.plugin_id.as_str())
         }) {
             if attempts > 1 {
@@ -348,19 +348,19 @@ fn wait_for_plugin_events(path: &Path, plugin_id: &str) -> Result<Vec<Value>> {
     }
 }
 
-fn wait_for_turn_analytics(path: &Path, turn_id: &str) -> Result<Vec<Value>> {
+fn wait_for_turn_analytics(path: &Path, interaction_id: &str) -> Result<Vec<Value>> {
     let deadline = Instant::now() + CAPTURE_TIMEOUT;
     loop {
         let events = read_capture_events(path)?;
         if events.iter().any(|event| {
             event["event_type"] == "codex_turn_event"
-                && event["event_params"]["turn_id"].as_str() == Some(turn_id)
+                && event["event_params"]["interaction_id"].as_str() == Some(interaction_id)
         }) {
             return Ok(events);
         }
         if Instant::now() >= deadline {
             bail!(
-                "timed out waiting for turn analytics for `{turn_id}` in {}",
+                "timed out waiting for turn analytics for `{interaction_id}` in {}",
                 path.display()
             );
         }
@@ -455,8 +455,8 @@ fn validate_used_metadata(event: &Value) -> Result<()> {
         "mcp_server_count",
         "connector_ids",
         "mcp_server_names",
-        "thread_id",
-        "turn_id",
+        "chat_id",
+        "interaction_id",
         "model_slug",
     ] {
         if params.get(field).is_none_or(Value::is_null) {

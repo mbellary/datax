@@ -29,7 +29,7 @@ use datax_config::ConfigLoadOptions;
 use datax_config::LoaderOverrides;
 use datax_exec_server::EnvironmentManager;
 use datax_exec_server::ExecServerRuntimePaths;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_utils_cli::CliConfigOverrides;
 use datax_utils_home_dir::find_codex_home;
 use datax_utils_oss::get_default_model_for_oss_provider;
@@ -57,7 +57,7 @@ pub struct SessionArchiveCommandOptions {
 
 fn success_message(
     action: SessionArchiveAction,
-    session_id: ThreadId,
+    session_id: ChatId,
     session_name: Option<&str>,
 ) -> String {
     let action = match action {
@@ -72,7 +72,7 @@ fn success_message(
 }
 
 struct ResolvedSessionTarget {
-    session_id: ThreadId,
+    session_id: ChatId,
     session_name: Option<String>,
 }
 
@@ -122,7 +122,7 @@ async fn resolve_session_target(
     action: SessionArchiveAction,
     target: &str,
 ) -> Result<ResolvedSessionTarget> {
-    if let Ok(session_id) = ThreadId::from_string(target) {
+    if let Ok(session_id) = ChatId::from_string(target) {
         if matches!(
             action,
             SessionArchiveAction::Delete(DeleteConfirmation::Prompt)
@@ -204,7 +204,7 @@ async fn lookup_session_by_exact_name(
 }
 
 fn session_target_from_app_server_thread(thread: AppServerThread) -> Result<ResolvedSessionTarget> {
-    let session_id = ThreadId::from_string(&thread.id)
+    let session_id = ChatId::from_string(&thread.id)
         .wrap_err_with(|| format!("app server returned invalid session id `{}`", thread.id))?;
     Ok(ResolvedSessionTarget {
         session_id,

@@ -14,10 +14,10 @@ use pretty_assertions::assert_eq;
 async fn resumed_initial_messages_render_history() {
     let (mut chat, mut rx, _ops) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let rollout_file = NamedTempFile::new().unwrap();
     let configured = crate::session_state::ThreadSessionState {
-        thread_id,
+        chat_id,
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -79,7 +79,7 @@ async fn resumed_initial_messages_render_history() {
 async fn replayed_user_messages_seed_composer_history() {
     let (mut chat, mut rx, _ops) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.bottom_pane.set_history_metadata(
-        ThreadId::new(),
+        ChatId::new(),
         /*log_id*/ 1,
         /*entry_count*/ 3,
     );
@@ -201,10 +201,10 @@ async fn replayed_user_message_preserves_text_elements_and_local_images() {
     )];
     let local_images = vec![PathBuf::from("/tmp/replay.png")];
 
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let rollout_file = NamedTempFile::new().unwrap();
     let configured = crate::session_state::ThreadSessionState {
-        thread_id,
+        chat_id,
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -273,10 +273,10 @@ async fn replayed_user_message_preserves_remote_image_urls() {
     let message = "replayed with remote image".to_string();
     let remote_image_urls = vec!["https://example.com/image.png".to_string()];
 
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let rollout_file = NamedTempFile::new().unwrap();
     let configured = crate::session_state::ThreadSessionState {
-        thread_id,
+        chat_id,
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -378,7 +378,7 @@ async fn session_configured_syncs_widget_config_permissions_and_cwd() {
         .expect("permission profile should project to legacy sandbox policy");
     let expected_sandbox = SandboxPolicy::from(expected_core_sandbox);
     let configured = crate::session_state::ThreadSessionState {
-        thread_id: ThreadId::new(),
+        chat_id: ChatId::new(),
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -451,7 +451,7 @@ async fn session_configured_preserves_profile_workspace_roots() {
     let session_permission_profile = PermissionProfile::workspace_write()
         .materialize_project_roots_with_workspace_roots(&session_effective_workspace_roots);
     let configured = crate::session_state::ThreadSessionState {
-        thread_id: ThreadId::new(),
+        chat_id: ChatId::new(),
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -498,7 +498,7 @@ async fn session_configured_external_sandbox_keeps_external_runtime_policy() {
         network_access: NetworkAccess::Restricted,
     };
     let configured = crate::session_state::ThreadSessionState {
-        thread_id: ThreadId::new(),
+        chat_id: ChatId::new(),
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -536,10 +536,10 @@ async fn replayed_user_message_with_only_remote_images_renders_history_cell() {
 
     let remote_image_urls = vec!["https://example.com/remote-only.png".to_string()];
 
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let rollout_file = NamedTempFile::new().unwrap();
     let configured = crate::session_state::ThreadSessionState {
-        thread_id,
+        chat_id,
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -594,10 +594,10 @@ async fn replayed_user_message_with_only_local_images_renders_history_cell() {
 
     let local_images = [PathBuf::from("/tmp/replay-local-only.png")];
 
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let rollout_file = NamedTempFile::new().unwrap();
     let configured = crate::session_state::ThreadSessionState {
-        thread_id,
+        chat_id,
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -652,7 +652,7 @@ async fn forked_thread_history_line_includes_name_and_id_snapshot() {
     let mut chat = chat;
 
     let forked_from_id =
-        ThreadId::from_string("e9f18a88-8081-4e51-9d4e-8af5cde2d8dd").expect("forked id");
+        ChatId::from_string("e9f18a88-8081-4e51-9d4e-8af5cde2d8dd").expect("forked id");
 
     chat.emit_forked_thread_event(forked_from_id, Some("named-thread".to_string()));
 
@@ -686,7 +686,7 @@ async fn forked_thread_history_line_without_name_shows_id_once_snapshot() {
             .expect("temp dir is absolute");
 
     let forked_from_id =
-        ThreadId::from_string("019c2d47-4935-7423-a190-05691f566092").expect("forked id");
+        ChatId::from_string("019c2d47-4935-7423-a190-05691f566092").expect("forked id");
     chat.emit_forked_thread_event(forked_from_id, /*fork_parent_title*/ None);
 
     let history_cell = tokio::time::timeout(std::time::Duration::from_secs(2), async {
@@ -715,7 +715,7 @@ async fn app_server_forked_thread_history_line_uses_app_server_title_snapshot() 
             .expect("temp dir is absolute");
 
     let forked_from_id =
-        ThreadId::from_string("e9f18a88-8081-4e51-9d4e-8af5cde2d8dd").expect("forked id");
+        ChatId::from_string("e9f18a88-8081-4e51-9d4e-8af5cde2d8dd").expect("forked id");
     let session_index_entry = format!(
         "{{\"id\":\"{forked_from_id}\",\"thread_name\":\"stale-local-thread\",\"updated_at\":\"2024-01-02T00:00:00Z\"}}\n"
     );
@@ -755,7 +755,7 @@ async fn app_server_forked_thread_history_line_without_app_server_name_ignores_l
             .expect("temp dir is absolute");
 
     let forked_from_id =
-        ThreadId::from_string("019c2d47-4935-7423-a190-05691f566092").expect("forked id");
+        ChatId::from_string("019c2d47-4935-7423-a190-05691f566092").expect("forked id");
     let session_index_entry = format!(
         "{{\"id\":\"{forked_from_id}\",\"thread_name\":\"stale-local-thread\",\"updated_at\":\"2024-01-02T00:00:00Z\"}}\n"
     );
@@ -871,7 +871,7 @@ async fn replayed_reasoning_item_hides_raw_reasoning_when_disabled() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.config.show_raw_agent_reasoning = false;
     chat.handle_thread_session(crate::session_state::ThreadSessionState {
-        thread_id: ThreadId::new(),
+        chat_id: ChatId::new(),
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -919,7 +919,7 @@ async fn replayed_reasoning_item_shows_raw_reasoning_when_enabled() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.config.show_raw_agent_reasoning = true;
     chat.handle_thread_session(crate::session_state::ThreadSessionState {
-        thread_id: ThreadId::new(),
+        chat_id: ChatId::new(),
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,

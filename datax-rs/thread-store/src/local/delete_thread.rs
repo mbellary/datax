@@ -24,14 +24,14 @@ pub(super) async fn delete_thread(
     store: &LocalThreadStore,
     params: DeleteThreadParams,
 ) -> ThreadStoreResult<()> {
-    let thread_id = params.thread_id;
-    let thread_id_str = thread_id.to_string();
+    let chat_id = params.chat_id;
+    let chat_id_str = chat_id.to_string();
     let state_db_ctx = store.state_db().await;
     let mut rollout_paths = Vec::new();
 
     match find_thread_path_by_id_str(
         store.config.codex_home.as_path(),
-        thread_id_str.as_str(),
+        chat_id_str.as_str(),
         state_db_ctx.as_deref(),
     )
     .await
@@ -40,14 +40,14 @@ pub(super) async fn delete_thread(
         Ok(None) => {}
         Err(err) => {
             return Err(ThreadStoreError::InvalidRequest {
-                message: format!("failed to locate thread id {thread_id}: {err}"),
+                message: format!("failed to locate thread id {chat_id}: {err}"),
             });
         }
     }
 
     match find_archived_thread_path_by_id_str(
         store.config.codex_home.as_path(),
-        thread_id_str.as_str(),
+        chat_id_str.as_str(),
         state_db_ctx.as_deref(),
     )
     .await
@@ -60,26 +60,26 @@ pub(super) async fn delete_thread(
         Ok(None) => {}
         Err(err) => {
             return Err(ThreadStoreError::InvalidRequest {
-                message: format!("failed to locate archived thread id {thread_id}: {err}"),
+                message: format!("failed to locate archived thread id {chat_id}: {err}"),
             });
         }
     }
 
     let found_rollout_path = !rollout_paths.is_empty();
     for rollout_path in rollout_paths {
-        delete_rollout_file(store, rollout_path.as_path(), thread_id)?;
+        delete_rollout_file(store, rollout_path.as_path(), chat_id)?;
     }
-    remove_thread_name_entries(store.config.codex_home.as_path(), thread_id)
+    remove_thread_name_entries(store.config.codex_home.as_path(), chat_id)
         .await
         .map_err(|err| ThreadStoreError::Internal {
-            message: format!("failed to delete thread name index entries for {thread_id}: {err}"),
+            message: format!("failed to delete thread name index entries for {chat_id}: {err}"),
         })?;
 
     if !found_rollout_path {
-        return Err(ThreadStoreError::ThreadNotFound { thread_id });
+        return Err(ThreadStoreError::ThreadNotFound { chat_id });
     }
 
-    store.live_recorders.lock().await.remove(&thread_id);
+    store.live_recorders.lock().await.remove(&chat_id);
 
     Ok(())
 }
@@ -87,19 +87,19 @@ pub(super) async fn delete_thread(
 fn delete_rollout_file(
     store: &LocalThreadStore,
     rollout_path: &Path,
-    thread_id: datax_protocol::ThreadId,
+    chat_id: datax_protocol::ChatId,
 ) -> ThreadStoreResult<bool> {
     let plain_path = datax_rollout::plain_rollout_path(rollout_path);
     let compressed_path = plain_path.with_extension("jsonl.zst");
-    let deleted_plain = delete_rollout_path(store, plain_path.as_path(), thread_id)?;
-    let deleted_compressed = delete_rollout_path(store, compressed_path.as_path(), thread_id)?;
+    let deleted_plain = delete_rollout_path(store, plain_path.as_path(), chat_id)?;
+    let deleted_compressed = delete_rollout_path(store, compressed_path.as_path(), chat_id)?;
     Ok(deleted_plain || deleted_compressed)
 }
 
 fn delete_rollout_path(
     store: &LocalThreadStore,
     rollout_path: &Path,
-    thread_id: datax_protocol::ThreadId,
+    chat_id: datax_protocol::ChatId,
 ) -> ThreadStoreResult<bool> {
     let canonical_rollout_path = scoped_rollout_path(
         store.config.codex_home.join(SESSIONS_SUBDIR),
@@ -117,7 +117,7 @@ fn delete_rollout_path(
         Ok(false) => Ok(rollout_path.to_path_buf()),
         Ok(true) | Err(_) => Err(err),
     })?;
-    matching_rollout_file_name(&canonical_rollout_path, thread_id, rollout_path)?;
+    matching_rollout_file_name(&canonical_rollout_path, chat_id, rollout_path)?;
     match std::fs::remove_file(&canonical_rollout_path) {
         Ok(()) => Ok(true),
         Err(err) if err.kind() == ErrorKind::NotFound => Ok(false),
@@ -132,7 +132,7 @@ fn delete_rollout_path(
 
 #[cfg(test)]
 mod tests {
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use uuid::Uuid;
@@ -167,9 +167,9 @@ mod tests {
         ];
 
         for (uuid, path) in cases {
-            let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+            let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
             store
-                .delete_thread(DeleteThreadParams { thread_id })
+                .delete_thread(DeleteThreadParams { chat_id })
                 .await
                 .expect("delete thread");
 
@@ -183,23 +183,23 @@ mod tests {
         let home = TempDir::new().expect("temp dir");
         let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
         let uuid = Uuid::from_u128(305);
-        let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
+        let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let path =
             write_session_file(home.path(), "2025-01-03T12-00-00", uuid).expect("session file");
         std::fs::remove_file(&path).expect("remove session file");
 
-        assert!(!delete_rollout_file(&store, path.as_path(), thread_id).expect("delete rollout"));
+        assert!(!delete_rollout_file(&store, path.as_path(), chat_id).expect("delete rollout"));
     }
 
     #[tokio::test]
     async fn delete_thread_reports_missing_thread() {
         let home = TempDir::new().expect("temp dir");
         let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
-        let thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000304").expect("valid thread id");
+        let chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000304").expect("valid thread id");
 
         let err = store
-            .delete_thread(DeleteThreadParams { thread_id })
+            .delete_thread(DeleteThreadParams { chat_id })
             .await
             .expect_err("missing thread should fail");
         assert_eq!(

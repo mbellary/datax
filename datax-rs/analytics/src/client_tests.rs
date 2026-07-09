@@ -47,14 +47,14 @@ use std::time::SystemTime;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::TryRecvError;
 
-fn sample_accepted_line_fingerprint_event(thread_id: &str) -> TrackEventRequest {
+fn sample_accepted_line_fingerprint_event(chat_id: &str) -> TrackEventRequest {
     TrackEventRequest::AcceptedLineFingerprints(Box::new(
         CodexAcceptedLineFingerprintsEventRequest {
             event_type: "codex_accepted_line_fingerprints",
             event_params: CodexAcceptedLineFingerprintsEventParams {
                 event_type: "codex.accepted_line_fingerprints",
-                turn_id: "turn-1".to_string(),
-                thread_id: thread_id.to_string(),
+                interaction_id: "turn-1".to_string(),
+                chat_id: chat_id.to_string(),
                 product_surface: Some("codex".to_string()),
                 model_slug: Some("gpt-5.1-codex".to_string()),
                 completed_at: 1,
@@ -67,18 +67,18 @@ fn sample_accepted_line_fingerprint_event(thread_id: &str) -> TrackEventRequest 
     ))
 }
 
-fn sample_regular_track_event(thread_id: &str) -> TrackEventRequest {
+fn sample_regular_track_event(chat_id: &str) -> TrackEventRequest {
     TrackEventRequest::SkillInvocation(SkillInvocationEventRequest {
         event_type: "skill_invocation",
-        skill_id: format!("skill-{thread_id}"),
+        skill_id: format!("skill-{chat_id}"),
         skill_name: "doc".to_string(),
         event_params: SkillInvocationEventParams {
             product_client_id: None,
             skill_scope: None,
             plugin_id: None,
             repo_url: None,
-            thread_id: Some(thread_id.to_string()),
-            turn_id: Some("turn-1".to_string()),
+            chat_id: Some(chat_id.to_string()),
+            interaction_id: Some("turn-1".to_string()),
             invoke_type: Some(InvocationType::Explicit),
             model_slug: Some("gpt-5.1-codex".to_string()),
         },
@@ -243,7 +243,7 @@ fn sample_turn_start_request() -> ClientRequest {
     ClientRequest::InteractionStart {
         request_id: RequestId::Integer(1),
         params: InteractionStartParams {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
             client_user_message_id: None,
             input: Vec::new(),
             ..Default::default()
@@ -255,8 +255,8 @@ fn sample_turn_steer_request() -> ClientRequest {
     ClientRequest::InteractionSteer {
         request_id: RequestId::Integer(2),
         params: InteractionSteerParams {
-            thread_id: "thread-1".to_string(),
-            expected_turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            expected_interaction_id: "turn-1".to_string(),
             client_user_message_id: None,
             input: Vec::new(),
             responsesapi_client_metadata: None,
@@ -269,17 +269,17 @@ fn sample_thread_archive_request() -> ClientRequest {
     ClientRequest::ChatArchive {
         request_id: RequestId::Integer(3),
         params: ChatArchiveParams {
-            thread_id: "thread-1".to_string(),
+            chat_id: "thread-1".to_string(),
         },
     }
 }
 
-fn sample_thread(thread_id: &str) -> Chat {
+fn sample_thread(chat_id: &str) -> Chat {
     Chat {
-        id: thread_id.to_string(),
-        session_id: format!("session-{thread_id}"),
+        id: chat_id.to_string(),
+        session_id: format!("session-{chat_id}"),
         forked_from_id: None,
-        parent_thread_id: None,
+        parent_chat_id: None,
         preview: "first prompt".to_string(),
         ephemeral: false,
         model_provider: "openai".to_string(),
@@ -372,7 +372,7 @@ fn sample_turn_start_response() -> ClientResponsePayload {
 
 fn sample_turn_steer_response() -> ClientResponsePayload {
     ClientResponsePayload::InteractionSteer(InteractionSteerResponse {
-        turn_id: "turn-2".to_string(),
+        interaction_id: "turn-2".to_string(),
     })
 }
 

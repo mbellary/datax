@@ -13,7 +13,7 @@ use datax_app_server_protocol::McpAuthStatus;
 use datax_config::types::McpServerConfig;
 use datax_otel::RuntimeMetricTotals;
 use datax_otel::RuntimeMetricsSummary;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::account::PlanType;
 use datax_protocol::error::UnexpectedResponseError;
 use datax_protocol::parse_command::ParsedCommand;
@@ -493,7 +493,7 @@ fn image_generation_call_renders_saved_path() {
 
 fn session_configured_event(model: &str) -> ThreadSessionState {
     ThreadSessionState {
-        thread_id: ThreadId::new(),
+        chat_id: ChatId::new(),
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,

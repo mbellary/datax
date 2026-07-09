@@ -187,7 +187,7 @@ pub struct Turn {
     #[serde(default, rename = "turn_status")]
     pub turn_status: Option<String>,
     #[serde(default, deserialize_with = "deserialize_vec")]
-    pub sibling_turn_ids: Vec<String>,
+    pub sibling_interaction_ids: Vec<String>,
     #[serde(default, deserialize_with = "deserialize_vec")]
     pub input_items: Vec<TurnItem>,
     #[serde(default, deserialize_with = "deserialize_vec")]

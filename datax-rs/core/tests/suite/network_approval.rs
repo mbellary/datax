@@ -107,7 +107,7 @@ async fn approved_network_host_for_one_environment_still_prompts_in_another() ->
     test.codex
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
-            turn_id: None,
+            interaction_id: None,
             decision: ReviewDecision::ApprovedForSession,
         })
         .await?;
@@ -130,7 +130,7 @@ async fn approved_network_host_for_one_environment_still_prompts_in_another() ->
     test.codex
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
-            turn_id: None,
+            interaction_id: None,
             decision: ReviewDecision::Denied,
         })
         .await?;
@@ -296,7 +296,7 @@ async fn expect_network_approval(
         |event| {
             matches!(
                 event,
-                EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
+                EventMsg::ExecApprovalRequest(_) | EventMsg::InteractionComplete(_)
             )
         },
         remaining,
@@ -324,7 +324,7 @@ async fn expect_network_approval(
             );
             Ok(approval)
         }
-        EventMsg::TurnComplete(_) => {
+        EventMsg::InteractionComplete(_) => {
             panic!("expected network approval request before completion");
         }
         other => panic!("unexpected event: {other:?}"),
@@ -333,7 +333,7 @@ async fn expect_network_approval(
 
 async fn wait_for_turn_complete(test: &TestCodex) {
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 }

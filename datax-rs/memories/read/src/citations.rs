@@ -1,4 +1,4 @@
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::memory_citation::MemoryCitation;
 use datax_protocol::memory_citation::MemoryCitationEntry;
 use std::collections::HashSet;
@@ -42,11 +42,11 @@ pub fn parse_memory_citation(citations: Vec<String>) -> Option<MemoryCitation> {
     }
 }
 
-pub fn thread_ids_from_memory_citation(memory_citation: &MemoryCitation) -> Vec<ThreadId> {
+pub fn chat_ids_from_memory_citation(memory_citation: &MemoryCitation) -> Vec<ChatId> {
     memory_citation
         .rollout_ids
         .iter()
-        .filter_map(|id| ThreadId::try_from(id.as_str()).ok())
+        .filter_map(|id| ChatId::try_from(id.as_str()).ok())
         .collect()
 }
 
@@ -77,7 +77,7 @@ fn extract_block<'a>(text: &'a str, open: &str, close: &str) -> Option<&'a str> 
 
 fn extract_ids_block(text: &str) -> Option<&str> {
     extract_block(text, "<rollout_ids>", "</rollout_ids>")
-        .or_else(|| extract_block(text, "<thread_ids>", "</thread_ids>"))
+        .or_else(|| extract_block(text, "<chat_ids>", "</chat_ids>"))
 }
 
 #[cfg(test)]

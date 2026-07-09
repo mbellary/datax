@@ -7,13 +7,13 @@ use tempfile::tempdir;
 async fn small_hook_output_remains_inline() -> Result<()> {
     let dir = tempdir()?;
     let output_dir = AbsolutePathBuf::from_absolute_path(dir.path())?.join(HOOK_OUTPUTS_DIR);
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     let spiller = HookOutputSpiller {
         output_dir: output_dir.clone(),
     };
 
     let output = spiller
-        .maybe_spill_text(thread_id, "short".to_string())
+        .maybe_spill_text(chat_id, "short".to_string())
         .await;
 
     assert_eq!(output, "short");
@@ -29,7 +29,7 @@ async fn large_hook_output_spills_to_file() -> Result<()> {
     let spiller = HookOutputSpiller { output_dir };
 
     let output = spiller
-        .maybe_spill_text(ThreadId::new(), text.clone())
+        .maybe_spill_text(ChatId::new(), text.clone())
         .await;
 
     assert!(output.contains("tokens truncated"));

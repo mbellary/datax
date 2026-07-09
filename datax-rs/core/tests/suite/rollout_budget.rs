@@ -17,7 +17,7 @@ use datax_features::Feature;
 use datax_model_provider_info::built_in_model_providers;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::Op;
-use datax_protocol::protocol::TurnAbortReason;
+use datax_protocol::protocol::InteractionAbortReason;
 use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::json;
@@ -180,10 +180,10 @@ async fn subagent_usage_draws_from_the_shared_budget() -> Result<()> {
 
     let mut created_threads = test.thread_manager.subscribe_thread_created();
     test.submit_turn(ROOT_PROMPT).await?;
-    let child_thread_id = timeout(Duration::from_secs(10), created_threads.recv()).await??;
-    let child_thread = test.thread_manager.get_thread(child_thread_id).await?;
+    let child_chat_id = timeout(Duration::from_secs(10), created_threads.recv()).await??;
+    let child_thread = test.thread_manager.get_thread(child_chat_id).await?;
     wait_for_event(child_thread.as_ref(), |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
     test.submit_turn(FOLLOW_UP_PROMPT).await?;
@@ -242,17 +242,17 @@ async fn exhausted_budget_aborts_current_and_later_turns() -> Result<()> {
             .await?;
 
         let event = wait_for_event(&test.codex, |event| match event {
-            EventMsg::TurnAborted(_) => true,
-            EventMsg::TurnComplete(_) => {
+            EventMsg::InteractionAborted(_) => true,
+            EventMsg::InteractionComplete(_) => {
                 panic!("exhausted budget completed the turn instead of aborting")
             }
             _ => false,
         })
         .await;
-        let EventMsg::TurnAborted(abort) = event else {
-            unreachable!("event filter only accepts TurnAborted")
+        let EventMsg::InteractionAborted(abort) = event else {
+            unreachable!("event filter only accepts InteractionAborted")
         };
-        assert_eq!(abort.reason, TurnAbortReason::Interrupted);
+        assert_eq!(abort.reason, InteractionAbortReason::Interrupted);
     }
 
     Ok(())
@@ -310,18 +310,18 @@ async fn compaction_budget_exhaustion_aborts_without_error_or_retry(remote_v2: b
 
     test.codex.submit(Op::Compact).await?;
     let event = wait_for_event(&test.codex, |event| match event {
-        EventMsg::TurnAborted(_) => true,
+        EventMsg::InteractionAborted(_) => true,
         EventMsg::Error(error) => panic!("budget exhaustion emitted an error: {}", error.message),
-        EventMsg::TurnComplete(_) => {
+        EventMsg::InteractionComplete(_) => {
             panic!("budget-exhausting compaction completed instead of aborting")
         }
         _ => false,
     })
     .await;
-    let EventMsg::TurnAborted(abort) = event else {
-        unreachable!("event filter only accepts TurnAborted")
+    let EventMsg::InteractionAborted(abort) = event else {
+        unreachable!("event filter only accepts InteractionAborted")
     };
-    assert_eq!(abort.reason, TurnAbortReason::Interrupted);
+    assert_eq!(abort.reason, InteractionAbortReason::Interrupted);
     assert_eq!(responses.requests().len(), 1, "compaction should not retry");
 
     Ok(())
@@ -366,7 +366,7 @@ async fn restates_the_current_remainder_after_compaction() -> Result<()> {
     test.submit_turn("first turn").await?;
     test.codex.submit(Op::Compact).await?;
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
     test.submit_turn("second turn").await?;

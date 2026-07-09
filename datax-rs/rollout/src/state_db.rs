@@ -8,7 +8,7 @@ use crate::sqlite_metrics;
 use anyhow::Context;
 use chrono::DateTime;
 use chrono::Utc;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::RolloutItem;
 use datax_protocol::protocol::SessionSource;
 pub use datax_state::LogEntry;
@@ -292,7 +292,7 @@ fn cursor_to_anchor(cursor: Option<&Cursor>) -> Option<datax_state::Anchor> {
     let ts = chrono::DateTime::<Utc>::from_timestamp_millis(millis)?;
     Some(datax_state::Anchor {
         ts,
-        id: cursor.thread_id(),
+        id: cursor.chat_id(),
     })
 }
 
@@ -302,7 +302,7 @@ pub fn normalize_cwd_for_state_db(cwd: &Path) -> PathBuf {
 
 /// List thread ids from SQLite for parity checks without rollout scanning.
 #[allow(clippy::too_many_arguments)]
-pub async fn list_thread_ids_db(
+pub async fn list_chat_ids_db(
     context: Option<&datax_state::StateRuntime>,
     codex_home: &Path,
     page_size: usize,
@@ -312,7 +312,7 @@ pub async fn list_thread_ids_db(
     model_providers: Option<&[String]>,
     archived_only: bool,
     stage: &str,
-) -> Option<Vec<ThreadId>> {
+) -> Option<Vec<ChatId>> {
     let ctx = context?;
     if ctx.codex_home() != codex_home {
         warn!(
@@ -333,7 +333,7 @@ pub async fn list_thread_ids_db(
         .collect();
     let model_providers = model_providers.map(<[String]>::to_vec);
     match ctx
-        .list_thread_ids(
+        .list_chat_ids(
             page_size,
             anchor.as_ref(),
             match sort_key {
@@ -349,7 +349,7 @@ pub async fn list_thread_ids_db(
     {
         Ok(ids) => Some(ids),
         Err(err) => {
-            warn!("state db list_thread_ids failed during {stage}: {err}");
+            warn!("state db list_chat_ids failed during {stage}: {err}");
             None
         }
     }
@@ -367,7 +367,7 @@ pub async fn list_threads_db(
     allowed_sources: &[SessionSource],
     model_providers: Option<&[String]>,
     cwd_filters: Option<&[PathBuf]>,
-    parent_thread_id: Option<ThreadId>,
+    parent_chat_id: Option<ChatId>,
     archived: bool,
     search_term: Option<&str>,
 ) -> Option<datax_state::ThreadsPage> {
@@ -413,9 +413,9 @@ pub async fn list_threads_db(
         },
         search_term,
     };
-    let page = match parent_thread_id {
-        Some(parent_thread_id) => {
-            ctx.list_threads_by_parent(page_size, parent_thread_id, filters)
+    let page = match parent_chat_id {
+        Some(parent_chat_id) => {
+            ctx.list_threads_by_parent(page_size, parent_chat_id, filters)
                 .await
         }
         None => ctx.list_threads(page_size, filters).await,
@@ -423,7 +423,7 @@ pub async fn list_threads_db(
     match page {
         Ok(mut page) => {
             // Parent-filtered listings intentionally treat persisted state as authoritative.
-            if parent_thread_id.is_some() {
+            if parent_chat_id.is_some() {
                 return Some(page);
             }
             let mut valid_items = Vec::with_capacity(page.items.len());
@@ -457,12 +457,12 @@ pub async fn list_threads_db(
 /// Look up the rollout path for a thread id using SQLite.
 pub async fn find_rollout_path_by_id(
     context: Option<&datax_state::StateRuntime>,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     archived_only: Option<bool>,
     stage: &str,
 ) -> Option<PathBuf> {
     let ctx = context?;
-    ctx.find_rollout_path_by_id(thread_id, archived_only)
+    ctx.find_rollout_path_by_id(chat_id, archived_only)
         .await
         .unwrap_or_else(|err| {
             warn!("state db find_rollout_path_by_id failed during {stage}: {err}");
@@ -472,7 +472,7 @@ pub async fn find_rollout_path_by_id(
 
 pub async fn mark_thread_memory_mode_polluted(
     context: Option<&datax_state::StateRuntime>,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     stage: &str,
 ) {
     let Some(ctx) = context else {
@@ -480,7 +480,7 @@ pub async fn mark_thread_memory_mode_polluted(
     };
     if let Err(err) = ctx
         .memories()
-        .mark_thread_memory_mode_polluted(thread_id)
+        .mark_thread_memory_mode_polluted(chat_id)
         .await
     {
         warn!("memories db mark_thread_memory_mode_polluted failed during {stage}: {err}");
@@ -562,7 +562,7 @@ pub async fn reconcile_rollout(
 /// Repair a thread's rollout path after filesystem fallback succeeds.
 pub async fn read_repair_rollout_path(
     context: Option<&datax_state::StateRuntime>,
-    thread_id: Option<ThreadId>,
+    chat_id: Option<ChatId>,
     archived_only: Option<bool>,
     rollout_path: &Path,
 ) {
@@ -573,8 +573,8 @@ pub async fn read_repair_rollout_path(
     // Fast path: update an existing metadata row in place, but avoid writes when
     // read-repair computes no effective change.
     let mut saw_existing_metadata = false;
-    if let Some(thread_id) = thread_id
-        && let Ok(Some(metadata)) = ctx.get_thread(thread_id).await
+    if let Some(chat_id) = chat_id
+        && let Ok(Some(metadata)) = ctx.get_thread(chat_id).await
     {
         saw_existing_metadata = true;
         let mut repaired = metadata.clone();
@@ -672,20 +672,20 @@ pub async fn apply_rollout_items(
 
 pub async fn touch_thread_updated_at(
     context: Option<&datax_state::StateRuntime>,
-    thread_id: Option<ThreadId>,
+    chat_id: Option<ChatId>,
     updated_at: DateTime<Utc>,
     stage: &str,
 ) -> bool {
     let Some(ctx) = context else {
         return false;
     };
-    let Some(thread_id) = thread_id else {
+    let Some(chat_id) = chat_id else {
         return false;
     };
-    ctx.touch_thread_updated_at(thread_id, updated_at)
+    ctx.touch_thread_updated_at(chat_id, updated_at)
         .await
         .unwrap_or_else(|err| {
-            warn!("state db touch_thread_updated_at failed during {stage} for {thread_id}: {err}");
+            warn!("state db touch_thread_updated_at failed during {stage} for {chat_id}: {err}");
             false
         })
 }

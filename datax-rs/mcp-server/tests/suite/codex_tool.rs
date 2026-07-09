@@ -131,7 +131,7 @@ async fn shell_command_approval_triggers_elicitation() -> anyhow::Result<()> {
             workdir_for_shell_function_call.path(),
             codex_request_id.to_string(),
             params.codex_event_id.clone(),
-            params.thread_id,
+            params.chat_id,
         )?)
     );
 
@@ -172,7 +172,7 @@ async fn shell_command_approval_triggers_elicitation() -> anyhow::Result<()> {
                     }
                 ],
                 "structuredContent": {
-                    "threadId": params.thread_id,
+                    "threadId": params.chat_id,
                     "content": "File created!"
                 }
             }),
@@ -190,7 +190,7 @@ fn create_expected_elicitation_request_params(
     workdir: &Path,
     codex_mcp_tool_call_id: String,
     codex_event_id: String,
-    thread_id: datax_protocol::ThreadId,
+    chat_id: datax_protocol::ChatId,
 ) -> anyhow::Result<serde_json::Value> {
     let expected_message = format!(
         "Allow Codex to run `{}` in `{}`?",
@@ -201,7 +201,7 @@ fn create_expected_elicitation_request_params(
     let params_json = serde_json::to_value(ExecApprovalElicitRequestParams {
         message: expected_message,
         requested_schema: json!({"type":"object","properties":{}}),
-        thread_id,
+        chat_id,
         codex_elicitation: "exec-approval".to_string(),
         codex_mcp_tool_call_id,
         codex_event_id,
@@ -303,7 +303,7 @@ async fn patch_approval_triggers_elicitation() -> anyhow::Result<()> {
             /*reason*/ None,
             codex_request_id.to_string(),
             params.codex_event_id.clone(),
-            params.thread_id,
+            params.chat_id,
         )?)
     );
 
@@ -335,7 +335,7 @@ async fn patch_approval_triggers_elicitation() -> anyhow::Result<()> {
                     }
                 ],
                 "structuredContent": {
-                    "threadId": params.thread_id,
+                    "threadId": params.chat_id,
                     "content": "Patch has been applied successfully!"
                 }
             }),
@@ -451,7 +451,7 @@ fn create_expected_patch_approval_elicitation_request_params(
     reason: Option<String>,
     codex_mcp_tool_call_id: String,
     codex_event_id: String,
-    thread_id: datax_protocol::ThreadId,
+    chat_id: datax_protocol::ChatId,
 ) -> anyhow::Result<serde_json::Value> {
     let mut message_lines = Vec::new();
     if let Some(r) = &reason {
@@ -461,7 +461,7 @@ fn create_expected_patch_approval_elicitation_request_params(
     let params_json = serde_json::to_value(PatchApprovalElicitRequestParams {
         message: message_lines.join("\n"),
         requested_schema: json!({"type":"object","properties":{}}),
-        thread_id,
+        chat_id,
         codex_elicitation: "patch-approval".to_string(),
         codex_mcp_tool_call_id,
         codex_event_id,

@@ -3,7 +3,7 @@ use crate::session::tests::make_session_and_context;
 use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolPayload;
 use crate::turn_diff_tracker::TurnDiffTracker;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
 use pretty_assertions::assert_eq;
@@ -15,7 +15,7 @@ use tokio::sync::Mutex;
 async fn multi_agent_v2_request_user_input_rejects_subagent_threads() {
     let (session, mut turn) = make_session_and_context().await;
     turn.session_source = SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-        parent_thread_id: ThreadId::new(),
+        parent_chat_id: ChatId::new(),
         depth: 1,
         agent_path: None,
         agent_nickname: None,

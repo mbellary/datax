@@ -342,7 +342,7 @@ async fn unified_exec_intercepts_apply_patch_exec_command() -> Result<()> {
             saw_exec_end = true;
             false
         }
-        EventMsg::TurnComplete(_) => true,
+        EventMsg::InteractionComplete(_) => true,
         _ => false,
     })
     .await;
@@ -440,7 +440,7 @@ async fn unified_exec_emits_exec_command_begin_event() -> Result<()> {
     assert_eq!(begin_event.cwd, PathUri::from_host_native_path(&cwd)?);
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -513,7 +513,7 @@ async fn unified_exec_resolves_relative_workdir() -> Result<()> {
     );
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -575,7 +575,7 @@ async fn unified_exec_respects_workdir_override() -> Result<()> {
     );
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -654,7 +654,7 @@ async fn unified_exec_emits_exec_command_end_event() -> Result<()> {
     );
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
     Ok(())
@@ -714,7 +714,7 @@ async fn unified_exec_emits_output_delta_for_exec_command() -> Result<()> {
     );
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
     Ok(())
@@ -785,7 +785,7 @@ async fn unified_exec_full_lifecycle_with_background_end_event() -> Result<()> {
                     break;
                 }
             }
-            EventMsg::TurnComplete(_) => {
+            EventMsg::InteractionComplete(_) => {
                 task_completed = true;
                 if task_completed && end_event.is_some() {
                     break;
@@ -855,7 +855,7 @@ async fn unified_exec_network_denial_emits_failed_background_end_event() -> Resu
 
     if !turn_completed {
         wait_for_event(&test.codex, |event| {
-            matches!(event, EventMsg::TurnComplete(_))
+            matches!(event, EventMsg::InteractionComplete(_))
         })
         .await;
     }
@@ -900,7 +900,7 @@ async fn unified_exec_short_lived_network_denial_emits_failed_end_event() -> Res
 
     if !turn_completed {
         wait_for_event(&test.codex, |event| {
-            matches!(event, EventMsg::TurnComplete(_))
+            matches!(event, EventMsg::InteractionComplete(_))
         })
         .await;
     }
@@ -1006,7 +1006,7 @@ async fn wait_for_unified_exec_end(
             .expect(&timeout_message)
             .expect("event stream ended unexpectedly")
             .msg;
-        turn_completed |= matches!(event, EventMsg::TurnComplete(_));
+        turn_completed |= matches!(event, EventMsg::InteractionComplete(_));
         observed_events.push(format!("{event:?}"));
         if let EventMsg::ExecCommandEnd(ev) = event
             && ev.call_id == call_id
@@ -1087,7 +1087,7 @@ async fn unified_exec_emits_terminal_interaction_for_write_stdin() -> Result<()>
             EventMsg::TerminalInteraction(ev) if ev.call_id == open_call_id => {
                 terminal_interaction = Some(ev);
             }
-            EventMsg::TurnComplete(_) => break,
+            EventMsg::InteractionComplete(_) => break,
             _ => {}
         }
     }
@@ -1225,7 +1225,7 @@ async fn unified_exec_terminal_interaction_captures_delayed_output() -> Result<(
             EventMsg::ExecCommandEnd(ev) if ev.call_id == open_call_id => {
                 end_event = Some(ev);
             }
-            EventMsg::TurnComplete(_) => {
+            EventMsg::InteractionComplete(_) => {
                 task_completed = true;
             }
             _ => {}
@@ -1364,7 +1364,7 @@ async fn unified_exec_emits_one_begin_and_one_end_event() -> Result<()> {
             EventMsg::TerminalInteraction(event) if event.call_id == open_call_id => {
                 terminal_interactions.push(event);
             }
-            EventMsg::TurnComplete(_) => {
+            EventMsg::InteractionComplete(_) => {
                 task_completed = true;
             }
             _ => {}
@@ -1447,7 +1447,7 @@ async fn exec_command_reports_chunk_and_exit_metadata() -> Result<()> {
     submit_unified_exec_turn(&test, "run metadata test", PermissionProfile::Disabled).await?;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -1558,7 +1558,7 @@ async fn exec_command_clamps_model_requested_max_output_tokens_to_policy() -> Re
     );
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -1649,7 +1649,7 @@ async fn write_stdin_clamps_model_requested_max_output_tokens_to_policy() -> Res
     );
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -1702,7 +1702,7 @@ async fn unified_exec_defaults_to_pipe() -> Result<()> {
     .await?;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -1769,7 +1769,7 @@ async fn unified_exec_can_enable_tty() -> Result<()> {
     submit_unified_exec_turn(&test, "check tty enabled", PermissionProfile::Disabled).await?;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -1840,7 +1840,7 @@ async fn unified_exec_respects_early_exit_notifications() -> Result<()> {
     .await?;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -1961,7 +1961,7 @@ async fn write_stdin_returns_exit_metadata_and_clears_session() -> Result<()> {
     .await?;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -2129,7 +2129,7 @@ async fn assert_write_stdin_ctrl_c_interrupts_non_tty_session(
     .await?;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -2249,7 +2249,7 @@ async fn write_stdin_ctrl_c_reports_unsupported_interrupt_to_model_on_windows() 
     .await?;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -2371,7 +2371,7 @@ async fn unified_exec_emits_end_event_when_session_dies_via_stdin() -> Result<()
     assert_eq!(end_event.exit_code, 0);
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
     Ok(())
@@ -2473,7 +2473,7 @@ async fn unified_exec_keeps_long_running_session_after_turn_end() -> Result<()> 
         "expected numeric pid, got {pid:?}"
     );
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     assert!(
         process_is_alive(&pid)?,
@@ -2572,7 +2572,7 @@ async fn unified_exec_interrupt_preserves_long_running_session() -> Result<()> {
     );
 
     codex.submit(Op::Interrupt).await?;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnAborted(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionAborted(_))).await;
 
     assert!(
         process_is_alive(&pid)?,
@@ -2646,7 +2646,7 @@ async fn unified_exec_reuses_session_via_stdin() -> Result<()> {
     submit_unified_exec_turn(&test, "run unified exec", PermissionProfile::Disabled).await?;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -2768,7 +2768,7 @@ PY
     // while draining the lagged tail before the follow-up tool call completes.
     wait_for_event_with_timeout(
         &test.codex,
-        |event| matches!(event, EventMsg::TurnComplete(_)),
+        |event| matches!(event, EventMsg::InteractionComplete(_)),
         UNIFIED_EXEC_LAGGED_OUTPUT_TIMEOUT,
     )
     .await;
@@ -2864,7 +2864,7 @@ async fn unified_exec_timeout_and_followup_poll() -> Result<()> {
 
     loop {
         let event = test.codex.next_event().await.expect("event");
-        if matches!(event.msg, EventMsg::TurnComplete(_)) {
+        if matches!(event.msg, EventMsg::InteractionComplete(_)) {
             break;
         }
     }
@@ -2944,7 +2944,7 @@ PY
     submit_unified_exec_turn(&test, "summarize large output", PermissionProfile::Disabled).await?;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -3042,7 +3042,7 @@ async fn unified_exec_runs_under_sandbox() -> Result<()> {
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     let requests = request_log.requests();
     assert!(!requests.is_empty(), "expected at least one POST request");
@@ -3164,7 +3164,7 @@ async fn unified_exec_enforces_glob_deny_read_policy() -> Result<()> {
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     let requests = request_log.requests();
     assert!(!requests.is_empty(), "expected at least one POST request");
@@ -3302,7 +3302,7 @@ async fn unified_exec_python_prompt_under_seatbelt() -> Result<()> {
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
 
     let requests = request_log.requests();
     assert!(!requests.is_empty(), "expected at least one POST request");
@@ -3383,7 +3383,7 @@ async fn unified_exec_runs_on_all_platforms() -> Result<()> {
     submit_unified_exec_turn(&test, "summarize large output", PermissionProfile::Disabled).await?;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -3501,7 +3501,7 @@ async fn unified_exec_prunes_exited_sessions_first() -> Result<()> {
     submit_unified_exec_turn(&test, "fill session cache", PermissionProfile::Disabled).await?;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 

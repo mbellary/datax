@@ -10,13 +10,13 @@
 //! set of descendants. It intentionally has no async, no I/O, and no side effects so it can be
 //! unit-tested in isolation.
 //!
-//! The walk starts from `primary_thread_id` and repeatedly follows
-//! `SessionSource::SubAgent(ThreadSpawn { parent_thread_id, .. })` edges until no new children are
+//! The walk starts from `primary_chat_id` and repeatedly follows
+//! `SessionSource::SubAgent(ThreadSpawn { parent_chat_id, .. })` edges until no new children are
 //! found. The primary thread itself is never included in the output.
 
 use datax_app_server_protocol::Chat;
 use datax_app_server_protocol::SessionSource;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::SubAgentSource;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -25,73 +25,73 @@ use std::collections::HashSet;
 /// TUI to register it in the navigation cache and rendering metadata map.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LoadedSubagentThread {
-    pub(crate) thread_id: ThreadId,
+    pub(crate) chat_id: ChatId,
     pub(crate) agent_nickname: Option<String>,
     pub(crate) agent_role: Option<String>,
     pub(crate) agent_path: Option<String>,
 }
 
-/// Walks the spawn tree rooted at `primary_thread_id` and returns every descendant subagent.
+/// Walks the spawn tree rooted at `primary_chat_id` and returns every descendant subagent.
 ///
-/// The walk is breadth-first over `SessionSource::SubAgent(ThreadSpawn { parent_thread_id })` edges.
-/// Threads whose `source` is not a `ThreadSpawn`, or whose `parent_thread_id` does not chain back
-/// to `primary_thread_id`, are excluded. The primary thread itself is never included.
+/// The walk is breadth-first over `SessionSource::SubAgent(ThreadSpawn { parent_chat_id })` edges.
+/// Threads whose `source` is not a `ThreadSpawn`, or whose `parent_chat_id` does not chain back
+/// to `primary_chat_id`, are excluded. The primary thread itself is never included.
 ///
 /// Results are sorted by stringified thread id for deterministic output in tests and in the
 /// navigation cache. Callers should not rely on this ordering for anything semantic; it exists
 /// purely to make snapshot assertions stable.
 ///
 /// If two threads claim the same parent, both are included. Cycles in the parent chain are not
-/// possible because `ThreadId`s are server-assigned UUIDs and the server enforces acyclicity, but
+/// possible because `ChatId`s are server-assigned UUIDs and the server enforces acyclicity, but
 /// the `included` set guards against re-visiting regardless.
 pub(crate) fn find_loaded_subagent_threads_for_primary(
     threads: Vec<Chat>,
-    primary_thread_id: ThreadId,
+    primary_chat_id: ChatId,
 ) -> Vec<LoadedSubagentThread> {
     let mut threads_by_id = HashMap::new();
     for thread in threads {
-        let Ok(thread_id) = ThreadId::from_string(&thread.id) else {
+        let Ok(chat_id) = ChatId::from_string(&thread.id) else {
             continue;
         };
-        threads_by_id.insert(thread_id, thread);
+        threads_by_id.insert(chat_id, thread);
     }
 
     let mut included = HashSet::new();
-    let mut pending = vec![primary_thread_id];
-    while let Some(parent_thread_id) = pending.pop() {
-        for (thread_id, thread) in &threads_by_id {
-            if included.contains(thread_id) {
+    let mut pending = vec![primary_chat_id];
+    while let Some(parent_chat_id) = pending.pop() {
+        for (chat_id, thread) in &threads_by_id {
+            if included.contains(chat_id) {
                 continue;
             }
 
-            let Some(source_parent_thread_id) = thread_spawn_parent_thread_id(&thread.source)
+            let Some(source_parent_chat_id) = thread_spawn_parent_chat_id(&thread.source)
             else {
                 continue;
             };
 
-            if source_parent_thread_id != parent_thread_id {
+            if source_parent_chat_id != parent_chat_id {
                 continue;
             }
 
-            included.insert(*thread_id);
-            pending.push(*thread_id);
+            included.insert(*chat_id);
+            pending.push(*chat_id);
         }
     }
 
     let mut loaded_threads: Vec<LoadedSubagentThread> = included
         .into_iter()
-        .filter_map(|thread_id| {
+        .filter_map(|chat_id| {
             threads_by_id
-                .remove(&thread_id)
+                .remove(&chat_id)
                 .map(|thread| LoadedSubagentThread {
-                    thread_id,
+                    chat_id,
                     agent_nickname: thread.agent_nickname,
                     agent_role: thread.agent_role,
                     agent_path: thread_spawn_agent_path(&thread.source),
                 })
         })
         .collect();
-    loaded_threads.sort_by_key(|thread| thread.thread_id.to_string());
+    loaded_threads.sort_by_key(|thread| thread.chat_id.to_string());
     loaded_threads
 }
 
@@ -104,11 +104,11 @@ fn thread_spawn_agent_path(source: &SessionSource) -> Option<String> {
     }
 }
 
-fn thread_spawn_parent_thread_id(source: &SessionSource) -> Option<ThreadId> {
+fn thread_spawn_parent_chat_id(source: &SessionSource) -> Option<ChatId> {
     match source {
         SessionSource::SubAgent(SubAgentSource::ThreadSpawn {
-            parent_thread_id, ..
-        }) => Some(*parent_thread_id),
+            parent_chat_id, ..
+        }) => Some(*parent_chat_id),
         _ => None,
     }
 }
@@ -120,15 +120,15 @@ mod tests {
     use datax_app_server_protocol::Chat;
     use datax_app_server_protocol::ChatStatus;
     use datax_app_server_protocol::SessionSource;
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use datax_utils_absolute_path::test_support::PathBufExt;
     use datax_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
 
-    fn test_thread(thread_id: ThreadId, source: SessionSource) -> Chat {
+    fn test_thread(chat_id: ChatId, source: SessionSource) -> Chat {
         Chat {
-            id: thread_id.to_string(),
-            session_id: thread_id.to_string(),
+            id: chat_id.to_string(),
+            session_id: chat_id.to_string(),
             forked_from_id: None,
             parent_chat_id: None,
             preview: String::new(),
@@ -152,7 +152,7 @@ mod tests {
     }
 
     fn thread_spawn_source(
-        parent_thread_id: ThreadId,
+        parent_chat_id: ChatId,
         depth: i32,
         agent_nickname: &str,
         agent_role: &str,
@@ -160,7 +160,7 @@ mod tests {
         serde_json::from_value(serde_json::json!({
             "subAgent": {
                 "thread_spawn": {
-                    "parent_thread_id": parent_thread_id.to_string(),
+                    "parent_chat_id": parent_chat_id.to_string(),
                     "depth": depth,
                     "agent_nickname": agent_nickname,
                     "agent_role": agent_role,
@@ -172,27 +172,27 @@ mod tests {
 
     #[test]
     fn finds_loaded_subagent_tree_for_primary_thread() {
-        let primary_thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000001").expect("valid thread");
-        let child_thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000002").expect("valid thread");
-        let grandchild_thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000003").expect("valid thread");
+        let primary_chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000001").expect("valid thread");
+        let child_chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000002").expect("valid thread");
+        let grandchild_chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000003").expect("valid thread");
         let unrelated_parent_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000004").expect("valid thread");
+            ChatId::from_string("00000000-0000-0000-0000-000000000004").expect("valid thread");
         let unrelated_child_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000005").expect("valid thread");
+            ChatId::from_string("00000000-0000-0000-0000-000000000005").expect("valid thread");
 
         let mut child = test_thread(
-            child_thread_id,
-            thread_spawn_source(primary_thread_id, /*depth*/ 1, "Scout", "explorer"),
+            child_chat_id,
+            thread_spawn_source(primary_chat_id, /*depth*/ 1, "Scout", "explorer"),
         );
         child.agent_nickname = Some("Scout".to_string());
         child.agent_role = Some("explorer".to_string());
 
         let mut grandchild = test_thread(
-            grandchild_thread_id,
-            thread_spawn_source(child_thread_id, /*depth*/ 2, "Atlas", "worker"),
+            grandchild_chat_id,
+            thread_spawn_source(child_chat_id, /*depth*/ 2, "Atlas", "worker"),
         );
         grandchild.agent_nickname = Some("Atlas".to_string());
         grandchild.agent_role = Some("worker".to_string());
@@ -204,25 +204,25 @@ mod tests {
 
         let loaded = find_loaded_subagent_threads_for_primary(
             vec![
-                test_thread(primary_thread_id, SessionSource::Cli),
+                test_thread(primary_chat_id, SessionSource::Cli),
                 child,
                 grandchild,
                 unrelated_child,
             ],
-            primary_thread_id,
+            primary_chat_id,
         );
 
         assert_eq!(
             loaded,
             vec![
                 LoadedSubagentThread {
-                    thread_id: child_thread_id,
+                    chat_id: child_chat_id,
                     agent_nickname: Some("Scout".to_string()),
                     agent_role: Some("explorer".to_string()),
                     agent_path: None,
                 },
                 LoadedSubagentThread {
-                    thread_id: grandchild_thread_id,
+                    chat_id: grandchild_chat_id,
                     agent_nickname: Some("Atlas".to_string()),
                     agent_role: Some("worker".to_string()),
                     agent_path: None,

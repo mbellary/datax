@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::items::HookPromptFragment;
 use datax_protocol::protocol::HookCompletedEvent;
 use datax_protocol::protocol::HookEventName;
@@ -22,8 +22,8 @@ use crate::schema::SubagentStopCommandInput;
 
 #[derive(Debug, Clone)]
 pub struct StopRequest {
-    pub session_id: ThreadId,
-    pub turn_id: String,
+    pub session_id: ChatId,
+    pub interaction_id: String,
     pub cwd: AbsolutePathBuf,
     pub transcript_path: Option<PathBuf>,
     pub model: String,
@@ -117,7 +117,7 @@ pub(crate) async fn run(
         StopHookTarget::Stop => {
             let input = StopCommandInput {
                 session_id: request.session_id.to_string(),
-                turn_id: request.turn_id.clone(),
+                interaction_id: request.interaction_id.clone(),
                 transcript_path: NullableString::from_path(request.transcript_path.clone()),
                 cwd: request.cwd.display().to_string(),
                 hook_event_name: "Stop".to_string(),
@@ -134,7 +134,7 @@ pub(crate) async fn run(
                     return serialization_failure_outcome(
                         common::serialization_failure_hook_events(
                             matched,
-                            Some(request.turn_id),
+                            Some(request.interaction_id),
                             format!("failed to serialize stop hook input: {error}"),
                         ),
                     );
@@ -148,7 +148,7 @@ pub(crate) async fn run(
         } => {
             let input = SubagentStopCommandInput {
                 session_id: request.session_id.to_string(),
-                turn_id: request.turn_id.clone(),
+                interaction_id: request.interaction_id.clone(),
                 transcript_path: NullableString::from_path(request.transcript_path.clone()),
                 agent_transcript_path: NullableString::from_path(agent_transcript_path),
                 cwd: request.cwd.display().to_string(),
@@ -168,7 +168,7 @@ pub(crate) async fn run(
                     return serialization_failure_outcome(
                         common::serialization_failure_hook_events(
                             matched,
-                            Some(request.turn_id),
+                            Some(request.interaction_id),
                             format!("failed to serialize subagent stop hook input: {error}"),
                         ),
                     );
@@ -182,7 +182,7 @@ pub(crate) async fn run(
         matched,
         input_json,
         request.cwd.as_path(),
-        Some(request.turn_id),
+        Some(request.interaction_id),
         parse_completed,
     )
     .await;
@@ -202,7 +202,7 @@ pub(crate) async fn run(
 fn parse_completed(
     handler: &ConfiguredHandler,
     run_result: CommandRunResult,
-    turn_id: Option<String>,
+    interaction_id: Option<String>,
 ) -> dispatcher::ParsedHandler<StopHandlerData> {
     let mut entries = Vec::new();
     let mut status = HookRunStatus::Completed;
@@ -345,7 +345,7 @@ fn parse_completed(
     }
 
     let completed = HookCompletedEvent {
-        turn_id,
+        interaction_id,
         run: dispatcher::completed_summary(handler, &run_result, status, entries),
     };
     let continuation_fragments = continuation_prompt
@@ -536,7 +536,7 @@ mod tests {
         let parsed = parse_completed(
             &handler(),
             run_result(Some(2), "", "   "),
-            /*turn_id*/ None,
+            /*interaction_id*/ None,
         );
 
         assert_eq!(parsed.data, StopHandlerData::default());

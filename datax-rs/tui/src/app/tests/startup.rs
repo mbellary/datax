@@ -18,7 +18,7 @@ fn startup_waiting_gate_is_only_for_fresh_or_exit_session_selection() {
         App::should_wait_for_initial_session(&SessionSelection::Resume(
             crate::resume_picker::SessionTarget {
                 path: Some(PathBuf::from("/tmp/restore")),
-                chat_id: ThreadId::new(),
+                chat_id: ChatId::new(),
             }
         )),
         false
@@ -27,7 +27,7 @@ fn startup_waiting_gate_is_only_for_fresh_or_exit_session_selection() {
         App::should_wait_for_initial_session(&SessionSelection::Fork(
             crate::resume_picker::SessionTarget {
                 path: Some(PathBuf::from("/tmp/fork")),
-                chat_id: ThreadId::new(),
+                chat_id: ChatId::new(),
             }
         )),
         false
@@ -38,11 +38,11 @@ fn startup_waiting_gate_is_only_for_fresh_or_exit_session_selection() {
 fn startup_paused_goal_prompt_gate_is_only_for_quiet_resume() {
     let resume = SessionSelection::Resume(crate::resume_picker::SessionTarget {
         path: Some(PathBuf::from("/tmp/restore")),
-        chat_id: ThreadId::new(),
+        chat_id: ChatId::new(),
     });
     let fork = SessionSelection::Fork(crate::resume_picker::SessionTarget {
         path: Some(PathBuf::from("/tmp/fork")),
-        chat_id: ThreadId::new(),
+        chat_id: ChatId::new(),
     });
     let no_images: Vec<PathBuf> = Vec::new();
     let initial_images = vec![PathBuf::from("/tmp/image.png")];
@@ -86,11 +86,11 @@ fn startup_waiting_gate_holds_active_thread_events_until_primary_thread_configur
     assert_eq!(
         App::should_stop_waiting_for_initial_session(
             wait_for_initial_session,
-            /*primary_thread_id*/ None
+            /*primary_chat_id*/ None
         ),
         false
     );
-    if App::should_stop_waiting_for_initial_session(wait_for_initial_session, Some(ThreadId::new()))
+    if App::should_stop_waiting_for_initial_session(wait_for_initial_session, Some(ChatId::new()))
     {
         wait_for_initial_session = false;
     }
@@ -110,7 +110,7 @@ fn startup_waiting_gate_not_applied_for_resume_or_fork_session_selection() {
     let wait_for_resume = App::should_wait_for_initial_session(&SessionSelection::Resume(
         crate::resume_picker::SessionTarget {
             path: Some(PathBuf::from("/tmp/restore")),
-            chat_id: ThreadId::new(),
+            chat_id: ChatId::new(),
         },
     ));
     assert_eq!(
@@ -123,7 +123,7 @@ fn startup_waiting_gate_not_applied_for_resume_or_fork_session_selection() {
     let wait_for_fork = App::should_wait_for_initial_session(&SessionSelection::Fork(
         crate::resume_picker::SessionTarget {
             path: Some(PathBuf::from("/tmp/fork")),
-            chat_id: ThreadId::new(),
+            chat_id: ChatId::new(),
         },
     ));
     assert_eq!(
@@ -156,11 +156,11 @@ async fn startup_thread_started_submits_queued_startup_input() {
     ))
     .await
     .expect("embedded app server");
-    let thread_id = ThreadId::new();
+    let chat_id = ChatId::new();
     app.handle_startup_thread_started(
         &mut app_server,
         Ok(AppServerStartedThread {
-            session: test_thread_session(thread_id, test_path_buf("/tmp/project")),
+            session: test_thread_session(chat_id, test_path_buf("/tmp/project")),
             turns: Vec::new(),
         }),
     )
@@ -199,7 +199,7 @@ async fn startup_thread_start_failure_returns_error() {
             .contains("Failed to start a fresh session through the app server: boom")
     );
     assert!(!app.pending_startup_thread_start);
-    assert_eq!(app.primary_thread_id, None);
+    assert_eq!(app.primary_chat_id, None);
 }
 
 #[test]
@@ -213,39 +213,39 @@ fn stale_startup_thread_started_removes_local_routing_state() -> Result<()> {
             let mut app = make_test_app().await;
             let mut app_server =
                 crate::start_embedded_app_server_for_picker(app.chat_widget.config_ref()).await?;
-            let primary_thread_id = ThreadId::new();
-            let stale_thread_id = ThreadId::new();
-            app.primary_thread_id = Some(primary_thread_id);
+            let primary_chat_id = ChatId::new();
+            let stale_chat_id = ChatId::new();
+            app.primary_chat_id = Some(primary_chat_id);
             app.thread_event_channels.insert(
-                primary_thread_id,
+                primary_chat_id,
                 ThreadEventChannel::new(THREAD_EVENT_CHANNEL_CAPACITY),
             );
-            app.activate_thread_channel(primary_thread_id).await;
+            app.activate_thread_channel(primary_chat_id).await;
             app.thread_event_channels.insert(
-                stale_thread_id,
+                stale_chat_id,
                 ThreadEventChannel::new(THREAD_EVENT_CHANNEL_CAPACITY),
             );
             app.agent_navigation.upsert(
-                stale_thread_id,
+                stale_chat_id,
                 /*agent_nickname*/ None,
                 /*agent_role*/ None,
                 /*is_closed*/ false,
             );
-            assert!(app.thread_event_channels.contains_key(&stale_thread_id));
-            assert!(app.agent_navigation.get(&stale_thread_id).is_some());
+            assert!(app.thread_event_channels.contains_key(&stale_chat_id));
+            assert!(app.agent_navigation.get(&stale_chat_id).is_some());
 
             app.handle_startup_thread_started(
                 &mut app_server,
                 Ok(AppServerStartedThread {
-                    session: test_thread_session(stale_thread_id, test_path_buf("/tmp/project")),
+                    session: test_thread_session(stale_chat_id, test_path_buf("/tmp/project")),
                     turns: Vec::new(),
                 }),
             )
             .await?;
 
-            assert!(!app.thread_event_channels.contains_key(&stale_thread_id));
-            assert_eq!(app.agent_navigation.get(&stale_thread_id), None);
-            assert_eq!(app.active_thread_id, Some(primary_thread_id));
+            assert!(!app.thread_event_channels.contains_key(&stale_chat_id));
+            assert_eq!(app.agent_navigation.get(&stale_chat_id), None);
+            assert_eq!(app.active_chat_id, Some(primary_chat_id));
             Ok(())
         })
 }
@@ -253,19 +253,19 @@ fn stale_startup_thread_started_removes_local_routing_state() -> Result<()> {
 #[tokio::test]
 async fn ignore_same_thread_resume_reports_noop_for_current_thread() {
     let (mut app, mut app_event_rx, _op_rx) = make_test_app_with_channels().await;
-    let thread_id = ThreadId::new();
-    let session = test_thread_session(thread_id, test_path_buf("/tmp/project"));
+    let chat_id = ChatId::new();
+    let session = test_thread_session(chat_id, test_path_buf("/tmp/project"));
     app.chat_widget.handle_thread_session(session.clone());
     app.thread_event_channels.insert(
-        thread_id,
+        chat_id,
         ThreadEventChannel::new_with_session(THREAD_EVENT_CHANNEL_CAPACITY, session, Vec::new()),
     );
-    app.activate_thread_channel(thread_id).await;
+    app.activate_thread_channel(chat_id).await;
     while app_event_rx.try_recv().is_ok() {}
 
     let ignored = app.ignore_same_thread_resume(&crate::resume_picker::SessionTarget {
         path: Some(test_path_buf("/tmp/project")),
-        chat_id: thread_id,
+        chat_id: chat_id,
     });
 
     assert!(ignored);
@@ -283,13 +283,13 @@ async fn ignore_same_thread_resume_reports_noop_for_current_thread() {
 #[tokio::test]
 async fn ignore_same_thread_resume_allows_reattaching_displayed_inactive_thread() {
     let mut app = make_test_app().await;
-    let thread_id = ThreadId::new();
-    let session = test_thread_session(thread_id, test_path_buf("/tmp/project"));
+    let chat_id = ChatId::new();
+    let session = test_thread_session(chat_id, test_path_buf("/tmp/project"));
     app.chat_widget.handle_thread_session(session);
 
     let ignored = app.ignore_same_thread_resume(&crate::resume_picker::SessionTarget {
         path: Some(test_path_buf("/tmp/project")),
-        chat_id: thread_id,
+        chat_id: chat_id,
     });
 
     assert!(!ignored);

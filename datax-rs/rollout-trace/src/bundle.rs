@@ -3,7 +3,7 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::model::AgentThreadId;
+use crate::model::AgentChatId;
 
 pub(crate) const MANIFEST_FILE_NAME: &str = "manifest.json";
 pub(crate) const RAW_EVENT_LOG_FILE_NAME: &str = "trace.jsonl";
@@ -22,7 +22,7 @@ pub(crate) struct TraceBundleManifest {
     /// Root thread for the recorded rollout. Replay should fail rather than
     /// inventing a placeholder, because every reduced object is scoped back to
     /// this thread tree.
-    pub(crate) root_thread_id: AgentThreadId,
+    pub(crate) root_chat_id: AgentChatId,
     pub(crate) started_at_unix_ms: i64,
     pub(crate) raw_event_log: String,
     pub(crate) payloads_dir: String,
@@ -33,14 +33,14 @@ impl TraceBundleManifest {
     pub(crate) fn new(
         trace_id: String,
         rollout_id: String,
-        root_thread_id: AgentThreadId,
+        root_chat_id: AgentChatId,
         started_at_unix_ms: i64,
     ) -> Self {
         Self {
             schema_version: TRACE_MANIFEST_SCHEMA_VERSION,
             trace_id,
             rollout_id,
-            root_thread_id,
+            root_chat_id,
             started_at_unix_ms,
             raw_event_log: RAW_EVENT_LOG_FILE_NAME.to_string(),
             payloads_dir: PAYLOADS_DIR_NAME.to_string(),

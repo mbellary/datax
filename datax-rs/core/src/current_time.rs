@@ -7,7 +7,7 @@ use anyhow::anyhow;
 use chrono::DateTime;
 use chrono::Utc;
 use datax_features::CurrentTimeSource;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 
 use crate::config::CurrentTimeReminderConfig;
 
@@ -15,13 +15,13 @@ pub type TimeFuture<'a> = Pin<Box<dyn Future<Output = Result<DateTime<Utc>>> + S
 
 /// Host integration boundary for obtaining the current time.
 pub trait TimeProvider: Send + Sync {
-    fn current_time(&self, thread_id: ThreadId) -> TimeFuture<'_>;
+    fn current_time(&self, chat_id: ChatId) -> TimeFuture<'_>;
 }
 
 pub(crate) struct SystemTimeProvider;
 
 impl TimeProvider for SystemTimeProvider {
-    fn current_time(&self, _thread_id: ThreadId) -> TimeFuture<'_> {
+    fn current_time(&self, _chat_id: ChatId) -> TimeFuture<'_> {
         Box::pin(async { Ok(Utc::now()) })
     }
 }

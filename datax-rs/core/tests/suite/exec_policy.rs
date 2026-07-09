@@ -143,7 +143,7 @@ async fn unified_exec_disabled_windows_sandbox_rejects_managed_read_only_command
     .await?;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -241,7 +241,7 @@ async fn execpolicy_blocks_shell_invocation() -> Result<()> {
         unreachable!()
     };
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -300,7 +300,7 @@ async fn shell_command_empty_script_with_collaboration_mode_does_not_panic() -> 
     .await?;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -359,7 +359,7 @@ async fn unified_exec_empty_script_with_collaboration_mode_does_not_panic() -> R
     .await?;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -414,7 +414,7 @@ async fn shell_command_whitespace_script_with_collaboration_mode_does_not_panic(
     .await?;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 
@@ -473,7 +473,7 @@ async fn unified_exec_whitespace_script_with_collaboration_mode_does_not_panic()
     .await?;
 
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 

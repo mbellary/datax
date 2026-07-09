@@ -11,7 +11,7 @@ use datax_code_mode::RuntimeResponse;
 use serde::Serialize;
 use tracing::warn;
 
-use crate::model::AgentThreadId;
+use crate::model::AgentChatId;
 use crate::model::CodeCellRuntimeStatus;
 use crate::model::CodexTurnId;
 use crate::model::ModelVisibleCallId;
@@ -36,8 +36,8 @@ enum CodeCellTraceContextState {
 #[derive(Clone, Debug)]
 struct EnabledCodeCellTraceContext {
     writer: Arc<TraceWriter>,
-    thread_id: AgentThreadId,
-    codex_turn_id: CodexTurnId,
+    chat_id: AgentChatId,
+    codex_interaction_id: CodexTurnId,
     runtime_cell_id: String,
 }
 
@@ -63,15 +63,15 @@ impl CodeCellTraceContext {
     /// Builds a context for an already-known code-mode runtime cell.
     pub(crate) fn enabled(
         writer: Arc<TraceWriter>,
-        thread_id: impl Into<AgentThreadId>,
-        codex_turn_id: impl Into<CodexTurnId>,
+        chat_id: impl Into<AgentChatId>,
+        codex_interaction_id: impl Into<CodexTurnId>,
         runtime_cell_id: impl Into<String>,
     ) -> Self {
         Self {
             state: CodeCellTraceContextState::Enabled(EnabledCodeCellTraceContext {
                 writer,
-                thread_id: thread_id.into(),
-                codex_turn_id: codex_turn_id.into(),
+                chat_id: chat_id.into(),
+                codex_interaction_id: codex_interaction_id.into(),
                 runtime_cell_id: runtime_cell_id.into(),
             }),
         }
@@ -176,8 +176,8 @@ fn append_with_context_best_effort(
     payload: RawTraceEventPayload,
 ) {
     let event_context = RawTraceEventContext {
-        thread_id: Some(context.thread_id.clone()),
-        codex_turn_id: Some(context.codex_turn_id.clone()),
+        chat_id: Some(context.chat_id.clone()),
+        codex_interaction_id: Some(context.codex_interaction_id.clone()),
     };
     if let Err(err) = context.writer.append_with_context(event_context, payload) {
         warn!("failed to append rollout trace event: {err:#}");

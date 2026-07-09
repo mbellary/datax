@@ -27,6 +27,9 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 - [x] (2026-07-09 00:00Z) Started Milestone 2 on branch `codex/phase1-8-m2-protocol-internals`; GitHub issue #19 tracks the protocol-internals slice.
 - [x] (2026-07-09 00:00Z) Renamed v2 app-server protocol Rust fields whose wire names were already Datax-oriented: `thread -> chat`, `turn -> interaction`, `expected_turn_id -> expected_interaction_id`, `initial_turns_page -> initial_interactions_page`, and `review_thread_id -> review_chat_id`.
 - [x] Rename Datax-facing protocol and app-server internals according to the four-rule mapping without adding new product behavior.
+- [x] (2026-07-09 00:00Z) Started Milestone 3 on branch `codex/phase1-8-m3-protocol-primitives`; GitHub issue #21 tracks the protocol primitive and event rename slice.
+- [x] (2026-07-09 00:00Z) Renamed the exported protocol primitive `ThreadId -> ChatId` and the protocol source module `thread_id.rs -> chat_id.rs`.
+- [x] (2026-07-09 00:00Z) Renamed Datax-facing protocol event identifiers from turn vocabulary to interaction vocabulary: `turn_id -> interaction_id`, `TurnStarted -> InteractionStarted`, `TurnComplete -> InteractionComplete`, and `TurnAborted -> InteractionAborted`.
 - [ ] Rename persistence and history types according to the same mapping while preserving compatibility with existing stored records.
 - [ ] Regenerate affected app-server schemas and run targeted tests.
 - [ ] Update Phase 2 bridge plans so downstream Codex integration starts only after Datax owns the Datax-named protocol and runtime contracts.
@@ -254,6 +257,63 @@ Milestone 2 command assumptions:
 - `just test -p datax-app-server` validates the app-server request processors, notifications, and v2 integration tests updated for the new Rust field names.
 - No complete workspace `just test` is required for this milestone unless the focused commands expose broader protocol/core breakage.
 
+## Milestone 3 Protocol Primitives Summary
+
+Milestone 3 renames the exported Datax protocol primitive and interaction lifecycle events while preserving old serialized names through explicit compatibility aliases.
+
+Mechanical primitive and event mappings completed:
+
+- `ThreadId -> ChatId`
+- `thread_id -> chat_id` for Datax-facing protocol fields and call sites touched by the exported primitive rename.
+- `turn_id -> interaction_id` for Datax-facing protocol fields and call sites touched by the interaction event rename.
+- `EventMsg::TurnStarted -> EventMsg::InteractionStarted`
+- `TurnStartedEvent -> InteractionStartedEvent`
+- `EventMsg::TurnComplete -> EventMsg::InteractionComplete`
+- `TurnCompleteEvent -> InteractionCompleteEvent`
+- `EventMsg::TurnAborted -> EventMsg::InteractionAborted`
+- `TurnAbortedEvent -> InteractionAbortedEvent`
+- `TurnAbortReason -> InteractionAbortReason`
+
+Compatibility retained:
+
+- `InteractionStarted`, `InteractionComplete`, and `InteractionAborted` accept old `task_*` and/or `turn_*` event tags where those tags were previously used by v1 rollout/event compatibility.
+- Renamed persisted fields such as `chat_id`, `parent_chat_id`, and `interaction_id` accept old `thread_id`, `parent_thread_id`, and `turn_id` through explicit serde aliases in protocol structs.
+- Generated schema and TypeScript artifacts are intentionally not hand-edited in this milestone; the user-run schema command should regenerate them from source.
+- SQL migration files, generated hook schemas, generated protobuf files, and historical protocol v1 documentation may still contain old storage or compatibility names until their owning milestones update or explicitly classify them.
+
+Intentionally deferred to later milestones:
+
+- `ThreadManager`, `CodexThread`, `NewThread`, and `StartThreadOptions` remain for Milestone 4.
+- `TurnItem`, `RolloutItem`, `StoredThread`, `StoredTurn`, and related history/store names remain for Milestone 5.
+- Request processor and state filenames such as `thread_state.rs` and `thread_status.rs` remain for Milestone 6 unless changed by direct compile fallout from `ChatId`.
+
+Milestone 3 assumptions:
+
+- This milestone is a mechanical rename of existing concepts only; it does not add new Datax behavior.
+- `ChatId` remains a UUID-backed identifier with the same serialization shape as `ThreadId`.
+- Old event/field names are compatibility inputs, not Datax-native output names.
+- The branch for this milestone is `codex/phase1-8-m3-protocol-primitives`; the tracking issue is #21.
+
+Milestone 3 user-run commands:
+
+    cd /home/mbellary/wsl/projects/datax
+    git diff --check
+    cd /home/mbellary/wsl/projects/datax/datax-rs
+    just fmt
+    just write-app-server-schema
+    just test -p datax-protocol
+    just test -p datax-app-server-protocol
+    just test -p datax-app-server
+
+Milestone 3 command assumptions:
+
+- `just fmt` is required because Rust source changed across protocol and downstream call sites.
+- `just write-app-server-schema` is required because the exported `ChatId` primitive and interaction event names affect generated schema and TypeScript artifacts.
+- `just test -p datax-protocol` validates primitive serialization, event compatibility aliases, and rollout protocol behavior.
+- `just test -p datax-app-server-protocol` validates API schema/export behavior after the protocol primitive rename.
+- `just test -p datax-app-server` validates app-server call sites updated for `ChatId` and interaction event names.
+- The user asked Codex not to run build/test commands during this milestone, so these commands are listed for user execution rather than run by Codex.
+
 ## Plan of Work
 
 Milestone 1 is a boundary inventory. Search Datax-facing Rust and protocol files for `Codex`, `Thread`, `Turn`, `Item`, and common snake_case forms such as `thread_id` and `turn_id`. Classify each occurrence as a mechanical rename target, compatibility alias, downstream Codex bridge term, provenance, protected sandbox identifier, external dependency, or unrelated English. This milestone should update this plan with a concise inventory summary before code changes begin.
@@ -288,8 +348,10 @@ For Milestone 3, the user should run:
     git diff --check
     cd /home/mbellary/wsl/projects/datax/datax-rs
     just fmt
+    just write-app-server-schema
     just test -p datax-protocol
     just test -p datax-app-server-protocol
+    just test -p datax-app-server
 
 For Milestone 4, the user should run:
 

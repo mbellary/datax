@@ -1,6 +1,6 @@
 //! Storage-neutral thread persistence interfaces.
 //!
-//! Application code should treat [`datax_protocol::ThreadId`] as the only durable thread handle.
+//! Application code should treat [`datax_protocol::ChatId`] as the only durable thread handle.
 //! Implementations are responsible for resolving that id to local rollout files, RPC requests, or
 //! any other backing store.
 

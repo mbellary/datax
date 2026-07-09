@@ -30,9 +30,9 @@ async fn mcp_startup_ignores_status_for_other_thread() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.show_welcome_banner = false;
     chat.set_mcp_startup_expected_servers(["sentry".to_string()]);
-    let parent_thread_id = ThreadId::new();
-    let child_thread_id = ThreadId::new();
-    chat.thread_id = Some(parent_thread_id);
+    let parent_chat_id = ChatId::new();
+    let child_chat_id = ChatId::new();
+    chat.chat_id = Some(parent_chat_id);
     chat.on_stream_error(
         "Connection interrupted, retrying".to_string(),
         /*additional_details*/ None,
@@ -46,7 +46,7 @@ async fn mcp_startup_ignores_status_for_other_thread() {
     ] {
         chat.handle_server_notification(
             ServerNotification::McpServerStatusUpdated(McpServerStatusUpdatedNotification {
-                chat_id: Some(child_thread_id.to_string()),
+                chat_id: Some(child_chat_id.to_string()),
                 name: "sentry".to_string(),
                 status,
                 error: matches!(status, McpServerStartupState::Failed)
@@ -296,7 +296,7 @@ async fn mcp_startup_complete_preserves_review_status() {
     chat.on_guardian_assessment(GuardianAssessmentEvent {
         id: "guardian-1".to_string(),
         target_item_id: Some("guardian-target-1".to_string()),
-        turn_id: "turn-1".to_string(),
+        interaction_id: "turn-1".to_string(),
         started_at_ms: 0,
         completed_at_ms: None,
         status: GuardianAssessmentStatus::InProgress,

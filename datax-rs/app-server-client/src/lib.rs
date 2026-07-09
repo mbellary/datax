@@ -152,7 +152,7 @@ fn event_requires_delivery(event: &InProcessServerEvent) -> bool {
 /// Returns `true` for notifications that must survive backpressure.
 ///
 /// Transcript events (`AgentMessageDelta`, `PlanDelta`, reasoning deltas) and
-/// the authoritative `ItemCompleted` / `TurnCompleted` form the lossless tier
+/// the authoritative `ItemCompleted` / `InteractionCompleted` form the lossless tier
 /// of the event stream. Dropping any of these corrupts the visible assistant
 /// output or leaves surfaces waiting for a completion signal that already
 /// fired. Everything else (`CommandExecutionOutputDelta`, progress, etc.) is

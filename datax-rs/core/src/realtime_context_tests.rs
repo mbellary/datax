@@ -13,7 +13,7 @@ use chrono::Utc;
 use core_test_support::PathBufExt;
 use core_test_support::PathExt;
 use datax_git_utils::GitSha;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::models::ContentItem;
 use datax_protocol::models::PermissionProfile;
 use datax_protocol::models::ResponseItem;
@@ -29,11 +29,11 @@ use tempfile::TempDir;
 
 fn stored_thread(cwd: &str, title: &str, first_user_message: &str) -> StoredThread {
     StoredThread {
-        thread_id: ThreadId::new(),
+        chat_id: ChatId::new(),
         extra_config: None,
         rollout_path: Some(PathBuf::from("/tmp/rollout.jsonl")),
         forked_from_id: None,
-        parent_thread_id: None,
+        parent_chat_id: None,
         preview: first_user_message.to_string(),
         name: (!title.is_empty()).then(|| title.to_string()),
         model_provider: "test-provider".to_string(),

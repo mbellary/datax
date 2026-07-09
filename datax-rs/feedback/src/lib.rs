@@ -12,7 +12,7 @@ use std::time::Duration;
 use anyhow::Result;
 use anyhow::anyhow;
 use datax_login::AuthEnvTelemetry;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::SessionSource;
 use tracing::Event;
 use tracing::Level;
@@ -221,7 +221,7 @@ impl CodexFeedback {
         .with_filter(Targets::new().with_target(FEEDBACK_TAGS_TARGET, Level::TRACE))
     }
 
-    pub fn snapshot(&self, session_id: Option<ThreadId>) -> FeedbackSnapshot {
+    pub fn snapshot(&self, session_id: Option<ChatId>) -> FeedbackSnapshot {
         let bytes = {
             #[allow(clippy::expect_used)]
             let guard = self.inner.ring.lock().expect("mutex poisoned");
@@ -236,9 +236,9 @@ impl CodexFeedback {
             bytes,
             tags,
             feedback_diagnostics: FeedbackDiagnostics::collect_from_env(),
-            thread_id: session_id
+            chat_id: session_id
                 .map(|id| id.to_string())
-                .unwrap_or("no-active-thread-".to_string() + &ThreadId::new().to_string()),
+                .unwrap_or("no-active-thread-".to_string() + &ChatId::new().to_string()),
         }
     }
 }
@@ -339,7 +339,7 @@ pub struct FeedbackSnapshot {
     bytes: Vec<u8>,
     tags: BTreeMap<String, String>,
     feedback_diagnostics: FeedbackDiagnostics,
-    pub thread_id: String,
+    pub chat_id: String,
 }
 
 pub struct FeedbackAttachmentPath {
@@ -408,7 +408,7 @@ impl FeedbackSnapshot {
 
     pub fn save_to_temp_file(&self) -> io::Result<PathBuf> {
         let dir = std::env::temp_dir();
-        let filename = format!("datax-feedback-{}.log", self.thread_id);
+        let filename = format!("datax-feedback-{}.log", self.chat_id);
         let path = dir.join(filename);
         fs::write(&path, self.as_bytes())?;
         Ok(path)
@@ -451,7 +451,7 @@ impl FeedbackSnapshot {
         let title = format!(
             "[{}]: Codex session {}",
             display_classification(options.classification),
-            self.thread_id
+            self.chat_id
         );
 
         let mut event = Event {
@@ -495,7 +495,7 @@ impl FeedbackSnapshot {
     ) -> BTreeMap<String, String> {
         let cli_version = env!("CARGO_PKG_VERSION");
         let mut tags = BTreeMap::from([
-            (String::from("thread_id"), self.thread_id.to_string()),
+            (String::from("chat_id"), self.chat_id.to_string()),
             (String::from("classification"), classification.to_string()),
             (String::from("cli_version"), cli_version.to_string()),
         ]);
@@ -507,7 +507,7 @@ impl FeedbackSnapshot {
         }
 
         let reserved = [
-            "thread_id",
+            "chat_id",
             "classification",
             "cli_version",
             "session_source",
@@ -725,7 +725,7 @@ mod tests {
 
     #[test]
     fn feedback_attachments_gate_connectivity_diagnostics() {
-        let extra_filename = format!("datax-feedback-extra-{}.jsonl", ThreadId::new());
+        let extra_filename = format!("datax-feedback-extra-{}.jsonl", ChatId::new());
         let extra_path = std::env::temp_dir().join(&extra_filename);
         let extra_attachment_path = FeedbackAttachmentPath {
             path: extra_path.clone(),
@@ -797,8 +797,8 @@ mod tests {
     #[test]
     fn upload_tags_include_client_tags_and_preserve_reserved_fields() {
         let mut tags = BTreeMap::new();
-        tags.insert("thread_id".to_string(), "wrong-thread".to_string());
-        tags.insert("turn_id".to_string(), "wrong-turn".to_string());
+        tags.insert("chat_id".to_string(), "wrong-thread".to_string());
+        tags.insert("interaction_id".to_string(), "wrong-turn".to_string());
         tags.insert(
             "classification".to_string(),
             "wrong-classification".to_string(),
@@ -812,11 +812,11 @@ mod tests {
             bytes: Vec::new(),
             tags,
             feedback_diagnostics: FeedbackDiagnostics::default(),
-            thread_id: "thread-123".to_string(),
+            chat_id: "thread-123".to_string(),
         };
         let mut client_tags = BTreeMap::new();
-        client_tags.insert("thread_id".to_string(), "wrong-client-thread".to_string());
-        client_tags.insert("turn_id".to_string(), "turn-456".to_string());
+        client_tags.insert("chat_id".to_string(), "wrong-client-thread".to_string());
+        client_tags.insert("interaction_id".to_string(), "turn-456".to_string());
         client_tags.insert(
             "classification".to_string(),
             "wrong-client-classification".to_string(),
@@ -840,11 +840,11 @@ mod tests {
         );
 
         assert_eq!(
-            upload_tags.get("thread_id").map(String::as_str),
+            upload_tags.get("chat_id").map(String::as_str),
             Some("thread-123")
         );
         assert_eq!(
-            upload_tags.get("turn_id").map(String::as_str),
+            upload_tags.get("interaction_id").map(String::as_str),
             Some("turn-456")
         );
         assert_eq!(

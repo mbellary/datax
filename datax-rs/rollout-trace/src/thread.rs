@@ -2,7 +2,7 @@
 //!
 //! A rollout bundle can contain a root thread plus spawned child threads. This
 //! context owns the stable identity for one thread inside that bundle. Keeping
-//! thread-local event methods here avoids repeatedly plumbing `thread_id`
+//! thread-local event methods here avoids repeatedly plumbing `chat_id`
 //! through session code.
 
 use datax_protocol::protocol::AgentStatus;
@@ -16,7 +16,7 @@ use tracing::debug;
 use tracing::warn;
 use uuid::Uuid;
 
-use crate::AgentThreadId;
+use crate::AgentChatId;
 use crate::CodeCellTraceContext;
 use crate::CodexTurnId;
 use crate::CompactionId;
@@ -49,7 +49,7 @@ pub const CODEX_ROLLOUT_TRACE_ROOT_ENV: &str = "CODEX_ROLLOUT_TRACE_ROOT";
 /// payload that later reducers can mine as the reduced thread model evolves.
 #[derive(Serialize)]
 pub struct ThreadStartedTraceMetadata {
-    pub thread_id: String,
+    pub chat_id: String,
     pub agent_path: String,
     pub task_name: Option<String>,
     pub nickname: Option<String>,
@@ -86,8 +86,8 @@ enum ThreadTraceContextState {
 #[derive(Clone, Debug)]
 struct EnabledThreadTraceContext {
     writer: Arc<TraceWriter>,
-    root_thread_id: AgentThreadId,
-    thread_id: AgentThreadId,
+    root_chat_id: AgentChatId,
+    chat_id: AgentChatId,
 }
 
 impl ThreadTraceContext {
@@ -131,13 +131,13 @@ impl ThreadTraceContext {
     /// Starts one thread lifecycle inside an existing rollout bundle.
     pub(crate) fn start(
         writer: Arc<TraceWriter>,
-        root_thread_id: AgentThreadId,
+        root_chat_id: AgentChatId,
         metadata: ThreadStartedTraceMetadata,
     ) -> Self {
         let context = EnabledThreadTraceContext {
             writer,
-            root_thread_id,
-            thread_id: metadata.thread_id.clone(),
+            root_chat_id,
+            chat_id: metadata.chat_id.clone(),
         };
         record_thread_started(&context, metadata);
         Self {
@@ -167,7 +167,7 @@ impl ThreadTraceContext {
             ThreadTraceContextState::Disabled => Self::disabled(),
             ThreadTraceContextState::Enabled(context) => Self::start(
                 Arc::clone(&context.writer),
-                context.root_thread_id.clone(),
+                context.root_chat_id.clone(),
                 metadata,
             ),
         }
@@ -183,10 +183,10 @@ impl ThreadTraceContext {
             return;
         };
         context.append_best_effort(RawTraceEventPayload::ThreadEnded {
-            thread_id: context.thread_id.clone(),
+            chat_id: context.chat_id.clone(),
             status: status.clone(),
         });
-        if context.thread_id == context.root_thread_id {
+        if context.chat_id == context.root_chat_id {
             context.append_best_effort(RawTraceEventPayload::RolloutEnded { status });
         }
     }
@@ -214,17 +214,17 @@ impl ThreadTraceContext {
     }
 
     /// Emits typed Codex turn lifecycle events from protocol lifecycle events.
-    pub fn record_codex_turn_event(&self, default_turn_id: &str, event: &EventMsg) {
+    pub fn record_codex_turn_event(&self, default_interaction_id: &str, event: &EventMsg) {
         let ThreadTraceContextState::Enabled(context) = &self.state else {
             return;
         };
         let Some(trace_event) =
-            codex_turn_trace_event(context.thread_id.clone(), default_turn_id, event)
+            codex_turn_trace_event(context.chat_id.clone(), default_interaction_id, event)
         else {
             return;
         };
         context.append_with_context_best_effort(
-            trace_event.context_turn_id.clone(),
+            trace_event.context_interaction_id.clone(),
             trace_event.payload,
         );
     }
@@ -234,7 +234,7 @@ impl ThreadTraceContext {
     /// These events are runtime observations on an already-dispatched tool. The
     /// dispatch trace records the caller-facing boundary; these payloads explain
     /// what Codex did while executing that boundary.
-    pub fn record_tool_call_event(&self, codex_turn_id: impl Into<CodexTurnId>, event: &EventMsg) {
+    pub fn record_tool_call_event(&self, codex_interaction_id: impl Into<CodexTurnId>, event: &EventMsg) {
         let ThreadTraceContextState::Enabled(context) = &self.state else {
             return;
         };
@@ -244,7 +244,7 @@ impl ThreadTraceContext {
         let Some(payload) = context.raw_tool_runtime_payload(trace_event) else {
             return;
         };
-        context.append_with_context_best_effort(codex_turn_id.into(), payload);
+        context.append_with_context_best_effort(codex_interaction_id.into(), payload);
     }
 
     /// Emits the v2 child-to-parent completion message as an explicit graph edge.
@@ -255,27 +255,27 @@ impl ThreadTraceContext {
     /// the edge from a later parent prompt snapshot.
     pub fn record_agent_result_interaction(
         &self,
-        child_codex_turn_id: impl Into<CodexTurnId>,
-        parent_thread_id: impl Into<AgentThreadId>,
+        child_codex_interaction_id: impl Into<CodexTurnId>,
+        parent_chat_id: impl Into<AgentChatId>,
         payload: &AgentResultTracePayload<'_>,
     ) {
         let ThreadTraceContextState::Enabled(context) = &self.state else {
             return;
         };
-        let child_codex_turn_id = child_codex_turn_id.into();
-        let parent_thread_id = parent_thread_id.into();
+        let child_codex_interaction_id = child_codex_interaction_id.into();
+        let parent_chat_id = parent_chat_id.into();
         let carried_payload =
             context.write_json_payload_best_effort(RawPayloadKind::AgentResult, payload);
         context.append_with_context_best_effort(
-            child_codex_turn_id.clone(),
+            child_codex_interaction_id.clone(),
             RawTraceEventPayload::AgentResultObserved {
                 edge_id: format!(
-                    "edge:agent_result:{}:{child_codex_turn_id}:{parent_thread_id}",
-                    context.thread_id
+                    "edge:agent_result:{}:{child_codex_interaction_id}:{parent_chat_id}",
+                    context.chat_id
                 ),
-                child_thread_id: context.thread_id.clone(),
-                child_codex_turn_id,
-                parent_thread_id,
+                child_chat_id: context.chat_id.clone(),
+                child_codex_interaction_id,
+                parent_chat_id,
                 message: payload.message.to_string(),
                 carried_payload,
             },
@@ -287,16 +287,16 @@ impl ThreadTraceContext {
     /// Most production turn lifecycle wiring lives outside this PR layer, but
     /// trace-focused integration tests need a small explicit hook so reducer
     /// inputs remain valid without exercising the full session loop.
-    pub fn record_codex_turn_started(&self, codex_turn_id: impl Into<CodexTurnId>) {
+    pub fn record_codex_turn_started(&self, codex_interaction_id: impl Into<CodexTurnId>) {
         let ThreadTraceContextState::Enabled(context) = &self.state else {
             return;
         };
-        let codex_turn_id = codex_turn_id.into();
+        let codex_interaction_id = codex_interaction_id.into();
         context.append_with_context_best_effort(
-            codex_turn_id.clone(),
-            RawTraceEventPayload::CodexTurnStarted {
-                codex_turn_id,
-                thread_id: context.thread_id.clone(),
+            codex_interaction_id.clone(),
+            RawTraceEventPayload::CodexInteractionStarted {
+                codex_interaction_id,
+                chat_id: context.chat_id.clone(),
             },
         );
     }
@@ -304,12 +304,12 @@ impl ThreadTraceContext {
     /// Starts a first-class code-mode cell lifecycle and returns its trace handle.
     pub fn start_code_cell_trace(
         &self,
-        codex_turn_id: impl Into<CodexTurnId>,
+        codex_interaction_id: impl Into<CodexTurnId>,
         runtime_cell_id: impl Into<String>,
         model_visible_call_id: impl Into<String>,
         source_js: impl Into<String>,
     ) -> CodeCellTraceContext {
-        let context = self.code_cell_trace_context(codex_turn_id, runtime_cell_id);
+        let context = self.code_cell_trace_context(codex_interaction_id, runtime_cell_id);
         context.record_started(model_visible_call_id, source_js);
         context
     }
@@ -317,7 +317,7 @@ impl ThreadTraceContext {
     /// Builds a trace handle for an already-started code-mode runtime cell.
     pub fn code_cell_trace_context(
         &self,
-        codex_turn_id: impl Into<CodexTurnId>,
+        codex_interaction_id: impl Into<CodexTurnId>,
         runtime_cell_id: impl Into<String>,
     ) -> CodeCellTraceContext {
         let ThreadTraceContextState::Enabled(context) = &self.state else {
@@ -325,8 +325,8 @@ impl ThreadTraceContext {
         };
         CodeCellTraceContext::enabled(
             Arc::clone(&context.writer),
-            context.thread_id.clone(),
-            codex_turn_id,
+            context.chat_id.clone(),
+            codex_interaction_id,
             runtime_cell_id,
         )
     }
@@ -356,7 +356,7 @@ impl ThreadTraceContext {
     /// only after it has built the concrete request payload for that attempt.
     pub fn inference_trace_context(
         &self,
-        codex_turn_id: impl Into<CodexTurnId>,
+        codex_interaction_id: impl Into<CodexTurnId>,
         model: impl Into<String>,
         provider_name: impl Into<String>,
     ) -> InferenceTraceContext {
@@ -365,8 +365,8 @@ impl ThreadTraceContext {
         };
         InferenceTraceContext::enabled(
             Arc::clone(&context.writer),
-            context.thread_id.clone(),
-            codex_turn_id.into(),
+            context.chat_id.clone(),
+            codex_interaction_id.into(),
             model.into(),
             provider_name.into(),
         )
@@ -380,7 +380,7 @@ impl ThreadTraceContext {
     /// replacement history is installed.
     pub fn compaction_trace_context(
         &self,
-        codex_turn_id: impl Into<CodexTurnId>,
+        codex_interaction_id: impl Into<CodexTurnId>,
         compaction_id: impl Into<CompactionId>,
         model: impl Into<String>,
         provider_name: impl Into<String>,
@@ -390,8 +390,8 @@ impl ThreadTraceContext {
         };
         CompactionTraceContext::enabled(
             Arc::clone(&context.writer),
-            context.thread_id.clone(),
-            codex_turn_id.into(),
+            context.chat_id.clone(),
+            codex_interaction_id.into(),
             compaction_id.into(),
             model.into(),
             provider_name.into(),
@@ -422,25 +422,25 @@ fn start_root_in_root(
     metadata: ThreadStartedTraceMetadata,
 ) -> anyhow::Result<ThreadTraceContext> {
     let trace_id = Uuid::new_v4().to_string();
-    let thread_id = metadata.thread_id.clone();
-    let bundle_dir = root.join(format!("trace-{trace_id}-{thread_id}"));
+    let chat_id = metadata.chat_id.clone();
+    let bundle_dir = root.join(format!("trace-{trace_id}-{chat_id}"));
     let writer = TraceWriter::create(
         &bundle_dir,
         trace_id.clone(),
-        thread_id.clone(),
-        thread_id.clone(),
+        chat_id.clone(),
+        chat_id.clone(),
     )?;
     let writer = Arc::new(writer);
 
     if let Err(err) = writer.append(RawTraceEventPayload::RolloutStarted {
         trace_id,
-        root_thread_id: thread_id.clone(),
+        root_chat_id: chat_id.clone(),
     }) {
         warn!("failed to append rollout trace event: {err:#}");
     }
 
     debug!("recording rollout trace at {}", bundle_dir.display());
-    Ok(ThreadTraceContext::start(writer, thread_id, metadata))
+    Ok(ThreadTraceContext::start(writer, chat_id, metadata))
 }
 
 fn record_thread_started(
@@ -450,7 +450,7 @@ fn record_thread_started(
     let metadata_payload =
         context.write_json_payload_best_effort(RawPayloadKind::SessionMetadata, &metadata);
     context.append_best_effort(RawTraceEventPayload::ThreadStarted {
-        thread_id: metadata.thread_id,
+        chat_id: metadata.chat_id,
         agent_path: metadata.agent_path,
         metadata_payload,
     });
@@ -511,12 +511,12 @@ impl EnabledThreadTraceContext {
 
     fn append_with_context_best_effort(
         &self,
-        codex_turn_id: CodexTurnId,
+        codex_interaction_id: CodexTurnId,
         payload: RawTraceEventPayload,
     ) {
         let event_context = RawTraceEventContext {
-            thread_id: Some(self.thread_id.clone()),
-            codex_turn_id: Some(codex_turn_id),
+            chat_id: Some(self.chat_id.clone()),
+            codex_interaction_id: Some(codex_interaction_id),
         };
         if let Err(err) = self.writer.append_with_context(event_context, payload) {
             warn!("failed to append rollout trace event: {err:#}");

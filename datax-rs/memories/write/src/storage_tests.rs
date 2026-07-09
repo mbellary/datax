@@ -7,7 +7,7 @@ use crate::sync_rollout_summaries_from_memories;
 use chrono::TimeZone;
 use chrono::Utc;
 use datax_config::types::DEFAULT_MEMORIES_MAX_RAW_MEMORIES_FOR_CONSOLIDATION;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_state::Stage1Output;
 use pretty_assertions::assert_eq;
 use std::path::PathBuf;
@@ -15,9 +15,9 @@ use tempfile::tempdir;
 
 const FIXED_PREFIX: &str = "2025-02-11T15-35-19-jqmb";
 
-fn stage1_output_with_slug(thread_id: ThreadId, rollout_slug: Option<&str>) -> Stage1Output {
+fn stage1_output_with_slug(chat_id: ChatId, rollout_slug: Option<&str>) -> Stage1Output {
     Stage1Output {
-        thread_id,
+        chat_id,
         source_updated_at: Utc.timestamp_opt(123, 0).single().expect("timestamp"),
         raw_memory: "raw memory".to_string(),
         rollout_summary: "summary".to_string(),
@@ -29,23 +29,23 @@ fn stage1_output_with_slug(thread_id: ThreadId, rollout_slug: Option<&str>) -> S
     }
 }
 
-fn fixed_thread_id() -> ThreadId {
-    ThreadId::try_from("0194f5a6-89ab-7cde-8123-456789abcdef").expect("valid thread id")
+fn fixed_chat_id() -> ChatId {
+    ChatId::try_from("0194f5a6-89ab-7cde-8123-456789abcdef").expect("valid thread id")
 }
 
 #[test]
 fn rollout_summary_file_stem_uses_uuid_timestamp_and_hash_when_slug_missing() {
-    let thread_id = fixed_thread_id();
-    let memory = stage1_output_with_slug(thread_id, /*rollout_slug*/ None);
+    let chat_id = fixed_chat_id();
+    let memory = stage1_output_with_slug(chat_id, /*rollout_slug*/ None);
 
     assert_eq!(rollout_summary_file_stem(&memory), FIXED_PREFIX);
 }
 
 #[test]
 fn rollout_summary_file_stem_sanitizes_and_truncates_slug() {
-    let thread_id = fixed_thread_id();
+    let chat_id = fixed_chat_id();
     let memory = stage1_output_with_slug(
-        thread_id,
+        chat_id,
         Some("Unsafe Slug/With Spaces & Symbols + EXTRA_LONG_12345_67890_ABCDE_fghij_klmno"),
     );
 
@@ -62,8 +62,8 @@ fn rollout_summary_file_stem_sanitizes_and_truncates_slug() {
 
 #[test]
 fn rollout_summary_file_stem_uses_uuid_timestamp_and_hash_when_slug_is_empty() {
-    let thread_id = fixed_thread_id();
-    let memory = stage1_output_with_slug(thread_id, Some(""));
+    let chat_id = fixed_chat_id();
+    let memory = stage1_output_with_slug(chat_id, Some(""));
 
     assert_eq!(rollout_summary_file_stem(&memory), FIXED_PREFIX);
 }
@@ -74,8 +74,8 @@ async fn sync_rollout_summaries_and_raw_memories_file_keeps_latest_memories_only
     let root = dir.path().join("memory");
     ensure_layout(&root).await.expect("ensure layout");
 
-    let keep_id = ThreadId::default().to_string();
-    let drop_id = ThreadId::default().to_string();
+    let keep_id = ChatId::default().to_string();
+    let drop_id = ChatId::default().to_string();
     let keep_path = rollout_summaries_dir(&root).join(format!("{keep_id}.md"));
     let drop_path = rollout_summaries_dir(&root).join(format!("{drop_id}.md"));
     tokio::fs::write(&keep_path, "keep")
@@ -86,7 +86,7 @@ async fn sync_rollout_summaries_and_raw_memories_file_keeps_latest_memories_only
         .expect("write drop");
 
     let memories = vec![Stage1Output {
-        thread_id: ThreadId::try_from(keep_id.clone()).expect("thread id"),
+        chat_id: ChatId::try_from(keep_id.clone()).expect("thread id"),
         source_updated_at: Utc.timestamp_opt(100, 0).single().expect("timestamp"),
         raw_memory: "raw memory".to_string(),
         rollout_summary: "short summary".to_string(),

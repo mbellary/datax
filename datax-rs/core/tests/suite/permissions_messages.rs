@@ -61,7 +61,7 @@ async fn permissions_message_sent_once_on_start() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     assert_eq!(permissions_texts(&req.single_request()).len(), 1);
 
@@ -101,7 +101,7 @@ async fn permissions_message_added_on_override_change() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     core_test_support::submit_thread_settings(
         &test.codex,
@@ -124,7 +124,7 @@ async fn permissions_message_added_on_override_change() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let permissions_1 = permissions_texts(&req1.single_request());
     let permissions_2 = permissions_texts(&req2.single_request());
@@ -170,7 +170,7 @@ async fn permissions_message_not_added_when_no_change() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     test.codex
         .submit(Op::UserInput {
@@ -184,7 +184,7 @@ async fn permissions_message_not_added_when_no_change() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let permissions_1 = permissions_texts(&req1.single_request());
     let permissions_2 = permissions_texts(&req2.single_request());
@@ -230,7 +230,7 @@ async fn permissions_message_omitted_when_disabled() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     core_test_support::submit_thread_settings(
         &test.codex,
@@ -253,7 +253,7 @@ async fn permissions_message_omitted_when_disabled() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     assert_eq!(
         permissions_texts(&req1.single_request()),
@@ -312,7 +312,7 @@ async fn resume_replays_permissions_messages() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     core_test_support::submit_thread_settings(
         &initial.codex,
@@ -336,7 +336,7 @@ async fn resume_replays_permissions_messages() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let resumed = builder.resume(&server, home, rollout_path).await?;
     resumed
@@ -352,7 +352,7 @@ async fn resume_replays_permissions_messages() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&resumed.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&resumed.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let permissions = permissions_texts(&req3.single_request());
     assert_eq!(permissions.len(), 3);
@@ -412,7 +412,7 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     core_test_support::submit_thread_settings(
         &initial.codex,
@@ -436,7 +436,7 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let permissions_base = permissions_texts(&req2.single_request());
     assert_eq!(permissions_base.len(), 2);
@@ -458,7 +458,7 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&resumed.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&resumed.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let permissions_resume = permissions_texts(&req3.single_request());
     assert_eq!(permissions_resume.len(), permissions_base.len() + 1);
@@ -493,7 +493,7 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&forked.thread, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&forked.thread, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let permissions_fork = permissions_texts(&req4.single_request());
     assert_eq!(permissions_fork.len(), permissions_base.len() + 1);
@@ -554,7 +554,7 @@ async fn permissions_message_includes_writable_roots() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let permissions = permissions_texts(&req.single_request());
     let normalize_line_endings = |s: &str| s.replace("\r\n", "\n");

@@ -7,7 +7,7 @@ use datax_extension_api::ExtensionFuture;
 use datax_extension_api::ExtensionRegistryBuilder;
 use datax_extension_api::ThreadLifecycleContributor;
 use datax_extension_api::ThreadStartInput;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 
 /// Guardian extension dependencies supplied by the host at construction time.
 #[derive(Clone, Debug)]
@@ -24,27 +24,27 @@ impl<S> GuardianExtension<S> {
     /// Delegates one guardian-owned subagent spawn request to the host helper.
     pub fn spawn_subagent<'a, R>(
         &'a self,
-        forked_from_thread_id: ThreadId,
+        forked_from_chat_id: ChatId,
         request: R,
     ) -> AgentSpawnFuture<'a, <S as AgentSpawner<R>>::Spawned, <S as AgentSpawner<R>>::Error>
     where
         S: AgentSpawner<R>,
     {
         self.agent_spawner
-            .spawn_subagent(forked_from_thread_id, request)
+            .spawn_subagent(forked_from_chat_id, request)
     }
 }
 
 /// Thread-local guardian state captured when the host starts a thread.
 #[derive(Clone, Copy, Debug)]
 pub struct GuardianThreadContext {
-    forked_from_thread_id: ThreadId,
+    forked_from_chat_id: ChatId,
 }
 
 impl GuardianThreadContext {
     /// Returns the thread that future guardian subagents should fork from by default.
-    pub fn forked_from_thread_id(&self) -> ThreadId {
-        self.forked_from_thread_id
+    pub fn forked_from_chat_id(&self) -> ChatId {
+        self.forked_from_chat_id
     }
 }
 
@@ -57,12 +57,12 @@ where
         input: ThreadStartInput<'a, Config>,
     ) -> ExtensionFuture<'a, ()> {
         Box::pin(async move {
-            let Ok(forked_from_thread_id) = ThreadId::from_string(input.thread_store.level_id())
+            let Ok(forked_from_chat_id) = ChatId::from_string(input.thread_store.level_id())
             else {
                 return;
             };
             input.thread_store.insert(GuardianThreadContext {
-                forked_from_thread_id,
+                forked_from_chat_id,
             });
         })
     }

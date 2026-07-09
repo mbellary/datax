@@ -108,7 +108,7 @@ pub(crate) async fn emit_exec_command_begin(
             EventMsg::ExecCommandBegin(ExecCommandBeginEvent {
                 call_id: ctx.call_id.to_string(),
                 process_id: process_id.map(str::to_owned),
-                turn_id: ctx.turn.sub_id.clone(),
+                interaction_id: ctx.turn.sub_id.clone(),
                 started_at_ms: now_unix_timestamp_ms(),
                 command: command.to_vec(),
                 cwd: cwd.clone(),
@@ -548,7 +548,7 @@ async fn emit_exec_end(
             EventMsg::ExecCommandEnd(ExecCommandEndEvent {
                 call_id: ctx.call_id.to_string(),
                 process_id: exec_input.process_id.map(str::to_owned),
-                turn_id: ctx.turn.sub_id.clone(),
+                interaction_id: ctx.turn.sub_id.clone(),
                 completed_at_ms: now_unix_timestamp_ms(),
                 command: exec_input.command.to_vec(),
                 cwd: exec_input.cwd.clone(),

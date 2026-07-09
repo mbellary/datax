@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::RolloutItem;
 use datax_protocol::protocol::ThreadMemoryMode;
 use datax_rollout::persisted_rollout_items;
@@ -29,7 +29,7 @@ use crate::thread_metadata_sync::ThreadMetadataSync;
 /// service, but session code should only need this handle for the active thread.
 #[derive(Clone)]
 pub struct LiveThread {
-    thread_id: ThreadId,
+    chat_id: ChatId,
     thread_store: Arc<dyn ThreadStore>,
     metadata_sync: Arc<Mutex<ThreadMetadataSync>>,
 }
@@ -88,11 +88,11 @@ impl LiveThread {
         thread_store: Arc<dyn ThreadStore>,
         params: CreateThreadParams,
     ) -> ThreadStoreResult<Self> {
-        let thread_id = params.thread_id;
+        let chat_id = params.chat_id;
         let metadata_sync = ThreadMetadataSync::for_create(&params).await;
         thread_store.create_thread(params).await?;
         Ok(Self {
-            thread_id,
+            chat_id,
             thread_store,
             metadata_sync: Arc::new(Mutex::new(metadata_sync)),
         })
@@ -102,21 +102,21 @@ impl LiveThread {
         thread_store: Arc<dyn ThreadStore>,
         mut params: ResumeThreadParams,
     ) -> ThreadStoreResult<Self> {
-        let thread_id = params.thread_id;
+        let chat_id = params.chat_id;
         let should_load_history = params.history.is_none();
         let include_archived = params.include_archived;
         thread_store.resume_thread(params.clone()).await?;
         if should_load_history {
             match thread_store
                 .load_history(LoadThreadHistoryParams {
-                    thread_id,
+                    chat_id,
                     include_archived,
                 })
                 .await
             {
                 Ok(history) => params.history = Some(history.items),
                 Err(err) => {
-                    if let Err(discard_err) = thread_store.discard_thread(thread_id).await {
+                    if let Err(discard_err) = thread_store.discard_thread(chat_id).await {
                         warn!(
                             "failed to discard thread persistence after resume history load failed: {discard_err}"
                         );
@@ -127,7 +127,7 @@ impl LiveThread {
         }
         let metadata_sync = ThreadMetadataSync::for_resume(&params);
         Ok(Self {
-            thread_id,
+            chat_id,
             thread_store,
             metadata_sync: Arc::new(Mutex::new(metadata_sync)),
         })
@@ -145,7 +145,7 @@ impl LiveThread {
         }
         self.thread_store
             .append_items(AppendThreadItemsParams {
-                thread_id: self.thread_id,
+                chat_id: self.chat_id,
                 items: items.to_vec(),
             })
             .await?;
@@ -160,7 +160,7 @@ impl LiveThread {
         if let Some(update) = update {
             self.thread_store
                 .update_thread_metadata(UpdateThreadMetadataParams {
-                    thread_id: self.thread_id,
+                    chat_id: self.chat_id,
                     patch: update.patch.clone(),
                     include_archived: true,
                 })
@@ -174,12 +174,12 @@ impl LiveThread {
     }
 
     pub async fn persist(&self) -> ThreadStoreResult<()> {
-        self.thread_store.persist_thread(self.thread_id).await?;
+        self.thread_store.persist_thread(self.chat_id).await?;
         self.flush_pending_metadata_update().await
     }
 
     pub async fn flush(&self) -> ThreadStoreResult<()> {
-        self.thread_store.flush_thread(self.thread_id).await?;
+        self.thread_store.flush_thread(self.chat_id).await?;
         self.flush_pending_metadata_update_for_existing_history()
             .await
     }
@@ -187,11 +187,11 @@ impl LiveThread {
     pub async fn shutdown(&self) -> ThreadStoreResult<()> {
         self.flush_pending_metadata_update_for_existing_history()
             .await?;
-        self.thread_store.shutdown_thread(self.thread_id).await
+        self.thread_store.shutdown_thread(self.chat_id).await
     }
 
     pub async fn discard(&self) -> ThreadStoreResult<()> {
-        self.thread_store.discard_thread(self.thread_id).await
+        self.thread_store.discard_thread(self.chat_id).await
     }
 
     pub async fn load_history(
@@ -200,7 +200,7 @@ impl LiveThread {
     ) -> ThreadStoreResult<StoredThreadHistory> {
         self.thread_store
             .load_history(LoadThreadHistoryParams {
-                thread_id: self.thread_id,
+                chat_id: self.chat_id,
                 include_archived,
             })
             .await
@@ -213,7 +213,7 @@ impl LiveThread {
     ) -> ThreadStoreResult<StoredThread> {
         self.thread_store
             .read_thread(ReadThreadParams {
-                thread_id: self.thread_id,
+                chat_id: self.chat_id,
                 include_archived,
                 include_history,
             })
@@ -228,7 +228,7 @@ impl LiveThread {
         self.flush_pending_metadata_update().await?;
         self.thread_store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id: self.thread_id,
+                chat_id: self.chat_id,
                 patch: ThreadMetadataPatch {
                     memory_mode: Some(mode),
                     ..Default::default()
@@ -247,7 +247,7 @@ impl LiveThread {
         self.flush_pending_metadata_update().await?;
         self.thread_store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id: self.thread_id,
+                chat_id: self.chat_id,
                 patch,
                 include_archived,
             })
@@ -266,7 +266,7 @@ impl LiveThread {
             return Ok(None);
         };
         local_store
-            .live_rollout_path(self.thread_id)
+            .live_rollout_path(self.chat_id)
             .await
             .map(Some)
     }
@@ -294,7 +294,7 @@ impl LiveThread {
         };
         self.thread_store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id: self.thread_id,
+                chat_id: self.chat_id,
                 patch: update.patch.clone(),
                 include_archived: true,
             })

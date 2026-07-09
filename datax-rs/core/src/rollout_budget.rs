@@ -1,5 +1,5 @@
 use crate::config::RolloutBudgetConfig;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::TokenUsage;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -21,7 +21,7 @@ struct RolloutBudgetState {
     config: RolloutBudgetConfig,
     weighted_tokens_used: f64,
     /// Last reminder delivered to each thread, so every thread observes crossed thresholds.
-    deliveries: HashMap<ThreadId, ThreadBudgetDelivery>,
+    deliveries: HashMap<ChatId, ThreadBudgetDelivery>,
 }
 
 struct ThreadBudgetDelivery {
@@ -53,7 +53,7 @@ impl RolloutBudget {
 
     pub(crate) fn pending_reminder(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         window_id: &str,
     ) -> Option<RolloutBudgetReminder> {
         let state = self.lock()?;
@@ -66,7 +66,7 @@ impl RolloutBudget {
             .iter()
             .filter(|&&threshold| remaining_tokens <= threshold)
             .count() as i64;
-        if state.deliveries.get(&thread_id).is_some_and(|delivery| {
+        if state.deliveries.get(&chat_id).is_some_and(|delivery| {
             delivery.window_id.as_str() == window_id && delivery.reminder_index >= reminder_index
         }) {
             return None;
@@ -79,7 +79,7 @@ impl RolloutBudget {
 
     pub(crate) fn mark_reminder_delivered(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         window_id: &str,
         reminder: RolloutBudgetReminder,
     ) {
@@ -88,7 +88,7 @@ impl RolloutBudget {
             return;
         };
         state.deliveries.insert(
-            thread_id,
+            chat_id,
             ThreadBudgetDelivery {
                 window_id: window_id.to_string(),
                 reminder_index: reminder.reminder_index,
@@ -96,12 +96,12 @@ impl RolloutBudget {
         );
     }
 
-    /// Forces the next sampling request for `thread_id` to restate the current remainder.
-    pub(crate) fn rearm_reminder(&self, thread_id: ThreadId) {
+    /// Forces the next sampling request for `chat_id` to restate the current remainder.
+    pub(crate) fn rearm_reminder(&self, chat_id: ChatId) {
         let Some(mut state) = self.lock() else {
             return;
         };
-        state.deliveries.remove(&thread_id);
+        state.deliveries.remove(&chat_id);
     }
 
     fn lock(&self) -> Option<MutexGuard<'_, RolloutBudgetState>> {

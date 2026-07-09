@@ -111,7 +111,7 @@ fn aws_auth_error_to_auth_error(error: AwsAuthError) -> AuthError {
 fn remove_headers_not_preserved_by_bedrock_mantle(headers: &mut HeaderMap) {
     // The Bedrock Mantle front door does not preserve legacy OpenAI
     // compatibility headers that use snake_case, such as `session_id` and
-    // `thread_id`, before SigV4 verification. Signing that header class makes
+    // `chat_id`, before SigV4 verification. Signing that header class makes
     // richer Codex agent requests fail even though raw Responses requests work.
     let headers_to_remove = headers
         .keys()
@@ -269,7 +269,7 @@ mod tests {
             HeaderValue::from_static("019dae79-15c3-70c3-8736-3219b8602b37"),
         );
         headers.insert(
-            "thread_id",
+            "chat_id",
             HeaderValue::from_static("019dae79-15c3-70c3-8736-3219b8602b37"),
         );
         headers.insert(
@@ -284,7 +284,7 @@ mod tests {
         remove_headers_not_preserved_by_bedrock_mantle(&mut headers);
 
         assert!(!headers.contains_key("session_id"));
-        assert!(!headers.contains_key("thread_id"));
+        assert!(!headers.contains_key("chat_id"));
         assert!(!headers.contains_key("future_identity_header"));
         assert_eq!(
             headers

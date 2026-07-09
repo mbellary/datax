@@ -61,9 +61,9 @@ impl GoalAnalytics {
             }
         };
         self.client.track_goal_event(CodexGoalEvent {
-            thread_id: goal.thread_id.to_string(),
-            turn_id: match attribution {
-                GoalEventAttribution::Turn(turn_id) => Some(turn_id.to_string()),
+            chat_id: goal.chat_id.to_string(),
+            interaction_id: match attribution {
+                GoalEventAttribution::Turn(interaction_id) => Some(interaction_id.to_string()),
                 GoalEventAttribution::NoTurn => None,
             },
             goal_id: goal.goal_id.clone(),

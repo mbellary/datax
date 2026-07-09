@@ -8,7 +8,7 @@ use std::time::SystemTime;
 use chrono::DateTime;
 use chrono::Utc;
 use datax_git_utils::GitSha;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::models::PermissionProfile;
 use datax_protocol::protocol::AskForApproval;
 use datax_protocol::protocol::GitInfo;
@@ -63,7 +63,7 @@ pub(super) fn rollout_path_is_archived(codex_home: &Path, path: &Path) -> bool {
 
 pub(super) fn matching_rollout_file_name(
     rollout_path: &Path,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     display_path: &Path,
 ) -> ThreadStoreResult<std::ffi::OsString> {
     let Some(file_name) = rollout_path.file_name().map(OsStr::to_owned) else {
@@ -74,7 +74,7 @@ pub(super) fn matching_rollout_file_name(
             ),
         });
     };
-    let required_plain_suffix = format!("{thread_id}.jsonl");
+    let required_plain_suffix = format!("{chat_id}.jsonl");
     let required_compressed_suffix = format!("{required_plain_suffix}.zst");
     let file_name_str = file_name.to_string_lossy();
     if file_name_str.ends_with(required_plain_suffix.as_str())
@@ -84,7 +84,7 @@ pub(super) fn matching_rollout_file_name(
     } else {
         Err(ThreadStoreError::InvalidRequest {
             message: format!(
-                "rollout path `{}` does not match thread id {thread_id}",
+                "rollout path `{}` does not match thread id {chat_id}",
                 display_path.display()
             ),
         })
@@ -101,9 +101,9 @@ pub(super) fn stored_thread_from_rollout_item(
     archived: bool,
     default_provider: &str,
 ) -> Option<StoredThread> {
-    let thread_id = item
-        .thread_id
-        .or_else(|| thread_id_from_rollout_path(item.path.as_path()))?;
+    let chat_id = item
+        .chat_id
+        .or_else(|| chat_id_from_rollout_path(item.path.as_path()))?;
     let created_at = parse_rfc3339(item.created_at.as_deref()).unwrap_or_else(Utc::now);
     let updated_at = parse_rfc3339(item.updated_at.as_deref()).unwrap_or(created_at);
     let recency_at = parse_rfc3339(item.recency_at.as_deref()).unwrap_or(updated_at);
@@ -122,11 +122,11 @@ pub(super) fn stored_thread_from_rollout_item(
     let rollout_path = datax_rollout::plain_rollout_path(item.path.as_path());
 
     Some(StoredThread {
-        thread_id,
+        chat_id,
         extra_config: None,
         rollout_path: Some(rollout_path),
         forked_from_id: None,
-        parent_thread_id: item.parent_thread_id,
+        parent_chat_id: item.parent_chat_id,
         preview,
         name: None,
         model_provider: item
@@ -227,7 +227,7 @@ pub(super) fn git_info_from_parts(
     })
 }
 
-fn thread_id_from_rollout_path(path: &Path) -> Option<ThreadId> {
+fn chat_id_from_rollout_path(path: &Path) -> Option<ChatId> {
     let file_name = path.file_name()?.to_str()?;
     let file_name = file_name.strip_suffix(".zst").unwrap_or(file_name);
     let stem = file_name.strip_suffix(".jsonl")?;
@@ -238,7 +238,7 @@ fn thread_id_from_rollout_path(path: &Path) -> Option<ThreadId> {
     if !stem[..uuid_start].ends_with('-') {
         return None;
     }
-    ThreadId::from_string(&stem[uuid_start..]).ok()
+    ChatId::from_string(&stem[uuid_start..]).ok()
 }
 
 #[cfg(test)]

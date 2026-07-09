@@ -52,8 +52,8 @@ pub(super) struct StartedCodeCell {
 pub(super) struct PendingCodeCellStart {
     pub(super) seq: RawEventSeq,
     pub(super) wall_time_unix_ms: i64,
-    pub(super) thread_id: String,
-    pub(super) codex_turn_id: Option<String>,
+    pub(super) chat_id: String,
+    pub(super) codex_interaction_id: Option<String>,
     pub(super) started: StartedCodeCell,
 }
 
@@ -132,29 +132,29 @@ impl TraceReducer {
         let PendingCodeCellStart {
             seq,
             wall_time_unix_ms,
-            thread_id,
-            codex_turn_id,
+            chat_id,
+            codex_interaction_id,
             started,
         } = pending;
         if self.rollout.code_cells.contains_key(&started.code_cell_id) {
             bail!("duplicate code cell start for {}", started.code_cell_id);
         }
 
-        let Some(codex_turn_id) = codex_turn_id else {
+        let Some(codex_interaction_id) = codex_interaction_id else {
             bail!(
                 "code cell start {} did not include a Codex turn id",
                 started.code_cell_id
             );
         };
-        self.validate_code_cell_turn(&thread_id, &codex_turn_id)?;
+        self.validate_code_cell_turn(&chat_id, &codex_interaction_id)?;
 
         let source_item_id = self.source_item_id_for_code_cell_start(
-            &thread_id,
+            &chat_id,
             &started.code_cell_id,
             &started.model_visible_call_id,
         )?;
         let output_item_ids = self.model_visible_code_cell_item_ids(
-            &thread_id,
+            &chat_id,
             &started.model_visible_call_id,
             ConversationItemKind::CustomToolCallOutput,
         );
@@ -177,8 +177,8 @@ impl TraceReducer {
             CodeCell {
                 code_cell_id: started.code_cell_id.clone(),
                 model_visible_call_id: started.model_visible_call_id,
-                thread_id: thread_id.clone(),
-                codex_turn_id,
+                chat_id: chat_id.clone(),
+                codex_interaction_id,
                 source_item_id,
                 output_item_ids: output_item_ids.clone(),
                 runtime_cell_id: Some(started.runtime_cell_id),
@@ -200,7 +200,7 @@ impl TraceReducer {
             },
         );
 
-        self.thread_mut(&thread_id)?;
+        self.thread_mut(&chat_id)?;
 
         for item_id in output_item_ids {
             self.add_code_cell_output_item(&started.code_cell_id, &item_id)?;
@@ -217,7 +217,7 @@ impl TraceReducer {
     ) -> Result<Option<String>> {
         Ok(self
             .model_visible_code_cell_item_ids(
-                &pending.thread_id,
+                &pending.chat_id,
                 &pending.started.model_visible_call_id,
                 ConversationItemKind::CustomToolCall,
             )
@@ -354,7 +354,7 @@ impl TraceReducer {
         &mut self,
         seq: RawEventSeq,
         wall_time_unix_ms: i64,
-        codex_turn_id: &str,
+        codex_interaction_id: &str,
         turn_status: &ExecutionStatus,
     ) -> Result<()> {
         let runtime_status = match turn_status {
@@ -369,7 +369,7 @@ impl TraceReducer {
             .code_cells
             .values()
             .filter(|cell| {
-                cell.codex_turn_id == codex_turn_id
+                cell.codex_interaction_id == codex_interaction_id
                     && cell.execution.status == ExecutionStatus::Running
             })
             .map(|cell| cell.code_cell_id.clone())
@@ -450,7 +450,7 @@ impl TraceReducer {
     /// from the runtime cell id inside the function arguments.
     pub(super) fn link_wait_tool_call_from_request_payload(
         &mut self,
-        thread_id: &str,
+        chat_id: &str,
         tool_call_id: &ToolCallId,
         request_payload: Option<&RawPayloadRef>,
     ) -> Result<()> {
@@ -487,7 +487,7 @@ impl TraceReducer {
             );
         };
         let Some(code_cell_id) =
-            self.code_cell_id_for_runtime_cell_id_if_known(thread_id, runtime_cell_id)
+            self.code_cell_id_for_runtime_cell_id_if_known(chat_id, runtime_cell_id)
         else {
             return Ok(());
         };
@@ -530,26 +530,26 @@ impl TraceReducer {
     /// Runtime events should carry a thread id, but older/raw paths may only have
     /// the turn id. The fallback keeps replay strict while avoiding duplicate logic
     /// in every code-cell event arm.
-    pub(super) fn code_cell_event_thread_id(
+    pub(super) fn code_cell_event_chat_id(
         &self,
-        thread_id: Option<String>,
-        codex_turn_id: Option<&str>,
+        chat_id: Option<String>,
+        codex_interaction_id: Option<&str>,
         runtime_cell_id: &str,
         event_name: &str,
     ) -> Result<String> {
-        if let Some(thread_id) = thread_id {
-            return Ok(thread_id);
+        if let Some(chat_id) = chat_id {
+            return Ok(chat_id);
         }
-        let Some(codex_turn_id) = codex_turn_id else {
+        let Some(codex_interaction_id) = codex_interaction_id else {
             bail!("{event_name} {runtime_cell_id} did not include a thread id");
         };
         self.rollout
             .codex_turns
-            .get(codex_turn_id)
-            .map(|turn| turn.thread_id.clone())
+            .get(codex_interaction_id)
+            .map(|turn| turn.chat_id.clone())
             .with_context(|| {
                 format!(
-                    "{event_name} {runtime_cell_id} referenced unknown Codex turn {codex_turn_id}"
+                    "{event_name} {runtime_cell_id} referenced unknown Codex turn {codex_interaction_id}"
                 )
             })
     }
@@ -571,17 +571,17 @@ impl TraceReducer {
     /// thread id when creating or resolving this bridge.
     pub(super) fn record_runtime_code_cell_id(
         &mut self,
-        thread_id: &str,
+        chat_id: &str,
         runtime_cell_id: &str,
         code_cell_id: &str,
     ) -> Result<()> {
-        let key = runtime_code_cell_key(thread_id, runtime_cell_id);
+        let key = runtime_code_cell_key(chat_id, runtime_cell_id);
         if let Some(existing) = self.code_cell_ids_by_runtime.get(&key) {
             if existing == code_cell_id {
                 return Ok(());
             }
             bail!(
-                "runtime code cell {runtime_cell_id} in thread {thread_id} mapped to both \
+                "runtime code cell {runtime_cell_id} in thread {chat_id} mapped to both \
                  {existing} and {code_cell_id}"
             );
         }
@@ -593,26 +593,26 @@ impl TraceReducer {
     /// Resolves a runtime cell id to the reduced code-cell id for the given thread.
     pub(super) fn code_cell_id_for_runtime_cell_id(
         &self,
-        thread_id: &str,
+        chat_id: &str,
         runtime_cell_id: &str,
         event_name: &str,
     ) -> Result<CodeCellId> {
-        self.code_cell_id_for_runtime_cell_id_if_known(thread_id, runtime_cell_id)
+        self.code_cell_id_for_runtime_cell_id_if_known(chat_id, runtime_cell_id)
             .with_context(|| {
                 format!(
                     "{event_name} referenced unknown runtime cell {runtime_cell_id} \
-                     in thread {thread_id}"
+                     in thread {chat_id}"
                 )
             })
     }
 
     fn code_cell_id_for_runtime_cell_id_if_known(
         &self,
-        thread_id: &str,
+        chat_id: &str,
         runtime_cell_id: &str,
     ) -> Option<CodeCellId> {
         self.code_cell_ids_by_runtime
-            .get(&runtime_code_cell_key(thread_id, runtime_cell_id))
+            .get(&runtime_code_cell_key(chat_id, runtime_cell_id))
             .cloned()
     }
 
@@ -622,14 +622,14 @@ impl TraceReducer {
     /// the boundary that turns that runtime handle into a stable code-cell anchor.
     pub(super) fn reduce_tool_call_requester(
         &self,
-        thread_id: &str,
+        chat_id: &str,
         requester: RawToolCallRequester,
     ) -> Result<ToolCallRequester> {
         match requester {
             RawToolCallRequester::Model => Ok(ToolCallRequester::Model),
             RawToolCallRequester::CodeCell { runtime_cell_id } => Ok(ToolCallRequester::CodeCell {
                 code_cell_id: self.code_cell_id_for_runtime_cell_id(
-                    thread_id,
+                    chat_id,
                     &runtime_cell_id,
                     "code-mode nested tool",
                 )?,
@@ -637,18 +637,18 @@ impl TraceReducer {
         }
     }
 
-    fn validate_code_cell_turn(&self, thread_id: &str, codex_turn_id: &str) -> Result<()> {
-        if !self.rollout.threads.contains_key(thread_id) {
-            bail!("code cell start referenced unknown thread {thread_id}");
+    fn validate_code_cell_turn(&self, chat_id: &str, codex_interaction_id: &str) -> Result<()> {
+        if !self.rollout.threads.contains_key(chat_id) {
+            bail!("code cell start referenced unknown thread {chat_id}");
         }
-        let Some(turn) = self.rollout.codex_turns.get(codex_turn_id) else {
-            bail!("code cell start referenced unknown Codex turn {codex_turn_id}");
+        let Some(turn) = self.rollout.codex_turns.get(codex_interaction_id) else {
+            bail!("code cell start referenced unknown Codex turn {codex_interaction_id}");
         };
-        if turn.thread_id != thread_id {
+        if turn.chat_id != chat_id {
             bail!(
-                "code cell start used thread {thread_id}, but Codex turn {codex_turn_id} belongs \
+                "code cell start used thread {chat_id}, but Codex turn {codex_interaction_id} belongs \
                  to {}",
-                turn.thread_id
+                turn.chat_id
             );
         }
         Ok(())
@@ -656,7 +656,7 @@ impl TraceReducer {
 
     fn model_visible_code_cell_item_ids(
         &self,
-        thread_id: &str,
+        chat_id: &str,
         call_id: &str,
         kind: ConversationItemKind,
     ) -> Vec<String> {
@@ -664,7 +664,7 @@ impl TraceReducer {
             .conversation_items
             .values()
             .filter(|item| {
-                item.thread_id == thread_id
+                item.chat_id == chat_id
                     && item.call_id.as_deref() == Some(call_id)
                     && item.kind == kind
             })
@@ -674,12 +674,12 @@ impl TraceReducer {
 
     fn source_item_id_for_code_cell_start(
         &self,
-        thread_id: &str,
+        chat_id: &str,
         code_cell_id: &str,
         model_visible_call_id: &str,
     ) -> Result<String> {
         self.model_visible_code_cell_item_ids(
-            thread_id,
+            chat_id,
             model_visible_call_id,
             ConversationItemKind::CustomToolCall,
         )
@@ -729,8 +729,8 @@ fn push_unique(items: &mut Vec<String>, item_id: &str) {
     }
 }
 
-fn runtime_code_cell_key(thread_id: &str, runtime_cell_id: &str) -> (String, String) {
-    (thread_id.to_string(), runtime_cell_id.to_string())
+fn runtime_code_cell_key(chat_id: &str, runtime_cell_id: &str) -> (String, String) {
+    (chat_id.to_string(), runtime_cell_id.to_string())
 }
 
 #[cfg(test)]

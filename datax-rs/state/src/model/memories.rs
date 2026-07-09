@@ -1,6 +1,6 @@
 use chrono::DateTime;
 use chrono::Utc;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use std::path::PathBuf;
 
 use super::ThreadMetadata;
@@ -8,7 +8,7 @@ use super::ThreadMetadata;
 /// Stored stage-1 memory extraction output for a single thread.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Stage1Output {
-    pub thread_id: ThreadId,
+    pub chat_id: ChatId,
     pub rollout_path: PathBuf,
     pub source_updated_at: DateTime<Utc>,
     pub raw_memory: String,

@@ -9,7 +9,7 @@ use datax_app_server_protocol::RequestId;
 use datax_core::CodexThread;
 use datax_core::ThreadConfigSnapshot;
 use datax_file_watcher::WatchRegistration;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 #[cfg(test)]
 use datax_protocol::config_types::MultiAgentMode;
 use datax_protocol::protocol::EventMsg;
@@ -79,7 +79,7 @@ pub(crate) struct ThreadState {
     pub(crate) pending_interrupts: PendingInterruptQueue,
     pub(crate) pending_rollbacks: Option<ConnectionRequestId>,
     pub(crate) turn_summary: TurnSummary,
-    pub(crate) last_terminal_turn_id: Option<String>,
+    pub(crate) last_terminal_interaction_id: Option<String>,
     pub(crate) cancel_tx: Option<oneshot::Sender<()>>,
     pub(crate) experimental_raw_events: bool,
     pub(crate) listener_generation: u64,
@@ -141,15 +141,15 @@ impl ThreadState {
         self.current_turn_history.active_turn_snapshot()
     }
 
-    pub(crate) fn track_current_turn_event(&mut self, event_turn_id: &str, event: &EventMsg) {
-        if let EventMsg::TurnStarted(payload) = event {
+    pub(crate) fn track_current_turn_event(&mut self, event_interaction_id: &str, event: &EventMsg) {
+        if let EventMsg::InteractionStarted(payload) = event {
             self.turn_summary.started_at = payload.started_at;
         }
         self.current_turn_history.handle_event(event);
-        if matches!(event, EventMsg::TurnAborted(_) | EventMsg::TurnComplete(_))
+        if matches!(event, EventMsg::InteractionAborted(_) | EventMsg::InteractionComplete(_))
             && !self.current_turn_history.has_active_turn()
         {
-            self.last_terminal_turn_id = Some(event_turn_id.to_string());
+            self.last_terminal_interaction_id = Some(event_interaction_id.to_string());
             self.current_turn_history.reset();
         }
     }
@@ -278,8 +278,8 @@ impl ThreadEntry {
 #[derive(Default)]
 struct ThreadStateManagerInner {
     live_connections: HashMap<ConnectionId, ConnectionCapabilities>,
-    threads: HashMap<ThreadId, ThreadEntry>,
-    thread_ids_by_connection: HashMap<ConnectionId, HashSet<ThreadId>>,
+    threads: HashMap<ChatId, ThreadEntry>,
+    chat_ids_by_connection: HashMap<ConnectionId, HashSet<ChatId>>,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -293,7 +293,7 @@ pub(crate) struct ThreadStateManager {
     // Extension event sinks are synchronous, so they need an await-free way to
     // enqueue work on the active per-thread listener.
     listener_commands:
-        Arc<StdMutex<HashMap<ThreadId, mpsc::UnboundedSender<ThreadListenerCommand>>>>,
+        Arc<StdMutex<HashMap<ChatId, mpsc::UnboundedSender<ThreadListenerCommand>>>>,
 }
 
 impl ThreadStateManager {
@@ -315,7 +315,7 @@ impl ThreadStateManager {
 
     pub(crate) async fn first_attestation_capable_connection_for_thread(
         &self,
-        chat_id: ThreadId,
+        chat_id: ChatId,
     ) -> Option<ConnectionId> {
         let state = self.state.lock().await;
         state
@@ -333,7 +333,7 @@ impl ThreadStateManager {
             .min_by_key(|connection_id| connection_id.0)
     }
 
-    pub(crate) async fn wait_for_thread_subscriber(&self, chat_id: ThreadId) {
+    pub(crate) async fn wait_for_thread_subscriber(&self, chat_id: ChatId) {
         let mut has_connections = {
             let mut state = self.state.lock().await;
             state
@@ -350,7 +350,7 @@ impl ThreadStateManager {
         }
     }
 
-    pub(crate) async fn subscribed_connection_ids(&self, chat_id: ThreadId) -> Vec<ConnectionId> {
+    pub(crate) async fn subscribed_connection_ids(&self, chat_id: ChatId) -> Vec<ConnectionId> {
         let state = self.state.lock().await;
         state
             .threads
@@ -359,14 +359,14 @@ impl ThreadStateManager {
             .unwrap_or_default()
     }
 
-    pub(crate) async fn thread_state(&self, chat_id: ThreadId) -> Arc<Mutex<ThreadState>> {
+    pub(crate) async fn thread_state(&self, chat_id: ChatId) -> Arc<Mutex<ThreadState>> {
         let mut state = self.state.lock().await;
         state.threads.entry(chat_id).or_default().state.clone()
     }
 
     pub(crate) fn current_listener_command_tx(
         &self,
-        chat_id: ThreadId,
+        chat_id: ChatId,
     ) -> Option<mpsc::UnboundedSender<ThreadListenerCommand>> {
         self.listener_commands
             .lock()
@@ -377,7 +377,7 @@ impl ThreadStateManager {
 
     pub(crate) fn register_listener_command_tx(
         &self,
-        chat_id: ThreadId,
+        chat_id: ChatId,
         tx: mpsc::UnboundedSender<ThreadListenerCommand>,
     ) {
         self.listener_commands
@@ -386,21 +386,21 @@ impl ThreadStateManager {
             .insert(chat_id, tx);
     }
 
-    pub(crate) fn unregister_listener_command_tx(&self, chat_id: ThreadId) {
+    pub(crate) fn unregister_listener_command_tx(&self, chat_id: ChatId) {
         self.listener_commands
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .remove(&chat_id);
     }
 
-    pub(crate) async fn remove_thread_state(&self, chat_id: ThreadId) {
+    pub(crate) async fn remove_thread_state(&self, chat_id: ChatId) {
         let thread_state = {
             let mut state = self.state.lock().await;
             let thread_state = state
                 .threads
                 .remove(&chat_id)
                 .map(|thread_entry| thread_entry.state);
-            state.thread_ids_by_connection.retain(|_, chat_ids| {
+            state.chat_ids_by_connection.retain(|_, chat_ids| {
                 chat_ids.remove(&chat_id);
                 !chat_ids.is_empty()
             });
@@ -447,7 +447,7 @@ impl ThreadStateManager {
 
     pub(crate) async fn unsubscribe_connection_from_thread(
         &self,
-        chat_id: ThreadId,
+        chat_id: ChatId,
         connection_id: ConnectionId,
     ) -> bool {
         {
@@ -457,17 +457,17 @@ impl ThreadStateManager {
             }
 
             if !state
-                .thread_ids_by_connection
+                .chat_ids_by_connection
                 .get(&connection_id)
                 .is_some_and(|chat_ids| chat_ids.contains(&chat_id))
             {
                 return false;
             }
 
-            if let Some(chat_ids) = state.thread_ids_by_connection.get_mut(&connection_id) {
+            if let Some(chat_ids) = state.chat_ids_by_connection.get_mut(&connection_id) {
                 chat_ids.remove(&chat_id);
                 if chat_ids.is_empty() {
-                    state.thread_ids_by_connection.remove(&connection_id);
+                    state.chat_ids_by_connection.remove(&connection_id);
                 }
             }
             if let Some(thread_entry) = state.threads.get_mut(&chat_id) {
@@ -480,7 +480,7 @@ impl ThreadStateManager {
     }
 
     #[cfg(test)]
-    pub(crate) async fn has_subscribers(&self, chat_id: ThreadId) -> bool {
+    pub(crate) async fn has_subscribers(&self, chat_id: ChatId) -> bool {
         self.state
             .lock()
             .await
@@ -491,7 +491,7 @@ impl ThreadStateManager {
 
     pub(crate) async fn try_ensure_connection_subscribed(
         &self,
-        chat_id: ThreadId,
+        chat_id: ChatId,
         connection_id: ConnectionId,
         experimental_raw_events: bool,
     ) -> Option<Arc<Mutex<ThreadState>>> {
@@ -501,7 +501,7 @@ impl ThreadStateManager {
                 return None;
             }
             state
-                .thread_ids_by_connection
+                .chat_ids_by_connection
                 .entry(connection_id)
                 .or_default()
                 .insert(chat_id);
@@ -521,7 +521,7 @@ impl ThreadStateManager {
 
     pub(crate) async fn try_add_connection_to_thread(
         &self,
-        chat_id: ThreadId,
+        chat_id: ChatId,
         connection_id: ConnectionId,
     ) -> bool {
         let mut state = self.state.lock().await;
@@ -529,7 +529,7 @@ impl ThreadStateManager {
             return false;
         }
         state
-            .thread_ids_by_connection
+            .chat_ids_by_connection
             .entry(connection_id)
             .or_default()
             .insert(chat_id);
@@ -539,12 +539,12 @@ impl ThreadStateManager {
         true
     }
 
-    pub(crate) async fn remove_connection(&self, connection_id: ConnectionId) -> Vec<ThreadId> {
+    pub(crate) async fn remove_connection(&self, connection_id: ConnectionId) -> Vec<ChatId> {
         {
             let mut state = self.state.lock().await;
             state.live_connections.remove(&connection_id);
             let chat_ids = state
-                .thread_ids_by_connection
+                .chat_ids_by_connection
                 .remove(&connection_id)
                 .unwrap_or_default();
             for chat_id in &chat_ids {
@@ -567,7 +567,7 @@ impl ThreadStateManager {
 
     pub(crate) async fn subscribe_to_has_connections(
         &self,
-        chat_id: ThreadId,
+        chat_id: ChatId,
     ) -> Option<watch::Receiver<bool>> {
         let state = self.state.lock().await;
         state

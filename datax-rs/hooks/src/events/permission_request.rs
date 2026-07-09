@@ -23,7 +23,7 @@ use crate::engine::dispatcher;
 use crate::engine::output_parser;
 use crate::schema::PermissionRequestCommandInput;
 use crate::schema::SubagentCommandInputFields;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::HookCompletedEvent;
 use datax_protocol::protocol::HookEventName;
 use datax_protocol::protocol::HookOutputEntry;
@@ -34,8 +34,8 @@ use serde_json::Value;
 
 #[derive(Debug, Clone)]
 pub struct PermissionRequestRequest {
-    pub session_id: ThreadId,
-    pub turn_id: String,
+    pub session_id: ChatId,
+    pub interaction_id: String,
     pub subagent: Option<common::SubagentHookContext>,
     pub cwd: PathBuf,
     pub transcript_path: Option<PathBuf>,
@@ -107,7 +107,7 @@ pub(crate) async fn run(
         Err(error) => {
             let hook_events = common::serialization_failure_hook_events_for_tool_use(
                 matched,
-                Some(request.turn_id.clone()),
+                Some(request.interaction_id.clone()),
                 format!("failed to serialize permission request hook input: {error}"),
                 &request.run_id_suffix,
             );
@@ -123,7 +123,7 @@ pub(crate) async fn run(
         matched,
         input_json,
         request.cwd.as_path(),
-        Some(request.turn_id.clone()),
+        Some(request.interaction_id.clone()),
         parse_completed,
     )
     .await;
@@ -173,7 +173,7 @@ fn build_command_input(request: &PermissionRequestRequest) -> PermissionRequestC
     let subagent = SubagentCommandInputFields::from(request.subagent.as_ref());
     PermissionRequestCommandInput {
         session_id: request.session_id.to_string(),
-        turn_id: request.turn_id.clone(),
+        interaction_id: request.interaction_id.clone(),
         agent_id: subagent.agent_id,
         agent_type: subagent.agent_type,
         transcript_path: crate::schema::NullableString::from_path(request.transcript_path.clone()),
@@ -189,7 +189,7 @@ fn build_command_input(request: &PermissionRequestRequest) -> PermissionRequestC
 fn parse_completed(
     handler: &ConfiguredHandler,
     run_result: CommandRunResult,
-    turn_id: Option<String>,
+    interaction_id: Option<String>,
 ) -> dispatcher::ParsedHandler<PermissionRequestHandlerData> {
     let mut entries = Vec::new();
     let mut status = HookRunStatus::Completed;
@@ -279,7 +279,7 @@ fn parse_completed(
     }
 
     let completed = HookCompletedEvent {
-        turn_id,
+        interaction_id,
         run: dispatcher::completed_summary(handler, &run_result, status, entries),
     };
 

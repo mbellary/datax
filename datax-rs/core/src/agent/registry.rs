@@ -1,5 +1,5 @@
 use datax_protocol::AgentPath;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::error::CodexErr;
 use datax_protocol::error::Result;
 use datax_protocol::protocol::SessionSource;
@@ -34,7 +34,7 @@ struct ActiveAgents {
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct AgentMetadata {
-    pub(crate) agent_id: Option<ThreadId>,
+    pub(crate) agent_id: Option<ChatId>,
     pub(crate) agent_path: Option<AgentPath>,
     pub(crate) agent_nickname: Option<String>,
     pub(crate) agent_role: Option<String>,
@@ -96,7 +96,7 @@ impl AgentRegistry {
         })
     }
 
-    pub(crate) fn release_spawned_thread(&self, thread_id: ThreadId) {
+    pub(crate) fn release_spawned_thread(&self, chat_id: ChatId) {
         let removed_counted_agent = {
             let mut active_agents = self
                 .active_agents
@@ -105,7 +105,7 @@ impl AgentRegistry {
             let removed_key = active_agents
                 .agent_tree
                 .iter()
-                .find_map(|(key, metadata)| (metadata.agent_id == Some(thread_id)).then_some(key))
+                .find_map(|(key, metadata)| (metadata.agent_id == Some(chat_id)).then_some(key))
                 .cloned();
             removed_key
                 .and_then(|key| active_agents.agent_tree.remove(key.as_str()))
@@ -118,7 +118,7 @@ impl AgentRegistry {
         }
     }
 
-    pub(crate) fn register_root_thread(&self, thread_id: ThreadId) {
+    pub(crate) fn register_root_thread(&self, chat_id: ChatId) {
         let mut active_agents = self
             .active_agents
             .lock()
@@ -127,13 +127,13 @@ impl AgentRegistry {
             .agent_tree
             .entry(AgentPath::ROOT.to_string())
             .or_insert_with(|| AgentMetadata {
-                agent_id: Some(thread_id),
+                agent_id: Some(chat_id),
                 agent_path: Some(AgentPath::root()),
                 ..Default::default()
             });
     }
 
-    pub(crate) fn agent_id_for_path(&self, agent_path: &AgentPath) -> Option<ThreadId> {
+    pub(crate) fn agent_id_for_path(&self, agent_path: &AgentPath) -> Option<ChatId> {
         self.active_agents
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -142,13 +142,13 @@ impl AgentRegistry {
             .and_then(|metadata| metadata.agent_id)
     }
 
-    pub(crate) fn agent_metadata_for_thread(&self, thread_id: ThreadId) -> Option<AgentMetadata> {
+    pub(crate) fn agent_metadata_for_thread(&self, chat_id: ChatId) -> Option<AgentMetadata> {
         self.active_agents
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .agent_tree
             .values()
-            .find(|metadata| metadata.agent_id == Some(thread_id))
+            .find(|metadata| metadata.agent_id == Some(chat_id))
             .cloned()
     }
 
@@ -166,7 +166,7 @@ impl AgentRegistry {
             .collect()
     }
 
-    pub(crate) fn update_last_task_message(&self, thread_id: ThreadId, last_task_message: String) {
+    pub(crate) fn update_last_task_message(&self, chat_id: ChatId, last_task_message: String) {
         let mut active_agents = self
             .active_agents
             .lock()
@@ -174,13 +174,13 @@ impl AgentRegistry {
         if let Some(metadata) = active_agents
             .agent_tree
             .values_mut()
-            .find(|metadata| metadata.agent_id == Some(thread_id))
+            .find(|metadata| metadata.agent_id == Some(chat_id))
         {
             metadata.last_task_message = Some(last_task_message);
         }
     }
 
-    pub(crate) fn clear_last_task_message(&self, thread_id: ThreadId) {
+    pub(crate) fn clear_last_task_message(&self, chat_id: ChatId) {
         let mut active_agents = self
             .active_agents
             .lock()
@@ -188,14 +188,14 @@ impl AgentRegistry {
         if let Some(metadata) = active_agents
             .agent_tree
             .values_mut()
-            .find(|metadata| metadata.agent_id == Some(thread_id))
+            .find(|metadata| metadata.agent_id == Some(chat_id))
         {
             metadata.last_task_message = None;
         }
     }
 
     fn register_spawned_thread(&self, agent_metadata: AgentMetadata) {
-        let Some(thread_id) = agent_metadata.agent_id else {
+        let Some(chat_id) = agent_metadata.agent_id else {
             return;
         };
         let mut active_agents = self
@@ -206,7 +206,7 @@ impl AgentRegistry {
             .agent_path
             .as_ref()
             .map(ToString::to_string)
-            .unwrap_or_else(|| format!("thread:{thread_id}"));
+            .unwrap_or_else(|| format!("thread:{chat_id}"));
         if let Some(agent_nickname) = agent_metadata.agent_nickname.clone() {
             active_agents.used_agent_nicknames.insert(agent_nickname);
         }

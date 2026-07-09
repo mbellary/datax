@@ -20,7 +20,7 @@ use crate::bundle::MANIFEST_FILE_NAME;
 use crate::bundle::PAYLOADS_DIR_NAME;
 use crate::bundle::RAW_EVENT_LOG_FILE_NAME;
 use crate::bundle::TraceBundleManifest;
-use crate::model::AgentThreadId;
+use crate::model::AgentChatId;
 use crate::payload::RawPayloadKind;
 use crate::payload::RawPayloadRef;
 use crate::raw_event::RAW_TRACE_EVENT_SCHEMA_VERSION;
@@ -52,7 +52,7 @@ impl TraceWriter {
         bundle_dir: impl AsRef<Path>,
         trace_id: String,
         rollout_id: String,
-        root_thread_id: AgentThreadId,
+        root_chat_id: AgentChatId,
     ) -> Result<Self> {
         let bundle_dir = bundle_dir.as_ref().to_path_buf();
         let payloads_dir = bundle_dir.join(PAYLOADS_DIR_NAME);
@@ -61,7 +61,7 @@ impl TraceWriter {
 
         let started_at_unix_ms = unix_time_ms();
         let manifest =
-            TraceBundleManifest::new(trace_id, rollout_id, root_thread_id, started_at_unix_ms);
+            TraceBundleManifest::new(trace_id, rollout_id, root_chat_id, started_at_unix_ms);
         write_json_file(&bundle_dir.join(MANIFEST_FILE_NAME), &manifest)?;
 
         let event_log_path = bundle_dir.join(RAW_EVENT_LOG_FILE_NAME);
@@ -122,8 +122,8 @@ impl TraceWriter {
             seq: inner.next_seq,
             wall_time_unix_ms: unix_time_ms(),
             rollout_id: inner.manifest.rollout_id.clone(),
-            thread_id: context.thread_id,
-            codex_turn_id: context.codex_turn_id,
+            chat_id: context.chat_id,
+            codex_interaction_id: context.codex_interaction_id,
             payload,
         };
         inner.next_seq += 1;
@@ -179,7 +179,7 @@ mod tests {
 
         writer.append(RawTraceEventPayload::RolloutStarted {
             trace_id: "trace-1".to_string(),
-            root_thread_id: "thread-root".to_string(),
+            root_chat_id: "thread-root".to_string(),
         })?;
         let metadata_payload = writer.write_json_payload(
             RawPayloadKind::ProtocolEvent,
@@ -189,13 +189,13 @@ mod tests {
             }),
         )?;
         writer.append(RawTraceEventPayload::ThreadStarted {
-            thread_id: "thread-root".to_string(),
+            chat_id: "thread-root".to_string(),
             agent_path: "/root".to_string(),
             metadata_payload: Some(metadata_payload.clone()),
         })?;
-        writer.append(RawTraceEventPayload::CodexTurnStarted {
-            codex_turn_id: "turn-1".to_string(),
-            thread_id: "thread-root".to_string(),
+        writer.append(RawTraceEventPayload::CodexInteractionStarted {
+            codex_interaction_id: "turn-1".to_string(),
+            chat_id: "thread-root".to_string(),
         })?;
         let inference_request = writer.write_json_payload(
             RawPayloadKind::InferenceRequest,
@@ -210,8 +210,8 @@ mod tests {
         )?;
         writer.append(RawTraceEventPayload::InferenceStarted {
             inference_call_id: "inference-1".to_string(),
-            thread_id: "thread-root".to_string(),
-            codex_turn_id: "turn-1".to_string(),
+            chat_id: "thread-root".to_string(),
+            codex_interaction_id: "turn-1".to_string(),
             model: "gpt-test".to_string(),
             provider_name: "test-provider".to_string(),
             request_payload: inference_request.clone(),
@@ -230,7 +230,7 @@ mod tests {
             response_payload: inference_response.clone(),
         })?;
         writer.append(RawTraceEventPayload::CodexTurnEnded {
-            codex_turn_id: "turn-1".to_string(),
+            codex_interaction_id: "turn-1".to_string(),
             status: ExecutionStatus::Completed,
         })?;
         writer.append(RawTraceEventPayload::RolloutEnded {
@@ -240,9 +240,9 @@ mod tests {
         let rollout = replay_bundle(temp.path())?;
 
         assert_eq!(rollout.status, RolloutStatus::Completed);
-        assert_eq!(rollout.root_thread_id, "thread-root");
+        assert_eq!(rollout.root_chat_id, "thread-root");
         assert_eq!(rollout.threads["thread-root"].agent_path, "/root");
-        assert_eq!(rollout.codex_turns["turn-1"].thread_id, "thread-root");
+        assert_eq!(rollout.codex_turns["turn-1"].chat_id, "thread-root");
         assert_eq!(
             rollout.codex_turns["turn-1"].execution.status,
             ExecutionStatus::Completed,

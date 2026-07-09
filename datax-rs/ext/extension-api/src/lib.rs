@@ -20,7 +20,7 @@ pub use contributors::McpServerContributionContext;
 pub use contributors::McpServerContributor;
 pub use contributors::PromptFragment;
 pub use contributors::PromptSlot;
-pub use contributors::ThreadIdleInput;
+pub use contributors::ChatIdleInput;
 pub use contributors::ThreadLifecycleContributor;
 pub use contributors::ThreadResumeInput;
 pub use contributors::ThreadStartInput;

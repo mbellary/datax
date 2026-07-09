@@ -261,7 +261,7 @@ async fn list_apps_includes_plugin_apps_for_chatgpt_auth() -> Result<()> {
 }
 
 #[tokio::test]
-async fn list_apps_uses_thread_feature_flag_when_thread_id_is_provided() -> Result<()> {
+async fn list_apps_uses_thread_feature_flag_when_chat_id_is_provided() -> Result<()> {
     let connectors = vec![AppInfo {
         id: "beta".to_string(),
         name: "Beta".to_string(),

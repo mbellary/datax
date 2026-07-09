@@ -12,7 +12,7 @@ use datax_app_server_protocol::CurrentTimeReadResponse;
 use datax_app_server_protocol::ServerRequestPayload;
 use datax_core::TimeFuture;
 use datax_core::TimeProvider;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use tokio::time::Duration;
 use tokio::time::Instant;
 use tokio::time::timeout_at;
@@ -39,7 +39,7 @@ struct AppServerTimeProvider {
 }
 
 impl TimeProvider for AppServerTimeProvider {
-    fn current_time(&self, chat_id: ThreadId) -> TimeFuture<'_> {
+    fn current_time(&self, chat_id: ChatId) -> TimeFuture<'_> {
         let outgoing = self.outgoing.clone();
         let thread_state_manager = self.thread_state_manager.clone();
         Box::pin(async move {
@@ -54,7 +54,7 @@ impl TimeProvider for AppServerTimeProvider {
 async fn request_current_time(
     outgoing: Arc<OutgoingMessageSender>,
     thread_state_manager: ThreadStateManager,
-    chat_id: ThreadId,
+    chat_id: ChatId,
 ) -> Result<DateTime<Utc>> {
     let deadline = Instant::now() + CURRENT_TIME_REQUEST_TIMEOUT;
     timeout_at(

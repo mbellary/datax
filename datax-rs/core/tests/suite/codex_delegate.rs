@@ -84,7 +84,7 @@ async fn codex_delegate_forwards_exec_approval_and_proceeds_on_approval() {
         .await
         .expect("submit review");
 
-    // Lifecycle: Entered -> ExecApprovalRequest -> Exited(Some) -> TurnComplete.
+    // Lifecycle: Entered -> ExecApprovalRequest -> Exited(Some) -> InteractionComplete.
     wait_for_event(&test.codex, |ev| {
         matches!(ev, EventMsg::EnteredReviewMode(_))
     })
@@ -103,7 +103,7 @@ async fn codex_delegate_forwards_exec_approval_and_proceeds_on_approval() {
     test.codex
         .submit(Op::ExecApproval {
             id: approval.effective_approval_id(),
-            turn_id: None,
+            interaction_id: None,
             decision: ReviewDecision::Approved,
         })
         .await
@@ -113,7 +113,7 @@ async fn codex_delegate_forwards_exec_approval_and_proceeds_on_approval() {
         matches!(ev, EventMsg::ExitedReviewMode(_))
     })
     .await;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 }
 
 /// Delegate should surface ApplyPatchApprovalRequest and honor parent decision
@@ -193,7 +193,7 @@ async fn codex_delegate_forwards_patch_approval_and_proceeds_on_decision() {
         matches!(ev, EventMsg::ExitedReviewMode(_))
     })
     .await;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -233,7 +233,7 @@ async fn codex_delegate_ignores_legacy_deltas() {
         let ev = wait_for_event(&test.codex, |_| true).await;
         match ev {
             EventMsg::ReasoningContentDelta(_) => reasoning_delta_count += 1,
-            EventMsg::TurnComplete(_) => break,
+            EventMsg::InteractionComplete(_) => break,
             _ => {}
         }
     }

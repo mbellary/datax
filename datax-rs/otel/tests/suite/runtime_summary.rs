@@ -5,7 +5,7 @@ use datax_otel::RuntimeMetricTotals;
 use datax_otel::RuntimeMetricsSummary;
 use datax_otel::SessionTelemetry;
 use datax_otel::TelemetryAuthMode;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::SessionSource;
 use eventsource_stream::Event as StreamEvent;
 use opentelemetry_sdk::metrics::InMemoryMetricExporter;
@@ -21,7 +21,7 @@ fn runtime_metrics_summary_collects_tool_api_and_streaming_metrics() -> Result<(
             .with_runtime_reader(),
     )?;
     let manager = SessionTelemetry::new(
-        ThreadId::new(),
+        ChatId::new(),
         "gpt-5.1",
         "gpt-5.1",
         Some("account-id".to_string()),

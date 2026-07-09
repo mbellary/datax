@@ -2,30 +2,30 @@
 
 use datax_app_server_protocol::ServerNotification;
 use datax_app_server_protocol::ServerRequest;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 
-pub(super) fn server_request_thread_id(request: &ServerRequest) -> Option<ThreadId> {
+pub(super) fn server_request_chat_id(request: &ServerRequest) -> Option<ChatId> {
     match request {
         ServerRequest::CommandExecutionRequestApproval { params, .. } => {
-            ThreadId::from_string(&params.chat_id).ok()
+            ChatId::from_string(&params.chat_id).ok()
         }
         ServerRequest::FileChangeRequestApproval { params, .. } => {
-            ThreadId::from_string(&params.chat_id).ok()
+            ChatId::from_string(&params.chat_id).ok()
         }
         ServerRequest::ToolRequestUserInput { params, .. } => {
-            ThreadId::from_string(&params.chat_id).ok()
+            ChatId::from_string(&params.chat_id).ok()
         }
         ServerRequest::McpServerElicitationRequest { params, .. } => {
-            ThreadId::from_string(&params.chat_id).ok()
+            ChatId::from_string(&params.chat_id).ok()
         }
         ServerRequest::PermissionsRequestApproval { params, .. } => {
-            ThreadId::from_string(&params.chat_id).ok()
+            ChatId::from_string(&params.chat_id).ok()
         }
         ServerRequest::DynamicToolCall { params, .. } => {
-            ThreadId::from_string(&params.chat_id).ok()
+            ChatId::from_string(&params.chat_id).ok()
         }
         ServerRequest::CurrentTimeRead { params, .. } => {
-            ThreadId::from_string(&params.chat_id).ok()
+            ChatId::from_string(&params.chat_id).ok()
         }
         ServerRequest::ChatgptAuthTokensRefresh { .. }
         | ServerRequest::AttestationGenerate { .. }
@@ -36,8 +36,8 @@ pub(super) fn server_request_thread_id(request: &ServerRequest) -> Option<Thread
 
 #[derive(Debug, PartialEq, Eq)]
 pub(super) enum ServerNotificationThreadTarget {
-    Chat(ThreadId),
-    InvalidThreadId(String),
+    Chat(ChatId),
+    InvalidChatId(String),
     AppScoped,
     Global,
 }
@@ -45,7 +45,7 @@ pub(super) enum ServerNotificationThreadTarget {
 pub(super) fn server_notification_thread_target(
     notification: &ServerNotification,
 ) -> ServerNotificationThreadTarget {
-    let thread_id = match notification {
+    let chat_id = match notification {
         ServerNotification::Error(notification) => Some(notification.chat_id.as_str()),
         ServerNotification::ChatStarted(notification) => Some(notification.thread.id.as_str()),
         ServerNotification::ChatStatusChanged(notification) => Some(notification.chat_id.as_str()),
@@ -143,7 +143,7 @@ pub(super) fn server_notification_thread_target(
         ServerNotification::GuardianWarning(notification) => Some(notification.chat_id.as_str()),
         ServerNotification::McpServerStatusUpdated(notification) => {
             match notification.chat_id.as_deref() {
-                Some(thread_id) => Some(thread_id),
+                Some(chat_id) => Some(chat_id),
                 None => return ServerNotificationThreadTarget::AppScoped,
             }
         }
@@ -168,10 +168,10 @@ pub(super) fn server_notification_thread_target(
         | ServerNotification::AccountLoginCompleted(_) => None,
     };
 
-    match thread_id {
-        Some(thread_id) => match ThreadId::from_string(thread_id) {
-            Ok(thread_id) => ServerNotificationThreadTarget::Chat(thread_id),
-            Err(_) => ServerNotificationThreadTarget::InvalidThreadId(thread_id.to_string()),
+    match chat_id {
+        Some(chat_id) => match ChatId::from_string(chat_id) {
+            Ok(chat_id) => ServerNotificationThreadTarget::Chat(chat_id),
+            Err(_) => ServerNotificationThreadTarget::InvalidChatId(chat_id.to_string()),
         },
         None => ServerNotificationThreadTarget::Global,
     }
@@ -190,7 +190,7 @@ mod tests {
     use datax_app_server_protocol::McpServerStatusUpdatedNotification;
     use datax_app_server_protocol::ServerNotification;
     use datax_app_server_protocol::WarningNotification;
-    use datax_protocol::ThreadId;
+    use datax_protocol::ChatId;
     use datax_protocol::config_types::CollaborationMode;
     use datax_protocol::config_types::ModeKind;
     use datax_protocol::config_types::Settings;
@@ -237,37 +237,37 @@ mod tests {
     }
 
     #[test]
-    fn warning_notifications_route_to_threads_when_thread_id_is_present() {
-        let thread_id = ThreadId::new();
+    fn warning_notifications_route_to_threads_when_chat_id_is_present() {
+        let chat_id = ChatId::new();
         let notification = ServerNotification::Warning(WarningNotification {
-            chat_id: Some(thread_id.to_string()),
+            chat_id: Some(chat_id.to_string()),
             message: "warning".to_string(),
         });
 
         let target = server_notification_thread_target(&notification);
 
-        assert_eq!(target, ServerNotificationThreadTarget::Chat(thread_id));
+        assert_eq!(target, ServerNotificationThreadTarget::Chat(chat_id));
     }
 
     #[test]
     fn guardian_warning_notifications_route_to_threads() {
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let notification = ServerNotification::GuardianWarning(GuardianWarningNotification {
-            chat_id: thread_id.to_string(),
+            chat_id: chat_id.to_string(),
             message: "warning".to_string(),
         });
 
         let target = server_notification_thread_target(&notification);
 
-        assert_eq!(target, ServerNotificationThreadTarget::Chat(thread_id));
+        assert_eq!(target, ServerNotificationThreadTarget::Chat(chat_id));
     }
 
     #[test]
     fn mcp_startup_notifications_route_to_threads() {
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let notification =
             ServerNotification::McpServerStatusUpdated(McpServerStatusUpdatedNotification {
-                chat_id: Some(thread_id.to_string()),
+                chat_id: Some(chat_id.to_string()),
                 name: "sentry".to_string(),
                 status: McpServerStartupState::Failed,
                 error: Some("sentry is not logged in".to_string()),
@@ -275,7 +275,7 @@ mod tests {
 
         let target = server_notification_thread_target(&notification);
 
-        assert_eq!(target, ServerNotificationThreadTarget::Chat(thread_id));
+        assert_eq!(target, ServerNotificationThreadTarget::Chat(chat_id));
     }
 
     #[test]
@@ -295,15 +295,15 @@ mod tests {
 
     #[test]
     fn thread_settings_updated_notifications_route_to_threads() {
-        let thread_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let notification =
             ServerNotification::ChatSettingsUpdated(ChatSettingsUpdatedNotification {
-                chat_id: thread_id.to_string(),
+                chat_id: chat_id.to_string(),
                 thread_settings: test_thread_settings(),
             });
 
         let target = server_notification_thread_target(&notification);
 
-        assert_eq!(target, ServerNotificationThreadTarget::Chat(thread_id));
+        assert_eq!(target, ServerNotificationThreadTarget::Chat(chat_id));
     }
 }

@@ -758,7 +758,7 @@ pub struct ChatGoal {
 impl From<datax_protocol::protocol::ThreadGoal> for ChatGoal {
     fn from(value: datax_protocol::protocol::ThreadGoal) -> Self {
         Self {
-            chat_id: value.thread_id.to_string(),
+            chat_id: value.chat_id.to_string(),
             objective: value.objective,
             status: value.status.into(),
             token_budget: value.token_budget,

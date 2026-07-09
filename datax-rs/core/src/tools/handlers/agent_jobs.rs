@@ -6,7 +6,7 @@ use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
 use crate::tools::handlers::multi_agents::build_agent_spawn_config;
 use crate::tools::handlers::parse_arguments;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::error::CodexErr;
 use datax_protocol::protocol::AgentStatus;
 use datax_protocol::protocol::MultiAgentVersion;
@@ -165,7 +165,7 @@ async fn run_agent_job_loop(
         .await?
         .ok_or_else(|| anyhow::anyhow!("agent job {job_id} was not found"))?;
     let runtime_timeout = job_runtime_timeout(&job);
-    let mut active_items: HashMap<ThreadId, ActiveJobItem> = HashMap::new();
+    let mut active_items: HashMap<ChatId, ActiveJobItem> = HashMap::new();
     recover_running_items(
         session.clone(),
         db.clone(),
@@ -198,7 +198,7 @@ async fn run_agent_job_loop(
                     text: prompt,
                     text_elements: Vec::new(),
                 }];
-                let thread_id = match session
+                let chat_id = match session
                     .services
                     .agent_control
                     .spawn_agent_with_metadata(
@@ -208,14 +208,14 @@ async fn run_agent_job_loop(
                             "agent_job:{job_id}"
                         )))),
                         SpawnAgentOptions {
-                            parent_thread_id: Some(session.thread_id),
+                            parent_chat_id: Some(session.chat_id),
                             environments: Some(turn.environments.to_selections()),
                             ..Default::default()
                         },
                     )
                     .await
                 {
-                    Ok(spawned_agent) => spawned_agent.thread_id,
+                    Ok(spawned_agent) => spawned_agent.chat_id,
                     Err(CodexErr::AgentLimitReached { .. }) => {
                         db.mark_agent_job_item_pending(
                             job_id.as_str(),
@@ -241,26 +241,26 @@ async fn run_agent_job_loop(
                     .mark_agent_job_item_running_with_thread(
                         job_id.as_str(),
                         item.item_id.as_str(),
-                        thread_id.to_string().as_str(),
+                        chat_id.to_string().as_str(),
                     )
                     .await?;
                 if !assigned {
                     let _ = session
                         .services
                         .agent_control
-                        .shutdown_live_agent(thread_id)
+                        .shutdown_live_agent(chat_id)
                         .await;
                     continue;
                 }
                 active_items.insert(
-                    thread_id,
+                    chat_id,
                     ActiveJobItem {
                         item_id: item.item_id.clone(),
                         started_at: Instant::now(),
                         status_rx: session
                             .services
                             .agent_control
-                            .subscribe_status(thread_id)
+                            .subscribe_status(chat_id)
                             .await
                             .ok(),
                     },
@@ -300,16 +300,16 @@ async fn run_agent_job_loop(
             continue;
         }
 
-        for (thread_id, item_id) in finished {
+        for (chat_id, item_id) in finished {
             finalize_finished_item(
                 session.clone(),
                 db.clone(),
                 job_id.as_str(),
                 item_id.as_str(),
-                thread_id,
+                chat_id,
             )
             .await?;
-            active_items.remove(&thread_id);
+            active_items.remove(&chat_id);
         }
     }
 
@@ -348,7 +348,7 @@ async fn recover_running_items(
     session: Arc<Session>,
     db: Arc<datax_state::StateRuntime>,
     job_id: &str,
-    active_items: &mut HashMap<ThreadId, ActiveJobItem>,
+    active_items: &mut HashMap<ChatId, ActiveJobItem>,
     runtime_timeout: Duration,
 ) -> anyhow::Result<()> {
     let running_items = db
@@ -363,30 +363,30 @@ async fn recover_running_items(
             let error_message = format!("worker exceeded max runtime of {runtime_timeout:?}");
             db.mark_agent_job_item_failed(job_id, item.item_id.as_str(), error_message.as_str())
                 .await?;
-            if let Some(assigned_thread_id) = item.assigned_thread_id.as_ref()
-                && let Ok(thread_id) = ThreadId::from_string(assigned_thread_id.as_str())
+            if let Some(assigned_chat_id) = item.assigned_chat_id.as_ref()
+                && let Ok(chat_id) = ChatId::from_string(assigned_chat_id.as_str())
             {
                 let _ = session
                     .services
                     .agent_control
-                    .shutdown_live_agent(thread_id)
+                    .shutdown_live_agent(chat_id)
                     .await;
             }
             continue;
         }
-        let Some(assigned_thread_id) = item.assigned_thread_id.clone() else {
+        let Some(assigned_chat_id) = item.assigned_chat_id.clone() else {
             db.mark_agent_job_item_failed(
                 job_id,
                 item.item_id.as_str(),
-                "running item is missing assigned_thread_id",
+                "running item is missing assigned_chat_id",
             )
             .await?;
             continue;
         };
-        let thread_id = match ThreadId::from_string(assigned_thread_id.as_str()) {
-            Ok(thread_id) => thread_id,
+        let chat_id = match ChatId::from_string(assigned_chat_id.as_str()) {
+            Ok(chat_id) => chat_id,
             Err(err) => {
-                let error_message = format!("invalid assigned_thread_id: {err:?}");
+                let error_message = format!("invalid assigned_chat_id: {err:?}");
                 db.mark_agent_job_item_failed(
                     job_id,
                     item.item_id.as_str(),
@@ -396,25 +396,25 @@ async fn recover_running_items(
                 continue;
             }
         };
-        if is_final(&session.services.agent_control.get_status(thread_id).await) {
+        if is_final(&session.services.agent_control.get_status(chat_id).await) {
             finalize_finished_item(
                 session.clone(),
                 db.clone(),
                 job_id,
                 item.item_id.as_str(),
-                thread_id,
+                chat_id,
             )
             .await?;
         } else {
             active_items.insert(
-                thread_id,
+                chat_id,
                 ActiveJobItem {
                     item_id: item.item_id.clone(),
                     started_at: started_at_from_item(&item),
                     status_rx: session
                         .services
                         .agent_control
-                        .subscribe_status(thread_id)
+                        .subscribe_status(chat_id)
                         .await
                         .ok(),
                 },
@@ -426,13 +426,13 @@ async fn recover_running_items(
 
 async fn find_finished_threads(
     session: Arc<Session>,
-    active_items: &HashMap<ThreadId, ActiveJobItem>,
-) -> Vec<(ThreadId, String)> {
+    active_items: &HashMap<ChatId, ActiveJobItem>,
+) -> Vec<(ChatId, String)> {
     let mut finished = Vec::new();
-    for (thread_id, item) in active_items {
-        let status = active_item_status(session.as_ref(), *thread_id, item).await;
+    for (chat_id, item) in active_items {
+        let status = active_item_status(session.as_ref(), *chat_id, item).await;
         if is_final(&status) {
-            finished.push((*thread_id, item.item_id.clone()));
+            finished.push((*chat_id, item.item_id.clone()));
         }
     }
     finished
@@ -440,7 +440,7 @@ async fn find_finished_threads(
 
 async fn active_item_status(
     session: &Session,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     item: &ActiveJobItem,
 ) -> AgentStatus {
     if let Some(status_rx) = item.status_rx.as_ref()
@@ -448,10 +448,10 @@ async fn active_item_status(
     {
         return status_rx.borrow().clone();
     }
-    session.services.agent_control.get_status(thread_id).await
+    session.services.agent_control.get_status(chat_id).await
 }
 
-async fn wait_for_status_change(active_items: &HashMap<ThreadId, ActiveJobItem>) {
+async fn wait_for_status_change(active_items: &HashMap<ChatId, ActiveJobItem>) {
     let mut waiters = FuturesUnordered::new();
     for item in active_items.values() {
         if let Some(status_rx) = item.status_rx.as_ref() {
@@ -472,28 +472,28 @@ async fn reap_stale_active_items(
     session: Arc<Session>,
     db: Arc<datax_state::StateRuntime>,
     job_id: &str,
-    active_items: &mut HashMap<ThreadId, ActiveJobItem>,
+    active_items: &mut HashMap<ChatId, ActiveJobItem>,
     runtime_timeout: Duration,
 ) -> anyhow::Result<bool> {
     let mut stale = Vec::new();
-    for (thread_id, item) in active_items.iter() {
+    for (chat_id, item) in active_items.iter() {
         if item.started_at.elapsed() >= runtime_timeout {
-            stale.push((*thread_id, item.item_id.clone()));
+            stale.push((*chat_id, item.item_id.clone()));
         }
     }
     if stale.is_empty() {
         return Ok(false);
     }
-    for (thread_id, item_id) in stale {
+    for (chat_id, item_id) in stale {
         let error_message = format!("worker exceeded max runtime of {runtime_timeout:?}");
         db.mark_agent_job_item_failed(job_id, item_id.as_str(), error_message.as_str())
             .await?;
         let _ = session
             .services
             .agent_control
-            .shutdown_live_agent(thread_id)
+            .shutdown_live_agent(chat_id)
             .await;
-        active_items.remove(&thread_id);
+        active_items.remove(&chat_id);
     }
     Ok(true)
 }
@@ -503,7 +503,7 @@ async fn finalize_finished_item(
     db: Arc<datax_state::StateRuntime>,
     job_id: &str,
     item_id: &str,
-    thread_id: ThreadId,
+    chat_id: ChatId,
 ) -> anyhow::Result<()> {
     let item = db
         .get_agent_job_item(job_id, item_id)
@@ -527,7 +527,7 @@ async fn finalize_finished_item(
     let _ = session
         .services
         .agent_control
-        .shutdown_live_agent(thread_id)
+        .shutdown_live_agent(chat_id)
         .await;
     Ok(())
 }

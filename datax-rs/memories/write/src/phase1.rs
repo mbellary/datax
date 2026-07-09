@@ -164,7 +164,7 @@ async fn claim_startup_jobs(
     match state_db
         .memories()
         .claim_stage1_jobs_for_startup(
-            context.thread_id(),
+            context.chat_id(),
             datax_state::Stage1StartupClaimParams {
                 scan_limit: crate::stage_one::THREAD_SCAN_LIMIT,
                 max_claimed: memories_config.max_rollouts_per_startup,
@@ -328,16 +328,16 @@ mod job {
 
         pub(crate) async fn failed(
             context: &MemoryStartupContext,
-            thread_id: datax_protocol::ThreadId,
+            chat_id: datax_protocol::ChatId,
             ownership_token: &str,
             reason: &str,
         ) {
-            tracing::warn!("Phase 1 job failed for thread {thread_id}: {reason}");
+            tracing::warn!("Phase 1 job failed for thread {chat_id}: {reason}");
             if let Some(state_db) = context.state_db() {
                 let _ = state_db
                     .memories()
                     .mark_stage1_job_failed(
-                        thread_id,
+                        chat_id,
                         ownership_token,
                         reason,
                         crate::stage_one::JOB_RETRY_DELAY_SECONDS,
@@ -348,7 +348,7 @@ mod job {
 
         pub(crate) async fn no_output(
             context: &MemoryStartupContext,
-            thread_id: datax_protocol::ThreadId,
+            chat_id: datax_protocol::ChatId,
             ownership_token: &str,
         ) -> JobOutcome {
             let Some(state_db) = context.state_db() else {
@@ -357,7 +357,7 @@ mod job {
 
             if state_db
                 .memories()
-                .mark_stage1_job_succeeded_no_output(thread_id, ownership_token)
+                .mark_stage1_job_succeeded_no_output(chat_id, ownership_token)
                 .await
                 .unwrap_or(false)
             {
@@ -369,7 +369,7 @@ mod job {
 
         pub(crate) async fn success(
             context: &MemoryStartupContext,
-            thread_id: datax_protocol::ThreadId,
+            chat_id: datax_protocol::ChatId,
             ownership_token: &str,
             source_updated_at: i64,
             raw_memory: &str,
@@ -383,7 +383,7 @@ mod job {
             if state_db
                 .memories()
                 .mark_stage1_job_succeeded(
-                    thread_id,
+                    chat_id,
                     ownership_token,
                     source_updated_at,
                     raw_memory,

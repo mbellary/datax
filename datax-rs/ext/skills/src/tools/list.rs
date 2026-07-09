@@ -68,7 +68,7 @@ impl ToolExecutor<ToolCall> for ListTool {
         Box::pin(async move {
             let args: ListArgs = parse_args(&call)?;
             let authority = args.authority.into_authority();
-            let catalog = self.context.catalog(&call.turn_id, args.authority).await;
+            let catalog = self.context.catalog(&call.interaction_id, args.authority).await;
             let response = ListResponse {
                 skills: catalog
                     .entries

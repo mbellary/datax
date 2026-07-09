@@ -1,6 +1,6 @@
 use anyhow::Result;
 use datax_protocol::SessionId;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::GitInfo;
 use datax_protocol::protocol::SessionMeta;
@@ -120,7 +120,7 @@ pub fn create_fake_rollout_with_source(
     git_info: Option<GitInfo>,
     source: SessionSource,
 ) -> Result<String> {
-    create_fake_rollout_with_source_and_parent_thread_id(
+    create_fake_rollout_with_source_and_parent_chat_id(
         codex_home,
         filename_ts,
         meta_rfc3339,
@@ -144,9 +144,9 @@ pub fn create_fake_parented_rollout_with_source(
     git_info: Option<GitInfo>,
     source: SessionSource,
     session_id: SessionId,
-    parent_chat_id: ThreadId,
+    parent_chat_id: ChatId,
 ) -> Result<String> {
-    create_fake_rollout_with_source_and_parent_thread_id(
+    create_fake_rollout_with_source_and_parent_chat_id(
         codex_home,
         filename_ts,
         meta_rfc3339,
@@ -160,7 +160,7 @@ pub fn create_fake_parented_rollout_with_source(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn create_fake_rollout_with_source_and_parent_thread_id(
+fn create_fake_rollout_with_source_and_parent_chat_id(
     codex_home: &Path,
     filename_ts: &str,
     meta_rfc3339: &str,
@@ -169,11 +169,11 @@ fn create_fake_rollout_with_source_and_parent_thread_id(
     git_info: Option<GitInfo>,
     source: SessionSource,
     session_id: Option<SessionId>,
-    parent_chat_id: Option<ThreadId>,
+    parent_chat_id: Option<ChatId>,
 ) -> Result<String> {
     let uuid = Uuid::new_v4();
     let uuid_str = uuid.to_string();
-    let conversation_id = ThreadId::from_string(&uuid_str)?;
+    let conversation_id = ChatId::from_string(&uuid_str)?;
     let session_id = session_id.unwrap_or_else(|| conversation_id.into());
 
     let file_path = rollout_path(codex_home, filename_ts, &uuid_str);
@@ -187,7 +187,7 @@ fn create_fake_rollout_with_source_and_parent_thread_id(
         session_id,
         id: conversation_id,
         forked_from_id: None,
-        parent_thread_id: parent_chat_id,
+        parent_chat_id: parent_chat_id,
         timestamp: meta_rfc3339.to_string(),
         cwd: PathBuf::from("/"),
         originator: "codex".to_string(),
@@ -258,7 +258,7 @@ pub fn create_fake_rollout_with_text_elements(
 ) -> Result<String> {
     let uuid = Uuid::new_v4();
     let uuid_str = uuid.to_string();
-    let conversation_id = ThreadId::from_string(&uuid_str)?;
+    let conversation_id = ChatId::from_string(&uuid_str)?;
 
     // sessions/YYYY/MM/DD derived from filename_ts (YYYY-MM-DDThh-mm-ss)
     let year = &filename_ts[0..4];
@@ -274,7 +274,7 @@ pub fn create_fake_rollout_with_text_elements(
         session_id: conversation_id.into(),
         id: conversation_id,
         forked_from_id: None,
-        parent_thread_id: None,
+        parent_chat_id: None,
         timestamp: meta_rfc3339.to_string(),
         cwd: PathBuf::from("/"),
         originator: "codex".to_string(),

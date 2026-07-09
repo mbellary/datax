@@ -8,7 +8,7 @@ async fn forked_thread_history_line_without_name_shows_id_once_snapshot() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
     let forked_from_id =
-        ThreadId::from_string("019c2d47-4935-7423-a190-05691f566092").expect("forked id");
+        ChatId::from_string("019c2d47-4935-7423-a190-05691f566092").expect("forked id");
     chat.emit_forked_thread_event(forked_from_id, /*fork_parent_title*/ None);
 
     let history_cell = tokio::time::timeout(std::time::Duration::from_secs(2), async {
@@ -30,12 +30,12 @@ async fn forked_thread_history_line_without_name_shows_id_once_snapshot() {
 #[tokio::test]
 async fn suppressed_interrupted_turn_notice_skips_history_warning() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.set_interrupted_turn_notice_mode(InterruptedTurnNoticeMode::Suppress);
     chat.on_task_started();
     chat.on_agent_message_delta("partial output".to_string());
 
-    chat.on_interrupted_turn(TurnAbortReason::Interrupted);
+    chat.on_interrupted_turn(InteractionAbortReason::Interrupted);
 
     let inserted = drain_insert_history(&mut rx);
     assert!(
@@ -229,7 +229,7 @@ async fn slash_btw_is_rejected_before_the_session_starts() {
 #[tokio::test]
 async fn submit_user_message_as_plain_user_turn_does_not_run_shell_commands() {
     let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
 
     chat.submit_user_message_as_plain_user_turn("!echo hello".into());
 
@@ -250,8 +250,8 @@ async fn submit_user_message_as_plain_user_turn_does_not_run_shell_commands() {
 #[tokio::test]
 async fn slash_side_without_args_starts_empty_side_conversation() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let parent_thread_id = ThreadId::new();
-    chat.thread_id = Some(parent_thread_id);
+    let parent_chat_id = ChatId::new();
+    chat.chat_id = Some(parent_chat_id);
     chat.on_task_started();
     chat.bottom_pane
         .set_composer_text("/side".to_string(), Vec::new(), Vec::new());
@@ -261,9 +261,9 @@ async fn slash_side_without_args_starts_empty_side_conversation() {
     assert_matches!(
         rx.try_recv(),
         Ok(AppEvent::StartSide {
-            parent_thread_id: emitted_parent_thread_id,
+            parent_chat_id: emitted_parent_chat_id,
             user_message: None,
-        }) if emitted_parent_thread_id == parent_thread_id
+        }) if emitted_parent_chat_id == parent_chat_id
     );
     assert!(
         op_rx.try_recv().is_err(),
@@ -275,8 +275,8 @@ async fn slash_side_without_args_starts_empty_side_conversation() {
 #[tokio::test]
 async fn slash_btw_without_args_starts_empty_side_conversation() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let parent_thread_id = ThreadId::new();
-    chat.thread_id = Some(parent_thread_id);
+    let parent_chat_id = ChatId::new();
+    chat.chat_id = Some(parent_chat_id);
     chat.on_task_started();
     chat.bottom_pane
         .set_composer_text("/btw".to_string(), Vec::new(), Vec::new());
@@ -286,9 +286,9 @@ async fn slash_btw_without_args_starts_empty_side_conversation() {
     assert_matches!(
         rx.try_recv(),
         Ok(AppEvent::StartSide {
-            parent_thread_id: emitted_parent_thread_id,
+            parent_chat_id: emitted_parent_chat_id,
             user_message: None,
-        }) if emitted_parent_thread_id == parent_thread_id
+        }) if emitted_parent_chat_id == parent_chat_id
     );
     assert!(
         op_rx.try_recv().is_err(),
@@ -300,8 +300,8 @@ async fn slash_btw_without_args_starts_empty_side_conversation() {
 #[tokio::test]
 async fn slash_side_requests_forked_side_question_while_task_running() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let parent_thread_id = ThreadId::new();
-    chat.thread_id = Some(parent_thread_id);
+    let parent_chat_id = ChatId::new();
+    chat.chat_id = Some(parent_chat_id);
     chat.config.tui_status_line = Some(vec!["model-with-reasoning".to_string()]);
     chat.refresh_status_line();
     chat.on_task_started();
@@ -317,9 +317,9 @@ async fn slash_side_requests_forked_side_question_while_task_running() {
     assert_matches!(
         rx.try_recv(),
         Ok(AppEvent::StartSide {
-            parent_thread_id: emitted_parent_thread_id,
+            parent_chat_id: emitted_parent_chat_id,
             user_message: Some(user_message),
-        }) if emitted_parent_thread_id == parent_thread_id
+        }) if emitted_parent_chat_id == parent_chat_id
             && user_message
                 == UserMessage {
                     text: "explore the codebase".to_string(),
@@ -349,8 +349,8 @@ async fn slash_side_requests_forked_side_question_while_task_running() {
 #[tokio::test]
 async fn slash_btw_requests_forked_side_question_while_task_running() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let parent_thread_id = ThreadId::new();
-    chat.thread_id = Some(parent_thread_id);
+    let parent_chat_id = ChatId::new();
+    chat.chat_id = Some(parent_chat_id);
     chat.on_task_started();
     chat.bottom_pane.set_composer_text(
         "/btw explore the codebase".to_string(),
@@ -363,9 +363,9 @@ async fn slash_btw_requests_forked_side_question_while_task_running() {
     assert_matches!(
         rx.try_recv(),
         Ok(AppEvent::StartSide {
-            parent_thread_id: emitted_parent_thread_id,
+            parent_chat_id: emitted_parent_chat_id,
             user_message: Some(user_message),
-        }) if emitted_parent_thread_id == parent_thread_id
+        }) if emitted_parent_chat_id == parent_chat_id
             && user_message
                 == UserMessage {
                     text: "explore the codebase".to_string(),

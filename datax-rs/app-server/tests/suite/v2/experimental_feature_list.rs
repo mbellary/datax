@@ -227,7 +227,7 @@ memories = true
 }
 
 #[tokio::test]
-async fn experimental_feature_list_rejects_unknown_thread_id() -> Result<()> {
+async fn experimental_feature_list_rejects_unknown_chat_id() -> Result<()> {
     let codex_home = TempDir::new()?;
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;

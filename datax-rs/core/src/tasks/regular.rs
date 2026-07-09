@@ -8,7 +8,7 @@ use crate::session::turn_context::TurnContext;
 use crate::session_startup_prewarm::SessionStartupPrewarmResolution;
 use crate::state::TaskKind;
 use datax_protocol::protocol::EventMsg;
-use datax_protocol::protocol::TurnStartedEvent;
+use datax_protocol::protocol::InteractionStartedEvent;
 use tracing::Instrument;
 use tracing::trace_span;
 
@@ -44,11 +44,11 @@ impl SessionTask for RegularTask {
         let sess = session.clone_session();
         let turn_extension_data = session.turn_extension_data();
         let run_turn_span = trace_span!("run_turn");
-        // Regular turns emit `TurnStarted` inline so first-turn lifecycle does
+        // Regular turns emit `InteractionStarted` inline so first-turn lifecycle does
         // not wait on startup prewarm resolution.
         let prewarmed_client_session = async {
-            let event = EventMsg::TurnStarted(TurnStartedEvent {
-                turn_id: ctx.sub_id.clone(),
+            let event = EventMsg::InteractionStarted(InteractionStartedEvent {
+                interaction_id: ctx.sub_id.clone(),
                 trace_id: ctx.trace_id.clone(),
                 started_at: ctx.turn_timing_state.started_at_unix_secs().await,
                 model_context_window: ctx.model_context_window(),

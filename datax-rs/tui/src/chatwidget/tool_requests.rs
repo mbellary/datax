@@ -293,7 +293,7 @@ impl ChatWidget {
 
         let available_decisions = ev.effective_available_decisions();
         let request = ApprovalRequest::Exec {
-            thread_id: self.thread_id.unwrap_or_default(),
+            chat_id: self.chat_id.unwrap_or_default(),
             thread_label: None,
             id: ev.effective_approval_id(),
             environment_id: ev.environment_id,
@@ -316,7 +316,7 @@ impl ChatWidget {
         self.flush_answer_stream_with_separator();
 
         let request = ApprovalRequest::ApplyPatch {
-            thread_id: self.thread_id.unwrap_or_default(),
+            chat_id: self.chat_id.unwrap_or_default(),
             thread_label: None,
             id: ev.call_id,
             reason: ev.reason,
@@ -347,17 +347,17 @@ impl ChatWidget {
             server_name: params.server_name.clone(),
         });
 
-        let thread_id = ThreadId::from_string(&params.chat_id)
-            .unwrap_or_else(|_| self.thread_id.unwrap_or_default());
+        let chat_id = ChatId::from_string(&params.chat_id)
+            .unwrap_or_else(|_| self.chat_id.unwrap_or_default());
         if let Some(params) = crate::bottom_pane::AppLinkViewParams::from_url_app_server_request(
-            thread_id,
+            chat_id,
             &params.server_name,
             request_id.clone(),
             &params.request,
         ) {
             self.open_app_link_view(params);
         } else if let Some(request) = McpServerElicitationFormRequest::from_app_server_request(
-            thread_id,
+            chat_id,
             request_id.clone(),
             params.clone(),
         ) {
@@ -367,7 +367,7 @@ impl ChatWidget {
             match params.request {
                 McpServerElicitationRequest::Form { message, .. } => {
                     let request = ApprovalRequest::McpElicitation {
-                        thread_id,
+                        chat_id,
                         thread_label: None,
                         server_name: params.server_name,
                         request_id,
@@ -379,7 +379,7 @@ impl ChatWidget {
                 McpServerElicitationRequest::OpenAiForm { .. }
                 | McpServerElicitationRequest::Url { .. } => {
                     self.app_event_tx.resolve_elicitation(
-                        thread_id,
+                        chat_id,
                         params.server_name,
                         request_id,
                         datax_app_server_protocol::McpServerElicitationAction::Decline,
@@ -440,7 +440,7 @@ impl ChatWidget {
     pub(crate) fn handle_request_permissions_now(&mut self, ev: RequestPermissionsEvent) {
         self.flush_answer_stream_with_separator();
         let request = ApprovalRequest::Permissions {
-            thread_id: self.thread_id.unwrap_or_default(),
+            chat_id: self.chat_id.unwrap_or_default(),
             thread_label: None,
             call_id: ev.call_id,
             environment_id: ev.environment_id,

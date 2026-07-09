@@ -93,7 +93,7 @@ impl ToolExecutor<ToolInvocation> for CurrentTimeHandler {
                 .session
                 .services
                 .time_provider
-                .current_time(invocation.session.thread_id)
+                .current_time(invocation.session.chat_id)
                 .await
                 .map_err(|err| {
                     FunctionCallError::Fatal(format!("failed to read current time: {err:#}"))

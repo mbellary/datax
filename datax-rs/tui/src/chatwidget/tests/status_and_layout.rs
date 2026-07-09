@@ -1420,7 +1420,7 @@ fn assert_no_owner_nudge_or_rate_limit_refresh(
 #[tokio::test]
 async fn streaming_final_answer_keeps_task_running_state() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
 
     chat.on_task_started();
     chat.on_agent_message_delta("Final answer line\n".to_string());
@@ -1452,26 +1452,26 @@ async fn streaming_final_answer_keeps_task_running_state() {
 #[tokio::test]
 async fn ctrl_c_interrupt_pauses_active_goal_turn() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let thread_id = start_active_goal_turn(&mut chat);
+    let chat_id = start_active_goal_turn(&mut chat);
 
     chat.handle_key_event(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL));
 
     next_interrupt_op(&mut op_rx);
-    assert_goal_paused_event(&mut rx, thread_id);
+    assert_goal_paused_event(&mut rx, chat_id);
 }
 
 #[tokio::test]
 async fn esc_interrupt_pauses_active_goal_turn() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.show_welcome_banner = false;
-    let thread_id = start_active_goal_turn(&mut chat);
+    let chat_id = start_active_goal_turn(&mut chat);
 
     chat.handle_key_event(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
 
     assert_matches!(rx.try_recv(), Ok(AppEvent::CodexOp(Op::Interrupt { .. })));
-    assert_goal_paused_event(&mut rx, thread_id);
+    assert_goal_paused_event(&mut rx, chat_id);
 
-    update_thread_goal(&mut chat, thread_id, AppThreadGoalStatus::Paused);
+    update_thread_goal(&mut chat, chat_id, AppThreadGoalStatus::Paused);
     let width = 80;
     let height = chat.desired_height(width);
     let mut terminal = ratatui::Terminal::new(TestBackend::new(width, height)).expect("terminal");
@@ -1494,9 +1494,9 @@ async fn request_user_input_interrupt_pauses_active_goal_turn() {
         KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL),
     ] {
         let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-        let thread_id = start_active_goal_turn(&mut chat);
+        let chat_id = start_active_goal_turn(&mut chat);
         chat.handle_request_user_input_now(ToolRequestUserInputParams {
-            chat_id: thread_id.to_string(),
+            chat_id: chat_id.to_string(),
             message_id: "call-1".to_string(),
             interaction_id: "turn-1".to_string(),
             questions: Vec::new(),
@@ -1506,31 +1506,31 @@ async fn request_user_input_interrupt_pauses_active_goal_turn() {
         chat.handle_key_event(key_event);
 
         assert_matches!(rx.try_recv(), Ok(AppEvent::CodexOp(Op::Interrupt { .. })));
-        assert_goal_paused_event(&mut rx, thread_id);
+        assert_goal_paused_event(&mut rx, chat_id);
     }
 }
 
-fn start_active_goal_turn(chat: &mut ChatWidget) -> ThreadId {
-    let thread_id = ThreadId::new();
+fn start_active_goal_turn(chat: &mut ChatWidget) -> ChatId {
+    let chat_id = ChatId::new();
     chat.set_feature_enabled(Feature::Goals, /*enabled*/ true);
-    chat.thread_id = Some(thread_id);
-    update_thread_goal(chat, thread_id, AppThreadGoalStatus::Active);
+    chat.chat_id = Some(chat_id);
+    update_thread_goal(chat, chat_id, AppThreadGoalStatus::Active);
     chat.on_task_started();
-    thread_id
+    chat_id
 }
 
-fn update_thread_goal(chat: &mut ChatWidget, chat_id: ThreadId, status: AppThreadGoalStatus) {
+fn update_thread_goal(chat: &mut ChatWidget, chat_id: ChatId, status: AppThreadGoalStatus) {
     let mut goal = test_thread_goal(
         status,
         /*token_budget*/ Some(50_000),
         /*tokens_used*/ 40_000,
     );
-    let thread_id = chat_id.to_string();
-    goal.chat_id = thread_id.clone();
+    let chat_id = chat_id.to_string();
+    goal.chat_id = chat_id.clone();
     chat.handle_server_notification(
         ServerNotification::ChatGoalUpdated(
             datax_app_server_protocol::ChatGoalUpdatedNotification {
-                chat_id: thread_id,
+                chat_id: chat_id,
                 interaction_id: None,
                 goal,
             },
@@ -1541,14 +1541,14 @@ fn update_thread_goal(chat: &mut ChatWidget, chat_id: ThreadId, status: AppThrea
 
 fn assert_goal_paused_event(
     rx: &mut tokio::sync::mpsc::UnboundedReceiver<AppEvent>,
-    chat_id: ThreadId,
+    chat_id: ChatId,
 ) {
     assert_matches!(
         rx.try_recv(),
         Ok(AppEvent::SetThreadGoalStatus {
-            thread_id: event_thread_id,
+            chat_id: event_chat_id,
             status: AppThreadGoalStatus::Paused,
-        }) if event_thread_id == chat_id
+        }) if event_chat_id == chat_id
     );
 }
 
@@ -1574,7 +1574,7 @@ async fn idle_commit_ticks_do_not_restore_status_without_commentary_completion()
 #[tokio::test]
 async fn final_answer_completion_restores_status_indicator_for_pending_steer() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
 
     chat.on_task_started();
     assert_eq!(chat.bottom_pane.status_indicator_visible(), true);
@@ -1969,7 +1969,7 @@ async fn status_widget_and_approval_modal_snapshot() {
     let ev = ExecApprovalRequestEvent {
         call_id: "call-approve-exec".into(),
         approval_id: Some("call-approve-exec".into()),
-        turn_id: "turn-approve-exec".into(),
+        interaction_id: "turn-approve-exec".into(),
         environment_id: None,
         command: vec!["echo".into(), "hello world".into()],
         cwd: test_path_buf("/tmp").abs(),
@@ -2132,7 +2132,7 @@ async fn status_line_invalid_items_warn_once() {
         "lines_changed".to_string(),
         "bogus_item".to_string(),
     ]);
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
 
     chat.refresh_status_line();
     let cells = drain_insert_history(&mut rx);
@@ -2154,7 +2154,7 @@ async fn status_line_invalid_items_warn_once() {
 #[tokio::test]
 async fn status_line_context_used_renders_labeled_percent() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.config.tui_status_line = Some(vec!["context-used".to_string()]);
 
     chat.refresh_status_line();
@@ -2169,7 +2169,7 @@ async fn status_line_context_used_renders_labeled_percent() {
 #[tokio::test]
 async fn status_line_context_remaining_renders_labeled_percent() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.config.tui_status_line = Some(vec!["context-remaining".to_string()]);
 
     chat.refresh_status_line();
@@ -2187,7 +2187,7 @@ async fn status_line_context_remaining_renders_labeled_percent() {
 #[tokio::test]
 async fn status_line_legacy_context_usage_renders_context_used_percent() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.config.tui_status_line = Some(vec!["context-usage".to_string()]);
 
     chat.refresh_status_line();
@@ -2202,7 +2202,7 @@ async fn status_line_legacy_context_usage_renders_context_used_percent() {
 #[tokio::test]
 async fn status_line_workspace_headline_renders_cached_value() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.config.tui_status_line = Some(vec!["workspace-headline".to_string()]);
     chat.status_line_workspace_headline = Some("Workspace maintenance starts at 5pm".to_string());
 
@@ -2221,7 +2221,7 @@ async fn status_line_workspace_headline_renders_cached_value() {
 #[tokio::test]
 async fn status_line_workspace_headline_omits_when_unavailable() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.config.tui_status_line = Some(vec![
         "workspace-headline".to_string(),
         "run-state".to_string(),
@@ -2696,12 +2696,12 @@ async fn renamed_thread_footer_title_snapshot() {
     chat.set_reasoning_effort(Some(ReasoningEffortConfig::High));
     chat.refresh_status_line();
 
-    let thread_id = ThreadId::new();
-    chat.thread_id = Some(thread_id);
+    let chat_id = ChatId::new();
+    chat.chat_id = Some(chat_id);
     chat.handle_server_notification(
         ServerNotification::ChatNameUpdated(
             datax_app_server_protocol::ChatNameUpdatedNotification {
-                chat_id: thread_id.to_string(),
+                chat_id: chat_id.to_string(),
                 thread_name: Some("Roadmap cleanup".to_string()),
             },
         ),
@@ -2889,12 +2889,12 @@ async fn session_configured_clears_goal_status_footer() {
         })
     );
     chat.turn_lifecycle
-        .budget_limited_turn_ids
+        .budget_limited_interaction_ids
         .insert("turn-1".to_string());
 
     let rollout_file = NamedTempFile::new().unwrap();
     chat.handle_thread_session(crate::session_state::ThreadSessionState {
-        thread_id: ThreadId::new(),
+        chat_id: ChatId::new(),
         forked_from_id: None,
         fork_parent_title: None,
         thread_name: None,
@@ -2917,26 +2917,26 @@ async fn session_configured_clears_goal_status_footer() {
     });
 
     assert_eq!(chat.current_goal_status_indicator, None);
-    assert!(chat.turn_lifecycle.budget_limited_turn_ids.is_empty());
+    assert!(chat.turn_lifecycle.budget_limited_interaction_ids.is_empty());
 }
 
 #[tokio::test]
 async fn thread_goal_update_for_other_thread_is_ignored() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(Some("gpt-5.4")).await;
     chat.set_feature_enabled(Feature::Goals, /*enabled*/ true);
-    chat.thread_id = Some(ThreadId::new());
-    let other_thread_id = ThreadId::new().to_string();
+    chat.chat_id = Some(ChatId::new());
+    let other_chat_id = ChatId::new().to_string();
     let mut goal = test_thread_goal(
         datax_app_server_protocol::ChatGoalStatus::BudgetLimited,
         /*token_budget*/ Some(50_000),
         /*tokens_used*/ 50_000,
     );
-    goal.chat_id = other_thread_id.clone();
+    goal.chat_id = other_chat_id.clone();
 
     chat.handle_server_notification(
         ServerNotification::ChatGoalUpdated(
             datax_app_server_protocol::ChatGoalUpdatedNotification {
-                chat_id: other_thread_id,
+                chat_id: other_chat_id,
                 interaction_id: Some("turn-other".to_string()),
                 goal,
             },
@@ -2946,7 +2946,7 @@ async fn thread_goal_update_for_other_thread_is_ignored() {
 
     assert_eq!(chat.current_goal_status_indicator, None);
     assert!(chat.current_goal_status.is_none());
-    assert!(chat.turn_lifecycle.budget_limited_turn_ids.is_empty());
+    assert!(chat.turn_lifecycle.budget_limited_interaction_ids.is_empty());
 }
 
 #[test]
@@ -3233,7 +3233,7 @@ async fn user_prompt_submit_app_server_hook_notifications_render_snapshot() {
 
     chat.handle_server_notification(
         ServerNotification::HookStarted(AppServerHookStartedNotification {
-            chat_id: ThreadId::new().to_string(),
+            chat_id: ChatId::new().to_string(),
             interaction_id: Some("turn-1".to_string()),
             run: AppServerHookRunSummary {
                 id: "user-prompt-submit:0:/tmp/hooks.json".to_string(),
@@ -3256,7 +3256,7 @@ async fn user_prompt_submit_app_server_hook_notifications_render_snapshot() {
     );
     chat.handle_server_notification(
         ServerNotification::HookCompleted(AppServerHookCompletedNotification {
-            chat_id: ThreadId::new().to_string(),
+            chat_id: ChatId::new().to_string(),
             interaction_id: Some("turn-1".to_string()),
             run: AppServerHookRunSummary {
                 id: "user-prompt-submit:0:/tmp/hooks.json".to_string(),
@@ -4065,7 +4065,7 @@ printf 'fenced within fenced\n'
 #[tokio::test]
 async fn chatwidget_tall() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     handle_turn_started(&mut chat, "turn-1");
     for i in 0..30 {
         chat.queue_user_message(format!("Hello, world! {i}").into());

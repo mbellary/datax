@@ -10,7 +10,7 @@ impl ChatWidget {
         self.add_plain_history_lines(goal_summary_lines(&goal));
     }
 
-    pub(crate) fn show_goal_edit_prompt(&mut self, thread_id: ThreadId, goal: AppThreadGoal) {
+    pub(crate) fn show_goal_edit_prompt(&mut self, chat_id: ChatId, goal: AppThreadGoal) {
         let tx = self.app_event_tx.clone();
         let status = edited_goal_status(goal.status);
         let token_budget = goal.token_budget;
@@ -21,7 +21,7 @@ impl ChatWidget {
             /*context_label*/ None,
             Box::new(move |objective: String| {
                 tx.send(AppEvent::SetThreadGoalDraft {
-                    thread_id,
+                    chat_id,
                     draft: goal_files::GoalDraft {
                         objective,
                         ..Default::default()
@@ -38,12 +38,12 @@ impl ChatWidget {
 
     pub(crate) fn show_resume_paused_goal_prompt(
         &mut self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         objective: String,
     ) {
         let resume_actions: Vec<SelectionAction> = vec![Box::new(move |tx| {
             tx.send(AppEvent::SetThreadGoalStatus {
-                thread_id,
+                chat_id,
                 status: AppThreadGoalStatus::Active,
             });
         })];
@@ -71,10 +71,10 @@ impl ChatWidget {
         });
     }
 
-    pub(crate) fn on_thread_goal_cleared(&mut self, thread_id: &str) {
+    pub(crate) fn on_thread_goal_cleared(&mut self, chat_id: &str) {
         if self
-            .thread_id
-            .is_some_and(|active_thread_id| active_thread_id.to_string() == thread_id)
+            .chat_id
+            .is_some_and(|active_chat_id| active_chat_id.to_string() == chat_id)
         {
             self.current_goal_status = None;
             self.update_collaboration_mode_indicator();

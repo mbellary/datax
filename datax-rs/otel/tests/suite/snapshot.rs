@@ -5,7 +5,7 @@ use datax_otel::MetricsConfig;
 use datax_otel::Result;
 use datax_otel::SessionTelemetry;
 use datax_otel::TelemetryAuthMode;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::SessionSource;
 use opentelemetry_sdk::metrics::InMemoryMetricExporter;
 use opentelemetry_sdk::metrics::data::AggregatedMetrics;
@@ -70,7 +70,7 @@ fn manager_snapshot_metrics_collects_without_shutdown() -> Result<()> {
         .with_runtime_reader();
     let metrics = MetricsClient::new(config)?;
     let manager = SessionTelemetry::new(
-        ThreadId::new(),
+        ChatId::new(),
         "gpt-5.1",
         "gpt-5.1",
         Some("account-id".to_string()),

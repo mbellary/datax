@@ -183,10 +183,10 @@ pub struct GuardianAssessmentEvent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub target_item_id: Option<String>,
-    /// Turn ID that this assessment belongs to.
+    /// Interaction ID that this assessment belongs to.
     /// Uses `#[serde(default)]` for backwards compatibility.
-    #[serde(default)]
-    pub turn_id: String,
+    #[serde(default, alias = "turn_id")]
+    pub interaction_id: String,
     #[serde(default)]
     #[ts(type = "number")]
     pub started_at_ms: i64,
@@ -225,10 +225,10 @@ pub struct ExecApprovalRequestEvent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub approval_id: Option<String>,
-    /// Turn ID that this command belongs to.
+    /// Interaction ID that this command belongs to.
     /// Uses `#[serde(default)]` for backwards compatibility.
-    #[serde(default)]
-    pub turn_id: String,
+    #[serde(default, alias = "turn_id")]
+    pub interaction_id: String,
     /// Environment in which the command will run.
     #[serde(
         default,
@@ -373,10 +373,10 @@ impl ElicitationRequest {
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, JsonSchema, TS)]
 pub struct ElicitationRequestEvent {
-    /// Turn ID that this elicitation belongs to, when known.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Interaction ID that this elicitation belongs to, when known.
+    #[serde(default, alias = "turn_id", skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
-    pub turn_id: Option<String>,
+    pub interaction_id: Option<String>,
     pub server_name: String,
     #[ts(type = "string | number")]
     pub id: RequestId,
@@ -395,10 +395,10 @@ pub enum ElicitationAction {
 pub struct ApplyPatchApprovalRequestEvent {
     /// Responses API call id for the associated patch apply call, if available.
     pub call_id: String,
-    /// Turn ID that this patch belongs to.
+    /// Interaction ID that this patch belongs to.
     /// Uses `#[serde(default)]` for backwards compatibility with older senders.
-    #[serde(default)]
-    pub turn_id: String,
+    #[serde(default, alias = "turn_id")]
+    pub interaction_id: String,
     #[ts(type = "number")]
     pub started_at_ms: i64,
     pub changes: HashMap<PathBuf, FileChange>,

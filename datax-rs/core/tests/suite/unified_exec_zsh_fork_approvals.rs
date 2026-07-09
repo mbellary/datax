@@ -223,7 +223,7 @@ async fn unified_exec_zsh_fork_parent_approval_keeps_explicit_prompt_rule() -> R
         |event| {
             matches!(
                 event,
-                EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
+                EventMsg::ExecApprovalRequest(_) | EventMsg::InteractionComplete(_)
             )
         },
         Duration::from_secs(10),
@@ -441,7 +441,7 @@ async fn approve_exec(test: &TestCodex, approval_id: String) -> Result<()> {
     test.codex
         .submit(Op::ExecApproval {
             id: approval_id,
-            turn_id: None,
+            interaction_id: None,
             decision: ReviewDecision::Approved,
         })
         .await?;
@@ -518,7 +518,7 @@ async fn expect_exec_approval(
     let event = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
+            EventMsg::ExecApprovalRequest(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await;
@@ -536,7 +536,7 @@ async fn expect_exec_approval(
             );
             approval
         }
-        EventMsg::TurnComplete(_) => panic!("expected approval request before completion"),
+        EventMsg::InteractionComplete(_) => panic!("expected approval request before completion"),
         other => panic!("unexpected event: {other:?}"),
     }
 }
@@ -545,13 +545,13 @@ async fn wait_for_completion_without_approval(test: &TestCodex) {
     let event = wait_for_event(&test.codex, |event| {
         matches!(
             event,
-            EventMsg::ExecApprovalRequest(_) | EventMsg::TurnComplete(_)
+            EventMsg::ExecApprovalRequest(_) | EventMsg::InteractionComplete(_)
         )
     })
     .await;
 
     match event {
-        EventMsg::TurnComplete(_) => {}
+        EventMsg::InteractionComplete(_) => {}
         EventMsg::ExecApprovalRequest(event) => {
             panic!("unexpected approval request: {:?}", event.command)
         }
@@ -561,7 +561,7 @@ async fn wait_for_completion_without_approval(test: &TestCodex) {
 
 async fn wait_for_completion(test: &TestCodex) {
     wait_for_event(&test.codex, |event| {
-        matches!(event, EventMsg::TurnComplete(_))
+        matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
 }

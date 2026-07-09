@@ -16,7 +16,7 @@ use serde_json::Value as JsonValue;
 use serde_json::json;
 use tracing::warn;
 
-use crate::model::AgentThreadId;
+use crate::model::AgentChatId;
 use crate::model::CodeModeRuntimeToolId;
 use crate::model::CodexTurnId;
 use crate::model::ExecutionStatus;
@@ -46,15 +46,15 @@ enum ToolDispatchTraceContextState {
 #[derive(Clone, Debug)]
 struct EnabledToolDispatchTraceContext {
     writer: Arc<TraceWriter>,
-    thread_id: AgentThreadId,
-    codex_turn_id: CodexTurnId,
+    chat_id: AgentChatId,
+    codex_interaction_id: CodexTurnId,
     tool_call_id: ToolCallId,
 }
 
 /// Core-facing request data for the canonical Codex tool boundary.
 pub struct ToolDispatchInvocation {
-    pub thread_id: AgentThreadId,
-    pub codex_turn_id: CodexTurnId,
+    pub chat_id: AgentChatId,
+    pub codex_interaction_id: CodexTurnId,
     pub tool_call_id: ToolCallId,
     pub tool_name: String,
     pub tool_namespace: Option<String>,
@@ -150,8 +150,8 @@ impl ToolDispatchTraceContext {
 
         let context = EnabledToolDispatchTraceContext {
             writer,
-            thread_id: invocation.thread_id.clone(),
-            codex_turn_id: invocation.codex_turn_id.clone(),
+            chat_id: invocation.chat_id.clone(),
+            codex_interaction_id: invocation.codex_interaction_id.clone(),
             tool_call_id: invocation.tool_call_id.clone(),
         };
         record_started(&context, invocation);
@@ -379,8 +379,8 @@ fn append_with_context_best_effort(
     payload: RawTraceEventPayload,
 ) {
     let event_context = RawTraceEventContext {
-        thread_id: Some(context.thread_id.clone()),
-        codex_turn_id: Some(context.codex_turn_id.clone()),
+        chat_id: Some(context.chat_id.clone()),
+        codex_interaction_id: Some(context.codex_interaction_id.clone()),
     };
     if let Err(err) = context.writer.append_with_context(event_context, payload) {
         warn!("failed to append rollout trace event: {err:#}");
@@ -445,8 +445,8 @@ mod tests {
         payload: ToolDispatchPayload,
     ) -> ToolDispatchInvocation {
         ToolDispatchInvocation {
-            thread_id: "thread-1".to_string(),
-            codex_turn_id: "turn-1".to_string(),
+            chat_id: "thread-1".to_string(),
+            codex_interaction_id: "turn-1".to_string(),
             tool_call_id: "tool-call-1".to_string(),
             tool_name: tool_name.to_string(),
             tool_namespace,

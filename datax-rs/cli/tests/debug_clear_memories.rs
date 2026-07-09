@@ -21,7 +21,7 @@ async fn debug_clear_memories_resets_state_and_removes_memory_dir() -> Result<()
         StateRuntime::init(codex_home.path().to_path_buf(), "test-provider".to_string()).await?;
     drop(runtime);
 
-    let thread_id = "00000000-0000-0000-0000-000000000123";
+    let chat_id = "00000000-0000-0000-0000-000000000123";
     let db_path = state_db_path(codex_home.path());
     let pool = SqlitePool::connect(&format!("sqlite://{}", db_path.display())).await?;
     let memories_db_path = memories_db_path(codex_home.path());
@@ -55,7 +55,7 @@ INSERT INTO threads (
 ) VALUES (?, ?, 1, 1, 'cli', NULL, NULL, 'test-provider', ?, '', '', 'read-only', 'on-request', 0, '', 0, NULL, NULL, NULL, NULL, 'enabled')
         "#,
     )
-    .bind(thread_id)
+    .bind(chat_id)
     .bind(codex_home.path().join("session.jsonl").display().to_string())
     .bind(codex_home.path().display().to_string())
     .execute(&pool)
@@ -64,7 +64,7 @@ INSERT INTO threads (
     sqlx::query(
         r#"
 INSERT INTO stage1_outputs (
-    thread_id,
+    chat_id,
     source_updated_at,
     raw_memory,
     rollout_summary,
@@ -77,7 +77,7 @@ INSERT INTO stage1_outputs (
 ) VALUES (?, 1, 'raw', 'summary', 1, NULL, 0, NULL, 0, NULL)
         "#,
     )
-    .bind(thread_id)
+    .bind(chat_id)
     .execute(&memories_pool)
     .await?;
 
@@ -102,7 +102,7 @@ INSERT INTO jobs (
     ('memory_consolidate_global', 'global', 'completed', NULL, NULL, NULL, NULL, NULL, NULL, 3, NULL, NULL, 1)
         "#,
     )
-    .bind(thread_id)
+    .bind(chat_id)
     .execute(&memories_pool)
     .await?;
 
@@ -152,7 +152,7 @@ async fn debug_clear_memories_resets_memories_db_without_state_db() -> Result<()
     sqlx::query(
         r#"
 INSERT INTO stage1_outputs (
-    thread_id,
+    chat_id,
     source_updated_at,
     raw_memory,
     rollout_summary,

@@ -140,16 +140,16 @@ async fn run_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
     );
 
     let NewThread {
-        thread_id, thread, ..
+        chat_id, thread, ..
     } = thread_manager
         .start_thread(config)
         .await
         .context("start Codex thread")?;
 
-    let thread_id_string = thread_id.to_string();
-    let turn_output = run_turn(&thread, &thread_id_string, prompt).await;
+    let chat_id_string = chat_id.to_string();
+    let turn_output = run_turn(&thread, &chat_id_string, prompt).await;
     let shutdown_result = thread.shutdown_and_wait().await;
-    let _ = thread_manager.remove_thread(&thread_id).await;
+    let _ = thread_manager.remove_thread(&chat_id).await;
 
     turn_output?;
     shutdown_result.context("shut down Codex thread")?;
@@ -301,7 +301,7 @@ fn new_config(model: Option<String>, arg0_paths: Arg0DispatchPaths) -> anyhow::R
     Ok(config)
 }
 
-async fn run_turn(thread: &CodexThread, thread_id: &str, prompt: String) -> anyhow::Result<()> {
+async fn run_turn(thread: &CodexThread, chat_id: &str, prompt: String) -> anyhow::Result<()> {
     thread
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
@@ -316,13 +316,13 @@ async fn run_turn(thread: &CodexThread, thread_id: &str, prompt: String) -> anyh
         .await
         .context("submit user input")?;
 
-    let mut current_turn_id: Option<String> = None;
+    let mut current_interaction_id: Option<String> = None;
     let mut stdout = std::io::stdout().lock();
     loop {
         let event = thread.next_event().await.context("read Codex event")?;
         let notification = match &event.msg {
-            EventMsg::TurnStarted(event) => {
-                current_turn_id = Some(event.turn_id.clone());
+            EventMsg::InteractionStarted(event) => {
+                current_interaction_id = Some(event.interaction_id.clone());
                 None
             }
             EventMsg::DynamicToolCallResponse(_)
@@ -353,8 +353,8 @@ async fn run_turn(thread: &CodexThread, thread_id: &str, prompt: String) -> anyh
             | EventMsg::ExecCommandOutputDelta(_)
             | EventMsg::ExecCommandEnd(_) => Some(item_event_to_server_notification(
                 event.msg.clone(),
-                thread_id,
-                current_turn_id
+                chat_id,
+                current_interaction_id
                     .as_deref()
                     .context("mapped notification arrived before turn started")?,
             )),
@@ -370,13 +370,13 @@ async fn run_turn(thread: &CodexThread, thread_id: &str, prompt: String) -> anyh
         }
 
         match event.msg {
-            EventMsg::TurnComplete(_) => {
+            EventMsg::InteractionComplete(_) => {
                 return Ok(());
             }
             EventMsg::Error(event) => {
                 bail!(event.message);
             }
-            EventMsg::TurnAborted(_) => {
+            EventMsg::InteractionAborted(_) => {
                 bail!("turn aborted");
             }
             EventMsg::ExecApprovalRequest(_) => {

@@ -91,16 +91,16 @@ pub(crate) async fn execute_handlers<T>(
     handlers: Vec<ConfiguredHandler>,
     input_json: String,
     cwd: &Path,
-    turn_id: Option<String>,
+    interaction_id: Option<String>,
     parse: fn(&ConfiguredHandler, CommandRunResult, Option<String>) -> ParsedHandler<T>,
 ) -> Vec<ParsedHandler<T>> {
     let mut pending = FuturesUnordered::new();
     for (configured_order, handler) in handlers.into_iter().enumerate() {
         let input_json = input_json.clone();
-        let turn_id = turn_id.clone();
+        let interaction_id = interaction_id.clone();
         pending.push(async move {
             let result = run_command(shell, &handler, &input_json, cwd).await;
-            (configured_order, parse(&handler, result, turn_id))
+            (configured_order, parse(&handler, result, interaction_id))
         });
     }
 

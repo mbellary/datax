@@ -20,7 +20,7 @@ use datax_model_provider::create_model_provider;
 use datax_otel::SessionTelemetry;
 use datax_otel::TelemetryAuthMode;
 use datax_protocol::SessionId;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::ReasoningSummary;
 use datax_protocol::openai_models::ModelInfo;
 use datax_protocol::openai_models::ReasoningEffort;
@@ -39,7 +39,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 pub(crate) struct SpawnedConsolidationAgent {
-    pub(crate) thread_id: ThreadId,
+    pub(crate) chat_id: ChatId,
     pub(crate) thread: Arc<CodexThread>,
 }
 
@@ -67,7 +67,7 @@ impl StageOneRequestContext {
 }
 
 pub(crate) struct MemoryStartupContext {
-    thread_id: ThreadId,
+    chat_id: ChatId,
     thread: Arc<CodexThread>,
     thread_manager: Arc<ThreadManager>,
     auth_manager: Arc<AuthManager>,
@@ -79,7 +79,7 @@ impl MemoryStartupContext {
     pub(crate) fn new(
         thread_manager: Arc<ThreadManager>,
         auth_manager: Arc<AuthManager>,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         thread: Arc<CodexThread>,
         config: &Config,
         source: SessionSource,
@@ -91,7 +91,7 @@ impl MemoryStartupContext {
         Self::new_with_provider(
             thread_manager,
             auth_manager,
-            thread_id,
+            chat_id,
             thread,
             config,
             source,
@@ -103,7 +103,7 @@ impl MemoryStartupContext {
     pub(crate) fn new_for_testing(
         thread_manager: Arc<ThreadManager>,
         auth_manager: Arc<AuthManager>,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         thread: Arc<CodexThread>,
         config: &Config,
         source: SessionSource,
@@ -112,7 +112,7 @@ impl MemoryStartupContext {
         Self::new_with_provider(
             thread_manager,
             auth_manager,
-            thread_id,
+            chat_id,
             thread,
             config,
             source,
@@ -123,7 +123,7 @@ impl MemoryStartupContext {
     fn new_with_provider(
         thread_manager: Arc<ThreadManager>,
         auth_manager: Arc<AuthManager>,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         thread: Arc<CodexThread>,
         config: &Config,
         source: SessionSource,
@@ -140,7 +140,7 @@ impl MemoryStartupContext {
             auth_manager.codex_api_key_env_enabled(),
         );
         let session_telemetry = SessionTelemetry::new(
-            thread_id,
+            chat_id,
             model,
             model,
             account_id,
@@ -154,7 +154,7 @@ impl MemoryStartupContext {
         .with_auth_env(auth_env_telemetry.to_otel_metadata());
 
         Self {
-            thread_id,
+            chat_id,
             thread,
             thread_manager,
             auth_manager,
@@ -163,8 +163,8 @@ impl MemoryStartupContext {
         }
     }
 
-    pub(crate) fn thread_id(&self) -> ThreadId {
-        self.thread_id
+    pub(crate) fn chat_id(&self) -> ChatId {
+        self.chat_id
     }
 
     pub(crate) fn state_db(&self) -> Option<Arc<StateRuntime>> {
@@ -224,11 +224,11 @@ impl MemoryStartupContext {
         let installation_id = resolve_installation_id(&config.codex_home).await?;
         let config_snapshot = self.thread.config_snapshot().await;
         let session_source = config_snapshot.session_source;
-        let session_id = SessionId::from(self.thread_id);
+        let session_id = SessionId::from(self.chat_id);
         let session_id_string = session_id.to_string();
         let model_client = ModelClient::new(
             Some(Arc::clone(&self.auth_manager)),
-            self.thread_id,
+            self.chat_id,
             config.model_provider.clone(),
             session_source.clone(),
             config.model_verbosity,
@@ -240,11 +240,11 @@ impl MemoryStartupContext {
         );
 
         let mut client_session = model_client.new_session();
-        let window_id = format!("{}:0", self.thread_id);
+        let window_id = format!("{}:0", self.chat_id);
         let responses_metadata = detached_memory_responses_metadata(
             installation_id,
             session_id_string,
-            self.thread_id.to_string(),
+            self.chat_id.to_string(),
             window_id,
             &session_source,
             &config.cwd,
@@ -299,7 +299,7 @@ impl MemoryStartupContext {
             .thread_manager
             .default_environment_selections(&config.cwd);
         let NewThread {
-            thread_id, thread, ..
+            chat_id, thread, ..
         } = self
             .thread_manager
             .start_thread_with_options(StartThreadOptions {
@@ -318,7 +318,7 @@ impl MemoryStartupContext {
             })
             .await?;
 
-        let agent = SpawnedConsolidationAgent { thread_id, thread };
+        let agent = SpawnedConsolidationAgent { chat_id, thread };
         if let Err(err) = agent
             .thread
             .submit(Op::UserInput {
@@ -345,17 +345,17 @@ impl MemoryStartupContext {
         &self,
         agent: SpawnedConsolidationAgent,
     ) -> anyhow::Result<()> {
-        let SpawnedConsolidationAgent { thread_id, thread } = agent;
+        let SpawnedConsolidationAgent { chat_id, thread } = agent;
         let thread = self
             .thread_manager
-            .remove_thread(&thread_id)
+            .remove_thread(&chat_id)
             .await
             .unwrap_or(thread);
 
         tokio::time::timeout(Duration::from_secs(10), thread.shutdown_and_wait())
             .await
             .map_err(|_| {
-                anyhow::anyhow!("memory consolidation agent {thread_id} shutdown timed out")
+                anyhow::anyhow!("memory consolidation agent {chat_id} shutdown timed out")
             })??;
 
         Ok(())

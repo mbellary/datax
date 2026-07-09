@@ -282,7 +282,7 @@ impl ConfigRequestProcessor {
                 return;
             }
         };
-        let chat_ids = self.thread_manager.list_thread_ids().await;
+        let chat_ids = self.thread_manager.list_chat_ids().await;
         for chat_id in chat_ids {
             let Ok(thread) = self.thread_manager.get_thread(chat_id).await else {
                 continue;

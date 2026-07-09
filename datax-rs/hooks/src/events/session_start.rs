@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::HookCompletedEvent;
 use datax_protocol::protocol::HookEventName;
 use datax_protocol::protocol::HookOutputEntry;
@@ -40,7 +40,7 @@ impl SessionStartSource {
 
 #[derive(Debug, Clone)]
 pub struct SessionStartRequest {
-    pub session_id: ThreadId,
+    pub session_id: ChatId,
     pub cwd: AbsolutePathBuf,
     pub transcript_path: Option<PathBuf>,
     pub model: String,
@@ -54,7 +54,7 @@ pub enum StartHookTarget {
         source: SessionStartSource,
     },
     SubagentStart {
-        turn_id: String,
+        interaction_id: String,
         agent_id: String,
         agent_type: String,
     },
@@ -109,7 +109,7 @@ pub(crate) async fn run(
     handlers: &[ConfiguredHandler],
     shell: &CommandShell,
     request: SessionStartRequest,
-    turn_id: Option<String>,
+    interaction_id: Option<String>,
 ) -> SessionStartOutcome {
     let matched = dispatcher::select_handlers(
         handlers,
@@ -125,7 +125,7 @@ pub(crate) async fn run(
         };
     }
 
-    let (input_json, turn_id) = match request.target {
+    let (input_json, interaction_id) = match request.target {
         StartHookTarget::SessionStart { source } => {
             let input_json = match serde_json::to_string(&SessionStartCommandInput::new(
                 request.session_id.to_string(),
@@ -140,22 +140,22 @@ pub(crate) async fn run(
                     return serialization_failure_outcome(
                         common::serialization_failure_hook_events(
                             matched,
-                            turn_id,
+                            interaction_id,
                             format!("failed to serialize session start hook input: {error}"),
                         ),
                     );
                 }
             };
-            (input_json, turn_id)
+            (input_json, interaction_id)
         }
         StartHookTarget::SubagentStart {
-            turn_id: subagent_turn_id,
+            interaction_id: subagent_interaction_id,
             agent_id,
             agent_type,
         } => {
             let input = SubagentStartCommandInput {
                 session_id: request.session_id.to_string(),
-                turn_id: subagent_turn_id.clone(),
+                interaction_id: subagent_interaction_id.clone(),
                 transcript_path: NullableString::from_path(request.transcript_path.clone()),
                 cwd: request.cwd.display().to_string(),
                 hook_event_name: "SubagentStart".to_string(),
@@ -170,13 +170,13 @@ pub(crate) async fn run(
                     return serialization_failure_outcome(
                         common::serialization_failure_hook_events(
                             matched,
-                            Some(subagent_turn_id),
+                            Some(subagent_interaction_id),
                             format!("failed to serialize subagent start hook input: {error}"),
                         ),
                     );
                 }
             };
-            (input_json, Some(subagent_turn_id))
+            (input_json, Some(subagent_interaction_id))
         }
     };
 
@@ -185,7 +185,7 @@ pub(crate) async fn run(
         matched,
         input_json,
         request.cwd.as_path(),
-        turn_id,
+        interaction_id,
         parse_completed,
     )
     .await;
@@ -217,7 +217,7 @@ pub(crate) async fn run(
 fn parse_completed(
     handler: &ConfiguredHandler,
     run_result: CommandRunResult,
-    turn_id: Option<String>,
+    interaction_id: Option<String>,
 ) -> dispatcher::ParsedHandler<SessionStartHandlerData> {
     let mut entries = Vec::new();
     let mut status = HookRunStatus::Completed;
@@ -319,7 +319,7 @@ fn parse_completed(
     }
 
     let completed = HookCompletedEvent {
-        turn_id,
+        interaction_id,
         run: dispatcher::completed_summary(handler, &run_result, status, entries),
     };
 
@@ -363,7 +363,7 @@ mod tests {
         let parsed = parse_completed(
             &handler(),
             run_result(Some(0), "hello from hook\n", ""),
-            /*turn_id*/ None,
+            /*interaction_id*/ None,
         );
 
         assert_eq!(
@@ -393,7 +393,7 @@ mod tests {
                 r#"{"continue":false,"stopReason":"pause","hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"do not inject"}}"#,
                 "",
             ),
-            /*turn_id*/ None,
+            /*interaction_id*/ None,
         );
 
         assert_eq!(
@@ -429,7 +429,7 @@ mod tests {
                 r#"{"hookSpecificOutput":{"hookEventName":"SessionStart""#,
                 "",
             ),
-            /*turn_id*/ None,
+            /*interaction_id*/ None,
         );
 
         assert_eq!(
@@ -455,7 +455,7 @@ mod tests {
         let parsed = parse_completed(
             &handler_for(HookEventName::SubagentStart),
             run_result(Some(0), "hello from subagent hook\n", ""),
-            /*turn_id*/ Some("turn-1".to_string()),
+            /*interaction_id*/ Some("turn-1".to_string()),
         );
 
         assert_eq!(
@@ -466,7 +466,7 @@ mod tests {
                 additional_contexts_for_model: vec!["hello from subagent hook".to_string()],
             }
         );
-        assert_eq!(parsed.completed.turn_id.as_deref(), Some("turn-1"));
+        assert_eq!(parsed.completed.interaction_id.as_deref(), Some("turn-1"));
         assert_eq!(parsed.completed.run.status, HookRunStatus::Completed);
         assert_eq!(
             parsed.completed.run.entries,
@@ -486,7 +486,7 @@ mod tests {
                 r#"{"continue":false,"stopReason":"skip child","hookSpecificOutput":{"hookEventName":"SubagentStart","additionalContext":"child context"}}"#,
                 "",
             ),
-            /*turn_id*/ Some("turn-1".to_string()),
+            /*interaction_id*/ Some("turn-1".to_string()),
         );
 
         assert_eq!(
@@ -497,7 +497,7 @@ mod tests {
                 additional_contexts_for_model: vec!["child context".to_string()],
             }
         );
-        assert_eq!(parsed.completed.turn_id.as_deref(), Some("turn-1"));
+        assert_eq!(parsed.completed.interaction_id.as_deref(), Some("turn-1"));
         assert_eq!(parsed.completed.run.status, HookRunStatus::Completed);
         assert_eq!(
             parsed.completed.run.entries,

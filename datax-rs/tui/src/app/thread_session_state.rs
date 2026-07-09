@@ -3,13 +3,13 @@ use crate::session_resume::read_session_model;
 use crate::session_state::ThreadSessionState;
 use datax_app_server_protocol::AskForApproval;
 use datax_app_server_protocol::Chat;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::models::ActivePermissionProfile;
 use datax_protocol::models::PermissionProfile;
 
 impl App {
     pub(super) async fn sync_active_thread_service_tier_to_cached_session(&mut self) {
-        let Some(active_thread_id) = self.active_thread_id else {
+        let Some(active_chat_id) = self.active_chat_id else {
             return;
         };
 
@@ -18,13 +18,13 @@ impl App {
             session.service_tier = service_tier.clone();
         };
 
-        if self.primary_thread_id == Some(active_thread_id)
+        if self.primary_chat_id == Some(active_chat_id)
             && let Some(session) = self.primary_session_configured.as_mut()
         {
             update_session(session);
         }
 
-        if let Some(channel) = self.thread_event_channels.get(&active_thread_id) {
+        if let Some(channel) = self.thread_event_channels.get(&active_chat_id) {
             let mut store = channel.store.lock().await;
             if let Some(session) = store.session.as_mut() {
                 update_session(session);
@@ -33,7 +33,7 @@ impl App {
     }
 
     pub(super) async fn sync_active_thread_permission_settings_to_cached_session(&mut self) {
-        let Some(active_thread_id) = self.active_thread_id else {
+        let Some(active_chat_id) = self.active_chat_id else {
             return;
         };
 
@@ -57,13 +57,13 @@ impl App {
             session.active_permission_profile = active_permission_profile.clone();
         };
 
-        if self.primary_thread_id == Some(active_thread_id)
+        if self.primary_chat_id == Some(active_chat_id)
             && let Some(session) = self.primary_session_configured.as_mut()
         {
             update_session(session);
         }
 
-        if let Some(channel) = self.thread_event_channels.get(&active_thread_id) {
+        if let Some(channel) = self.thread_event_channels.get(&active_chat_id) {
             let mut store = channel.store.lock().await;
             if let Some(session) = store.session.as_mut() {
                 update_session(session);
@@ -73,13 +73,13 @@ impl App {
 
     pub(super) async fn session_state_for_thread_read(
         &self,
-        thread_id: ThreadId,
+        chat_id: ChatId,
         thread: &Chat,
     ) -> ThreadSessionState {
         let permission_profile = self.current_permission_profile();
         let active_permission_profile = self.current_active_permission_profile();
         let mut session = if let Some(mut session) = self.primary_session_configured.clone() {
-            if session.thread_id != thread_id {
+            if session.chat_id != chat_id {
                 // `thread/read` does not include thread settings, so do not carry
                 // thread-scoped state from the currently active session.
                 session.collaboration_mode = None;
@@ -88,7 +88,7 @@ impl App {
             session
         } else {
             ThreadSessionState {
-                thread_id,
+                chat_id,
                 forked_from_id: None,
                 fork_parent_title: None,
                 thread_name: None,
@@ -112,7 +112,7 @@ impl App {
                 rollout_path: thread.path.clone(),
             }
         };
-        session.thread_id = thread_id;
+        session.chat_id = chat_id;
         session.thread_name = thread.name.clone();
         session.model_provider_id = thread.model_provider.clone();
         session.set_cwd_retargeting_implicit_runtime_workspace_root(thread.cwd.clone());
@@ -121,7 +121,7 @@ impl App {
         session.instruction_source_paths = Vec::new();
         session.rollout_path = thread.path.clone();
         if let Some(model) =
-            read_session_model(self.state_db.as_deref(), thread_id, thread.path.as_deref()).await
+            read_session_model(self.state_db.as_deref(), chat_id, thread.path.as_deref()).await
         {
             session.model = model;
         } else if thread.path.is_some() {
@@ -170,9 +170,9 @@ mod tests {
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
 
-    fn test_thread_session(thread_id: ThreadId, cwd: PathBuf) -> ThreadSessionState {
+    fn test_thread_session(chat_id: ChatId, cwd: PathBuf) -> ThreadSessionState {
         ThreadSessionState {
-            thread_id,
+            chat_id,
             forked_from_id: None,
             fork_parent_title: None,
             thread_name: None,
@@ -198,22 +198,22 @@ mod tests {
     #[tokio::test]
     async fn permission_settings_sync_updates_active_snapshot_without_rewriting_side_thread() {
         let mut app = make_test_app().await;
-        let main_thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000401").expect("valid thread");
-        let side_thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000402").expect("valid thread");
-        let main_session = test_thread_session(main_thread_id, test_path_buf("/tmp/main"));
+        let main_chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000401").expect("valid thread");
+        let side_chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000402").expect("valid thread");
+        let main_session = test_thread_session(main_chat_id, test_path_buf("/tmp/main"));
         let side_session = ThreadSessionState {
             approval_policy: AskForApproval::OnRequest,
             permission_profile: PermissionProfile::workspace_write(),
-            ..test_thread_session(side_thread_id, test_path_buf("/tmp/side"))
+            ..test_thread_session(side_chat_id, test_path_buf("/tmp/side"))
         };
 
-        app.primary_thread_id = Some(main_thread_id);
-        app.active_thread_id = Some(main_thread_id);
+        app.primary_chat_id = Some(main_chat_id);
+        app.active_chat_id = Some(main_chat_id);
         app.primary_session_configured = Some(main_session.clone());
         app.thread_event_channels.insert(
-            main_thread_id,
+            main_chat_id,
             ThreadEventChannel::new_with_session(
                 /*capacity*/ 4,
                 main_session.clone(),
@@ -221,7 +221,7 @@ mod tests {
             ),
         );
         app.thread_event_channels.insert(
-            side_thread_id,
+            side_chat_id,
             ThreadEventChannel::new_with_session(
                 /*capacity*/ 4,
                 side_session.clone(),
@@ -229,7 +229,7 @@ mod tests {
             ),
         );
         app.side_threads
-            .insert(side_thread_id, SideThreadState::new(main_thread_id));
+            .insert(side_chat_id, SideThreadState::new(main_chat_id));
         app.config.permissions.approval_policy =
             datax_config::Constrained::allow_any(AskForApproval::OnRequest.to_core());
         app.config.approvals_reviewer = ApprovalsReviewer::AutoReview;
@@ -265,7 +265,7 @@ mod tests {
 
         let main_store_session = app
             .thread_event_channels
-            .get(&main_thread_id)
+            .get(&main_chat_id)
             .expect("main thread channel")
             .store
             .lock()
@@ -276,7 +276,7 @@ mod tests {
 
         let side_store_session = app
             .thread_event_channels
-            .get(&side_thread_id)
+            .get(&side_chat_id)
             .expect("side thread channel")
             .store
             .lock()
@@ -289,8 +289,8 @@ mod tests {
     #[tokio::test]
     async fn permission_settings_sync_preserves_active_profile_only_rules() {
         let mut app = make_test_app().await;
-        let thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000403").expect("valid thread");
+        let chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000403").expect("valid thread");
         let profile: PermissionProfile = PermissionProfile::Managed {
             network: NetworkSandboxPolicy::Restricted,
             file_system: ManagedFileSystemPermissions::Restricted {
@@ -313,14 +313,14 @@ mod tests {
         };
         let session = ThreadSessionState {
             permission_profile: profile.clone(),
-            ..test_thread_session(thread_id, test_path_buf("/tmp/main"))
+            ..test_thread_session(chat_id, test_path_buf("/tmp/main"))
         };
 
-        app.primary_thread_id = Some(thread_id);
-        app.active_thread_id = Some(thread_id);
+        app.primary_chat_id = Some(chat_id);
+        app.active_chat_id = Some(chat_id);
         app.primary_session_configured = Some(session.clone());
         app.thread_event_channels.insert(
-            thread_id,
+            chat_id,
             ThreadEventChannel::new_with_session(/*capacity*/ 4, session.clone(), Vec::new()),
         );
         app.chat_widget.handle_thread_session(session.clone());
@@ -342,7 +342,7 @@ mod tests {
 
         let store_session = app
             .thread_event_channels
-            .get(&thread_id)
+            .get(&chat_id)
             .expect("thread channel")
             .store
             .lock()
@@ -355,18 +355,18 @@ mod tests {
     #[tokio::test]
     async fn service_tier_sync_updates_active_cached_session() {
         let mut app = make_test_app().await;
-        let thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000406").expect("valid thread");
+        let chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000406").expect("valid thread");
         let session = ThreadSessionState {
             service_tier: Some(ServiceTier::Fast.request_value().to_string()),
-            ..test_thread_session(thread_id, test_path_buf("/tmp/main"))
+            ..test_thread_session(chat_id, test_path_buf("/tmp/main"))
         };
 
-        app.primary_thread_id = Some(thread_id);
-        app.active_thread_id = Some(thread_id);
+        app.primary_chat_id = Some(chat_id);
+        app.active_chat_id = Some(chat_id);
         app.primary_session_configured = Some(session.clone());
         app.thread_event_channels.insert(
-            thread_id,
+            chat_id,
             ThreadEventChannel::new_with_session(/*capacity*/ 4, session.clone(), Vec::new()),
         );
         app.chat_widget.handle_thread_session(session);
@@ -377,7 +377,7 @@ mod tests {
 
         let expected_session = ThreadSessionState {
             service_tier: None,
-            ..test_thread_session(thread_id, test_path_buf("/tmp/main"))
+            ..test_thread_session(chat_id, test_path_buf("/tmp/main"))
         };
         assert_eq!(
             app.primary_session_configured,
@@ -386,7 +386,7 @@ mod tests {
 
         let store_session = app
             .thread_event_channels
-            .get(&thread_id)
+            .get(&chat_id)
             .expect("thread channel")
             .store
             .lock()
@@ -399,17 +399,17 @@ mod tests {
     #[tokio::test]
     async fn thread_read_fallback_uses_active_permission_settings() {
         let mut app = make_test_app().await;
-        let primary_thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000404").expect("valid thread");
-        let read_thread_id =
-            ThreadId::from_string("00000000-0000-0000-0000-000000000405").expect("valid thread");
+        let primary_chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000404").expect("valid thread");
+        let read_chat_id =
+            ChatId::from_string("00000000-0000-0000-0000-000000000405").expect("valid thread");
         let primary_session = ThreadSessionState {
             permission_profile: PermissionProfile::workspace_write(),
-            ..test_thread_session(primary_thread_id, test_path_buf("/tmp/primary"))
+            ..test_thread_session(primary_chat_id, test_path_buf("/tmp/primary"))
         };
         let read_thread = Chat {
-            id: read_thread_id.to_string(),
-            session_id: read_thread_id.to_string(),
+            id: read_chat_id.to_string(),
+            session_id: read_chat_id.to_string(),
             forked_from_id: None,
             parent_chat_id: None,
             preview: "read thread".to_string(),
@@ -435,7 +435,7 @@ mod tests {
         app.chat_widget.handle_thread_session(primary_session);
 
         let session = app
-            .session_state_for_thread_read(read_thread_id, &read_thread)
+            .session_state_for_thread_read(read_chat_id, &read_thread)
             .await;
 
         let expected_permission_profile = app

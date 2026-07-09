@@ -2217,7 +2217,7 @@ async fn turn_start_exec_approval_toggle_v2() -> Result<()> {
     let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
     // interaction/start — expect CommandExecutionRequestApproval request from server
-    let first_turn_id = mcp
+    let first_interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id.clone(),
             client_user_message_id: None,
@@ -2231,7 +2231,7 @@ async fn turn_start_exec_approval_toggle_v2() -> Result<()> {
     // Acknowledge RPC
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(first_turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(first_interaction_id)),
     )
     .await??;
 
@@ -2283,7 +2283,7 @@ async fn turn_start_exec_approval_toggle_v2() -> Result<()> {
     }
 
     // Second turn with approval_policy=never should not elicit approval
-    let second_turn_id = mcp
+    let second_interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id.clone(),
             client_user_message_id: None,
@@ -2301,7 +2301,7 @@ async fn turn_start_exec_approval_toggle_v2() -> Result<()> {
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(second_turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(second_interaction_id)),
     )
     .await??;
 
@@ -2713,7 +2713,7 @@ stream_max_retries = 0
     .await??;
     let ChatStartResponse { chat: thread, .. } = to_response::<ChatStartResponse>(start_resp)?;
 
-    let first_turn_id = mcp
+    let first_interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id.clone(),
             client_user_message_id: None,
@@ -2728,7 +2728,7 @@ stream_max_retries = 0
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(first_turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(first_interaction_id)),
     )
     .await??;
     timeout(
@@ -2737,7 +2737,7 @@ stream_max_retries = 0
     )
     .await??;
 
-    let second_turn_id = mcp
+    let second_interaction_id = mcp
         .send_interaction_start_request(InteractionStartParams {
             chat_id: thread.id.clone(),
             client_user_message_id: None,
@@ -2751,7 +2751,7 @@ stream_max_retries = 0
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(second_turn_id)),
+        mcp.read_stream_until_response_message(RequestId::Integer(second_interaction_id)),
     )
     .await??;
 
@@ -3491,8 +3491,8 @@ async fn turn_start_emits_spawn_agent_item_with_model_metadata_v2() -> Result<()
             id: SPAWN_CALL_ID.to_string(),
             tool: CollabAgentTool::SpawnAgent,
             status: CollabAgentToolCallStatus::InProgress,
-            sender_thread_id: thread.id.clone(),
-            receiver_thread_ids: Vec::new(),
+            sender_chat_id: thread.id.clone(),
+            receiver_chat_ids: Vec::new(),
             prompt: Some(CHILD_PROMPT.to_string()),
             model: Some(REQUESTED_MODEL.to_string()),
             reasoning_effort: Some(REQUESTED_REASONING_EFFORT),
@@ -3519,8 +3519,8 @@ async fn turn_start_emits_spawn_agent_item_with_model_metadata_v2() -> Result<()
         id,
         tool,
         status,
-        sender_thread_id,
-        receiver_thread_ids,
+        sender_chat_id,
+        receiver_chat_ids,
         prompt,
         model,
         reasoning_effort,
@@ -3529,20 +3529,20 @@ async fn turn_start_emits_spawn_agent_item_with_model_metadata_v2() -> Result<()
     else {
         unreachable!("loop ensures we break on collab agent tool call messages");
     };
-    let receiver_thread_id = receiver_thread_ids
+    let receiver_chat_id = receiver_chat_ids
         .first()
         .cloned()
         .expect("spawn completion should include child thread id");
     assert_eq!(id, SPAWN_CALL_ID);
     assert_eq!(tool, CollabAgentTool::SpawnAgent);
     assert_eq!(status, CollabAgentToolCallStatus::Completed);
-    assert_eq!(sender_thread_id, thread.id);
-    assert_eq!(receiver_thread_ids, vec![receiver_thread_id.clone()]);
+    assert_eq!(sender_chat_id, thread.id);
+    assert_eq!(receiver_chat_ids, vec![receiver_chat_id.clone()]);
     assert_eq!(prompt, Some(CHILD_PROMPT.to_string()));
     assert_eq!(model, Some(REQUESTED_MODEL.to_string()));
     assert_eq!(reasoning_effort, Some(REQUESTED_REASONING_EFFORT));
     let agent_state = agents_states
-        .get(&receiver_thread_id)
+        .get(&receiver_chat_id)
         .expect("spawn completion should include child agent state");
     assert!(
         matches!(
@@ -3588,7 +3588,7 @@ async fn turn_start_emits_spawn_agent_item_with_model_metadata_v2() -> Result<()
     .await??;
     let _: ChatDeleteResponse = to_response::<ChatDeleteResponse>(delete_resp)?;
 
-    let mut deleted_thread_ids = Vec::new();
+    let mut deleted_chat_ids = Vec::new();
     for _ in 0..2 {
         let deleted_notif = timeout(
             DEFAULT_READ_TIMEOUT,
@@ -3600,11 +3600,11 @@ async fn turn_start_emits_spawn_agent_item_with_model_metadata_v2() -> Result<()
                 .params
                 .expect("chat/deleted notification params"),
         )?;
-        deleted_thread_ids.push(deleted.chat_id);
+        deleted_chat_ids.push(deleted.chat_id);
     }
     assert_eq!(
-        deleted_thread_ids,
-        vec![receiver_thread_id, thread.id.clone()]
+        deleted_chat_ids,
+        vec![receiver_chat_id, thread.id.clone()]
     );
 
     let list_req = mcp
@@ -3686,7 +3686,7 @@ async fn direct_input_to_multi_agent_v2_subagent_is_rejected() -> Result<()> {
     .await??;
     let _: InteractionStartResponse = to_response(turn_resp)?;
 
-    let child_thread_id = timeout(DEFAULT_READ_TIMEOUT, async {
+    let child_chat_id = timeout(DEFAULT_READ_TIMEOUT, async {
         loop {
             let completed_notif = mcp
                 .read_stream_until_notification_message("message/completed")
@@ -3696,12 +3696,12 @@ async fn direct_input_to_multi_agent_v2_subagent_is_rejected() -> Result<()> {
             if let Message::SubAgentActivity {
                 id,
                 kind: SubAgentActivityKind::Started,
-                agent_thread_id,
+                agent_chat_id,
                 ..
             } = completed.item
                 && id == SPAWN_CALL_ID
             {
-                return Ok::<String, anyhow::Error>(agent_thread_id);
+                return Ok::<String, anyhow::Error>(agent_chat_id);
             }
         }
     })
@@ -3709,7 +3709,7 @@ async fn direct_input_to_multi_agent_v2_subagent_is_rejected() -> Result<()> {
 
     let direct_turn_req = mcp
         .send_interaction_start_request(InteractionStartParams {
-            chat_id: child_thread_id.clone(),
+            chat_id: child_chat_id.clone(),
             input: vec![V2UserInput::Text {
                 text: "direct app-server turn".to_string(),
                 text_elements: Vec::new(),
@@ -3727,7 +3727,7 @@ async fn direct_input_to_multi_agent_v2_subagent_is_rejected() -> Result<()> {
 
     let direct_steer_req = mcp
         .send_interaction_steer_request(InteractionSteerParams {
-            chat_id: child_thread_id,
+            chat_id: child_chat_id,
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "direct app-server steer".to_string(),
@@ -3884,8 +3884,8 @@ config_file = "./custom-role.toml"
         id,
         tool,
         status,
-        sender_thread_id,
-        receiver_thread_ids,
+        sender_chat_id,
+        receiver_chat_ids,
         prompt,
         model,
         reasoning_effort,
@@ -3894,20 +3894,20 @@ config_file = "./custom-role.toml"
     else {
         unreachable!("loop ensures we break on collab agent tool call messages");
     };
-    let receiver_thread_id = receiver_thread_ids
+    let receiver_chat_id = receiver_chat_ids
         .first()
         .cloned()
         .expect("spawn completion should include child thread id");
     assert_eq!(id, SPAWN_CALL_ID);
     assert_eq!(tool, CollabAgentTool::SpawnAgent);
     assert_eq!(status, CollabAgentToolCallStatus::Completed);
-    assert_eq!(sender_thread_id, thread.id);
-    assert_eq!(receiver_thread_ids, vec![receiver_thread_id.clone()]);
+    assert_eq!(sender_chat_id, thread.id);
+    assert_eq!(receiver_chat_ids, vec![receiver_chat_id.clone()]);
     assert_eq!(prompt, Some(CHILD_PROMPT.to_string()));
     assert_eq!(model, Some(ROLE_MODEL.to_string()));
     assert_eq!(reasoning_effort, Some(ROLE_REASONING_EFFORT));
     let agent_state = agents_states
-        .get(&receiver_thread_id)
+        .get(&receiver_chat_id)
         .expect("spawn completion should include child agent state");
     assert!(
         matches!(

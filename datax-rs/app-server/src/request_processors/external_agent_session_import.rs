@@ -12,7 +12,7 @@ use datax_external_agent_sessions::PendingSessionImport;
 use datax_external_agent_sessions::prepare_validated_session_import;
 use datax_external_agent_sessions::record_completed_session_imports;
 use datax_models_manager::manager::RefreshStrategy;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::models::BaseInstructions;
 use datax_protocol::protocol::MultiAgentVersion;
 use datax_protocol::protocol::ThreadMemoryMode;
@@ -91,7 +91,7 @@ impl ExternalAgentSessionImporter {
                 Ok(Some(completed_import)) => {
                     item_result.record_success(
                         Some(completed_import.source_path.display().to_string()),
-                        Some(completed_import.imported_thread_id.to_string()),
+                        Some(completed_import.imported_chat_id.to_string()),
                     );
                     completed_imports.push(completed_import);
                 }
@@ -133,7 +133,7 @@ impl ExternalAgentSessionImporter {
         else {
             return Ok(None);
         };
-        let imported_thread_id =
+        let imported_chat_id =
             self.persist_session(pending_import.session)
                 .await
                 .map_err(|message| SessionImportFailure {
@@ -144,7 +144,7 @@ impl ExternalAgentSessionImporter {
         Ok(Some(CompletedExternalAgentSessionImport {
             source_path: pending_import.source_path,
             source_content_sha256: pending_import.source_content_sha256,
-            imported_thread_id,
+            imported_chat_id,
         }))
     }
 
@@ -162,7 +162,7 @@ impl ExternalAgentSessionImporter {
     async fn persist_session(
         &self,
         session: ImportedExternalAgentSession,
-    ) -> Result<ThreadId, String> {
+    ) -> Result<ChatId, String> {
         let ImportedExternalAgentSession {
             cwd,
             title,
@@ -189,7 +189,7 @@ impl ExternalAgentSessionImporter {
         let model_info = models_manager
             .get_model_info(model.as_str(), &config.to_models_manager_config())
             .await;
-        let chat_id = ThreadId::new();
+        let chat_id = ChatId::new();
         let source = self.thread_manager.session_source();
         let cwd = config.cwd.to_path_buf();
         let model_provider = config.model_provider_id.clone();
@@ -201,10 +201,10 @@ impl ExternalAgentSessionImporter {
         let now = Utc::now();
         let create_params = CreateThreadParams {
             session_id: chat_id.into(),
-            thread_id: chat_id,
+            chat_id: chat_id,
             extra_config: None,
             forked_from_id: None,
-            parent_thread_id: None,
+            parent_chat_id: None,
             source: source.clone(),
             thread_source: None,
             base_instructions: BaseInstructions {
@@ -250,7 +250,7 @@ impl ExternalAgentSessionImporter {
             && let Err(err) = self
                 .thread_store
                 .append_items(AppendThreadItemsParams {
-                    thread_id: chat_id,
+                    chat_id: chat_id,
                     items: rollout_items,
                 })
                 .await
@@ -261,7 +261,7 @@ impl ExternalAgentSessionImporter {
 
         self.thread_store
             .update_thread_metadata(UpdateThreadMetadataParams {
-                thread_id: chat_id,
+                chat_id: chat_id,
                 patch: metadata,
                 include_archived: false,
             })

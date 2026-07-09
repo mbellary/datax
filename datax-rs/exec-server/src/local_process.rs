@@ -562,7 +562,7 @@ fn child_env(params: &ExecParams) -> HashMap<String, String> {
     };
 
     let policy = shell_environment_policy(env_policy);
-    let mut env = shell_environment::create_env(&policy, /*thread_id*/ None);
+    let mut env = shell_environment::create_env(&policy, /*chat_id*/ None);
     env.extend(params.env.clone());
     env
 }

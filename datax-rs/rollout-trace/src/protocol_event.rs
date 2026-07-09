@@ -22,55 +22,55 @@ use datax_protocol::protocol::PatchApplyBeginEvent;
 use datax_protocol::protocol::PatchApplyEndEvent;
 use datax_protocol::protocol::PatchApplyStatus;
 use datax_protocol::protocol::SubAgentActivityEvent;
-use datax_protocol::protocol::TurnAbortReason;
+use datax_protocol::protocol::InteractionAbortReason;
 use serde::Serialize;
 use std::time::Duration;
 
-use crate::AgentThreadId;
+use crate::AgentChatId;
 use crate::CodexTurnId;
 use crate::ExecutionStatus;
 use crate::RawTraceEventPayload;
 
 pub(crate) struct CodexTurnTraceEvent {
-    pub context_turn_id: CodexTurnId,
+    pub context_interaction_id: CodexTurnId,
     pub payload: RawTraceEventPayload,
 }
 
 pub(crate) fn codex_turn_trace_event(
-    thread_id: AgentThreadId,
-    default_turn_id: &str,
+    chat_id: AgentChatId,
+    default_interaction_id: &str,
     event: &EventMsg,
 ) -> Option<CodexTurnTraceEvent> {
     match event {
-        EventMsg::TurnStarted(event) => {
-            let codex_turn_id = event.turn_id.clone();
+        EventMsg::InteractionStarted(event) => {
+            let codex_interaction_id = event.interaction_id.clone();
             Some(CodexTurnTraceEvent {
-                context_turn_id: codex_turn_id.clone(),
-                payload: RawTraceEventPayload::CodexTurnStarted {
-                    codex_turn_id,
-                    thread_id,
+                context_interaction_id: codex_interaction_id.clone(),
+                payload: RawTraceEventPayload::CodexInteractionStarted {
+                    codex_interaction_id,
+                    chat_id,
                 },
             })
         }
-        EventMsg::TurnComplete(event) => {
-            let codex_turn_id = event.turn_id.clone();
+        EventMsg::InteractionComplete(event) => {
+            let codex_interaction_id = event.interaction_id.clone();
             Some(CodexTurnTraceEvent {
-                context_turn_id: codex_turn_id.clone(),
+                context_interaction_id: codex_interaction_id.clone(),
                 payload: RawTraceEventPayload::CodexTurnEnded {
-                    codex_turn_id,
+                    codex_interaction_id,
                     status: ExecutionStatus::Completed,
                 },
             })
         }
-        EventMsg::TurnAborted(event) => {
-            let codex_turn_id = event
-                .turn_id
+        EventMsg::InteractionAborted(event) => {
+            let codex_interaction_id = event
+                .interaction_id
                 .clone()
-                .unwrap_or_else(|| default_turn_id.to_string());
+                .unwrap_or_else(|| default_interaction_id.to_string());
             Some(CodexTurnTraceEvent {
-                context_turn_id: codex_turn_id.clone(),
+                context_interaction_id: codex_interaction_id.clone(),
                 payload: RawTraceEventPayload::CodexTurnEnded {
-                    codex_turn_id,
+                    codex_interaction_id,
                     status: execution_status_for_abort_reason(&event.reason),
                 },
             })
@@ -153,7 +153,7 @@ struct ExecCommandBeginTracePayload<'a> {
     call_id: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
     process_id: Option<&'a str>,
-    turn_id: &'a str,
+    interaction_id: &'a str,
     started_at_ms: i64,
     command: &'a [String],
     cwd: String,
@@ -168,7 +168,7 @@ impl<'a> From<&'a ExecCommandBeginEvent> for ExecCommandBeginTracePayload<'a> {
         let ExecCommandBeginEvent {
             call_id,
             process_id,
-            turn_id,
+            interaction_id,
             started_at_ms,
             command,
             cwd,
@@ -179,7 +179,7 @@ impl<'a> From<&'a ExecCommandBeginEvent> for ExecCommandBeginTracePayload<'a> {
         Self {
             call_id,
             process_id: process_id.as_deref(),
-            turn_id,
+            interaction_id,
             started_at_ms: *started_at_ms,
             command,
             cwd: cwd.inferred_native_path_string(),
@@ -199,7 +199,7 @@ struct ExecCommandEndTracePayload<'a> {
     call_id: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
     process_id: Option<&'a str>,
-    turn_id: &'a str,
+    interaction_id: &'a str,
     completed_at_ms: i64,
     command: &'a [String],
     cwd: String,
@@ -221,7 +221,7 @@ impl<'a> From<&'a ExecCommandEndEvent> for ExecCommandEndTracePayload<'a> {
         let ExecCommandEndEvent {
             call_id,
             process_id,
-            turn_id,
+            interaction_id,
             completed_at_ms,
             command,
             cwd,
@@ -239,7 +239,7 @@ impl<'a> From<&'a ExecCommandEndEvent> for ExecCommandEndTracePayload<'a> {
         Self {
             call_id,
             process_id: process_id.as_deref(),
-            turn_id,
+            interaction_id,
             completed_at_ms: *completed_at_ms,
             command,
             cwd: cwd.inferred_native_path_string(),
@@ -302,7 +302,7 @@ pub(crate) fn tool_runtime_trace_event(event: &EventMsg) -> Option<ToolRuntimeTr
             tool_call_id: &event.call_id,
             // A spawn end without a child thread id means the runtime boundary
             // finished without creating the requested child thread.
-            status: if event.new_thread_id.is_some() {
+            status: if event.new_chat_id.is_some() {
                 ExecutionStatus::Completed
             } else {
                 ExecutionStatus::Failed
@@ -355,9 +355,9 @@ pub(crate) fn tool_runtime_trace_event(event: &EventMsg) -> Option<ToolRuntimeTr
         | EventMsg::ContextCompacted(_)
         | EventMsg::ThreadRolledBack(_)
         | EventMsg::ThreadGoalUpdated(_)
-        | EventMsg::TurnStarted(_)
+        | EventMsg::InteractionStarted(_)
         | EventMsg::ThreadSettingsApplied(_)
-        | EventMsg::TurnComplete(_)
+        | EventMsg::InteractionComplete(_)
         | EventMsg::TokenCount(_)
         | EventMsg::AgentMessage(_)
         | EventMsg::UserMessage(_)
@@ -390,7 +390,7 @@ pub(crate) fn tool_runtime_trace_event(event: &EventMsg) -> Option<ToolRuntimeTr
         | EventMsg::TurnDiff(_)
         | EventMsg::RealtimeConversationListVoicesResponse(_)
         | EventMsg::PlanUpdate(_)
-        | EventMsg::TurnAborted(_)
+        | EventMsg::InteractionAborted(_)
         | EventMsg::ShutdownComplete
         | EventMsg::EnteredReviewMode(_)
         | EventMsg::ExitedReviewMode(_)
@@ -411,9 +411,9 @@ pub(crate) fn tool_runtime_trace_event(event: &EventMsg) -> Option<ToolRuntimeTr
 pub(crate) fn wrapped_protocol_event_type(event: &EventMsg) -> Option<&'static str> {
     match event {
         EventMsg::SessionConfigured(_) => Some("session_configured"),
-        EventMsg::TurnStarted(_) => Some("turn_started"),
-        EventMsg::TurnComplete(_) => Some("turn_complete"),
-        EventMsg::TurnAborted(_) => Some("turn_aborted"),
+        EventMsg::InteractionStarted(_) => Some("turn_started"),
+        EventMsg::InteractionComplete(_) => Some("turn_complete"),
+        EventMsg::InteractionAborted(_) => Some("turn_aborted"),
         EventMsg::ThreadRolledBack(_) => Some("thread_rolled_back"),
         EventMsg::Error(_) => Some("error"),
         EventMsg::Warning(_) => Some("warning"),
@@ -514,12 +514,12 @@ impl TraceExecutionStatus for PatchApplyStatus {
     }
 }
 
-fn execution_status_for_abort_reason(reason: &TurnAbortReason) -> ExecutionStatus {
+fn execution_status_for_abort_reason(reason: &InteractionAbortReason) -> ExecutionStatus {
     match reason {
-        TurnAbortReason::Interrupted
-        | TurnAbortReason::Replaced
-        | TurnAbortReason::ReviewEnded
-        | TurnAbortReason::BudgetLimited => ExecutionStatus::Cancelled,
+        InteractionAbortReason::Interrupted
+        | InteractionAbortReason::Replaced
+        | InteractionAbortReason::ReviewEnded
+        | InteractionAbortReason::BudgetLimited => ExecutionStatus::Cancelled,
     }
 }
 

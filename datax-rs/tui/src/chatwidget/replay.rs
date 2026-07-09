@@ -14,7 +14,7 @@ impl ChatWidget {
     pub(crate) fn replay_thread_turns(&mut self, turns: Vec<Interaction>, replay_kind: ReplayKind) {
         for turn in turns {
             let Interaction {
-                id: turn_id,
+                id: interaction_id,
                 messages_view: _,
                 messages,
                 status,
@@ -28,7 +28,7 @@ impl ChatWidget {
                 self.on_task_started();
             }
             for item in messages {
-                self.replay_thread_item(item, turn_id.clone(), replay_kind);
+                self.replay_thread_item(item, interaction_id.clone(), replay_kind);
             }
             if matches!(
                 status,
@@ -38,9 +38,9 @@ impl ChatWidget {
             ) {
                 self.handle_turn_completed_notification(
                     InteractionCompletedNotification {
-                        chat_id: self.thread_id.map(|id| id.to_string()).unwrap_or_default(),
+                        chat_id: self.chat_id.map(|id| id.to_string()).unwrap_or_default(),
                         turn: Interaction {
-                            id: turn_id,
+                            id: interaction_id,
                             messages_view:
                                 datax_app_server_protocol::InteractionMessagesView::NotLoaded,
                             messages: Vec::new(),
@@ -60,16 +60,16 @@ impl ChatWidget {
     pub(crate) fn replay_thread_item(
         &mut self,
         item: Message,
-        turn_id: String,
+        interaction_id: String,
         replay_kind: ReplayKind,
     ) {
-        self.handle_thread_item(item, turn_id, ThreadItemRenderSource::Replay(replay_kind));
+        self.handle_thread_item(item, interaction_id, ThreadItemRenderSource::Replay(replay_kind));
     }
 
     pub(super) fn handle_thread_item(
         &mut self,
         item: Message,
-        turn_id: String,
+        interaction_id: String,
         render_source: ThreadItemRenderSource,
     ) {
         let from_replay = render_source.is_replay();
@@ -177,8 +177,8 @@ impl ChatWidget {
                 id,
                 tool,
                 status,
-                sender_thread_id,
-                receiver_thread_ids,
+                sender_chat_id,
+                receiver_chat_ids,
                 prompt,
                 model,
                 reasoning_effort,
@@ -187,8 +187,8 @@ impl ChatWidget {
                 id,
                 tool,
                 status,
-                sender_thread_id,
-                receiver_thread_ids,
+                sender_chat_id,
+                receiver_chat_ids,
                 prompt,
                 model,
                 reasoning_effort,
@@ -199,7 +199,7 @@ impl ChatWidget {
             Message::Sleep { .. } => {}
         }
 
-        if matches!(replay_kind, Some(ReplayKind::ThreadSnapshot)) && turn_id.is_empty() {
+        if matches!(replay_kind, Some(ReplayKind::ThreadSnapshot)) && interaction_id.is_empty() {
             self.request_redraw();
         }
     }

@@ -3,7 +3,7 @@ use chrono::DateTime;
 #[cfg(test)]
 use chrono::Utc;
 #[cfg(test)]
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 #[cfg(test)]
 use datax_protocol::openai_models::ReasoningEffort;
 #[cfg(test)]
@@ -38,13 +38,13 @@ pub(super) fn unique_temp_dir() -> PathBuf {
 #[cfg(test)]
 pub(super) fn test_thread_metadata(
     codex_home: &Path,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     cwd: PathBuf,
 ) -> ThreadMetadata {
     let now = DateTime::<Utc>::from_timestamp(1_700_000_000, 0).expect("timestamp");
     ThreadMetadata {
-        id: thread_id,
-        rollout_path: codex_home.join(format!("rollout-{thread_id}.jsonl")),
+        id: chat_id,
+        rollout_path: codex_home.join(format!("rollout-{chat_id}.jsonl")),
         created_at: now,
         updated_at: now,
         recency_at: now,

@@ -20,7 +20,7 @@ use datax_models_manager::collaboration_mode_presets;
 use datax_models_manager::manager::SharedModelsManager;
 use datax_models_manager::test_support::construct_model_info_offline_for_tests;
 use datax_models_manager::test_support::get_model_offline_for_tests;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::CollaborationModeMask;
 use datax_protocol::openai_models::ModelInfo;
 use datax_protocol::openai_models::ModelPreset;
@@ -170,11 +170,11 @@ pub enum TestCodexResponsesRequestKind {
 pub fn responses_metadata(
     installation_id: &str,
     session_id: &str,
-    thread_id: &str,
-    turn_id: Option<&str>,
+    chat_id: &str,
+    interaction_id: Option<&str>,
     window_id: String,
     session_source: &SessionSource,
-    parent_thread_id: Option<ThreadId>,
+    parent_chat_id: Option<ChatId>,
     request_kind: TestCodexResponsesRequestKind,
 ) -> CodexResponsesMetadata {
     let request_kind = match request_kind {
@@ -183,15 +183,15 @@ pub fn responses_metadata(
         TestCodexResponsesRequestKind::WebsocketConnection => None,
     };
     CodexResponsesMetadata {
-        turn_id: request_kind.and(turn_id.map(ToString::to_string)),
+        interaction_id: request_kind.and(interaction_id.map(ToString::to_string)),
         request_kind,
-        parent_thread_id,
+        parent_chat_id,
         subagent_header: subagent_header_value(session_source),
         subagent_kind: request_kind.and_then(|_| subagent_metadata_kind(session_source)),
         ..CodexResponsesMetadata::new(
             installation_id.to_string(),
             session_id.to_string(),
-            thread_id.to_string(),
+            chat_id.to_string(),
             window_id,
         )
     }

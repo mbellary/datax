@@ -10,7 +10,7 @@ use datax_core::ThreadManager;
 use datax_core::config::Config;
 use datax_features::Feature;
 use datax_login::AuthManager;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::protocol::SessionSource;
 use std::sync::Arc;
 use tracing::warn;
@@ -22,7 +22,7 @@ use tracing::warn;
 pub fn start_memories_startup_task(
     thread_manager: Arc<ThreadManager>,
     auth_manager: Arc<AuthManager>,
-    thread_id: ThreadId,
+    chat_id: ChatId,
     thread: Arc<CodexThread>,
     config: Arc<Config>,
     source: &SessionSource,
@@ -37,7 +37,7 @@ pub fn start_memories_startup_task(
     let context = Arc::new(MemoryStartupContext::new(
         thread_manager,
         Arc::clone(&auth_manager),
-        thread_id,
+        chat_id,
         thread,
         config.as_ref(),
         source.clone(),

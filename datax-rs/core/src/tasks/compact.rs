@@ -69,7 +69,7 @@ impl SessionTask for CompactTask {
             }];
             crate::compact::run_compact_task(session.clone(), ctx, input).await
         };
-        if let Err(err @ CodexErr::TurnAborted) = result {
+        if let Err(err @ CodexErr::InteractionAborted) = result {
             return Err(err);
         }
         Ok(None)

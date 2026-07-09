@@ -167,8 +167,8 @@ struct ThreadAnalyticsState {
 #[derive(Clone, Copy)]
 struct AnalyticsDropSite<'a> {
     event_name: &'static str,
-    thread_id: &'a str,
-    turn_id: Option<&'a str>,
+    chat_id: &'a str,
+    interaction_id: Option<&'a str>,
     review_id: Option<&'a str>,
     item_id: Option<&'a str>,
 }
@@ -177,8 +177,8 @@ impl<'a> AnalyticsDropSite<'a> {
     fn guardian(input: &'a GuardianReviewEventParams) -> Self {
         Self {
             event_name: "guardian",
-            thread_id: &input.thread_id,
-            turn_id: Some(&input.turn_id),
+            chat_id: &input.chat_id,
+            interaction_id: Some(&input.interaction_id),
             review_id: Some(&input.review_id),
             item_id: None,
         }
@@ -187,8 +187,8 @@ impl<'a> AnalyticsDropSite<'a> {
     fn review(input: &'a PendingReviewState) -> Self {
         Self {
             event_name: "review",
-            thread_id: &input.thread_id,
-            turn_id: Some(&input.turn_id),
+            chat_id: &input.chat_id,
+            interaction_id: Some(&input.interaction_id),
             review_id: Some(&input.review_id),
             item_id: input.item_id.as_deref(),
         }
@@ -197,8 +197,8 @@ impl<'a> AnalyticsDropSite<'a> {
     fn compaction(input: &'a CodexCompactionEvent) -> Self {
         Self {
             event_name: "compaction",
-            thread_id: &input.thread_id,
-            turn_id: Some(&input.turn_id),
+            chat_id: &input.chat_id,
+            interaction_id: Some(&input.interaction_id),
             review_id: None,
             item_id: None,
         }
@@ -207,8 +207,8 @@ impl<'a> AnalyticsDropSite<'a> {
     fn goal(input: &'a CodexGoalEvent) -> Self {
         Self {
             event_name: "goal",
-            thread_id: &input.thread_id,
-            turn_id: input.turn_id.as_deref(),
+            chat_id: &input.chat_id,
+            interaction_id: input.interaction_id.as_deref(),
             review_id: None,
             item_id: None,
         }
@@ -220,28 +220,28 @@ impl<'a> AnalyticsDropSite<'a> {
     ) -> Self {
         Self {
             event_name: "tool item",
-            thread_id: &notification.chat_id,
-            turn_id: Some(&notification.interaction_id),
+            chat_id: &notification.chat_id,
+            interaction_id: Some(&notification.interaction_id),
             review_id: None,
             item_id: Some(item_id),
         }
     }
 
-    fn turn_steer(thread_id: &'a str) -> Self {
+    fn turn_steer(chat_id: &'a str) -> Self {
         Self {
             event_name: "turn steer",
-            thread_id,
-            turn_id: None,
+            chat_id,
+            interaction_id: None,
             review_id: None,
             item_id: None,
         }
     }
 
-    fn turn(thread_id: &'a str, turn_id: &'a str) -> Self {
+    fn turn(chat_id: &'a str, interaction_id: &'a str) -> Self {
         Self {
             event_name: "turn",
-            thread_id,
-            turn_id: Some(turn_id),
+            chat_id,
+            interaction_id: Some(interaction_id),
             review_id: None,
             item_id: None,
         }
@@ -256,8 +256,8 @@ enum MissingAnalyticsContext {
 
 #[derive(Clone)]
 struct PendingReviewState {
-    thread_id: String,
-    turn_id: String,
+    chat_id: String,
+    interaction_id: String,
     item_id: Option<String>,
     review_id: String,
     subject_kind: ReviewSubjectKind,
@@ -284,7 +284,7 @@ struct ThreadMetadataState {
     thread_source: Option<ThreadSource>,
     initialization_mode: ThreadInitializationMode,
     subagent_source: Option<String>,
-    parent_thread_id: Option<String>,
+    parent_chat_id: Option<String>,
 }
 
 impl ThreadMetadataState {
@@ -292,7 +292,7 @@ impl ThreadMetadataState {
         session_id: String,
         session_source: &SessionSource,
         thread_source: Option<ThreadSource>,
-        parent_thread_id: Option<String>,
+        parent_chat_id: Option<String>,
         initialization_mode: ThreadInitializationMode,
     ) -> Self {
         let subagent_source = match session_source {
@@ -310,7 +310,7 @@ impl ThreadMetadataState {
             thread_source,
             initialization_mode,
             subagent_source,
-            parent_thread_id,
+            parent_chat_id,
         }
     }
 }
@@ -321,13 +321,13 @@ enum RequestState {
 }
 
 struct PendingTurnStartState {
-    thread_id: String,
+    chat_id: String,
     num_input_images: usize,
 }
 
 struct PendingTurnSteerState {
-    thread_id: String,
-    expected_turn_id: String,
+    chat_id: String,
+    expected_interaction_id: String,
     num_input_images: usize,
     created_at: u64,
 }
@@ -343,7 +343,7 @@ struct CompletedTurnState {
 #[derive(Default)]
 struct TurnState {
     connection_id: Option<u64>,
-    thread_id: Option<String>,
+    chat_id: Option<String>,
     num_input_images: Option<usize>,
     resolved_config: Option<TurnResolvedConfigFact>,
     started_at: Option<u64>,
@@ -358,8 +358,8 @@ struct TurnState {
 
 #[derive(Hash, Eq, PartialEq)]
 struct ToolItemKey {
-    thread_id: String,
-    turn_id: String,
+    chat_id: String,
+    interaction_id: String,
     item_id: String,
 }
 
@@ -563,12 +563,12 @@ impl AnalyticsReducer {
         input: SubAgentThreadStartedInput,
         out: &mut Vec<TrackEventRequest>,
     ) {
-        let parent_thread_id = input.parent_thread_id.clone();
-        let parent_connection_id = parent_thread_id
+        let parent_chat_id = input.parent_chat_id.clone();
+        let parent_connection_id = parent_chat_id
             .as_ref()
-            .and_then(|parent_thread_id| self.threads.get(parent_thread_id))
+            .and_then(|parent_chat_id| self.threads.get(parent_chat_id))
             .and_then(|thread| thread.connection_id);
-        let thread_state = self.threads.entry(input.thread_id.clone()).or_default();
+        let thread_state = self.threads.entry(input.chat_id.clone()).or_default();
         thread_state
             .metadata
             .get_or_insert_with(|| ThreadMetadataState {
@@ -576,7 +576,7 @@ impl AnalyticsReducer {
                 thread_source: Some(ThreadSource::Subagent),
                 initialization_mode: ThreadInitializationMode::New,
                 subagent_source: Some(subagent_source_name(&input.subagent_source)),
-                parent_thread_id,
+                parent_chat_id,
             });
         if thread_state.connection_id.is_none() {
             thread_state.connection_id = parent_connection_id;
@@ -620,7 +620,7 @@ impl AnalyticsReducer {
                 self.requests.insert(
                     (connection_id, request_id),
                     RequestState::TurnStart(PendingTurnStartState {
-                        thread_id: params.chat_id,
+                        chat_id: params.chat_id,
                         num_input_images: num_input_images(&params.input),
                     }),
                 );
@@ -629,8 +629,8 @@ impl AnalyticsReducer {
                 self.requests.insert(
                     (connection_id, request_id),
                     RequestState::TurnSteer(PendingTurnSteerState {
-                        thread_id: params.chat_id,
-                        expected_turn_id: params.expected_turn_id,
+                        chat_id: params.chat_id,
+                        expected_interaction_id: params.expected_interaction_id,
                         num_input_images: num_input_images(&params.input),
                         created_at: now_unix_seconds(),
                     }),
@@ -645,14 +645,14 @@ impl AnalyticsReducer {
         input: TurnResolvedConfigFact,
         out: &mut Vec<TrackEventRequest>,
     ) {
-        let turn_id = input.turn_id.clone();
-        let thread_id = input.thread_id.clone();
+        let interaction_id = input.interaction_id.clone();
+        let chat_id = input.chat_id.clone();
         let num_input_images = input.num_input_images;
-        let turn_state = self.turns.entry(turn_id.clone()).or_default();
-        turn_state.thread_id = Some(thread_id);
+        let turn_state = self.turns.entry(interaction_id.clone()).or_default();
+        turn_state.chat_id = Some(chat_id);
         turn_state.num_input_images = Some(num_input_images);
         turn_state.resolved_config = Some(input);
-        self.maybe_emit_turn_event(&turn_id, out).await;
+        self.maybe_emit_turn_event(&interaction_id, out).await;
     }
 
     async fn ingest_turn_token_usage(
@@ -660,11 +660,11 @@ impl AnalyticsReducer {
         input: TurnTokenUsageFact,
         out: &mut Vec<TrackEventRequest>,
     ) {
-        let turn_id = input.turn_id.clone();
-        let turn_state = self.turns.entry(turn_id.clone()).or_default();
-        turn_state.thread_id = Some(input.thread_id);
+        let interaction_id = input.interaction_id.clone();
+        let turn_state = self.turns.entry(interaction_id.clone()).or_default();
+        turn_state.chat_id = Some(input.chat_id);
         turn_state.token_usage = Some(input.token_usage);
-        self.maybe_emit_turn_event(&turn_id, out).await;
+        self.maybe_emit_turn_event(&interaction_id, out).await;
     }
 
     async fn ingest_turn_profile(
@@ -672,20 +672,20 @@ impl AnalyticsReducer {
         input: TurnProfileFact,
         out: &mut Vec<TrackEventRequest>,
     ) {
-        let TurnProfileFact { turn_id, profile } = input;
-        let turn_state = self.turns.entry(turn_id.clone()).or_default();
+        let TurnProfileFact { interaction_id, profile } = input;
+        let turn_state = self.turns.entry(interaction_id.clone()).or_default();
         turn_state.profile = Some(profile);
-        self.maybe_emit_turn_event(&turn_id, out).await;
+        self.maybe_emit_turn_event(&interaction_id, out).await;
     }
 
     fn ingest_turn_codex_error(&mut self, input: TurnCodexErrorFact) {
         let TurnCodexErrorFact {
-            turn_id,
-            thread_id,
+            interaction_id,
+            chat_id,
             error,
         } = input;
-        let turn_state = self.turns.entry(turn_id).or_default();
-        turn_state.thread_id.get_or_insert(thread_id);
+        let turn_state = self.turns.entry(interaction_id).or_default();
+        turn_state.chat_id.get_or_insert(chat_id);
         turn_state.codex_error = Some(error);
     }
 
@@ -725,8 +725,8 @@ impl AnalyticsReducer {
                     skill_id,
                     skill_name: invocation.skill_name.clone(),
                     event_params: SkillInvocationEventParams {
-                        thread_id: Some(tracking.thread_id.clone()),
-                        turn_id: Some(tracking.turn_id.clone()),
+                        chat_id: Some(tracking.chat_id.clone()),
+                        interaction_id: Some(tracking.interaction_id.clone()),
                         invoke_type: Some(invocation.invocation_type),
                         model_slug: Some(tracking.model_slug.clone()),
                         product_client_id: Some(originator().value),
@@ -888,17 +888,17 @@ impl AnalyticsReducer {
                 request_id,
                 response,
             } => {
-                let turn_id = response.turn.id;
+                let interaction_id = response.turn.id;
                 let Some(RequestState::TurnStart(pending_request)) =
                     self.requests.remove(&(connection_id, request_id))
                 else {
                     return;
                 };
-                let turn_state = self.turns.entry(turn_id.clone()).or_default();
+                let turn_state = self.turns.entry(interaction_id.clone()).or_default();
                 turn_state.connection_id = Some(connection_id);
-                turn_state.thread_id = Some(pending_request.thread_id);
+                turn_state.chat_id = Some(pending_request.chat_id);
                 turn_state.num_input_images = Some(pending_request.num_input_images);
-                self.maybe_emit_turn_event(&turn_id, out).await;
+                self.maybe_emit_turn_event(&interaction_id, out).await;
             }
             ClientResponse::InteractionSteer {
                 request_id,
@@ -941,8 +941,8 @@ impl AnalyticsReducer {
                 self.pending_reviews.insert(
                     request_id.clone(),
                     PendingReviewState {
-                        thread_id: params.chat_id,
-                        turn_id: params.interaction_id,
+                        chat_id: params.chat_id,
+                        interaction_id: params.interaction_id,
                         item_id: Some(params.message_id),
                         review_id: user_review_id(&request_id),
                         subject_kind: if is_network_access_review {
@@ -970,8 +970,8 @@ impl AnalyticsReducer {
                 self.pending_reviews.insert(
                     request_id.clone(),
                     PendingReviewState {
-                        thread_id: params.chat_id,
-                        turn_id: params.interaction_id,
+                        chat_id: params.chat_id,
+                        interaction_id: params.interaction_id,
                         item_id: Some(params.message_id),
                         review_id: user_review_id(&request_id),
                         subject_kind: ReviewSubjectKind::FileChange,
@@ -1009,8 +1009,8 @@ impl AnalyticsReducer {
                 self.pending_reviews.insert(
                     request_id.clone(),
                     PendingReviewState {
-                        thread_id: params.chat_id,
-                        turn_id: params.interaction_id,
+                        chat_id: params.chat_id,
+                        interaction_id: params.interaction_id,
                         item_id: Some(params.message_id),
                         review_id: user_review_id(&request_id),
                         subject_kind: ReviewSubjectKind::Permissions,
@@ -1154,7 +1154,7 @@ impl AnalyticsReducer {
         self.emit_turn_steer_event(
             connection_id,
             pending_request,
-            /*accepted_turn_id*/ None,
+            /*accepted_interaction_id*/ None,
             TurnSteerResult::Rejected,
             rejection_reason_from_error_type(error_type),
             out,
@@ -1177,8 +1177,8 @@ impl AnalyticsReducer {
                 };
                 self.tool_items_started_at_ms.insert(
                     ToolItemKey {
-                        thread_id: notification.chat_id,
-                        turn_id: notification.interaction_id,
+                        chat_id: notification.chat_id,
+                        interaction_id: notification.interaction_id,
                         item_id: item_id.to_string(),
                     },
                     started_at_ms,
@@ -1188,8 +1188,8 @@ impl AnalyticsReducer {
                 if matches!(notification.item, Message::SubAgentActivity { .. }) {
                     let Some(turn_state) = self.turns.get_mut(&notification.interaction_id) else {
                         tracing::warn!(
-                            thread_id = %notification.chat_id,
-                            turn_id = %notification.interaction_id,
+                            chat_id = %notification.chat_id,
+                            interaction_id = %notification.interaction_id,
                             "dropping sub-agent activity tool count update: missing turn state"
                         );
                         return;
@@ -1202,8 +1202,8 @@ impl AnalyticsReducer {
                 };
                 let Some(turn_state) = self.turns.get_mut(&notification.interaction_id) else {
                     tracing::warn!(
-                        thread_id = %notification.chat_id,
-                        turn_id = %notification.interaction_id,
+                        chat_id = %notification.chat_id,
+                        interaction_id = %notification.interaction_id,
                         item_id,
                         "dropping turn tool count update: missing turn state"
                     );
@@ -1211,14 +1211,14 @@ impl AnalyticsReducer {
                 };
                 turn_state.tool_counts.record(&notification.item);
                 let key = ToolItemKey {
-                    thread_id: notification.chat_id.clone(),
-                    turn_id: notification.interaction_id.clone(),
+                    chat_id: notification.chat_id.clone(),
+                    interaction_id: notification.interaction_id.clone(),
                     item_id: item_id.to_string(),
                 };
                 let Some(started_at_ms) = self.tool_items_started_at_ms.remove(&key) else {
                     tracing::warn!(
-                        thread_id = %notification.chat_id,
-                        turn_id = %notification.interaction_id,
+                        chat_id = %notification.chat_id,
+                        interaction_id = %notification.interaction_id,
                         item_id,
                         "dropping tool item analytics event: missing item started notification"
                     );
@@ -1234,8 +1234,8 @@ impl AnalyticsReducer {
                     return;
                 };
                 if let Some(event) = tool_item_event(ToolItemEventInput {
-                    thread_id: &notification.chat_id,
-                    turn_id: &notification.interaction_id,
+                    chat_id: &notification.chat_id,
+                    interaction_id: &notification.interaction_id,
                     item: &notification.item,
                     started_at_ms,
                     completed_at_ms,
@@ -1265,7 +1265,7 @@ impl AnalyticsReducer {
                     .turns
                     .entry(notification.interaction_id.clone())
                     .or_default();
-                turn_state.thread_id = Some(notification.chat_id);
+                turn_state.chat_id = Some(notification.chat_id);
                 turn_state.latest_diff = Some(notification.diff);
             }
             ServerNotification::InteractionCompleted(notification) => {
@@ -1286,8 +1286,8 @@ impl AnalyticsReducer {
                         .duration_ms
                         .and_then(|duration_ms| u64::try_from(duration_ms).ok()),
                 });
-                let turn_id = notification.turn.id;
-                self.maybe_emit_turn_event(&turn_id, out).await;
+                let interaction_id = notification.turn.id;
+                self.maybe_emit_turn_event(&interaction_id, out).await;
             }
             _ => {}
         }
@@ -1303,9 +1303,9 @@ impl AnalyticsReducer {
     ) {
         let session_source: SessionSource = thread.source.into();
         let session_id = thread.session_id;
-        let thread_id = thread.id;
-        let parent_thread_id = thread.parent_chat_id;
-        let forked_from_thread_id = thread.forked_from_id;
+        let chat_id = thread.id;
+        let parent_chat_id = thread.parent_chat_id;
+        let forked_from_chat_id = thread.forked_from_id;
         let Some(connection_state) = self.connections.get(&connection_id) else {
             return;
         };
@@ -1313,11 +1313,11 @@ impl AnalyticsReducer {
             session_id.clone(),
             &session_source,
             thread.chat_source.map(Into::into),
-            parent_thread_id,
+            parent_chat_id,
             initialization_mode,
         );
         self.threads.insert(
-            thread_id.clone(),
+            chat_id.clone(),
             ThreadAnalyticsState {
                 connection_id: Some(connection_id),
                 metadata: Some(thread_metadata.clone()),
@@ -1327,7 +1327,7 @@ impl AnalyticsReducer {
             ThreadInitializedEvent {
                 event_type: "codex_thread_initialized",
                 event_params: ThreadInitializedEventParams {
-                    thread_id,
+                    chat_id,
                     session_id,
                     app_server_client: connection_state.app_server_client.clone(),
                     runtime: connection_state.runtime.clone(),
@@ -1336,8 +1336,8 @@ impl AnalyticsReducer {
                     thread_source: thread_metadata.thread_source,
                     initialization_mode,
                     subagent_source: thread_metadata.subagent_source.clone(),
-                    parent_thread_id: thread_metadata.parent_thread_id,
-                    forked_from_thread_id,
+                    parent_chat_id: thread_metadata.parent_chat_id,
+                    forked_from_chat_id,
                     created_at: u64::try_from(thread.created_at).unwrap_or_default(),
                 },
             },
@@ -1360,7 +1360,7 @@ impl AnalyticsReducer {
                     connection_state.runtime.clone(),
                     thread_metadata.thread_source.clone(),
                     thread_metadata.subagent_source.clone(),
-                    thread_metadata.parent_thread_id.clone(),
+                    thread_metadata.parent_chat_id.clone(),
                 ),
             },
         )));
@@ -1381,7 +1381,7 @@ impl AnalyticsReducer {
                 connection_state.runtime.clone(),
                 thread_metadata.thread_source.clone(),
                 thread_metadata.subagent_source.clone(),
-                thread_metadata.parent_thread_id.clone(),
+                thread_metadata.parent_chat_id.clone(),
             ),
         })));
     }
@@ -1400,8 +1400,8 @@ impl AnalyticsReducer {
             return;
         };
         let pending_review = PendingReviewState {
-            thread_id: notification.chat_id,
-            turn_id: notification.interaction_id,
+            chat_id: notification.chat_id,
+            interaction_id: notification.interaction_id,
             item_id: notification.target_message_id,
             review_id: notification.review_id,
             subject_kind,
@@ -1457,7 +1457,7 @@ impl AnalyticsReducer {
         &mut self,
         connection_id: u64,
         pending_request: PendingTurnSteerState,
-        accepted_turn_id: Option<String>,
+        accepted_interaction_id: Option<String>,
         result: TurnSteerResult,
         rejection_reason: Option<TurnSteerRejectionReason>,
         out: &mut Vec<TrackEventRequest>,
@@ -1465,10 +1465,10 @@ impl AnalyticsReducer {
         let Some(connection_state) = self.connections.get(&connection_id) else {
             return;
         };
-        let drop_site = AnalyticsDropSite::turn_steer(&pending_request.thread_id);
+        let drop_site = AnalyticsDropSite::turn_steer(&pending_request.chat_id);
         let Some(thread_metadata) = self
             .threads
-            .get(drop_site.thread_id)
+            .get(drop_site.chat_id)
             .and_then(|thread| thread.metadata.as_ref())
         else {
             warn_missing_analytics_context(&drop_site, MissingAnalyticsContext::ThreadMetadata);
@@ -1477,15 +1477,15 @@ impl AnalyticsReducer {
         out.push(TrackEventRequest::TurnSteer(CodexTurnSteerEventRequest {
             event_type: "codex_turn_steer_event",
             event_params: CodexTurnSteerEventParams {
-                thread_id: pending_request.thread_id,
+                chat_id: pending_request.chat_id,
                 session_id: thread_metadata.session_id.clone(),
-                expected_turn_id: Some(pending_request.expected_turn_id),
-                accepted_turn_id,
+                expected_interaction_id: Some(pending_request.expected_interaction_id),
+                accepted_interaction_id,
                 app_server_client: connection_state.app_server_client.clone(),
                 runtime: connection_state.runtime.clone(),
                 thread_source: thread_metadata.thread_source.clone(),
                 subagent_source: thread_metadata.subagent_source.clone(),
-                parent_thread_id: thread_metadata.parent_thread_id.clone(),
+                parent_chat_id: thread_metadata.parent_chat_id.clone(),
                 num_input_images: pending_request.num_input_images,
                 result,
                 rejection_reason,
@@ -1520,15 +1520,15 @@ impl AnalyticsReducer {
         out.push(TrackEventRequest::ReviewEvent(CodexReviewEventRequest {
             event_type: "codex_review_event",
             event_params: CodexReviewEventParams {
-                thread_id: pending_review.thread_id,
-                turn_id: pending_review.turn_id,
+                chat_id: pending_review.chat_id,
+                interaction_id: pending_review.interaction_id,
                 item_id: pending_review.item_id,
                 review_id: pending_review.review_id,
                 app_server_client: connection_state.app_server_client.clone(),
                 runtime: connection_state.runtime.clone(),
                 thread_source: thread_metadata.thread_source.clone(),
                 subagent_source: thread_metadata.subagent_source.clone(),
-                parent_thread_id: thread_metadata.parent_thread_id.clone(),
+                parent_chat_id: thread_metadata.parent_chat_id.clone(),
                 subject_kind: pending_review.subject_kind,
                 subject_name: pending_review.subject_name,
                 reviewer,
@@ -1561,11 +1561,11 @@ impl AnalyticsReducer {
         summary.requested_network_access |= pending_review.requested_network_access;
     }
 
-    async fn maybe_emit_turn_event(&mut self, turn_id: &str, out: &mut Vec<TrackEventRequest>) {
-        let Some(turn_state) = self.turns.get(turn_id) else {
+    async fn maybe_emit_turn_event(&mut self, interaction_id: &str, out: &mut Vec<TrackEventRequest>) {
+        let Some(turn_state) = self.turns.get(interaction_id) else {
             return;
         };
-        if turn_state.thread_id.is_none()
+        if turn_state.chat_id.is_none()
             || turn_state.num_input_images.is_none()
             || turn_state.resolved_config.is_none()
             || turn_state.profile.is_none()
@@ -1573,13 +1573,13 @@ impl AnalyticsReducer {
         {
             return;
         }
-        let Some(thread_id) = turn_state.thread_id.as_ref() else {
+        let Some(chat_id) = turn_state.chat_id.as_ref() else {
             return;
         };
-        let drop_site = AnalyticsDropSite::turn(thread_id, turn_id);
+        let drop_site = AnalyticsDropSite::turn(chat_id, interaction_id);
         let connection_id = turn_state.connection_id.or_else(|| {
             self.threads
-                .get(drop_site.thread_id)
+                .get(drop_site.chat_id)
                 .and_then(|thread| thread.connection_id)
         });
         let Some(connection_id) = connection_id else {
@@ -1595,7 +1595,7 @@ impl AnalyticsReducer {
         };
         let Some(thread_metadata) = self
             .threads
-            .get(drop_site.thread_id)
+            .get(drop_site.chat_id)
             .and_then(|thread| thread.metadata.as_ref())
         else {
             warn_missing_analytics_context(&drop_site, MissingAnalyticsContext::ThreadMetadata);
@@ -1606,26 +1606,26 @@ impl AnalyticsReducer {
             event_params: codex_turn_event_params(
                 connection_state.app_server_client.clone(),
                 connection_state.runtime.clone(),
-                turn_id.to_string(),
+                interaction_id.to_string(),
                 turn_state,
                 thread_metadata,
             ),
         }));
-        let accepted_line_event = accepted_line_event_input(turn_id, turn_state);
+        let accepted_line_event = accepted_line_event_input(interaction_id, turn_state);
 
         out.push(turn_event);
         if let Some((mut input, cwd)) = accepted_line_event {
             input.repo_hash = accepted_line_repo_hash_for_cwd(cwd.as_path()).await;
             out.extend(accepted_line_fingerprint_event_requests(input));
         }
-        self.turns.remove(turn_id);
+        self.turns.remove(interaction_id);
     }
 
     fn thread_connection_or_warn(
         &self,
         drop_site: AnalyticsDropSite<'_>,
     ) -> Option<&ConnectionState> {
-        let Some(thread_state) = self.threads.get(drop_site.thread_id) else {
+        let Some(thread_state) = self.threads.get(drop_site.chat_id) else {
             warn_missing_analytics_context(&drop_site, MissingAnalyticsContext::ThreadConnection);
             return None;
         };
@@ -1650,7 +1650,7 @@ impl AnalyticsReducer {
         let connection_state = self.thread_connection_or_warn(drop_site)?;
         let Some(thread_metadata) = self
             .threads
-            .get(drop_site.thread_id)
+            .get(drop_site.chat_id)
             .and_then(|thread| thread.metadata.as_ref())
         else {
             warn_missing_analytics_context(&drop_site, MissingAnalyticsContext::ThreadMetadata);
@@ -1672,8 +1672,8 @@ fn warn_missing_analytics_context(
         MissingAnalyticsContext::ThreadMetadata => ("thread_metadata", None),
     };
     tracing::warn!(
-        thread_id = %drop_site.thread_id,
-        turn_id = ?drop_site.turn_id,
+        chat_id = %drop_site.chat_id,
+        interaction_id = ?drop_site.interaction_id,
         review_id = ?drop_site.review_id,
         item_id = ?drop_site.item_id,
         missing_context,
@@ -1711,8 +1711,8 @@ fn item_review_summary_key(pending_review: &PendingReviewState) -> Option<ToolIt
         ReviewSubjectKind::CommandExecution
         | ReviewSubjectKind::FileChange
         | ReviewSubjectKind::McpToolCall => Some(ToolItemKey {
-            thread_id: pending_review.thread_id.clone(),
-            turn_id: pending_review.turn_id.clone(),
+            chat_id: pending_review.chat_id.clone(),
+            interaction_id: pending_review.interaction_id.clone(),
             item_id: pending_review.item_id.clone()?,
         }),
         ReviewSubjectKind::Permissions | ReviewSubjectKind::NetworkAccess => None,
@@ -1720,8 +1720,8 @@ fn item_review_summary_key(pending_review: &PendingReviewState) -> Option<ToolIt
 }
 
 struct ToolItemEventInput<'a> {
-    thread_id: &'a str,
-    turn_id: &'a str,
+    chat_id: &'a str,
+    interaction_id: &'a str,
     item: &'a Message,
     started_at_ms: u64,
     completed_at_ms: u64,
@@ -1732,8 +1732,8 @@ struct ToolItemEventInput<'a> {
 
 fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
     let ToolItemEventInput {
-        thread_id,
-        turn_id,
+        chat_id,
+        interaction_id,
         item,
         started_at_ms,
         completed_at_ms,
@@ -1754,8 +1754,8 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
             let (terminal_status, failure_kind) = command_execution_outcome(status)?;
             let action_counts = command_action_counts(command_actions);
             let base = tool_item_base(
-                thread_id,
-                turn_id,
+                chat_id,
+                interaction_id,
                 id.clone(),
                 command_execution_tool_name(*source).to_string(),
                 ToolItemOutcome {
@@ -1795,8 +1795,8 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
             let (terminal_status, failure_kind) = patch_apply_outcome(status)?;
             let counts = file_change_counts(changes);
             let base = tool_item_base(
-                thread_id,
-                turn_id,
+                chat_id,
+                interaction_id,
                 id.clone(),
                 "apply_patch".to_string(),
                 ToolItemOutcome {
@@ -1836,8 +1836,8 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
         } => {
             let (terminal_status, failure_kind) = mcp_tool_call_outcome(status)?;
             let base = tool_item_base(
-                thread_id,
-                turn_id,
+                chat_id,
+                interaction_id,
                 id.clone(),
                 tool.clone(),
                 ToolItemOutcome {
@@ -1880,8 +1880,8 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
                 .as_ref()
                 .map(|items| dynamic_content_counts(items));
             let base = tool_item_base(
-                thread_id,
-                turn_id,
+                chat_id,
+                interaction_id,
                 id.clone(),
                 tool.clone(),
                 ToolItemOutcome {
@@ -1915,8 +1915,8 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
             id,
             tool,
             status,
-            sender_thread_id,
-            receiver_thread_ids,
+            sender_chat_id,
+            receiver_chat_ids,
             model,
             reasoning_effort,
             agents_states,
@@ -1924,8 +1924,8 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
         } => {
             let (terminal_status, failure_kind) = collab_tool_call_outcome(status)?;
             let base = tool_item_base(
-                thread_id,
-                turn_id,
+                chat_id,
+                interaction_id,
                 id.clone(),
                 collab_agent_tool_name(tool).to_string(),
                 ToolItemOutcome {
@@ -1946,9 +1946,9 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
                     event_type: "codex_collab_agent_tool_call_event",
                     event_params: CodexCollabAgentToolCallEventParams {
                         base,
-                        sender_thread_id: sender_thread_id.clone(),
-                        receiver_thread_count: usize_to_u64(receiver_thread_ids.len()),
-                        receiver_thread_ids: Some(receiver_thread_ids.clone()),
+                        sender_chat_id: sender_chat_id.clone(),
+                        receiver_thread_count: usize_to_u64(receiver_chat_ids.len()),
+                        receiver_chat_ids: Some(receiver_chat_ids.clone()),
                         requested_model: model.clone(),
                         requested_reasoning_effort: reasoning_effort
                             .as_ref()
@@ -1979,8 +1979,8 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
         }
         Message::WebSearch { id, query, action } => {
             let base = tool_item_base(
-                thread_id,
-                turn_id,
+                chat_id,
+                interaction_id,
                 id.clone(),
                 "web_search".to_string(),
                 ToolItemOutcome {
@@ -2015,8 +2015,8 @@ fn tool_item_event(input: ToolItemEventInput<'_>) -> Option<TrackEventRequest> {
         } => {
             let (terminal_status, failure_kind) = image_generation_outcome(status.as_str());
             let base = tool_item_base(
-                thread_id,
-                turn_id,
+                chat_id,
+                interaction_id,
                 id.clone(),
                 "image_generation".to_string(),
                 ToolItemOutcome {
@@ -2088,8 +2088,8 @@ struct ToolItemContext<'a> {
 }
 
 fn tool_item_base(
-    thread_id: &str,
-    turn_id: &str,
+    chat_id: &str,
+    interaction_id: &str,
     item_id: String,
     tool_name: String,
     outcome: ToolItemOutcome,
@@ -2098,14 +2098,14 @@ fn tool_item_base(
     let thread_metadata = context.thread_metadata;
     let review_summary = context.review_summary.cloned().unwrap_or_default();
     CodexToolItemEventBase {
-        thread_id: thread_id.to_string(),
-        turn_id: turn_id.to_string(),
+        chat_id: chat_id.to_string(),
+        interaction_id: interaction_id.to_string(),
         item_id,
         app_server_client: context.connection_state.app_server_client.clone(),
         runtime: context.connection_state.runtime.clone(),
         thread_source: thread_metadata.thread_source.clone(),
         subagent_source: thread_metadata.subagent_source.clone(),
-        parent_thread_id: thread_metadata.parent_thread_id.clone(),
+        parent_chat_id: thread_metadata.parent_chat_id.clone(),
         tool_name,
         started_at_ms: context.started_at_ms,
         completed_at_ms: context.completed_at_ms,
@@ -2489,7 +2489,7 @@ fn web_search_query_count(query: &str, action: Option<&WebSearchAction>) -> Opti
 }
 
 fn accepted_line_event_input(
-    turn_id: &str,
+    interaction_id: &str,
     turn_state: &TurnState,
 ) -> Option<(AcceptedLineFingerprintEventInput, PathBuf)> {
     let latest_diff = turn_state.latest_diff.as_deref()?;
@@ -2498,14 +2498,14 @@ fn accepted_line_event_input(
         return None;
     }
 
-    let thread_id = turn_state.thread_id.clone()?;
+    let chat_id = turn_state.chat_id.clone()?;
     let resolved_config = turn_state.resolved_config.clone()?;
 
     Some((
         AcceptedLineFingerprintEventInput {
             event_type: "codex.accepted_line_fingerprints",
-            turn_id: turn_id.to_string(),
-            thread_id,
+            interaction_id: interaction_id.to_string(),
+            chat_id,
             product_surface: Some("codex".to_string()),
             model_slug: Some(resolved_config.model.clone()),
             completed_at: now_unix_seconds(),
@@ -2521,18 +2521,18 @@ fn accepted_line_event_input(
 fn codex_turn_event_params(
     app_server_client: CodexAppServerClientMetadata,
     runtime: CodexRuntimeMetadata,
-    turn_id: String,
+    interaction_id: String,
     turn_state: &TurnState,
     thread_metadata: &ThreadMetadataState,
 ) -> CodexTurnEventParams {
     let (
-        Some(thread_id),
+        Some(chat_id),
         Some(num_input_images),
         Some(resolved_config),
         Some(profile),
         Some(completed),
     ) = (
-        turn_state.thread_id.clone(),
+        turn_state.chat_id.clone(),
         turn_state.num_input_images,
         turn_state.resolved_config.clone(),
         turn_state.profile.clone(),
@@ -2543,8 +2543,8 @@ fn codex_turn_event_params(
     };
     let started_at = turn_state.started_at;
     let TurnResolvedConfigFact {
-        turn_id: _resolved_turn_id,
-        thread_id: _resolved_thread_id,
+        interaction_id: _resolved_interaction_id,
+        chat_id: _resolved_chat_id,
         num_input_images: _resolved_num_input_images,
         submission_type,
         ephemeral,
@@ -2576,9 +2576,9 @@ fn codex_turn_event_params(
     let token_usage = turn_state.token_usage.clone();
     let codex_error = turn_state.codex_error.as_ref();
     CodexTurnEventParams {
-        thread_id,
+        chat_id,
         session_id: thread_metadata.session_id.clone(),
-        turn_id,
+        interaction_id,
         app_server_client,
         runtime,
         submission_type,
@@ -2586,7 +2586,7 @@ fn codex_turn_event_params(
         thread_source: thread_metadata.thread_source.clone(),
         initialization_mode: thread_metadata.initialization_mode,
         subagent_source: thread_metadata.subagent_source.clone(),
-        parent_thread_id: thread_metadata.parent_thread_id.clone(),
+        parent_chat_id: thread_metadata.parent_chat_id.clone(),
         model: Some(model),
         model_provider,
         sandbox_policy: Some(sandbox_policy_mode(

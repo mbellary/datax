@@ -83,7 +83,7 @@ async fn no_collaboration_instructions_by_default() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let input = req.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -137,7 +137,7 @@ async fn user_input_includes_collaboration_instructions_after_override() -> Resu
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let input = req.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -185,7 +185,7 @@ async fn collaboration_instructions_added_on_user_turn() -> Result<()> {
             },
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let input = req.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -235,7 +235,7 @@ async fn collaboration_instructions_omitted_when_disabled() -> Result<()> {
             },
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let input = req.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -283,7 +283,7 @@ async fn override_then_next_turn_uses_updated_collaboration_instructions() -> Re
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let input = req.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -342,7 +342,7 @@ async fn user_turn_overrides_collaboration_instructions_after_override() -> Resu
             },
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let input = req.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -395,7 +395,7 @@ async fn collaboration_mode_update_emits_new_instruction_message() -> Result<()>
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     core_test_support::submit_thread_settings(
         &test.codex,
@@ -418,7 +418,7 @@ async fn collaboration_mode_update_emits_new_instruction_message() -> Result<()>
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let input = req2.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -470,7 +470,7 @@ async fn collaboration_mode_update_noop_does_not_append() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     core_test_support::submit_thread_settings(
         &test.codex,
@@ -493,7 +493,7 @@ async fn collaboration_mode_update_noop_does_not_append() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let input = req2.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -547,7 +547,7 @@ async fn collaboration_mode_update_emits_new_instruction_message_when_mode_chang
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     core_test_support::submit_thread_settings(
         &test.codex,
@@ -573,7 +573,7 @@ async fn collaboration_mode_update_emits_new_instruction_message_when_mode_chang
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let input = req2.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -628,7 +628,7 @@ async fn collaboration_mode_update_noop_does_not_append_when_mode_is_unchanged()
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     core_test_support::submit_thread_settings(
         &test.codex,
@@ -654,7 +654,7 @@ async fn collaboration_mode_update_noop_does_not_append_when_mode_is_unchanged()
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let input = req2.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -712,7 +712,7 @@ async fn resume_replays_collaboration_instructions() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let resumed = builder.resume(&server, home, rollout_path).await?;
     resumed
@@ -728,7 +728,7 @@ async fn resume_replays_collaboration_instructions() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&resumed.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&resumed.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let input = req2.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -780,7 +780,7 @@ async fn empty_collaboration_instructions_are_ignored() -> Result<()> {
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 
     let input = req.single_request().input();
     let dev_texts = developer_texts(&input);

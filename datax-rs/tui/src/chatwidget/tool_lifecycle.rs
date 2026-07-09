@@ -140,7 +140,7 @@ impl ChatWidget {
         if let Some(cell) = multi_agents::tool_call_history_cell(
             &item,
             cached_spawn_request.as_ref(),
-            |thread_id| self.collab_agent_metadata(thread_id),
+            |chat_id| self.collab_agent_metadata(chat_id),
         ) {
             self.on_collab_event(cell);
         }

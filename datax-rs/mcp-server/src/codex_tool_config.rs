@@ -4,7 +4,7 @@ use datax_arg0::Arg0DispatchPaths;
 use datax_core::config::Config;
 use datax_core::config::ConfigBuilder;
 use datax_core::config::ConfigOverrides;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 use datax_protocol::config_types::SandboxMode;
 use datax_protocol::protocol::AskForApproval;
 use datax_utils_json_to_toml::json_to_toml;
@@ -201,20 +201,20 @@ pub struct CodexToolCallReplyParam {
     /// This field is required, but we keep it optional here for backward
     /// compatibility for clients that still use conversationId.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    thread_id: Option<String>,
+    chat_id: Option<String>,
 
     /// The *next user prompt* to continue the Codex conversation.
     pub prompt: String,
 }
 
 impl CodexToolCallReplyParam {
-    pub(crate) fn get_thread_id(&self) -> anyhow::Result<ThreadId> {
-        if let Some(thread_id) = &self.thread_id {
-            let thread_id = ThreadId::from_string(thread_id)?;
-            Ok(thread_id)
+    pub(crate) fn get_chat_id(&self) -> anyhow::Result<ChatId> {
+        if let Some(chat_id) = &self.chat_id {
+            let chat_id = ChatId::from_string(chat_id)?;
+            Ok(chat_id)
         } else if let Some(conversation_id) = &self.conversation_id {
-            let thread_id = ThreadId::from_string(conversation_id)?;
-            Ok(thread_id)
+            let chat_id = ChatId::from_string(conversation_id)?;
+            Ok(chat_id)
         } else {
             Err(anyhow::anyhow!(
                 "either threadId or conversationId must be provided"

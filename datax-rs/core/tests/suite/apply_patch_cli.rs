@@ -461,7 +461,7 @@ async fn apply_patch_cli_move_without_content_change_has_no_turn_diff() -> Resul
             saw_turn_diff = true;
             false
         }
-        EventMsg::TurnComplete(_) => true,
+        EventMsg::InteractionComplete(_) => true,
         _ => false,
     })
     .await;
@@ -1217,7 +1217,7 @@ async fn apply_patch_custom_tool_streaming_emits_updated_changes() -> Result<()>
             updates.push(update.clone());
             false
         }
-        EventMsg::TurnComplete(_) => true,
+        EventMsg::InteractionComplete(_) => true,
         _ => false,
     })
     .await;
@@ -1303,7 +1303,7 @@ async fn apply_patch_shell_command_heredoc_with_cd_emits_turn_diff() -> Result<(
             saw_turn_diff = Some(ev.unified_diff.clone());
             false
         }
-        EventMsg::TurnComplete(_) => true,
+        EventMsg::InteractionComplete(_) => true,
         _ => false,
     })
     .await;
@@ -1372,7 +1372,7 @@ async fn apply_patch_turn_diff_paths_stay_repo_relative_when_session_cwd_is_nest
             last_diff = Some(ev.unified_diff.clone());
             false
         }
-        EventMsg::TurnComplete(_) => true,
+        EventMsg::InteractionComplete(_) => true,
         _ => false,
     })
     .await;
@@ -1423,7 +1423,7 @@ async fn apply_patch_shell_command_failure_propagates_error_and_skips_diff() -> 
             saw_turn_diff = true;
             false
         }
-        EventMsg::TurnComplete(_) => true,
+        EventMsg::InteractionComplete(_) => true,
         _ => false,
     })
     .await;
@@ -1552,7 +1552,7 @@ async fn apply_patch_emits_turn_diff_event_with_unified_diff() -> Result<()> {
             saw_turn_diff = Some(ev.unified_diff.clone());
             false
         }
-        EventMsg::TurnComplete(_) => true,
+        EventMsg::InteractionComplete(_) => true,
         _ => false,
     })
     .await;
@@ -1680,7 +1680,7 @@ async fn apply_patch_turn_diff_tracks_local_and_remote_environment_paths() -> Re
             last_diff = Some(ev.unified_diff.clone());
             false
         }
-        EventMsg::TurnComplete(_) => true,
+        EventMsg::InteractionComplete(_) => true,
         _ => false,
     })
     .await;
@@ -1767,7 +1767,7 @@ async fn apply_patch_aggregates_diff_across_multiple_tool_calls() -> Result<()> 
             last_diff = Some(ev.unified_diff.clone());
             false
         }
-        EventMsg::TurnComplete(_) => true,
+        EventMsg::InteractionComplete(_) => true,
         _ => false,
     })
     .await;
@@ -1822,7 +1822,7 @@ async fn apply_patch_aggregates_diff_preserves_success_after_failure() -> Result
                 last_diff = Some(ev.unified_diff.clone());
                 false
             }
-            EventMsg::TurnComplete(_) => true,
+            EventMsg::InteractionComplete(_) => true,
             _ => false,
         },
         Duration::from_secs(30),
@@ -1906,7 +1906,7 @@ async fn apply_patch_clears_aggregated_diff_after_inexact_delta() -> Result<()> 
                 last_diff = Some(ev.unified_diff.clone());
                 false
             }
-            EventMsg::TurnComplete(_) => true,
+            EventMsg::InteractionComplete(_) => true,
             _ => false,
         },
         Duration::from_secs(30),

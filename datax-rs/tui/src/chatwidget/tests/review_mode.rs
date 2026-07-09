@@ -198,7 +198,7 @@ async fn live_app_server_review_prompt_item_is_not_rendered() {
 #[tokio::test]
 async fn steer_rejection_queues_review_follow_up_before_existing_queued_messages() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     handle_turn_started(&mut chat, "turn-1");
     handle_entered_review_mode(&mut chat, "feature branch");
     let _ = drain_insert_history(&mut rx);
@@ -288,7 +288,7 @@ async fn steer_rejection_queues_review_follow_up_before_existing_queued_messages
 #[tokio::test]
 async fn esc_with_review_queued_steers_shows_warning_and_does_not_interrupt() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     handle_turn_started(&mut chat, "turn-1");
     handle_entered_review_mode(&mut chat, "feature branch");
     let _ = drain_insert_history(&mut rx);
@@ -412,7 +412,7 @@ async fn restore_thread_input_state_restores_pending_steers_without_downgrading_
 #[tokio::test]
 async fn steer_enter_queues_while_plan_stream_is_active() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.set_feature_enabled(Feature::CollaborationModes, /*enabled*/ true);
     let plan_mask = collaboration_modes::mask_for_kind(chat.model_catalog.as_ref(), ModeKind::Plan)
         .expect("expected plan collaboration mask");
@@ -439,7 +439,7 @@ async fn steer_enter_queues_while_plan_stream_is_active() {
 #[tokio::test]
 async fn steer_enter_uses_pending_steers_while_turn_is_running_without_streaming() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.on_task_started();
 
     chat.bottom_pane
@@ -474,7 +474,7 @@ async fn steer_enter_uses_pending_steers_while_turn_is_running_without_streaming
 #[tokio::test]
 async fn steer_enter_uses_pending_steers_while_final_answer_stream_is_active() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.on_task_started();
     // Keep the assistant stream open (no commit tick/finalize) to model the repro window:
     // user presses Enter while the final answer is still streaming.
@@ -515,7 +515,7 @@ async fn steer_enter_uses_pending_steers_while_final_answer_stream_is_active() {
 #[tokio::test]
 async fn failed_pending_steer_submit_does_not_add_pending_preview() {
     let (mut chat, mut rx, op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.on_task_started();
     drop(op_rx);
 
@@ -578,7 +578,7 @@ async fn item_completed_only_pops_front_pending_steer() {
 #[tokio::test(flavor = "multi_thread")]
 async fn item_completed_pops_pending_steer_with_local_image_and_text_elements() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.on_task_started();
 
     let temp = tempdir().expect("tempdir");
@@ -662,7 +662,7 @@ async fn item_completed_pops_pending_steer_with_local_image_and_text_elements() 
 #[tokio::test]
 async fn steer_enter_during_final_stream_preserves_follow_up_prompts_in_order() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.on_task_started();
     // Simulate "dead mode" repro timing by keeping a final-answer stream active while the
     // user submits multiple follow-up prompts.
@@ -747,7 +747,7 @@ async fn steer_enter_during_final_stream_preserves_follow_up_prompts_in_order() 
 #[tokio::test]
 async fn manual_interrupt_restores_pending_steers_to_composer() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.on_task_started();
     chat.on_agent_message_delta(
         "Final answer line
@@ -775,7 +775,7 @@ async fn manual_interrupt_restores_pending_steers_to_composer() {
     }
     assert!(drain_insert_history(&mut rx).is_empty());
 
-    chat.on_interrupted_turn(TurnAbortReason::Interrupted);
+    chat.on_interrupted_turn(InteractionAbortReason::Interrupted);
 
     assert!(chat.input_queue.pending_steers.is_empty());
     assert_eq!(chat.bottom_pane.composer_text(), "queued while streaming");
@@ -792,7 +792,7 @@ async fn manual_interrupt_restores_pending_steers_to_composer() {
 #[tokio::test]
 async fn esc_interrupt_sends_all_pending_steers_immediately_and_keeps_existing_draft() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.on_task_started();
     chat.on_agent_message_delta("Final answer line\n".to_string());
 
@@ -835,7 +835,7 @@ async fn esc_interrupt_sends_all_pending_steers_immediately_and_keeps_existing_d
     chat.handle_key_event(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
     next_interrupt_op(&mut op_rx);
 
-    chat.on_interrupted_turn(TurnAbortReason::Interrupted);
+    chat.on_interrupted_turn(InteractionAbortReason::Interrupted);
 
     match next_submit_op(&mut op_rx) {
         Op::UserTurn { items, .. } => assert_eq!(
@@ -872,7 +872,7 @@ async fn esc_interrupt_sends_all_pending_steers_immediately_and_keeps_existing_d
 #[tokio::test]
 async fn esc_with_pending_steers_overrides_agent_command_interrupt_behavior() {
     let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.on_task_started();
 
     chat.bottom_pane
@@ -894,7 +894,7 @@ async fn esc_with_pending_steers_overrides_agent_command_interrupt_behavior() {
 #[tokio::test]
 async fn manual_interrupt_restores_pending_steer_mention_bindings_to_composer() {
     let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.on_task_started();
     chat.on_agent_message_delta("Final answer line\n".to_string());
 
@@ -927,7 +927,7 @@ async fn manual_interrupt_restores_pending_steer_mention_bindings_to_composer() 
         other => panic!("expected Op::UserTurn, got {other:?}"),
     }
 
-    chat.on_interrupted_turn(TurnAbortReason::Interrupted);
+    chat.on_interrupted_turn(InteractionAbortReason::Interrupted);
 
     assert_eq!(chat.bottom_pane.composer_text(), "please use $figma");
     assert_eq!(chat.bottom_pane.take_mention_bindings(), mention_bindings);
@@ -937,7 +937,7 @@ async fn manual_interrupt_restores_pending_steer_mention_bindings_to_composer() 
 #[tokio::test]
 async fn manual_interrupt_restores_pending_steers_before_queued_messages() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.on_task_started();
     chat.on_agent_message_delta(
         "Final answer line
@@ -965,7 +965,7 @@ async fn manual_interrupt_restores_pending_steers_before_queued_messages() {
     }
     assert!(drain_insert_history(&mut rx).is_empty());
 
-    chat.on_interrupted_turn(TurnAbortReason::Interrupted);
+    chat.on_interrupted_turn(InteractionAbortReason::Interrupted);
 
     assert!(chat.input_queue.pending_steers.is_empty());
     assert!(chat.input_queue.queued_user_messages.is_empty());
@@ -1310,7 +1310,7 @@ async fn budget_limited_turn_restores_queued_input_without_submitting() {
 #[tokio::test]
 async fn interrupted_turn_pending_steers_message_snapshot() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     chat.input_queue
         .pending_steers
         .push_back(pending_steer("steer 1"));
@@ -1403,7 +1403,7 @@ async fn review_branch_picker_escape_navigates_back_then_dismisses() {
 #[tokio::test]
 async fn enter_submits_steer_while_review_is_running() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     handle_turn_started(&mut chat, "turn-1");
 
     handle_entered_review_mode(&mut chat, "current changes");
@@ -1443,7 +1443,7 @@ async fn enter_submits_steer_while_review_is_running() {
 #[tokio::test]
 async fn review_queues_user_messages_snapshot() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.thread_id = Some(ThreadId::new());
+    chat.chat_id = Some(ChatId::new());
     handle_turn_started(&mut chat, "turn-1");
 
     handle_entered_review_mode(&mut chat, "current changes");

@@ -252,20 +252,20 @@ impl ContextManager {
 
         let snapshot = self.items.clone();
         let user_positions = user_message_positions(&snapshot);
-        let Some(&first_instruction_turn_idx) = user_positions.first() else {
+        let Some(&first_instruction_interaction_idx) = user_positions.first() else {
             self.replace(snapshot);
             return;
         };
 
         let n_from_end = usize::try_from(num_turns).unwrap_or(usize::MAX);
         let mut cut_idx = if n_from_end >= user_positions.len() {
-            first_instruction_turn_idx
+            first_instruction_interaction_idx
         } else {
             user_positions[user_positions.len() - n_from_end]
         };
 
         cut_idx =
-            self.trim_pre_turn_context_updates(&snapshot, first_instruction_turn_idx, cut_idx);
+            self.trim_pre_turn_context_updates(&snapshot, first_instruction_interaction_idx, cut_idx);
 
         self.replace(snapshot[..cut_idx].to_vec());
     }
@@ -408,7 +408,7 @@ impl ContextManager {
     /// Returns the adjusted cut index after removing contextual developer/user items immediately
     /// above the rolled-back turn boundary.
     ///
-    /// `first_instruction_turn_idx` is the earliest rollback-eligible instruction-turn boundary
+    /// `first_instruction_interaction_idx` is the earliest rollback-eligible instruction-turn boundary
     /// in `snapshot`; the trim walk never crosses it so any session-prefix items that predate the
     /// first real turn survive rollback.
     ///
@@ -423,10 +423,10 @@ impl ContextManager {
     fn trim_pre_turn_context_updates(
         &mut self,
         snapshot: &[ResponseItem],
-        first_instruction_turn_idx: usize,
+        first_instruction_interaction_idx: usize,
         mut cut_idx: usize,
     ) -> usize {
-        while cut_idx > first_instruction_turn_idx {
+        while cut_idx > first_instruction_interaction_idx {
             match &snapshot[cut_idx - 1] {
                 ResponseItem::Message { role, content, .. }
                     if role == "developer" && is_contextual_dev_message_content(content) =>

@@ -15,10 +15,10 @@ pub enum ThreadEvent {
     /// Emitted when a turn is started by sending a new prompt to the model.
     /// A turn encompasses all events that happen while agent is processing the prompt.
     #[serde(rename = "turn.started")]
-    TurnStarted(TurnStartedEvent),
+    InteractionStarted(InteractionStartedEvent),
     /// Emitted when a turn is completed. Typically right after the assistant's response.
     #[serde(rename = "turn.completed")]
-    TurnCompleted(TurnCompletedEvent),
+    InteractionCompleted(InteractionCompletedEvent),
     /// Indicates that a turn failed with an error.
     #[serde(rename = "turn.failed")]
     TurnFailed(TurnFailedEvent),
@@ -39,15 +39,15 @@ pub enum ThreadEvent {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub struct ThreadStartedEvent {
     /// The identified of the new thread. Can be used to resume the thread later.
-    pub thread_id: String,
+    pub chat_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS, Default)]
 
-pub struct TurnStartedEvent {}
+pub struct InteractionStartedEvent {}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
-pub struct TurnCompletedEvent {
+pub struct InteractionCompletedEvent {
     pub usage: Usage,
 }
 
@@ -248,8 +248,8 @@ pub struct CollabAgentState {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub struct CollabToolCallItem {
     pub tool: CollabTool,
-    pub sender_thread_id: String,
-    pub receiver_thread_ids: Vec<String>,
+    pub sender_chat_id: String,
+    pub receiver_chat_ids: Vec<String>,
     pub prompt: Option<String>,
     pub agents_states: HashMap<String, CollabAgentState>,
     pub status: CollabToolCallStatus,

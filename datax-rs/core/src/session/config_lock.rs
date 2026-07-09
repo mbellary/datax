@@ -11,7 +11,7 @@ use datax_features::FeaturesToml;
 use datax_features::MultiAgentV2ConfigToml;
 use datax_features::RolloutBudgetConfigToml;
 use datax_features::TokenBudgetConfigToml;
-use datax_protocol::ThreadId;
+use datax_protocol::ChatId;
 
 use crate::config::Config;
 use crate::config_lock::ConfigLockReplayOptions;
@@ -47,7 +47,7 @@ pub(crate) async fn validate_config_lock_if_configured(
 
 pub(crate) async fn export_config_lock_if_configured(
     session_configuration: &SessionConfiguration,
-    conversation_id: ThreadId,
+    conversation_id: ChatId,
 ) -> anyhow::Result<()> {
     let config = session_configuration.original_config_do_not_use.as_ref();
     let Some(export_dir) = config.config_lock_export_dir.as_ref() else {

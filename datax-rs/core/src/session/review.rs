@@ -75,24 +75,24 @@ pub(super) async fn spawn_review_thread(
         .model_reasoning_summary
         .unwrap_or(model_info.default_reasoning_summary);
     let session_source = parent_turn_context.session_source.clone();
-    let (forked_from_thread_id, thread_source) = {
+    let (forked_from_chat_id, thread_source) = {
         let state = sess.state.lock().await;
         (
-            state.session_configuration.forked_from_thread_id,
+            state.session_configuration.forked_from_chat_id,
             state.session_configuration.thread_source.clone(),
         )
     };
 
     let per_turn_config = Arc::new(per_turn_config);
-    let review_turn_id = sub_id.to_string();
+    let review_interaction_id = sub_id.to_string();
     let turn_metadata_state = Arc::new(TurnMetadataState::new(
         sess.session_id().to_string(),
-        sess.thread_id().to_string(),
-        forked_from_thread_id,
-        parent_turn_context.parent_thread_id,
+        sess.chat_id().to_string(),
+        forked_from_chat_id,
+        parent_turn_context.parent_chat_id,
         &session_source,
         thread_source,
-        review_turn_id.clone(),
+        review_interaction_id.clone(),
         #[allow(deprecated)]
         parent_turn_context.cwd.clone(),
         &parent_turn_context.permission_profile,
@@ -101,12 +101,12 @@ pub(super) async fn spawn_review_thread(
     ));
 
     let extension_data = Arc::new(datax_extension_api::ExtensionData::new(
-        review_turn_id.clone(),
+        review_interaction_id.clone(),
     ));
     extension_data.insert(parent_turn_context.turn_skills.snapshot.clone());
 
     let review_turn_context = TurnContext {
-        sub_id: review_turn_id.clone(),
+        sub_id: review_interaction_id.clone(),
         trace_id: current_span_trace_id(),
         realtime_active: parent_turn_context.realtime_active,
         config: per_turn_config,
@@ -117,7 +117,7 @@ pub(super) async fn spawn_review_thread(
         reasoning_effort,
         reasoning_summary,
         session_source,
-        parent_thread_id: parent_turn_context.parent_thread_id,
+        parent_chat_id: parent_turn_context.parent_chat_id,
         environments: parent_turn_context.environments.clone(),
         available_models,
         unified_exec_shell_mode,
@@ -159,9 +159,9 @@ pub(super) async fn spawn_review_thread(
     if tc.environments.single_local_environment_cwd().is_some() {
         tc.turn_metadata_state.spawn_git_enrichment_task();
     }
-    // TODO(ccunningham): Review turns currently rely on `spawn_task` for TurnComplete but do not
-    // emit a parent TurnStarted. Consider giving review a full parent turn lifecycle
-    // (TurnStarted + TurnComplete) for consistency with other standalone tasks.
+    // TODO(ccunningham): Review turns currently rely on `spawn_task` for InteractionComplete but do not
+    // emit a parent InteractionStarted. Consider giving review a full parent turn lifecycle
+    // (InteractionStarted + InteractionComplete) for consistency with other standalone tasks.
     sess.spawn_task(tc.clone(), input, ReviewTask::new()).await;
 
     // Announce entering review mode so UIs can switch modes.

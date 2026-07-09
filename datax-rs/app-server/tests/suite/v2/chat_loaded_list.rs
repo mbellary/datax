@@ -24,7 +24,7 @@ async fn thread_loaded_list_returns_loaded_chat_ids() -> Result<()> {
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let chat_id = start_thread(&mut mcp).await?;
+    let chat_id = start_chat(&mut mcp).await?;
 
     let list_id = mcp
         .send_chat_loaded_list_request(ChatLoadedListParams::default())
@@ -54,8 +54,8 @@ async fn thread_loaded_list_paginates() -> Result<()> {
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let first = start_thread(&mut mcp).await?;
-    let second = start_thread(&mut mcp).await?;
+    let first = start_chat(&mut mcp).await?;
+    let second = start_chat(&mut mcp).await?;
 
     let mut expected = [first, second];
     expected.sort();
@@ -122,7 +122,7 @@ stream_max_retries = 0
     )
 }
 
-async fn start_thread(mcp: &mut TestAppServer) -> Result<String> {
+async fn start_chat(mcp: &mut TestAppServer) -> Result<String> {
     let req_id = mcp
         .send_chat_start_request(ChatStartParams {
             model: Some("gpt-5.2".to_string()),

@@ -3,7 +3,7 @@ use std::sync::Weak;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
-use datax_core::ThreadManager;
+use datax_core::ChatManager;
 use datax_protocol::ChatId;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::ThreadGoal;
@@ -42,7 +42,7 @@ struct GoalRuntimeInner {
     analytics: GoalAnalytics,
     event_emitter: GoalEventEmitter,
     metrics: GoalMetrics,
-    thread_manager: Weak<ThreadManager>,
+    chat_manager: Weak<ChatManager>,
     accounting_state: Arc<GoalAccountingState>,
     enabled: AtomicBool,
     tools_available_for_thread: bool,
@@ -83,7 +83,7 @@ impl GoalRuntimeHandle {
         state_dbs: Arc<datax_state::StateRuntime>,
         event_emitter: GoalEventEmitter,
         metrics: GoalMetrics,
-        thread_manager: Weak<ThreadManager>,
+        chat_manager: Weak<ChatManager>,
         accounting_state: Arc<GoalAccountingState>,
         config: GoalRuntimeConfig,
     ) -> Self {
@@ -94,7 +94,7 @@ impl GoalRuntimeHandle {
                 analytics: config.analytics,
                 event_emitter,
                 metrics,
-                thread_manager,
+                chat_manager,
                 accounting_state,
                 enabled: AtomicBool::new(config.enabled),
                 tools_available_for_thread: config.tools_available_for_thread,
@@ -191,7 +191,12 @@ impl GoalRuntimeHandle {
         });
         match goal.status {
             datax_state::ThreadGoalStatus::Active => {
-                if self.inner.accounting_state.current_interaction_id().is_some() {
+                if self
+                    .inner
+                    .accounting_state
+                    .current_interaction_id()
+                    .is_some()
+                {
                     let _ = self
                         .inner
                         .accounting_state
@@ -208,7 +213,12 @@ impl GoalRuntimeHandle {
                 self.continue_if_idle().await?;
             }
             datax_state::ThreadGoalStatus::BudgetLimited => {
-                if self.inner.accounting_state.current_interaction_id().is_none() {
+                if self
+                    .inner
+                    .accounting_state
+                    .current_interaction_id()
+                    .is_none()
+                {
                     self.inner.accounting_state.clear_active_goal();
                 }
             }
@@ -235,7 +245,10 @@ impl GoalRuntimeHandle {
         Ok(())
     }
 
-    pub async fn usage_limit_active_goal_for_turn(&self, interaction_id: &str) -> Result<(), String> {
+    pub async fn usage_limit_active_goal_for_turn(
+        &self,
+        interaction_id: &str,
+    ) -> Result<(), String> {
         self.stop_active_goal_for_turn(interaction_id, ActiveGoalStopReason::UsageLimit)
             .await
     }
@@ -365,11 +378,11 @@ impl GoalRuntimeHandle {
         // change the goal after we read it but before the continuation launches.
         let _goal_state_permit = self.goal_state_permit().await?;
 
-        let Some(thread_manager) = self.inner.thread_manager.upgrade() else {
+        let Some(chat_manager) = self.inner.chat_manager.upgrade() else {
             tracing::debug!("skipping goal continuation because thread manager is unavailable");
             return Ok(());
         };
-        let Ok(thread) = thread_manager.get_thread(self.inner.chat_id).await else {
+        let Ok(thread) = chat_manager.get_chat(self.inner.chat_id).await else {
             tracing::debug!("skipping goal continuation because live thread is unavailable");
             return Ok(());
         };
@@ -415,11 +428,11 @@ impl GoalRuntimeHandle {
     }
 
     pub(crate) async fn inject_active_turn_steering(&self, item: ResponseItem) {
-        let Some(thread_manager) = self.inner.thread_manager.upgrade() else {
+        let Some(chat_manager) = self.inner.chat_manager.upgrade() else {
             tracing::debug!("skipping goal steering because thread manager is unavailable");
             return;
         };
-        let Ok(thread) = thread_manager.get_thread(self.inner.chat_id).await else {
+        let Ok(thread) = chat_manager.get_chat(self.inner.chat_id).await else {
             tracing::debug!("skipping goal steering because live thread is unavailable");
             return;
         };

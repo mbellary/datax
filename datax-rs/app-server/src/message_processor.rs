@@ -69,7 +69,7 @@ use datax_app_server_protocol::ServerRequestPayload;
 use datax_app_server_protocol::experimental_required_message;
 use datax_arg0::Arg0DispatchPaths;
 use datax_chatgpt::workspace_settings;
-use datax_core::ThreadManager;
+use datax_core::ChatManager;
 use datax_core::config::Config;
 use datax_exec_server::EnvironmentManager;
 use datax_feedback::CodexFeedback;
@@ -346,14 +346,14 @@ impl MessageProcessor {
             ),
         );
         let goal_service = Arc::new(GoalService::new());
-        let thread_manager = Arc::new_cyclic(|thread_manager| {
-            ThreadManager::new(
+        let chat_manager = Arc::new_cyclic(|chat_manager| {
+            ChatManager::new(
                 config.as_ref(),
                 auth_manager.clone(),
                 session_source,
                 environment_manager,
                 thread_extensions(
-                    guardian_agent_spawner(thread_manager.clone()),
+                    guardian_agent_spawner(chat_manager.clone()),
                     ThreadExtensionDependencies {
                         event_sink: app_server_extension_event_sink(
                             outgoing.clone(),
@@ -362,7 +362,7 @@ impl MessageProcessor {
                         auth_manager: auth_manager.clone(),
                         state_db: state_db.clone(),
                         analytics_events_client: analytics_events_client.clone(),
-                        thread_manager: thread_manager.clone(),
+                        chat_manager: chat_manager.clone(),
                         goal_service: Arc::clone(&goal_service),
                         environment_manager: Arc::clone(&environment_manager_for_extensions),
                         executor_skill_provider: Arc::clone(&executor_skill_provider),
@@ -386,12 +386,12 @@ impl MessageProcessor {
                 )),
             )
         });
-        let models_manager = thread_manager.get_models_manager();
+        let models_manager = chat_manager.get_models_manager();
         let models_refresh_worker = crate::models_refresh_worker::spawn(&models_manager);
-        thread_manager
+        chat_manager
             .plugins_manager()
             .set_analytics_events_client(analytics_events_client.clone());
-        let skills_watcher = SkillsWatcher::new(thread_manager.skills_service(), outgoing.clone());
+        let skills_watcher = SkillsWatcher::new(chat_manager.skills_service(), outgoing.clone());
 
         let pending_thread_unloads = Arc::new(Mutex::new(HashSet::new()));
         let thread_watch_manager =
@@ -402,14 +402,14 @@ impl MessageProcessor {
         let app_list_shutdown_token = CancellationToken::new();
         let account_processor = AccountRequestProcessor::new(
             auth_manager.clone(),
-            Arc::clone(&thread_manager),
+            Arc::clone(&chat_manager),
             outgoing.clone(),
             Arc::clone(&config),
             config_manager.clone(),
         );
         let apps_processor = AppsRequestProcessor::new(
             auth_manager.clone(),
-            Arc::clone(&thread_manager),
+            Arc::clone(&chat_manager),
             outgoing.clone(),
             config_manager.clone(),
             Arc::clone(&workspace_settings_cache),
@@ -419,7 +419,7 @@ impl MessageProcessor {
             outgoing.clone(),
             Arc::clone(&skills_watcher),
             auth_manager.clone(),
-            Arc::clone(&thread_manager),
+            Arc::clone(&chat_manager),
             Arc::clone(&config),
             config_manager.clone(),
             Arc::clone(&workspace_settings_cache),
@@ -437,7 +437,7 @@ impl MessageProcessor {
         );
         let feedback_processor = FeedbackRequestProcessor::new(
             auth_manager.clone(),
-            Arc::clone(&thread_manager),
+            Arc::clone(&chat_manager),
             Arc::clone(&config),
             feedback,
             log_db.clone(),
@@ -454,17 +454,17 @@ impl MessageProcessor {
         let marketplace_processor = MarketplaceRequestProcessor::new(
             Arc::clone(&config),
             config_manager.clone(),
-            Arc::clone(&thread_manager),
+            Arc::clone(&chat_manager),
         );
         let mcp_processor = McpRequestProcessor::new(
             auth_manager.clone(),
-            Arc::clone(&thread_manager),
+            Arc::clone(&chat_manager),
             outgoing.clone(),
             config_manager.clone(),
         );
         let plugin_processor = PluginRequestProcessor::new(
             auth_manager.clone(),
-            Arc::clone(&thread_manager),
+            Arc::clone(&chat_manager),
             outgoing.clone(),
             analytics_events_client.clone(),
             config_manager.clone(),
@@ -473,7 +473,7 @@ impl MessageProcessor {
         let remote_control_processor = RemoteControlRequestProcessor::new(remote_control_handle);
         let search_processor = SearchRequestProcessor::new(outgoing.clone());
         let thread_goal_processor = ThreadGoalRequestProcessor::new(
-            Arc::clone(&thread_manager),
+            Arc::clone(&chat_manager),
             outgoing.clone(),
             Arc::clone(&config),
             thread_state_manager.clone(),
@@ -482,7 +482,7 @@ impl MessageProcessor {
         );
         let chat_processor = ChatRequestProcessor::new(
             auth_manager.clone(),
-            Arc::clone(&thread_manager),
+            Arc::clone(&chat_manager),
             outgoing.clone(),
             arg0_paths.clone(),
             Arc::clone(&config),
@@ -499,7 +499,7 @@ impl MessageProcessor {
         );
         let interaction_processor = InteractionRequestProcessor::new(
             auth_manager.clone(),
-            Arc::clone(&thread_manager),
+            Arc::clone(&chat_manager),
             outgoing.clone(),
             analytics_events_client.clone(),
             arg0_paths.clone(),
@@ -515,7 +515,7 @@ impl MessageProcessor {
             // Keep plugin startup warmups aligned at app-server startup.
             let on_effective_plugins_changed =
                 plugin_processor.effective_plugins_changed_callback();
-            thread_manager
+            chat_manager
                 .plugins_manager()
                 .maybe_start_plugin_startup_tasks_for_config(
                     &config.plugins_config_input(),
@@ -526,13 +526,13 @@ impl MessageProcessor {
         let config_processor = ConfigRequestProcessor::new(
             outgoing.clone(),
             config_manager.clone(),
-            thread_manager.clone(),
+            chat_manager.clone(),
             analytics_events_client.clone(),
         );
         let external_agent_config_processor =
             ExternalAgentConfigRequestProcessor::new(ExternalAgentConfigRequestProcessorArgs {
                 outgoing: outgoing.clone(),
-                thread_manager: Arc::clone(&thread_manager),
+                chat_manager: Arc::clone(&chat_manager),
                 thread_store: Arc::clone(&thread_store),
                 config_manager: config_manager.clone(),
                 config_processor: config_processor.clone(),
@@ -542,7 +542,7 @@ impl MessageProcessor {
                 codex_home: config.codex_home.to_path_buf(),
             });
         let environment_processor =
-            EnvironmentRequestProcessor::new(thread_manager.environment_manager());
+            EnvironmentRequestProcessor::new(chat_manager.environment_manager());
         let fs_processor = FsRequestProcessor::new(
             Arc::clone(&environment_manager_for_requests),
             FsWatchManager::new(outgoing.clone()),

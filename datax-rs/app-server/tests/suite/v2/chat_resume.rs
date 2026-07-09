@@ -66,6 +66,9 @@ use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::AgentMessageEvent;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::ImageGenerationEndEvent;
+use datax_protocol::protocol::InteractionAbortReason;
+use datax_protocol::protocol::InteractionAbortedEvent;
+use datax_protocol::protocol::InteractionStartedEvent;
 use datax_protocol::protocol::McpInvocation;
 use datax_protocol::protocol::McpToolCallEndEvent;
 use datax_protocol::protocol::MultiAgentVersion;
@@ -76,9 +79,6 @@ use datax_protocol::protocol::SessionSource as RolloutSessionSource;
 use datax_protocol::protocol::TokenCountEvent;
 use datax_protocol::protocol::TokenUsage;
 use datax_protocol::protocol::TokenUsageInfo;
-use datax_protocol::protocol::InteractionAbortReason;
-use datax_protocol::protocol::InteractionAbortedEvent;
-use datax_protocol::protocol::InteractionStartedEvent;
 use datax_protocol::user_input::ByteRange;
 use datax_protocol::user_input::TextElement;
 use datax_rollout::append_rollout_item_to_path;
@@ -1373,7 +1373,7 @@ async fn thread_goal_set_edits_objective_without_resetting_usage() -> Result<()>
         StateRuntime::init(codex_home.path().to_path_buf(), "mock_provider".into()).await?;
     let chat_id = ChatId::from_string(&chat_id)?;
     let thread_metadata = state_db
-        .get_thread(chat_id)
+        .get_chat(chat_id)
         .await?
         .expect("thread metadata should exist");
     assert_eq!(thread_metadata.preview.as_deref(), Some("keep polishing"));
@@ -1416,7 +1416,7 @@ async fn thread_goal_set_edits_objective_without_resetting_usage() -> Result<()>
         .await?
         .expect("goal should still exist");
     let thread_metadata = state_db
-        .get_thread(chat_id)
+        .get_chat(chat_id)
         .await?
         .expect("thread metadata should still exist");
 
@@ -1557,7 +1557,10 @@ async fn thread_goal_lifecycle_emits_analytics_and_clear_deletes_goal() -> Resul
     )
     .await?;
     assert_eq!(status["event_params"]["goal_id"], persisted_goal_id);
-    assert_eq!(status["event_params"]["interaction_id"], causal_interaction_id);
+    assert_eq!(
+        status["event_params"]["interaction_id"],
+        causal_interaction_id
+    );
     assert_eq!(
         status["event_params"]["cumulative_tokens_accounted"],
         serde_json::Value::Null
@@ -3695,7 +3698,8 @@ async fn start_materialized_thread_and_restart(
         .await?;
     timeout(
         DEFAULT_READ_TIMEOUT,
-        first_mcp.read_stream_until_response_message(RequestId::Integer(materialize_interaction_id)),
+        first_mcp
+            .read_stream_until_response_message(RequestId::Integer(materialize_interaction_id)),
     )
     .await??;
     timeout(

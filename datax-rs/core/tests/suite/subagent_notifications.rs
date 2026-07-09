@@ -21,7 +21,7 @@ use core_test_support::test_codex::local_selections;
 use core_test_support::test_codex::test_codex;
 use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::wait_for_event_match;
-use datax_core::StartThreadOptions;
+use datax_core::StartChatOptions;
 use datax_core::ThreadConfigSnapshot;
 use datax_core::config::AgentRoleConfig;
 use datax_features::Feature;
@@ -298,7 +298,7 @@ async fn wait_for_hook_log(
 async fn wait_for_spawned_chat_id(test: &TestCodex) -> Result<String> {
     let deadline = Instant::now() + Duration::from_secs(2);
     loop {
-        let ids = test.thread_manager.list_chat_ids().await;
+        let ids = test.chat_manager.list_chat_ids().await;
         if let Some(spawned_id) = ids
             .iter()
             .find(|id| **id != test.session_configured.chat_id)
@@ -466,8 +466,8 @@ async fn spawn_child_and_capture_snapshot(
     .await?;
     let chat_id = ChatId::from_string(&spawned_id)?;
     Ok(test
-        .thread_manager
-        .get_thread(chat_id)
+        .chat_manager
+        .get_chat(chat_id)
         .await?
         .config_snapshot()
         .await)
@@ -744,8 +744,8 @@ async fn subagent_stop_replaces_stop_and_skips_internal_subagents() -> Result<()
     // This matcher would catch the old synthetic "review" SubagentStop target
     // because the SubagentStop hook above intentionally matches all agent types.
     let internal_thread = test
-        .thread_manager
-        .start_thread_with_options(StartThreadOptions {
+        .chat_manager
+        .start_chat_with_options(StartChatOptions {
             config: test.config.clone(),
             initial_history: InitialHistory::New,
             session_source: Some(SessionSource::SubAgent(SubAgentSource::Review)),
@@ -762,7 +762,7 @@ async fn subagent_stop_replaces_stop_and_skips_internal_subagents() -> Result<()
     let (sandbox_policy, permission_profile) =
         turn_permission_fields(PermissionProfile::Disabled, test.cwd_path());
     internal_thread
-        .thread
+        .chat
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: INTERNAL_SUBAGENT_PROMPT.to_string(),
@@ -781,12 +781,12 @@ async fn subagent_stop_replaces_stop_and_skips_internal_subagents() -> Result<()
             },
         })
         .await?;
-    let interaction_id = wait_for_event_match(internal_thread.thread.as_ref(), |event| match event {
+    let interaction_id = wait_for_event_match(internal_thread.chat.as_ref(), |event| match event {
         EventMsg::InteractionStarted(event) => Some(event.interaction_id.clone()),
         _ => None,
     })
     .await;
-    wait_for_event_match(internal_thread.thread.as_ref(), |event| match event {
+    wait_for_event_match(internal_thread.chat.as_ref(), |event| match event {
         EventMsg::InteractionComplete(event) if event.interaction_id == interaction_id => Some(()),
         _ => None,
     })

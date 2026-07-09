@@ -5,9 +5,9 @@ use datax_analytics::AnalyticsEventsClient;
 use datax_app_server_protocol::ChatGoal;
 use datax_app_server_protocol::ChatGoalUpdatedNotification;
 use datax_app_server_protocol::ServerNotification::*;
-use datax_core::NewThread;
-use datax_core::StartThreadOptions;
-use datax_core::ThreadManager;
+use datax_core::ChatManager;
+use datax_core::NewChat;
+use datax_core::StartChatOptions;
 use datax_core::config::Config;
 use datax_exec_server::EnvironmentManager;
 use datax_extension_api::AgentSpawnFuture;
@@ -33,7 +33,7 @@ pub(crate) struct ThreadExtensionDependencies {
     pub(crate) auth_manager: Arc<AuthManager>,
     pub(crate) state_db: Option<StateDbHandle>,
     pub(crate) analytics_events_client: AnalyticsEventsClient,
-    pub(crate) thread_manager: Weak<ThreadManager>,
+    pub(crate) chat_manager: Weak<ChatManager>,
     pub(crate) goal_service: Arc<GoalService>,
     pub(crate) environment_manager: Arc<EnvironmentManager>,
     pub(crate) executor_skill_provider: Arc<dyn datax_skills_extension::SkillProvider>,
@@ -46,14 +46,14 @@ pub(crate) fn thread_extensions<S>(
     dependencies: ThreadExtensionDependencies,
 ) -> Arc<ExtensionRegistry<Config>>
 where
-    S: AgentSpawner<StartThreadOptions, Spawned = NewThread, Error = CodexErr> + 'static,
+    S: AgentSpawner<StartChatOptions, Spawned = NewChat, Error = CodexErr> + 'static,
 {
     let ThreadExtensionDependencies {
         event_sink,
         auth_manager,
         state_db,
         analytics_events_client,
-        thread_manager,
+        chat_manager,
         goal_service,
         environment_manager,
         executor_skill_provider,
@@ -66,7 +66,7 @@ where
             state_db,
             analytics_events_client,
             datax_otel::global(),
-            thread_manager,
+            chat_manager,
             goal_service,
             |config: &Config| config.features.enabled(datax_features::Feature::Goals),
         );
@@ -150,17 +150,17 @@ impl ExtensionEventSink for AppServerExtensionEventSink {
 }
 
 pub(crate) fn guardian_agent_spawner(
-    thread_manager: Weak<ThreadManager>,
-) -> impl AgentSpawner<StartThreadOptions, Spawned = NewThread, Error = CodexErr> {
+    chat_manager: Weak<ChatManager>,
+) -> impl AgentSpawner<StartChatOptions, Spawned = NewChat, Error = CodexErr> {
     move |forked_from_chat_id: ChatId,
-          options: StartThreadOptions|
-          -> AgentSpawnFuture<'static, NewThread, CodexErr> {
-        let thread_manager = thread_manager.clone();
+          options: StartChatOptions|
+          -> AgentSpawnFuture<'static, NewChat, CodexErr> {
+        let chat_manager = chat_manager.clone();
         Box::pin(async move {
-            let thread_manager = thread_manager.upgrade().ok_or_else(|| {
+            let chat_manager = chat_manager.upgrade().ok_or_else(|| {
                 CodexErr::UnsupportedOperation("thread manager dropped".to_string())
             })?;
-            thread_manager
+            chat_manager
                 .spawn_subagent(forked_from_chat_id, options)
                 .await
         })

@@ -5,7 +5,7 @@ use std::time::Duration;
 use crate::outgoing_message::OutgoingMessageSender;
 use datax_app_server_protocol::ServerNotification;
 use datax_app_server_protocol::SkillsChangedNotification;
-use datax_core::ThreadManager;
+use datax_core::ChatManager;
 use datax_core::config::Config;
 use datax_core::skills::SkillsLoadInput;
 use datax_core::skills::SkillsService;
@@ -80,13 +80,13 @@ impl SkillsWatcher {
     pub(crate) async fn register_thread_config(
         &self,
         config: &Config,
-        thread_manager: &ThreadManager,
+        chat_manager: &ChatManager,
         environments: &[TurnEnvironmentSelection],
     ) -> WatchRegistration {
         let Some(environment_selection) = environments.first() else {
             return WatchRegistration::default();
         };
-        let Some(environment) = thread_manager
+        let Some(environment) = chat_manager
             .environment_manager()
             .get_environment(&environment_selection.environment_id)
         else {
@@ -101,7 +101,7 @@ impl SkillsWatcher {
         }
 
         let plugins_input = config.plugins_config_input();
-        let plugins_manager = thread_manager.plugins_manager();
+        let plugins_manager = chat_manager.plugins_manager();
         let plugin_outcome = plugins_manager.plugins_for_config(&plugins_input).await;
         let skills_input = SkillsLoadInput::new(
             config.cwd.clone(),
@@ -109,7 +109,7 @@ impl SkillsWatcher {
             config.config_layer_stack.clone(),
             config.bundled_skills_enabled(),
         );
-        let roots = thread_manager
+        let roots = chat_manager
             .skills_service()
             .skill_roots_for_config(&skills_input, Some(environment.get_filesystem()))
             .await

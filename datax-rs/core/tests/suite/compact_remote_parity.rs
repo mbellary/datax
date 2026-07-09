@@ -564,7 +564,7 @@ fn follow_up_index(request_count: usize) -> usize {
 
 async fn capture_from_requests(
     mode: Mode,
-    codex: &datax_core::CodexThread,
+    codex: &datax_core::DataxChat,
     rollout_path: &Path,
     responses_mock: &ResponseMock,
     compact_mock: Option<&ResponseMock>,
@@ -602,7 +602,7 @@ async fn capture_from_requests(
     })
 }
 
-async fn submit_user_input(codex: &datax_core::CodexThread, items: Vec<UserInput>) -> Result<()> {
+async fn submit_user_input(codex: &datax_core::DataxChat, items: Vec<UserInput>) -> Result<()> {
     codex
         .submit(Op::UserInput {
             items,
@@ -616,7 +616,7 @@ async fn submit_user_input(codex: &datax_core::CodexThread, items: Vec<UserInput
     Ok(())
 }
 
-async fn wait_for_turn_complete(codex: &datax_core::CodexThread) {
+async fn wait_for_turn_complete(codex: &datax_core::DataxChat) {
     wait_for_event(codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
 }
 

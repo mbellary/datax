@@ -2,13 +2,13 @@ use std::sync::Arc;
 use std::sync::Weak;
 
 use datax_analytics::AnalyticsEventsClient;
-use datax_core::ThreadManager;
+use datax_core::ChatManager;
+use datax_extension_api::ChatIdleInput;
 use datax_extension_api::ConfigContributor;
 use datax_extension_api::ExtensionData;
 use datax_extension_api::ExtensionEventSink;
 use datax_extension_api::ExtensionFuture;
 use datax_extension_api::ExtensionRegistryBuilder;
-use datax_extension_api::ChatIdleInput;
 use datax_extension_api::ThreadLifecycleContributor;
 use datax_extension_api::ThreadResumeInput;
 use datax_extension_api::ThreadStartInput;
@@ -62,7 +62,7 @@ pub struct GoalExtension<C> {
     analytics: GoalAnalytics,
     event_emitter: GoalEventEmitter,
     metrics: GoalMetrics,
-    thread_manager: Weak<ThreadManager>,
+    chat_manager: Weak<ChatManager>,
     goal_service: Arc<GoalService>,
     goals_enabled: Arc<dyn Fn(&C) -> bool + Send + Sync>,
 }
@@ -79,7 +79,7 @@ impl<C> GoalExtension<C> {
         analytics_events_client: AnalyticsEventsClient,
         event_sink: Arc<dyn ExtensionEventSink>,
         metrics_client: Option<MetricsClient>,
-        thread_manager: Weak<ThreadManager>,
+        chat_manager: Weak<ChatManager>,
         goal_service: Arc<GoalService>,
         goals_enabled: impl Fn(&C) -> bool + Send + Sync + 'static,
     ) -> Self {
@@ -88,7 +88,7 @@ impl<C> GoalExtension<C> {
             analytics: GoalAnalytics::new(analytics_events_client),
             event_emitter: GoalEventEmitter::new(event_sink),
             metrics: GoalMetrics::new(metrics_client),
-            thread_manager,
+            chat_manager,
             goal_service,
             goals_enabled: Arc::new(goals_enabled),
         }
@@ -122,7 +122,7 @@ where
                     Arc::clone(&self.state_dbs),
                     self.event_emitter.clone(),
                     self.metrics.clone(),
-                    self.thread_manager.clone(),
+                    self.chat_manager.clone(),
                     accounting_state,
                     GoalRuntimeConfig {
                         analytics: self.analytics.clone(),
@@ -453,7 +453,7 @@ pub fn install_with_backend<C>(
     state_dbs: Arc<datax_state::StateRuntime>,
     analytics_events_client: AnalyticsEventsClient,
     metrics_client: Option<MetricsClient>,
-    thread_manager: Weak<ThreadManager>,
+    chat_manager: Weak<ChatManager>,
     goal_service: Arc<GoalService>,
     goals_enabled: impl Fn(&C) -> bool + Send + Sync + 'static,
 ) where
@@ -464,7 +464,7 @@ pub fn install_with_backend<C>(
         analytics_events_client,
         registry.event_sink(),
         metrics_client,
-        thread_manager,
+        chat_manager,
         Arc::clone(&goal_service),
         goals_enabled,
     ));

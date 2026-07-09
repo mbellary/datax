@@ -34,7 +34,7 @@ use tokio::sync::Semaphore;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
-use crate::codex_delegate::run_codex_thread_interactive;
+use crate::codex_delegate::run_datax_chat_interactive;
 use crate::config::Config;
 use crate::config::Constrained;
 use crate::config::ManagedFeatures;
@@ -662,7 +662,7 @@ async fn spawn_guardian_review_session(
         ),
         None => (None, 0, None),
     };
-    let codex = Box::pin(run_codex_thread_interactive(
+    let codex = Box::pin(run_datax_chat_interactive(
         spawn_config,
         parent_session.services.auth_manager.clone(),
         parent_session.services.models_manager.clone(),
@@ -982,7 +982,9 @@ fn event_matches_turn(event: &Event, expected_interaction_id: &str) -> bool {
     }
 
     match &event.msg {
-        EventMsg::InteractionComplete(turn_complete) => turn_complete.interaction_id == expected_interaction_id,
+        EventMsg::InteractionComplete(turn_complete) => {
+            turn_complete.interaction_id == expected_interaction_id
+        }
         EventMsg::InteractionAborted(turn_aborted) => {
             turn_aborted.interaction_id.as_deref() == Some(expected_interaction_id)
         }
@@ -1099,7 +1101,10 @@ async fn run_before_review_deadline_with_cancel<T>(
     result
 }
 
-async fn interrupt_and_drain_turn(codex: &Codex, expected_interaction_id: &str) -> anyhow::Result<()> {
+async fn interrupt_and_drain_turn(
+    codex: &Codex,
+    expected_interaction_id: &str,
+) -> anyhow::Result<()> {
     let _ = codex.submit(Op::Interrupt).await;
 
     tokio::time::timeout(GUARDIAN_INTERRUPT_DRAIN_TIMEOUT, async {
@@ -1126,10 +1131,10 @@ mod tests {
     use super::*;
     use datax_protocol::protocol::AgentStatus;
     use datax_protocol::protocol::ErrorEvent;
-    use datax_protocol::protocol::Submission;
     use datax_protocol::protocol::InteractionAbortReason;
     use datax_protocol::protocol::InteractionAbortedEvent;
     use datax_protocol::protocol::InteractionCompleteEvent;
+    use datax_protocol::protocol::Submission;
 
     async fn test_review_session() -> (
         GuardianReviewSession,
@@ -1307,10 +1312,7 @@ mod tests {
         );
         assert_eq!(
             None,
-            prompt_cache_key_override_for_review_session(
-                &SessionSource::Cli,
-                Some(parent_chat_id)
-            )
+            prompt_cache_key_override_for_review_session(&SessionSource::Cli, Some(parent_chat_id))
         );
         assert_eq!(
             None,

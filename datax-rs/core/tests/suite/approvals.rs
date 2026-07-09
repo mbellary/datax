@@ -24,7 +24,7 @@ use core_test_support::zsh_fork::build_zsh_fork_test;
 use core_test_support::zsh_fork::restrictive_workspace_write_profile;
 use core_test_support::zsh_fork::zsh_fork_runtime;
 use datax_config::types::ApprovalsReviewer;
-use datax_core::CodexThread;
+use datax_core::DataxChat;
 use datax_core::config::Constrained;
 use datax_core::sandboxing::SandboxPermissions;
 use datax_features::Feature;
@@ -767,7 +767,9 @@ async fn expect_patch_approval(
             assert_eq!(approval.call_id, expected_call_id);
             approval
         }
-        EventMsg::InteractionComplete(_) => panic!("expected patch approval request before completion"),
+        EventMsg::InteractionComplete(_) => {
+            panic!("expected patch approval request before completion")
+        }
         other => panic!("unexpected event: {other:?}"),
     }
 }
@@ -817,17 +819,17 @@ fn body_contains(req: &Request, text: &str) -> bool {
         .is_some_and(|body| body.contains(text))
 }
 
-async fn wait_for_spawned_thread(test: &TestCodex) -> Result<Arc<CodexThread>> {
+async fn wait_for_spawned_thread(test: &TestCodex) -> Result<Arc<DataxChat>> {
     let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
     loop {
-        let ids = test.thread_manager.list_chat_ids().await;
+        let ids = test.chat_manager.list_chat_ids().await;
         if let Some(chat_id) = ids
             .iter()
             .find(|id| **id != test.session_configured.chat_id)
         {
             return test
-                .thread_manager
-                .get_thread(*chat_id)
+                .chat_manager
+                .get_chat(*chat_id)
                 .await
                 .map_err(anyhow::Error::from);
         }

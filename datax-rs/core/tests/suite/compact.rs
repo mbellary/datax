@@ -16,7 +16,7 @@ use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::test_path_buf;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_match;
-use datax_core::CodexThread;
+use datax_core::DataxChat;
 use datax_core::compact::SUMMARIZATION_PROMPT;
 use datax_core::compact::SUMMARY_PREFIX;
 use datax_core::config::Config;
@@ -110,7 +110,7 @@ async fn build_auto_compaction_disabled_codex(server: &MockServer) -> TestCodex 
         .expect("build codex")
 }
 
-async fn submit_context_window_exceeded_turn(codex: &Arc<CodexThread>, text: &str) {
+async fn submit_context_window_exceeded_turn(codex: &Arc<DataxChat>, text: &str) {
     codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
@@ -129,7 +129,10 @@ async fn submit_context_window_exceeded_turn(codex: &Arc<CodexThread>, text: &st
         _ => None,
     })
     .await;
-    wait_for_event(codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(codex, |event| {
+        matches!(event, EventMsg::InteractionComplete(_))
+    })
+    .await;
     assert!(
         error_message.contains("ran out of room in the model's context window"),
         "expected context window exceeded message, got {error_message}"
@@ -447,7 +450,7 @@ fn assert_pre_sampling_switch_compaction_requests(
     );
 }
 
-async fn assert_compaction_uses_turn_lifecycle_id(codex: &std::sync::Arc<datax_core::CodexThread>) {
+async fn assert_compaction_uses_turn_lifecycle_id(codex: &std::sync::Arc<datax_core::DataxChat>) {
     let mut turn_started_id = None;
     let mut turn_completed_id = None;
     let mut compact_started_id = None;
@@ -1041,7 +1044,10 @@ async fn manual_compact_emits_context_compaction_items() {
         })
         .await
         .unwrap();
-    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(&codex, |event| {
+        matches!(event, EventMsg::InteractionComplete(_))
+    })
+    .await;
 
     codex.submit(Op::Compact).await.unwrap();
 
@@ -3732,7 +3738,10 @@ async fn snapshot_request_shape_mid_turn_continuation_compaction() {
         .await
         .unwrap();
 
-    wait_for_event(&codex, |msg| matches!(msg, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(&codex, |msg| {
+        matches!(msg, EventMsg::InteractionComplete(_))
+    })
+    .await;
 
     // Assert first request captured expected user message that triggers function call.
     let first_request = first_turn_mock.single_request().input();

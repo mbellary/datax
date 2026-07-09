@@ -356,7 +356,7 @@ async fn websocket_disconnect_keeps_last_subscribed_thread_loaded_until_idle_tim
     send_initialize_request(&mut ws1, /*id*/ 1, "ws_thread_owner").await?;
     read_response_for_id(&mut ws1, /*id*/ 1).await?;
 
-    let chat_id = start_thread(&mut ws1, /*id*/ 2).await?;
+    let chat_id = start_chat(&mut ws1, /*id*/ 2).await?;
     assert_loaded_threads(&mut ws1, /*id*/ 3, &[chat_id.as_str()]).await?;
 
     ws1.close(None).await.context("failed to close websocket")?;
@@ -609,7 +609,7 @@ pub(super) async fn send_initialize_request(
     .await
 }
 
-async fn start_thread(stream: &mut WsClient, id: i64) -> Result<String> {
+async fn start_chat(stream: &mut WsClient, id: i64) -> Result<String> {
     send_request(
         stream,
         "chat/start",

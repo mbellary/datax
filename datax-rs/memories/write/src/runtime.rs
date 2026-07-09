@@ -1,10 +1,10 @@
-use datax_core::CodexThread;
+use datax_core::ChatManager;
+use datax_core::DataxChat;
 use datax_core::ModelClient;
-use datax_core::NewThread;
+use datax_core::NewChat;
 use datax_core::Prompt;
 use datax_core::ResponseEvent;
-use datax_core::StartThreadOptions;
-use datax_core::ThreadManager;
+use datax_core::StartChatOptions;
 use datax_core::config::Config;
 use datax_core::content_items_to_text;
 use datax_core::detached_memory_responses_metadata;
@@ -19,8 +19,8 @@ use datax_model_provider::SharedModelProvider;
 use datax_model_provider::create_model_provider;
 use datax_otel::SessionTelemetry;
 use datax_otel::TelemetryAuthMode;
-use datax_protocol::SessionId;
 use datax_protocol::ChatId;
+use datax_protocol::SessionId;
 use datax_protocol::config_types::ReasoningSummary;
 use datax_protocol::openai_models::ModelInfo;
 use datax_protocol::openai_models::ReasoningEffort;
@@ -40,7 +40,7 @@ use std::time::Duration;
 
 pub(crate) struct SpawnedConsolidationAgent {
     pub(crate) chat_id: ChatId,
-    pub(crate) thread: Arc<CodexThread>,
+    pub(crate) thread: Arc<DataxChat>,
 }
 
 #[derive(Clone, Debug)]
@@ -68,8 +68,8 @@ impl StageOneRequestContext {
 
 pub(crate) struct MemoryStartupContext {
     chat_id: ChatId,
-    thread: Arc<CodexThread>,
-    thread_manager: Arc<ThreadManager>,
+    thread: Arc<DataxChat>,
+    chat_manager: Arc<ChatManager>,
     auth_manager: Arc<AuthManager>,
     provider: SharedModelProvider,
     session_telemetry: SessionTelemetry,
@@ -77,10 +77,10 @@ pub(crate) struct MemoryStartupContext {
 
 impl MemoryStartupContext {
     pub(crate) fn new(
-        thread_manager: Arc<ThreadManager>,
+        chat_manager: Arc<ChatManager>,
         auth_manager: Arc<AuthManager>,
         chat_id: ChatId,
-        thread: Arc<CodexThread>,
+        thread: Arc<DataxChat>,
         config: &Config,
         source: SessionSource,
     ) -> Self {
@@ -89,7 +89,7 @@ impl MemoryStartupContext {
             Some(Arc::clone(&auth_manager)),
         );
         Self::new_with_provider(
-            thread_manager,
+            chat_manager,
             auth_manager,
             chat_id,
             thread,
@@ -101,16 +101,16 @@ impl MemoryStartupContext {
 
     #[cfg(test)]
     pub(crate) fn new_for_testing(
-        thread_manager: Arc<ThreadManager>,
+        chat_manager: Arc<ChatManager>,
         auth_manager: Arc<AuthManager>,
         chat_id: ChatId,
-        thread: Arc<CodexThread>,
+        thread: Arc<DataxChat>,
         config: &Config,
         source: SessionSource,
         provider: SharedModelProvider,
     ) -> Self {
         Self::new_with_provider(
-            thread_manager,
+            chat_manager,
             auth_manager,
             chat_id,
             thread,
@@ -121,10 +121,10 @@ impl MemoryStartupContext {
     }
 
     fn new_with_provider(
-        thread_manager: Arc<ThreadManager>,
+        chat_manager: Arc<ChatManager>,
         auth_manager: Arc<AuthManager>,
         chat_id: ChatId,
-        thread: Arc<CodexThread>,
+        thread: Arc<DataxChat>,
         config: &Config,
         source: SessionSource,
         provider: SharedModelProvider,
@@ -156,7 +156,7 @@ impl MemoryStartupContext {
         Self {
             chat_id,
             thread,
-            thread_manager,
+            chat_manager,
             auth_manager,
             provider,
             session_telemetry,
@@ -195,7 +195,7 @@ impl MemoryStartupContext {
     ) -> StageOneRequestContext {
         let config_snapshot = self.thread.config_snapshot().await;
         let model_info = self
-            .thread_manager
+            .chat_manager
             .get_models_manager()
             .get_model_info(model_name, &config.to_models_manager_config())
             .await;
@@ -296,13 +296,15 @@ impl MemoryStartupContext {
         prompt: Vec<UserInput>,
     ) -> anyhow::Result<SpawnedConsolidationAgent> {
         let environments = self
-            .thread_manager
+            .chat_manager
             .default_environment_selections(&config.cwd);
-        let NewThread {
-            chat_id, thread, ..
+        let NewChat {
+            chat_id,
+            chat: thread,
+            ..
         } = self
-            .thread_manager
-            .start_thread_with_options(StartThreadOptions {
+            .chat_manager
+            .start_chat_with_options(StartChatOptions {
                 config,
                 initial_history: InitialHistory::New,
                 session_source: Some(SessionSource::Internal(
@@ -347,8 +349,8 @@ impl MemoryStartupContext {
     ) -> anyhow::Result<()> {
         let SpawnedConsolidationAgent { chat_id, thread } = agent;
         let thread = self
-            .thread_manager
-            .remove_thread(&chat_id)
+            .chat_manager
+            .remove_chat(&chat_id)
             .await
             .unwrap_or(thread);
 

@@ -40,11 +40,7 @@ impl ChatRequestProcessor {
         let mut chat_ids = self.state_db_spawn_subtree_chat_ids(chat_id).await?;
         let mut seen = chat_ids.iter().copied().collect::<HashSet<_>>();
 
-        match self
-            .thread_manager
-            .list_agent_subtree_chat_ids(chat_id)
-            .await
-        {
+        match self.chat_manager.list_agent_subtree_chat_ids(chat_id).await {
             Ok(live_chat_ids) => {
                 for live_chat_id in live_chat_ids {
                     if seen.insert(live_chat_id) {
@@ -112,7 +108,7 @@ impl ChatRequestProcessor {
         chat_id: ChatId,
         has_descendants: bool,
     ) -> Result<(), JSONRPCErrorError> {
-        if let Ok(thread) = self.thread_manager.get_thread(chat_id).await {
+        if let Ok(thread) = self.chat_manager.get_chat(chat_id).await {
             if !thread.config_snapshot().await.ephemeral {
                 return Ok(());
             }
@@ -140,7 +136,7 @@ impl ChatRequestProcessor {
                     ));
                 };
                 if state_db
-                    .get_thread(chat_id)
+                    .get_chat(chat_id)
                     .await
                     .map_err(|err| {
                         internal_error(format!(

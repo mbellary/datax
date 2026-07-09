@@ -67,7 +67,7 @@ fn validate_response_item_image_urls(messages: &[ResponseItem]) -> Result<(), JS
 #[derive(Clone)]
 pub(crate) struct InteractionRequestProcessor {
     auth_manager: Arc<AuthManager>,
-    thread_manager: Arc<ThreadManager>,
+    chat_manager: Arc<ChatManager>,
     outgoing: Arc<OutgoingMessageSender>,
     analytics_events_client: AnalyticsEventsClient,
     arg0_paths: Arg0DispatchPaths,
@@ -123,7 +123,7 @@ impl InteractionRequestProcessor {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         auth_manager: Arc<AuthManager>,
-        thread_manager: Arc<ThreadManager>,
+        chat_manager: Arc<ChatManager>,
         outgoing: Arc<OutgoingMessageSender>,
         analytics_events_client: AnalyticsEventsClient,
         arg0_paths: Arg0DispatchPaths,
@@ -137,7 +137,7 @@ impl InteractionRequestProcessor {
     ) -> Self {
         Self {
             auth_manager,
-            thread_manager,
+            chat_manager,
             outgoing,
             analytics_events_client,
             arg0_paths,
@@ -299,14 +299,14 @@ impl InteractionRequestProcessor {
     async fn load_thread(
         &self,
         chat_id: &str,
-    ) -> Result<(ChatId, Arc<CodexThread>), JSONRPCErrorError> {
+    ) -> Result<(ChatId, Arc<DataxChat>), JSONRPCErrorError> {
         // Resolve the core conversation handle from a v2 thread id string.
         let chat_id = ChatId::from_string(chat_id)
             .map_err(|err| invalid_request(format!("invalid thread id: {err}")))?;
 
         let thread = self
-            .thread_manager
-            .get_thread(chat_id)
+            .chat_manager
+            .get_chat(chat_id)
             .await
             .map_err(|_| invalid_request(format!("thread not found: {chat_id}")))?;
 
@@ -316,7 +316,7 @@ impl InteractionRequestProcessor {
     async fn ensure_direct_input_allowed(
         &self,
         request_id: &ConnectionRequestId,
-        chat: &CodexThread,
+        chat: &DataxChat,
     ) -> Result<(), JSONRPCErrorError> {
         if thread.multi_agent_version() == Some(MultiAgentVersion::V2)
             && matches!(
@@ -410,7 +410,7 @@ impl InteractionRequestProcessor {
     async fn submit_core_op(
         &self,
         request_id: &ConnectionRequestId,
-        chat: &CodexThread,
+        chat: &DataxChat,
         op: Op,
     ) -> CodexResult<String> {
         thread
@@ -481,7 +481,7 @@ impl InteractionRequestProcessor {
             })?;
 
         let environment_selections =
-            resolve_turn_environment_selections(self.thread_manager.as_ref(), params.environments)?;
+            resolve_turn_environment_selections(self.chat_manager.as_ref(), params.environments)?;
 
         // Map v2 input messages to core input messages.
         let mapped_items: Vec<CoreInputItem> = params
@@ -541,7 +541,7 @@ impl InteractionRequestProcessor {
         if turn_has_input {
             let config_snapshot = thread.config_snapshot().await;
             datax_memories_write::start_memories_startup_task(
-                Arc::clone(&self.thread_manager),
+                Arc::clone(&self.chat_manager),
                 Arc::clone(&self.auth_manager),
                 chat_id,
                 Arc::clone(&thread),
@@ -569,15 +569,14 @@ impl InteractionRequestProcessor {
 
     async fn build_environment_override(
         &self,
-        chat: &CodexThread,
+        chat: &DataxChat,
         cwd: Option<AbsolutePathBuf>,
         environment_selections: Option<Vec<TurnEnvironmentSelection>>,
     ) -> Option<TurnEnvironmentSelections> {
         match (cwd, environment_selections) {
             (None, None) => None,
             (Some(cwd), None) => {
-                let environment_selections =
-                    self.thread_manager.default_environment_selections(&cwd);
+                let environment_selections = self.chat_manager.default_environment_selections(&cwd);
                 Some(TurnEnvironmentSelections::new(cwd, environment_selections))
             }
             (cwd, Some(environment_selections)) => {
@@ -602,7 +601,7 @@ impl InteractionRequestProcessor {
 
     async fn build_thread_settings_overrides(
         &self,
-        chat: &CodexThread,
+        chat: &DataxChat,
         params: ThreadSettingsBuildParams,
     ) -> Result<datax_protocol::protocol::ThreadSettingsOverrides, JSONRPCErrorError> {
         let ThreadSettingsBuildParams {
@@ -712,7 +711,7 @@ impl InteractionRequestProcessor {
 
         if has_any_overrides {
             thread
-                .preview_thread_settings_overrides(CodexThreadSettingsOverrides {
+                .preview_thread_settings_overrides(DataxChatSettingsOverrides {
                     environments: environments.clone(),
                     workspace_roots: runtime_workspace_roots.clone(),
                     approval_policy,
@@ -827,7 +826,7 @@ impl InteractionRequestProcessor {
     }
 
     async fn set_app_server_client_info(
-        chat: &CodexThread,
+        chat: &DataxChat,
         app_server_client_name: Option<String>,
         app_server_client_version: Option<String>,
     ) -> Result<(), JSONRPCErrorError> {
@@ -958,7 +957,7 @@ impl InteractionRequestProcessor {
         &self,
         request_id: &ConnectionRequestId,
         chat_id: &str,
-    ) -> Result<Option<(ChatId, Arc<CodexThread>)>, JSONRPCErrorError> {
+    ) -> Result<Option<(ChatId, Arc<DataxChat>)>, JSONRPCErrorError> {
         let (chat_id, thread) = self.load_thread(chat_id).await?;
 
         match self
@@ -1168,7 +1167,7 @@ impl InteractionRequestProcessor {
     async fn start_inline_review(
         &self,
         request_id: &ConnectionRequestId,
-        parent_thread: Arc<CodexThread>,
+        parent_thread: Arc<DataxChat>,
         review_request: ReviewRequest,
         display_text: &str,
         parent_chat_id: String,
@@ -1191,7 +1190,7 @@ impl InteractionRequestProcessor {
         &self,
         request_id: &ConnectionRequestId,
         parent_chat_id: ChatId,
-        parent_thread: Arc<CodexThread>,
+        parent_thread: Arc<DataxChat>,
         review_request: ReviewRequest,
         display_text: &str,
     ) -> std::result::Result<(), JSONRPCErrorError> {
@@ -1215,13 +1214,13 @@ impl InteractionRequestProcessor {
             config.model = Some(review_model.clone());
         }
 
-        let NewThread {
+        let NewChat {
             chat_id: chat_id,
             chat: review_thread,
             ..
         } = self
-            .thread_manager
-            .fork_thread_from_history(
+            .chat_manager
+            .fork_chat_from_history(
                 ForkSnapshot::Interrupted,
                 config.clone(),
                 InitialHistory::Resumed(ResumedHistory {
@@ -1408,7 +1407,7 @@ impl InteractionRequestProcessor {
 
     fn listener_task_context(&self) -> ListenerTaskContext {
         ListenerTaskContext {
-            thread_manager: Arc::clone(&self.thread_manager),
+            chat_manager: Arc::clone(&self.chat_manager),
             thread_state_manager: self.thread_state_manager.clone(),
             outgoing: Arc::clone(&self.outgoing),
             pending_thread_unloads: Arc::clone(&self.pending_thread_unloads),

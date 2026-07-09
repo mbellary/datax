@@ -1,8 +1,8 @@
 use super::AgentControl;
 use crate::agent::AgentStatus;
-use crate::codex_thread::CodexThread;
+use crate::chat_manager::ChatManagerState;
 use crate::config::Config;
-use crate::thread_manager::ThreadManagerState;
+use crate::datax_chat::DataxChat;
 use datax_protocol::ChatId;
 use datax_protocol::error::CodexErr;
 use datax_protocol::error::Result as CodexResult;
@@ -47,7 +47,7 @@ impl Drop for V2ResidencySlot {
 impl AgentControl {
     pub(super) async fn reserve_v2_residency_slot(
         &self,
-        state: &Arc<ThreadManagerState>,
+        state: &Arc<ChatManagerState>,
         config: &Config,
         protected_chat_id: Option<ChatId>,
     ) -> CodexResult<V2ResidencySlot> {
@@ -61,10 +61,10 @@ impl AgentControl {
 
     pub(super) async fn touch_loaded_v2_residency(
         &self,
-        state: &Arc<ThreadManagerState>,
+        state: &Arc<ChatManagerState>,
         chat_id: ChatId,
     ) {
-        if let Ok(thread) = state.get_thread(chat_id).await
+        if let Ok(thread) = state.get_chat(chat_id).await
             && is_resident_candidate(thread.as_ref())
         {
             self.v2_residency.touch(chat_id);
@@ -79,7 +79,7 @@ impl AgentControl {
 impl V2Residency {
     async fn reserve_slot(
         self: Arc<Self>,
-        manager: &Arc<ThreadManagerState>,
+        manager: &Arc<ChatManagerState>,
         capacity: usize,
         protected_chat_id: Option<ChatId>,
     ) -> CodexResult<V2ResidencySlot> {
@@ -115,7 +115,7 @@ impl V2Residency {
 
     async fn try_unload_one_resident(
         &self,
-        manager: &Arc<ThreadManagerState>,
+        manager: &Arc<ChatManagerState>,
         protected_chat_id: Option<ChatId>,
     ) -> bool {
         let candidates_to_scan = self.resident_count();
@@ -124,7 +124,7 @@ impl V2Residency {
                 return false;
             };
             let Some(candidate_thread) = manager
-                .get_thread(candidate_chat_id)
+                .get_chat(candidate_chat_id)
                 .await
                 .ok()
                 .filter(|thread| is_resident_candidate(thread))
@@ -143,7 +143,7 @@ impl V2Residency {
                 self.touch(candidate_chat_id);
                 continue;
             }
-            let _ = manager.remove_thread(&candidate_chat_id).await;
+            let _ = manager.remove_chat(&candidate_chat_id).await;
             return true;
         }
         false
@@ -213,7 +213,7 @@ fn touch_resident(residents: &mut VecDeque<ChatId>, chat_id: ChatId) {
     residents.push_back(chat_id);
 }
 
-fn is_resident_candidate(thread: &CodexThread) -> bool {
+fn is_resident_candidate(thread: &DataxChat) -> bool {
     thread.multi_agent_version() == Some(MultiAgentVersion::V2)
         && is_v2_resident_session_source(&thread.session_source)
 }
@@ -222,7 +222,7 @@ pub(super) fn is_v2_resident_session_source(session_source: &SessionSource) -> b
     matches!(session_source, SessionSource::SubAgent(_))
 }
 
-async fn is_unloadable(thread: &CodexThread) -> bool {
+async fn is_unloadable(thread: &DataxChat) -> bool {
     matches!(
         thread.agent_status().await,
         AgentStatus::Completed(_) | AgentStatus::Errored(_) | AgentStatus::Interrupted

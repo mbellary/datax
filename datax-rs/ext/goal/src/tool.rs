@@ -318,7 +318,10 @@ impl GoalToolExecutor {
                     "goal progress accounting semaphore closed: {err}"
                 ))
             })?;
-        let Some(snapshot) = self.accounting_state.progress_snapshot(interaction_id.as_str()) else {
+        let Some(snapshot) = self
+            .accounting_state
+            .progress_snapshot(interaction_id.as_str())
+        else {
             return Ok(None);
         };
         let previous_status = self

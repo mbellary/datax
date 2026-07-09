@@ -375,8 +375,7 @@ mod agent {
             let SpawnedConsolidationAgent { chat_id, thread } = agent;
 
             // Loop the agent until we have the final status.
-            let final_status =
-                loop_agent(db.clone(), claim.token.clone(), chat_id, &thread).await;
+            let final_status = loop_agent(db.clone(), claim.token.clone(), chat_id, &thread).await;
 
             if matches!(final_status, AgentStatus::Completed(_)) {
                 if let Some(token_usage) = thread
@@ -453,7 +452,7 @@ mod agent {
         db: Arc<StateRuntime>,
         token: String,
         chat_id: ChatId,
-        thread: &datax_core::CodexThread,
+        thread: &datax_core::DataxChat,
     ) -> AgentStatus {
         let mut heartbeat_interval =
             tokio::time::interval(Duration::from_secs(crate::stage_two::JOB_HEARTBEAT_SECONDS));

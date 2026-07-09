@@ -140,7 +140,9 @@ async fn expect_patch_approval(
             assert_eq!(approval.call_id, expected_call_id);
             approval
         }
-        EventMsg::InteractionComplete(_) => panic!("expected patch approval request before completion"),
+        EventMsg::InteractionComplete(_) => {
+            panic!("expected patch approval request before completion")
+        }
         other => panic!("unexpected event: {other:?}"),
     }
 }

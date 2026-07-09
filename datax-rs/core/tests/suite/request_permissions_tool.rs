@@ -196,7 +196,9 @@ async fn expect_request_permissions_event(
             assert_eq!(request.call_id, expected_call_id);
             request.permissions
         }
-        EventMsg::InteractionComplete(_) => panic!("expected request_permissions before completion"),
+        EventMsg::InteractionComplete(_) => {
+            panic!("expected request_permissions before completion")
+        }
         other => panic!("unexpected event: {other:?}"),
     }
 }

@@ -135,7 +135,7 @@ async fn prompt_tools_are_consistent_across_requests() -> anyhow::Result<()> {
     let TestCodex {
         codex,
         config,
-        thread_manager,
+        chat_manager,
         ..
     } = test_codex()
         .with_pre_build_hook(write_global_instructions)
@@ -153,7 +153,7 @@ async fn prompt_tools_are_consistent_across_requests() -> anyhow::Result<()> {
         })
         .build(&server)
         .await?;
-    let base_instructions = thread_manager
+    let base_instructions = chat_manager
         .get_models_manager()
         .get_model_info(
             config

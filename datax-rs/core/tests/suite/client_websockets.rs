@@ -30,8 +30,8 @@ use datax_otel::MetricsConfig;
 use datax_otel::SessionTelemetry;
 use datax_otel::TelemetryAuthMode;
 use datax_otel::current_span_w3c_trace_context;
-use datax_protocol::SessionId;
 use datax_protocol::ChatId;
+use datax_protocol::SessionId;
 use datax_protocol::account::PlanType;
 use datax_protocol::config_types::ReasoningSummary;
 use datax_protocol::config_types::ServiceTier;
@@ -126,7 +126,10 @@ fn responses_metadata(
     )
 }
 
-fn turn_metadata(harness: &WebsocketTestHarness, interaction_id: Option<&str>) -> CodexResponsesMetadata {
+fn turn_metadata(
+    harness: &WebsocketTestHarness,
+    interaction_id: Option<&str>,
+) -> CodexResponsesMetadata {
     responses_metadata(harness, interaction_id, TestCodexResponsesRequestKind::Turn)
 }
 
@@ -134,7 +137,11 @@ fn prewarm_metadata(
     harness: &WebsocketTestHarness,
     interaction_id: Option<&str>,
 ) -> CodexResponsesMetadata {
-    responses_metadata(harness, interaction_id, TestCodexResponsesRequestKind::Prewarm)
+    responses_metadata(
+        harness,
+        interaction_id,
+        TestCodexResponsesRequestKind::Prewarm,
+    )
 }
 
 fn websocket_connection_metadata(harness: &WebsocketTestHarness) -> CodexResponsesMetadata {

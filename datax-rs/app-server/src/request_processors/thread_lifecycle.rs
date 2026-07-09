@@ -5,7 +5,7 @@ pub(super) const THREAD_UNLOADING_DELAY: Duration = Duration::from_secs(30 * 60)
 
 #[derive(Clone)]
 pub(super) struct ListenerTaskContext {
-    pub(super) thread_manager: Arc<ThreadManager>,
+    pub(super) chat_manager: Arc<ChatManager>,
     pub(super) thread_state_manager: ThreadStateManager,
     pub(super) outgoing: Arc<OutgoingMessageSender>,
     pub(super) pending_thread_unloads: Arc<Mutex<HashSet<ChatId>>>,
@@ -142,8 +142,8 @@ pub(super) async fn ensure_conversation_listener(
     raw_events_enabled: bool,
 ) -> Result<EnsureConversationListenerResult, JSONRPCErrorError> {
     let conversation = match listener_task_context
-        .thread_manager
-        .get_thread(conversation_id)
+        .chat_manager
+        .get_chat(conversation_id)
         .await
     {
         Ok(conv) => conv,
@@ -213,7 +213,7 @@ pub(super) fn log_listener_attach_result(
 pub(super) async fn ensure_listener_task_running(
     listener_task_context: ListenerTaskContext,
     conversation_id: ChatId,
-    conversation: Arc<CodexThread>,
+    conversation: Arc<DataxChat>,
     thread_state: Arc<Mutex<ThreadState>>,
 ) -> Result<(), JSONRPCErrorError> {
     let (cancel_tx, mut cancel_rx) = oneshot::channel();
@@ -234,7 +234,7 @@ pub(super) async fn ensure_listener_task_running(
         .skills_watcher
         .register_thread_config(
             config.as_ref(),
-            listener_task_context.thread_manager.as_ref(),
+            listener_task_context.chat_manager.as_ref(),
             &environments,
         )
         .await;
@@ -264,7 +264,7 @@ pub(super) async fn ensure_listener_task_running(
     };
     let ListenerTaskContext {
         outgoing,
-        thread_manager,
+        chat_manager,
         thread_state_manager,
         pending_thread_unloads,
         thread_watch_manager,
@@ -342,7 +342,7 @@ pub(super) async fn ensure_listener_task_running(
                         event.clone(),
                         conversation_id,
                         conversation.clone(),
-                        thread_manager.clone(),
+                        chat_manager.clone(),
                         thread_outgoing,
                         thread_state.clone(),
                         thread_watch_manager.clone(),
@@ -373,7 +373,7 @@ pub(super) async fn ensure_listener_task_running(
                         pending_thread_unloads.insert(conversation_id);
                     }
                     unload_thread_without_subscribers(
-                        thread_manager.clone(),
+                        chat_manager.clone(),
                         outgoing_for_task.clone(),
                         pending_thread_unloads.clone(),
                         thread_state_manager.clone(),
@@ -396,7 +396,7 @@ pub(super) async fn ensure_listener_task_running(
     Ok(())
 }
 
-pub(super) async fn wait_for_thread_shutdown(thread: &Arc<CodexThread>) -> ThreadShutdownResult {
+pub(super) async fn wait_for_thread_shutdown(thread: &Arc<DataxChat>) -> ThreadShutdownResult {
     match tokio::time::timeout(Duration::from_secs(10), thread.shutdown_and_wait()).await {
         Ok(Ok(())) => ThreadShutdownResult::Complete,
         Ok(Err(_)) => ThreadShutdownResult::SubmitFailed,
@@ -405,13 +405,13 @@ pub(super) async fn wait_for_thread_shutdown(thread: &Arc<CodexThread>) -> Threa
 }
 
 pub(super) async fn unload_thread_without_subscribers(
-    thread_manager: Arc<ThreadManager>,
+    chat_manager: Arc<ChatManager>,
     outgoing: Arc<OutgoingMessageSender>,
     pending_thread_unloads: Arc<Mutex<HashSet<ChatId>>>,
     thread_state_manager: ThreadStateManager,
     thread_watch_manager: ThreadWatchManager,
     chat_id: ChatId,
-    thread: Arc<CodexThread>,
+    thread: Arc<DataxChat>,
 ) {
     info!("thread {chat_id} has no subscribers and is idle; shutting down");
 
@@ -420,22 +420,18 @@ pub(super) async fn unload_thread_without_subscribers(
     outgoing
         .cancel_requests_for_thread(chat_id, /*error*/ None)
         .await;
-    thread_state_manager.remove_thread_state(chat_id).await;
+    thread_state_manager.remove_chat_state(chat_id).await;
 
     tokio::spawn(async move {
         match wait_for_thread_shutdown(&thread).await {
             ThreadShutdownResult::Complete => {
-                if thread_manager.remove_thread(&chat_id).await.is_none() {
+                if chat_manager.remove_chat(&chat_id).await.is_none() {
                     info!("thread {chat_id} was already removed before teardown finalized");
-                    thread_watch_manager
-                        .remove_thread(&chat_id.to_string())
-                        .await;
+                    thread_watch_manager.remove_chat(&chat_id.to_string()).await;
                     pending_thread_unloads.lock().await.remove(&chat_id);
                     return;
                 }
-                thread_watch_manager
-                    .remove_thread(&chat_id.to_string())
-                    .await;
+                thread_watch_manager.remove_chat(&chat_id.to_string()).await;
                 let notification = ChatClosedNotification {
                     chat_id: chat_id.to_string(),
                 };
@@ -459,7 +455,7 @@ pub(super) async fn unload_thread_without_subscribers(
 #[allow(clippy::too_many_arguments)]
 pub(super) async fn handle_thread_listener_command(
     conversation_id: ChatId,
-    conversation: &Arc<CodexThread>,
+    conversation: &Arc<DataxChat>,
     codex_home: &Path,
     thread_state_manager: &ThreadStateManager,
     thread_state: &Arc<Mutex<ThreadState>>,
@@ -528,7 +524,7 @@ pub(super) async fn handle_thread_listener_command(
 )]
 pub(super) async fn handle_pending_thread_resume_request(
     conversation_id: ChatId,
-    conversation: &Arc<CodexThread>,
+    conversation: &Arc<DataxChat>,
     _codex_home: &Path,
     thread_state_manager: &ThreadStateManager,
     thread_state: &Arc<Mutex<ThreadState>>,

@@ -5,7 +5,7 @@ impl AgentControl {
     /// persisted spawn-edge state.
     pub(crate) async fn shutdown_live_agent(&self, agent_id: ChatId) -> CodexResult<String> {
         let state = self.upgrade()?;
-        let result = if let Ok(thread) = state.get_thread(agent_id).await {
+        let result = if let Ok(thread) = state.get_chat(agent_id).await {
             thread.codex.session.ensure_rollout_materialized().await;
             thread.codex.session.flush_rollout().await?;
             let result = if matches!(thread.agent_status().await, AgentStatus::Shutdown) {
@@ -18,7 +18,7 @@ impl AgentControl {
         } else {
             state.send_op(agent_id, Op::Shutdown {}).await
         };
-        let _ = state.remove_thread(&agent_id).await;
+        let _ = state.remove_chat(&agent_id).await;
         self.forget_v2_residency(agent_id);
         self.state.release_spawned_thread(agent_id);
         result
@@ -29,7 +29,7 @@ impl AgentControl {
     pub(crate) async fn close_agent(&self, agent_id: ChatId) -> CodexResult<String> {
         let state = self.upgrade()?;
         let known_agent = self.state.agent_metadata_for_thread(agent_id).is_some();
-        match state.get_thread(agent_id).await {
+        match state.get_chat(agent_id).await {
             Ok(thread) => {
                 if let Some(state_db_ctx) = thread.state_db()
                     && let Err(err) = state_db_ctx

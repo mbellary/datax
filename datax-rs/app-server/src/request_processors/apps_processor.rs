@@ -2,7 +2,7 @@ use super::*;
 
 pub(crate) struct AppsRequestProcessor {
     auth_manager: Arc<AuthManager>,
-    thread_manager: Arc<ThreadManager>,
+    chat_manager: Arc<ChatManager>,
     outgoing: Arc<OutgoingMessageSender>,
     config_manager: ConfigManager,
     workspace_settings_cache: Arc<workspace_settings::WorkspaceSettingsCache>,
@@ -13,7 +13,7 @@ pub(crate) struct AppsRequestProcessor {
 impl AppsRequestProcessor {
     pub(crate) fn new(
         auth_manager: Arc<AuthManager>,
-        thread_manager: Arc<ThreadManager>,
+        chat_manager: Arc<ChatManager>,
         outgoing: Arc<OutgoingMessageSender>,
         config_manager: ConfigManager,
         workspace_settings_cache: Arc<workspace_settings::WorkspaceSettingsCache>,
@@ -22,7 +22,7 @@ impl AppsRequestProcessor {
         let shutdown_drop_guard = shutdown_token.clone().drop_guard();
         Self {
             auth_manager,
-            thread_manager,
+            chat_manager,
             outgoing,
             config_manager,
             workspace_settings_cache,
@@ -87,9 +87,9 @@ impl AppsRequestProcessor {
 
         let request = request_id.clone();
         let outgoing = Arc::clone(&self.outgoing);
-        let environment_manager = self.thread_manager.environment_manager();
-        let mcp_manager = self.thread_manager.mcp_manager();
-        let plugins_manager = self.thread_manager.plugins_manager();
+        let environment_manager = self.chat_manager.environment_manager();
+        let mcp_manager = self.chat_manager.mcp_manager();
+        let plugins_manager = self.chat_manager.plugins_manager();
         let shutdown_token = self.shutdown_token.child_token();
         tokio::spawn(async move {
             tokio::select! {
@@ -311,13 +311,13 @@ impl AppsRequestProcessor {
     async fn load_thread(
         &self,
         chat_id: &str,
-    ) -> Result<(ChatId, Arc<CodexThread>), JSONRPCErrorError> {
+    ) -> Result<(ChatId, Arc<DataxChat>), JSONRPCErrorError> {
         let chat_id = ChatId::from_string(chat_id)
             .map_err(|err| invalid_request(format!("invalid thread id: {err}")))?;
 
         let thread = self
-            .thread_manager
-            .get_thread(chat_id)
+            .chat_manager
+            .get_chat(chat_id)
             .await
             .map_err(|_| invalid_request(format!("thread not found: {chat_id}")))?;
 

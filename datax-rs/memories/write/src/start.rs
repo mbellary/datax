@@ -5,8 +5,8 @@ use crate::metrics::MEMORY_STARTUP;
 use crate::phase1;
 use crate::phase2;
 use crate::runtime::MemoryStartupContext;
-use datax_core::CodexThread;
-use datax_core::ThreadManager;
+use datax_core::ChatManager;
+use datax_core::DataxChat;
 use datax_core::config::Config;
 use datax_features::Feature;
 use datax_login::AuthManager;
@@ -20,10 +20,10 @@ use tracing::warn;
 /// The pipeline is skipped for ephemeral sessions, disabled feature flags, and
 /// subagent sessions.
 pub fn start_memories_startup_task(
-    thread_manager: Arc<ThreadManager>,
+    chat_manager: Arc<ChatManager>,
     auth_manager: Arc<AuthManager>,
     chat_id: ChatId,
-    thread: Arc<CodexThread>,
+    thread: Arc<DataxChat>,
     config: Arc<Config>,
     source: &SessionSource,
 ) {
@@ -35,7 +35,7 @@ pub fn start_memories_startup_task(
     }
 
     let context = Arc::new(MemoryStartupContext::new(
-        thread_manager,
+        chat_manager,
         Arc::clone(&auth_manager),
         chat_id,
         thread,

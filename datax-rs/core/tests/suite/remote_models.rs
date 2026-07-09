@@ -378,7 +378,10 @@ async fn remote_models_long_model_slug_is_sent_with_custom_reasoning() -> Result
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(&codex, |event| {
+        matches!(event, EventMsg::InteractionComplete(_))
+    })
+    .await;
 
     let request = response_mock.single_request();
     let body = request.body_json();
@@ -520,11 +523,11 @@ async fn remote_models_remote_model_uses_unified_exec() -> Result<()> {
         codex,
         cwd,
         config,
-        thread_manager,
+        chat_manager,
         ..
     } = builder.build(&server).await?;
 
-    let models_manager = thread_manager.get_models_manager();
+    let models_manager = chat_manager.get_models_manager();
     let available_model = wait_for_model_available(&models_manager, REMOTE_MODEL_SLUG).await;
 
     assert_eq!(available_model.model, REMOTE_MODEL_SLUG);
@@ -601,7 +604,10 @@ async fn remote_models_remote_model_uses_unified_exec() -> Result<()> {
 
     assert_eq!(begin_event.source, ExecCommandSource::UnifiedExecStartup);
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(&codex, |event| {
+        matches!(event, EventMsg::InteractionComplete(_))
+    })
+    .await;
 
     Ok(())
 }
@@ -638,7 +644,7 @@ async fn remote_models_truncation_policy_without_override_preserves_remote() -> 
         });
     let test = builder.build(&server).await?;
 
-    let models_manager = test.thread_manager.get_models_manager();
+    let models_manager = test.chat_manager.get_models_manager();
     wait_for_model_available(&models_manager, slug).await;
 
     let model_info = models_manager
@@ -685,7 +691,7 @@ async fn remote_models_truncation_policy_with_tool_output_override() -> Result<(
         });
     let test = builder.build(&server).await?;
 
-    let models_manager = test.thread_manager.get_models_manager();
+    let models_manager = test.chat_manager.get_models_manager();
     wait_for_model_available(&models_manager, slug).await;
 
     let model_info = models_manager
@@ -782,11 +788,11 @@ async fn remote_models_apply_remote_base_instructions() -> Result<()> {
         codex,
         cwd,
         config,
-        thread_manager,
+        chat_manager,
         ..
     } = builder.build(&server).await?;
 
-    let models_manager = thread_manager.get_models_manager();
+    let models_manager = chat_manager.get_models_manager();
     wait_for_model_available(&models_manager, model).await;
 
     core_test_support::submit_thread_settings(
@@ -821,7 +827,10 @@ async fn remote_models_apply_remote_base_instructions() -> Result<()> {
         })
         .await?;
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(&codex, |event| {
+        matches!(event, EventMsg::InteractionComplete(_))
+    })
+    .await;
 
     let base_model_info = models_manager
         .get_model_info("gpt-5.2", &config.to_models_manager_config())

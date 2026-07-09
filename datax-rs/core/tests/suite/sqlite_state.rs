@@ -80,7 +80,7 @@ async fn new_thread_is_recorded_in_state_db() -> Result<()> {
         "fresh thread rollout should not be materialized before first user message"
     );
 
-    let initial_metadata = db.get_thread(chat_id).await?;
+    let initial_metadata = db.get_chat(chat_id).await?;
     assert!(
         initial_metadata.is_none(),
         "fresh thread should not be recorded in state db before first user message"
@@ -90,7 +90,7 @@ async fn new_thread_is_recorded_in_state_db() -> Result<()> {
 
     let mut metadata = None;
     for _ in 0..100 {
-        metadata = db.get_thread(chat_id).await?;
+        metadata = db.get_chat(chat_id).await?;
         if metadata.is_some() {
             break;
         }
@@ -150,8 +150,8 @@ async fn resume_restores_dynamic_tools_from_rollout_with_sqlite_enabled() -> Res
     });
     let base_test = builder.build(&server).await?;
     let started = base_test
-        .thread_manager
-        .start_thread_with_tools(base_test.config.clone(), vec![dynamic_tool])
+        .chat_manager
+        .start_chat_with_tools(base_test.config.clone(), vec![dynamic_tool])
         .await?;
     let rollout_path = started
         .session_configured
@@ -160,7 +160,7 @@ async fn resume_restores_dynamic_tools_from_rollout_with_sqlite_enabled() -> Res
         .expect("rollout path");
 
     started
-        .thread
+        .chat
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "persist this thread".to_string(),
@@ -172,7 +172,7 @@ async fn resume_restores_dynamic_tools_from_rollout_with_sqlite_enabled() -> Res
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&started.thread, |event| {
+    wait_for_event(&started.chat, |event| {
         matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
@@ -247,8 +247,8 @@ async fn resume_restores_legacy_dynamic_tools_from_rollout_with_sqlite_enabled()
     });
     let base_test = builder.build(&server).await?;
     let started = base_test
-        .thread_manager
-        .start_thread_with_tools(base_test.config.clone(), Vec::new())
+        .chat_manager
+        .start_chat_with_tools(base_test.config.clone(), Vec::new())
         .await?;
     let rollout_path = started
         .session_configured
@@ -257,7 +257,7 @@ async fn resume_restores_legacy_dynamic_tools_from_rollout_with_sqlite_enabled()
         .expect("rollout path");
 
     started
-        .thread
+        .chat
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "persist this thread".to_string(),
@@ -269,12 +269,12 @@ async fn resume_restores_legacy_dynamic_tools_from_rollout_with_sqlite_enabled()
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&started.thread, |event| {
+    wait_for_event(&started.chat, |event| {
         matches!(event, EventMsg::InteractionComplete(_))
     })
     .await;
-    started.thread.submit(Op::Shutdown).await?;
-    wait_for_event(&started.thread, |event| {
+    started.chat.submit(Op::Shutdown).await?;
+    wait_for_event(&started.chat, |event| {
         matches!(event, EventMsg::ShutdownComplete)
     })
     .await;
@@ -427,7 +427,7 @@ async fn backfill_scans_existing_rollouts() -> Result<()> {
 
     let mut metadata = None;
     for _ in 0..40 {
-        metadata = db.get_thread(chat_id).await?;
+        metadata = db.get_chat(chat_id).await?;
         if metadata.is_some() {
             break;
         }
@@ -479,7 +479,7 @@ async fn user_messages_persist_in_state_db() -> Result<()> {
 
     let mut metadata = None;
     for _ in 0..100 {
-        metadata = db.get_thread(chat_id).await?;
+        metadata = db.get_chat(chat_id).await?;
         if metadata
             .as_ref()
             .map(|entry| entry.first_user_message.is_some())

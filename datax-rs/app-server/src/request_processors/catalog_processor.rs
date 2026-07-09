@@ -7,7 +7,7 @@ pub(crate) struct CatalogRequestProcessor {
     pub(super) outgoing: Arc<OutgoingMessageSender>,
     pub(super) skills_watcher: Arc<SkillsWatcher>,
     pub(super) auth_manager: Arc<AuthManager>,
-    pub(super) thread_manager: Arc<ThreadManager>,
+    pub(super) chat_manager: Arc<ChatManager>,
     pub(super) config: Arc<Config>,
     pub(super) config_manager: ConfigManager,
     pub(super) workspace_settings_cache: Arc<workspace_settings::WorkspaceSettingsCache>,
@@ -101,7 +101,7 @@ impl CatalogRequestProcessor {
         outgoing: Arc<OutgoingMessageSender>,
         skills_watcher: Arc<SkillsWatcher>,
         auth_manager: Arc<AuthManager>,
-        thread_manager: Arc<ThreadManager>,
+        chat_manager: Arc<ChatManager>,
         config: Arc<Config>,
         config_manager: ConfigManager,
         workspace_settings_cache: Arc<workspace_settings::WorkspaceSettingsCache>,
@@ -110,7 +110,7 @@ impl CatalogRequestProcessor {
             outgoing,
             skills_watcher,
             auth_manager,
-            thread_manager,
+            chat_manager,
             config,
             config_manager,
             workspace_settings_cache,
@@ -157,7 +157,7 @@ impl CatalogRequestProcessor {
         &self,
         params: ModelListParams,
     ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
-        Self::list_models(self.thread_manager.clone(), params)
+        Self::list_models(self.chat_manager.clone(), params)
             .await
             .map(|response| Some(response.into()))
     }
@@ -184,7 +184,7 @@ impl CatalogRequestProcessor {
         &self,
         params: CollaborationModeListParams,
     ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
-        Self::list_collaboration_modes(self.thread_manager.clone(), params)
+        Self::list_collaboration_modes(self.chat_manager.clone(), params)
             .await
             .map(|response| Some(response.into()))
     }
@@ -246,7 +246,7 @@ impl CatalogRequestProcessor {
     }
 
     async fn list_models(
-        thread_manager: Arc<ThreadManager>,
+        chat_manager: Arc<ChatManager>,
         params: ModelListParams,
     ) -> Result<ModelListResponse, JSONRPCErrorError> {
         let ModelListParams {
@@ -254,7 +254,7 @@ impl CatalogRequestProcessor {
             cursor,
             include_hidden,
         } = params;
-        let models = supported_models(thread_manager, include_hidden.unwrap_or(false)).await;
+        let models = supported_models(chat_manager, include_hidden.unwrap_or(false)).await;
         let total = models.len();
 
         if total == 0 {
@@ -293,11 +293,11 @@ impl CatalogRequestProcessor {
     }
 
     async fn list_collaboration_modes(
-        thread_manager: Arc<ThreadManager>,
+        chat_manager: Arc<ChatManager>,
         params: CollaborationModeListParams,
     ) -> Result<CollaborationModeListResponse, JSONRPCErrorError> {
         let CollaborationModeListParams {} = params;
-        let messages = thread_manager
+        let messages = chat_manager
             .list_collaboration_modes()
             .into_iter()
             .map(Into::into)
@@ -320,8 +320,8 @@ impl CatalogRequestProcessor {
                 let chat_id = ChatId::from_string(chat_id)
                     .map_err(|err| invalid_request(format!("invalid thread id: {err}")))?;
                 let thread = self
-                    .thread_manager
-                    .get_thread(chat_id)
+                    .chat_manager
+                    .get_chat(chat_id)
                     .await
                     .map_err(|_| invalid_request(format!("thread not found: {chat_id}")))?;
                 let thread_config = thread.config().await;
@@ -491,10 +491,10 @@ impl CatalogRequestProcessor {
         let workspace_codex_plugins_enabled = self
             .workspace_codex_plugins_enabled(&config, auth.as_ref())
             .await;
-        let skills_service = self.thread_manager.skills_service();
-        let plugins_manager = self.thread_manager.plugins_manager();
+        let skills_service = self.chat_manager.skills_service();
+        let plugins_manager = self.chat_manager.plugins_manager();
         let fs = self
-            .thread_manager
+            .chat_manager
             .environment_manager()
             .default_environment()
             .map(|environment| environment.get_filesystem());
@@ -570,7 +570,7 @@ impl CatalogRequestProcessor {
         let SkillsExtraRootsSetParams { extra_roots } = params;
         self.skills_watcher
             .register_runtime_extra_roots(&extra_roots);
-        self.thread_manager
+        self.chat_manager
             .skills_service()
             .set_extra_roots(extra_roots);
         self.outgoing
@@ -594,7 +594,7 @@ impl CatalogRequestProcessor {
         };
 
         let auth = self.auth_manager.auth().await;
-        let plugins_manager = self.thread_manager.plugins_manager();
+        let plugins_manager = self.chat_manager.plugins_manager();
         let mut data = Vec::new();
         for cwd in cwds {
             let config = match self
@@ -683,8 +683,8 @@ impl CatalogRequestProcessor {
             .apply()
             .await
             .map(|()| {
-                self.thread_manager.plugins_manager().clear_cache();
-                self.thread_manager.skills_service().clear_cache();
+                self.chat_manager.plugins_manager().clear_cache();
+                self.chat_manager.skills_service().clear_cache();
                 SkillsConfigWriteResponse {
                     effective_enabled: enabled,
                 }

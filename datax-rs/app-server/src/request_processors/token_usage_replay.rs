@@ -18,7 +18,7 @@ use datax_app_server_protocol::ChatTokenUsageUpdatedNotification;
 use datax_app_server_protocol::Interaction;
 use datax_app_server_protocol::InteractionStatus;
 use datax_app_server_protocol::ServerNotification::*;
-use datax_core::CodexThread;
+use datax_core::DataxChat;
 use datax_protocol::ChatId;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::RolloutItem;
@@ -38,7 +38,7 @@ pub(super) async fn send_thread_token_usage_update_to_connection(
     connection_id: ConnectionId,
     chat_id: ChatId,
     thread: &Chat,
-    conversation: &CodexThread,
+    conversation: &DataxChat,
     token_usage_interaction_id: Option<String>,
 ) {
     let Some(info) = conversation.token_usage_info().await else {
@@ -46,7 +46,8 @@ pub(super) async fn send_thread_token_usage_update_to_connection(
     };
     let notification = ChatTokenUsageUpdatedNotification {
         chat_id: chat_id.to_string(),
-        interaction_id: token_usage_interaction_id.unwrap_or_else(|| latest_token_usage_interaction_id(thread)),
+        interaction_id: token_usage_interaction_id
+            .unwrap_or_else(|| latest_token_usage_interaction_id(thread)),
         token_usage: ChatTokenUsage::from(info),
     };
     outgoing
@@ -133,7 +134,10 @@ mod tests {
         let interactions = build_turns_from_rollout_items(&rollout_items);
 
         assert_eq!(
-            latest_token_usage_interaction_id_from_rollout_items(&rollout_items, interactions.as_slice()),
+            latest_token_usage_interaction_id_from_rollout_items(
+                &rollout_items,
+                interactions.as_slice()
+            ),
             Some(interactions[0].id.clone())
         );
     }
@@ -145,7 +149,10 @@ mod tests {
         interactions[0].id = "rebuilt-turn-id".to_string();
 
         assert_eq!(
-            latest_token_usage_interaction_id_from_rollout_items(&rollout_items, interactions.as_slice()),
+            latest_token_usage_interaction_id_from_rollout_items(
+                &rollout_items,
+                interactions.as_slice()
+            ),
             Some("rebuilt-turn-id".to_string())
         );
     }

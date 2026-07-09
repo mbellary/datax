@@ -16,8 +16,8 @@ use datax_core::config::RolloutBudgetConfig;
 use datax_features::Feature;
 use datax_model_provider_info::built_in_model_providers;
 use datax_protocol::protocol::EventMsg;
-use datax_protocol::protocol::Op;
 use datax_protocol::protocol::InteractionAbortReason;
+use datax_protocol::protocol::Op;
 use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use serde_json::json;
@@ -178,10 +178,10 @@ async fn subagent_usage_draws_from_the_shared_budget() -> Result<()> {
         .build(&server)
         .await?;
 
-    let mut created_threads = test.thread_manager.subscribe_thread_created();
+    let mut created_threads = test.chat_manager.subscribe_thread_created();
     test.submit_turn(ROOT_PROMPT).await?;
     let child_chat_id = timeout(Duration::from_secs(10), created_threads.recv()).await??;
-    let child_thread = test.thread_manager.get_thread(child_chat_id).await?;
+    let child_thread = test.chat_manager.get_chat(child_chat_id).await?;
     wait_for_event(child_thread.as_ref(), |event| {
         matches!(event, EventMsg::InteractionComplete(_))
     })

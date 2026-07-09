@@ -77,7 +77,7 @@ pub struct ThreadConfigSnapshot {
     pub thread_source: Option<ThreadSource>,
 }
 
-/// Explains why `CodexThread::try_start_turn_if_idle` rejected an automatic
+/// Explains why `DataxChat::try_start_turn_if_idle` rejected an automatic
 /// idle turn.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TryStartTurnIfIdleRejectionReason {
@@ -136,7 +136,7 @@ impl ThreadConfigSnapshot {
 
 /// Thread settings overrides that app-server validates before starting a turn.
 #[derive(Clone, Default)]
-pub struct CodexThreadSettingsOverrides {
+pub struct DataxChatSettingsOverrides {
     pub environments: Option<TurnEnvironmentSelections>,
     pub workspace_roots: Option<Vec<AbsolutePathBuf>>,
     pub profile_workspace_roots: Option<Vec<AbsolutePathBuf>>,
@@ -154,7 +154,7 @@ pub struct CodexThreadSettingsOverrides {
     pub personality: Option<Personality>,
 }
 
-pub struct CodexThread {
+pub struct DataxChat {
     pub(crate) codex: Codex,
     pub(crate) session_source: SessionSource,
     session_configured: SessionConfiguredEvent,
@@ -172,7 +172,7 @@ pub struct BackgroundTerminalInfo {
 
 /// Conduit for the bidirectional stream of messages that compose a thread
 /// (formerly called a conversation) in Codex.
-impl CodexThread {
+impl DataxChat {
     pub(crate) fn new(
         codex: Codex,
         session_configured: SessionConfiguredEvent,
@@ -224,10 +224,7 @@ impl CodexThread {
     }
 
     pub async fn emit_chat_idle_lifecycle_if_idle(&self) {
-        self.codex
-            .session
-            .emit_chat_idle_lifecycle_if_idle()
-            .await;
+        self.codex.session.emit_chat_idle_lifecycle_if_idle().await;
     }
 
     #[doc(hidden)]
@@ -292,7 +289,7 @@ impl CodexThread {
     /// Injects model-visible items into the currently active turn.
     ///
     /// This is the thread-level bridge to `Session::inject_if_running` for
-    /// callers that only hold a `CodexThread`.
+    /// callers that only hold a `DataxChat`.
     /// It returns the unchanged items when this thread has no active turn.
     pub async fn inject_if_running(
         &self,
@@ -346,7 +343,7 @@ impl CodexThread {
     /// Preview persistent thread settings overrides without committing them.
     pub async fn preview_thread_settings_overrides(
         &self,
-        overrides: CodexThreadSettingsOverrides,
+        overrides: DataxChatSettingsOverrides,
     ) -> ConstraintResult<ThreadConfigSnapshot> {
         let updates = self.thread_settings_update(overrides).await;
         self.codex.session.preview_settings(&updates).await
@@ -354,9 +351,9 @@ impl CodexThread {
 
     async fn thread_settings_update(
         &self,
-        overrides: CodexThreadSettingsOverrides,
+        overrides: DataxChatSettingsOverrides,
     ) -> SessionSettingsUpdate {
-        let CodexThreadSettingsOverrides {
+        let DataxChatSettingsOverrides {
             environments,
             workspace_roots,
             profile_workspace_roots,

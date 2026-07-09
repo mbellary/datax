@@ -910,7 +910,7 @@ sqlite = true
     let thread_uuid = ChatId::from_string(&chat_id)?;
     let stale_cwd = codex_home.path().join("stale-cwd");
     let mut metadata = state_db
-        .get_thread(thread_uuid)
+        .get_chat(thread_uuid)
         .await?
         .expect("thread should be repaired into sqlite");
     metadata.cwd = stale_cwd.clone();

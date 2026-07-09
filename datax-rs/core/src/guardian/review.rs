@@ -14,9 +14,9 @@ use datax_protocol::protocol::GuardianAssessmentEvent;
 use datax_protocol::protocol::GuardianAssessmentStatus;
 use datax_protocol::protocol::GuardianRiskLevel;
 use datax_protocol::protocol::GuardianUserAuthorization;
+use datax_protocol::protocol::InteractionAbortReason;
 use datax_protocol::protocol::ReviewDecision;
 use datax_protocol::protocol::SubAgentSource;
-use datax_protocol::protocol::InteractionAbortReason;
 use datax_protocol::protocol::WarningEvent;
 use std::sync::Arc;
 use tokio::sync::oneshot;
@@ -38,8 +38,8 @@ use super::GuardianAssessmentOutcome;
 use super::GuardianRejection;
 use super::GuardianRejectionCircuitBreakerAction;
 use super::approval_request::guardian_assessment_action;
-use super::approval_request::guardian_request_target_item_id;
 use super::approval_request::guardian_request_interaction_id;
+use super::approval_request::guardian_request_target_item_id;
 use super::approval_request::guardian_reviewed_action;
 use super::metrics::emit_guardian_review_metrics;
 use super::prompt::guardian_output_schema;
@@ -220,7 +220,11 @@ async fn record_guardian_non_denial(session: &Arc<Session>, interaction_id: &str
         .record_non_denial(interaction_id);
 }
 
-async fn record_guardian_denial(session: &Arc<Session>, turn: &Arc<TurnContext>, interaction_id: &str) {
+async fn record_guardian_denial(
+    session: &Arc<Session>,
+    turn: &Arc<TurnContext>,
+    interaction_id: &str,
+) {
     let action = session
         .services
         .guardian_rejection_circuit_breaker
@@ -235,7 +239,11 @@ async fn record_guardian_denial(session: &Arc<Session>, turn: &Arc<TurnContext>,
         return;
     };
 
-    if session.turn_context_for_sub_id(interaction_id).await.is_none() {
+    if session
+        .turn_context_for_sub_id(interaction_id)
+        .await
+        .is_none()
+    {
         return;
     }
 
@@ -282,7 +290,8 @@ async fn run_guardian_review(
     external_cancel: Option<CancellationToken>,
 ) -> ReviewDecision {
     let target_item_id = guardian_request_target_item_id(&request).map(str::to_string);
-    let assessment_interaction_id = guardian_request_interaction_id(&request, &turn.sub_id).to_string();
+    let assessment_interaction_id =
+        guardian_request_interaction_id(&request, &turn.sub_id).to_string();
     let action_summary = guardian_assessment_action(&request);
     let reviewed_action = guardian_reviewed_action(&request);
     let review_tracking = GuardianReviewTrackContext::new(

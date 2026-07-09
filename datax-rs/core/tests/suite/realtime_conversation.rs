@@ -2366,7 +2366,7 @@ async fn conversation_startup_context_current_thread_selects_many_turns_by_budge
         .collect::<Vec<_>>();
     test.codex.shutdown_and_wait().await?;
     let resumed_thread = test
-        .thread_manager
+        .chat_manager
         .resume_thread_with_history(
             test.config.clone(),
             InitialHistory::Forked(history),
@@ -2375,7 +2375,7 @@ async fn conversation_startup_context_current_thread_selects_many_turns_by_budge
             /*supports_openai_form_elicitation*/ false,
         )
         .await?;
-    let codex = resumed_thread.thread;
+    let codex = resumed_thread.chat;
 
     codex
         .submit(Op::RealtimeConversationStart(ConversationStartParams {

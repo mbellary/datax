@@ -61,7 +61,7 @@ fn count_containing(texts: &[&str], target: &str) -> usize {
 }
 
 async fn submit_turn(
-    codex: &datax_core::CodexThread,
+    codex: &datax_core::DataxChat,
     prompt: &str,
     effort: Option<ReasoningEffort>,
 ) -> Result<()> {
@@ -80,7 +80,10 @@ async fn submit_turn(
             },
         })
         .await?;
-    wait_for_event(codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(codex, |event| {
+        matches!(event, EventMsg::InteractionComplete(_))
+    })
+    .await;
     Ok(())
 }
 

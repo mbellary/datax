@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use datax_core::CodexThread;
+use datax_core::DataxChat;
 use datax_protocol::ChatId;
 use datax_protocol::parse_command::ParsedCommand;
 use datax_protocol::protocol::Op;
@@ -52,7 +52,7 @@ pub(crate) async fn handle_exec_approval_request(
     command: Vec<String>,
     cwd: PathBuf,
     outgoing: Arc<crate::outgoing_message::OutgoingMessageSender>,
-    codex: Arc<CodexThread>,
+    codex: Arc<DataxChat>,
     request_id: RequestId,
     tool_call_id: String,
     event_id: String,
@@ -113,7 +113,7 @@ async fn on_exec_approval_response(
     approval_id: String,
     event_id: String,
     receiver: tokio::sync::oneshot::Receiver<serde_json::Value>,
-    codex: Arc<CodexThread>,
+    codex: Arc<DataxChat>,
 ) {
     let response = receiver.await;
     let value = match response {

@@ -89,7 +89,10 @@ async fn retries_on_early_close() {
         .unwrap();
 
     // Wait until InteractionComplete (should succeed after retry).
-    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(&codex, |event| {
+        matches!(event, EventMsg::InteractionComplete(_))
+    })
+    .await;
 
     let requests = server.requests().await;
     assert_eq!(

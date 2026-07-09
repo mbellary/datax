@@ -1,11 +1,11 @@
 use super::turn_context::TurnEnvironment;
 use super::*;
-use crate::codex_thread::TryStartTurnIfIdleRejectionReason;
 use crate::config::ConfigBuilder;
 use crate::config::ConfigOverrides;
 use crate::config::test_config;
 use crate::context::ContextualUserFragment;
 use crate::context::InteractionAborted;
+use crate::datax_chat::TryStartTurnIfIdleRejectionReason;
 use crate::environment_selection::ThreadEnvironments;
 use crate::function_tool::FunctionCallError;
 use crate::shell::default_user_shell;
@@ -35,8 +35,8 @@ use datax_models_manager::model_info;
 use datax_models_manager::test_support::construct_model_info_offline_for_tests;
 use datax_models_manager::test_support::get_model_offline_for_tests;
 use datax_protocol::AgentPath;
-use datax_protocol::SessionId;
 use datax_protocol::ChatId;
+use datax_protocol::SessionId;
 use datax_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
 use datax_protocol::config_types::ServiceTier;
 use datax_protocol::config_types::TrustLevel;
@@ -133,6 +133,9 @@ use datax_protocol::protocol::CreditsSnapshot;
 use datax_protocol::protocol::GranularApprovalConfig;
 use datax_protocol::protocol::InitialHistory;
 use datax_protocol::protocol::InterAgentCommunication;
+use datax_protocol::protocol::InteractionAbortedEvent;
+use datax_protocol::protocol::InteractionCompleteEvent;
+use datax_protocol::protocol::InteractionStartedEvent;
 use datax_protocol::protocol::MultiAgentVersion;
 use datax_protocol::protocol::NetworkApprovalProtocol;
 use datax_protocol::protocol::RateLimitSnapshot;
@@ -152,9 +155,6 @@ use datax_protocol::protocol::ThreadSettingsOverrides;
 use datax_protocol::protocol::TokenCountEvent;
 use datax_protocol::protocol::TokenUsage;
 use datax_protocol::protocol::TokenUsageInfo;
-use datax_protocol::protocol::InteractionAbortedEvent;
-use datax_protocol::protocol::InteractionCompleteEvent;
-use datax_protocol::protocol::InteractionStartedEvent;
 use datax_protocol::protocol::UserMessageEvent;
 use datax_protocol::protocol::W3cTraceContext;
 use datax_rmcp_client::ElicitationAction;
@@ -344,7 +344,8 @@ async fn regular_turn_emits_turn_started_with_trace_id_without_waiting_for_start
     assert_eq!(turn_started.interaction_id, tc.sub_id);
     assert_eq!(turn_started.trace_id, tc.trace_id);
 
-    sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
+    sess.abort_all_tasks(InteractionAbortReason::Interrupted)
+        .await;
 }
 
 #[tokio::test]
@@ -423,7 +424,8 @@ async fn interrupting_regular_turn_waiting_on_startup_prewarm_emits_turn_aborted
         EventMsg::InteractionStarted(InteractionStartedEvent { interaction_id, .. }) if interaction_id == tc.sub_id
     ));
 
-    sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
+    sess.abort_all_tasks(InteractionAbortReason::Interrupted)
+        .await;
 
     let marker_evt = tokio::time::timeout(std::time::Duration::from_secs(2), rx.recv())
         .await
@@ -1694,7 +1696,8 @@ async fn record_initial_history_reconstructs_resumed_transcript() {
 }
 
 #[tokio::test]
-async fn record_conversation_items_stamps_missing_interaction_id_and_preserves_existing_interaction_id() {
+async fn record_conversation_items_stamps_missing_interaction_id_and_preserves_existing_interaction_id()
+ {
     let (session, turn_context) = make_session_and_context().await;
     let fresh_item = user_message("fresh");
     let mut existing_item = assistant_message("existing");
@@ -2358,7 +2361,8 @@ async fn turn_start_lifecycle_exposes_turn_metadata_and_token_baseline() {
         },
     )
     .await;
-    sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
+    sess.abort_all_tasks(InteractionAbortReason::Interrupted)
+        .await;
 
     let actual = records
         .lock()
@@ -2708,7 +2712,10 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
             thread_settings: Default::default(),
         })
         .await?;
-    wait_for_event(&initial.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(&initial.codex, |ev| {
+        matches!(ev, EventMsg::InteractionComplete(_))
+    })
+    .await;
     // Forking reads the persisted rollout JSONL, so force the completed source turn to disk
     // before snapshotting from it.
     initial.codex.ensure_rollout_materialized().await;
@@ -2722,8 +2729,8 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
     fork_config.permissions.approval_policy =
         datax_config::Constrained::allow_any(AskForApproval::UnlessTrusted);
     let forked = initial
-        .thread_manager
-        .fork_thread(
+        .chat_manager
+        .fork_chat(
             usize::MAX,
             fork_config.clone(),
             rollout_path,
@@ -2741,7 +2748,7 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
         },
     };
     forked
-        .thread
+        .chat
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "after fork".into(),
@@ -2757,7 +2764,10 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
             },
         })
         .await?;
-    wait_for_event(&forked.thread, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(&forked.chat, |ev| {
+        matches!(ev, EventMsg::InteractionComplete(_))
+    })
+    .await;
 
     let request = first_forked_request.single_request();
     let snapshot = context_snapshot::format_labeled_requests_snapshot(
@@ -4158,7 +4168,7 @@ async fn emit_subagent_session_started_includes_fork_lineage_from_session_config
                     if let Some(event) = payload["events"].as_array().and_then(|events| {
                         events
                             .iter()
-                            .find(|event| event["event_type"] == "codex_thread_initialized")
+                            .find(|event| event["event_type"] == "datax_chat_initialized")
                     }) {
                         break 'wait_for_event event.clone();
                     }
@@ -7406,7 +7416,8 @@ async fn spawn_task_does_not_update_previous_turn_settings_for_non_run_turn_task
     )
     .await;
 
-    sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
+    sess.abort_all_tasks(InteractionAbortReason::Interrupted)
+        .await;
     assert_eq!(sess.previous_turn_settings().await, None);
 }
 
@@ -8957,7 +8968,8 @@ async fn abort_regular_task_emits_marker_before_turn_aborted() {
     )
     .await;
 
-    sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
+    sess.abort_all_tasks(InteractionAbortReason::Interrupted)
+        .await;
 
     // Interrupts surface the model-visible `<turn_aborted>` marker before the abort event.
     let marker_evt = tokio::time::timeout(std::time::Duration::from_secs(2), rx.recv())
@@ -8971,7 +8983,9 @@ async fn abort_regular_task_emits_marker_before_turn_aborted() {
         .expect("timeout waiting for event")
         .expect("event");
     match evt.msg {
-        EventMsg::InteractionAborted(e) => assert_eq!(InteractionAbortReason::Interrupted, e.reason),
+        EventMsg::InteractionAborted(e) => {
+            assert_eq!(InteractionAbortReason::Interrupted, e.reason)
+        }
         other => panic!("unexpected event: {other:?}"),
     }
     // No extra events should be emitted after an abort.
@@ -8998,7 +9012,8 @@ async fn abort_gracefully_emits_marker_before_turn_aborted() {
     )
     .await;
 
-    sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
+    sess.abort_all_tasks(InteractionAbortReason::Interrupted)
+        .await;
 
     // Gracefully cancelled tasks surface the model-visible marker before the abort event too.
     let marker_evt = tokio::time::timeout(std::time::Duration::from_secs(2), rx.recv())
@@ -9012,7 +9027,9 @@ async fn abort_gracefully_emits_marker_before_turn_aborted() {
         .expect("timeout waiting for event")
         .expect("event");
     match evt.msg {
-        EventMsg::InteractionAborted(e) => assert_eq!(InteractionAbortReason::Interrupted, e.reason),
+        EventMsg::InteractionAborted(e) => {
+            assert_eq!(InteractionAbortReason::Interrupted, e.reason)
+        }
         other => panic!("unexpected event: {other:?}"),
     }
     // No extra events should be emitted after an abort.
@@ -9255,7 +9272,8 @@ async fn try_start_turn_if_idle_rejects_active_turn_without_injecting() {
         sess.input_queue.get_pending_input(&sess.active_turn).await
     );
 
-    sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
+    sess.abort_all_tasks(InteractionAbortReason::Interrupted)
+        .await;
 }
 
 #[tokio::test]
@@ -9337,7 +9355,8 @@ async fn try_start_turn_if_idle_rejects_active_review_turn_without_injecting() {
         sess.input_queue.get_pending_input(&sess.active_turn).await
     );
 
-    sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
+    sess.abort_all_tasks(InteractionAbortReason::Interrupted)
+        .await;
 }
 
 #[tokio::test]
@@ -9450,7 +9469,8 @@ async fn steer_input_rejects_non_regular_turns() {
 
         assert_eq!(err, SteerInputError::ActiveTurnNotSteerable { turn_kind });
 
-        sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
+        sess.abort_all_tasks(InteractionAbortReason::Interrupted)
+            .await;
     }
 }
 
@@ -9797,7 +9817,8 @@ async fn abort_review_task_emits_exited_then_aborted_and_records_history() {
     sess.spawn_task(Arc::clone(&tc), input, ReviewTask::new())
         .await;
 
-    sess.abort_all_tasks(InteractionAbortReason::Interrupted).await;
+    sess.abort_all_tasks(InteractionAbortReason::Interrupted)
+        .await;
 
     // Aborting a review task should exit review mode before surfacing the abort to the client.
     // We scan for these events (rather than relying on fixed ordering) since unrelated events

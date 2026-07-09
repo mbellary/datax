@@ -49,9 +49,13 @@ struct ActiveReplaySegment<'a> {
     window: Option<ReconstructedWindow>,
 }
 
-fn interaction_ids_are_compatible(active_interaction_id: Option<&str>, item_interaction_id: Option<&str>) -> bool {
-    active_interaction_id
-        .is_none_or(|interaction_id| item_interaction_id.is_none_or(|item_interaction_id| item_interaction_id == interaction_id))
+fn interaction_ids_are_compatible(
+    active_interaction_id: Option<&str>,
+    item_interaction_id: Option<&str>,
+) -> bool {
+    active_interaction_id.is_none_or(|interaction_id| {
+        item_interaction_id.is_none_or(|item_interaction_id| item_interaction_id == interaction_id)
+    })
 }
 
 fn finalize_active_segment<'a>(

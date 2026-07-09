@@ -1,6 +1,6 @@
 use crate::config_manager::ConfigManager;
-use datax_core::CodexThread;
-use datax_core::ThreadManager;
+use datax_core::ChatManager;
+use datax_core::DataxChat;
 use datax_protocol::ChatId;
 use datax_protocol::protocol::McpServerRefreshConfig;
 use datax_protocol::protocol::Op;
@@ -9,16 +9,16 @@ use std::sync::Arc;
 use tracing::warn;
 
 pub(crate) async fn queue_strict_refresh(
-    thread_manager: &Arc<ThreadManager>,
+    chat_manager: &Arc<ChatManager>,
     config_manager: &ConfigManager,
 ) -> io::Result<()> {
     config_manager
         .load_latest_config(/*fallback_cwd*/ None)
         .await?;
     let mut refreshes = Vec::new();
-    for chat_id in thread_manager.list_chat_ids().await {
-        let thread = thread_manager
-            .get_thread(chat_id)
+    for chat_id in chat_manager.list_chat_ids().await {
+        let thread = chat_manager
+            .get_chat(chat_id)
             .await
             .map_err(|err| io::Error::other(format!("failed to load thread {chat_id}: {err}")))?;
         let config = build_refresh_config(thread.as_ref(), config_manager).await?;
@@ -31,11 +31,11 @@ pub(crate) async fn queue_strict_refresh(
 }
 
 pub(crate) async fn queue_best_effort_refresh(
-    thread_manager: &Arc<ThreadManager>,
+    chat_manager: &Arc<ChatManager>,
     config_manager: &ConfigManager,
 ) {
-    for chat_id in thread_manager.list_chat_ids().await {
-        let thread = match thread_manager.get_thread(chat_id).await {
+    for chat_id in chat_manager.list_chat_ids().await {
+        let thread = match chat_manager.get_chat(chat_id).await {
             Ok(thread) => thread,
             Err(err) => {
                 warn!("failed to load thread {chat_id} for MCP refresh: {err}");
@@ -56,7 +56,7 @@ pub(crate) async fn queue_best_effort_refresh(
 }
 
 async fn build_refresh_config(
-    thread: &CodexThread,
+    thread: &DataxChat,
     config_manager: &ConfigManager,
 ) -> io::Result<McpServerRefreshConfig> {
     let thread_config = thread.config().await;
@@ -78,7 +78,7 @@ async fn build_refresh_config(
 
 async fn queue_refresh(
     chat_id: ChatId,
-    thread: Arc<CodexThread>,
+    thread: Arc<DataxChat>,
     config: McpServerRefreshConfig,
 ) -> io::Result<()> {
     thread
@@ -124,9 +124,9 @@ mod tests {
 
     #[tokio::test]
     async fn strict_refresh_reports_thread_planning_failures() -> anyhow::Result<()> {
-        let (_temp_dir, thread_manager, config_manager, _loader) = refresh_test_state().await?;
+        let (_temp_dir, chat_manager, config_manager, _loader) = refresh_test_state().await?;
 
-        let err = queue_strict_refresh(&thread_manager, &config_manager)
+        let err = queue_strict_refresh(&chat_manager, &config_manager)
             .await
             .expect_err("strict refresh should fail");
 
@@ -136,9 +136,9 @@ mod tests {
 
     #[tokio::test]
     async fn best_effort_refresh_attempts_every_loaded_thread() -> anyhow::Result<()> {
-        let (_temp_dir, thread_manager, config_manager, loader) = refresh_test_state().await?;
+        let (_temp_dir, chat_manager, config_manager, loader) = refresh_test_state().await?;
 
-        queue_best_effort_refresh(&thread_manager, &config_manager).await;
+        queue_best_effort_refresh(&chat_manager, &config_manager).await;
 
         assert_eq!(loader.good_loads.load(Ordering::Relaxed), 1);
         assert_eq!(loader.bad_loads.load(Ordering::Relaxed), 1);
@@ -147,15 +147,15 @@ mod tests {
 
     #[tokio::test]
     async fn refresh_config_uses_latest_auth_keyring_backend() -> anyhow::Result<()> {
-        let (temp_dir, thread_manager, config_manager, _loader) = refresh_test_state().await?;
+        let (temp_dir, chat_manager, config_manager, _loader) = refresh_test_state().await?;
         std::fs::write(
             temp_dir.path().join(datax_config::CONFIG_TOML_FILE),
             "[features]\nsecret_auth_storage = true\n",
         )?;
 
         let mut good_thread = None;
-        for chat_id in thread_manager.list_chat_ids().await {
-            let thread = thread_manager.get_thread(chat_id).await?;
+        for chat_id in chat_manager.list_chat_ids().await {
+            let thread = chat_manager.get_chat(chat_id).await?;
             let thread_config = thread.config().await;
             if thread_config.cwd.ends_with("good") {
                 good_thread = Some(thread);
@@ -179,7 +179,7 @@ mod tests {
 
     async fn refresh_test_state() -> anyhow::Result<(
         TempDir,
-        Arc<ThreadManager>,
+        Arc<ChatManager>,
         ConfigManager,
         Arc<CountingThreadConfigLoader>,
     )> {
@@ -222,20 +222,20 @@ mod tests {
                 SessionSource::Exec.restriction_product(),
             ),
         );
-        let thread_manager = Arc::new_cyclic(|thread_manager| {
-            ThreadManager::new(
+        let chat_manager = Arc::new_cyclic(|chat_manager| {
+            ChatManager::new(
                 &good_config,
                 auth_manager.clone(),
                 SessionSource::Exec,
                 Arc::clone(&environment_manager),
                 thread_extensions(
-                    guardian_agent_spawner(thread_manager.clone()),
+                    guardian_agent_spawner(chat_manager.clone()),
                     ThreadExtensionDependencies {
                         event_sink: Arc::new(NoopExtensionEventSink),
                         auth_manager: auth_manager.clone(),
                         state_db: Some(state_db.clone()),
                         analytics_events_client: datax_analytics::AnalyticsEventsClient::disabled(),
-                        thread_manager: thread_manager.clone(),
+                        chat_manager: chat_manager.clone(),
                         goal_service: Arc::new(datax_goal_extension::GoalService::new()),
                         environment_manager: Arc::clone(&environment_manager),
                         executor_skill_provider: Arc::clone(&executor_skill_provider),
@@ -253,8 +253,8 @@ mod tests {
                 /*external_time_provider*/ None,
             )
         });
-        thread_manager.start_thread(good_config).await?;
-        thread_manager.start_thread(bad_config).await?;
+        chat_manager.start_chat(good_config).await?;
+        chat_manager.start_chat(bad_config).await?;
 
         let loader = Arc::new(CountingThreadConfigLoader {
             good_cwd: AbsolutePathBuf::try_from(good_cwd)?,
@@ -272,7 +272,7 @@ mod tests {
             loader.clone(),
         );
 
-        Ok((temp_dir, thread_manager, config_manager, loader))
+        Ok((temp_dir, chat_manager, config_manager, loader))
     }
 
     struct CountingThreadConfigLoader {

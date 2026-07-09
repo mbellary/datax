@@ -534,10 +534,7 @@ fn turn_metadata_state_ignores_client_reserved_metadata_before_start() {
             "forked_from_chat_id".to_string(),
             "client-supplied".to_string(),
         ),
-        (
-            "parent_chat_id".to_string(),
-            "client-supplied".to_string(),
-        ),
+        ("parent_chat_id".to_string(), "client-supplied".to_string()),
         ("subagent_kind".to_string(), "client-supplied".to_string()),
     ]));
 
@@ -607,10 +604,7 @@ fn turn_metadata_state_merges_client_metadata_without_replacing_reserved_fields(
             "forked_from_chat_id".to_string(),
             "client-supplied".to_string(),
         ),
-        (
-            "parent_chat_id".to_string(),
-            "client-supplied".to_string(),
-        ),
+        ("parent_chat_id".to_string(), "client-supplied".to_string()),
         ("subagent_kind".to_string(), "client-supplied".to_string()),
         ("interaction_id".to_string(), "client-supplied".to_string()),
         (WINDOW_ID_KEY.to_string(), "client-supplied".to_string()),

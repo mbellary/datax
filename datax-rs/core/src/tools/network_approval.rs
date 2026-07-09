@@ -575,9 +575,10 @@ impl NetworkApprovalService {
                 review_id,
                 GuardianApprovalRequest::NetworkAccess {
                     id: guardian_approval_id.clone(),
-                    interaction_id: owner_call
-                        .as_ref()
-                        .map_or_else(|| turn_context.sub_id.clone(), |call| call.interaction_id.clone()),
+                    interaction_id: owner_call.as_ref().map_or_else(
+                        || turn_context.sub_id.clone(),
+                        |call| call.interaction_id.clone(),
+                    ),
                     target,
                     host: request.host,
                     protocol,

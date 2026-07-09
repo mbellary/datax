@@ -86,8 +86,8 @@ use datax_app_server_protocol::WarningNotification;
 use datax_app_server_protocol::build_item_from_guardian_event;
 use datax_app_server_protocol::guardian_auto_approval_review_notification;
 use datax_app_server_protocol::item_event_to_server_notification;
-use datax_core::CodexThread;
-use datax_core::ThreadManager;
+use datax_core::ChatManager;
+use datax_core::DataxChat;
 use datax_core::review_format::format_review_findings_block;
 use datax_core::review_prompts;
 use datax_protocol::ChatId;
@@ -98,14 +98,14 @@ use datax_protocol::protocol::CodexErrorInfo as CoreCodexErrorInfo;
 use datax_protocol::protocol::Event;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::ExecApprovalRequestEvent;
+use datax_protocol::protocol::InteractionAbortedEvent;
+use datax_protocol::protocol::InteractionCompleteEvent;
 use datax_protocol::protocol::Op;
 use datax_protocol::protocol::RealtimeEvent;
 use datax_protocol::protocol::ReviewDecision;
 use datax_protocol::protocol::ReviewOutputEvent;
 use datax_protocol::protocol::SubAgentActivityKind;
 use datax_protocol::protocol::TokenCountEvent;
-use datax_protocol::protocol::InteractionAbortedEvent;
-use datax_protocol::protocol::InteractionCompleteEvent;
 use datax_protocol::protocol::TurnDiffEvent;
 use datax_protocol::request_permissions::PermissionGrantScope as CorePermissionGrantScope;
 use datax_protocol::request_permissions::RequestPermissionProfile as CoreRequestPermissionProfile;
@@ -140,8 +140,8 @@ struct CommandExecutionCompletionItem {
 pub(crate) async fn apply_bespoke_event_handling(
     event: Event,
     conversation_id: ChatId,
-    conversation: Arc<CodexThread>,
-    thread_manager: Arc<ThreadManager>,
+    conversation: Arc<DataxChat>,
+    chat_manager: Arc<ChatManager>,
     outgoing: ThreadScopedOutgoingMessageSender,
     thread_state: Arc<tokio::sync::Mutex<ThreadState>>,
     thread_watch_manager: ThreadWatchManager,
@@ -891,13 +891,10 @@ pub(crate) async fn apply_bespoke_event_handling(
         }
         EventMsg::SubAgentActivity(activity) => {
             if activity.kind == SubAgentActivityKind::Interrupted
-                && thread_manager
-                    .get_thread(activity.agent_chat_id)
-                    .await
-                    .is_err()
+                && chat_manager.get_chat(activity.agent_chat_id).await.is_err()
             {
                 thread_watch_manager
-                    .remove_thread(&activity.agent_chat_id.to_string())
+                    .remove_chat(&activity.agent_chat_id.to_string())
                     .await;
             }
             let notification = item_event_to_server_notification(
@@ -908,13 +905,13 @@ pub(crate) async fn apply_bespoke_event_handling(
             outgoing.send_server_notification(notification).await;
         }
         EventMsg::CollabCloseEnd(end_event) => {
-            if thread_manager
-                .get_thread(end_event.receiver_chat_id)
+            if chat_manager
+                .get_chat(end_event.receiver_chat_id)
                 .await
                 .is_err()
             {
                 thread_watch_manager
-                    .remove_thread(&end_event.receiver_chat_id.to_string())
+                    .remove_chat(&end_event.receiver_chat_id.to_string())
                     .await;
             }
             let notification = item_event_to_server_notification(
@@ -938,8 +935,13 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .await;
         }
         EventMsg::TokenCount(token_count_event) => {
-            handle_token_count_event(conversation_id, event_interaction_id, token_count_event, &outgoing)
-                .await;
+            handle_token_count_event(
+                conversation_id,
+                event_interaction_id,
+                token_count_event,
+                &outgoing,
+            )
+            .await;
         }
         EventMsg::Error(ev) => {
             thread_watch_manager
@@ -1277,7 +1279,13 @@ pub(crate) async fn apply_bespoke_event_handling(
             }
         }
         EventMsg::TurnDiff(turn_diff_event) => {
-            handle_turn_diff(conversation_id, &event_interaction_id, turn_diff_event, &outgoing).await;
+            handle_turn_diff(
+                conversation_id,
+                &event_interaction_id,
+                turn_diff_event,
+                &outgoing,
+            )
+            .await;
         }
         EventMsg::PlanUpdate(plan_update_event) => {
             handle_turn_plan_update(
@@ -1686,7 +1694,7 @@ async fn on_request_user_input_response(
     event_interaction_id: String,
     pending_request_id: RequestId,
     receiver: oneshot::Receiver<ClientRequestResult>,
-    conversation: Arc<CodexThread>,
+    conversation: Arc<DataxChat>,
     thread_state: Arc<Mutex<ThreadState>>,
     user_input_guard: ThreadWatchActiveGuard,
 ) {
@@ -1768,7 +1776,7 @@ async fn on_mcp_server_elicitation_response(
     request_id: datax_protocol::mcp::RequestId,
     pending_request_id: RequestId,
     receiver: oneshot::Receiver<ClientRequestResult>,
-    conversation: Arc<CodexThread>,
+    conversation: Arc<DataxChat>,
     thread_state: Arc<Mutex<ThreadState>>,
     permission_guard: ThreadWatchActiveGuard,
 ) {
@@ -1832,7 +1840,7 @@ fn mcp_server_elicitation_response_from_client_result(
 
 async fn on_request_permissions_response(
     pending_response: PendingRequestPermissionsResponse,
-    conversation: Arc<CodexThread>,
+    conversation: Arc<DataxChat>,
     thread_state: Arc<Mutex<ThreadState>>,
 ) {
     let PendingRequestPermissionsResponse {
@@ -2001,7 +2009,7 @@ async fn on_file_change_request_approval_response(
     message_id: String,
     pending_request_id: RequestId,
     receiver: oneshot::Receiver<ClientRequestResult>,
-    codex: Arc<CodexThread>,
+    codex: Arc<DataxChat>,
     thread_state: Arc<Mutex<ThreadState>>,
     permission_guard: ThreadWatchActiveGuard,
 ) {
@@ -2051,7 +2059,7 @@ async fn on_command_execution_request_approval_response(
     completion_item: Option<CommandExecutionCompletionItem>,
     pending_request_id: RequestId,
     receiver: oneshot::Receiver<ClientRequestResult>,
-    conversation: Arc<CodexThread>,
+    conversation: Arc<DataxChat>,
     outgoing: ThreadScopedOutgoingMessageSender,
     thread_state: Arc<Mutex<ThreadState>>,
     permission_guard: ThreadWatchActiveGuard,
@@ -2400,8 +2408,8 @@ mod tests {
 
     struct GuardianAssessmentTestContext {
         conversation_id: ChatId,
-        conversation: Arc<CodexThread>,
-        thread_manager: Arc<ThreadManager>,
+        conversation: Arc<DataxChat>,
+        chat_manager: Arc<ChatManager>,
         outgoing: ThreadScopedOutgoingMessageSender,
         thread_state: Arc<Mutex<ThreadState>>,
         thread_watch_manager: ThreadWatchManager,
@@ -2417,7 +2425,7 @@ mod tests {
                 },
                 self.conversation_id,
                 self.conversation.clone(),
-                self.thread_manager.clone(),
+                self.chat_manager.clone(),
                 self.outgoing.clone(),
                 self.thread_state.clone(),
                 self.thread_watch_manager.clone(),
@@ -2582,11 +2590,8 @@ mod tests {
             tx,
             datax_analytics::AnalyticsEventsClient::disabled(),
         ));
-        let outgoing = ThreadScopedOutgoingMessageSender::new(
-            outgoing,
-            vec![ConnectionId(1)],
-            ChatId::new(),
-        );
+        let outgoing =
+            ThreadScopedOutgoingMessageSender::new(outgoing, vec![ConnectionId(1)], ChatId::new());
         let completion_item = command_execution_completion_item("printf hi");
 
         let first_start = start_command_execution_item(
@@ -2654,11 +2659,8 @@ mod tests {
             tx,
             datax_analytics::AnalyticsEventsClient::disabled(),
         ));
-        let outgoing = ThreadScopedOutgoingMessageSender::new(
-            outgoing,
-            vec![ConnectionId(1)],
-            ChatId::new(),
-        );
+        let outgoing =
+            ThreadScopedOutgoingMessageSender::new(outgoing, vec![ConnectionId(1)], ChatId::new());
         let completion_item = command_execution_completion_item("printf hi");
 
         start_command_execution_item(
@@ -2727,19 +2729,19 @@ mod tests {
     async fn guardian_command_execution_notifications_wrap_review_lifecycle() -> Result<()> {
         let codex_home = TempDir::new()?;
         let config = load_default_config_for_test(&codex_home).await;
-        let thread_manager = Arc::new(
-            datax_core::test_support::thread_manager_with_models_provider_and_home(
+        let chat_manager = Arc::new(
+            datax_core::test_support::chat_manager_with_models_provider_and_home(
                 CodexAuth::create_dummy_chatgpt_auth_for_testing(),
                 config.model_provider.clone(),
                 config.codex_home.to_path_buf(),
                 Arc::new(datax_exec_server::EnvironmentManager::default_for_tests()),
             ),
         );
-        let datax_core::NewThread {
+        let datax_core::NewChat {
             chat_id: conversation_id,
             chat: conversation,
             ..
-        } = thread_manager.start_thread(config.clone()).await?;
+        } = chat_manager.start_chat(config.clone()).await?;
         let thread_state = new_thread_state();
         let thread_watch_manager = ThreadWatchManager::new();
         let (tx, mut rx) = mpsc::channel(CHANNEL_CAPACITY);
@@ -2755,7 +2757,7 @@ mod tests {
         let guardian_context = GuardianAssessmentTestContext {
             conversation_id,
             conversation: conversation.clone(),
-            thread_manager: thread_manager.clone(),
+            chat_manager: chat_manager.clone(),
             outgoing: outgoing.clone(),
             thread_state: thread_state.clone(),
             thread_watch_manager: thread_watch_manager.clone(),
@@ -3313,19 +3315,19 @@ mod tests {
     async fn turn_started_omits_active_snapshot_items() -> Result<()> {
         let codex_home = TempDir::new()?;
         let config = load_default_config_for_test(&codex_home).await;
-        let thread_manager = Arc::new(
-            datax_core::test_support::thread_manager_with_models_provider_and_home(
+        let chat_manager = Arc::new(
+            datax_core::test_support::chat_manager_with_models_provider_and_home(
                 CodexAuth::create_dummy_chatgpt_auth_for_testing(),
                 config.model_provider.clone(),
                 config.codex_home.to_path_buf(),
                 Arc::new(datax_exec_server::EnvironmentManager::default_for_tests()),
             ),
         );
-        let datax_core::NewThread {
+        let datax_core::NewChat {
             chat_id: conversation_id,
             chat: conversation,
             ..
-        } = thread_manager.start_thread(config.clone()).await?;
+        } = chat_manager.start_chat(config.clone()).await?;
         let thread_state = new_thread_state();
         {
             let mut state = thread_state.lock().await;
@@ -3366,17 +3368,19 @@ mod tests {
         apply_bespoke_event_handling(
             Event {
                 id: "turn-1".to_string(),
-                msg: EventMsg::InteractionStarted(datax_protocol::protocol::InteractionStartedEvent {
-                    interaction_id: "turn-1".to_string(),
-                    trace_id: None,
-                    started_at: Some(42),
-                    model_context_window: None,
-                    collaboration_mode_kind: Default::default(),
-                }),
+                msg: EventMsg::InteractionStarted(
+                    datax_protocol::protocol::InteractionStartedEvent {
+                        interaction_id: "turn-1".to_string(),
+                        trace_id: None,
+                        started_at: Some(42),
+                        model_context_window: None,
+                        collaboration_mode_kind: Default::default(),
+                    },
+                ),
             },
             conversation_id,
             conversation,
-            thread_manager,
+            chat_manager,
             outgoing,
             thread_state,
             thread_watch_manager,
@@ -3404,19 +3408,19 @@ mod tests {
     async fn interrupted_subagent_activity_removes_missing_thread_watch() -> Result<()> {
         let codex_home = TempDir::new()?;
         let config = load_default_config_for_test(&codex_home).await;
-        let thread_manager = Arc::new(
-            datax_core::test_support::thread_manager_with_models_provider_and_home(
+        let chat_manager = Arc::new(
+            datax_core::test_support::chat_manager_with_models_provider_and_home(
                 CodexAuth::create_dummy_chatgpt_auth_for_testing(),
                 config.model_provider.clone(),
                 config.codex_home.to_path_buf(),
                 Arc::new(datax_exec_server::EnvironmentManager::default_for_tests()),
             ),
         );
-        let datax_core::NewThread {
+        let datax_core::NewChat {
             chat_id: conversation_id,
             chat: conversation,
             ..
-        } = thread_manager.start_thread(config).await?;
+        } = chat_manager.start_chat(config).await?;
         let child_chat_id = ChatId::new();
         let child_chat_id_string = child_chat_id.to_string();
         let thread_watch_manager = ThreadWatchManager::new();
@@ -3449,7 +3453,7 @@ mod tests {
             },
             conversation_id,
             conversation,
-            thread_manager,
+            chat_manager,
             outgoing,
             new_thread_state(),
             thread_watch_manager.clone(),
@@ -3495,11 +3499,8 @@ mod tests {
             tx,
             datax_analytics::AnalyticsEventsClient::disabled(),
         ));
-        let outgoing = ThreadScopedOutgoingMessageSender::new(
-            outgoing,
-            vec![ConnectionId(1)],
-            ChatId::new(),
-        );
+        let outgoing =
+            ThreadScopedOutgoingMessageSender::new(outgoing, vec![ConnectionId(1)], ChatId::new());
         let thread_state = new_thread_state();
         {
             let mut state = thread_state.lock().await;
@@ -3569,11 +3570,8 @@ mod tests {
             tx,
             datax_analytics::AnalyticsEventsClient::disabled(),
         ));
-        let outgoing = ThreadScopedOutgoingMessageSender::new(
-            outgoing,
-            vec![ConnectionId(1)],
-            ChatId::new(),
-        );
+        let outgoing =
+            ThreadScopedOutgoingMessageSender::new(outgoing, vec![ConnectionId(1)], ChatId::new());
 
         handle_turn_interrupted(
             conversation_id,
@@ -3619,11 +3617,8 @@ mod tests {
             tx,
             datax_analytics::AnalyticsEventsClient::disabled(),
         ));
-        let outgoing = ThreadScopedOutgoingMessageSender::new(
-            outgoing,
-            vec![ConnectionId(1)],
-            ChatId::new(),
-        );
+        let outgoing =
+            ThreadScopedOutgoingMessageSender::new(outgoing, vec![ConnectionId(1)], ChatId::new());
 
         handle_turn_complete(
             conversation_id,
@@ -3663,11 +3658,8 @@ mod tests {
             tx,
             datax_analytics::AnalyticsEventsClient::disabled(),
         ));
-        let outgoing = ThreadScopedOutgoingMessageSender::new(
-            outgoing,
-            vec![ConnectionId(1)],
-            ChatId::new(),
-        );
+        let outgoing =
+            ThreadScopedOutgoingMessageSender::new(outgoing, vec![ConnectionId(1)], ChatId::new());
         let update = UpdatePlanArgs {
             explanation: Some("need plan".to_string()),
             plan: vec![
@@ -3713,11 +3705,8 @@ mod tests {
             tx,
             datax_analytics::AnalyticsEventsClient::disabled(),
         ));
-        let outgoing = ThreadScopedOutgoingMessageSender::new(
-            outgoing,
-            vec![ConnectionId(1)],
-            ChatId::new(),
-        );
+        let outgoing =
+            ThreadScopedOutgoingMessageSender::new(outgoing, vec![ConnectionId(1)], ChatId::new());
 
         let info = TokenUsageInfo {
             total_token_usage: TokenUsage {
@@ -3804,11 +3793,8 @@ mod tests {
             tx,
             datax_analytics::AnalyticsEventsClient::disabled(),
         ));
-        let outgoing = ThreadScopedOutgoingMessageSender::new(
-            outgoing,
-            vec![ConnectionId(1)],
-            ChatId::new(),
-        );
+        let outgoing =
+            ThreadScopedOutgoingMessageSender::new(outgoing, vec![ConnectionId(1)], ChatId::new());
 
         handle_token_count_event(
             conversation_id,
@@ -3840,11 +3826,8 @@ mod tests {
             tx,
             datax_analytics::AnalyticsEventsClient::disabled(),
         ));
-        let outgoing = ThreadScopedOutgoingMessageSender::new(
-            outgoing,
-            vec![ConnectionId(1)],
-            ChatId::new(),
-        );
+        let outgoing =
+            ThreadScopedOutgoingMessageSender::new(outgoing, vec![ConnectionId(1)], ChatId::new());
 
         // Interaction 1 on conversation A
         let a_turn1 = "a_turn1".to_string();
@@ -3957,11 +3940,8 @@ mod tests {
             tx,
             datax_analytics::AnalyticsEventsClient::disabled(),
         ));
-        let outgoing = ThreadScopedOutgoingMessageSender::new(
-            outgoing,
-            vec![ConnectionId(1)],
-            ChatId::new(),
-        );
+        let outgoing =
+            ThreadScopedOutgoingMessageSender::new(outgoing, vec![ConnectionId(1)], ChatId::new());
         let unified_diff = "--- a\n+++ b\n".to_string();
         let conversation_id = ChatId::new();
 

@@ -19,7 +19,7 @@ use core_test_support::test_codex::TestCodex;
 use core_test_support::test_codex::test_codex;
 use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::wait_for_event;
-use datax_core::CodexThread;
+use datax_core::DataxChat;
 use datax_features::Feature;
 use datax_protocol::AgentPath;
 use datax_protocol::items::SleepItem;
@@ -117,7 +117,7 @@ fn response_completed_chunks(response_id: &str) -> Vec<StreamingSseChunk> {
     ]
 }
 
-async fn build_codex(server: &StreamingSseServer) -> Arc<CodexThread> {
+async fn build_codex(server: &StreamingSseServer) -> Arc<DataxChat> {
     test_codex()
         .with_model("gpt-5.4")
         .build_with_streaming_server(server)
@@ -126,7 +126,7 @@ async fn build_codex(server: &StreamingSseServer) -> Arc<CodexThread> {
         .codex
 }
 
-async fn submit_user_input(codex: &CodexThread, text: &str) {
+async fn submit_user_input(codex: &DataxChat, text: &str) {
     codex
         .submit(Op::UserInput {
             items: vec![UserInput::Text {
@@ -174,7 +174,7 @@ async fn submit_danger_full_access_user_turn(test: &TestCodex, text: &str) {
         .expect("submit user turn");
 }
 
-async fn steer_user_input(codex: &CodexThread, text: &str) {
+async fn steer_user_input(codex: &DataxChat, text: &str) {
     codex
         .steer_input(
             vec![UserInput::Text {
@@ -190,7 +190,7 @@ async fn steer_user_input(codex: &CodexThread, text: &str) {
         .expect("steer user input");
 }
 
-async fn submit_queue_only_agent_mail(codex: &CodexThread, text: &str) {
+async fn submit_queue_only_agent_mail(codex: &DataxChat, text: &str) {
     codex
         .submit(Op::InterAgentCommunication {
             communication: InterAgentCommunication::new(
@@ -213,7 +213,7 @@ async fn submit_queue_only_agent_mail(codex: &CodexThread, text: &str) {
     .await;
 }
 
-async fn wait_for_reasoning_item_started(codex: &CodexThread) {
+async fn wait_for_reasoning_item_started(codex: &DataxChat) {
     wait_for_event(codex, |event| {
         matches!(
             event,
@@ -224,7 +224,7 @@ async fn wait_for_reasoning_item_started(codex: &CodexThread) {
     .await;
 }
 
-async fn wait_for_agent_message(codex: &CodexThread, text: &str) {
+async fn wait_for_agent_message(codex: &DataxChat, text: &str) {
     let final_message = wait_for_event(
         codex,
         |event| matches!(event, EventMsg::AgentMessage(message) if message.message == text),
@@ -233,11 +233,14 @@ async fn wait_for_agent_message(codex: &CodexThread, text: &str) {
     assert!(matches!(final_message, EventMsg::AgentMessage(_)));
 }
 
-async fn wait_for_turn_complete(codex: &CodexThread) {
-    wait_for_event(codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
+async fn wait_for_turn_complete(codex: &DataxChat) {
+    wait_for_event(codex, |event| {
+        matches!(event, EventMsg::InteractionComplete(_))
+    })
+    .await;
 }
 
-async fn wait_for_sleep_item_started(codex: &CodexThread, call_id: &str, duration_ms: u64) {
+async fn wait_for_sleep_item_started(codex: &DataxChat, call_id: &str, duration_ms: u64) {
     let event = wait_for_event(codex, |event| {
         matches!(
             event,
@@ -261,7 +264,7 @@ async fn wait_for_sleep_item_started(codex: &CodexThread, call_id: &str, duratio
     );
 }
 
-async fn wait_for_sleep_item_completed(codex: &CodexThread, call_id: &str, duration_ms: u64) {
+async fn wait_for_sleep_item_completed(codex: &DataxChat, call_id: &str, duration_ms: u64) {
     let event = wait_for_event(codex, |event| {
         matches!(
             event,
@@ -567,7 +570,10 @@ async fn injected_user_input_triggers_follow_up_request_with_deltas() {
 
     let _ = gate_completed_tx.send(());
 
-    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(&codex, |event| {
+        matches!(event, EventMsg::InteractionComplete(_))
+    })
+    .await;
 
     let requests = server.requests().await;
     assert_eq!(requests.len(), 2);
@@ -1010,7 +1016,10 @@ async fn steered_user_input_waits_when_tool_output_triggers_compact_before_next_
     let codex = test.codex.clone();
 
     submit_danger_full_access_user_turn(&test, "first prompt").await;
-    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionStarted(_))).await;
+    wait_for_event(&codex, |event| {
+        matches!(event, EventMsg::InteractionStarted(_))
+    })
+    .await;
     steer_user_input(&codex, "second prompt").await;
     let _ = gate_first_completed_tx.send(());
 

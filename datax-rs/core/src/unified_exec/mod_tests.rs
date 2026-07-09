@@ -1,6 +1,6 @@
 use super::head_tail_buffer::HeadTailBuffer;
 use super::*;
-use crate::codex_thread::BackgroundTerminalInfo;
+use crate::datax_chat::BackgroundTerminalInfo;
 use crate::exec::ExecCapturePolicy;
 use crate::exec::ExecExpiration;
 use crate::sandboxing::ExecRequest;

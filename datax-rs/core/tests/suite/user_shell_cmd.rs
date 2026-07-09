@@ -25,8 +25,8 @@ use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::ExecCommandEndEvent;
 use datax_protocol::protocol::ExecCommandSource;
 use datax_protocol::protocol::ExecOutputStream;
-use datax_protocol::protocol::Op;
 use datax_protocol::protocol::InteractionAbortReason;
+use datax_protocol::protocol::Op;
 use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
 use regex_lite::escape;
@@ -352,7 +352,10 @@ async fn user_shell_command_history_is_persisted_and_shared_with_model() -> anyh
     assert_eq!(end_event.exit_code, 0);
     assert_eq!(end_event.stdout.trim(), "not-set");
 
-    let _ = wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
+    let _ = wait_for_event(&test.codex, |ev| {
+        matches!(ev, EventMsg::InteractionComplete(_))
+    })
+    .await;
 
     let responses = vec![responses::sse(vec![
         responses::ev_response_created("resp-1"),
@@ -455,7 +458,10 @@ async fn user_shell_command_output_is_truncated_in_history() -> anyhow::Result<(
     .await;
     assert_eq!(end_event.exit_code, 0);
 
-    let _ = wait_for_event(&test.codex, |ev| matches!(ev, EventMsg::InteractionComplete(_))).await;
+    let _ = wait_for_event(&test.codex, |ev| {
+        matches!(ev, EventMsg::InteractionComplete(_))
+    })
+    .await;
 
     let responses = vec![responses::sse(vec![
         responses::ev_response_created("resp-1"),

@@ -619,10 +619,7 @@ async fn plan_mode_emits_plan_item_from_proposed_plan_block() -> anyhow::Result<
     })
     .await;
 
-    assert_eq!(
-        plan_delta.chat_id,
-        session_configured.chat_id.to_string()
-    );
+    assert_eq!(plan_delta.chat_id, session_configured.chat_id.to_string());
     assert_eq!(plan_delta.delta, "- Step 1\n- Step 2\n");
     assert_eq!(plan_completed.text, "- Step 1\n- Step 2\n");
 

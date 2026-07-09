@@ -302,17 +302,17 @@ use datax_config::CloudConfigBundleLoadErrorCode;
 use datax_config::ConfigLayerStack;
 use datax_config::loader::project_trust_key;
 use datax_config::types::McpServerTransportConfig;
-use datax_core::CodexThread;
-use datax_core::CodexThreadSettingsOverrides;
+use datax_core::ChatManager;
+use datax_core::DataxChat;
+use datax_core::DataxChatSettingsOverrides;
 use datax_core::ForkSnapshot;
 use datax_core::McpManager;
-use datax_core::NewThread;
+use datax_core::NewChat;
 #[cfg(test)]
 use datax_core::SessionMeta;
-use datax_core::StartThreadOptions;
+use datax_core::StartChatOptions;
 use datax_core::SteerInputError;
 use datax_core::ThreadConfigSnapshot;
-use datax_core::ThreadManager;
 use datax_core::config::Config;
 use datax_core::config::ConfigOverrides;
 use datax_core::config::NetworkProxyAuditMetadata;
@@ -546,7 +546,7 @@ fn resolve_request_cwd(cwd: Option<PathBuf>) -> Result<Option<AbsolutePathBuf>, 
 }
 
 fn resolve_turn_environment_selections(
-    thread_manager: &ThreadManager,
+    chat_manager: &ChatManager,
     environments: Option<Vec<InteractionEnvironmentParams>>,
 ) -> Result<Option<Vec<TurnEnvironmentSelection>>, JSONRPCErrorError> {
     let Some(environments) = environments else {
@@ -569,7 +569,7 @@ fn resolve_turn_environment_selections(
             cwd,
         });
     }
-    thread_manager
+    chat_manager
         .validate_environment_selections(&selections)
         .map_err(environment_selection_error)?;
     Ok(Some(selections))

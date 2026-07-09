@@ -3,18 +3,18 @@
 use core::time::Duration;
 use core_test_support::load_default_config_for_test;
 use core_test_support::wait_for_event;
-use datax_core::NewThread;
+use datax_core::NewChat;
 use datax_login::CodexAuth;
 use datax_protocol::ChatId;
 use datax_protocol::config_types::ModeKind;
 use datax_protocol::config_types::ReasoningSummary;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::InitialHistory;
+use datax_protocol::protocol::InteractionCompleteEvent;
+use datax_protocol::protocol::InteractionStartedEvent;
 use datax_protocol::protocol::ResumedHistory;
 use datax_protocol::protocol::RolloutItem;
-use datax_protocol::protocol::InteractionCompleteEvent;
 use datax_protocol::protocol::TurnContextItem;
-use datax_protocol::protocol::InteractionStartedEvent;
 use datax_protocol::protocol::UserMessageEvent;
 use datax_protocol::protocol::WarningEvent;
 use tempfile::TempDir;
@@ -94,7 +94,7 @@ async fn emits_warning_when_resumed_model_differs() {
 
     let initial_history = resume_history(&config, "previous-model", &rollout_path);
 
-    let thread_manager = datax_core::test_support::thread_manager_with_models_provider(
+    let chat_manager = datax_core::test_support::chat_manager_with_models_provider(
         CodexAuth::from_api_key("test"),
         config.model_provider.clone(),
     );
@@ -102,10 +102,9 @@ async fn emits_warning_when_resumed_model_differs() {
         datax_core::test_support::auth_manager_from_auth(CodexAuth::from_api_key("test"));
 
     // Act: resume the conversation.
-    let NewThread {
-        thread: conversation,
-        ..
-    } = thread_manager
+    let NewChat {
+        chat: conversation, ..
+    } = chat_manager
         .resume_thread_with_history(
             config.clone(),
             initial_history,

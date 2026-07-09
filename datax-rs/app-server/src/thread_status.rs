@@ -103,9 +103,9 @@ impl ThreadWatchManager {
         .await;
     }
 
-    pub(crate) async fn remove_thread(&self, chat_id: &str) {
+    pub(crate) async fn remove_chat(&self, chat_id: &str) {
         let chat_id = chat_id.to_string();
-        self.mutate_and_publish(move |state| state.remove_thread(&chat_id))
+        self.mutate_and_publish(move |state| state.remove_chat(&chat_id))
             .await;
     }
 
@@ -299,10 +299,7 @@ impl ThreadWatchState {
         emit_notification: bool,
     ) -> Option<ChatStatusChangedNotification> {
         let previous_status = self.status_for(&chat_id);
-        let runtime = self
-            .runtime_by_chat_id
-            .entry(chat_id.clone())
-            .or_default();
+        let runtime = self.runtime_by_chat_id.entry(chat_id.clone()).or_default();
         runtime.is_loaded = true;
         self.update_status_watcher_for_thread(&chat_id);
         if emit_notification {
@@ -312,7 +309,7 @@ impl ThreadWatchState {
         }
     }
 
-    fn remove_thread(&mut self, chat_id: &str) -> Option<ChatStatusChangedNotification> {
+    fn remove_chat(&mut self, chat_id: &str) -> Option<ChatStatusChangedNotification> {
         let previous_status = self.status_for(chat_id);
         self.runtime_by_chat_id.remove(chat_id);
         self.update_status_watcher(chat_id, &ChatStatus::NotLoaded);
@@ -734,7 +731,7 @@ mod tests {
             },
         );
 
-        manager.remove_thread(INTERACTIVE_THREAD_ID).await;
+        manager.remove_chat(INTERACTIVE_THREAD_ID).await;
         assert_eq!(
             recv_status_changed_notification(&mut outgoing_rx).await,
             ChatStatusChangedNotification {
@@ -799,8 +796,8 @@ mod tests {
                 datax_app_server_protocol::SessionSource::AppServer,
             ))
             .await;
-        let interactive_chat_id = ChatId::from_string(INTERACTIVE_THREAD_ID)
-            .expect("interactive thread id should parse");
+        let interactive_chat_id =
+            ChatId::from_string(INTERACTIVE_THREAD_ID).expect("interactive thread id should parse");
         let non_interactive_chat_id = ChatId::from_string(NON_INTERACTIVE_THREAD_ID)
             .expect("non-interactive thread id should parse");
         let mut interactive_rx = manager

@@ -84,7 +84,7 @@ async fn installed_goal_tools_create_goal_and_fill_empty_preview() -> anyhow::Re
     );
 
     let metadata = runtime
-        .get_thread(chat_id)
+        .get_chat(chat_id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("seeded thread metadata should exist"))?;
     assert_eq!(
@@ -1074,7 +1074,7 @@ async fn goal_service_sets_gets_and_clears_thread_goal() -> anyhow::Result<()> {
         .await?
         .ok_or_else(|| anyhow::anyhow!("goal should exist"))?;
     let metadata = runtime
-        .get_thread(chat_id)
+        .get_chat(chat_id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("seeded thread metadata should exist"))?;
 
@@ -1085,10 +1085,7 @@ async fn goal_service_sets_gets_and_clears_thread_goal() -> anyhow::Result<()> {
     assert_eq!(Some("ship goal API ownership"), metadata.preview.as_deref());
 
     assert!(api.clear_thread_goal(runtime.as_ref(), chat_id).await?);
-    assert_eq!(
-        None,
-        api.get_thread_goal(runtime.as_ref(), chat_id).await?
-    );
+    assert_eq!(None, api.get_thread_goal(runtime.as_ref(), chat_id).await?);
     assert!(!api.clear_thread_goal(runtime.as_ref(), chat_id).await?);
     Ok(())
 }
@@ -1159,10 +1156,7 @@ struct GoalExtensionHarness {
 }
 
 impl GoalExtensionHarness {
-    async fn new(
-        runtime: Arc<datax_state::StateRuntime>,
-        chat_id: ChatId,
-    ) -> anyhow::Result<Self> {
+    async fn new(runtime: Arc<datax_state::StateRuntime>, chat_id: ChatId) -> anyhow::Result<Self> {
         let sink = Arc::new(RecordingEventSink::default());
         let mut builder = ExtensionRegistryBuilder::<()>::with_event_sink(sink.clone());
         let goal_service = Arc::new(GoalService::new());

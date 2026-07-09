@@ -24,11 +24,11 @@ use core_test_support::test_codex::test_codex;
 use core_test_support::wait_for_event;
 use datax_config::ConfigLayerStack;
 use datax_config::types::AuthCredentialsStoreMode;
+use datax_core::ChatManager;
 use datax_core::ModelClient;
-use datax_core::NewThread;
+use datax_core::NewChat;
 use datax_core::Prompt;
 use datax_core::ResponseEvent;
-use datax_core::ThreadManager;
 use datax_core::resolve_installation_id;
 use datax_core::thread_store_from_config;
 use datax_extension_api::empty_extension_registry;
@@ -238,10 +238,15 @@ async fn openai_stateless_responses_requests_preserve_item_turn_metadata_across_
                         .any(|content_item| content_item["text"].as_str() == Some(text))
                 })
             })
-            .and_then(|item| item["internal_chat_message_metadata_passthrough"]["interaction_id"].as_str())
+            .and_then(|item| {
+                item["internal_chat_message_metadata_passthrough"]["interaction_id"].as_str()
+            })
     };
     assert_eq!(item_interaction_id("turn one"), Some(first_interaction_id));
-    assert_eq!(item_interaction_id("first answer"), Some(first_interaction_id));
+    assert_eq!(
+        item_interaction_id("first answer"),
+        Some(first_interaction_id)
+    );
     assert_eq!(item_interaction_id("turn two"), Some(second_interaction_id));
 }
 
@@ -281,7 +286,10 @@ async fn non_openai_responses_requests_omit_item_passthrough_metadata() {
         })
         .await
         .unwrap();
-    wait_for_event(&codex, |event| matches!(event, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(&codex, |event| {
+        matches!(event, EventMsg::InteractionComplete(_))
+    })
+    .await;
 
     let body = response_mock.single_request().body_json();
     let input = body["input"]
@@ -1454,7 +1462,7 @@ async fn prefers_apikey_when_config_prefers_apikey_even_with_chatgpt_tokens() {
     let installation_id = resolve_installation_id(&config.codex_home)
         .await
         .expect("resolve installation id");
-    let thread_manager = ThreadManager::new(
+    let chat_manager = ChatManager::new(
         &config,
         auth_manager,
         SessionSource::Exec,
@@ -1468,8 +1476,8 @@ async fn prefers_apikey_when_config_prefers_apikey_even_with_chatgpt_tokens() {
         /*attestation_provider*/ None,
         /*external_time_provider*/ None,
     );
-    let NewThread { thread: codex, .. } = thread_manager
-        .start_thread(config.clone())
+    let NewChat { chat: codex, .. } = chat_manager
+        .start_chat(config.clone())
         .await
         .expect("create new conversation");
 
@@ -3092,7 +3100,10 @@ async fn token_count_includes_rate_limits_snapshot() {
         Some(1704069000)
     );
 
-    wait_for_event(&codex, |msg| matches!(msg, EventMsg::InteractionComplete(_))).await;
+    wait_for_event(&codex, |msg| {
+        matches!(msg, EventMsg::InteractionComplete(_))
+    })
+    .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

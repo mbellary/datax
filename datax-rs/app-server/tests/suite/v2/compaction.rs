@@ -84,7 +84,7 @@ async fn auto_compaction_local_emits_started_and_completed_items() -> Result<()>
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let chat_id = start_thread(&mut mcp).await?;
+    let chat_id = start_chat(&mut mcp).await?;
     for message in ["first", "second", "third"] {
         send_turn_and_wait(&mut mcp, &chat_id, message).await?;
     }
@@ -168,7 +168,7 @@ async fn auto_compaction_remote_emits_started_and_completed_items() -> Result<()
         TestAppServer::new_with_env(codex_home.path(), &[("OPENAI_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let chat_id = start_thread(&mut mcp).await?;
+    let chat_id = start_chat(&mut mcp).await?;
     for message in ["first", "second", "third"] {
         send_turn_and_wait(&mut mcp, &chat_id, message).await?;
     }
@@ -274,7 +274,7 @@ async fn thread_compact_start_triggers_compaction_and_returns_empty_response() -
     let mut mcp = TestAppServer::new(codex_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
-    let chat_id = start_thread(&mut mcp).await?;
+    let chat_id = start_chat(&mut mcp).await?;
     let compact_id = mcp
         .send_chat_compact_start_request(ChatCompactStartParams {
             chat_id: chat_id.clone(),
@@ -376,7 +376,7 @@ async fn thread_compact_start_rejects_unknown_chat_id() -> Result<()> {
     Ok(())
 }
 
-async fn start_thread(mcp: &mut TestAppServer) -> Result<String> {
+async fn start_chat(mcp: &mut TestAppServer) -> Result<String> {
     let chat_id = mcp
         .send_chat_start_request(ChatStartParams {
             model: Some("mock-model".to_string()),

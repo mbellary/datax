@@ -95,10 +95,10 @@ fn truncates_before_requested_user_message() {
         assistant_msg("a4"),
     ];
 
-    let initial: Vec<RolloutItem> = items
+    let initial: Vec<RolloutMessage> = items
         .iter()
         .cloned()
-        .map(RolloutItem::ResponseItem)
+        .map(RolloutMessage::ResponseItem)
         .collect();
     let truncated = truncate_before_nth_user_message(
         InitialHistory::Forked(initial),
@@ -111,19 +111,19 @@ fn truncates_before_requested_user_message() {
     );
     let got_items = truncated.get_rollout_items();
     let expected_items = vec![
-        RolloutItem::ResponseItem(items[0].clone()),
-        RolloutItem::ResponseItem(items[1].clone()),
-        RolloutItem::ResponseItem(items[2].clone()),
+        RolloutMessage::ResponseItem(items[0].clone()),
+        RolloutMessage::ResponseItem(items[1].clone()),
+        RolloutMessage::ResponseItem(items[2].clone()),
     ];
     assert_eq!(
         serde_json::to_value(&got_items).unwrap(),
         serde_json::to_value(&expected_items).unwrap()
     );
 
-    let initial2: Vec<RolloutItem> = items
+    let initial2: Vec<RolloutMessage> = items
         .iter()
         .cloned()
-        .map(RolloutItem::ResponseItem)
+        .map(RolloutMessage::ResponseItem)
         .collect();
     let truncated2 = truncate_before_nth_user_message(
         InitialHistory::Forked(initial2.clone()),
@@ -143,10 +143,10 @@ fn truncates_before_requested_user_message() {
 #[test]
 fn out_of_range_truncation_drops_only_unfinished_suffix_mid_turn() {
     let items = vec![
-        RolloutItem::ResponseItem(user_msg("u1")),
-        RolloutItem::ResponseItem(assistant_msg("a1")),
-        RolloutItem::ResponseItem(user_msg("u2")),
-        RolloutItem::ResponseItem(assistant_msg("partial")),
+        RolloutMessage::ResponseItem(user_msg("u1")),
+        RolloutMessage::ResponseItem(assistant_msg("a1")),
+        RolloutMessage::ResponseItem(user_msg("u2")),
+        RolloutMessage::ResponseItem(assistant_msg("partial")),
     ];
 
     let truncated = truncate_before_nth_user_message(
@@ -187,17 +187,17 @@ fn fork_chat_accepts_legacy_usize_snapshot_argument() {
 #[test]
 fn out_of_range_truncation_drops_pre_user_active_turn_prefix() {
     let items = vec![
-        RolloutItem::ResponseItem(user_msg("u1")),
-        RolloutItem::ResponseItem(assistant_msg("a1")),
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
+        RolloutMessage::ResponseItem(user_msg("u1")),
+        RolloutMessage::ResponseItem(assistant_msg("a1")),
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
             interaction_id: "turn-2".to_string(),
             trace_id: None,
             started_at: None,
             model_context_window: None,
             collaboration_mode_kind: Default::default(),
         })),
-        RolloutItem::ResponseItem(user_msg("u2")),
-        RolloutItem::ResponseItem(assistant_msg("partial")),
+        RolloutMessage::ResponseItem(user_msg("u2")),
+        RolloutMessage::ResponseItem(assistant_msg("partial")),
     ];
 
     let snapshot_state = snapshot_turn_state(&InitialHistory::Forked(items.clone()));
@@ -231,10 +231,10 @@ async fn ignores_session_prefix_messages_when_truncating() {
     items.push(user_msg("second question"));
     items.push(assistant_msg("answer"));
 
-    let rollout_items: Vec<RolloutItem> = items
+    let rollout_items: Vec<RolloutMessage> = items
         .iter()
         .cloned()
-        .map(RolloutItem::ResponseItem)
+        .map(RolloutMessage::ResponseItem)
         .collect();
 
     let truncated = truncate_before_nth_user_message(
@@ -248,11 +248,11 @@ async fn ignores_session_prefix_messages_when_truncating() {
     );
     let got_items = truncated.get_rollout_items();
 
-    let expected: Vec<RolloutItem> = vec![
-        RolloutItem::ResponseItem(items[0].clone()),
-        RolloutItem::ResponseItem(items[1].clone()),
-        RolloutItem::ResponseItem(items[2].clone()),
-        RolloutItem::ResponseItem(items[3].clone()),
+    let expected: Vec<RolloutMessage> = vec![
+        RolloutMessage::ResponseItem(items[0].clone()),
+        RolloutMessage::ResponseItem(items[1].clone()),
+        RolloutMessage::ResponseItem(items[2].clone()),
+        RolloutMessage::ResponseItem(items[3].clone()),
     ];
 
     assert_eq!(
@@ -950,7 +950,7 @@ async fn rollout_path_resume_and_fork_read_history_through_thread_store() {
             config.clone(),
             InitialHistory::Resumed(ResumedHistory {
                 conversation_id: source.chat_id,
-                history: vec![RolloutItem::ResponseItem(user_msg("hello"))],
+                history: vec![RolloutMessage::ResponseItem(user_msg("hello"))],
                 rollout_path: Some(rollout_path.clone()),
             }),
             auth_manager.clone(),
@@ -1042,7 +1042,7 @@ async fn new_uses_active_provider_for_model_refresh() {
 #[test]
 fn interrupted_fork_snapshot_appends_interrupt_boundary() {
     let committed_history =
-        InitialHistory::Forked(vec![RolloutItem::ResponseItem(user_msg("hello"))]);
+        InitialHistory::Forked(vec![RolloutMessage::ResponseItem(user_msg("hello"))]);
 
     assert_eq!(
         serde_json::to_value(
@@ -1055,9 +1055,9 @@ fn interrupted_fork_snapshot_appends_interrupt_boundary() {
         )
         .expect("serialize interrupted fork history"),
         serde_json::to_value(vec![
-            RolloutItem::ResponseItem(user_msg("hello")),
-            RolloutItem::ResponseItem(contextual_user_interrupted_marker()),
-            RolloutItem::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
+            RolloutMessage::ResponseItem(user_msg("hello")),
+            RolloutMessage::ResponseItem(contextual_user_interrupted_marker()),
+            RolloutMessage::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
                 interaction_id: None,
                 reason: InteractionAbortReason::Interrupted,
                 completed_at: None,
@@ -1077,8 +1077,8 @@ fn interrupted_fork_snapshot_appends_interrupt_boundary() {
         )
         .expect("serialize interrupted empty fork history"),
         serde_json::to_value(vec![
-            RolloutItem::ResponseItem(contextual_user_interrupted_marker()),
-            RolloutItem::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
+            RolloutMessage::ResponseItem(contextual_user_interrupted_marker()),
+            RolloutMessage::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
                 interaction_id: None,
                 reason: InteractionAbortReason::Interrupted,
                 completed_at: None,
@@ -1092,7 +1092,7 @@ fn interrupted_fork_snapshot_appends_interrupt_boundary() {
 #[test]
 fn disabled_interrupted_fork_snapshot_appends_only_interrupt_event() {
     let committed_history =
-        InitialHistory::Forked(vec![RolloutItem::ResponseItem(user_msg("hello"))]);
+        InitialHistory::Forked(vec![RolloutMessage::ResponseItem(user_msg("hello"))]);
 
     assert_eq!(
         serde_json::to_value(
@@ -1105,8 +1105,8 @@ fn disabled_interrupted_fork_snapshot_appends_only_interrupt_event() {
         )
         .expect("serialize disabled interrupted fork history"),
         serde_json::to_value(vec![
-            RolloutItem::ResponseItem(user_msg("hello")),
-            RolloutItem::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
+            RolloutMessage::ResponseItem(user_msg("hello")),
+            RolloutMessage::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
                 interaction_id: None,
                 reason: InteractionAbortReason::Interrupted,
                 completed_at: None,
@@ -1125,7 +1125,7 @@ fn disabled_interrupted_fork_snapshot_appends_only_interrupt_event() {
             .get_rollout_items()
         )
         .expect("serialize disabled interrupted empty fork history"),
-        serde_json::to_value(vec![RolloutItem::EventMsg(EventMsg::InteractionAborted(
+        serde_json::to_value(vec![RolloutMessage::EventMsg(EventMsg::InteractionAborted(
             InteractionAbortedEvent {
                 interaction_id: None,
                 reason: InteractionAbortReason::Interrupted,
@@ -1140,10 +1140,10 @@ fn disabled_interrupted_fork_snapshot_appends_only_interrupt_event() {
 #[test]
 fn interrupted_snapshot_is_not_mid_turn() {
     let interrupted_history = InitialHistory::Forked(vec![
-        RolloutItem::ResponseItem(user_msg("hello")),
-        RolloutItem::ResponseItem(assistant_msg("partial")),
-        RolloutItem::ResponseItem(contextual_user_interrupted_marker()),
-        RolloutItem::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
+        RolloutMessage::ResponseItem(user_msg("hello")),
+        RolloutMessage::ResponseItem(assistant_msg("partial")),
+        RolloutMessage::ResponseItem(contextual_user_interrupted_marker()),
+        RolloutMessage::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
             interaction_id: Some("turn-1".to_string()),
             reason: InteractionAbortReason::Interrupted,
             completed_at: None,
@@ -1182,7 +1182,7 @@ fn multi_agent_v2_interrupted_marker_uses_developer_input_message() {
 #[test]
 fn completed_legacy_event_history_is_not_mid_turn() {
     let completed_history = InitialHistory::Forked(vec![
-        RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+        RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
             client_id: None,
             message: "hello".to_string(),
             images: None,
@@ -1190,7 +1190,7 @@ fn completed_legacy_event_history_is_not_mid_turn() {
             local_images: Vec::new(),
             ..Default::default()
         })),
-        RolloutItem::EventMsg(EventMsg::AgentMessage(AgentMessageEvent {
+        RolloutMessage::EventMsg(EventMsg::AgentMessage(AgentMessageEvent {
             message: "done".to_string(),
             phase: None,
             memory_citation: None,
@@ -1210,8 +1210,8 @@ fn completed_legacy_event_history_is_not_mid_turn() {
 #[test]
 fn mixed_response_and_legacy_user_event_history_is_mid_turn() {
     let mixed_history = InitialHistory::Forked(vec![
-        RolloutItem::ResponseItem(user_msg("hello")),
-        RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+        RolloutMessage::ResponseItem(user_msg("hello")),
+        RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
             client_id: None,
             message: "hello".to_string(),
             images: None,
@@ -1261,8 +1261,8 @@ async fn interrupted_fork_snapshot_does_not_synthesize_interaction_id_for_legacy
         .resume_thread_with_history(
             config.clone(),
             InitialHistory::Forked(vec![
-                RolloutItem::ResponseItem(user_msg("hello")),
-                RolloutItem::ResponseItem(assistant_msg("partial")),
+                RolloutMessage::ResponseItem(user_msg("hello")),
+                RolloutMessage::ResponseItem(assistant_msg("partial")),
             ]),
             auth_manager,
             /*parent_trace*/ None,
@@ -1303,13 +1303,13 @@ async fn interrupted_fork_snapshot_does_not_synthesize_interaction_id_for_legacy
     let rollout_items: Vec<_> = history
         .get_rollout_items()
         .into_iter()
-        .filter(|item| !matches!(item, RolloutItem::SessionMeta(_)))
+        .filter(|item| !matches!(item, RolloutMessage::SessionMeta(_)))
         .collect();
-    let interrupted_marker_json = serde_json::to_value(RolloutItem::ResponseItem(
+    let interrupted_marker_json = serde_json::to_value(RolloutMessage::ResponseItem(
         contextual_user_interrupted_marker(),
     ))
     .expect("serialize interrupted marker");
-    let interrupted_abort_json = serde_json::to_value(RolloutItem::EventMsg(
+    let interrupted_abort_json = serde_json::to_value(RolloutMessage::EventMsg(
         EventMsg::InteractionAborted(InteractionAbortedEvent {
             interaction_id: expected_interaction_id,
             reason: InteractionAbortReason::Interrupted,
@@ -1370,15 +1370,15 @@ async fn interrupted_fork_snapshot_preserves_explicit_interaction_id() {
         .resume_thread_with_history(
             config.clone(),
             InitialHistory::Forked(vec![
-                RolloutItem::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
+                RolloutMessage::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
                     interaction_id: "turn-explicit".to_string(),
                     trace_id: None,
                     started_at: None,
                     model_context_window: None,
                     collaboration_mode_kind: Default::default(),
                 })),
-                RolloutItem::ResponseItem(user_msg("hello")),
-                RolloutItem::ResponseItem(assistant_msg("partial")),
+                RolloutMessage::ResponseItem(user_msg("hello")),
+                RolloutMessage::ResponseItem(assistant_msg("partial")),
             ]),
             auth_manager,
             /*parent_trace*/ None,
@@ -1423,13 +1423,13 @@ async fn interrupted_fork_snapshot_preserves_explicit_interaction_id() {
     let rollout_items: Vec<_> = history
         .get_rollout_items()
         .into_iter()
-        .filter(|item| !matches!(item, RolloutItem::SessionMeta(_)))
+        .filter(|item| !matches!(item, RolloutMessage::SessionMeta(_)))
         .collect();
 
     assert!(rollout_items.iter().any(|item| {
         matches!(
             item,
-            RolloutItem::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
+            RolloutMessage::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
                 interaction_id: Some(interaction_id),
                 reason: InteractionAbortReason::Interrupted,
             completed_at: None,
@@ -1469,8 +1469,8 @@ async fn interrupted_fork_snapshot_uses_persisted_mid_turn_history_without_live_
         .resume_thread_with_history(
             config.clone(),
             InitialHistory::Forked(vec![
-                RolloutItem::ResponseItem(user_msg("hello")),
-                RolloutItem::ResponseItem(assistant_msg("partial")),
+                RolloutMessage::ResponseItem(user_msg("hello")),
+                RolloutMessage::ResponseItem(assistant_msg("partial")),
             ]),
             auth_manager,
             /*parent_trace*/ None,
@@ -1510,9 +1510,9 @@ async fn interrupted_fork_snapshot_uses_persisted_mid_turn_history_without_live_
     let forked_rollout_items: Vec<_> = history
         .get_rollout_items()
         .into_iter()
-        .filter(|item| !matches!(item, RolloutItem::SessionMeta(_)))
+        .filter(|item| !matches!(item, RolloutMessage::SessionMeta(_)))
         .collect();
-    let interrupted_marker_json = serde_json::to_value(RolloutItem::ResponseItem(
+    let interrupted_marker_json = serde_json::to_value(RolloutMessage::ResponseItem(
         contextual_user_interrupted_marker(),
     ))
     .expect("serialize interrupted marker");
@@ -1548,7 +1548,7 @@ async fn interrupted_fork_snapshot_uses_persisted_mid_turn_history_without_live_
     let reforked_rollout_items: Vec<_> = reforked_history
         .get_rollout_items()
         .into_iter()
-        .filter(|item| !matches!(item, RolloutItem::SessionMeta(_)))
+        .filter(|item| !matches!(item, RolloutMessage::SessionMeta(_)))
         .collect();
 
     assert_eq!(
@@ -1567,7 +1567,7 @@ async fn interrupted_fork_snapshot_uses_persisted_mid_turn_history_without_live_
             .filter(|item| {
                 matches!(
                     item,
-                    RolloutItem::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
+                    RolloutMessage::EventMsg(EventMsg::InteractionAborted(InteractionAbortedEvent {
                         reason: InteractionAbortReason::Interrupted,
                         ..
                     }))

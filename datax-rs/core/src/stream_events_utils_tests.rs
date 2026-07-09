@@ -1,5 +1,5 @@
 use super::HandleOutputCtx;
-use super::TurnItemContributorPolicy;
+use super::InteractionMessageContributorPolicy;
 use super::completed_item_defers_mailbox_delivery_to_next_turn;
 use super::finalize_non_tool_response_item;
 use super::handle_non_tool_response_item;
@@ -11,12 +11,12 @@ use super::save_image_generation_result;
 use crate::session::tests::make_session_and_context;
 use crate::tools::ToolRouter;
 use crate::tools::parallel::ToolCallRuntime;
-use crate::turn_diff_tracker::TurnDiffTracker;
+use crate::turn_diff_tracker::InteractionDiffTracker;
 use datax_extension_api::ExtensionData;
-use datax_extension_api::TurnItemContributor;
+use datax_extension_api::InteractionMessageContributor;
 use datax_protocol::error::CodexErr;
 use datax_protocol::items::AgentMessageContent;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::memory_citation::MemoryCitation;
 use datax_protocol::models::ContentItem;
 use datax_protocol::models::FunctionCallOutputPayload;
@@ -145,14 +145,14 @@ async fn handle_non_tool_response_item_strips_citations_from_assistant_message()
     let turn_item = handle_non_tool_response_item(
         &session,
         &turn_context,
-        TurnItemContributorPolicy::Skip,
+        InteractionMessageContributorPolicy::Skip,
         &item,
         /*plan_mode*/ false,
     )
     .await
     .expect("assistant message should parse");
 
-    let TurnItem::AgentMessage(agent_message) = turn_item else {
+    let InteractionMessage::AgentMessage(agent_message) = turn_item else {
         panic!("expected agent message");
     };
     let text = agent_message
@@ -174,21 +174,21 @@ async fn handle_non_tool_response_item_strips_citations_from_assistant_message()
     );
 }
 
-struct TestTurnItemContributor;
+struct TestInteractionMessageContributor;
 
 #[derive(Debug)]
-struct TurnItemContributorRan;
+struct InteractionMessageContributorRan;
 
-impl TurnItemContributor for TestTurnItemContributor {
+impl InteractionMessageContributor for TestInteractionMessageContributor {
     fn contribute<'a>(
         &'a self,
         _thread_store: &'a ExtensionData,
         turn_store: &'a ExtensionData,
-        item: &'a mut TurnItem,
+        item: &'a mut InteractionMessage,
     ) -> datax_extension_api::ExtensionFuture<'a, Result<(), String>> {
         Box::pin(async move {
-            turn_store.insert(TurnItemContributorRan);
-            if let TurnItem::AgentMessage(agent_message) = item {
+            turn_store.insert(InteractionMessageContributorRan);
+            if let InteractionMessage::AgentMessage(agent_message) = item {
                 agent_message.memory_citation = Some(MemoryCitation {
                     entries: Vec::new(),
                     rollout_ids: Vec::new(),
@@ -201,15 +201,15 @@ impl TurnItemContributor for TestTurnItemContributor {
 
 struct RewriteAgentMessageContributor;
 
-impl TurnItemContributor for RewriteAgentMessageContributor {
+impl InteractionMessageContributor for RewriteAgentMessageContributor {
     fn contribute<'a>(
         &'a self,
         _thread_store: &'a ExtensionData,
         _turn_store: &'a ExtensionData,
-        item: &'a mut TurnItem,
+        item: &'a mut InteractionMessage,
     ) -> datax_extension_api::ExtensionFuture<'a, Result<(), String>> {
         Box::pin(async move {
-            if let TurnItem::AgentMessage(agent_message) = item {
+            if let InteractionMessage::AgentMessage(agent_message) = item {
                 agent_message.content = vec![AgentMessageContent::Text {
                     text: "contributed assistant text".to_string(),
                 }];
@@ -223,7 +223,7 @@ impl TurnItemContributor for RewriteAgentMessageContributor {
 async fn handle_non_tool_response_item_runs_turn_item_contributors_only_when_requested() {
     let (mut session, turn_context) = make_session_and_context().await;
     let mut builder = datax_extension_api::ExtensionRegistryBuilder::new();
-    builder.turn_item_contributor(Arc::new(TestTurnItemContributor));
+    builder.turn_item_contributor(Arc::new(TestInteractionMessageContributor));
     session.services.extensions = Arc::new(builder.build());
     let turn_store = ExtensionData::new(turn_context.sub_id.clone());
     let item = assistant_output_text(
@@ -233,15 +233,15 @@ async fn handle_non_tool_response_item_runs_turn_item_contributors_only_when_req
     let provisional_turn_item = handle_non_tool_response_item(
         &session,
         &turn_context,
-        TurnItemContributorPolicy::Skip,
+        InteractionMessageContributorPolicy::Skip,
         &item,
         /*plan_mode*/ false,
     )
     .await
     .expect("assistant message should parse");
 
-    assert!(turn_store.get::<TurnItemContributorRan>().is_none());
-    let TurnItem::AgentMessage(provisional_agent_message) = provisional_turn_item else {
+    assert!(turn_store.get::<InteractionMessageContributorRan>().is_none());
+    let InteractionMessage::AgentMessage(provisional_agent_message) = provisional_turn_item else {
         panic!("expected agent message");
     };
     assert_eq!(provisional_agent_message.memory_citation, None);
@@ -249,15 +249,15 @@ async fn handle_non_tool_response_item_runs_turn_item_contributors_only_when_req
     let turn_item = handle_non_tool_response_item(
         &session,
         &turn_context,
-        TurnItemContributorPolicy::Run(&turn_store),
+        InteractionMessageContributorPolicy::Run(&turn_store),
         &item,
         /*plan_mode*/ false,
     )
     .await
     .expect("assistant message should parse");
 
-    assert!(turn_store.get::<TurnItemContributorRan>().is_some());
-    let TurnItem::AgentMessage(agent_message) = turn_item else {
+    assert!(turn_store.get::<InteractionMessageContributorRan>().is_some());
+    let InteractionMessage::AgentMessage(agent_message) = turn_item else {
         panic!("expected agent message");
     };
     assert!(agent_message.memory_citation.is_some());
@@ -290,7 +290,7 @@ async fn handle_output_item_done_returns_contributed_last_agent_message() {
         },
         &Default::default(),
     ));
-    let tracker = Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new()));
+    let tracker = Arc::new(tokio::sync::Mutex::new(InteractionDiffTracker::new()));
     let tool_runtime = ToolCallRuntime::new(
         router,
         Arc::clone(&session),
@@ -328,7 +328,7 @@ async fn finalized_turn_item_defers_mailbox_for_contributed_visible_text() {
     let finalized = finalize_non_tool_response_item(
         &session,
         &turn_context,
-        TurnItemContributorPolicy::Run(&turn_store),
+        InteractionMessageContributorPolicy::Run(&turn_store),
         &item,
         /*plan_mode*/ false,
     )
@@ -354,7 +354,7 @@ async fn finalized_turn_item_keeps_mailbox_open_for_commentary_text() {
     let finalized = finalize_non_tool_response_item(
         &session,
         &turn_context,
-        TurnItemContributorPolicy::Run(&turn_store),
+        InteractionMessageContributorPolicy::Run(&turn_store),
         &item,
         /*plan_mode*/ false,
     )

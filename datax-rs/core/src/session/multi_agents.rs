@@ -1,5 +1,5 @@
 use crate::config::MultiAgentV2Config;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use datax_protocol::config_types::MultiAgentMode;
 use datax_protocol::openai_models::ReasoningEffort;
 use datax_protocol::protocol::MultiAgentVersion;
@@ -7,7 +7,7 @@ use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
 
 pub(super) fn usage_hint_text<'a>(
-    turn_context: &'a TurnContext,
+    turn_context: &'a InteractionContext,
     session_source: &SessionSource,
 ) -> Option<&'a str> {
     if turn_context.multi_agent_version != MultiAgentVersion::V2 {
@@ -36,7 +36,7 @@ fn configured_usage_hint_text_for_source<'a>(
     }
 }
 
-pub(crate) fn effective_multi_agent_mode(turn_context: &TurnContext) -> Option<MultiAgentMode> {
+pub(crate) fn effective_multi_agent_mode(turn_context: &InteractionContext) -> Option<MultiAgentMode> {
     if turn_context.multi_agent_version != MultiAgentVersion::V2 {
         return None;
     }

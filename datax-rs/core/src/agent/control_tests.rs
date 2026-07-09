@@ -898,7 +898,7 @@ async fn spawn_agent_can_fork_parent_thread_history_with_sanitized_items() {
     parent_thread
         .codex
         .session
-        .persist_rollout_items(&[RolloutItem::TurnContext(
+        .persist_rollout_items(&[RolloutMessage::InteractionContext(
             parent_reference_context_item.clone(),
         )])
         .await;
@@ -1090,7 +1090,7 @@ async fn spawn_agent_fork_strips_parent_usage_hints_from_compacted_history() {
         .codex
         .session
         .persist_rollout_items(&[
-            RolloutItem::Compacted(CompactedItem {
+            RolloutMessage::Compacted(CompactedItem {
                 message: String::new(),
                 replacement_history: Some(replacement_history),
                 window_number: None,
@@ -1098,8 +1098,8 @@ async fn spawn_agent_fork_strips_parent_usage_hints_from_compacted_history() {
                 previous_window_id: None,
                 window_id: None,
             }),
-            RolloutItem::TurnContext(turn_context.to_turn_context_item()),
-            RolloutItem::ResponseItem(spawn_agent_call(&parent_spawn_call_id)),
+            RolloutMessage::InteractionContext(turn_context.to_turn_context_item()),
+            RolloutMessage::ResponseItem(spawn_agent_call(&parent_spawn_call_id)),
         ])
         .await;
     parent_thread
@@ -1285,7 +1285,7 @@ async fn spawn_agent_fork_last_n_turns_keeps_only_recent_turns() {
     parent_thread
         .codex
         .session
-        .persist_rollout_items(&[RolloutItem::TurnContext(
+        .persist_rollout_items(&[RolloutMessage::InteractionContext(
             spawn_turn_context.to_turn_context_item(),
         )])
         .await;

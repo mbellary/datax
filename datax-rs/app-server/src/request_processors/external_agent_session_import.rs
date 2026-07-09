@@ -17,7 +17,7 @@ use datax_protocol::models::BaseInstructions;
 use datax_protocol::protocol::MultiAgentVersion;
 use datax_protocol::protocol::ThreadMemoryMode;
 use datax_rollout::is_persisted_rollout_item;
-use datax_thread_store::AppendThreadItemsParams;
+use datax_thread_store::AppendChatMessagesParams;
 use datax_thread_store::CreateThreadParams;
 use datax_thread_store::ThreadMetadataPatch;
 use datax_thread_store::ThreadPersistenceMetadata;
@@ -249,7 +249,7 @@ impl ExternalAgentSessionImporter {
         if !rollout_items.is_empty()
             && let Err(err) = self
                 .thread_store
-                .append_items(AppendThreadItemsParams {
+                .append_items(AppendChatMessagesParams {
                     chat_id: chat_id,
                     items: rollout_items,
                 })

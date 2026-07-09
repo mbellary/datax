@@ -39,7 +39,7 @@ use datax_protocol::protocol::RealtimeConversationListVoicesResponseEvent;
 use datax_protocol::protocol::RealtimeVoicesList;
 use datax_protocol::protocol::ReviewDecision;
 use datax_protocol::protocol::ReviewRequest;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::ThreadMemoryMode;
 use datax_protocol::protocol::ThreadRolledBackEvent;
 use datax_protocol::protocol::ThreadSettingsAppliedEvent;
@@ -521,7 +521,7 @@ pub async fn thread_rollback(sess: &Arc<Session>, sub_id: String, num_turns: u32
     let replay_items = stored_history
         .items
         .into_iter()
-        .chain(std::iter::once(RolloutItem::EventMsg(rollback_msg.clone())))
+        .chain(std::iter::once(RolloutMessage::EventMsg(rollback_msg.clone())))
         .collect::<Vec<_>>();
     sess.apply_rollout_reconstruction(turn_context.as_ref(), replay_items.as_slice())
         .await;
@@ -531,7 +531,7 @@ pub async fn thread_rollback(sess: &Arc<Session>, sub_id: String, num_turns: u32
         .rearm_reminder(sess.chat_id());
     sess.recompute_token_usage(turn_context.as_ref()).await;
 
-    sess.persist_rollout_items(&[RolloutItem::EventMsg(rollback_msg.clone())])
+    sess.persist_rollout_items(&[RolloutMessage::EventMsg(rollback_msg.clone())])
         .await;
     if let Err(err) = sess.flush_rollout().await {
         sess.send_event(

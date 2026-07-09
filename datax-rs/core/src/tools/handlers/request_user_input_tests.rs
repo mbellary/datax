@@ -2,7 +2,7 @@ use super::*;
 use crate::session::tests::make_session_and_context;
 use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolPayload;
-use crate::turn_diff_tracker::TurnDiffTracker;
+use crate::turn_diff_tracker::InteractionDiffTracker;
 use datax_protocol::ChatId;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
@@ -29,7 +29,7 @@ async fn multi_agent_v2_request_user_input_rejects_subagent_threads() {
         session: Arc::new(session),
         turn: Arc::new(turn),
         cancellation_token: tokio_util::sync::CancellationToken::new(),
-        tracker: Arc::new(Mutex::new(TurnDiffTracker::default())),
+        tracker: Arc::new(Mutex::new(InteractionDiffTracker::default())),
         call_id: "call-1".to_string(),
         tool_name: datax_tools::ToolName::plain(REQUEST_USER_INPUT_TOOL_NAME),
         source: crate::tools::context::ToolCallSource::Direct,

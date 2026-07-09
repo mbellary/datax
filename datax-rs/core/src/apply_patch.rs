@@ -1,7 +1,7 @@
 use crate::function_tool::FunctionCallError;
 use crate::safety::SafetyCheck;
 use crate::safety::assess_patch_safety;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::tools::sandboxing::ExecApprovalRequirement;
 use datax_apply_patch::ApplyPatchAction;
 use datax_apply_patch::ApplyPatchFileChange;
@@ -32,7 +32,7 @@ pub(crate) struct ApplyPatchRuntimeInvocation {
 }
 
 pub(crate) async fn apply_patch(
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     file_system_sandbox_policy: &FileSystemSandboxPolicy,
     action: ApplyPatchAction,
 ) -> InternalApplyPatchInvocation {

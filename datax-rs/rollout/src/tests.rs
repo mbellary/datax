@@ -32,7 +32,7 @@ use datax_protocol::ChatId;
 use datax_protocol::models::ContentItem;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::EventMsg;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::protocol::SessionMeta;
 use datax_protocol::protocol::SessionMetaLine;
@@ -1270,7 +1270,7 @@ async fn test_updated_at_uses_file_mtime() -> Result<()> {
     let conversation_id = ChatId::from_string(&uuid.to_string())?;
     let meta_line = RolloutLine {
         timestamp: ts.to_string(),
-        item: RolloutItem::SessionMeta(SessionMetaLine {
+        item: RolloutMessage::SessionMeta(SessionMetaLine {
             meta: SessionMeta {
                 session_id: conversation_id.into(),
                 id: conversation_id,
@@ -1298,7 +1298,7 @@ async fn test_updated_at_uses_file_mtime() -> Result<()> {
 
     let user_event_line = RolloutLine {
         timestamp: ts.to_string(),
-        item: RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+        item: RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
             client_id: None,
             message: "hello".into(),
             images: None,
@@ -1313,7 +1313,7 @@ async fn test_updated_at_uses_file_mtime() -> Result<()> {
     for idx in 0..total_messages {
         let response_line = RolloutLine {
             timestamp: format!("{ts}-{idx:02}"),
-            item: RolloutItem::ResponseItem(ResponseItem::Message {
+            item: RolloutMessage::ResponseItem(ResponseItem::Message {
                 id: None,
                 role: "assistant".into(),
                 content: vec![ContentItem::OutputText {

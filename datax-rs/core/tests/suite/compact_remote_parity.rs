@@ -15,7 +15,7 @@ use datax_login::CodexAuth;
 use datax_protocol::config_types::ServiceTier;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::Op;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
@@ -787,7 +787,7 @@ fn replacement_history_from_rollout(path: &Path) -> Result<Value> {
         let Ok(entry) = serde_json::from_str::<RolloutLine>(line) else {
             continue;
         };
-        if let RolloutItem::Compacted(compacted) = entry.item
+        if let RolloutMessage::Compacted(compacted) = entry.item
             && compacted.message.is_empty()
             && let Some(items) = compacted.replacement_history
         {

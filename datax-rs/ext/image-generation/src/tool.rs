@@ -7,7 +7,7 @@ use datax_api::ImageQuality;
 use datax_api::ImageUrl;
 use datax_core::context::extension_image_generation_output_hint;
 use datax_core::image_generation_artifact_path;
-use datax_extension_api::ExtensionTurnItem;
+use datax_extension_api::ExtensionInteractionMessage;
 use datax_extension_api::FunctionCallError;
 use datax_extension_api::ToolCall;
 use datax_extension_api::ToolEnvironment;
@@ -109,7 +109,7 @@ impl ImageGenerationTool {
             request_for_call_args(&args, call.conversation_history.items(), &call.environments)
                 .await?;
         call.turn_item_emitter
-            .emit_started(ExtensionTurnItem::ImageGeneration(ImageGenerationItem {
+            .emit_started(ExtensionInteractionMessage::ImageGeneration(ImageGenerationItem {
                 id: call.call_id.clone(),
                 status: "in_progress".to_string(),
                 revised_prompt: None,
@@ -134,7 +134,7 @@ impl ImageGenerationTool {
             Ok(result) => result,
             Err(message) => {
                 call.turn_item_emitter
-                    .emit_completed(ExtensionTurnItem::ImageGeneration(ImageGenerationItem {
+                    .emit_completed(ExtensionInteractionMessage::ImageGeneration(ImageGenerationItem {
                         id: call.call_id.clone(),
                         status: "failed".to_string(),
                         revised_prompt: Some(args.prompt.clone()),
@@ -146,7 +146,7 @@ impl ImageGenerationTool {
             }
         };
         call.turn_item_emitter
-            .emit_completed(ExtensionTurnItem::ImageGeneration(ImageGenerationItem {
+            .emit_completed(ExtensionInteractionMessage::ImageGeneration(ImageGenerationItem {
                 id: call.call_id.clone(),
                 status: "completed".to_string(),
                 revised_prompt: Some(args.prompt),

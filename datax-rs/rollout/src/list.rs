@@ -22,7 +22,7 @@ use crate::protocol::EventMsg;
 use crate::state_db;
 use datax_file_search as file_search;
 use datax_protocol::ChatId;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::protocol::SessionMetaLine;
 use datax_protocol::protocol::SessionSource;
@@ -1120,7 +1120,7 @@ async fn read_head_summary(path: &Path, head_limit: usize) -> io::Result<HeadTai
         let Ok(rollout_line) = parsed else { continue };
 
         match rollout_line.item {
-            RolloutItem::SessionMeta(session_meta_line) => {
+            RolloutMessage::SessionMeta(session_meta_line) => {
                 if !summary.saw_session_meta {
                     summary.source = Some(session_meta_line.meta.source.clone());
                     summary.parent_chat_id = session_meta_line.meta.parent_chat_id;
@@ -1146,18 +1146,18 @@ async fn read_head_summary(path: &Path, head_limit: usize) -> io::Result<HeadTai
                     summary.saw_session_meta = true;
                 }
             }
-            RolloutItem::ResponseItem(_) | RolloutItem::InterAgentCommunication(_) => {
+            RolloutMessage::ResponseItem(_) | RolloutMessage::InterAgentCommunication(_) => {
                 summary
                     .created_at
                     .get_or_insert_with(|| rollout_line.timestamp.clone());
             }
-            RolloutItem::TurnContext(_) => {
+            RolloutMessage::InteractionContext(_) => {
                 // Not included in `head`; skip.
             }
-            RolloutItem::Compacted(_) => {
+            RolloutMessage::Compacted(_) => {
                 // Not included in `head`; skip.
             }
-            RolloutItem::EventMsg(ev) => {
+            RolloutMessage::EventMsg(ev) => {
                 if let Some(preview) = event_msg_preview(&ev) {
                     if summary.preview.is_none() {
                         summary.preview = Some(preview.clone());
@@ -1198,24 +1198,24 @@ pub async fn read_head_for_summary(path: &Path) -> io::Result<Vec<serde_json::Va
         }
         if let Ok(rollout_line) = serde_json::from_str::<RolloutLine>(trimmed) {
             match rollout_line.item {
-                RolloutItem::SessionMeta(session_meta_line) => {
+                RolloutMessage::SessionMeta(session_meta_line) => {
                     if let Ok(value) = serde_json::to_value(session_meta_line) {
                         head.push(value);
                     }
                 }
-                RolloutItem::ResponseItem(item) => {
+                RolloutMessage::ResponseItem(item) => {
                     if let Ok(value) = serde_json::to_value(item) {
                         head.push(value);
                     }
                 }
-                RolloutItem::InterAgentCommunication(communication) => {
+                RolloutMessage::InterAgentCommunication(communication) => {
                     if let Ok(value) = serde_json::to_value(communication.to_model_input_item()) {
                         head.push(value);
                     }
                 }
-                RolloutItem::Compacted(_)
-                | RolloutItem::TurnContext(_)
-                | RolloutItem::EventMsg(_) => {}
+                RolloutMessage::Compacted(_)
+                | RolloutMessage::InteractionContext(_)
+                | RolloutMessage::EventMsg(_) => {}
             }
         }
     }

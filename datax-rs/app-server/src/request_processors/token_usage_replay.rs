@@ -21,7 +21,7 @@ use datax_app_server_protocol::ServerNotification::*;
 use datax_core::DataxChat;
 use datax_protocol::ChatId;
 use datax_protocol::protocol::EventMsg;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 
 use crate::outgoing_message::ConnectionId;
 use crate::outgoing_message::OutgoingMessageSender;
@@ -68,14 +68,14 @@ struct TokenUsageTurnOwner {
 }
 
 pub(super) fn latest_token_usage_interaction_id_from_rollout_items(
-    rollout_items: &[RolloutItem],
+    rollout_items: &[RolloutMessage],
     interactions: &[Interaction],
 ) -> Option<String> {
     let mut builder = ChatHistoryBuilder::new();
     let mut token_usage_turn_owner = None;
 
     for item in rollout_items {
-        if matches!(item, RolloutItem::EventMsg(EventMsg::TokenCount(_))) {
+        if matches!(item, RolloutMessage::EventMsg(EventMsg::TokenCount(_))) {
             token_usage_turn_owner =
                 builder
                     .active_turn_snapshot()
@@ -157,9 +157,9 @@ mod tests {
         );
     }
 
-    fn token_usage_history() -> Vec<RolloutItem> {
+    fn token_usage_history() -> Vec<RolloutMessage> {
         vec![
-            RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+            RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
                 client_id: None,
                 message: "first turn".to_string(),
                 images: None,
@@ -167,16 +167,16 @@ mod tests {
                 text_elements: Vec::new(),
                 ..Default::default()
             })),
-            RolloutItem::EventMsg(EventMsg::AgentMessage(AgentMessageEvent {
+            RolloutMessage::EventMsg(EventMsg::AgentMessage(AgentMessageEvent {
                 message: "first answer".to_string(),
                 phase: None,
                 memory_citation: None,
             })),
-            RolloutItem::EventMsg(EventMsg::TokenCount(TokenCountEvent {
+            RolloutMessage::EventMsg(EventMsg::TokenCount(TokenCountEvent {
                 info: None,
                 rate_limits: None,
             })),
-            RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+            RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
                 client_id: None,
                 message: "second turn".to_string(),
                 images: None,

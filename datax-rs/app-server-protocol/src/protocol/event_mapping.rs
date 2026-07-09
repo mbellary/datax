@@ -398,7 +398,7 @@ pub fn item_event_to_server_notification(
                 summary_index: event.summary_index,
             })
         }
-        EventMsg::ItemStarted(item_started_event) => {
+        EventMsg::MessageStarted(item_started_event) => {
             ServerNotification::MessageStarted(MessageStartedNotification {
                 chat_id,
                 interaction_id,
@@ -406,7 +406,7 @@ pub fn item_event_to_server_notification(
                 started_at_ms: item_started_event.started_at_ms,
             })
         }
-        EventMsg::ItemCompleted(item_completed_event) => {
+        EventMsg::MessageCompleted(item_completed_event) => {
             ServerNotification::MessageCompleted(MessageCompletedNotification {
                 chat_id,
                 interaction_id,

@@ -2634,7 +2634,7 @@ async fn fast_slash_command_updates_and_persists_local_service_tier() {
     assert!(
         events.iter().any(|event| matches!(
             event,
-            AppEvent::CodexOp(Op::OverrideTurnContext {
+            AppEvent::CodexOp(Op::OverrideInteractionContext {
                 service_tier: Some(Some(service_tier)),
                 ..
             }) if service_tier == ServiceTier::Fast.request_value()
@@ -2667,7 +2667,7 @@ async fn fast_keybinding_toggle_uses_same_events_as_fast_slash_command() {
     assert!(
         events.iter().any(|event| matches!(
             event,
-            AppEvent::CodexOp(Op::OverrideTurnContext {
+            AppEvent::CodexOp(Op::OverrideInteractionContext {
                 service_tier: Some(Some(service_tier)),
                 ..
             }) if service_tier == ServiceTier::Fast.request_value()
@@ -2787,7 +2787,7 @@ async fn queued_fast_slash_applies_before_next_queued_message() {
     assert!(
         events.iter().any(|event| matches!(
             event,
-            AppEvent::CodexOp(Op::OverrideTurnContext {
+            AppEvent::CodexOp(Op::OverrideInteractionContext {
                 service_tier: Some(Some(service_tier)),
                 ..
             }) if service_tier == ServiceTier::Fast.request_value()
@@ -2827,7 +2827,7 @@ async fn user_turn_sends_standard_override_after_fast_is_turned_off() {
     assert!(
         events.iter().any(|event| matches!(
             event,
-            AppEvent::CodexOp(Op::OverrideTurnContext {
+            AppEvent::CodexOp(Op::OverrideInteractionContext {
                 service_tier: Some(Some(service_tier)),
                 ..
             }) if service_tier == SERVICE_TIER_DEFAULT_REQUEST_VALUE

@@ -11,7 +11,7 @@ use datax_extension_api::ExtensionData;
 use datax_extension_api::ExtensionEventSink;
 use datax_extension_api::ExtensionRegistryBuilder;
 use datax_extension_api::FunctionCallError;
-use datax_extension_api::NoopTurnItemEmitter;
+use datax_extension_api::NoopInteractionMessageEmitter;
 use datax_extension_api::ThreadResumeInput;
 use datax_extension_api::ThreadStartInput;
 use datax_extension_api::ThreadStopInput;
@@ -1338,7 +1338,7 @@ fn tool_call(tool_name: &str, call_id: &str, arguments: serde_json::Value) -> To
         model: "gpt-test".to_string(),
         truncation_policy: TruncationPolicy::Bytes(1024),
         conversation_history: datax_extension_api::ConversationHistory::default(),
-        turn_item_emitter: Arc::new(NoopTurnItemEmitter),
+        turn_item_emitter: Arc::new(NoopInteractionMessageEmitter),
         environments: Vec::new(),
         payload: ToolPayload::Function {
             arguments: arguments.to_string(),

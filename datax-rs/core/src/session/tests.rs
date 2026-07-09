@@ -81,7 +81,7 @@ use crate::tools::handlers::RequestPermissionsHandler;
 use crate::tools::handlers::ShellCommandHandler;
 use crate::tools::registry::ToolExecutor;
 use crate::tools::router::ToolCallSource;
-use crate::turn_diff_tracker::TurnDiffTracker;
+use crate::turn_diff_tracker::InteractionDiffTracker;
 use core_test_support::PathBufExt;
 use core_test_support::PathExt;
 use core_test_support::context_snapshot;
@@ -145,7 +145,7 @@ use datax_protocol::protocol::RealtimeConversationListVoicesResponseEvent;
 use datax_protocol::protocol::RealtimeVoice;
 use datax_protocol::protocol::RealtimeVoicesList;
 use datax_protocol::protocol::ResumedHistory;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::SessionMeta;
 use datax_protocol::protocol::SessionMetaLine;
 use datax_protocol::protocol::SkillScope;
@@ -596,7 +596,7 @@ async fn preview_session_start_hooks(
     )
 }
 
-fn test_tool_runtime(session: Arc<Session>, turn_context: Arc<TurnContext>) -> ToolCallRuntime {
+fn test_tool_runtime(session: Arc<Session>, turn_context: Arc<InteractionContext>) -> ToolCallRuntime {
     let router = Arc::new(ToolRouter::from_turn_context(
         &turn_context,
         crate::tools::router::ToolRouterParams {
@@ -608,7 +608,7 @@ fn test_tool_runtime(session: Arc<Session>, turn_context: Arc<TurnContext>) -> T
         },
         &Default::default(),
     ));
-    let tracker = Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new()));
+    let tracker = Arc::new(tokio::sync::Mutex::new(InteractionDiffTracker::new()));
     ToolCallRuntime::new(router, session, turn_context, tracker)
 }
 
@@ -1658,7 +1658,7 @@ async fn reconstruct_history_uses_replacement_history_verbatim() {
     let first_window_id = Uuid::now_v7();
     let previous_window_id = Uuid::now_v7();
     let window_id = Uuid::now_v7();
-    let rollout_items = vec![RolloutItem::Compacted(CompactedItem {
+    let rollout_items = vec![RolloutMessage::Compacted(CompactedItem {
         message: String::new(),
         replacement_history: Some(replacement_history.clone()),
         window_number: Some(42),
@@ -1852,7 +1852,7 @@ async fn prepares_resumed_history_before_installing_it() {
     session
         .record_initial_history(InitialHistory::Resumed(ResumedHistory {
             conversation_id: ChatId::default(),
-            history: vec![RolloutItem::ResponseItem(resumed_item)],
+            history: vec![RolloutMessage::ResponseItem(resumed_item)],
             rollout_path: Some(PathBuf::from("/tmp/resume.jsonl")),
         }))
         .await;
@@ -1961,8 +1961,8 @@ async fn record_initial_history_new_defers_initial_context_until_first_turn() {
 fn session_meta_item(
     chat_id: ChatId,
     multi_agent_version: Option<MultiAgentVersion>,
-) -> RolloutItem {
-    RolloutItem::SessionMeta(SessionMetaLine {
+) -> RolloutMessage {
+    RolloutMessage::SessionMeta(SessionMetaLine {
         meta: SessionMeta {
             session_id: chat_id.into(),
             id: chat_id,
@@ -2047,25 +2047,25 @@ async fn record_initial_history_seeds_token_info_from_rollout() {
         model_context_window: Some(2_000),
     };
 
-    rollout_items.push(RolloutItem::EventMsg(EventMsg::TokenCount(
+    rollout_items.push(RolloutMessage::EventMsg(EventMsg::TokenCount(
         TokenCountEvent {
             info: Some(info1),
             rate_limits: None,
         },
     )));
-    rollout_items.push(RolloutItem::EventMsg(EventMsg::TokenCount(
+    rollout_items.push(RolloutMessage::EventMsg(EventMsg::TokenCount(
         TokenCountEvent {
             info: None,
             rate_limits: None,
         },
     )));
-    rollout_items.push(RolloutItem::EventMsg(EventMsg::TokenCount(
+    rollout_items.push(RolloutMessage::EventMsg(EventMsg::TokenCount(
         TokenCountEvent {
             info: Some(info2.clone()),
             rate_limits: None,
         },
     )));
-    rollout_items.push(RolloutItem::EventMsg(EventMsg::TokenCount(
+    rollout_items.push(RolloutMessage::EventMsg(EventMsg::TokenCount(
         TokenCountEvent {
             info: None,
             rate_limits: None,
@@ -2796,7 +2796,7 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
 async fn record_initial_history_forked_hydrates_previous_turn_settings() {
     let (session, turn_context) = make_session_and_context().await;
     let previous_model = "forked-rollout-model";
-    let previous_context_item = TurnContextItem {
+    let previous_context_item = InteractionContextMessage {
         interaction_id: Some(turn_context.sub_id.clone()),
         #[allow(deprecated)]
         cwd: turn_context.cwd.clone(),
@@ -2823,7 +2823,7 @@ async fn record_initial_history_forked_hydrates_previous_turn_settings() {
         .clone()
         .expect("thread settings should have interaction_id");
     let rollout_items = vec![
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: interaction_id.clone(),
                 trace_id: None,
@@ -2832,7 +2832,7 @@ async fn record_initial_history_forked_hydrates_previous_turn_settings() {
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "forked seed".to_string(),
@@ -2842,8 +2842,8 @@ async fn record_initial_history_forked_hydrates_previous_turn_settings() {
                 ..Default::default()
             },
         )),
-        RolloutItem::TurnContext(previous_context_item.clone()),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(
+        RolloutMessage::InteractionContext(previous_context_item.clone()),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(
             datax_protocol::protocol::InteractionCompleteEvent {
                 interaction_id,
                 last_agent_message: None,
@@ -2899,9 +2899,9 @@ async fn thread_rollback_drops_last_turn_from_history() {
     full_history.extend(turn_2);
     sess.replace_history(full_history.clone(), Some(tc.to_turn_context_item()))
         .await;
-    let rollout_items: Vec<RolloutItem> = full_history
+    let rollout_items: Vec<RolloutMessage> = full_history
         .into_iter()
-        .map(RolloutItem::ResponseItem)
+        .map(RolloutMessage::ResponseItem)
         .collect();
     sess.persist_rollout_items(&rollout_items).await;
     sess.set_previous_turn_settings(Some(PreviousTurnSettings {
@@ -2938,7 +2938,7 @@ async fn thread_rollback_drops_last_turn_from_history() {
     assert!(resumed.history.iter().any(|item| {
         matches!(
             item,
-            RolloutItem::EventMsg(EventMsg::ThreadRolledBack(rollback))
+            RolloutMessage::EventMsg(EventMsg::ThreadRolledBack(rollback))
             if rollback.num_turns == 1
         )
     }));
@@ -2959,9 +2959,9 @@ async fn thread_rollback_clears_history_when_num_turns_exceeds_existing_turns() 
     full_history.extend(turn_1);
     sess.replace_history(full_history.clone(), Some(tc.to_turn_context_item()))
         .await;
-    let rollout_items: Vec<RolloutItem> = full_history
+    let rollout_items: Vec<RolloutMessage> = full_history
         .into_iter()
-        .map(RolloutItem::ResponseItem)
+        .map(RolloutMessage::ResponseItem)
         .collect();
     sess.persist_rollout_items(&rollout_items).await;
 
@@ -3022,7 +3022,7 @@ async fn thread_rollback_recomputes_previous_turn_settings_and_reference_context
     let turn_two_assistant = assistant_message("turn 2 assistant");
 
     sess.persist_rollout_items(&[
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: first_interaction_id.clone(),
                 trace_id: None,
@@ -3031,7 +3031,7 @@ async fn thread_rollback_recomputes_previous_turn_settings_and_reference_context
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "turn 1 user".to_string(),
@@ -3041,17 +3041,17 @@ async fn thread_rollback_recomputes_previous_turn_settings_and_reference_context
                 ..Default::default()
             },
         )),
-        RolloutItem::TurnContext(first_context_item.clone()),
-        RolloutItem::ResponseItem(turn_one_user.clone()),
-        RolloutItem::ResponseItem(turn_one_assistant.clone()),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+        RolloutMessage::InteractionContext(first_context_item.clone()),
+        RolloutMessage::ResponseItem(turn_one_user.clone()),
+        RolloutMessage::ResponseItem(turn_one_assistant.clone()),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
             interaction_id: first_interaction_id,
             last_agent_message: None,
             completed_at: None,
             duration_ms: None,
             time_to_first_token_ms: None,
         })),
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: rolled_back_interaction_id.clone(),
                 trace_id: None,
@@ -3060,7 +3060,7 @@ async fn thread_rollback_recomputes_previous_turn_settings_and_reference_context
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(
+        RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
                 message: "turn 2 user".to_string(),
@@ -3070,10 +3070,10 @@ async fn thread_rollback_recomputes_previous_turn_settings_and_reference_context
                 ..Default::default()
             },
         )),
-        RolloutItem::TurnContext(rolled_back_context_item),
-        RolloutItem::ResponseItem(turn_two_user),
-        RolloutItem::ResponseItem(turn_two_assistant),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+        RolloutMessage::InteractionContext(rolled_back_context_item),
+        RolloutMessage::ResponseItem(turn_two_user),
+        RolloutMessage::ResponseItem(turn_two_assistant),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
             interaction_id: rolled_back_interaction_id,
             last_agent_message: None,
             completed_at: None,
@@ -3142,7 +3142,7 @@ async fn thread_rollback_restores_cleared_reference_context_item_after_compactio
     let compacted_window_id = Uuid::now_v7();
 
     sess.persist_rollout_items(&[
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: first_interaction_id.clone(),
                 trace_id: None,
@@ -3151,7 +3151,7 @@ async fn thread_rollback_restores_cleared_reference_context_item_after_compactio
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+        RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
             client_id: None,
             message: "turn 1 user".to_string(),
             images: None,
@@ -3159,17 +3159,17 @@ async fn thread_rollback_restores_cleared_reference_context_item_after_compactio
             text_elements: Vec::new(),
             ..Default::default()
         })),
-        RolloutItem::TurnContext(first_context_item.clone()),
-        RolloutItem::ResponseItem(user_message("turn 1 user")),
-        RolloutItem::ResponseItem(assistant_message("turn 1 assistant")),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+        RolloutMessage::InteractionContext(first_context_item.clone()),
+        RolloutMessage::ResponseItem(user_message("turn 1 user")),
+        RolloutMessage::ResponseItem(assistant_message("turn 1 assistant")),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
             interaction_id: first_interaction_id,
             last_agent_message: None,
             completed_at: None,
             duration_ms: None,
             time_to_first_token_ms: None,
         })),
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: compact_interaction_id.clone(),
                 trace_id: None,
@@ -3178,7 +3178,7 @@ async fn thread_rollback_restores_cleared_reference_context_item_after_compactio
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::Compacted(CompactedItem {
+        RolloutMessage::Compacted(CompactedItem {
             message: "summary after compaction".to_string(),
             replacement_history: Some(compacted_history.clone()),
             window_number: Some(7),
@@ -3186,14 +3186,14 @@ async fn thread_rollback_restores_cleared_reference_context_item_after_compactio
             previous_window_id: Some(previous_window_id.to_string()),
             window_id: Some(compacted_window_id.to_string()),
         }),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
             interaction_id: compact_interaction_id,
             last_agent_message: None,
             completed_at: None,
             duration_ms: None,
             time_to_first_token_ms: None,
         })),
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: rolled_back_interaction_id.clone(),
                 trace_id: None,
@@ -3202,7 +3202,7 @@ async fn thread_rollback_restores_cleared_reference_context_item_after_compactio
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+        RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
             client_id: None,
             message: "turn 2 user".to_string(),
             images: None,
@@ -3210,15 +3210,15 @@ async fn thread_rollback_restores_cleared_reference_context_item_after_compactio
             text_elements: Vec::new(),
             ..Default::default()
         })),
-        RolloutItem::TurnContext(TurnContextItem {
+        RolloutMessage::InteractionContext(InteractionContextMessage {
             interaction_id: Some(rolled_back_interaction_id.clone()),
             model: "rolled-back-model".to_string(),
             comp_hash: None,
             ..first_context_item.clone()
         }),
-        RolloutItem::ResponseItem(user_message("turn 2 user")),
-        RolloutItem::ResponseItem(assistant_message("turn 2 assistant")),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+        RolloutMessage::ResponseItem(user_message("turn 2 user")),
+        RolloutMessage::ResponseItem(assistant_message("turn 2 assistant")),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
             interaction_id: rolled_back_interaction_id,
             last_agent_message: None,
             completed_at: None,
@@ -3271,7 +3271,7 @@ async fn thread_rollback_persists_marker_and_replays_cumulatively() {
     let turn_context_item = tc.to_turn_context_item();
 
     sess.persist_rollout_items(&[
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: "turn-1".to_string(),
                 trace_id: None,
@@ -3280,7 +3280,7 @@ async fn thread_rollback_persists_marker_and_replays_cumulatively() {
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+        RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
             client_id: None,
             message: "turn 1 user".to_string(),
             images: None,
@@ -3288,17 +3288,17 @@ async fn thread_rollback_persists_marker_and_replays_cumulatively() {
             text_elements: Vec::new(),
             ..Default::default()
         })),
-        RolloutItem::TurnContext(turn_context_item.clone()),
-        RolloutItem::ResponseItem(user_message("turn 1 user")),
-        RolloutItem::ResponseItem(assistant_message("turn 1 assistant")),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+        RolloutMessage::InteractionContext(turn_context_item.clone()),
+        RolloutMessage::ResponseItem(user_message("turn 1 user")),
+        RolloutMessage::ResponseItem(assistant_message("turn 1 assistant")),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
             interaction_id: "turn-1".to_string(),
             last_agent_message: None,
             completed_at: None,
             duration_ms: None,
             time_to_first_token_ms: None,
         })),
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: "turn-2".to_string(),
                 trace_id: None,
@@ -3307,7 +3307,7 @@ async fn thread_rollback_persists_marker_and_replays_cumulatively() {
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+        RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
             client_id: None,
             message: "turn 2 user".to_string(),
             images: None,
@@ -3315,17 +3315,17 @@ async fn thread_rollback_persists_marker_and_replays_cumulatively() {
             text_elements: Vec::new(),
             ..Default::default()
         })),
-        RolloutItem::TurnContext(turn_context_item.clone()),
-        RolloutItem::ResponseItem(user_message("turn 2 user")),
-        RolloutItem::ResponseItem(assistant_message("turn 2 assistant")),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+        RolloutMessage::InteractionContext(turn_context_item.clone()),
+        RolloutMessage::ResponseItem(user_message("turn 2 user")),
+        RolloutMessage::ResponseItem(assistant_message("turn 2 assistant")),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
             interaction_id: "turn-2".to_string(),
             last_agent_message: None,
             completed_at: None,
             duration_ms: None,
             time_to_first_token_ms: None,
         })),
-        RolloutItem::EventMsg(EventMsg::InteractionStarted(
+        RolloutMessage::EventMsg(EventMsg::InteractionStarted(
             datax_protocol::protocol::InteractionStartedEvent {
                 interaction_id: "turn-3".to_string(),
                 trace_id: None,
@@ -3334,7 +3334,7 @@ async fn thread_rollback_persists_marker_and_replays_cumulatively() {
                 collaboration_mode_kind: ModeKind::Default,
             },
         )),
-        RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+        RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
             client_id: None,
             message: "turn 3 user".to_string(),
             images: None,
@@ -3342,10 +3342,10 @@ async fn thread_rollback_persists_marker_and_replays_cumulatively() {
             text_elements: Vec::new(),
             ..Default::default()
         })),
-        RolloutItem::TurnContext(turn_context_item),
-        RolloutItem::ResponseItem(user_message("turn 3 user")),
-        RolloutItem::ResponseItem(assistant_message("turn 3 assistant")),
-        RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+        RolloutMessage::InteractionContext(turn_context_item),
+        RolloutMessage::ResponseItem(user_message("turn 3 user")),
+        RolloutMessage::ResponseItem(assistant_message("turn 3 assistant")),
+        RolloutMessage::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
             interaction_id: "turn-3".to_string(),
             last_agent_message: None,
             completed_at: None,
@@ -3379,7 +3379,7 @@ async fn thread_rollback_persists_marker_and_replays_cumulatively() {
     let rollback_markers = resumed
         .history
         .iter()
-        .filter(|item| matches!(item, RolloutItem::EventMsg(EventMsg::ThreadRolledBack(_))))
+        .filter(|item| matches!(item, RolloutMessage::EventMsg(EventMsg::ThreadRolledBack(_))))
         .count();
     assert_eq!(rollback_markers, 2);
 }
@@ -5027,7 +5027,7 @@ async fn session_new_fails_when_zsh_fork_enabled_without_packaged_zsh() {
 }
 
 // todo: use online model info
-pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
+pub(crate) async fn make_session_and_context() -> (Session, InteractionContext) {
     let (tx_event, _rx_event) = async_channel::unbounded();
     let codex_home = tempfile::tempdir().expect("create temp dir");
     let config = build_test_config(codex_home.path()).await;
@@ -5533,7 +5533,7 @@ async fn resumed_subagent_session_restores_persisted_session_id() {
     let (session, rx_event) = make_session_with_history_source_and_agent_control_and_rx(
         InitialHistory::Resumed(ResumedHistory {
             conversation_id: chat_id,
-            history: vec![RolloutItem::SessionMeta(SessionMetaLine {
+            history: vec![RolloutMessage::SessionMeta(SessionMetaLine {
                 meta: SessionMeta {
                     session_id: parent_session_id,
                     id: chat_id,
@@ -5876,7 +5876,7 @@ async fn request_permissions_tool_resolves_relative_paths_against_selected_envir
 
     let call_id = "call-1".to_string();
     let handler = RequestPermissionsHandler;
-    let tracker = Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new()));
+    let tracker = Arc::new(tokio::sync::Mutex::new(InteractionDiffTracker::new()));
     let handle = tokio::spawn({
         let session = Arc::clone(&session);
         let turn_context = Arc::clone(&turn_context);
@@ -5962,7 +5962,7 @@ async fn request_permissions_tool_rejects_unknown_environment_id() {
             session: Arc::new(session),
             turn: Arc::new(turn_context),
             cancellation_token: CancellationToken::new(),
-            tracker: Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new())),
+            tracker: Arc::new(tokio::sync::Mutex::new(InteractionDiffTracker::new())),
             call_id: "call-1".to_string(),
             tool_name: datax_tools::ToolName::plain("request_permissions"),
             source: ToolCallSource::Direct,
@@ -6569,7 +6569,7 @@ async fn spawn_task_turn_span_inherits_dispatch_trace_context() {
         async fn run(
             self: Arc<Self>,
             _session: Arc<SessionTaskContext>,
-            _ctx: Arc<TurnContext>,
+            _ctx: Arc<InteractionContext>,
             _input: Vec<TurnInput>,
             _cancellation_token: CancellationToken,
         ) -> SessionTaskResult {
@@ -7064,7 +7064,7 @@ async fn make_session_and_context_with_auth_and_config_and_rx<F>(
     configure_config: F,
 ) -> (
     Arc<Session>,
-    Arc<TurnContext>,
+    Arc<InteractionContext>,
     async_channel::Receiver<Event>,
 )
 where
@@ -7087,7 +7087,7 @@ async fn make_session_and_context_with_auth_config_home_and_rx<F>(
     configure_config: F,
 ) -> (
     Arc<Session>,
-    Arc<TurnContext>,
+    Arc<InteractionContext>,
     async_channel::Receiver<Event>,
 )
 where
@@ -7327,7 +7327,7 @@ pub(crate) async fn make_session_and_context_with_dynamic_tools_and_rx(
     dynamic_tools: Vec<DynamicToolSpec>,
 ) -> (
     Arc<Session>,
-    Arc<TurnContext>,
+    Arc<InteractionContext>,
     async_channel::Receiver<Event>,
 ) {
     make_session_and_context_with_auth_and_config_and_rx(
@@ -7342,7 +7342,7 @@ pub(crate) async fn make_session_and_context_with_dynamic_tools_and_rx(
 // so tests can assert on emitted events.
 pub(crate) async fn make_session_and_context_with_rx() -> (
     Arc<Session>,
-    Arc<TurnContext>,
+    Arc<InteractionContext>,
     async_channel::Receiver<Event>,
 ) {
     make_session_and_context_with_dynamic_tools_and_rx(Vec::new()).await
@@ -7573,8 +7573,8 @@ async fn record_context_updates_omits_environment_item_when_disabled() {
 
 async fn record_context_update_items(
     session: &Session,
-    previous_context: &TurnContext,
-    current_context: &TurnContext,
+    previous_context: &InteractionContext,
+    current_context: &InteractionContext,
 ) -> Vec<ResponseItem> {
     session
         .record_context_updates_and_set_reference_context_item(previous_context)
@@ -7709,7 +7709,7 @@ async fn build_initial_context_uses_previous_realtime_state() {
 
 async fn make_multi_agent_v2_usage_hint_test_session(
     enable_multi_agent_v2: bool,
-) -> (Arc<Session>, Arc<TurnContext>) {
+) -> (Arc<Session>, Arc<InteractionContext>) {
     let (session, turn_context, _rx_event) = make_session_and_context_with_auth_and_config_and_rx(
         CodexAuth::from_api_key("Test API Key"),
         Vec::new(),
@@ -7727,8 +7727,8 @@ async fn make_multi_agent_v2_usage_hint_test_session(
 
 struct PromptExtensionTestContributor;
 struct PromptExtensionTestState;
-struct TurnContextExtensionTestContributor;
-struct TurnContextExtensionTestState {
+struct InteractionContextExtensionTestContributor;
+struct InteractionContextExtensionTestState {
     expected_model_context_window: Option<i64>,
 }
 
@@ -7762,15 +7762,15 @@ fn prompt_extension_test_registry()
     Arc::new(builder.build())
 }
 
-impl datax_extension_api::ContextContributor for TurnContextExtensionTestContributor {
+impl datax_extension_api::ContextContributor for InteractionContextExtensionTestContributor {
     fn contribute_turn_context<'a>(
         &'a self,
-        input: datax_extension_api::TurnContextContributionInput<'a>,
+        input: datax_extension_api::InteractionContextContributionInput<'a>,
     ) -> std::pin::Pin<
         Box<dyn std::future::Future<Output = Vec<datax_extension_api::PromptFragment>> + Send + 'a>,
     > {
         Box::pin(async move {
-            let Some(state) = input.turn_store.get::<TurnContextExtensionTestState>() else {
+            let Some(state) = input.turn_store.get::<InteractionContextExtensionTestState>() else {
                 return Vec::new();
             };
             (input.model_context_window == state.expected_model_context_window
@@ -7812,13 +7812,13 @@ async fn build_initial_context_includes_prompt_fragments_from_extensions() {
 async fn build_initial_context_includes_turn_context_fragments_from_extensions() {
     let (mut session, mut turn_context) = make_session_and_context().await;
     let mut builder = datax_extension_api::ExtensionRegistryBuilder::new();
-    builder.prompt_contributor(Arc::new(TurnContextExtensionTestContributor));
+    builder.prompt_contributor(Arc::new(InteractionContextExtensionTestContributor));
     session.services.extensions = Arc::new(builder.build());
     turn_context.model_info.context_window = Some(100);
     turn_context.model_info.effective_context_window_percent = 50;
     turn_context
         .extension_data
-        .insert(TurnContextExtensionTestState {
+        .insert(InteractionContextExtensionTestState {
             expected_model_context_window: Some(50),
         });
 
@@ -7838,13 +7838,13 @@ async fn build_initial_context_includes_turn_context_fragments_from_extensions()
 async fn record_context_updates_includes_turn_context_fragments_on_steady_state_turns() {
     let (mut session, mut turn_context) = make_session_and_context().await;
     let mut builder = datax_extension_api::ExtensionRegistryBuilder::new();
-    builder.prompt_contributor(Arc::new(TurnContextExtensionTestContributor));
+    builder.prompt_contributor(Arc::new(InteractionContextExtensionTestContributor));
     session.services.extensions = Arc::new(builder.build());
     turn_context.model_info.context_window = Some(200);
     turn_context.model_info.effective_context_window_percent = 25;
     turn_context
         .extension_data
-        .insert(TurnContextExtensionTestState {
+        .insert(InteractionContextExtensionTestState {
             expected_model_context_window: Some(50),
         });
     let mut previous_context_item = turn_context.to_turn_context_item();
@@ -8381,7 +8381,7 @@ async fn build_initial_context_restates_realtime_start_when_reference_context_is
     );
 }
 
-fn file_system_policy_with_unreadable_glob(turn_context: &TurnContext) -> FileSystemSandboxPolicy {
+fn file_system_policy_with_unreadable_glob(turn_context: &InteractionContext) -> FileSystemSandboxPolicy {
     #[allow(deprecated)]
     let mut policy = FileSystemSandboxPolicy::from_legacy_sandbox_policy_for_cwd(
         &turn_context.sandbox_policy(),
@@ -8560,7 +8560,7 @@ async fn record_context_updates_and_set_reference_context_item_persists_baseline
         panic!("expected resumed rollout history");
     };
     let persisted_turn_context = resumed.history.iter().find_map(|item| match item {
-        RolloutItem::TurnContext(ctx) => Some(ctx.clone()),
+        RolloutMessage::InteractionContext(ctx) => Some(ctx.clone()),
         _ => None,
     });
     assert_eq!(
@@ -8596,7 +8596,7 @@ async fn record_context_updates_and_set_reference_context_item_persists_split_fi
         panic!("expected resumed rollout history");
     };
     let persisted_file_system_sandbox_policy = resumed.history.iter().find_map(|item| match item {
-        RolloutItem::TurnContext(ctx) => ctx.file_system_sandbox_policy.clone(),
+        RolloutMessage::InteractionContext(ctx) => ctx.file_system_sandbox_policy.clone(),
         _ => None,
     });
     assert_eq!(
@@ -8644,7 +8644,7 @@ async fn record_context_updates_and_set_reference_context_item_persists_full_rei
     let rollout_path = attach_thread_persistence(&mut session).await;
 
     session
-        .persist_rollout_items(&[RolloutItem::EventMsg(EventMsg::UserMessage(
+        .persist_rollout_items(&[RolloutMessage::EventMsg(EventMsg::UserMessage(
             UserMessageEvent {
                 client_id: None,
                 message: "seed rollout".to_string(),
@@ -8680,7 +8680,7 @@ async fn record_context_updates_and_set_reference_context_item_persists_full_rei
         panic!("expected resumed rollout history");
     };
     let persisted_turn_context = resumed.history.iter().find_map(|item| match item {
-        RolloutItem::TurnContext(ctx) => Some(ctx.clone()),
+        RolloutMessage::InteractionContext(ctx) => Some(ctx.clone()),
         _ => None,
     });
 
@@ -8782,7 +8782,7 @@ impl SessionTask for CompletingTask {
     async fn run(
         self: Arc<Self>,
         _session: Arc<SessionTaskContext>,
-        _ctx: Arc<TurnContext>,
+        _ctx: Arc<InteractionContext>,
         _input: Vec<TurnInput>,
         _cancellation_token: CancellationToken,
     ) -> SessionTaskResult {
@@ -8808,7 +8808,7 @@ impl SessionTask for NeverEndingTask {
     async fn run(
         self: Arc<Self>,
         _session: Arc<SessionTaskContext>,
-        _ctx: Arc<TurnContext>,
+        _ctx: Arc<InteractionContext>,
         _input: Vec<TurnInput>,
         cancellation_token: CancellationToken,
     ) -> SessionTaskResult {
@@ -8837,7 +8837,7 @@ impl SessionTask for GuardianDeniedApprovalTask {
     async fn run(
         self: Arc<Self>,
         session: Arc<SessionTaskContext>,
-        ctx: Arc<TurnContext>,
+        ctx: Arc<InteractionContext>,
         _input: Vec<TurnInput>,
         cancellation_token: CancellationToken,
     ) -> SessionTaskResult {
@@ -9106,8 +9106,8 @@ async fn task_finish_emits_turn_item_lifecycle_for_leftover_pending_user_input()
         .expect("channel open");
     assert!(matches!(
         second.msg,
-        EventMsg::ItemStarted(ItemStartedEvent {
-            item: TurnItem::UserMessage(UserMessageItem { content, .. }),
+        EventMsg::MessageStarted(MessageStartedEvent {
+            item: InteractionMessage::UserMessage(UserMessageItem { content, .. }),
             ..
         }) if content == pending_user_input
     ));
@@ -9118,8 +9118,8 @@ async fn task_finish_emits_turn_item_lifecycle_for_leftover_pending_user_input()
         .expect("channel open");
     assert!(matches!(
         third.msg,
-        EventMsg::ItemCompleted(ItemCompletedEvent {
-            item: TurnItem::UserMessage(UserMessageItem { content, .. }),
+        EventMsg::MessageCompleted(MessageCompletedEvent {
+            item: InteractionMessage::UserMessage(UserMessageItem { content, .. }),
             ..
         }) if content == pending_user_input
     ));
@@ -9917,7 +9917,7 @@ async fn fatal_tool_error_stops_turn_and_reports_error() {
     let call = ToolRouter::build_tool_call(item.clone())
         .expect("build tool call")
         .expect("tool call present");
-    let tracker = Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new()));
+    let tracker = Arc::new(tokio::sync::Mutex::new(InteractionDiffTracker::new()));
     let err = router
         .dispatch_tool_call_with_code_mode_result(
             Arc::clone(&session),
@@ -9944,8 +9944,8 @@ async fn fatal_tool_error_stops_turn_and_reports_error() {
 
 async fn sample_rollout(
     session: &Session,
-    _turn_context: &TurnContext,
-) -> (Vec<RolloutItem>, Vec<ResponseItem>) {
+    _turn_context: &InteractionContext,
+) -> (Vec<RolloutMessage>, Vec<ResponseItem>) {
     let mut rollout_items = Vec::new();
     let mut live_history = ContextManager::new();
 
@@ -9982,7 +9982,7 @@ async fn sample_rollout(
         initial_context.insert(insert_at, msg);
     }
     for item in &initial_context {
-        rollout_items.push(RolloutItem::ResponseItem(item.clone()));
+        rollout_items.push(RolloutMessage::ResponseItem(item.clone()));
     }
     live_history.record_items(
         initial_context.iter(),
@@ -10002,7 +10002,7 @@ async fn sample_rollout(
         std::iter::once(&user1),
         reconstruction_turn.model_info.truncation_policy.into(),
     );
-    rollout_items.push(RolloutItem::ResponseItem(user1.clone()));
+    rollout_items.push(RolloutMessage::ResponseItem(user1.clone()));
 
     let assistant1 = ResponseItem::Message {
         id: None,
@@ -10017,7 +10017,7 @@ async fn sample_rollout(
         std::iter::once(&assistant1),
         reconstruction_turn.model_info.truncation_policy.into(),
     );
-    rollout_items.push(RolloutItem::ResponseItem(assistant1.clone()));
+    rollout_items.push(RolloutMessage::ResponseItem(assistant1.clone()));
 
     let summary1 = "summary one";
     let snapshot1 = live_history
@@ -10027,7 +10027,7 @@ async fn sample_rollout(
     let rebuilt1 = compact::build_compacted_history(Vec::new(), &user_messages1, summary1);
     live_history.replace(rebuilt1);
     let (window_number, window_ids) = session.advance_auto_compact_window().await;
-    rollout_items.push(RolloutItem::Compacted(CompactedItem {
+    rollout_items.push(RolloutMessage::Compacted(CompactedItem {
         message: summary1.to_string(),
         replacement_history: None,
         window_number: Some(window_number),
@@ -10049,7 +10049,7 @@ async fn sample_rollout(
         std::iter::once(&user2),
         reconstruction_turn.model_info.truncation_policy.into(),
     );
-    rollout_items.push(RolloutItem::ResponseItem(user2.clone()));
+    rollout_items.push(RolloutMessage::ResponseItem(user2.clone()));
 
     let assistant2 = ResponseItem::Message {
         id: None,
@@ -10064,7 +10064,7 @@ async fn sample_rollout(
         std::iter::once(&assistant2),
         reconstruction_turn.model_info.truncation_policy.into(),
     );
-    rollout_items.push(RolloutItem::ResponseItem(assistant2.clone()));
+    rollout_items.push(RolloutMessage::ResponseItem(assistant2.clone()));
 
     let summary2 = "summary two";
     let snapshot2 = live_history
@@ -10074,7 +10074,7 @@ async fn sample_rollout(
     let rebuilt2 = compact::build_compacted_history(Vec::new(), &user_messages2, summary2);
     live_history.replace(rebuilt2);
     let (window_number, window_ids) = session.advance_auto_compact_window().await;
-    rollout_items.push(RolloutItem::Compacted(CompactedItem {
+    rollout_items.push(RolloutMessage::Compacted(CompactedItem {
         message: summary2.to_string(),
         replacement_history: None,
         window_number: Some(window_number),
@@ -10096,7 +10096,7 @@ async fn sample_rollout(
         std::iter::once(&user3),
         reconstruction_turn.model_info.truncation_policy.into(),
     );
-    rollout_items.push(RolloutItem::ResponseItem(user3));
+    rollout_items.push(RolloutMessage::ResponseItem(user3));
 
     let assistant3 = ResponseItem::Message {
         id: None,
@@ -10111,7 +10111,7 @@ async fn sample_rollout(
         std::iter::once(&assistant3),
         reconstruction_turn.model_info.truncation_policy.into(),
     );
-    rollout_items.push(RolloutItem::ResponseItem(assistant3));
+    rollout_items.push(RolloutMessage::ResponseItem(assistant3));
 
     (
         rollout_items,
@@ -10124,7 +10124,7 @@ async fn rejects_escalated_permissions_when_policy_not_on_request() {
     use crate::exec_policy::ExecApprovalRequest;
     use crate::sandboxing::SandboxPermissions;
     use crate::tools::sandboxing::ExecApprovalRequirement;
-    use crate::turn_diff_tracker::TurnDiffTracker;
+    use crate::turn_diff_tracker::InteractionDiffTracker;
     use datax_protocol::protocol::AskForApproval;
     use datax_tools::ShellCommandBackendConfig;
 
@@ -10141,7 +10141,7 @@ async fn rejects_escalated_permissions_when_policy_not_on_request() {
     let timeout_ms = 1000;
     let sandbox_permissions = SandboxPermissions::RequireEscalated;
 
-    let turn_diff_tracker = Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new()));
+    let turn_diff_tracker = Arc::new(tokio::sync::Mutex::new(InteractionDiffTracker::new()));
 
     let tool_name = "shell_command";
     let call_id = "test-call".to_string();
@@ -10289,7 +10289,7 @@ while :; do sleep 1; done"#,
 #[tokio::test]
 async fn unified_exec_rejects_escalated_permissions_when_policy_not_on_request() {
     use crate::sandboxing::SandboxPermissions;
-    use crate::turn_diff_tracker::TurnDiffTracker;
+    use crate::turn_diff_tracker::InteractionDiffTracker;
     use datax_protocol::protocol::AskForApproval;
 
     let (session, mut turn_context_raw) = make_session_and_context().await;
@@ -10299,7 +10299,7 @@ async fn unified_exec_rejects_escalated_permissions_when_policy_not_on_request()
         .expect("test setup should allow updating approval policy");
     let session = Arc::new(session);
     let turn_context = Arc::new(turn_context_raw);
-    let tracker = Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new()));
+    let tracker = Arc::new(tokio::sync::Mutex::new(InteractionDiffTracker::new()));
 
     let handler = ExecCommandHandler::default();
     let resp = handler

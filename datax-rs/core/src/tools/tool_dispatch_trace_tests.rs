@@ -14,7 +14,7 @@ use tokio_util::sync::CancellationToken;
 use crate::function_tool::FunctionCallError;
 use crate::session::session::Session;
 use crate::session::tests::make_session_and_context;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::tools::code_mode::CodeModeWaitHandler;
 use crate::tools::code_mode::WAIT_TOOL_NAME;
 use crate::tools::context::FunctionToolOutput;
@@ -24,7 +24,7 @@ use crate::tools::context::ToolPayload;
 use crate::tools::registry::CoreToolRuntime;
 use crate::tools::registry::ToolExecutor;
 use crate::tools::registry::ToolRegistry;
-use crate::turn_diff_tracker::TurnDiffTracker;
+use crate::turn_diff_tracker::InteractionDiffTracker;
 
 struct TestHandler {
     tool_name: datax_tools::ToolName,
@@ -243,7 +243,7 @@ async fn missing_code_mode_wait_traces_only_the_wait_tool_call() -> anyhow::Resu
 
 fn test_invocation(
     session: Arc<Session>,
-    turn: Arc<TurnContext>,
+    turn: Arc<InteractionContext>,
     call_id: &str,
     tool_name: &str,
     source: ToolCallSource,
@@ -263,7 +263,7 @@ fn test_invocation(
 
 fn test_invocation_with_payload(
     session: Arc<Session>,
-    turn: Arc<TurnContext>,
+    turn: Arc<InteractionContext>,
     call_id: &str,
     tool_name: datax_tools::ToolName,
     source: ToolCallSource,
@@ -273,7 +273,7 @@ fn test_invocation_with_payload(
         session,
         turn,
         cancellation_token: CancellationToken::new(),
-        tracker: Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new())),
+        tracker: Arc::new(tokio::sync::Mutex::new(InteractionDiffTracker::new())),
         call_id: call_id.to_string(),
         tool_name,
         source,
@@ -281,7 +281,7 @@ fn test_invocation_with_payload(
     }
 }
 
-fn attach_test_trace(session: &mut Session, turn: &TurnContext, root: &Path) -> anyhow::Result<()> {
+fn attach_test_trace(session: &mut Session, turn: &InteractionContext, root: &Path) -> anyhow::Result<()> {
     let chat_id = session.chat_id;
     let rollout_thread_trace =
         datax_rollout_trace::ThreadTraceContext::start_root_in_root_for_test(

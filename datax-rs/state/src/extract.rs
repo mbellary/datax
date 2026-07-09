@@ -1,9 +1,9 @@
 use crate::model::ThreadMetadata;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::EventMsg;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::SessionMetaLine;
-use datax_protocol::protocol::TurnContextItem;
+use datax_protocol::protocol::InteractionContextMessage;
 use datax_protocol::protocol::USER_MESSAGE_BEGIN;
 use datax_protocol::protocol::UserMessageEvent;
 use serde::Serialize;
@@ -14,16 +14,16 @@ const IMAGE_ONLY_USER_MESSAGE_PLACEHOLDER: &str = "[Image]";
 /// Apply a rollout item to the metadata structure.
 pub fn apply_rollout_item(
     metadata: &mut ThreadMetadata,
-    item: &RolloutItem,
+    item: &RolloutMessage,
     default_provider: &str,
 ) {
     match item {
-        RolloutItem::SessionMeta(meta_line) => apply_session_meta_from_item(metadata, meta_line),
-        RolloutItem::TurnContext(turn_ctx) => apply_turn_context(metadata, turn_ctx),
-        RolloutItem::EventMsg(event) => apply_event_msg(metadata, event),
-        RolloutItem::ResponseItem(item) => apply_response_item(metadata, item),
-        RolloutItem::InterAgentCommunication(_) => {}
-        RolloutItem::Compacted(_) => {}
+        RolloutMessage::SessionMeta(meta_line) => apply_session_meta_from_item(metadata, meta_line),
+        RolloutMessage::InteractionContext(turn_ctx) => apply_turn_context(metadata, turn_ctx),
+        RolloutMessage::EventMsg(event) => apply_event_msg(metadata, event),
+        RolloutMessage::ResponseItem(item) => apply_response_item(metadata, item),
+        RolloutMessage::InterAgentCommunication(_) => {}
+        RolloutMessage::Compacted(_) => {}
     }
     if metadata.model_provider.is_empty() {
         metadata.model_provider = default_provider.to_string();
@@ -31,16 +31,16 @@ pub fn apply_rollout_item(
 }
 
 /// Return whether this rollout item can mutate thread metadata stored in SQLite.
-pub fn rollout_item_affects_thread_metadata(item: &RolloutItem) -> bool {
+pub fn rollout_item_affects_thread_metadata(item: &RolloutMessage) -> bool {
     match item {
-        RolloutItem::SessionMeta(_) | RolloutItem::TurnContext(_) => true,
-        RolloutItem::EventMsg(
+        RolloutMessage::SessionMeta(_) | RolloutMessage::InteractionContext(_) => true,
+        RolloutMessage::EventMsg(
             EventMsg::TokenCount(_) | EventMsg::UserMessage(_) | EventMsg::ThreadGoalUpdated(_),
         ) => true,
-        RolloutItem::EventMsg(_)
-        | RolloutItem::ResponseItem(_)
-        | RolloutItem::InterAgentCommunication(_)
-        | RolloutItem::Compacted(_) => false,
+        RolloutMessage::EventMsg(_)
+        | RolloutMessage::ResponseItem(_)
+        | RolloutMessage::InterAgentCommunication(_)
+        | RolloutMessage::Compacted(_) => false,
     }
 }
 
@@ -72,7 +72,7 @@ fn apply_session_meta_from_item(metadata: &mut ThreadMetadata, meta_line: &Sessi
     }
 }
 
-fn apply_turn_context(metadata: &mut ThreadMetadata, turn_ctx: &TurnContextItem) {
+fn apply_turn_context(metadata: &mut ThreadMetadata, turn_ctx: &InteractionContextMessage) {
     if metadata.cwd.as_os_str().is_empty() {
         metadata.cwd = turn_ctx.cwd.clone().into_path_buf();
     }
@@ -165,7 +165,7 @@ mod tests {
     use datax_protocol::openai_models::ReasoningEffort;
     use datax_protocol::protocol::AskForApproval;
     use datax_protocol::protocol::EventMsg;
-    use datax_protocol::protocol::RolloutItem;
+    use datax_protocol::protocol::RolloutMessage;
     use datax_protocol::protocol::SandboxPolicy;
     use datax_protocol::protocol::SessionMeta;
     use datax_protocol::protocol::SessionMetaLine;
@@ -173,7 +173,7 @@ mod tests {
     use datax_protocol::protocol::ThreadGoal;
     use datax_protocol::protocol::ThreadGoalStatus;
     use datax_protocol::protocol::ThreadGoalUpdatedEvent;
-    use datax_protocol::protocol::TurnContextItem;
+    use datax_protocol::protocol::InteractionContextMessage;
     use datax_protocol::protocol::USER_MESSAGE_BEGIN;
     use datax_protocol::protocol::UserMessageEvent;
 
@@ -184,7 +184,7 @@ mod tests {
     #[test]
     fn response_item_user_messages_do_not_set_title_or_first_user_message() {
         let mut metadata = metadata_for_test();
-        let item = RolloutItem::ResponseItem(ResponseItem::Message {
+        let item = RolloutMessage::ResponseItem(ResponseItem::Message {
             id: None,
             role: "user".to_string(),
             content: vec![ContentItem::InputText {
@@ -204,7 +204,7 @@ mod tests {
     #[test]
     fn event_msg_user_messages_set_title_and_first_user_message() {
         let mut metadata = metadata_for_test();
-        let item = RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+        let item = RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
             client_id: None,
             message: format!("{USER_MESSAGE_BEGIN} actual user request"),
             images: Some(vec![]),
@@ -226,7 +226,7 @@ mod tests {
     #[test]
     fn event_msg_image_only_user_message_sets_image_placeholder_preview() {
         let mut metadata = metadata_for_test();
-        let item = RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+        let item = RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
             client_id: None,
             message: String::new(),
             images: Some(vec!["https://example.com/image.png".to_string()]),
@@ -251,7 +251,7 @@ mod tests {
     #[test]
     fn event_msg_blank_user_message_without_images_keeps_first_user_message_empty() {
         let mut metadata = metadata_for_test();
-        let item = RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+        let item = RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
             client_id: None,
             message: "   ".to_string(),
             images: Some(vec![]),
@@ -271,7 +271,7 @@ mod tests {
     fn event_msg_thread_goal_sets_preview_only_and_later_user_sets_message_title() {
         let mut metadata = metadata_for_test();
         let goal_item =
-            RolloutItem::EventMsg(EventMsg::ThreadGoalUpdated(ThreadGoalUpdatedEvent {
+            RolloutMessage::EventMsg(EventMsg::ThreadGoalUpdated(ThreadGoalUpdatedEvent {
                 chat_id: metadata.id,
                 interaction_id: None,
                 goal: ThreadGoal {
@@ -292,7 +292,7 @@ mod tests {
         assert_eq!(metadata.first_user_message, None);
         assert_eq!(metadata.title, "");
 
-        let user_item = RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+        let user_item = RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
             client_id: None,
             message: format!("{USER_MESSAGE_BEGIN} next normal prompt"),
             images: Some(vec![]),
@@ -319,7 +319,7 @@ mod tests {
 
         apply_rollout_item(
             &mut metadata,
-            &RolloutItem::SessionMeta(SessionMetaLine {
+            &RolloutMessage::SessionMeta(SessionMetaLine {
                 meta: SessionMeta {
                     session_id: chat_id.into(),
                     id: chat_id,
@@ -348,7 +348,7 @@ mod tests {
         );
         apply_rollout_item(
             &mut metadata,
-            &RolloutItem::TurnContext(TurnContextItem {
+            &RolloutMessage::InteractionContext(InteractionContextMessage {
                 interaction_id: Some("turn-1".to_string()),
                 cwd: serde_json::from_value(serde_json::json!(
                     std::env::current_dir()
@@ -393,7 +393,7 @@ mod tests {
 
         apply_rollout_item(
             &mut metadata,
-            &RolloutItem::TurnContext(TurnContextItem {
+            &RolloutMessage::InteractionContext(InteractionContextMessage {
                 interaction_id: Some("turn-1".to_string()),
                 cwd: serde_json::from_value(serde_json::json!(
                     std::env::current_dir()
@@ -438,7 +438,7 @@ mod tests {
 
         apply_rollout_item(
             &mut metadata,
-            &RolloutItem::TurnContext(TurnContextItem {
+            &RolloutMessage::InteractionContext(InteractionContextMessage {
                 interaction_id: Some("turn-1".to_string()),
                 cwd: serde_json::from_value(serde_json::json!(&fallback_cwd))
                     .expect("absolute fallback cwd"),
@@ -472,7 +472,7 @@ mod tests {
 
         apply_rollout_item(
             &mut metadata,
-            &RolloutItem::TurnContext(TurnContextItem {
+            &RolloutMessage::InteractionContext(InteractionContextMessage {
                 interaction_id: Some("turn-1".to_string()),
                 cwd: serde_json::from_value(serde_json::json!(
                     std::env::current_dir()
@@ -512,7 +512,7 @@ mod tests {
 
         apply_rollout_item(
             &mut metadata,
-            &RolloutItem::SessionMeta(SessionMetaLine {
+            &RolloutMessage::SessionMeta(SessionMetaLine {
                 meta: SessionMeta {
                     session_id: chat_id.into(),
                     id: chat_id,

@@ -19,7 +19,7 @@ use crate::session_startup_prewarm::SessionStartupPrewarmHandle;
 use datax_protocol::protocol::RateLimitSnapshot;
 use datax_protocol::protocol::TokenUsage;
 use datax_protocol::protocol::TokenUsageInfo;
-use datax_protocol::protocol::TurnContextItem;
+use datax_protocol::protocol::InteractionContextMessage;
 use datax_utils_output_truncation::TruncationPolicy;
 
 /// Persistent, session-scoped state previously stored directly on `Session`.
@@ -103,7 +103,7 @@ impl SessionState {
     pub(crate) fn replace_history(
         &mut self,
         items: Vec<ResponseItem>,
-        reference_context_item: Option<TurnContextItem>,
+        reference_context_item: Option<InteractionContextMessage>,
     ) {
         self.history.replace(items);
         self.history
@@ -115,11 +115,11 @@ impl SessionState {
         self.history.set_token_info(info);
     }
 
-    pub(crate) fn set_reference_context_item(&mut self, item: Option<TurnContextItem>) {
+    pub(crate) fn set_reference_context_item(&mut self, item: Option<InteractionContextMessage>) {
         self.history.set_reference_context_item(item);
     }
 
-    pub(crate) fn reference_context_item(&self) -> Option<TurnContextItem> {
+    pub(crate) fn reference_context_item(&self) -> Option<InteractionContextMessage> {
         self.history.reference_context_item()
     }
 

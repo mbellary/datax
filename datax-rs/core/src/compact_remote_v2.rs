@@ -22,7 +22,7 @@ use crate::responses_retry::ResponsesStreamRequest;
 use crate::responses_retry::handle_retryable_response_stream_error;
 use crate::session::session::Session;
 use crate::session::turn::built_tools;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use datax_analytics::CompactionImplementation;
 use datax_analytics::CompactionPhase;
 use datax_analytics::CompactionReason;
@@ -30,7 +30,7 @@ use datax_analytics::CompactionTrigger;
 use datax_protocol::error::CodexErr;
 use datax_protocol::error::Result as CodexResult;
 use datax_protocol::items::ContextCompactionItem;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::models::ContentItem;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::CompactedItem;
@@ -55,7 +55,7 @@ const MAX_REMOTE_COMPACTION_V2_STREAM_RETRIES: u64 = 2;
 
 pub(crate) async fn run_inline_remote_auto_compact_task(
     sess: Arc<Session>,
-    turn_context: Arc<TurnContext>,
+    turn_context: Arc<InteractionContext>,
     client_session: &mut ModelClientSession,
     initial_context_injection: InitialContextInjection,
     reason: CompactionReason,
@@ -75,7 +75,7 @@ pub(crate) async fn run_inline_remote_auto_compact_task(
 
 pub(crate) async fn run_remote_compact_task(
     sess: Arc<Session>,
-    turn_context: Arc<TurnContext>,
+    turn_context: Arc<InteractionContext>,
 ) -> CodexResult<()> {
     let start_event = EventMsg::InteractionStarted(InteractionStartedEvent {
         interaction_id: turn_context.sub_id.clone(),
@@ -100,7 +100,7 @@ pub(crate) async fn run_remote_compact_task(
 
 async fn run_remote_compact_task_inner(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     client_session: Option<&mut ModelClientSession>,
     initial_context_injection: InitialContextInjection,
     trigger: CompactionTrigger,
@@ -181,7 +181,7 @@ async fn run_remote_compact_task_inner(
 
 async fn run_remote_compact_task_inner_impl(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     client_session: Option<&mut ModelClientSession>,
     initial_context_injection: InitialContextInjection,
     compaction_metadata: CompactionTurnMetadata,
@@ -194,7 +194,7 @@ async fn run_remote_compact_task_inner_impl(
         turn_context.model_info.slug.as_str(),
         turn_context.provider.info().name.as_str(),
     );
-    let compaction_item = TurnItem::ContextCompaction(context_compaction_item);
+    let compaction_item = InteractionMessage::ContextCompaction(context_compaction_item);
     sess.emit_turn_item_started(turn_context, &compaction_item)
         .await;
 
@@ -338,7 +338,7 @@ struct RemoteCompactionV2Output {
 
 async fn run_remote_compaction_request_v2(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     client_session: &mut ModelClientSession,
     prompt: &Prompt,
     responses_metadata: &CodexResponsesMetadata,

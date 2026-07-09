@@ -23,7 +23,7 @@ use datax_protocol::protocol::ReviewLineRange;
 use datax_protocol::protocol::ReviewOutputEvent;
 use datax_protocol::protocol::ReviewRequest;
 use datax_protocol::protocol::ReviewTarget;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
@@ -121,7 +121,7 @@ async fn review_op_emits_lifecycle_and_review_output() {
         .find_map(|line| {
             let rollout_line: RolloutLine = serde_json::from_str(line).expect("rollout line");
             match rollout_line.item {
-                RolloutItem::SessionMeta(session_meta) => Some(session_meta.meta.id.to_string()),
+                RolloutMessage::SessionMeta(session_meta) => Some(session_meta.meta.id.to_string()),
                 _ => None,
             }
         })
@@ -157,7 +157,7 @@ async fn review_op_emits_lifecycle_and_review_output() {
         }
         let v: serde_json::Value = serde_json::from_str(line).expect("jsonl line");
         let rl: RolloutLine = serde_json::from_value(v).expect("rollout line");
-        if let RolloutItem::ResponseItem(ResponseItem::Message { role, content, .. }) = rl.item {
+        if let RolloutMessage::ResponseItem(ResponseItem::Message { role, content, .. }) = rl.item {
             if role == "user" {
                 for c in content {
                     if let ContentItem::InputText { text } = c {
@@ -254,7 +254,7 @@ async fn review_op_with_plain_text_emits_review_fallback() {
 
 /// Ensure review flow suppresses assistant-specific streaming/completion events:
 /// - AgentMessageContentDelta
-/// - ItemCompleted for TurnItem::AgentMessage
+/// - MessageCompleted for InteractionMessage::AgentMessage
 // Windows CI only: bump to 4 workers to prevent SSE/event starvation and test timeouts.
 #[cfg_attr(windows, tokio::test(flavor = "multi_thread", worker_threads = 4))]
 #[cfg_attr(not(windows), tokio::test(flavor = "multi_thread", worker_threads = 2))]
@@ -647,7 +647,7 @@ async fn review_input_isolated_from_parent_history() {
         }
         let v: serde_json::Value = serde_json::from_str(line).expect("jsonl line");
         let rl: RolloutLine = serde_json::from_value(v).expect("rollout line");
-        if let RolloutItem::ResponseItem(ResponseItem::Message { role, content, .. }) = rl.item
+        if let RolloutMessage::ResponseItem(ResponseItem::Message { role, content, .. }) = rl.item
             && role == "user"
         {
             for c in content {

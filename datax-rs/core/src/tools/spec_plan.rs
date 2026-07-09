@@ -1,6 +1,6 @@
 use crate::agent::exceeds_thread_spawn_depth_limit;
 use crate::agent::next_thread_spawn_depth;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::tools::code_mode::execute_spec::create_code_mode_tool;
 use crate::tools::context::ToolInvocation;
 use crate::tools::effective_tool_mode;
@@ -143,7 +143,7 @@ impl PlannedTools {
 
 #[derive(Clone, Copy)]
 struct CoreToolPlanContext<'a> {
-    turn_context: &'a TurnContext,
+    turn_context: &'a InteractionContext,
     mcp_tools: Option<&'a [ToolInfo]>,
     deferred_mcp_tools: Option<&'a [ToolInfo]>,
     tool_suggest_candidates: Option<&'a crate::tools::router::ToolSuggestCandidates>,
@@ -156,7 +156,7 @@ struct CoreToolPlanContext<'a> {
 
 #[instrument(level = "trace", skip_all)]
 pub(crate) fn build_tool_router(
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     params: ToolRouterParams<'_>,
     tool_search_handler_cache: &ToolSearchHandlerCache,
 ) -> ToolRouter {
@@ -167,7 +167,7 @@ pub(crate) fn build_tool_router(
 
 #[instrument(level = "trace", skip_all)]
 fn build_tool_specs_and_registry(
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     params: ToolRouterParams<'_>,
     tool_search_handler_cache: &ToolSearchHandlerCache,
 ) -> (Vec<ToolSpec>, ToolRegistry) {
@@ -200,7 +200,7 @@ fn build_tool_specs_and_registry(
 }
 
 fn apply_direct_model_only_namespace_overrides(
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     planned_tools: &mut PlannedTools,
 ) {
     for runtime in &mut planned_tools.runtimes {
@@ -230,7 +230,7 @@ fn apply_direct_model_only_namespace_overrides(
 
 #[instrument(level = "trace", skip_all)]
 fn build_model_visible_specs_and_registry(
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     planned_tools: PlannedTools,
 ) -> (Vec<ToolSpec>, ToolRegistry) {
     let PlannedTools {
@@ -270,7 +270,7 @@ fn build_model_visible_specs_and_registry(
 }
 
 fn spec_for_model_request(
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     exposure: ToolExposure,
     tool_name: &ToolName,
     spec: ToolSpec,
@@ -325,26 +325,26 @@ fn hosted_model_tool_specs(context: &CoreToolPlanContext<'_>) -> Vec<ToolSpec> {
     specs
 }
 
-pub(crate) fn search_tool_enabled(turn_context: &TurnContext) -> bool {
+pub(crate) fn search_tool_enabled(turn_context: &InteractionContext) -> bool {
     turn_context.model_info.supports_search_tool && namespace_tools_enabled(turn_context)
 }
 
-pub(crate) fn tool_suggest_enabled(turn_context: &TurnContext) -> bool {
+pub(crate) fn tool_suggest_enabled(turn_context: &InteractionContext) -> bool {
     let features = turn_context.config.features.get();
     features.enabled(Feature::ToolSuggest)
         && features.enabled(Feature::Apps)
         && features.enabled(Feature::Plugins)
 }
 
-fn namespace_tools_enabled(turn_context: &TurnContext) -> bool {
+fn namespace_tools_enabled(turn_context: &InteractionContext) -> bool {
     turn_context.provider.capabilities().namespace_tools
 }
 
-fn multi_agent_v2_enabled(turn_context: &TurnContext) -> bool {
+fn multi_agent_v2_enabled(turn_context: &InteractionContext) -> bool {
     turn_context.multi_agent_version == MultiAgentVersion::V2
 }
 
-fn collab_tools_enabled(turn_context: &TurnContext) -> bool {
+fn collab_tools_enabled(turn_context: &InteractionContext) -> bool {
     match turn_context.multi_agent_version {
         MultiAgentVersion::Disabled => false,
         MultiAgentVersion::V1 => !exceeds_thread_spawn_depth_limit(
@@ -355,7 +355,7 @@ fn collab_tools_enabled(turn_context: &TurnContext) -> bool {
     }
 }
 
-fn agent_jobs_tools_enabled(turn_context: &TurnContext) -> bool {
+fn agent_jobs_tools_enabled(turn_context: &InteractionContext) -> bool {
     turn_context
         .config
         .features
@@ -364,7 +364,7 @@ fn agent_jobs_tools_enabled(turn_context: &TurnContext) -> bool {
         && collab_tools_enabled(turn_context)
 }
 
-fn agent_jobs_worker_tools_enabled(turn_context: &TurnContext) -> bool {
+fn agent_jobs_worker_tools_enabled(turn_context: &InteractionContext) -> bool {
     agent_jobs_tools_enabled(turn_context)
         && matches!(
             &turn_context.session_source,
@@ -373,7 +373,7 @@ fn agent_jobs_worker_tools_enabled(turn_context: &TurnContext) -> bool {
         )
 }
 
-fn image_generation_tool_enabled(turn_context: &TurnContext) -> bool {
+fn image_generation_tool_enabled(turn_context: &InteractionContext) -> bool {
     image_generation_runtime_enabled(turn_context)
         && turn_context
             .config
@@ -382,7 +382,7 @@ fn image_generation_tool_enabled(turn_context: &TurnContext) -> bool {
             .enabled(Feature::ImageGeneration)
 }
 
-fn image_generation_runtime_enabled(turn_context: &TurnContext) -> bool {
+fn image_generation_runtime_enabled(turn_context: &InteractionContext) -> bool {
     turn_context
         .auth_manager
         .as_deref()
@@ -394,7 +394,7 @@ fn image_generation_runtime_enabled(turn_context: &TurnContext) -> bool {
             .contains(&InputModality::Image)
 }
 
-fn standalone_image_generation_model_visible(turn_context: &TurnContext) -> bool {
+fn standalone_image_generation_model_visible(turn_context: &InteractionContext) -> bool {
     if !image_generation_runtime_enabled(turn_context) || !namespace_tools_enabled(turn_context) {
         return false;
     }
@@ -411,7 +411,7 @@ fn standalone_image_generation_model_visible(turn_context: &TurnContext) -> bool
 }
 
 fn standalone_image_generation_available(
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     extension_tools: &[Arc<dyn ToolExecutor<ExtensionToolCall>>],
 ) -> bool {
     standalone_image_generation_model_visible(turn_context)
@@ -420,7 +420,7 @@ fn standalone_image_generation_available(
         })
 }
 
-fn wait_agent_timeout_options(turn_context: &TurnContext) -> WaitAgentTimeoutOptions {
+fn wait_agent_timeout_options(turn_context: &InteractionContext) -> WaitAgentTimeoutOptions {
     if multi_agent_v2_enabled(turn_context) {
         return WaitAgentTimeoutOptions {
             default_timeout_ms: turn_context.config.multi_agent_v2.default_wait_timeout_ms,
@@ -437,7 +437,7 @@ fn wait_agent_timeout_options(turn_context: &TurnContext) -> WaitAgentTimeoutOpt
 }
 
 fn agent_type_description(
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     default_agent_type_description: &str,
 ) -> String {
     let agent_type_description =
@@ -450,7 +450,7 @@ fn agent_type_description(
 }
 
 fn is_hidden_by_code_mode_only(
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     tool_name: &ToolName,
     exposure: ToolExposure,
 ) -> bool {
@@ -462,7 +462,7 @@ fn is_hidden_by_code_mode_only(
         ))
 }
 
-fn is_excluded_from_code_mode(turn_context: &TurnContext, tool_name: &ToolName) -> bool {
+fn is_excluded_from_code_mode(turn_context: &InteractionContext, tool_name: &ToolName) -> bool {
     tool_name.namespace.as_ref().is_some_and(|namespace| {
         turn_context
             .config
@@ -473,7 +473,7 @@ fn is_excluded_from_code_mode(turn_context: &TurnContext, tool_name: &ToolName) 
 }
 
 fn build_code_mode_executors(
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     executors: &[Arc<dyn CoreToolRuntime>],
 ) -> Vec<Arc<dyn CoreToolRuntime>> {
     let tool_mode = effective_tool_mode(turn_context);
@@ -615,7 +615,7 @@ fn add_tool_sources(context: &CoreToolPlanContext<'_>, planned_tools: &mut Plann
     }
 }
 
-fn standalone_web_search_enabled(turn_context: &TurnContext) -> bool {
+fn standalone_web_search_enabled(turn_context: &InteractionContext) -> bool {
     namespace_tools_enabled(turn_context)
         && (turn_context.model_info.use_responses_lite
             || turn_context
@@ -666,7 +666,7 @@ fn add_shell_tools(context: &CoreToolPlanContext<'_>, planned_tools: &mut Planne
     }
 }
 
-fn unified_exec_should_include_shell_parameter(turn_context: &TurnContext) -> bool {
+fn unified_exec_should_include_shell_parameter(turn_context: &InteractionContext) -> bool {
     !matches!(
         &turn_context.unified_exec_shell_mode,
         UnifiedExecShellMode::ZshFork(_)
@@ -970,7 +970,7 @@ fn prepend_code_mode_executors(
 }
 
 fn append_extension_tool_executors(
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     executors: &[Arc<dyn ToolExecutor<ExtensionToolCall>>],
     planned_tools: &mut PlannedTools,
 ) {

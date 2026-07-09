@@ -15,7 +15,7 @@ use crate::responses_metadata::CompactionTurnMetadata;
 use crate::session::PreviousTurnSettings;
 use crate::session::session::Session;
 use crate::session::turn::get_last_assistant_message_from_turn;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::util::backoff;
 use datax_analytics::CodexCompactionEvent;
 use datax_analytics::CompactionImplementation;
@@ -28,7 +28,7 @@ use datax_analytics::now_unix_seconds;
 use datax_protocol::error::CodexErr;
 use datax_protocol::error::Result as CodexResult;
 use datax_protocol::items::ContextCompactionItem;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::models::ContentItem;
 use datax_protocol::models::InternalChatMessageMetadataPassthrough;
 use datax_protocol::models::ResponseInputItem;
@@ -72,7 +72,7 @@ pub(crate) fn should_use_remote_compact_task(provider: &ModelProviderInfo) -> bo
 
 pub(crate) async fn run_inline_auto_compact_task(
     sess: Arc<Session>,
-    turn_context: Arc<TurnContext>,
+    turn_context: Arc<InteractionContext>,
     initial_context_injection: InitialContextInjection,
     reason: CompactionReason,
     phase: CompactionPhase,
@@ -104,7 +104,7 @@ pub(crate) async fn run_inline_auto_compact_task(
 
 pub(crate) async fn run_compact_task(
     sess: Arc<Session>,
-    turn_context: Arc<TurnContext>,
+    turn_context: Arc<InteractionContext>,
     input: Vec<UserInput>,
 ) -> CodexResult<()> {
     let start_event = EventMsg::InteractionStarted(InteractionStartedEvent {
@@ -130,7 +130,7 @@ pub(crate) async fn run_compact_task(
 
 async fn run_compact_task_inner(
     sess: Arc<Session>,
-    turn_context: Arc<TurnContext>,
+    turn_context: Arc<InteractionContext>,
     input: Vec<UserInput>,
     initial_context_injection: InitialContextInjection,
     trigger: CompactionTrigger,
@@ -201,12 +201,12 @@ async fn run_compact_task_inner(
 
 async fn run_compact_task_inner_impl(
     sess: Arc<Session>,
-    turn_context: Arc<TurnContext>,
+    turn_context: Arc<InteractionContext>,
     input: Vec<UserInput>,
     initial_context_injection: InitialContextInjection,
     compaction_metadata: CompactionTurnMetadata,
 ) -> CodexResult<String> {
-    let compaction_item = TurnItem::ContextCompaction(ContextCompactionItem::new());
+    let compaction_item = InteractionMessage::ContextCompaction(ContextCompactionItem::new());
     sess.emit_turn_item_started(&turn_context, &compaction_item)
         .await;
     let initial_input_for_turn: ResponseInputItem = ResponseInputItem::from(input);
@@ -370,7 +370,7 @@ pub(crate) struct CompactionAnalyticsDetails {
 impl CompactionAnalyticsAttempt {
     pub(crate) async fn begin(
         sess: &Session,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         trigger: CompactionTrigger,
         reason: CompactionReason,
         implementation: CompactionImplementation,
@@ -471,7 +471,7 @@ pub(crate) fn collect_user_messages(items: &[ResponseItem]) -> Vec<CompactedUser
     items
         .iter()
         .filter_map(|item| match crate::event_mapping::parse_turn_item(item) {
-            Some(TurnItem::UserMessage(user)) => {
+            Some(InteractionMessage::UserMessage(user)) => {
                 if is_summary_message(&user.message()) {
                     None
                 } else {
@@ -513,7 +513,7 @@ pub(crate) fn insert_initial_context_before_last_real_user_or_summary(
     let mut last_user_or_summary_index = None;
     let mut last_real_user_index = None;
     for (i, item) in compacted_history.iter().enumerate().rev() {
-        let Some(TurnItem::UserMessage(user)) = crate::event_mapping::parse_turn_item(item) else {
+        let Some(InteractionMessage::UserMessage(user)) = crate::event_mapping::parse_turn_item(item) else {
             continue;
         };
         // Compaction summaries are encoded as user messages, so track both:
@@ -631,7 +631,7 @@ fn build_compacted_history_with_limit(
 
 async fn drain_to_completed(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     client_session: &mut ModelClientSession,
     responses_metadata: &CodexResponsesMetadata,
     prompt: &Prompt,

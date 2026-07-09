@@ -52,13 +52,13 @@ use datax_feedback::CodexFeedback;
 use datax_protocol::models::BaseInstructions;
 use datax_protocol::protocol::AgentMessageEvent;
 use datax_protocol::protocol::EventMsg;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::SessionSource as ProtocolSessionSource;
 use datax_protocol::protocol::ThreadMemoryMode;
 use datax_protocol::protocol::UserMessageEvent;
 use datax_protocol::user_input::ByteRange;
 use datax_protocol::user_input::TextElement;
-use datax_thread_store::AppendThreadItemsParams;
+use datax_thread_store::AppendChatMessagesParams;
 use datax_thread_store::CreateThreadParams;
 use datax_thread_store::InMemoryThreadStore;
 use datax_thread_store::ThreadMetadataPatch;
@@ -179,8 +179,8 @@ async fn thread_read_can_include_turns() -> Result<()> {
     let turn = &thread.interactions[0];
     assert_eq!(turn.status, InteractionStatus::Completed);
     assert_eq!(turn.messages_view, InteractionMessagesView::Full);
-    assert_eq!(turn.messages.len(), 1, "expected user message item");
-    match &turn.messages[0] {
+    assert_eq!(turn.items.len(), 1, "expected user message item");
+    match &turn.items[0] {
         Message::UserMessage { content, .. } => {
             assert_eq!(
                 content,
@@ -346,7 +346,7 @@ async fn thread_turns_list_supports_requested_items_view() -> Result<()> {
     )
     .await?;
     assert_eq!(not_loaded.messages_view, InteractionMessagesView::NotLoaded);
-    assert!(not_loaded.messages.is_empty());
+    assert!(not_loaded.items.is_empty());
     assert_eq!(not_loaded.id, full.id);
     assert_eq!(not_loaded.status, full.status);
     assert_eq!(not_loaded.started_at, full.started_at);
@@ -484,7 +484,7 @@ async fn thread_read_loaded_include_turns_reads_store_history_without_rollout_pa
 
     let chat_id = datax_protocol::ChatId::from_string(&thread.id)?;
     store
-        .append_items(AppendThreadItemsParams {
+        .append_items(AppendChatMessagesParams {
             chat_id: chat_id,
             items: store_history_items(),
         })
@@ -1323,7 +1323,7 @@ async fn read_single_turn_items_view(
 fn turn_user_texts(interactions: &[datax_app_server_protocol::Interaction]) -> Vec<&str> {
     interactions
         .iter()
-        .filter_map(|turn| match turn.messages.first()? {
+        .filter_map(|turn| match turn.items.first()? {
             Message::UserMessage { content, .. } => match content.first()? {
                 UserInput::Text { text, .. } => Some(text.as_str()),
                 UserInput::Image { .. }
@@ -1339,7 +1339,7 @@ fn turn_user_texts(interactions: &[datax_app_server_protocol::Interaction]) -> V
 fn turn_agent_texts(interactions: &[datax_app_server_protocol::Interaction]) -> Vec<&str> {
     interactions
         .iter()
-        .flat_map(|turn| &turn.messages)
+        .flat_map(|turn| &turn.items)
         .filter_map(|item| match item {
             Message::AgentMessage { text, .. } => Some(text.as_str()),
             _ => None,
@@ -1381,7 +1381,7 @@ async fn seed_pathless_store_thread(
         })
         .await?;
     store
-        .append_items(AppendThreadItemsParams {
+        .append_items(AppendChatMessagesParams {
             chat_id: chat_id,
             items: store_history_items(),
         })
@@ -1399,8 +1399,8 @@ async fn seed_pathless_store_thread(
     Ok(())
 }
 
-fn store_history_items() -> Vec<RolloutItem> {
-    vec![RolloutItem::EventMsg(EventMsg::UserMessage(
+fn store_history_items() -> Vec<RolloutMessage> {
+    vec![RolloutMessage::EventMsg(EventMsg::UserMessage(
         UserMessageEvent {
             client_id: None,
             message: "history from store".to_string(),

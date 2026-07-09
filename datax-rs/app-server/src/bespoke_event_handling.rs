@@ -73,7 +73,7 @@ use datax_app_server_protocol::NetworkPolicyAmendment as V2NetworkPolicyAmendmen
 use datax_app_server_protocol::NetworkPolicyRuleAction as V2NetworkPolicyRuleAction;
 use datax_app_server_protocol::PermissionsRequestApprovalParams;
 use datax_app_server_protocol::PermissionsRequestApprovalResponse;
-use datax_app_server_protocol::RawResponseItemCompletedNotification;
+use datax_app_server_protocol::RawResponseMessageCompletedNotification;
 use datax_app_server_protocol::RequestId;
 use datax_app_server_protocol::ServerNotification;
 use datax_app_server_protocol::ServerNotification::*;
@@ -106,7 +106,7 @@ use datax_protocol::protocol::ReviewDecision;
 use datax_protocol::protocol::ReviewOutputEvent;
 use datax_protocol::protocol::SubAgentActivityKind;
 use datax_protocol::protocol::TokenCountEvent;
-use datax_protocol::protocol::TurnDiffEvent;
+use datax_protocol::protocol::InteractionDiffEvent;
 use datax_protocol::request_permissions::PermissionGrantScope as CorePermissionGrantScope;
 use datax_protocol::request_permissions::RequestPermissionProfile as CoreRequestPermissionProfile;
 use datax_protocol::request_permissions::RequestPermissionsResponse as CoreRequestPermissionsResponse;
@@ -171,7 +171,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                     completed_at: None,
                     duration_ms: None,
                 });
-                turn.messages.clear();
+                turn.items.clear();
                 turn.messages_view = InteractionMessagesView::NotLoaded;
                 turn
             };
@@ -865,7 +865,7 @@ pub(crate) async fn apply_bespoke_event_handling(
         }
         EventMsg::McpToolCallBegin(_) | EventMsg::McpToolCallEnd(_) => {
             // Deprecated MCP tool-call events are still fanned out for legacy clients.
-            // App-server v2 receives the canonical TurnItem::McpToolCall lifecycle instead.
+            // App-server v2 receives the canonical InteractionMessage::McpToolCall lifecycle instead.
         }
         msg @ (EventMsg::DynamicToolCallResponse(_)
         | EventMsg::CollabAgentSpawnBegin(_)
@@ -1030,8 +1030,8 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .send_server_notification(MessageCompleted(completed))
                 .await;
         }
-        msg @ (EventMsg::ItemStarted(_)
-        | EventMsg::ItemCompleted(_)
+        msg @ (EventMsg::MessageStarted(_)
+        | EventMsg::MessageCompleted(_)
         | EventMsg::PatchApplyUpdated(_)
         | EventMsg::TerminalInteraction(_)) => {
             let notification = item_event_to_server_notification(
@@ -1278,7 +1278,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                     .await;
             }
         }
-        EventMsg::TurnDiff(turn_diff_event) => {
+        EventMsg::InteractionDiff(turn_diff_event) => {
             handle_turn_diff(
                 conversation_id,
                 &event_interaction_id,
@@ -1309,7 +1309,7 @@ pub(crate) async fn apply_bespoke_event_handling(
 async fn handle_turn_diff(
     conversation_id: ChatId,
     event_interaction_id: &str,
-    turn_diff_event: TurnDiffEvent,
+    turn_diff_event: InteractionDiffEvent,
     outgoing: &ThreadScopedOutgoingMessageSender,
 ) {
     let notification = InteractionDiffUpdatedNotification {
@@ -1362,7 +1362,7 @@ async fn emit_turn_completed_with_status(
         chat_id: conversation_id.to_string(),
         turn: Interaction {
             id: event_interaction_id,
-            messages: vec![],
+            items: vec![],
             messages_view: InteractionMessagesView::NotLoaded,
             error: turn_completion_metadata.error,
             status: turn_completion_metadata.status,
@@ -1473,13 +1473,13 @@ async fn maybe_emit_raw_response_item_completed(
     item: datax_protocol::models::ResponseItem,
     outgoing: &ThreadScopedOutgoingMessageSender,
 ) {
-    let notification = RawResponseItemCompletedNotification {
+    let notification = RawResponseMessageCompletedNotification {
         chat_id: conversation_id.to_string(),
         interaction_id: interaction_id.to_string(),
         item,
     };
     outgoing
-        .send_server_notification(ServerNotification::RawResponseItemCompleted(notification))
+        .send_server_notification(ServerNotification::RawResponseMessageCompleted(notification))
         .await;
 }
 
@@ -1599,7 +1599,7 @@ async fn handle_thread_rollback_failed(
 }
 
 fn thread_rollback_response_from_stored_thread(
-    stored_thread: datax_thread_store::StoredThread,
+    stored_thread: datax_thread_store::StoredChat,
     session_id: String,
     fallback_model_provider: &str,
     fallback_cwd: &AbsolutePathBuf,
@@ -2220,14 +2220,14 @@ mod tests {
     use datax_protocol::protocol::GuardianAssessmentStatus;
     use datax_protocol::protocol::RateLimitSnapshot;
     use datax_protocol::protocol::RateLimitWindow;
-    use datax_protocol::protocol::RolloutItem;
+    use datax_protocol::protocol::RolloutMessage;
     use datax_protocol::protocol::SessionSource;
     use datax_protocol::protocol::SubAgentActivityEvent;
     use datax_protocol::protocol::TokenUsage;
     use datax_protocol::protocol::TokenUsageInfo;
     use datax_protocol::protocol::UserMessageEvent;
-    use datax_thread_store::StoredThread;
-    use datax_thread_store::StoredThreadHistory;
+    use datax_thread_store::StoredChat;
+    use datax_thread_store::StoredChatHistory;
     use datax_utils_absolute_path::AbsolutePathBuf;
     use datax_utils_absolute_path::test_support::PathBufExt;
     use datax_utils_absolute_path::test_support::test_path_buf;
@@ -2262,7 +2262,7 @@ mod tests {
         let chat_id = ChatId::from_string("00000000-0000-0000-0000-000000000789")?;
         let created_at = Utc::now();
         let history_items = vec![
-            RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+            RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
                 client_id: None,
                 message: "before rollback".to_string(),
                 images: None,
@@ -2270,13 +2270,13 @@ mod tests {
                 text_elements: Vec::new(),
                 ..Default::default()
             })),
-            RolloutItem::EventMsg(EventMsg::AgentMessage(AgentMessageEvent {
+            RolloutMessage::EventMsg(EventMsg::AgentMessage(AgentMessageEvent {
                 message: "after rollback".to_string(),
                 phase: None,
                 memory_citation: None,
             })),
         ];
-        let stored_thread = StoredThread {
+        let stored_thread = StoredChat {
             chat_id: chat_id,
             extra_config: None,
             rollout_path: None,
@@ -2303,7 +2303,7 @@ mod tests {
             permission_profile: PermissionProfile::read_only(),
             token_usage: None,
             first_user_message: Some("before rollback".to_string()),
-            history: Some(StoredThreadHistory {
+            history: Some(StoredChatHistory {
                 chat_id: chat_id,
                 items: history_items,
             }),
@@ -2325,7 +2325,7 @@ mod tests {
         assert_eq!(response.chat.name.as_deref(), Some("Rollback thread"));
         assert_eq!(response.chat.status, ChatStatus::NotLoaded);
         assert_eq!(response.chat.interactions.len(), 1);
-        assert_eq!(response.chat.interactions[0].messages.len(), 2);
+        assert_eq!(response.chat.interactions[0].items.len(), 2);
         Ok(())
     }
 
@@ -3397,7 +3397,7 @@ mod tests {
                     n.interaction.messages_view,
                     InteractionMessagesView::NotLoaded
                 );
-                assert!(n.interaction.messages.is_empty());
+                assert!(n.interaction.items.is_empty());
             }
             other => bail!("unexpected message: {other:?}"),
         }
@@ -3538,7 +3538,7 @@ mod tests {
                     n.interaction.messages_view,
                     InteractionMessagesView::NotLoaded
                 );
-                assert!(n.interaction.messages.is_empty());
+                assert!(n.interaction.items.is_empty());
                 assert_eq!(n.interaction.error, None);
                 assert_eq!(n.interaction.started_at, Some(42));
                 assert_eq!(n.interaction.completed_at, Some(TEST_TURN_COMPLETED_AT));
@@ -3948,7 +3948,7 @@ mod tests {
         handle_turn_diff(
             conversation_id,
             "turn-1",
-            TurnDiffEvent {
+            InteractionDiffEvent {
                 unified_diff: unified_diff.clone(),
             },
             &outgoing,

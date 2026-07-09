@@ -98,7 +98,7 @@ impl Session {
     )]
     pub async fn request_mcp_server_elicitation(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         request_id: RequestId,
         params: McpServerElicitationRequestParams,
     ) -> McpServerElicitationOutcome {
@@ -305,7 +305,7 @@ impl Session {
 
     async fn refresh_mcp_servers_inner(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         mcp_servers: HashMap<String, McpServerConfig>,
         store_mode: OAuthCredentialsStoreMode,
         keyring_backend_kind: AuthKeyringBackendKind,
@@ -381,7 +381,7 @@ impl Session {
 
     pub(crate) async fn refresh_mcp_servers_if_requested(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         elicitation_reviewer: Option<ElicitationReviewerHandle>,
     ) {
         let refresh_config = { self.pending_mcp_server_refresh_config.lock().await.take() };
@@ -461,7 +461,7 @@ impl Session {
 
     pub(crate) async fn refresh_mcp_servers_now(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         mcp_servers: HashMap<String, McpServerConfig>,
         store_mode: OAuthCredentialsStoreMode,
         keyring_backend_kind: AuthKeyringBackendKind,

@@ -1,21 +1,21 @@
 use super::*;
 use datax_extension_api::ExtensionData;
-use datax_extension_api::TurnItemContributor;
+use datax_extension_api::InteractionMessageContributor;
 use datax_protocol::items::AgentMessageContent;
 use pretty_assertions::assert_eq;
 use std::sync::Arc;
 
 struct RewriteAgentMessageContributor;
 
-impl TurnItemContributor for RewriteAgentMessageContributor {
+impl InteractionMessageContributor for RewriteAgentMessageContributor {
     fn contribute<'a>(
         &'a self,
         _thread_store: &'a ExtensionData,
         _turn_store: &'a ExtensionData,
-        item: &'a mut TurnItem,
+        item: &'a mut InteractionMessage,
     ) -> datax_extension_api::ExtensionFuture<'a, Result<(), String>> {
         Box::pin(async move {
-            if let TurnItem::AgentMessage(agent_message) = item {
+            if let InteractionMessage::AgentMessage(agent_message) = item {
                 agent_message.content = vec![AgentMessageContent::Text {
                     text: "plan contributed assistant text".to_string(),
                 }];

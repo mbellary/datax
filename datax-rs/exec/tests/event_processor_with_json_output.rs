@@ -53,8 +53,8 @@ use datax_exec::EventProcessorWithJsonOutput;
 use datax_exec::ExecThreadItem;
 use datax_exec::FileChangeItem;
 use datax_exec::FileUpdateChange as ExecFileUpdateChange;
-use datax_exec::ItemCompletedEvent;
-use datax_exec::ItemStartedEvent;
+use datax_exec::MessageCompletedEvent;
+use datax_exec::MessageStartedEvent;
 use datax_exec::ItemUpdatedEvent;
 use datax_exec::McpToolCallItem;
 use datax_exec::McpToolCallItemError;
@@ -192,7 +192,7 @@ fn command_execution_started_and_completed_translate_to_thread_events() {
     assert_eq!(
         started,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemStarted(ItemStartedEvent {
+            events: vec![ThreadEvent::MessageStarted(MessageStartedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::CommandExecution(CommandExecutionItem {
@@ -229,7 +229,7 @@ fn command_execution_started_and_completed_translate_to_thread_events() {
     assert_eq!(
         completed,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemCompleted(ItemCompletedEvent {
+            events: vec![ThreadEvent::MessageCompleted(MessageCompletedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::CommandExecution(CommandExecutionItem {
@@ -312,7 +312,7 @@ fn unsupported_items_do_not_consume_synthetic_ids() {
     assert_eq!(
         collected,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemCompleted(ItemCompletedEvent {
+            events: vec![ThreadEvent::MessageCompleted(MessageCompletedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::AgentMessage(AgentMessageItem {
@@ -345,7 +345,7 @@ fn reasoning_items_emit_summary_not_raw_content() {
     assert_eq!(
         collected,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemCompleted(ItemCompletedEvent {
+            events: vec![ThreadEvent::MessageCompleted(MessageCompletedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::Reasoning(ReasoningItem {
@@ -381,7 +381,7 @@ fn web_search_completion_preserves_query_and_action() {
     assert_eq!(
         collected,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemCompleted(ItemCompletedEvent {
+            events: vec![ThreadEvent::MessageCompleted(MessageCompletedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::WebSearch(WebSearchItem {
@@ -435,7 +435,7 @@ fn web_search_start_and_completion_reuse_item_id() {
     assert_eq!(
         started,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemStarted(ItemStartedEvent {
+            events: vec![ThreadEvent::MessageStarted(MessageStartedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::WebSearch(WebSearchItem {
@@ -451,7 +451,7 @@ fn web_search_start_and_completion_reuse_item_id() {
     assert_eq!(
         completed,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemCompleted(ItemCompletedEvent {
+            events: vec![ThreadEvent::MessageCompleted(MessageCompletedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::WebSearch(WebSearchItem {
@@ -521,7 +521,7 @@ fn mcp_tool_call_begin_and_end_emit_item_events() {
     assert_eq!(
         started,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemStarted(ItemStartedEvent {
+            events: vec![ThreadEvent::MessageStarted(MessageStartedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::McpToolCall(McpToolCallItem {
@@ -540,7 +540,7 @@ fn mcp_tool_call_begin_and_end_emit_item_events() {
     assert_eq!(
         completed,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemCompleted(ItemCompletedEvent {
+            events: vec![ThreadEvent::MessageCompleted(MessageCompletedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::McpToolCall(McpToolCallItem {
@@ -592,7 +592,7 @@ fn mcp_tool_call_failure_sets_failed_status() {
     assert_eq!(
         collected,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemCompleted(ItemCompletedEvent {
+            events: vec![ThreadEvent::MessageCompleted(MessageCompletedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::McpToolCall(McpToolCallItem {
@@ -667,7 +667,7 @@ fn mcp_tool_call_defaults_arguments_and_preserves_structured_content() {
     assert_eq!(
         started,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemStarted(ItemStartedEvent {
+            events: vec![ThreadEvent::MessageStarted(MessageStartedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::McpToolCall(McpToolCallItem {
@@ -686,7 +686,7 @@ fn mcp_tool_call_defaults_arguments_and_preserves_structured_content() {
     assert_eq!(
         completed,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemCompleted(ItemCompletedEvent {
+            events: vec![ThreadEvent::MessageCompleted(MessageCompletedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::McpToolCall(McpToolCallItem {
@@ -761,7 +761,7 @@ fn collab_spawn_begin_and_end_emit_item_events() {
     assert_eq!(
         started,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemStarted(ItemStartedEvent {
+            events: vec![ThreadEvent::MessageStarted(MessageStartedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::CollabToolCall(CollabToolCallItem {
@@ -780,7 +780,7 @@ fn collab_spawn_begin_and_end_emit_item_events() {
     assert_eq!(
         completed,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemCompleted(ItemCompletedEvent {
+            events: vec![ThreadEvent::MessageCompleted(MessageCompletedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::CollabToolCall(CollabToolCallItem {
@@ -840,7 +840,7 @@ fn file_change_completion_maps_change_kinds() {
     assert_eq!(
         collected,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemCompleted(ItemCompletedEvent {
+            events: vec![ThreadEvent::MessageCompleted(MessageCompletedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::FileChange(FileChangeItem {
@@ -891,7 +891,7 @@ fn file_change_declined_maps_to_failed_status() {
     assert_eq!(
         collected,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemCompleted(ItemCompletedEvent {
+            events: vec![ThreadEvent::MessageCompleted(MessageCompletedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::FileChange(FileChangeItem {
@@ -929,7 +929,7 @@ fn agent_message_item_updates_final_message() {
     assert_eq!(
         collected,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemCompleted(ItemCompletedEvent {
+            events: vec![ThreadEvent::MessageCompleted(MessageCompletedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::AgentMessage(AgentMessageItem {
@@ -990,7 +990,7 @@ fn reasoning_item_completed_uses_synthetic_id() {
     assert_eq!(
         collected,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemCompleted(ItemCompletedEvent {
+            events: vec![ThreadEvent::MessageCompleted(MessageCompletedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::Reasoning(ReasoningItem {
@@ -1014,7 +1014,7 @@ fn warning_event_produces_error_item() {
     assert_eq!(
         collected,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemCompleted(ItemCompletedEvent {
+            events: vec![ThreadEvent::MessageCompleted(MessageCompletedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::Error(ErrorItem {
@@ -1051,7 +1051,7 @@ fn plan_update_emits_started_then_updated_then_completed() {
     assert_eq!(
         started,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemStarted(ItemStartedEvent {
+            events: vec![ThreadEvent::MessageStarted(MessageStartedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::TodoList(TodoListItem {
@@ -1132,7 +1132,7 @@ fn plan_update_emits_started_then_updated_then_completed() {
         completed,
         CollectedThreadEvents {
             events: vec![
-                ThreadEvent::ItemCompleted(ItemCompletedEvent {
+                ThreadEvent::MessageCompleted(MessageCompletedEvent {
                     item: ExecThreadItem {
                         id: "item_0".to_string(),
                         details: ThreadItemDetails::TodoList(TodoListItem {
@@ -1204,7 +1204,7 @@ fn plan_update_after_completion_starts_new_todo_list_with_new_id() {
     assert_eq!(
         restarted,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemStarted(ItemStartedEvent {
+            events: vec![ThreadEvent::MessageStarted(MessageStartedEvent {
                 item: ExecThreadItem {
                     id: "item_1".to_string(),
                     details: ThreadItemDetails::TodoList(TodoListItem {
@@ -1349,7 +1349,7 @@ fn turn_completion_reconciles_started_items_from_turn_items() {
     assert_eq!(
         started,
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemStarted(ItemStartedEvent {
+            events: vec![ThreadEvent::MessageStarted(MessageStartedEvent {
                 item: ExecThreadItem {
                     id: "item_0".to_string(),
                     details: ThreadItemDetails::CommandExecution(CommandExecutionItem {
@@ -1395,7 +1395,7 @@ fn turn_completion_reconciles_started_items_from_turn_items() {
         completed,
         CollectedThreadEvents {
             events: vec![
-                ThreadEvent::ItemCompleted(ItemCompletedEvent {
+                ThreadEvent::MessageCompleted(MessageCompletedEvent {
                     item: ExecThreadItem {
                         id: "item_0".to_string(),
                         details: ThreadItemDetails::CommandExecution(CommandExecutionItem {
@@ -1658,8 +1658,8 @@ fn model_reroute_surfaces_as_error_item() {
 
     assert_eq!(collected.status, CodexStatus::Running);
     assert_eq!(collected.events.len(), 1);
-    let ThreadEvent::ItemCompleted(ItemCompletedEvent { item }) = &collected.events[0] else {
-        panic!("expected ItemCompleted");
+    let ThreadEvent::MessageCompleted(MessageCompletedEvent { item }) = &collected.events[0] else {
+        panic!("expected MessageCompleted");
     };
     assert_eq!(item.id, "item_0");
     assert_eq!(

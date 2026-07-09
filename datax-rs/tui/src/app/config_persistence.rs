@@ -575,7 +575,7 @@ impl App {
         {
             self.sync_active_thread_permission_settings_to_cached_session()
                 .await;
-            // This uses `OverrideTurnContext` intentionally: toggling the
+            // This uses `OverrideInteractionContext` intentionally: toggling the
             // experiment should update the active thread's effective approval
             // settings immediately, just like a `/permissions` selection. Without
             // this runtime patch, the config edit would only affect future

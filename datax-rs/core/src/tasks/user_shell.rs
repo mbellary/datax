@@ -16,7 +16,7 @@ use crate::exec::execute_exec_request;
 use crate::exec_env::create_env;
 use crate::sandboxing::ExecRequest;
 use crate::session::TurnInput;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::shell::Shell;
 use crate::state::TaskKind;
 use crate::tools::format_exec_output_str;
@@ -80,7 +80,7 @@ impl SessionTask for UserShellCommandTask {
     async fn run(
         self: Arc<Self>,
         session: Arc<SessionTaskContext>,
-        turn_context: Arc<TurnContext>,
+        turn_context: Arc<InteractionContext>,
         _input: Vec<TurnInput>,
         cancellation_token: CancellationToken,
     ) -> SessionTaskResult {
@@ -98,7 +98,7 @@ impl SessionTask for UserShellCommandTask {
 
 pub(crate) async fn execute_user_shell_command(
     session: Arc<Session>,
-    turn_context: Arc<TurnContext>,
+    turn_context: Arc<InteractionContext>,
     command: String,
     cancellation_token: CancellationToken,
     mode: UserShellCommandMode,
@@ -365,7 +365,7 @@ pub(crate) async fn execute_user_shell_command(
     }
 }
 
-async fn send_user_shell_error(session: &Session, turn_context: &TurnContext, message: &str) {
+async fn send_user_shell_error(session: &Session, turn_context: &InteractionContext, message: &str) {
     session
         .send_event(
             turn_context,
@@ -441,7 +441,7 @@ fn prepare_user_shell_exec_command_with_path_prepend(
 
 async fn persist_user_shell_output(
     session: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     raw_command: &str,
     exec_output: &ExecToolCallOutput,
     mode: UserShellCommandMode,

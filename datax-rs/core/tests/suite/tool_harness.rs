@@ -20,7 +20,7 @@ use core_test_support::test_codex::TestCodex;
 use core_test_support::test_codex::test_codex;
 use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::wait_for_event;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::models::PermissionProfile;
 use datax_protocol::plan_tool::StepStatus;
 use datax_protocol::protocol::AskForApproval;
@@ -403,16 +403,16 @@ async fn apply_patch_tool_executes_and_emits_patch_events() -> anyhow::Result<()
     let mut saw_patch_begin = false;
     let mut patch_end_success = None;
     wait_for_event(&codex, |event| match event {
-        EventMsg::ItemStarted(started) => {
-            if let TurnItem::FileChange(item) = &started.item {
+        EventMsg::MessageStarted(started) => {
+            if let InteractionMessage::FileChange(item) = &started.item {
                 saw_file_change_started = true;
                 assert_eq!(item.id, call_id);
                 assert_eq!(item.status, None);
             }
             false
         }
-        EventMsg::ItemCompleted(completed) => {
-            if let TurnItem::FileChange(item) = &completed.item {
+        EventMsg::MessageCompleted(completed) => {
+            if let InteractionMessage::FileChange(item) = &completed.item {
                 saw_file_change_completed = true;
                 assert_eq!(item.id, call_id);
                 assert_eq!(
@@ -439,11 +439,11 @@ async fn apply_patch_tool_executes_and_emits_patch_events() -> anyhow::Result<()
 
     assert!(
         saw_file_change_started,
-        "expected ItemStarted for TurnItem::FileChange"
+        "expected MessageStarted for InteractionMessage::FileChange"
     );
     assert!(
         saw_file_change_completed,
-        "expected ItemCompleted for TurnItem::FileChange"
+        "expected MessageCompleted for InteractionMessage::FileChange"
     );
     assert!(saw_patch_begin, "expected PatchApplyBegin event");
     let patch_end_success =

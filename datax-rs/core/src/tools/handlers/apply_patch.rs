@@ -11,11 +11,11 @@ use crate::apply_patch::InternalApplyPatchInvocation;
 use crate::apply_patch::convert_apply_patch_to_protocol;
 use crate::function_tool::FunctionCallError;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::session::turn_context::TurnEnvironment;
 use crate::tools::context::ApplyPatchToolOutput;
 use crate::tools::context::FunctionToolOutput;
-use crate::tools::context::SharedTurnDiffTracker;
+use crate::tools::context::SharedInteractionDiffTracker;
 use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolPayload;
 use crate::tools::context::boxed_tool_output;
@@ -78,7 +78,7 @@ struct ApplyPatchArgumentDiffConsumer {
 impl ToolArgumentDiffConsumer for ApplyPatchArgumentDiffConsumer {
     fn consume_diff(
         &mut self,
-        turn: &TurnContext,
+        turn: &InteractionContext,
         call_id: String,
         diff: &str,
     ) -> Option<EventMsg> {
@@ -260,7 +260,7 @@ fn apply_patch_payload_command(payload: &ToolPayload) -> Option<String> {
 
 async fn effective_patch_permissions(
     session: &Session,
-    turn: &TurnContext,
+    turn: &InteractionContext,
     environment_id: &str,
     action: &ApplyPatchAction,
     cwd: &PathUri,
@@ -546,8 +546,8 @@ pub(crate) async fn intercept_apply_patch(
     fs: &dyn ExecutorFileSystem,
     turn_environment: TurnEnvironment,
     session: Arc<Session>,
-    turn: Arc<TurnContext>,
-    tracker: Option<&SharedTurnDiffTracker>,
+    turn: Arc<InteractionContext>,
+    tracker: Option<&SharedInteractionDiffTracker>,
     call_id: &str,
     tool_name: &str,
 ) -> Result<Option<FunctionToolOutput>, FunctionCallError> {

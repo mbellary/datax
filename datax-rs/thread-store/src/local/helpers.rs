@@ -19,7 +19,7 @@ use datax_rollout::ARCHIVED_SESSIONS_SUBDIR;
 use datax_rollout::ThreadItem;
 use datax_state::ThreadMetadata;
 
-use crate::StoredThread;
+use crate::StoredChat;
 use crate::ThreadStoreError;
 use crate::ThreadStoreResult;
 
@@ -100,7 +100,7 @@ pub(super) fn stored_thread_from_rollout_item(
     item: ThreadItem,
     archived: bool,
     default_provider: &str,
-) -> Option<StoredThread> {
+) -> Option<StoredChat> {
     let chat_id = item
         .chat_id
         .or_else(|| chat_id_from_rollout_path(item.path.as_path()))?;
@@ -121,7 +121,7 @@ pub(super) fn stored_thread_from_rollout_item(
         .unwrap_or_default();
     let rollout_path = datax_rollout::plain_rollout_path(item.path.as_path());
 
-    Some(StoredThread {
+    Some(StoredChat {
         chat_id,
         extra_config: None,
         rollout_path: Some(rollout_path),
@@ -185,7 +185,7 @@ pub(super) fn distinct_thread_metadata_title(metadata: &ThreadMetadata) -> Optio
     }
 }
 
-pub(super) fn set_thread_name_from_title(thread: &mut StoredThread, title: String) {
+pub(super) fn set_thread_name_from_title(thread: &mut StoredChat, title: String) {
     if title.trim().is_empty() || thread.preview.trim() == title.trim() {
         return;
     }

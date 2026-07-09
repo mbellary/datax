@@ -1,6 +1,6 @@
 use super::input_queue::TurnInput;
 use super::session::Session;
-use super::turn_context::TurnContext;
+use super::turn_context::InteractionContext;
 use crate::datax_chat::TryStartTurnIfIdleError;
 use crate::datax_chat::TryStartTurnIfIdleRejectionReason;
 use crate::state::ActiveTurn;
@@ -143,7 +143,7 @@ impl Session {
     pub(crate) async fn inject_no_new_turn(
         &self,
         items: Vec<ResponseItem>,
-        current_turn_context: Option<&TurnContext>,
+        current_turn_context: Option<&InteractionContext>,
     ) {
         let Err(items) = self.inject_if_running(items).await else {
             return;

@@ -7,7 +7,7 @@ use crate::config::NetworkProxySpec;
 use crate::config::test_config;
 use crate::guardian::approval_request::guardian_request_target_item_id;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::test_support;
 use core_test_support::PathBufExt;
 use core_test_support::TempDirExt;
@@ -67,7 +67,7 @@ use datax_protocol::protocol::GuardianRiskLevel;
 use datax_protocol::protocol::GuardianUserAuthorization;
 use datax_protocol::protocol::InteractionCompleteEvent;
 use datax_protocol::protocol::ReviewDecision;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use insta::Settings;
 use insta::assert_snapshot;
 use pretty_assertions::assert_eq;
@@ -216,7 +216,7 @@ fn auto_review_rejection_circuit_breaker_forgets_denials_outside_recent_review_w
 
 async fn guardian_test_session_and_turn(
     server: &wiremock::MockServer,
-) -> (Arc<Session>, Arc<TurnContext>) {
+) -> (Arc<Session>, Arc<InteractionContext>) {
     guardian_test_session_and_turn_with_base_url(server.uri().as_str()).await
 }
 
@@ -224,7 +224,7 @@ async fn guardian_test_session_turn_and_rx(
     server: &wiremock::MockServer,
 ) -> (
     Arc<Session>,
-    Arc<TurnContext>,
+    Arc<InteractionContext>,
     async_channel::Receiver<Event>,
 ) {
     let (mut session, mut turn, rx) =
@@ -266,7 +266,7 @@ fn guardian_shell_request(id: &str) -> GuardianApprovalRequest {
 
 async fn guardian_test_session_and_turn_with_base_url(
     base_url: &str,
-) -> (Arc<Session>, Arc<TurnContext>) {
+) -> (Arc<Session>, Arc<InteractionContext>) {
     let (mut session, mut turn) = crate::session::tests::make_session_and_context().await;
     session.chat_id = fixed_guardian_parent_session_id();
     let mut config = (*turn.config).clone();
@@ -285,7 +285,7 @@ async fn guardian_test_session_and_turn_with_base_url(
     (Arc::new(session), Arc::new(turn))
 }
 
-async fn seed_guardian_parent_history(session: &Arc<Session>, turn: &Arc<TurnContext>) {
+async fn seed_guardian_parent_history(session: &Arc<Session>, turn: &Arc<InteractionContext>) {
     session
         .record_conversation_items(
             turn.as_ref(),
@@ -331,8 +331,8 @@ async fn seed_guardian_parent_history(session: &Arc<Session>, turn: &Arc<TurnCon
         .await;
 }
 
-fn rollout_item_contains_message_text(item: &RolloutItem, needle: &str) -> bool {
-    let RolloutItem::ResponseItem(response_item) = item else {
+fn rollout_item_contains_message_text(item: &RolloutMessage, needle: &str) -> bool {
+    let RolloutMessage::ResponseItem(response_item) = item else {
         return false;
     };
     response_item_contains_message_text(response_item, needle)

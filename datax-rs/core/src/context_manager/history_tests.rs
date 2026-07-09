@@ -22,7 +22,7 @@ use datax_protocol::openai_models::default_input_modalities;
 use datax_protocol::protocol::AskForApproval;
 use datax_protocol::protocol::InterAgentCommunication;
 use datax_protocol::protocol::SandboxPolicy;
-use datax_protocol::protocol::TurnContextItem;
+use datax_protocol::protocol::InteractionContextMessage;
 use datax_utils_absolute_path::AbsolutePathBuf;
 use datax_utils_output_truncation::TruncationPolicy;
 use datax_utils_output_truncation::truncate_text;
@@ -145,8 +145,8 @@ fn developer_msg_with_fragments(texts: &[&str]) -> ResponseItem {
     }
 }
 
-fn reference_context_item() -> TurnContextItem {
-    TurnContextItem {
+fn reference_context_item() -> InteractionContextMessage {
+    InteractionContextMessage {
         interaction_id: Some("reference-turn".to_string()),
         cwd: AbsolutePathBuf::try_from(
             std::env::current_dir()

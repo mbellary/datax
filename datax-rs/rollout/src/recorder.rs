@@ -55,7 +55,7 @@ use datax_protocol::protocol::GitInfo as ProtocolGitInfo;
 use datax_protocol::protocol::InitialHistory;
 use datax_protocol::protocol::MultiAgentVersion;
 use datax_protocol::protocol::ResumedHistory;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::protocol::SessionMeta;
 use datax_protocol::protocol::SessionMetaLine;
@@ -98,7 +98,7 @@ pub enum RolloutRecorderParams {
 }
 
 enum RolloutCmd {
-    AddItems(Vec<RolloutItem>),
+    AddItems(Vec<RolloutMessage>),
     Persist {
         ack: oneshot::Sender<std::io::Result<()>>,
     },
@@ -820,7 +820,7 @@ impl RolloutRecorder {
         self.rollout_path.as_path()
     }
 
-    pub async fn record_canonical_items(&self, items: &[RolloutItem]) -> std::io::Result<()> {
+    pub async fn record_canonical_items(&self, items: &[RolloutMessage]) -> std::io::Result<()> {
         if items.is_empty() {
             return Ok(());
         }
@@ -878,9 +878,9 @@ impl RolloutRecorder {
 
     pub async fn load_rollout_items(
         path: &Path,
-    ) -> std::io::Result<(Vec<RolloutItem>, Option<ChatId>, usize)> {
+    ) -> std::io::Result<(Vec<RolloutMessage>, Option<ChatId>, usize)> {
         trace!("Resuming rollout from {path:?}");
-        let mut items: Vec<RolloutItem> = Vec::new();
+        let mut items: Vec<RolloutMessage> = Vec::new();
         let mut chat_id: Option<ChatId> = None;
         let mut parse_errors = 0usize;
         let mut reader = compression::open_rollout_line_reader(path).await?;
@@ -910,7 +910,7 @@ impl RolloutRecorder {
                     // Use the FIRST SessionMeta encountered in the file as the canonical
                     // thread id and main session information. Keep all items intact.
                     if chat_id.is_none()
-                        && let RolloutItem::SessionMeta(session_meta_line) = &item
+                        && let RolloutMessage::SessionMeta(session_meta_line) = &item
                     {
                         chat_id = Some(session_meta_line.meta.id);
                     }
@@ -1471,7 +1471,7 @@ fn open_log_file(path: &Path) -> std::io::Result<File> {
 struct RolloutWriterState {
     writer: Option<JsonlWriter>,
     deferred_log_file_info: Option<LogFileInfo>,
-    pending_items: Vec<RolloutItem>,
+    pending_items: Vec<RolloutMessage>,
     meta: Option<SessionMeta>,
     cwd: PathBuf,
     rollout_path: PathBuf,
@@ -1497,7 +1497,7 @@ impl RolloutWriterState {
         }
     }
 
-    fn add_items(&mut self, items: Vec<RolloutItem>) {
+    fn add_items(&mut self, items: Vec<RolloutMessage>) {
         self.pending_items.extend(items);
     }
 
@@ -1693,7 +1693,7 @@ async fn write_session_meta(
         git: git_info,
     };
 
-    let rollout_item = RolloutItem::SessionMeta(session_meta_line);
+    let rollout_item = RolloutMessage::SessionMeta(session_meta_line);
     if let Some(writer) = writer.as_mut() {
         writer.write_rollout_item(&rollout_item).await?;
     }
@@ -1707,7 +1707,7 @@ async fn write_session_meta(
 /// with the rest of the session stream.
 pub async fn append_rollout_item_to_path(
     rollout_path: &Path,
-    item: &RolloutItem,
+    item: &RolloutMessage,
 ) -> std::io::Result<()> {
     let rollout_path = compression::materialize_rollout_for_append(rollout_path).await?;
     let file = tokio::fs::OpenOptions::new()
@@ -1726,11 +1726,11 @@ struct JsonlWriter {
 struct RolloutLineRef<'a> {
     timestamp: String,
     #[serde(flatten)]
-    item: &'a RolloutItem,
+    item: &'a RolloutMessage,
 }
 
 impl JsonlWriter {
-    async fn write_rollout_item(&mut self, rollout_item: &RolloutItem) -> std::io::Result<()> {
+    async fn write_rollout_item(&mut self, rollout_item: &RolloutMessage) -> std::io::Result<()> {
         let timestamp_format: &[FormatItem] = format_description!(
             "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3]Z"
         );
@@ -1832,12 +1832,12 @@ async fn resume_candidate_matches_cwd(
 
     if let Ok((items, _, _)) = RolloutRecorder::load_rollout_items(rollout_path).await
         && let Some(latest_turn_context_cwd) = items.iter().rev().find_map(|item| match item {
-            RolloutItem::TurnContext(turn_context) => Some(&turn_context.cwd),
-            RolloutItem::SessionMeta(_)
-            | RolloutItem::ResponseItem(_)
-            | RolloutItem::InterAgentCommunication(_)
-            | RolloutItem::Compacted(_)
-            | RolloutItem::EventMsg(_) => None,
+            RolloutMessage::InteractionContext(turn_context) => Some(&turn_context.cwd),
+            RolloutMessage::SessionMeta(_)
+            | RolloutMessage::ResponseItem(_)
+            | RolloutMessage::InterAgentCommunication(_)
+            | RolloutMessage::Compacted(_)
+            | RolloutMessage::EventMsg(_) => None,
         })
     {
         return cwd_matches(latest_turn_context_cwd.as_path(), cwd);

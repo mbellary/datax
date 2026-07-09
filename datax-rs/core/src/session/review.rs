@@ -5,7 +5,7 @@ use std::sync::atomic::AtomicBool;
 pub(super) async fn spawn_review_thread(
     sess: Arc<Session>,
     config: Arc<Config>,
-    parent_turn_context: Arc<TurnContext>,
+    parent_turn_context: Arc<InteractionContext>,
     sub_id: String,
     resolved: crate::review_prompts::ResolvedReviewRequest,
 ) {
@@ -105,7 +105,7 @@ pub(super) async fn spawn_review_thread(
     ));
     extension_data.insert(parent_turn_context.turn_skills.snapshot.clone());
 
-    let review_turn_context = TurnContext {
+    let review_turn_context = InteractionContext {
         sub_id: review_interaction_id.clone(),
         trace_id: current_span_trace_id(),
         realtime_active: parent_turn_context.realtime_active,

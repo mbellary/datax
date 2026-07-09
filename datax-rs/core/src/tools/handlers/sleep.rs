@@ -7,7 +7,7 @@ use crate::tools::handlers::parse_arguments;
 use crate::tools::registry::CoreToolRuntime;
 use crate::tools::registry::ToolExecutor;
 use datax_protocol::items::SleepItem;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_tools::JsonSchema;
 use datax_tools::ResponsesApiTool;
 use datax_tools::ToolName;
@@ -82,7 +82,7 @@ impl ToolExecutor<ToolInvocation> for SleepHandler {
             }
 
             let started = Instant::now();
-            let item = TurnItem::Sleep(SleepItem {
+            let item = InteractionMessage::Sleep(SleepItem {
                 id: call_id,
                 duration_ms: args.duration_ms,
             });

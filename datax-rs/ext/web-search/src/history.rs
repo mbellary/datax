@@ -1,6 +1,6 @@
 use datax_api::SearchInput;
 use datax_core::parse_turn_item;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::models::ContentItem;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::models::plaintext_agent_message_content;
@@ -58,7 +58,7 @@ fn push_visible_message(messages: &mut Vec<ResponseItem>, item: &ResponseItem) {
             phase,
             internal_chat_message_metadata_passthrough: metadata,
         } if role == USER_ROLE
-            && matches!(parse_turn_item(item), Some(TurnItem::UserMessage(_))) =>
+            && matches!(parse_turn_item(item), Some(InteractionMessage::UserMessage(_))) =>
         {
             let content = content
                 .iter()

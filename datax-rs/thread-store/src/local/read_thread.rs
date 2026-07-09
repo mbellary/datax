@@ -21,15 +21,15 @@ use super::helpers::set_thread_name_from_title;
 use super::helpers::stored_thread_from_rollout_item;
 use super::live_writer;
 use crate::ReadThreadParams;
-use crate::StoredThread;
-use crate::StoredThreadHistory;
+use crate::StoredChat;
+use crate::StoredChatHistory;
 use crate::ThreadStoreError;
 use crate::ThreadStoreResult;
 
 pub(super) async fn read_thread(
     store: &LocalThreadStore,
     params: ReadThreadParams,
-) -> ThreadStoreResult<StoredThread> {
+) -> ThreadStoreResult<StoredChat> {
     let chat_id = params.chat_id;
     if let Some(metadata) = read_sqlite_metadata(store, chat_id).await
         && (params.include_archived
@@ -107,7 +107,7 @@ pub(super) async fn read_thread_by_rollout_path(
     rollout_path: std::path::PathBuf,
     include_archived: bool,
     include_history: bool,
-) -> ThreadStoreResult<StoredThread> {
+) -> ThreadStoreResult<StoredChat> {
     let path = resolve_requested_rollout_path(store, rollout_path).await?;
     let mut thread = read_thread_from_rollout_path(store, path).await?;
     if !include_archived && thread.archived_at.is_some() {
@@ -178,7 +178,7 @@ async fn resolve_requested_rollout_path(
 }
 
 async fn attach_history_if_requested(
-    thread: &mut StoredThread,
+    thread: &mut StoredChat,
     include_history: bool,
 ) -> ThreadStoreResult<()> {
     if !include_history {
@@ -191,7 +191,7 @@ async fn attach_history_if_requested(
         });
     };
     let items = load_history_items(&path).await?;
-    thread.history = Some(StoredThreadHistory { chat_id, items });
+    thread.history = Some(StoredChatHistory { chat_id, items });
     Ok(())
 }
 
@@ -247,7 +247,7 @@ async fn resolve_rollout_path(
 async fn read_thread_from_rollout_path(
     store: &LocalThreadStore,
     path: std::path::PathBuf,
-) -> ThreadStoreResult<StoredThread> {
+) -> ThreadStoreResult<StoredChat> {
     let Some(item) = read_thread_item_from_rollout(path.clone()).await else {
         return stored_thread_from_session_meta(store, path).await;
     };
@@ -282,7 +282,7 @@ async fn read_thread_from_rollout_path(
 
 async fn load_history_items(
     path: &std::path::Path,
-) -> ThreadStoreResult<Vec<datax_protocol::protocol::RolloutItem>> {
+) -> ThreadStoreResult<Vec<datax_protocol::protocol::RolloutMessage>> {
     let (items, _, _) = RolloutRecorder::load_rollout_items(path)
         .await
         .map_err(|err| ThreadStoreError::Internal {
@@ -302,7 +302,7 @@ async fn read_sqlite_metadata(
 async fn stored_thread_from_sqlite_metadata(
     store: &LocalThreadStore,
     metadata: ThreadMetadata,
-) -> StoredThread {
+) -> StoredChat {
     let name = match distinct_thread_metadata_title(&metadata) {
         Some(title) => Some(title),
         None => find_thread_name_by_id(store.config.codex_home.as_path(), &metadata.id)
@@ -325,7 +325,7 @@ async fn stored_thread_from_sqlite_metadata(
         .unwrap_or_default();
     let permission_profile =
         permission_profile_from_metadata_value(&metadata.sandbox_policy, metadata.cwd.as_path());
-    StoredThread {
+    StoredChat {
         chat_id: metadata.id,
         extra_config: None,
         rollout_path: Some(rollout_path),
@@ -367,7 +367,7 @@ async fn stored_thread_from_sqlite_metadata(
 async fn stored_thread_from_session_meta(
     store: &LocalThreadStore,
     path: std::path::PathBuf,
-) -> ThreadStoreResult<StoredThread> {
+) -> ThreadStoreResult<StoredChat> {
     let meta_line = read_session_meta_line(path.as_path())
         .await
         .map_err(|err| ThreadStoreError::Internal {
@@ -384,7 +384,7 @@ fn stored_thread_from_meta_line(
     meta_line: SessionMetaLine,
     path: std::path::PathBuf,
     archived: bool,
-) -> StoredThread {
+) -> StoredChat {
     let created_at = parse_rfc3339_non_optional(&meta_line.meta.timestamp).unwrap_or_else(Utc::now);
     let updated_at = std::fs::metadata(path.as_path())
         .ok()
@@ -392,7 +392,7 @@ fn stored_thread_from_meta_line(
         .map(DateTime::<Utc>::from)
         .unwrap_or(created_at);
     let rollout_path = datax_rollout::plain_rollout_path(path.as_path());
-    StoredThread {
+    StoredChat {
         chat_id: meta_line.meta.id,
         extra_config: None,
         rollout_path: Some(rollout_path),

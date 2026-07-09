@@ -5,7 +5,7 @@ mod export;
 mod ledger;
 mod records;
 
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;
@@ -32,7 +32,7 @@ pub struct ImportedExternalAgentSession {
     pub cwd: PathBuf,
     pub title: Option<String>,
     pub first_user_message: Option<String>,
-    pub rollout_items: Vec<RolloutItem>,
+    pub rollout_items: Vec<RolloutMessage>,
 }
 
 #[derive(Debug, Clone)]

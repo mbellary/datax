@@ -35,7 +35,7 @@ use datax_protocol::openai_models::ModelsResponse;
 use datax_protocol::openai_models::ReasoningEffort;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::Op;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::protocol::SessionSource;
 use pretty_assertions::assert_eq;
@@ -678,7 +678,7 @@ async fn seed_stage1_candidate(
     let rollout_path = codex_home.join(format!("rollout-{chat_id}.jsonl"));
     let line = RolloutLine {
         timestamp: updated_at.to_rfc3339(),
-        item: RolloutItem::ResponseItem(ResponseItem::Message {
+        item: RolloutMessage::ResponseItem(ResponseItem::Message {
             id: None,
             role: "user".to_string(),
             content: vec![ContentItem::InputText {

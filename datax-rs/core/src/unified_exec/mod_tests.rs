@@ -6,7 +6,7 @@ use crate::exec::ExecExpiration;
 use crate::sandboxing::ExecRequest;
 use crate::session::session::Session;
 use crate::session::tests::make_session_and_context;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::tools::context::ExecCommandToolOutput;
 use crate::unified_exec::WriteStdinRequest;
 use crate::unified_exec::process::OutputHandles;
@@ -35,14 +35,14 @@ use tokio::sync::watch;
 use tokio::time::Duration;
 use tokio::time::Instant;
 
-async fn test_session_and_turn() -> (Arc<Session>, Arc<TurnContext>) {
+async fn test_session_and_turn() -> (Arc<Session>, Arc<InteractionContext>) {
     let (session, turn) = make_session_and_context().await;
     (Arc::new(session), Arc::new(turn))
 }
 
 async fn exec_command(
     session: &Arc<Session>,
-    turn: &Arc<TurnContext>,
+    turn: &Arc<InteractionContext>,
     cmd: &str,
     yield_time_ms: u64,
     workdir: Option<PathBuf>,
@@ -63,7 +63,7 @@ fn shell_env() -> HashMap<String, String> {
 }
 
 fn test_exec_request(
-    turn: &TurnContext,
+    turn: &InteractionContext,
     command: Vec<String>,
     cwd: AbsolutePathBuf,
     env: HashMap<String, String>,
@@ -91,7 +91,7 @@ fn test_exec_request(
 
 async fn exec_command_with_tty(
     session: &Arc<Session>,
-    turn: &Arc<TurnContext>,
+    turn: &Arc<InteractionContext>,
     cmd: &str,
     yield_time_ms: u64,
     workdir: Option<PathBuf>,

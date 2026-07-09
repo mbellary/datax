@@ -72,7 +72,7 @@ use datax_protocol::protocol::InteractionStartedEvent;
 use datax_protocol::protocol::McpInvocation;
 use datax_protocol::protocol::McpToolCallEndEvent;
 use datax_protocol::protocol::MultiAgentVersion;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::SessionMeta;
 use datax_protocol::protocol::SessionMetaLine;
 use datax_protocol::protocol::SessionSource as RolloutSessionSource;
@@ -3987,7 +3987,7 @@ async fn setup_rollout_fixture(codex_home: &Path, server_uri: &str) -> Result<Ro
     let rollout_file_path = rollout_path(codex_home, filename_ts, &conversation_id);
     let mut session_meta = read_session_meta_line(&rollout_file_path).await?;
     session_meta.meta.multi_agent_version = Some(MultiAgentVersion::V1);
-    append_rollout_item_to_path(&rollout_file_path, &RolloutItem::SessionMeta(session_meta))
+    append_rollout_item_to_path(&rollout_file_path, &RolloutMessage::SessionMeta(session_meta))
         .await?;
     set_rollout_mtime(rollout_file_path.as_path(), expected_updated_at_rfc3339)?;
     let before_modified = std::fs::metadata(&rollout_file_path)?.modified()?;

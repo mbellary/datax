@@ -5,46 +5,46 @@
 
 use crate::context_manager::is_user_turn_boundary;
 use crate::event_mapping;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::InitialHistory;
 use datax_protocol::protocol::InterAgentCommunication;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 
 pub(crate) fn initial_history_has_prior_user_turns(conversation_history: &InitialHistory) -> bool {
     conversation_history.scan_rollout_items(rollout_item_is_user_turn_boundary)
 }
 
-fn rollout_item_is_user_turn_boundary(item: &RolloutItem) -> bool {
+fn rollout_item_is_user_turn_boundary(item: &RolloutMessage) -> bool {
     match item {
-        RolloutItem::ResponseItem(item) => is_user_turn_boundary(item),
-        RolloutItem::InterAgentCommunication(_) => true,
+        RolloutMessage::ResponseItem(item) => is_user_turn_boundary(item),
+        RolloutMessage::InterAgentCommunication(_) => true,
         _ => false,
     }
 }
 
 /// Return the indices of user message boundaries in a rollout.
 ///
-/// A user message boundary is a `RolloutItem::ResponseItem(ResponseItem::Message { .. })`
-/// whose parsed turn item is `TurnItem::UserMessage`.
+/// A user message boundary is a `RolloutMessage::ResponseItem(ResponseItem::Message { .. })`
+/// whose parsed turn item is `InteractionMessage::UserMessage`.
 ///
 /// Rollouts can contain `ThreadRolledBack` markers. Those markers indicate that the
 /// last N user turns were removed from the effective thread history; we apply them here so
 /// indexing uses the post-rollback history rather than the raw stream.
-pub(crate) fn user_message_positions_in_rollout(items: &[RolloutItem]) -> Vec<usize> {
+pub(crate) fn user_message_positions_in_rollout(items: &[RolloutMessage]) -> Vec<usize> {
     let mut user_positions = Vec::new();
     for (idx, item) in items.iter().enumerate() {
         match item {
-            RolloutItem::ResponseItem(item @ ResponseItem::Message { .. })
+            RolloutMessage::ResponseItem(item @ ResponseItem::Message { .. })
                 if matches!(
                     event_mapping::parse_turn_item(item),
-                    Some(TurnItem::UserMessage(_))
+                    Some(InteractionMessage::UserMessage(_))
                 ) =>
             {
                 user_positions.push(idx);
             }
-            RolloutItem::EventMsg(EventMsg::ThreadRolledBack(rollback)) => {
+            RolloutMessage::EventMsg(EventMsg::ThreadRolledBack(rollback)) => {
                 let num_turns = usize::try_from(rollback.num_turns).unwrap_or(usize::MAX);
                 let new_len = user_positions.len().saturating_sub(num_turns);
                 user_positions.truncate(new_len);
@@ -66,12 +66,12 @@ pub(crate) fn user_message_positions_in_rollout(items: &[RolloutItem]) -> Vec<us
 /// reflects the effective post-rollback history. Rollback counts instruction turns, so a rollback
 /// removes the stale suffix starting at the earliest rolled-back instruction-turn boundary instead
 /// of simply truncating the mixed fork-boundary list.
-pub(crate) fn fork_turn_positions_in_rollout(items: &[RolloutItem]) -> Vec<usize> {
+pub(crate) fn fork_turn_positions_in_rollout(items: &[RolloutMessage]) -> Vec<usize> {
     let mut rollback_turn_positions = Vec::new();
     let mut fork_turn_positions = Vec::new();
     for (idx, item) in items.iter().enumerate() {
         match item {
-            RolloutItem::ResponseItem(item) => {
+            RolloutMessage::ResponseItem(item) => {
                 if is_user_turn_boundary(item) {
                     rollback_turn_positions.push(idx);
                 }
@@ -79,13 +79,13 @@ pub(crate) fn fork_turn_positions_in_rollout(items: &[RolloutItem]) -> Vec<usize
                     fork_turn_positions.push(idx);
                 }
             }
-            RolloutItem::InterAgentCommunication(communication) => {
+            RolloutMessage::InterAgentCommunication(communication) => {
                 rollback_turn_positions.push(idx);
                 if communication.trigger_turn {
                     fork_turn_positions.push(idx);
                 }
             }
-            RolloutItem::EventMsg(EventMsg::ThreadRolledBack(rollback)) => {
+            RolloutMessage::EventMsg(EventMsg::ThreadRolledBack(rollback)) => {
                 let num_turns = usize::try_from(rollback.num_turns).unwrap_or(usize::MAX);
                 if num_turns == 0 {
                     continue;
@@ -117,9 +117,9 @@ pub(crate) fn fork_turn_positions_in_rollout(items: &[RolloutItem]) -> Vec<usize
 /// If fewer than or equal to `n_from_start` user messages exist, this returns the full
 /// rollout unchanged.
 pub(crate) fn truncate_rollout_before_nth_user_message_from_start(
-    items: &[RolloutItem],
+    items: &[RolloutMessage],
     n_from_start: usize,
-) -> Vec<RolloutItem> {
+) -> Vec<RolloutMessage> {
     if n_from_start == usize::MAX {
         return items.to_vec();
     }
@@ -141,9 +141,9 @@ pub(crate) fn truncate_rollout_before_nth_user_message_from_start(
 /// If fewer than or equal to `n_from_end` fork turns exist, this keeps from the first fork-turn
 /// boundary and still drops pre-turn startup context.
 pub(crate) fn truncate_rollout_to_last_n_fork_turns(
-    items: &[RolloutItem],
+    items: &[RolloutMessage],
     n_from_end: usize,
-) -> Vec<RolloutItem> {
+) -> Vec<RolloutMessage> {
     if n_from_end == 0 {
         return Vec::new();
     }
@@ -163,7 +163,7 @@ pub(crate) fn truncate_rollout_to_last_n_fork_turns(
 fn is_real_user_message_boundary(item: &ResponseItem) -> bool {
     matches!(
         event_mapping::parse_turn_item(item),
-        Some(TurnItem::UserMessage(_))
+        Some(InteractionMessage::UserMessage(_))
     )
 }
 

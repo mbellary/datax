@@ -12,7 +12,7 @@ use crate::hook_runtime::run_pre_tool_use_hooks;
 use crate::memory_usage::emit_metric_for_tool_read;
 use crate::sandbox_tags::permission_profile_policy_tag;
 use crate::sandbox_tags::permission_profile_sandbox_tag;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::tools::context::FunctionToolOutput;
 use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolOutput;
@@ -148,7 +148,7 @@ pub(crate) trait CoreToolRuntime: ToolExecutor<ToolInvocation> {
 /// derived from partial tool input.
 pub(crate) trait ToolArgumentDiffConsumer: Send {
     /// Consume the next argument diff for a tool call.
-    fn consume_diff(&mut self, turn: &TurnContext, call_id: String, diff: &str)
+    fn consume_diff(&mut self, turn: &InteractionContext, call_id: String, diff: &str)
     -> Option<EventMsg>;
 
     /// Finish consuming argument diffs before the tool call completes.

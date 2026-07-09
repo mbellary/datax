@@ -93,7 +93,7 @@ fn extract_conversation_summary(
         .iter()
         .filter_map(|value| serde_json::from_value::<ResponseItem>(value.clone()).ok())
         .find_map(|item| match datax_core::parse_turn_item(&item) {
-            Some(TurnItem::UserMessage(user)) => Some(user.message()),
+            Some(InteractionMessage::UserMessage(user)) => Some(user.message()),
             _ => None,
         })?;
 

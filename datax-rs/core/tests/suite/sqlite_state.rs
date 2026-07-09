@@ -31,7 +31,7 @@ use datax_protocol::models::PermissionProfile;
 use datax_protocol::protocol::AskForApproval;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::Op;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::protocol::SessionMeta;
 use datax_protocol::protocol::SessionMetaLine;
@@ -381,11 +381,11 @@ async fn backfill_scans_existing_rollouts() -> Result<()> {
             let lines = [
                 RolloutLine {
                     timestamp: "2026-01-27T12:00:00Z".to_string(),
-                    item: RolloutItem::SessionMeta(session_meta_line),
+                    item: RolloutMessage::SessionMeta(session_meta_line),
                 },
                 RolloutLine {
                     timestamp: "2026-01-27T12:00:01Z".to_string(),
-                    item: RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+                    item: RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
                         client_id: None,
                         message: "hello from backfill".to_string(),
                         images: None,

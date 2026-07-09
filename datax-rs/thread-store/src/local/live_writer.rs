@@ -10,7 +10,7 @@ use tracing::warn;
 
 use super::LocalThreadStore;
 use super::create_thread;
-use crate::AppendThreadItemsParams;
+use crate::AppendChatMessagesParams;
 use crate::CreateThreadParams;
 use crate::ReadThreadParams;
 use crate::ResumeThreadParams;
@@ -81,7 +81,7 @@ pub(super) async fn resume_thread(
 )]
 pub(super) async fn append_items(
     store: &LocalThreadStore,
-    params: AppendThreadItemsParams,
+    params: AppendChatMessagesParams,
 ) -> ThreadStoreResult<()> {
     let canonical_items = persisted_rollout_items(params.items.as_slice());
     if canonical_items.is_empty() {

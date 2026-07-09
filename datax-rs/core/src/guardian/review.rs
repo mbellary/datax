@@ -25,7 +25,7 @@ use tokio::time::sleep_until;
 use tokio_util::sync::CancellationToken;
 
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::turn_timing::now_unix_timestamp_ms;
 use crate::util::backoff;
 
@@ -165,13 +165,13 @@ fn guardian_risk_level_str(level: GuardianRiskLevel) -> &'static str {
 /// Whether this turn should route allowed approval prompts through the guardian
 /// reviewer instead of surfacing them to the user. ARC may still block actions
 /// earlier in the flow.
-pub(crate) fn routes_approval_to_guardian(turn: &TurnContext) -> bool {
+pub(crate) fn routes_approval_to_guardian(turn: &InteractionContext) -> bool {
     routes_approval_to_guardian_with_reviewer(turn, turn.config.approvals_reviewer)
 }
 
 /// Whether an approval with its own reviewer selection should be routed through guardian.
 pub(crate) fn routes_approval_to_guardian_with_reviewer(
-    turn: &TurnContext,
+    turn: &InteractionContext,
     approvals_reviewer: ApprovalsReviewer,
 ) -> bool {
     matches!(
@@ -222,7 +222,7 @@ async fn record_guardian_non_denial(session: &Arc<Session>, interaction_id: &str
 
 async fn record_guardian_denial(
     session: &Arc<Session>,
-    turn: &Arc<TurnContext>,
+    turn: &Arc<InteractionContext>,
     interaction_id: &str,
 ) {
     let action = session
@@ -271,7 +271,7 @@ async fn record_guardian_denial(
 #[cfg(test)]
 pub(crate) async fn record_guardian_denial_for_test(
     session: &Arc<Session>,
-    turn: &Arc<TurnContext>,
+    turn: &Arc<InteractionContext>,
     interaction_id: &str,
 ) {
     record_guardian_denial(session, turn, interaction_id).await;
@@ -282,7 +282,7 @@ pub(crate) async fn record_guardian_denial_for_test(
 /// caller as distinct from explicit guardian denials.
 async fn run_guardian_review(
     session: Arc<Session>,
-    turn: Arc<TurnContext>,
+    turn: Arc<InteractionContext>,
     review_id: String,
     request: GuardianApprovalRequest,
     retry_reason: Option<String>,
@@ -602,7 +602,7 @@ async fn run_guardian_review(
 /// Public entrypoint for approval requests that should be reviewed by guardian.
 pub(crate) async fn review_approval_request(
     session: &Arc<Session>,
-    turn: &Arc<TurnContext>,
+    turn: &Arc<InteractionContext>,
     review_id: String,
     request: GuardianApprovalRequest,
     retry_reason: Option<String>,
@@ -623,7 +623,7 @@ pub(crate) async fn review_approval_request(
 
 pub(crate) async fn review_approval_request_with_cancel(
     session: &Arc<Session>,
-    turn: &Arc<TurnContext>,
+    turn: &Arc<InteractionContext>,
     review_id: String,
     request: GuardianApprovalRequest,
     retry_reason: Option<String>,
@@ -644,7 +644,7 @@ pub(crate) async fn review_approval_request_with_cancel(
 
 pub(crate) fn spawn_approval_request_review(
     session: Arc<Session>,
-    turn: Arc<TurnContext>,
+    turn: Arc<InteractionContext>,
     review_id: String,
     request: GuardianApprovalRequest,
     retry_reason: Option<String>,
@@ -686,7 +686,7 @@ pub(super) struct GuardianReviewSessionConfig {
 
 pub(super) async fn guardian_review_session_config(
     session: &Session,
-    turn: &TurnContext,
+    turn: &InteractionContext,
 ) -> anyhow::Result<GuardianReviewSessionConfig> {
     let network_proxy = session.services.network_proxy.load_full();
     let live_network_config = match network_proxy.as_ref() {
@@ -776,7 +776,7 @@ pub(super) async fn guardian_review_session_config(
 /// rules.
 async fn run_guardian_review_session_before_deadline(
     session: Arc<Session>,
-    turn: Arc<TurnContext>,
+    turn: Arc<InteractionContext>,
     request: GuardianApprovalRequest,
     retry_reason: Option<String>,
     schema: serde_json::Value,
@@ -870,7 +870,7 @@ async fn run_guardian_review_session_before_deadline(
 
 pub(super) async fn run_guardian_review_session_with_retry(
     session: Arc<Session>,
-    turn: Arc<TurnContext>,
+    turn: Arc<InteractionContext>,
     request: GuardianApprovalRequest,
     retry_reason: Option<String>,
     schema: serde_json::Value,

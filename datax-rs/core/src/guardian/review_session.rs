@@ -23,7 +23,7 @@ use datax_protocol::protocol::Event;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::InitialHistory;
 use datax_protocol::protocol::Op;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
 use datax_protocol::protocol::TokenUsage;
@@ -44,7 +44,7 @@ use crate::context::ContextualUserFragment;
 use crate::context::GuardianFollowupReviewReminder;
 use crate::session::Codex;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use datax_config::types::McpServerConfig;
 use datax_features::Feature;
 use datax_model_provider_info::ModelProviderInfo;
@@ -74,7 +74,7 @@ pub(crate) enum GuardianReviewSessionOutcome {
 
 pub(crate) struct GuardianReviewSessionParams {
     pub(crate) parent_session: Arc<Session>,
-    pub(crate) parent_turn: Arc<TurnContext>,
+    pub(crate) parent_turn: Arc<InteractionContext>,
     pub(crate) spawn_config: Config,
     pub(crate) request: GuardianApprovalRequest,
     pub(crate) retry_reason: Option<String>,
@@ -295,7 +295,7 @@ impl GuardianReviewSessionManager {
     pub(crate) fn initialize(
         &self,
         parent_session: Arc<Session>,
-        parent_turn: Arc<TurnContext>,
+        parent_turn: Arc<InteractionContext>,
     ) -> BoxFuture<'_, anyhow::Result<()>> {
         // Boxing breaks the Session::new -> Guardian -> Session::new future recursion.
         Box::pin(async move {
@@ -532,7 +532,7 @@ impl GuardianReviewSessionManager {
     }
 
     #[cfg(test)]
-    pub(crate) async fn committed_fork_rollout_items_for_test(&self) -> Option<Vec<RolloutItem>> {
+    pub(crate) async fn committed_fork_rollout_items_for_test(&self) -> Option<Vec<RolloutMessage>> {
         let trunk = self.state.lock().await.trunk.clone()?;
         let state = trunk.state.lock().await;
         let snapshot = state.last_committed_fork_snapshot.as_ref()?;
@@ -648,7 +648,7 @@ impl GuardianReviewSessionManager {
 
 async fn spawn_guardian_review_session(
     parent_session: &Arc<Session>,
-    parent_turn: &Arc<TurnContext>,
+    parent_turn: &Arc<InteractionContext>,
     spawn_config: Config,
     reuse_key: GuardianReviewSessionReuseKey,
     cancel_token: CancellationToken,
@@ -884,7 +884,7 @@ async fn append_guardian_followup_reminder(review_session: &GuardianReviewSessio
 
 async fn load_rollout_items_for_fork(
     session: &Session,
-) -> anyhow::Result<Option<Vec<RolloutItem>>> {
+) -> anyhow::Result<Option<Vec<RolloutMessage>>> {
     session.try_ensure_rollout_materialized().await?;
     session.flush_rollout().await?;
     let live_thread = session.live_thread_for_persistence("guardian review fork")?;

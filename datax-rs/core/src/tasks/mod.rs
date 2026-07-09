@@ -30,7 +30,7 @@ use crate::hook_runtime::record_additional_contexts;
 use crate::hook_runtime::record_pending_input;
 use crate::session::TurnInput;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::state::ActiveTurn;
 use crate::state::RunningTask;
 use crate::state::TaskKind;
@@ -234,7 +234,7 @@ pub(crate) trait SessionTask: Send + Sync + 'static {
     fn run(
         self: Arc<Self>,
         session: Arc<SessionTaskContext>,
-        ctx: Arc<TurnContext>,
+        ctx: Arc<InteractionContext>,
         input: Vec<TurnInput>,
         cancellation_token: CancellationToken,
     ) -> impl std::future::Future<Output = SessionTaskResult> + Send;
@@ -247,7 +247,7 @@ pub(crate) trait SessionTask: Send + Sync + 'static {
     fn abort(
         &self,
         session: Arc<SessionTaskContext>,
-        ctx: Arc<TurnContext>,
+        ctx: Arc<InteractionContext>,
     ) -> impl std::future::Future<Output = ()> + Send {
         async move {
             let _ = (session, ctx);
@@ -263,7 +263,7 @@ pub(crate) trait AnySessionTask: Send + Sync + 'static {
     fn run(
         self: Arc<Self>,
         session: Arc<SessionTaskContext>,
-        ctx: Arc<TurnContext>,
+        ctx: Arc<InteractionContext>,
         input: Vec<TurnInput>,
         cancellation_token: CancellationToken,
     ) -> BoxFuture<'static, SessionTaskResult>;
@@ -271,7 +271,7 @@ pub(crate) trait AnySessionTask: Send + Sync + 'static {
     fn abort<'a>(
         &'a self,
         session: Arc<SessionTaskContext>,
-        ctx: Arc<TurnContext>,
+        ctx: Arc<InteractionContext>,
     ) -> BoxFuture<'a, ()>;
 }
 
@@ -290,7 +290,7 @@ where
     fn run(
         self: Arc<Self>,
         session: Arc<SessionTaskContext>,
-        ctx: Arc<TurnContext>,
+        ctx: Arc<InteractionContext>,
         input: Vec<TurnInput>,
         cancellation_token: CancellationToken,
     ) -> BoxFuture<'static, SessionTaskResult> {
@@ -306,7 +306,7 @@ where
     fn abort<'a>(
         &'a self,
         session: Arc<SessionTaskContext>,
-        ctx: Arc<TurnContext>,
+        ctx: Arc<InteractionContext>,
     ) -> BoxFuture<'a, ()> {
         Box::pin(SessionTask::abort(self, session, ctx))
     }
@@ -315,7 +315,7 @@ where
 impl Session {
     pub async fn spawn_task<T: SessionTask>(
         self: &Arc<Self>,
-        turn_context: Arc<TurnContext>,
+        turn_context: Arc<InteractionContext>,
         input: Vec<TurnInput>,
         task: T,
     ) {
@@ -326,7 +326,7 @@ impl Session {
 
     pub(crate) async fn start_task<T: SessionTask>(
         self: &Arc<Self>,
-        turn_context: Arc<TurnContext>,
+        turn_context: Arc<InteractionContext>,
         input: Vec<TurnInput>,
         task: T,
     ) {
@@ -564,7 +564,7 @@ impl Session {
 
     pub async fn on_task_finished(
         self: &Arc<Self>,
-        turn_context: Arc<TurnContext>,
+        turn_context: Arc<InteractionContext>,
         task_result: SessionTaskResult,
     ) {
         let (last_agent_message, abort_reason) = match task_result {

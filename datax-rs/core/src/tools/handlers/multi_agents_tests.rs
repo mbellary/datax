@@ -14,7 +14,7 @@ use crate::tools::handlers::multi_agents_v2::ListAgentsHandler as ListAgentsHand
 use crate::tools::handlers::multi_agents_v2::SendMessageHandler as SendMessageHandlerV2;
 use crate::tools::handlers::multi_agents_v2::SpawnAgentHandler as SpawnAgentHandlerV2;
 use crate::tools::handlers::multi_agents_v2::WaitAgentHandler as WaitAgentHandlerV2;
-use crate::turn_diff_tracker::TurnDiffTracker;
+use crate::turn_diff_tracker::InteractionDiffTracker;
 use core_test_support::TempDirExt;
 use datax_extension_api::empty_extension_registry;
 use datax_features::Feature;
@@ -49,7 +49,7 @@ use datax_protocol::protocol::InteractionAbortedEvent;
 use datax_protocol::protocol::InteractionCompleteEvent;
 use datax_protocol::protocol::NetworkSandboxPolicy;
 use datax_protocol::protocol::Op;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::SandboxPolicy;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
@@ -68,7 +68,7 @@ use tokio_util::sync::CancellationToken;
 
 fn invocation(
     session: Arc<crate::session::session::Session>,
-    turn: Arc<TurnContext>,
+    turn: Arc<InteractionContext>,
     tool_name: &str,
     payload: ToolPayload,
 ) -> ToolInvocation {
@@ -76,7 +76,7 @@ fn invocation(
         session,
         turn,
         cancellation_token: CancellationToken::new(),
-        tracker: Arc::new(Mutex::new(TurnDiffTracker::default())),
+        tracker: Arc::new(Mutex::new(InteractionDiffTracker::default())),
         call_id: "call-1".to_string(),
         tool_name: datax_tools::ToolName::plain(tool_name),
         source: crate::tools::context::ToolCallSource::Direct,
@@ -101,7 +101,7 @@ fn chat_manager() -> ChatManager {
     )
 }
 
-async fn install_role_with_model_override(turn: &mut TurnContext) -> String {
+async fn install_role_with_model_override(turn: &mut InteractionContext) -> String {
     let role_name = "fork-context-role".to_string();
     tokio::fs::create_dir_all(&turn.config.codex_home)
         .await
@@ -135,7 +135,7 @@ model_reasoning_effort = "minimal"
     role_name
 }
 
-fn set_turn_config(turn: &mut TurnContext, config: crate::config::Config) {
+fn set_turn_config(turn: &mut InteractionContext, config: crate::config::Config) {
     turn.multi_agent_version = config.multi_agent_version_from_features();
     turn.config = Arc::new(config);
 }
@@ -391,7 +391,7 @@ async fn multi_agent_v2_spawn_fork_turns_all_rejects_agent_type_override() {
         .features
         .enable(Feature::MultiAgentV2)
         .expect("test config should allow feature update");
-    let turn = TurnContext {
+    let turn = InteractionContext {
         config: Arc::new(config),
         multi_agent_version: datax_protocol::protocol::MultiAgentVersion::V2,
         ..turn
@@ -969,7 +969,7 @@ async fn multi_agent_v2_spawn_partial_fork_turns_allows_agent_type_override() {
         .features
         .enable(Feature::MultiAgentV2)
         .expect("test config should allow feature update");
-    let turn = TurnContext {
+    let turn = InteractionContext {
         config: Arc::new(config),
         multi_agent_version: datax_protocol::protocol::MultiAgentVersion::V2,
         ..turn
@@ -2802,7 +2802,7 @@ async fn resume_agent_restores_closed_agent_and_accepts_send_input() {
     let thread = manager
         .resume_thread_with_history(
             config.clone(),
-            InitialHistory::Forked(vec![RolloutItem::ResponseItem(ResponseItem::Message {
+            InitialHistory::Forked(vec![RolloutMessage::ResponseItem(ResponseItem::Message {
                 id: None,
                 role: "user".to_string(),
                 content: vec![ContentItem::InputText {

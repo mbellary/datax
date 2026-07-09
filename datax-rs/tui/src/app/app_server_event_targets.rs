@@ -82,7 +82,7 @@ pub(super) fn server_notification_thread_target(
             Some(notification.chat_id.as_str())
         }
         ServerNotification::MessageCompleted(notification) => Some(notification.chat_id.as_str()),
-        ServerNotification::RawResponseItemCompleted(notification) => {
+        ServerNotification::RawResponseMessageCompleted(notification) => {
             Some(notification.chat_id.as_str())
         }
         ServerNotification::AgentMessageDelta(notification) => Some(notification.chat_id.as_str()),

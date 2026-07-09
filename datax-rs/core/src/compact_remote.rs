@@ -17,7 +17,7 @@ use crate::responses_metadata::CodexResponsesRequestKind;
 use crate::responses_metadata::CompactionTurnMetadata;
 use crate::session::session::Session;
 use crate::session::turn::built_tools;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use datax_analytics::CompactionImplementation;
 use datax_analytics::CompactionPhase;
 use datax_analytics::CompactionReason;
@@ -26,7 +26,7 @@ use datax_app_server_protocol::AuthMode;
 use datax_protocol::error::CodexErr;
 use datax_protocol::error::Result as CodexResult;
 use datax_protocol::items::ContextCompactionItem;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::models::BaseInstructions;
 use datax_protocol::models::FunctionCallOutputBody;
 use datax_protocol::models::FunctionCallOutputPayload;
@@ -43,7 +43,7 @@ const CONTEXT_WINDOW_TRUNCATED_OUTPUT_MESSAGE: &str =
 
 pub(crate) async fn run_inline_remote_auto_compact_task(
     sess: Arc<Session>,
-    turn_context: Arc<TurnContext>,
+    turn_context: Arc<InteractionContext>,
     turn_state: Arc<OnceLock<String>>,
     initial_context_injection: InitialContextInjection,
     reason: CompactionReason,
@@ -64,7 +64,7 @@ pub(crate) async fn run_inline_remote_auto_compact_task(
 
 pub(crate) async fn run_remote_compact_task(
     sess: Arc<Session>,
-    turn_context: Arc<TurnContext>,
+    turn_context: Arc<InteractionContext>,
 ) -> CodexResult<()> {
     let start_event = EventMsg::InteractionStarted(InteractionStartedEvent {
         interaction_id: turn_context.sub_id.clone(),
@@ -90,7 +90,7 @@ pub(crate) async fn run_remote_compact_task(
 
 async fn run_remote_compact_task_inner(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     turn_state: Option<Arc<OnceLock<String>>>,
     initial_context_injection: InitialContextInjection,
     trigger: CompactionTrigger,
@@ -168,7 +168,7 @@ async fn run_remote_compact_task_inner(
 
 async fn run_remote_compact_task_inner_impl(
     sess: &Arc<Session>,
-    turn_context: &Arc<TurnContext>,
+    turn_context: &Arc<InteractionContext>,
     turn_state: Option<Arc<OnceLock<String>>>,
     initial_context_injection: InitialContextInjection,
     compaction_metadata: CompactionTurnMetadata,
@@ -183,7 +183,7 @@ async fn run_remote_compact_task_inner_impl(
         turn_context.model_info.slug.as_str(),
         turn_context.provider.info().name.as_str(),
     );
-    let compaction_item = TurnItem::ContextCompaction(context_compaction_item);
+    let compaction_item = InteractionMessage::ContextCompaction(context_compaction_item);
     sess.emit_turn_item_started(turn_context, &compaction_item)
         .await;
     let mut history = sess.clone_history().await;
@@ -302,7 +302,7 @@ async fn run_remote_compact_task_inner_impl(
 
 pub(crate) async fn process_compacted_history(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     mut compacted_history: Vec<ResponseItem>,
     initial_context_injection: InitialContextInjection,
 ) -> Vec<ResponseItem> {
@@ -335,7 +335,7 @@ pub(crate) async fn process_compacted_history(
 ///
 /// This intentionally keeps:
 /// - `assistant` messages (future remote compaction models may emit them)
-/// - `user`-role warnings that parse as `TurnItem::UserMessage` and compaction-generated summary
+/// - `user`-role warnings that parse as `InteractionMessage::UserMessage` and compaction-generated summary
 ///   messages. Legacy warning fragments are filtered by `parse_turn_item` before they reach this
 ///   check.
 pub(crate) fn should_keep_compacted_history_item(item: &ResponseItem) -> bool {
@@ -344,7 +344,7 @@ pub(crate) fn should_keep_compacted_history_item(item: &ResponseItem) -> bool {
         ResponseItem::Message { role, .. } if role == "user" => {
             matches!(
                 crate::event_mapping::parse_turn_item(item),
-                Some(TurnItem::UserMessage(_) | TurnItem::HookPrompt(_))
+                Some(InteractionMessage::UserMessage(_) | InteractionMessage::HookPrompt(_))
             )
         }
         ResponseItem::Message { role, .. } if role == "assistant" => true,
@@ -368,7 +368,7 @@ pub(crate) fn should_keep_compacted_history_item(item: &ResponseItem) -> bool {
 
 pub(crate) fn trim_function_call_history_to_fit_context_window(
     history: &mut ContextManager,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     base_instructions: &BaseInstructions,
 ) -> (usize, i64) {
     let Some(context_window) = turn_context.model_context_window() else {

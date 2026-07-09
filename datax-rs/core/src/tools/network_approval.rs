@@ -399,7 +399,7 @@ impl NetworkApprovalService {
 
     async fn active_turn_context(
         session: &Session,
-    ) -> Option<Arc<crate::session::turn_context::TurnContext>> {
+    ) -> Option<Arc<crate::session::turn_context::InteractionContext>> {
         let active_turn = session.active_turn.lock().await;
         active_turn
             .as_ref()

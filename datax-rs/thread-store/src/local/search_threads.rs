@@ -17,8 +17,8 @@ use super::list_threads::list_rollout_threads;
 use crate::ListThreadsParams;
 use crate::SearchThreadsParams;
 use crate::SortDirection;
-use crate::StoredThreadSearchResult;
-use crate::ThreadSearchPage;
+use crate::StoredChatSearchResult;
+use crate::ChatSearchPage;
 use crate::ThreadSortKey;
 use crate::ThreadStoreError;
 use crate::ThreadStoreResult;
@@ -35,7 +35,7 @@ struct ThreadSearchItem {
 pub(super) async fn search_threads(
     store: &LocalThreadStore,
     params: SearchThreadsParams,
-) -> ThreadStoreResult<ThreadSearchPage> {
+) -> ThreadStoreResult<ChatSearchPage> {
     let search_term = params.search_term.as_str();
     if search_term.is_empty() {
         return Err(ThreadStoreError::InvalidRequest {
@@ -80,7 +80,7 @@ pub(super) async fn search_threads(
         message: format!("failed to search rollout contents: {err}"),
     })?;
     if matching_rollouts.is_empty() {
-        return Ok(ThreadSearchPage {
+        return Ok(ChatSearchPage {
             items: Vec::new(),
             next_cursor: None,
         });
@@ -162,15 +162,15 @@ pub(super) async fn search_threads(
                 params.archived,
                 store.config.default_model_provider_id.as_str(),
             )
-            .map(|thread| StoredThreadSearchResult {
-                thread,
+            .map(|chat| StoredChatSearchResult {
+                chat,
                 snippet: item.snippet,
             })
         })
         .collect::<Vec<_>>();
     set_thread_search_result_names(store, &mut items).await;
 
-    Ok(ThreadSearchPage { items, next_cursor })
+    Ok(ChatSearchPage { items, next_cursor })
 }
 
 fn cursor_from_thread_search_item(
@@ -199,11 +199,11 @@ fn cursor_from_thread_search_item(
 
 async fn set_thread_search_result_names(
     store: &LocalThreadStore,
-    items: &mut [StoredThreadSearchResult],
+    items: &mut [StoredChatSearchResult],
 ) {
     let chat_ids = items
         .iter()
-        .map(|item| item.thread.chat_id)
+        .map(|item| item.chat.chat_id)
         .collect::<HashSet<_>>();
     let mut names = HashMap::<ChatId, String>::with_capacity(chat_ids.len());
     if let Some(state_db_ctx) = store.state_db().await {
@@ -225,8 +225,8 @@ async fn set_thread_search_result_names(
         }
     }
     for item in items {
-        if let Some(title) = names.get(&item.thread.chat_id).cloned() {
-            set_thread_name_from_title(&mut item.thread, title);
+        if let Some(title) = names.get(&item.chat.chat_id).cloned() {
+            set_thread_name_from_title(&mut item.chat, title);
         }
     }
 }

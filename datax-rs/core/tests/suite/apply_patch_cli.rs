@@ -457,7 +457,7 @@ async fn apply_patch_cli_move_without_content_change_has_no_turn_diff() -> Resul
 
     let mut saw_turn_diff = false;
     wait_for_event(&codex, |event| match event {
-        EventMsg::TurnDiff(_) => {
+        EventMsg::InteractionDiff(_) => {
             saw_turn_diff = true;
             false
         }
@@ -1299,7 +1299,7 @@ async fn apply_patch_shell_command_heredoc_with_cd_emits_turn_diff() -> Result<(
             patch_end_success = Some(end.success);
             false
         }
-        EventMsg::TurnDiff(ev) => {
+        EventMsg::InteractionDiff(ev) => {
             saw_turn_diff = Some(ev.unified_diff.clone());
             false
         }
@@ -1313,7 +1313,7 @@ async fn apply_patch_shell_command_heredoc_with_cd_emits_turn_diff() -> Result<(
         patch_end_success.expect("expected PatchApplyEnd event to capture success flag");
     assert!(patch_end_success);
 
-    let diff = saw_turn_diff.expect("expected TurnDiff event");
+    let diff = saw_turn_diff.expect("expected InteractionDiff event");
     assert!(diff.contains("diff --git"), "diff header missing: {diff:?}");
     Ok(())
 }
@@ -1368,7 +1368,7 @@ async fn apply_patch_turn_diff_paths_stay_repo_relative_when_session_cwd_is_nest
 
     let mut last_diff: Option<String> = None;
     wait_for_event(&codex, |event| match event {
-        EventMsg::TurnDiff(ev) => {
+        EventMsg::InteractionDiff(ev) => {
             last_diff = Some(ev.unified_diff.clone());
             false
         }
@@ -1377,7 +1377,7 @@ async fn apply_patch_turn_diff_paths_stay_repo_relative_when_session_cwd_is_nest
     })
     .await;
 
-    let diff = last_diff.expect("expected TurnDiff event after update");
+    let diff = last_diff.expect("expected InteractionDiff event after update");
     assert!(
         diff.contains("diff --git a/repo.txt b/repo.txt"),
         "diff should stay repo-relative: {diff:?}"
@@ -1419,7 +1419,7 @@ async fn apply_patch_shell_command_failure_propagates_error_and_skips_diff() -> 
 
     let mut saw_turn_diff = false;
     wait_for_event(&codex, |event| match event {
-        EventMsg::TurnDiff(_) => {
+        EventMsg::InteractionDiff(_) => {
             saw_turn_diff = true;
             false
         }
@@ -1548,7 +1548,7 @@ async fn apply_patch_emits_turn_diff_event_with_unified_diff() -> Result<()> {
 
     let mut saw_turn_diff = None;
     wait_for_event(&codex, |event| match event {
-        EventMsg::TurnDiff(ev) => {
+        EventMsg::InteractionDiff(ev) => {
             saw_turn_diff = Some(ev.unified_diff.clone());
             false
         }
@@ -1557,7 +1557,7 @@ async fn apply_patch_emits_turn_diff_event_with_unified_diff() -> Result<()> {
     })
     .await;
 
-    let diff = saw_turn_diff.expect("expected TurnDiff event");
+    let diff = saw_turn_diff.expect("expected InteractionDiff event");
     // Basic markers of a unified diff with file addition
     assert!(diff.contains("diff --git"), "diff header missing: {diff:?}");
     assert!(diff.contains("--- /dev/null") || diff.contains("--- a/"));
@@ -1676,7 +1676,7 @@ async fn apply_patch_turn_diff_tracks_local_and_remote_environment_paths() -> Re
 
     let mut last_diff = None;
     wait_for_event(&test.codex, |event| match event {
-        EventMsg::TurnDiff(ev) => {
+        EventMsg::InteractionDiff(ev) => {
             last_diff = Some(ev.unified_diff.clone());
             false
         }
@@ -1695,7 +1695,7 @@ async fn apply_patch_turn_diff_tracks_local_and_remote_environment_paths() -> Re
             .await?,
         "remote\n"
     );
-    let diff = last_diff.expect("expected TurnDiff event");
+    let diff = last_diff.expect("expected InteractionDiff event");
     assert_eq!(
         diff,
         r#"diff --git a/local/shared-turn-diff.txt b/local/shared-turn-diff.txt
@@ -1763,7 +1763,7 @@ async fn apply_patch_aggregates_diff_across_multiple_tool_calls() -> Result<()> 
 
     let mut last_diff: Option<String> = None;
     wait_for_event(&codex, |event| match event {
-        EventMsg::TurnDiff(ev) => {
+        EventMsg::InteractionDiff(ev) => {
             last_diff = Some(ev.unified_diff.clone());
             false
         }
@@ -1772,7 +1772,7 @@ async fn apply_patch_aggregates_diff_across_multiple_tool_calls() -> Result<()> 
     })
     .await;
 
-    let diff = last_diff.expect("expected TurnDiff after two patches");
+    let diff = last_diff.expect("expected InteractionDiff after two patches");
     assert!(diff.contains("agg/a.txt"), "diff missing a.txt");
     assert!(diff.contains("agg/b.txt"), "diff missing b.txt");
     // Final content reflects v2 for a.txt
@@ -1818,7 +1818,7 @@ async fn apply_patch_aggregates_diff_preserves_success_after_failure() -> Result
     wait_for_event_with_timeout(
         &codex,
         |event| match event {
-            EventMsg::TurnDiff(ev) => {
+            EventMsg::InteractionDiff(ev) => {
                 last_diff = Some(ev.unified_diff.clone());
                 false
             }
@@ -1829,7 +1829,7 @@ async fn apply_patch_aggregates_diff_preserves_success_after_failure() -> Result
     )
     .await;
 
-    let diff = last_diff.expect("expected TurnDiff after failed patch");
+    let diff = last_diff.expect("expected InteractionDiff after failed patch");
     assert!(
         diff.contains("partial/success.txt"),
         "diff should still include the successful addition: {diff}"
@@ -1902,7 +1902,7 @@ async fn apply_patch_clears_aggregated_diff_after_inexact_delta() -> Result<()> 
     wait_for_event_with_timeout(
         &codex,
         |event| match event {
-            EventMsg::TurnDiff(ev) => {
+            EventMsg::InteractionDiff(ev) => {
                 last_diff = Some(ev.unified_diff.clone());
                 false
             }

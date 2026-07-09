@@ -1,11 +1,11 @@
 use super::session::Session;
-use super::turn_context::TurnContext;
+use super::turn_context::InteractionContext;
 use crate::context::ContextualUserFragment;
 use datax_features::Feature;
 
 pub(super) async fn maybe_record(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     tokens_until_compaction: i64,
 ) {
     if !turn_context.config.features.enabled(Feature::TokenBudget) {

@@ -29,7 +29,7 @@ pub use datax_chat::DataxChatSettingsOverrides;
 pub use datax_chat::ThreadConfigSnapshot;
 pub use datax_chat::TryStartTurnIfIdleError;
 pub use datax_chat::TryStartTurnIfIdleRejectionReason;
-pub use session::turn_context::TurnContext;
+pub use session::turn_context::InteractionContext;
 mod agent;
 mod attestation;
 mod codex_delegate;

@@ -4,7 +4,7 @@ use crate::ExtensionData;
 
 /// Host context available while extensions contribute turn-scoped context fragments.
 #[derive(Clone, Copy)]
-pub struct TurnContextContributionInput<'a> {
+pub struct InteractionContextContributionInput<'a> {
     /// Stable host-owned thread identifier.
     pub chat_id: ChatId,
     /// Stable host-owned turn identifier.

@@ -10,7 +10,7 @@ use super::UnifiedExecContext;
 use super::process::UnifiedExecProcess;
 use crate::exec::MAX_EXEC_OUTPUT_DELTAS_PER_CALL;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::tools::events::ToolEmitter;
 use crate::tools::events::ToolEventCtx;
 use crate::tools::events::ToolEventFailure;
@@ -107,7 +107,7 @@ pub(crate) fn start_streaming_output(
 pub(crate) fn spawn_exit_watcher(
     process: Arc<UnifiedExecProcess>,
     session_ref: Arc<Session>,
-    turn_ref: Arc<TurnContext>,
+    turn_ref: Arc<InteractionContext>,
     call_id: String,
     command: Vec<String>,
     cwd: PathUri,
@@ -161,7 +161,7 @@ async fn process_chunk(
     transcript: &Arc<Mutex<HeadTailBuffer>>,
     call_id: &str,
     session_ref: &Arc<Session>,
-    turn_ref: &Arc<TurnContext>,
+    turn_ref: &Arc<InteractionContext>,
     emitted_deltas: &mut usize,
     chunk: Vec<u8>,
 ) {
@@ -194,7 +194,7 @@ async fn process_chunk(
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn emit_exec_end_for_unified_exec(
     session_ref: Arc<Session>,
-    turn_ref: Arc<TurnContext>,
+    turn_ref: Arc<InteractionContext>,
     call_id: String,
     command: Vec<String>,
     cwd: PathUri,
@@ -239,7 +239,7 @@ pub(crate) async fn emit_exec_end_for_unified_exec(
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn emit_failed_exec_end_for_unified_exec(
     session_ref: Arc<Session>,
-    turn_ref: Arc<TurnContext>,
+    turn_ref: Arc<InteractionContext>,
     call_id: String,
     command: Vec<String>,
     cwd: PathUri,

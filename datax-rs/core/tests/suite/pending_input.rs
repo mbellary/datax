@@ -23,13 +23,13 @@ use datax_core::DataxChat;
 use datax_features::Feature;
 use datax_protocol::AgentPath;
 use datax_protocol::items::SleepItem;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::models::PermissionProfile;
 use datax_protocol::protocol::AskForApproval;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::InterAgentCommunication;
 use datax_protocol::protocol::Op;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
@@ -217,8 +217,8 @@ async fn wait_for_reasoning_item_started(codex: &DataxChat) {
     wait_for_event(codex, |event| {
         matches!(
             event,
-            EventMsg::ItemStarted(item_started)
-                if matches!(&item_started.item, TurnItem::Reasoning(_))
+            EventMsg::MessageStarted(item_started)
+                if matches!(&item_started.item, InteractionMessage::Reasoning(_))
         )
     })
     .await;
@@ -244,15 +244,15 @@ async fn wait_for_sleep_item_started(codex: &DataxChat, call_id: &str, duration_
     let event = wait_for_event(codex, |event| {
         matches!(
             event,
-            EventMsg::ItemStarted(started)
-                if matches!(&started.item, TurnItem::Sleep(item) if item.id == call_id)
+            EventMsg::MessageStarted(started)
+                if matches!(&started.item, InteractionMessage::Sleep(item) if item.id == call_id)
         )
     })
     .await;
-    let EventMsg::ItemStarted(started) = event else {
+    let EventMsg::MessageStarted(started) = event else {
         unreachable!("wait predicate only accepts item/started events");
     };
-    let TurnItem::Sleep(item) = started.item else {
+    let InteractionMessage::Sleep(item) = started.item else {
         unreachable!("wait predicate only accepts sleep items");
     };
     assert_eq!(
@@ -268,15 +268,15 @@ async fn wait_for_sleep_item_completed(codex: &DataxChat, call_id: &str, duratio
     let event = wait_for_event(codex, |event| {
         matches!(
             event,
-            EventMsg::ItemCompleted(completed)
-                if matches!(&completed.item, TurnItem::Sleep(item) if item.id == call_id)
+            EventMsg::MessageCompleted(completed)
+                if matches!(&completed.item, InteractionMessage::Sleep(item) if item.id == call_id)
         )
     })
     .await;
-    let EventMsg::ItemCompleted(completed) = event else {
+    let EventMsg::MessageCompleted(completed) = event else {
         unreachable!("wait predicate only accepts item/completed events");
     };
-    let TurnItem::Sleep(item) = completed.item else {
+    let InteractionMessage::Sleep(item) = completed.item else {
         unreachable!("wait predicate only accepts sleep items");
     };
     assert_eq!(
@@ -434,8 +434,8 @@ async fn any_new_input_interrupts_sleep() {
         .lines()
         .filter_map(|line| serde_json::from_str::<RolloutLine>(line).ok())
         .filter_map(|line| match line.item {
-            RolloutItem::EventMsg(EventMsg::ItemCompleted(event)) => match event.item {
-                TurnItem::Sleep(item) => Some(item),
+            RolloutMessage::EventMsg(EventMsg::MessageCompleted(event)) => match event.item {
+                InteractionMessage::Sleep(item) => Some(item),
                 _ => None,
             },
             _ => None,
@@ -681,8 +681,8 @@ async fn queued_inter_agent_mail_triggers_follow_up_after_commentary_message_ite
     wait_for_event(&codex, |event| {
         matches!(
             event,
-            EventMsg::ItemStarted(item_started)
-                if matches!(&item_started.item, TurnItem::AgentMessage(_))
+            EventMsg::MessageStarted(item_started)
+                if matches!(&item_started.item, InteractionMessage::AgentMessage(_))
         )
     })
     .await;

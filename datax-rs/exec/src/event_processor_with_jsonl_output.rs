@@ -32,8 +32,8 @@ use crate::exec_events::CommandExecutionStatus as ExecCommandExecutionStatus;
 use crate::exec_events::ErrorItem;
 use crate::exec_events::FileChangeItem;
 use crate::exec_events::FileUpdateChange;
-use crate::exec_events::ItemCompletedEvent;
-use crate::exec_events::ItemStartedEvent;
+use crate::exec_events::MessageCompletedEvent;
+use crate::exec_events::MessageStartedEvent;
 use crate::exec_events::ItemUpdatedEvent;
 use crate::exec_events::McpToolCallItem;
 use crate::exec_events::McpToolCallItemError;
@@ -366,7 +366,7 @@ impl EventProcessorWithJsonOutput {
                     return None;
                 }
                 self.map_completed_item_mut(item.clone())
-                    .map(|item| ThreadEvent::ItemCompleted(ItemCompletedEvent { item }))
+                    .map(|item| ThreadEvent::MessageCompleted(MessageCompletedEvent { item }))
             })
             .collect()
     }
@@ -395,7 +395,7 @@ impl EventProcessorWithJsonOutput {
 
     pub fn collect_warning(&mut self, message: String) -> CollectedThreadEvents {
         CollectedThreadEvents {
-            events: vec![ThreadEvent::ItemCompleted(ItemCompletedEvent {
+            events: vec![ThreadEvent::MessageCompleted(MessageCompletedEvent {
                 item: ExecThreadItem {
                     id: self.next_item_id(),
                     details: ThreadItemDetails::Error(ErrorItem { message }),
@@ -418,7 +418,7 @@ impl EventProcessorWithJsonOutput {
                     }
                     _ => notification.summary,
                 };
-                events.push(ThreadEvent::ItemCompleted(ItemCompletedEvent {
+                events.push(ThreadEvent::MessageCompleted(MessageCompletedEvent {
                     item: ExecThreadItem {
                         id: self.next_item_id(),
                         details: ThreadItemDetails::Error(ErrorItem { message }),
@@ -450,7 +450,7 @@ impl EventProcessorWithJsonOutput {
                     }
                     _ => notification.summary,
                 };
-                events.push(ThreadEvent::ItemCompleted(ItemCompletedEvent {
+                events.push(ThreadEvent::MessageCompleted(MessageCompletedEvent {
                     item: ExecThreadItem {
                         id: self.next_item_id(),
                         details: ThreadItemDetails::Error(ErrorItem { message }),
@@ -463,7 +463,7 @@ impl EventProcessorWithJsonOutput {
             }
             ServerNotification::MessageStarted(notification) => {
                 if let Some(item) = self.map_started_item(notification.item) {
-                    events.push(ThreadEvent::ItemStarted(ItemStartedEvent { item }));
+                    events.push(ThreadEvent::MessageStarted(MessageStartedEvent { item }));
                 }
                 CodexStatus::Running
             }
@@ -474,12 +474,12 @@ impl EventProcessorWithJsonOutput {
                     {
                         self.final_message = Some(text.clone());
                     }
-                    events.push(ThreadEvent::ItemCompleted(ItemCompletedEvent { item }));
+                    events.push(ThreadEvent::MessageCompleted(MessageCompletedEvent { item }));
                 }
                 CodexStatus::Running
             }
             ServerNotification::ModelRerouted(notification) => {
-                events.push(ThreadEvent::ItemCompleted(ItemCompletedEvent {
+                events.push(ThreadEvent::MessageCompleted(MessageCompletedEvent {
                     item: ExecThreadItem {
                         id: self.next_item_id(),
                         details: ThreadItemDetails::Error(ErrorItem {
@@ -499,7 +499,7 @@ impl EventProcessorWithJsonOutput {
             }
             ServerNotification::InteractionCompleted(notification) => {
                 if let Some(running) = self.running_todo_list.take() {
-                    events.push(ThreadEvent::ItemCompleted(ItemCompletedEvent {
+                    events.push(ThreadEvent::MessageCompleted(MessageCompletedEvent {
                         item: ExecThreadItem {
                             id: running.item_id,
                             details: ThreadItemDetails::TodoList(TodoListItem {
@@ -569,7 +569,7 @@ impl EventProcessorWithJsonOutput {
                         item_id: item_id.clone(),
                         items: items.clone(),
                     });
-                    events.push(ThreadEvent::ItemStarted(ItemStartedEvent {
+                    events.push(ThreadEvent::MessageStarted(MessageStartedEvent {
                         item: ExecThreadItem {
                             id: item_id,
                             details: ThreadItemDetails::TodoList(TodoListItem { items }),

@@ -27,18 +27,18 @@ use datax_protocol::dynamic_tools::DynamicToolFunctionSpec;
 use datax_protocol::dynamic_tools::DynamicToolNamespaceSpec;
 use datax_protocol::dynamic_tools::DynamicToolNamespaceTool;
 use datax_protocol::dynamic_tools::DynamicToolSpec;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::models::ContentItem;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::ConversationStartParams;
 use datax_protocol::protocol::EventMsg;
-use datax_protocol::protocol::ItemCompletedEvent;
-use datax_protocol::protocol::ItemStartedEvent;
+use datax_protocol::protocol::MessageCompletedEvent;
+use datax_protocol::protocol::MessageStartedEvent;
 use datax_protocol::protocol::Op;
 use datax_protocol::protocol::RealtimeConversationRealtimeEvent;
 use datax_protocol::protocol::RealtimeEvent;
 use datax_protocol::protocol::RealtimeOutputModality;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
@@ -2275,14 +2275,14 @@ async fn remote_manual_compact_emits_context_compaction_items() -> Result<()> {
     {
         let event = codex.next_event().await.unwrap();
         match event.msg {
-            EventMsg::ItemStarted(ItemStartedEvent {
-                item: TurnItem::ContextCompaction(item),
+            EventMsg::MessageStarted(MessageStartedEvent {
+                item: InteractionMessage::ContextCompaction(item),
                 ..
             }) => {
                 started_item = Some(item);
             }
-            EventMsg::ItemCompleted(ItemCompletedEvent {
-                item: TurnItem::ContextCompaction(item),
+            EventMsg::MessageCompleted(MessageCompletedEvent {
+                item: InteractionMessage::ContextCompaction(item),
                 ..
             }) => {
                 completed_item = Some(item);
@@ -2457,7 +2457,7 @@ async fn remote_compact_persists_replacement_history_in_rollout() -> Result<()> 
         let Ok(entry) = serde_json::from_str::<RolloutLine>(line) else {
             continue;
         };
-        if let RolloutItem::Compacted(compacted) = entry.item
+        if let RolloutMessage::Compacted(compacted) = entry.item
             && compacted.message.is_empty()
             && let Some(replacement_history) = compacted.replacement_history.as_ref()
         {

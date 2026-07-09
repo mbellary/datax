@@ -1,6 +1,6 @@
 use crate::config::Config;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use datax_analytics::InvocationType;
 use datax_analytics::SkillInvocation;
 use datax_analytics::build_track_events_context;
@@ -47,7 +47,7 @@ pub(crate) fn skills_load_input_from_config(
 
 pub(crate) async fn maybe_emit_implicit_skill_invocation(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     command: &str,
     workdir: &AbsolutePathBuf,
 ) {

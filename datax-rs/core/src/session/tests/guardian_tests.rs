@@ -7,7 +7,7 @@ use crate::test_support::models_manager_with_provider;
 use crate::tools::context::ToolCallSource;
 use crate::tools::context::ToolOutput;
 use crate::tools::context::ToolPayload;
-use crate::turn_diff_tracker::TurnDiffTracker;
+use crate::turn_diff_tracker::InteractionDiffTracker;
 use core_test_support::PathExt;
 use core_test_support::TempDirExt;
 use core_test_support::codex_linux_sandbox_exe_or_skip;
@@ -334,7 +334,7 @@ async fn guardian_allows_shell_command_additional_permissions_requests_past_poli
             session: Arc::clone(&session),
             turn: Arc::clone(&turn_context),
             cancellation_token: CancellationToken::new(),
-            tracker: Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new())),
+            tracker: Arc::new(tokio::sync::Mutex::new(InteractionDiffTracker::new())),
             call_id: "test-call".to_string(),
             tool_name: datax_tools::ToolName::plain("shell_command"),
             source: crate::tools::context::ToolCallSource::Direct,
@@ -438,7 +438,7 @@ async fn strict_auto_review_turn_grant_forces_guardian_for_shell_command_policy_
             session: Arc::clone(&session),
             turn: Arc::clone(&turn_context),
             cancellation_token: CancellationToken::new(),
-            tracker: Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new())),
+            tracker: Arc::new(tokio::sync::Mutex::new(InteractionDiffTracker::new())),
             call_id: "strict-shell-command-call".to_string(),
             tool_name: datax_tools::ToolName::plain("shell_command"),
             source: ToolCallSource::Direct,
@@ -477,7 +477,7 @@ async fn guardian_allows_unified_exec_additional_permissions_requests_past_polic
         .expect("test setup should allow enabling request permissions");
     let session = Arc::new(session);
     let turn_context = Arc::new(turn_context_raw);
-    let tracker = Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new()));
+    let tracker = Arc::new(tokio::sync::Mutex::new(InteractionDiffTracker::new()));
 
     let handler = ExecCommandHandler::default();
     let resp = handler
@@ -611,7 +611,7 @@ async fn shell_command_allows_sticky_turn_permissions_without_inline_request_per
             session: Arc::clone(&session),
             turn: Arc::clone(&turn_context),
             cancellation_token: CancellationToken::new(),
-            tracker: Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new())),
+            tracker: Arc::new(tokio::sync::Mutex::new(InteractionDiffTracker::new())),
             call_id: "sticky-turn-grant".to_string(),
             tool_name: datax_tools::ToolName::plain("shell_command"),
             source: crate::tools::context::ToolCallSource::Direct,

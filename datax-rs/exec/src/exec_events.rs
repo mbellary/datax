@@ -24,13 +24,13 @@ pub enum ThreadEvent {
     TurnFailed(TurnFailedEvent),
     /// Emitted when a new item is added to the thread. Typically the item will be in an "in progress" state.
     #[serde(rename = "item.started")]
-    ItemStarted(ItemStartedEvent),
+    MessageStarted(MessageStartedEvent),
     /// Emitted when an item is updated.
     #[serde(rename = "item.updated")]
     ItemUpdated(ItemUpdatedEvent),
     /// Signals that an item has reached a terminal state—either success or failure.
     #[serde(rename = "item.completed")]
-    ItemCompleted(ItemCompletedEvent),
+    MessageCompleted(MessageCompletedEvent),
     /// Represents an unrecoverable error emitted directly by the event stream.
     #[serde(rename = "error")]
     Error(ThreadErrorEvent),
@@ -70,12 +70,12 @@ pub struct Usage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
-pub struct ItemStartedEvent {
+pub struct MessageStartedEvent {
     pub item: ThreadItem,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
-pub struct ItemCompletedEvent {
+pub struct MessageCompletedEvent {
     pub item: ThreadItem,
 }
 

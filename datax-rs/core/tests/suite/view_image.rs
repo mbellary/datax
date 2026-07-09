@@ -341,14 +341,14 @@ async fn view_image_tool_attaches_local_image() -> anyhow::Result<()> {
     wait_for_event_with_timeout(
         codex,
         |event| match event {
-            EventMsg::ItemStarted(event) => {
-                if matches!(&event.item, datax_protocol::items::TurnItem::ImageView(_)) {
+            EventMsg::MessageStarted(event) => {
+                if matches!(&event.item, datax_protocol::items::InteractionMessage::ImageView(_)) {
                     item_started = Some(event.item.clone());
                 }
                 false
             }
-            EventMsg::ItemCompleted(event) => {
-                if matches!(&event.item, datax_protocol::items::TurnItem::ImageView(_)) {
+            EventMsg::MessageCompleted(event) => {
+                if matches!(&event.item, datax_protocol::items::InteractionMessage::ImageView(_)) {
                     item_completed = Some(event.item.clone());
                 }
                 false
@@ -367,14 +367,14 @@ async fn view_image_tool_attaches_local_image() -> anyhow::Result<()> {
     .await;
 
     match item_started.expect("view image item started event emitted") {
-        datax_protocol::items::TurnItem::ImageView(item) => {
+        datax_protocol::items::InteractionMessage::ImageView(item) => {
             assert_eq!(item.id, call_id);
             assert_eq!(item.path, abs_path);
         }
         other => panic!("expected ImageView item, got {other:?}"),
     }
     match item_completed.expect("view image item completed event emitted") {
-        datax_protocol::items::TurnItem::ImageView(item) => {
+        datax_protocol::items::InteractionMessage::ImageView(item) => {
             assert_eq!(item.id, call_id);
             assert_eq!(item.path, abs_path);
         }

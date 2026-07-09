@@ -39,7 +39,7 @@ use ts_rs::TS;
 #[derive(Debug, Clone, Deserialize, Serialize, TS, JsonSchema)]
 #[serde(tag = "type")]
 #[ts(tag = "type")]
-pub enum TurnItem {
+pub enum InteractionMessage {
     UserMessage(UserMessageItem),
     HookPrompt(HookPromptItem),
     AgentMessage(AgentMessageItem),
@@ -583,46 +583,46 @@ impl McpToolCallItem {
     }
 }
 
-impl TurnItem {
+impl InteractionMessage {
     pub fn id(&self) -> String {
         match self {
-            TurnItem::UserMessage(item) => item.id.clone(),
-            TurnItem::HookPrompt(item) => item.id.clone(),
-            TurnItem::AgentMessage(item) => item.id.clone(),
-            TurnItem::Plan(item) => item.id.clone(),
-            TurnItem::Reasoning(item) => item.id.clone(),
-            TurnItem::WebSearch(item) => item.id.clone(),
-            TurnItem::ImageView(item) => item.id.clone(),
-            TurnItem::Sleep(item) => item.id.clone(),
-            TurnItem::ImageGeneration(item) => item.id.clone(),
-            TurnItem::FileChange(item) => item.id.clone(),
-            TurnItem::McpToolCall(item) => item.id.clone(),
-            TurnItem::ContextCompaction(item) => item.id.clone(),
+            InteractionMessage::UserMessage(item) => item.id.clone(),
+            InteractionMessage::HookPrompt(item) => item.id.clone(),
+            InteractionMessage::AgentMessage(item) => item.id.clone(),
+            InteractionMessage::Plan(item) => item.id.clone(),
+            InteractionMessage::Reasoning(item) => item.id.clone(),
+            InteractionMessage::WebSearch(item) => item.id.clone(),
+            InteractionMessage::ImageView(item) => item.id.clone(),
+            InteractionMessage::Sleep(item) => item.id.clone(),
+            InteractionMessage::ImageGeneration(item) => item.id.clone(),
+            InteractionMessage::FileChange(item) => item.id.clone(),
+            InteractionMessage::McpToolCall(item) => item.id.clone(),
+            InteractionMessage::ContextCompaction(item) => item.id.clone(),
         }
     }
 
     pub fn as_legacy_events(&self, show_raw_agent_reasoning: bool) -> Vec<EventMsg> {
         match self {
-            TurnItem::UserMessage(item) => vec![item.as_legacy_event()],
-            TurnItem::HookPrompt(_) => Vec::new(),
-            TurnItem::AgentMessage(item) => item.as_legacy_events(),
-            TurnItem::Plan(_) => Vec::new(),
-            TurnItem::WebSearch(item) => vec![item.as_legacy_event()],
-            TurnItem::ImageView(item) => {
+            InteractionMessage::UserMessage(item) => vec![item.as_legacy_event()],
+            InteractionMessage::HookPrompt(_) => Vec::new(),
+            InteractionMessage::AgentMessage(item) => item.as_legacy_events(),
+            InteractionMessage::Plan(_) => Vec::new(),
+            InteractionMessage::WebSearch(item) => vec![item.as_legacy_event()],
+            InteractionMessage::ImageView(item) => {
                 vec![EventMsg::ViewImageToolCall(ViewImageToolCallEvent {
                     call_id: item.id.clone(),
                     path: item.path.clone(),
                 })]
             }
-            TurnItem::Sleep(_) => Vec::new(),
-            TurnItem::ImageGeneration(item) => vec![item.as_legacy_event()],
-            TurnItem::FileChange(item) => item
+            InteractionMessage::Sleep(_) => Vec::new(),
+            InteractionMessage::ImageGeneration(item) => vec![item.as_legacy_event()],
+            InteractionMessage::FileChange(item) => item
                 .as_legacy_end_event(String::new())
                 .into_iter()
                 .collect(),
-            TurnItem::McpToolCall(item) => item.as_legacy_end_event().into_iter().collect(),
-            TurnItem::Reasoning(item) => item.as_legacy_events(show_raw_agent_reasoning),
-            TurnItem::ContextCompaction(item) => vec![item.as_legacy_event()],
+            InteractionMessage::McpToolCall(item) => item.as_legacy_end_event().into_iter().collect(),
+            InteractionMessage::Reasoning(item) => item.as_legacy_events(show_raw_agent_reasoning),
+            InteractionMessage::ContextCompaction(item) => vec![item.as_legacy_event()],
         }
     }
 }

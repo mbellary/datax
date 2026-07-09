@@ -50,7 +50,7 @@ use crate::session::CodexSpawnOk;
 use crate::session::SUBMISSION_CHANNEL_CAPACITY;
 use crate::session::emit_subagent_session_started;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use datax_login::AuthManager;
 use datax_models_manager::manager::SharedModelsManager;
 use datax_protocol::error::CodexErr;
@@ -71,7 +71,7 @@ pub(crate) async fn run_datax_chat_interactive(
     auth_manager: Arc<AuthManager>,
     models_manager: SharedModelsManager,
     parent_session: Arc<Session>,
-    parent_ctx: Arc<TurnContext>,
+    parent_ctx: Arc<InteractionContext>,
     cancel_token: CancellationToken,
     subagent_source: SubAgentSource,
     initial_history: Option<InitialHistory>,
@@ -188,7 +188,7 @@ pub(crate) async fn run_datax_chat_one_shot(
     models_manager: SharedModelsManager,
     input: Vec<UserInput>,
     parent_session: Arc<Session>,
-    parent_ctx: Arc<TurnContext>,
+    parent_ctx: Arc<InteractionContext>,
     cancel_token: CancellationToken,
     subagent_source: SubAgentSource,
     final_output_json_schema: Option<Value>,
@@ -267,7 +267,7 @@ async fn forward_events(
     codex: Arc<Codex>,
     tx_sub: Sender<Event>,
     parent_session: Arc<Session>,
-    parent_ctx: Arc<TurnContext>,
+    parent_ctx: Arc<InteractionContext>,
     pending_mcp_invocations: Arc<Mutex<HashMap<String, McpInvocation>>>,
     cancel_token: CancellationToken,
 ) {
@@ -457,7 +457,7 @@ async fn handle_exec_approval(
     codex: &Codex,
     interaction_id: String,
     parent_session: &Arc<Session>,
-    parent_ctx: &Arc<TurnContext>,
+    parent_ctx: &Arc<InteractionContext>,
     event: ExecApprovalRequestEvent,
     cancel_token: &CancellationToken,
 ) {
@@ -542,7 +542,7 @@ async fn handle_patch_approval(
     codex: &Codex,
     _id: String,
     parent_session: &Arc<Session>,
-    parent_ctx: &Arc<TurnContext>,
+    parent_ctx: &Arc<InteractionContext>,
     event: ApplyPatchApprovalRequestEvent,
     cancel_token: &CancellationToken,
 ) {
@@ -645,7 +645,7 @@ async fn handle_request_user_input(
     codex: &Codex,
     id: String,
     parent_session: &Arc<Session>,
-    parent_ctx: &Arc<TurnContext>,
+    parent_ctx: &Arc<InteractionContext>,
     pending_mcp_invocations: &Arc<Mutex<HashMap<String, McpInvocation>>>,
     event: RequestUserInputEvent,
     cancel_token: &CancellationToken,
@@ -688,7 +688,7 @@ async fn handle_request_user_input(
 /// invocation in order to rebuild the full guardian review request.
 async fn maybe_auto_review_mcp_request_user_input(
     parent_session: &Arc<Session>,
-    parent_ctx: &Arc<TurnContext>,
+    parent_ctx: &Arc<InteractionContext>,
     pending_mcp_invocations: &Arc<Mutex<HashMap<String, McpInvocation>>>,
     event: &RequestUserInputEvent,
     cancel_token: &CancellationToken,
@@ -766,7 +766,7 @@ async fn maybe_auto_review_mcp_request_user_input(
 async fn handle_request_permissions(
     codex: &Codex,
     parent_session: &Arc<Session>,
-    parent_ctx: &Arc<TurnContext>,
+    parent_ctx: &Arc<InteractionContext>,
     event: RequestPermissionsEvent,
     cancel_token: &CancellationToken,
 ) {

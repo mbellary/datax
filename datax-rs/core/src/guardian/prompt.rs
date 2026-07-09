@@ -11,7 +11,7 @@ use serde_json::Value;
 use crate::compact::content_items_to_text;
 use crate::event_mapping::is_contextual_user_message_content;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use datax_utils_output_truncation::approx_bytes_for_tokens;
 use datax_utils_output_truncation::approx_token_count;
 use datax_utils_output_truncation::approx_tokens_from_byte_count;
@@ -107,7 +107,7 @@ pub(crate) async fn build_guardian_prompt_items(
 
 pub(crate) async fn build_guardian_prompt_items_with_parent_turn(
     session: &Session,
-    parent_turn: Option<&TurnContext>,
+    parent_turn: Option<&InteractionContext>,
     retry_reason: Option<String>,
     request: GuardianApprovalRequest,
     mode: GuardianPromptMode,
@@ -238,7 +238,7 @@ pub(crate) async fn build_guardian_prompt_items_with_parent_turn(
     })
 }
 
-fn parent_turn_denied_reads_context(turn: &TurnContext) -> Option<String> {
+fn parent_turn_denied_reads_context(turn: &InteractionContext) -> Option<String> {
     #[allow(deprecated)]
     let cwd = &turn.cwd;
     let file_system_policy = turn.permission_profile.file_system_sandbox_policy();

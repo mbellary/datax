@@ -23,8 +23,8 @@ pub(crate) enum QueuedInterrupt {
     },
     RequestPermissions(RequestPermissionsEvent),
     RequestUserInput(ToolRequestUserInputParams),
-    ItemStarted(Message),
-    ItemCompleted(Message),
+    MessageStarted(Message),
+    MessageCompleted(Message),
 }
 
 #[derive(Default)]
@@ -72,11 +72,11 @@ impl InterruptManager {
     }
 
     pub(crate) fn push_item_started(&mut self, item: Message) {
-        self.queue.push_back(QueuedInterrupt::ItemStarted(item));
+        self.queue.push_back(QueuedInterrupt::MessageStarted(item));
     }
 
     pub(crate) fn push_item_completed(&mut self, item: Message) {
-        self.queue.push_back(QueuedInterrupt::ItemCompleted(item));
+        self.queue.push_back(QueuedInterrupt::MessageCompleted(item));
     }
 
     pub(crate) fn remove_resolved_prompt(&mut self, request: &ResolvedAppServerRequest) -> bool {
@@ -96,8 +96,8 @@ impl InterruptManager {
                 }
                 QueuedInterrupt::RequestPermissions(ev) => chat.handle_request_permissions_now(ev),
                 QueuedInterrupt::RequestUserInput(ev) => chat.handle_request_user_input_now(ev),
-                QueuedInterrupt::ItemStarted(item) => chat.handle_queued_item_started_now(item),
-                QueuedInterrupt::ItemCompleted(item) => {
+                QueuedInterrupt::MessageStarted(item) => chat.handle_queued_item_started_now(item),
+                QueuedInterrupt::MessageCompleted(item) => {
                     chat.handle_queued_item_completed_now(item);
                 }
             }
@@ -130,7 +130,7 @@ impl QueuedInterrupt {
                 matches!(request, ResolvedAppServerRequest::UserInput { call_id }
                     if ev.message_id == call_id.as_str())
             }
-            QueuedInterrupt::ItemStarted(_) | QueuedInterrupt::ItemCompleted(_) => false,
+            QueuedInterrupt::MessageStarted(_) | QueuedInterrupt::MessageCompleted(_) => false,
         }
     }
 }
@@ -241,7 +241,7 @@ mod tests {
         assert_eq!(manager.queue.len(), 1);
         assert!(matches!(
             manager.queue.front(),
-            Some(QueuedInterrupt::ItemStarted(_))
+            Some(QueuedInterrupt::MessageStarted(_))
         ));
     }
 }

@@ -173,7 +173,7 @@ impl ToolOutput for ResumeAgentResult {
 
 async fn try_resume_closed_agent(
     session: &Arc<Session>,
-    turn: &Arc<TurnContext>,
+    turn: &Arc<InteractionContext>,
     receiver_chat_id: ChatId,
     child_depth: i32,
 ) -> Result<(), FunctionCallError> {

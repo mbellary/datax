@@ -246,7 +246,7 @@ enum ThreadInteractiveRequest {
 
 /// Extracts `receiver_chat_ids` from collab agent tool-call notifications.
 ///
-/// Only `ItemStarted` and `ItemCompleted` notifications with a `CollabAgentToolCall` item carry
+/// Only `MessageStarted` and `MessageCompleted` notifications with a `CollabAgentToolCall` item carry
 /// receiver thread ids. All other notification variants return `None`.
 fn collab_receiver_chat_ids(notification: &ServerNotification) -> Option<&[String]> {
     match notification {

@@ -1624,7 +1624,7 @@ server_notification_definitions! {
     MessageGuardianApprovalReviewCompleted => "message/autoApprovalReview/completed" (v2::MessageGuardianApprovalReviewCompletedNotification),
     MessageCompleted => "message/completed" (v2::MessageCompletedNotification),
     /// This event is internal-only. Used by Codex Cloud.
-    RawResponseItemCompleted => "rawResponseItem/completed" (v2::RawResponseItemCompletedNotification),
+    RawResponseMessageCompleted => "rawResponseItem/completed" (v2::RawResponseMessageCompletedNotification),
     AgentMessageDelta => "message/agentMessage/delta" (v2::AgentMessageDeltaNotification),
     /// EXPERIMENTAL - proposed plan streaming deltas for plan messages.
     PlanDelta => "message/plan/delta" (v2::PlanDeltaNotification),

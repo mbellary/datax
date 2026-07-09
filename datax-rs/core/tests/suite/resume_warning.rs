@@ -13,8 +13,8 @@ use datax_protocol::protocol::InitialHistory;
 use datax_protocol::protocol::InteractionCompleteEvent;
 use datax_protocol::protocol::InteractionStartedEvent;
 use datax_protocol::protocol::ResumedHistory;
-use datax_protocol::protocol::RolloutItem;
-use datax_protocol::protocol::TurnContextItem;
+use datax_protocol::protocol::RolloutMessage;
+use datax_protocol::protocol::InteractionContextMessage;
 use datax_protocol::protocol::UserMessageEvent;
 use datax_protocol::protocol::WarningEvent;
 use tempfile::TempDir;
@@ -25,7 +25,7 @@ fn resume_history(
     rollout_path: &std::path::Path,
 ) -> InitialHistory {
     let interaction_id = "resume-warning-seed-turn".to_string();
-    let turn_ctx = TurnContextItem {
+    let turn_ctx = InteractionContextMessage {
         interaction_id: Some(interaction_id.clone()),
         cwd: config.cwd.clone(),
         workspace_roots: None,
@@ -52,14 +52,14 @@ fn resume_history(
     InitialHistory::Resumed(ResumedHistory {
         conversation_id: ChatId::default(),
         history: vec![
-            RolloutItem::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
+            RolloutMessage::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
                 interaction_id: interaction_id.clone(),
                 trace_id: None,
                 started_at: None,
                 model_context_window: None,
                 collaboration_mode_kind: ModeKind::Default,
             })),
-            RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+            RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
                 client_id: None,
                 message: "seed".to_string(),
                 images: None,
@@ -67,8 +67,8 @@ fn resume_history(
                 text_elements: vec![],
                 ..Default::default()
             })),
-            RolloutItem::TurnContext(turn_ctx),
-            RolloutItem::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
+            RolloutMessage::InteractionContext(turn_ctx),
+            RolloutMessage::EventMsg(EventMsg::InteractionComplete(InteractionCompleteEvent {
                 interaction_id,
                 last_agent_message: None,
                 completed_at: None,

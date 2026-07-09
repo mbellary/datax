@@ -20,15 +20,15 @@ use datax_protocol::models::ResponseItem;
 use datax_protocol::protocol::AskForApproval;
 use datax_protocol::protocol::GitInfo;
 use datax_protocol::protocol::SessionSource;
-use datax_thread_store::StoredThread;
+use datax_thread_store::StoredChat;
 use pretty_assertions::assert_eq;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use tempfile::TempDir;
 
-fn stored_thread(cwd: &str, title: &str, first_user_message: &str) -> StoredThread {
-    StoredThread {
+fn stored_thread(cwd: &str, title: &str, first_user_message: &str) -> StoredChat {
+    StoredChat {
         chat_id: ChatId::new(),
         extra_config: None,
         rollout_path: Some(PathBuf::from("/tmp/rollout.jsonl")),

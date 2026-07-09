@@ -16,7 +16,7 @@ use crate::tools::context::ToolPayload;
 use crate::tools::handlers::ShellCommandHandler;
 use crate::tools::hook_names::HookToolName;
 use crate::tools::registry::CoreToolRuntime;
-use crate::turn_diff_tracker::TurnDiffTracker;
+use crate::turn_diff_tracker::InteractionDiffTracker;
 use datax_shell_command::is_safe_command::is_known_safe_command;
 use datax_shell_command::powershell::try_find_powershell_executable_blocking;
 use datax_shell_command::powershell::try_find_pwsh_executable_blocking;
@@ -203,7 +203,7 @@ async fn shell_command_pre_tool_use_payload_uses_raw_command() {
             session: session.into(),
             turn: turn.into(),
             cancellation_token: tokio_util::sync::CancellationToken::new(),
-            tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
+            tracker: Arc::new(Mutex::new(InteractionDiffTracker::new())),
             call_id: "call-42".to_string(),
             tool_name: datax_tools::ToolName::plain("shell_command"),
             source: crate::tools::context::ToolCallSource::Direct,
@@ -232,7 +232,7 @@ async fn build_post_tool_use_payload_uses_tool_output_wire_value() {
         session: session.into(),
         turn: turn.into(),
         cancellation_token: tokio_util::sync::CancellationToken::new(),
-        tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
+        tracker: Arc::new(Mutex::new(InteractionDiffTracker::new())),
         call_id: "call-42".to_string(),
         tool_name: datax_tools::ToolName::plain("shell_command"),
         source: ToolCallSource::Direct,

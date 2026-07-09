@@ -1,13 +1,13 @@
 use crate::function_tool::FunctionCallError;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use datax_protocol::ChatId;
 use std::sync::Arc;
 
 /// Resolves a single tool-facing agent target to a thread id.
 pub(crate) async fn resolve_agent_target(
     session: &Arc<Session>,
-    turn: &Arc<TurnContext>,
+    turn: &Arc<InteractionContext>,
     target: &str,
 ) -> Result<ChatId, FunctionCallError> {
     register_session_root(session, turn);
@@ -28,7 +28,7 @@ pub(crate) async fn resolve_agent_target(
         })
 }
 
-fn register_session_root(session: &Arc<Session>, turn: &Arc<TurnContext>) {
+fn register_session_root(session: &Arc<Session>, turn: &Arc<InteractionContext>) {
     session
         .services
         .agent_control

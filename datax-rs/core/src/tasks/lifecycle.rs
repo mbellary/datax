@@ -4,12 +4,12 @@ use datax_protocol::protocol::InteractionAbortReason;
 use datax_protocol::protocol::TokenUsage;
 
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 
 impl Session {
     pub(super) async fn emit_turn_start_lifecycle(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         token_usage_at_turn_start: &TokenUsage,
     ) {
         for contributor in self.services.extensions.turn_lifecycle_contributors() {
@@ -74,7 +74,7 @@ impl Session {
 
     pub(crate) async fn emit_turn_error_lifecycle(
         &self,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         error: CodexErrorInfo,
     ) {
         for contributor in self.services.extensions.turn_lifecycle_contributors() {

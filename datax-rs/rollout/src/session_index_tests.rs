@@ -1,7 +1,7 @@
 #![allow(warnings, clippy::all)]
 
 use super::*;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::protocol::SessionMeta;
 use datax_protocol::protocol::SessionMetaLine;
@@ -23,7 +23,7 @@ fn write_rollout_with_metadata(path: &Path, chat_id: ChatId) -> std::io::Result<
     let timestamp = "2024-01-01T00-00-00Z".to_string();
     let line = RolloutLine {
         timestamp: timestamp.clone(),
-        item: RolloutItem::SessionMeta(SessionMetaLine {
+        item: RolloutMessage::SessionMeta(SessionMetaLine {
             meta: SessionMeta {
                 session_id: chat_id.into(),
                 id: chat_id,

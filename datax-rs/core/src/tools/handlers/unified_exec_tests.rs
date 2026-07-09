@@ -16,7 +16,7 @@ use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolPayload;
 use crate::tools::hook_names::HookToolName;
 use crate::tools::registry::CoreToolRuntime;
-use crate::turn_diff_tracker::TurnDiffTracker;
+use crate::turn_diff_tracker::InteractionDiffTracker;
 use tokio::sync::Mutex;
 
 const TEST_TRUNCATION_POLICY: TruncationPolicy = TruncationPolicy::Tokens(10_000);
@@ -31,7 +31,7 @@ async fn invocation_for_payload(
         session: session.into(),
         turn: turn.into(),
         cancellation_token: tokio_util::sync::CancellationToken::new(),
-        tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
+        tracker: Arc::new(Mutex::new(InteractionDiffTracker::new())),
         call_id: call_id.to_string(),
         tool_name: datax_tools::ToolName::plain(tool_name),
         source: ToolCallSource::Direct,
@@ -243,7 +243,7 @@ async fn exec_command_pre_tool_use_payload_uses_raw_command() {
             session: session.into(),
             turn: turn.into(),
             cancellation_token: tokio_util::sync::CancellationToken::new(),
-            tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
+            tracker: Arc::new(Mutex::new(InteractionDiffTracker::new())),
             call_id: "call-43".to_string(),
             tool_name: datax_tools::ToolName::plain("exec_command"),
             source: crate::tools::context::ToolCallSource::Direct,
@@ -269,7 +269,7 @@ async fn exec_command_pre_tool_use_payload_skips_write_stdin() {
             session: session.into(),
             turn: turn.into(),
             cancellation_token: tokio_util::sync::CancellationToken::new(),
-            tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
+            tracker: Arc::new(Mutex::new(InteractionDiffTracker::new())),
             call_id: "call-44".to_string(),
             tool_name: datax_tools::ToolName::plain("write_stdin"),
             source: crate::tools::context::ToolCallSource::Direct,

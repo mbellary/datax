@@ -1,5 +1,5 @@
 use super::session::Session;
-use super::turn_context::TurnContext;
+use super::turn_context::InteractionContext;
 use crate::context::ContextualUserFragment;
 use datax_protocol::error::CodexErr;
 use datax_protocol::error::Result as CodexResult;
@@ -7,7 +7,7 @@ use datax_protocol::protocol::TokenUsage;
 
 pub(super) async fn maybe_record_reminder(
     sess: &Session,
-    turn_context: &TurnContext,
+    turn_context: &InteractionContext,
     window_id: &str,
 ) {
     let budget = sess.services.agent_control.rollout_budget();

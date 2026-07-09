@@ -370,7 +370,7 @@ enum RunningThreadResumeResult {
     ///
     /// The optional stored thread contains the history-bearing probe that cold
     /// resume can reuse instead of reading the rollout again.
-    NotRunning(Option<Box<StoredThread>>),
+    NotRunning(Option<Box<StoredChat>>),
 }
 
 impl ChatRequestProcessor {
@@ -2379,7 +2379,7 @@ impl ChatRequestProcessor {
     async fn load_thread_turns_list_history(
         &self,
         chat_id: ChatId,
-    ) -> Result<Vec<RolloutItem>, ThreadReadViewError> {
+    ) -> Result<Vec<RolloutMessage>, ThreadReadViewError> {
         match self
             .thread_store
             .read_thread(StoreReadThreadParams {
@@ -3027,7 +3027,7 @@ impl ChatRequestProcessor {
             history
                 .iter()
                 .cloned()
-                .map(RolloutItem::ResponseItem)
+                .map(RolloutMessage::ResponseItem)
                 .collect(),
         ))
     }
@@ -3037,7 +3037,7 @@ impl ChatRequestProcessor {
         &self,
         chat_id: &str,
         path: Option<&PathBuf>,
-    ) -> Result<(InitialHistory, StoredThread), JSONRPCErrorError> {
+    ) -> Result<(InitialHistory, StoredChat), JSONRPCErrorError> {
         let stored_thread = self
             .read_stored_thread_for_resume(chat_id, path, /*include_history*/ true)
             .await?;
@@ -3052,7 +3052,7 @@ impl ChatRequestProcessor {
         chat_id: &str,
         path: Option<&PathBuf>,
         include_history: bool,
-    ) -> Result<StoredThread, JSONRPCErrorError> {
+    ) -> Result<StoredChat, JSONRPCErrorError> {
         let result = if let Some(path) = path {
             self.thread_store
                 .read_thread_by_rollout_path(StoreReadThreadByRolloutPathParams {
@@ -3090,7 +3090,7 @@ impl ChatRequestProcessor {
     #[tracing::instrument(level = "trace", skip_all)]
     async fn stored_thread_to_initial_history(
         &self,
-        stored_thread: &StoredThread,
+        stored_thread: &StoredChat,
     ) -> Result<InitialHistory, JSONRPCErrorError> {
         let chat_id = stored_thread.chat_id;
         let history = stored_thread
@@ -3111,7 +3111,7 @@ impl ChatRequestProcessor {
 
     fn stored_thread_to_api_thread(
         &self,
-        stored_thread: StoredThread,
+        stored_thread: StoredChat,
         fallback_provider: &str,
         include_interactions: bool,
     ) -> Chat {
@@ -3131,7 +3131,7 @@ impl ChatRequestProcessor {
         &self,
         chat_id: ChatId,
         include_history: bool,
-    ) -> Result<StoredThread, JSONRPCErrorError> {
+    ) -> Result<StoredChat, JSONRPCErrorError> {
         self.thread_store
             .read_thread(StoreReadThreadParams {
                 chat_id: chat_id,
@@ -3148,7 +3148,7 @@ impl ChatRequestProcessor {
         chat: &DataxChat,
         thread_history: &InitialHistory,
         rollout_path: &Path,
-        resume_source_thread: Option<StoredThread>,
+        resume_source_thread: Option<StoredChat>,
         include_interactions: bool,
     ) -> std::result::Result<Chat, String> {
         let config_snapshot = thread.config_snapshot().await;
@@ -3166,7 +3166,7 @@ impl ChatRequestProcessor {
                                     include_history: false,
                                 })
                                 .await
-                                .unwrap_or(StoredThread {
+                                .unwrap_or(StoredChat {
                                     history: None,
                                     ..stored_thread
                                 })
@@ -3178,7 +3178,7 @@ impl ChatRequestProcessor {
                                     include_history: false,
                                 })
                                 .await
-                                .unwrap_or(StoredThread {
+                                .unwrap_or(StoredChat {
                                     history: None,
                                     ..stored_thread
                                 })
@@ -3573,7 +3573,7 @@ impl ChatRequestProcessor {
         sort_key: StoreThreadSortKey,
         sort_direction: SortDirection,
         filters: ThreadListFilters,
-    ) -> Result<(Vec<StoredThread>, Option<String>), JSONRPCErrorError> {
+    ) -> Result<(Vec<StoredChat>, Option<String>), JSONRPCErrorError> {
         let ThreadListFilters {
             model_providers,
             source_kinds,
@@ -3694,7 +3694,7 @@ const THREAD_TURNS_DEFAULT_LIMIT: usize = 25;
 const THREAD_TURNS_MAX_LIMIT: usize = 100;
 
 fn thread_backwards_cursor_for_sort_key(
-    chat: &StoredThread,
+    chat: &StoredChat,
     sort_key: StoreThreadSortKey,
     sort_direction: SortDirection,
 ) -> Option<String> {
@@ -3829,7 +3829,7 @@ struct ThreadTurnsPageOptions<'a> {
 }
 
 fn build_thread_turns_page_response(
-    messages: &[RolloutItem],
+    messages: &[RolloutMessage],
     loaded_status: ChatStatus,
     has_live_running_thread: bool,
     active_turn: Option<Interaction>,
@@ -3856,7 +3856,7 @@ fn build_thread_turns_page_response(
 }
 
 pub(super) fn build_thread_resume_initial_turns_page(
-    messages: &[RolloutItem],
+    messages: &[RolloutMessage],
     loaded_status: ChatStatus,
     has_live_running_thread: bool,
     active_turn: Option<Interaction>,
@@ -3886,22 +3886,22 @@ fn apply_thread_turns_items_view(
     for turn in interactions {
         match messages_view {
             InteractionMessagesView::NotLoaded => {
-                turn.messages.clear();
+                turn.items.clear();
                 turn.messages_view = InteractionMessagesView::NotLoaded;
             }
             InteractionMessagesView::Summary => {
                 let first_user_message = turn
-                    .messages
+                    .items
                     .iter()
                     .find(|item| matches!(item, Message::UserMessage { .. }))
                     .cloned();
                 let final_agent_message = turn
-                    .messages
+                    .items
                     .iter()
                     .rev()
                     .find(|item| matches!(item, Message::AgentMessage { .. }))
                     .cloned();
-                turn.messages = match (first_user_message, final_agent_message) {
+                turn.items = match (first_user_message, final_agent_message) {
                     (Some(user_message), Some(agent_message))
                         if user_message.id() != agent_message.id() =>
                     {
@@ -3921,7 +3921,7 @@ fn apply_thread_turns_items_view(
 }
 
 fn reconstruct_thread_turns_for_turns_list(
-    messages: &[RolloutItem],
+    messages: &[RolloutMessage],
     loaded_status: ChatStatus,
     has_live_running_thread: bool,
     active_turn: Option<Interaction>,
@@ -4117,10 +4117,10 @@ fn set_thread_name_from_title(chat: &mut Chat, title: String) {
 }
 
 pub(crate) fn chat_from_stored_thread(
-    chat: StoredThread,
+    chat: StoredChat,
     fallback_provider: &str,
     fallback_cwd: &AbsolutePathBuf,
-) -> (Chat, Option<datax_thread_store::StoredThreadHistory>) {
+) -> (Chat, Option<datax_thread_store::StoredChatHistory>) {
     let path = thread.rollout_path;
     let git_info = thread.git_info.map(|info| ApiGitInfo {
         sha: info.commit_hash.map(|sha| sha.0),
@@ -4171,7 +4171,7 @@ pub(crate) fn chat_from_stored_thread(
     (thread, history)
 }
 
-fn summary_from_stored_thread(chat: StoredThread, fallback_provider: &str) -> ConversationSummary {
+fn summary_from_stored_thread(chat: StoredChat, fallback_provider: &str) -> ConversationSummary {
     let path = thread.rollout_path.unwrap_or_default();
     let source = with_thread_spawn_agent_metadata(
         thread.source,
@@ -4285,12 +4285,12 @@ fn summary_from_thread_metadata(metadata: &ThreadMetadata) -> ConversationSummar
     )
 }
 
-fn preview_from_rollout_items(messages: &[RolloutItem]) -> String {
+fn preview_from_rollout_items(messages: &[RolloutMessage]) -> String {
     messages
         .iter()
         .find_map(|item| match item {
-            RolloutItem::ResponseItem(item) => match datax_core::parse_turn_item(item) {
-                Some(datax_protocol::items::TurnItem::UserMessage(user)) => Some(user.message()),
+            RolloutMessage::ResponseItem(item) => match datax_core::parse_turn_item(item) {
+                Some(datax_protocol::items::InteractionMessage::UserMessage(user)) => Some(user.message()),
                 _ => None,
             },
             _ => None,

@@ -24,7 +24,7 @@ use datax_protocol::protocol::AskForApproval;
 use datax_protocol::protocol::Event;
 use datax_protocol::protocol::MultiAgentVersion;
 use datax_protocol::protocol::Op;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::SandboxPolicy;
 use datax_protocol::protocol::SessionConfiguredEvent;
 use datax_protocol::protocol::SessionSource;
@@ -36,8 +36,8 @@ use datax_protocol::protocol::TurnEnvironmentSelection;
 use datax_protocol::protocol::TurnEnvironmentSelections;
 use datax_protocol::protocol::W3cTraceContext;
 use datax_protocol::user_input::UserInput;
-use datax_thread_store::StoredThread;
-use datax_thread_store::StoredThreadHistory;
+use datax_thread_store::StoredChat;
+use datax_thread_store::StoredChatHistory;
 use datax_thread_store::ThreadMetadataPatch;
 use datax_thread_store::ThreadStoreError;
 use datax_thread_store::ThreadStoreResult;
@@ -498,7 +498,7 @@ impl DataxChat {
     pub async fn load_history(
         &self,
         include_archived: bool,
-    ) -> ThreadStoreResult<StoredThreadHistory> {
+    ) -> ThreadStoreResult<StoredChatHistory> {
         let live_thread = self
             .codex
             .session
@@ -513,7 +513,7 @@ impl DataxChat {
         &self,
         include_archived: bool,
         include_history: bool,
-    ) -> ThreadStoreResult<StoredThread> {
+    ) -> ThreadStoreResult<StoredChat> {
         let live_thread = self
             .codex
             .session
@@ -530,7 +530,7 @@ impl DataxChat {
         &self,
         patch: ThreadMetadataPatch,
         include_archived: bool,
-    ) -> ThreadStoreResult<StoredThread> {
+    ) -> ThreadStoreResult<StoredChat> {
         let live_thread = self
             .codex
             .session
@@ -542,7 +542,7 @@ impl DataxChat {
     }
 
     /// Appends rollout items through the live thread so derived metadata stays in sync.
-    pub async fn append_rollout_items(&self, items: &[RolloutItem]) -> ThreadStoreResult<()> {
+    pub async fn append_rollout_items(&self, items: &[RolloutMessage]) -> ThreadStoreResult<()> {
         let live_thread = self
             .codex
             .session

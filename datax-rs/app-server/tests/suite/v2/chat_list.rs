@@ -32,7 +32,7 @@ use datax_core::ARCHIVED_SESSIONS_SUBDIR;
 use datax_git_utils::GitSha;
 use datax_protocol::ChatId;
 use datax_protocol::protocol::GitInfo as CoreGitInfo;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::RolloutLine;
 use datax_protocol::protocol::SessionSource as CoreSessionSource;
 use datax_protocol::protocol::SubAgentSource;
@@ -196,14 +196,14 @@ fn set_rollout_cwd(path: &Path, cwd: &Path) -> Result<()> {
         .first_mut()
         .ok_or_else(|| anyhow::anyhow!("rollout at {} is empty", path.display()))?;
     let mut rollout_line: RolloutLine = serde_json::from_str(first_line)?;
-    let RolloutItem::SessionMeta(mut session_meta_line) = rollout_line.item else {
+    let RolloutMessage::SessionMeta(mut session_meta_line) = rollout_line.item else {
         return Err(anyhow::anyhow!(
             "rollout at {} does not start with session metadata",
             path.display()
         ));
     };
     session_meta_line.meta.cwd = cwd.to_path_buf();
-    rollout_line.item = RolloutItem::SessionMeta(session_meta_line);
+    rollout_line.item = RolloutMessage::SessionMeta(session_meta_line);
     *first_line = serde_json::to_string(&rollout_line)?;
     fs::write(path, lines.join("\n") + "\n")?;
     Ok(())

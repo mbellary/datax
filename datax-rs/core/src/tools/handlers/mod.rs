@@ -49,7 +49,7 @@ use std::path::Path;
 use crate::function_tool::FunctionCallError;
 use crate::sandboxing::SandboxPermissions;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::session::turn_context::TurnEnvironment;
 pub(crate) use crate::tools::code_mode::CodeModeExecuteHandler;
 pub(crate) use crate::tools::code_mode::CodeModeWaitHandler;
@@ -153,7 +153,7 @@ fn resolve_workdir_base_path(
 }
 
 fn resolve_tool_environment<'a>(
-    turn: &'a TurnContext,
+    turn: &'a InteractionContext,
     environment_id: Option<&str>,
 ) -> Result<Option<&'a TurnEnvironment>, FunctionCallError> {
     environment_id.map_or_else(

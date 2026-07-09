@@ -19,14 +19,14 @@ use datax_extension_api::ToolCall;
 use datax_extension_api::ToolContributor;
 use datax_extension_api::ToolExecutor;
 use datax_extension_api::ToolLifecycleContributor;
-use datax_extension_api::TurnContextContributionInput;
+use datax_extension_api::InteractionContextContributionInput;
 use datax_extension_api::TurnInputContext;
 use datax_extension_api::TurnInputContributor;
-use datax_extension_api::TurnItemContributor;
+use datax_extension_api::InteractionMessageContributor;
 use datax_extension_api::TurnLifecycleContributor;
 use datax_extension_api::empty_extension_registry;
 use datax_protocol::items::HookPromptItem;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::protocol::Event;
 use datax_protocol::protocol::EventMsg;
 use datax_protocol::protocol::ReviewDecision;
@@ -81,12 +81,12 @@ impl ToolContributor for AllContributors {
 
 impl ToolLifecycleContributor for AllContributors {}
 
-impl TurnItemContributor for AllContributors {
+impl InteractionMessageContributor for AllContributors {
     fn contribute<'a>(
         &'a self,
         _thread_store: &'a ExtensionData,
         _turn_store: &'a ExtensionData,
-        _item: &'a mut TurnItem,
+        _item: &'a mut InteractionMessage,
     ) -> ExtensionFuture<'a, Result<(), String>> {
         Box::pin(async move {
             let _self = self;
@@ -160,12 +160,12 @@ impl ContextContributor for NamedContextContributor {
     }
 }
 
-struct NamedTurnContextContributor(&'static str);
+struct NamedInteractionContextContributor(&'static str);
 
-impl ContextContributor for NamedTurnContextContributor {
+impl ContextContributor for NamedInteractionContextContributor {
     fn contribute_turn_context<'a>(
         &'a self,
-        _input: TurnContextContributionInput<'a>,
+        _input: InteractionContextContributionInput<'a>,
     ) -> ExtensionFuture<'a, Vec<PromptFragment>> {
         Box::pin(std::future::ready(vec![PromptFragment::new(
             PromptSlot::ContextualUser,
@@ -174,17 +174,17 @@ impl ContextContributor for NamedTurnContextContributor {
     }
 }
 
-struct RecordingTurnItemContributor {
+struct RecordingInteractionMessageContributor {
     name: &'static str,
     calls: Arc<Mutex<Vec<&'static str>>>,
 }
 
-impl TurnItemContributor for RecordingTurnItemContributor {
+impl InteractionMessageContributor for RecordingInteractionMessageContributor {
     fn contribute<'a>(
         &'a self,
         _thread_store: &'a ExtensionData,
         _turn_store: &'a ExtensionData,
-        _item: &'a mut TurnItem,
+        _item: &'a mut InteractionMessage,
     ) -> ExtensionFuture<'a, Result<(), String>> {
         Box::pin(async move {
             self.calls
@@ -202,10 +202,10 @@ async fn contributors_preserve_registration_order() {
     let mut builder = ExtensionRegistryBuilder::<()>::new();
     builder.prompt_contributor(Arc::new(NamedContextContributor("first")));
     builder.prompt_contributor(Arc::new(NamedContextContributor("second")));
-    builder.prompt_contributor(Arc::new(NamedTurnContextContributor("turn-first")));
-    builder.prompt_contributor(Arc::new(NamedTurnContextContributor("turn-second")));
+    builder.prompt_contributor(Arc::new(NamedInteractionContextContributor("turn-first")));
+    builder.prompt_contributor(Arc::new(NamedInteractionContextContributor("turn-second")));
     for name in ["first", "second"] {
-        builder.turn_item_contributor(Arc::new(RecordingTurnItemContributor {
+        builder.turn_item_contributor(Arc::new(RecordingInteractionMessageContributor {
             name,
             calls: Arc::clone(&turn_item_calls),
         }));
@@ -226,7 +226,7 @@ async fn contributors_preserve_registration_order() {
     for contributor in registry.context_contributors() {
         fragments.extend(
             contributor
-                .contribute_turn_context(TurnContextContributionInput {
+                .contribute_turn_context(InteractionContextContributionInput {
                     chat_id: datax_protocol::ChatId::default(),
                     interaction_id: turn_store.level_id(),
                     session_store: &session_store,
@@ -237,7 +237,7 @@ async fn contributors_preserve_registration_order() {
                 .await,
         );
     }
-    let mut item = TurnItem::HookPrompt(HookPromptItem {
+    let mut item = InteractionMessage::HookPrompt(HookPromptItem {
         id: "item".to_string(),
         fragments: Vec::new(),
     });

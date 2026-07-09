@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::config::Config;
 use crate::session::tests::make_session_and_context;
 use crate::tools::context::ToolPayload;
-use crate::turn_diff_tracker::TurnDiffTracker;
+use crate::turn_diff_tracker::InteractionDiffTracker;
 use datax_extension_api::ExtensionData;
 use datax_extension_api::ExtensionRegistry;
 use datax_extension_api::ExtensionRegistryBuilder;
@@ -386,7 +386,7 @@ async fn extension_tool_executors_are_model_visible_and_dispatchable() -> anyhow
             Arc::new(session),
             Arc::new(turn),
             CancellationToken::new(),
-            Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new())),
+            Arc::new(tokio::sync::Mutex::new(InteractionDiffTracker::new())),
             call,
             ToolCallSource::Direct,
         )

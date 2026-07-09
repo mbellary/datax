@@ -6,7 +6,7 @@ use crate::context::InternalContextSource;
 use crate::context::InternalModelContextFragment;
 use datax_protocol::items::AgentMessageContent;
 use datax_protocol::items::HookPromptFragment;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::items::WebSearchItem;
 use datax_protocol::items::build_hook_prompt_message;
 use datax_protocol::models::ContentItem;
@@ -83,7 +83,7 @@ fn parses_user_message_with_text_and_two_images() {
     let turn_item = parse_turn_item(&item).expect("expected user message turn item");
 
     match turn_item {
-        TurnItem::UserMessage(user) => {
+        InteractionMessage::UserMessage(user) => {
             let expected_content = vec![
                 UserInput::Text {
                     text: "Hello world".to_string(),
@@ -100,7 +100,7 @@ fn parses_user_message_with_text_and_two_images() {
             ];
             assert_eq!(user.content, expected_content);
         }
-        other => panic!("expected TurnItem::UserMessage, got {other:?}"),
+        other => panic!("expected InteractionMessage::UserMessage, got {other:?}"),
     }
 }
 
@@ -133,7 +133,7 @@ fn skips_local_image_label_text() {
     let turn_item = parse_turn_item(&item).expect("expected user message turn item");
 
     match turn_item {
-        TurnItem::UserMessage(user) => {
+        InteractionMessage::UserMessage(user) => {
             let expected_content = vec![
                 UserInput::Image {
                     image_url,
@@ -146,7 +146,7 @@ fn skips_local_image_label_text() {
             ];
             assert_eq!(user.content, expected_content);
         }
-        other => panic!("expected TurnItem::UserMessage, got {other:?}"),
+        other => panic!("expected InteractionMessage::UserMessage, got {other:?}"),
     }
 }
 
@@ -166,7 +166,7 @@ fn parses_assistant_message_input_text_for_backward_compatibility() {
     let turn_item = parse_turn_item(&item).expect("expected assistant message turn item");
 
     match turn_item {
-        TurnItem::AgentMessage(message) => {
+        InteractionMessage::AgentMessage(message) => {
             let rendered = message
                 .content
                 .into_iter()
@@ -183,7 +183,7 @@ fn parses_assistant_message_input_text_for_backward_compatibility() {
                 ]
             );
         }
-        other => panic!("expected TurnItem::AgentMessage, got {other:?}"),
+        other => panic!("expected InteractionMessage::AgentMessage, got {other:?}"),
     }
 }
 
@@ -216,7 +216,7 @@ fn skips_unnamed_image_label_text() {
     let turn_item = parse_turn_item(&item).expect("expected user message turn item");
 
     match turn_item {
-        TurnItem::UserMessage(user) => {
+        InteractionMessage::UserMessage(user) => {
             let expected_content = vec![
                 UserInput::Image {
                     image_url,
@@ -229,7 +229,7 @@ fn skips_unnamed_image_label_text() {
             ];
             assert_eq!(user.content, expected_content);
         }
-        other => panic!("expected TurnItem::UserMessage, got {other:?}"),
+        other => panic!("expected InteractionMessage::UserMessage, got {other:?}"),
     }
 }
 
@@ -311,7 +311,7 @@ fn parses_hook_prompt_message_as_distinct_turn_item() {
     let turn_item = parse_turn_item(&item).expect("expected hook prompt turn item");
 
     match turn_item {
-        TurnItem::HookPrompt(hook_prompt) => {
+        InteractionMessage::HookPrompt(hook_prompt) => {
             assert_eq!(hook_prompt.fragments.len(), 1);
             assert_eq!(
                 hook_prompt.fragments[0],
@@ -321,7 +321,7 @@ fn parses_hook_prompt_message_as_distinct_turn_item() {
                 }
             );
         }
-        other => panic!("expected TurnItem::HookPrompt, got {other:?}"),
+        other => panic!("expected InteractionMessage::HookPrompt, got {other:?}"),
     }
 }
 
@@ -346,7 +346,7 @@ fn parses_hook_prompt_and_hides_other_contextual_fragments() {
     let turn_item = parse_turn_item(&item).expect("expected hook prompt turn item");
 
     match turn_item {
-        TurnItem::HookPrompt(hook_prompt) => {
+        InteractionMessage::HookPrompt(hook_prompt) => {
             assert_eq!(hook_prompt.id, "msg-1");
             assert_eq!(
                 hook_prompt.fragments,
@@ -356,7 +356,7 @@ fn parses_hook_prompt_and_hides_other_contextual_fragments() {
                 }]
             );
         }
-        other => panic!("expected TurnItem::HookPrompt, got {other:?}"),
+        other => panic!("expected InteractionMessage::HookPrompt, got {other:?}"),
     }
 }
 
@@ -394,13 +394,13 @@ fn parses_agent_message() {
     let turn_item = parse_turn_item(&item).expect("expected agent message turn item");
 
     match turn_item {
-        TurnItem::AgentMessage(message) => {
+        InteractionMessage::AgentMessage(message) => {
             let Some(AgentMessageContent::Text { text }) = message.content.first() else {
                 panic!("expected agent message text content");
             };
             assert_eq!(text, "Hello from Codex");
         }
-        other => panic!("expected TurnItem::AgentMessage, got {other:?}"),
+        other => panic!("expected InteractionMessage::AgentMessage, got {other:?}"),
     }
 }
 
@@ -426,14 +426,14 @@ fn parses_reasoning_summary_and_raw_content() {
     let turn_item = parse_turn_item(&item).expect("expected reasoning turn item");
 
     match turn_item {
-        TurnItem::Reasoning(reasoning) => {
+        InteractionMessage::Reasoning(reasoning) => {
             assert_eq!(
                 reasoning.summary_text,
                 vec!["Step 1".to_string(), "Step 2".to_string()]
             );
             assert_eq!(reasoning.raw_content, vec!["raw details".to_string()]);
         }
-        other => panic!("expected TurnItem::Reasoning, got {other:?}"),
+        other => panic!("expected InteractionMessage::Reasoning, got {other:?}"),
     }
 }
 
@@ -459,14 +459,14 @@ fn parses_reasoning_including_raw_content() {
     let turn_item = parse_turn_item(&item).expect("expected reasoning turn item");
 
     match turn_item {
-        TurnItem::Reasoning(reasoning) => {
+        InteractionMessage::Reasoning(reasoning) => {
             assert_eq!(reasoning.summary_text, vec!["Summarized step".to_string()]);
             assert_eq!(
                 reasoning.raw_content,
                 vec!["raw step".to_string(), "final thought".to_string()]
             );
         }
-        other => panic!("expected TurnItem::Reasoning, got {other:?}"),
+        other => panic!("expected InteractionMessage::Reasoning, got {other:?}"),
     }
 }
 
@@ -485,7 +485,7 @@ fn parses_web_search_call() {
     let turn_item = parse_turn_item(&item).expect("expected web search turn item");
 
     match turn_item {
-        TurnItem::WebSearch(search) => assert_eq!(
+        InteractionMessage::WebSearch(search) => assert_eq!(
             search,
             WebSearchItem {
                 id: "ws_1".to_string(),
@@ -496,7 +496,7 @@ fn parses_web_search_call() {
                 },
             }
         ),
-        other => panic!("expected TurnItem::WebSearch, got {other:?}"),
+        other => panic!("expected InteractionMessage::WebSearch, got {other:?}"),
     }
 }
 
@@ -514,7 +514,7 @@ fn parses_web_search_open_page_call() {
     let turn_item = parse_turn_item(&item).expect("expected web search turn item");
 
     match turn_item {
-        TurnItem::WebSearch(search) => assert_eq!(
+        InteractionMessage::WebSearch(search) => assert_eq!(
             search,
             WebSearchItem {
                 id: "ws_open".to_string(),
@@ -524,7 +524,7 @@ fn parses_web_search_open_page_call() {
                 },
             }
         ),
-        other => panic!("expected TurnItem::WebSearch, got {other:?}"),
+        other => panic!("expected InteractionMessage::WebSearch, got {other:?}"),
     }
 }
 
@@ -543,7 +543,7 @@ fn parses_web_search_find_in_page_call() {
     let turn_item = parse_turn_item(&item).expect("expected web search turn item");
 
     match turn_item {
-        TurnItem::WebSearch(search) => assert_eq!(
+        InteractionMessage::WebSearch(search) => assert_eq!(
             search,
             WebSearchItem {
                 id: "ws_find".to_string(),
@@ -554,7 +554,7 @@ fn parses_web_search_find_in_page_call() {
                 },
             }
         ),
-        other => panic!("expected TurnItem::WebSearch, got {other:?}"),
+        other => panic!("expected InteractionMessage::WebSearch, got {other:?}"),
     }
 }
 
@@ -569,7 +569,7 @@ fn parses_partial_web_search_call_without_action_as_other() {
 
     let turn_item = parse_turn_item(&item).expect("expected web search turn item");
     match turn_item {
-        TurnItem::WebSearch(search) => assert_eq!(
+        InteractionMessage::WebSearch(search) => assert_eq!(
             search,
             WebSearchItem {
                 id: "ws_partial".to_string(),
@@ -577,6 +577,6 @@ fn parses_partial_web_search_call_without_action_as_other() {
                 action: WebSearchAction::Other,
             }
         ),
-        other => panic!("expected TurnItem::WebSearch, got {other:?}"),
+        other => panic!("expected InteractionMessage::WebSearch, got {other:?}"),
     }
 }

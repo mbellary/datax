@@ -36,7 +36,7 @@ use datax_protocol::protocol::RealtimeEvent;
 use datax_protocol::protocol::RealtimeNoopRequested;
 use datax_protocol::protocol::RealtimeOutputModality;
 use datax_protocol::protocol::RealtimeVoice;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
@@ -2345,14 +2345,14 @@ async fn conversation_startup_context_current_thread_selects_many_turns_by_budge
             let turn_number = index + 1;
             let assistant_turn = format!("assistant turn {turn_number}");
             [
-                RolloutItem::ResponseItem(ResponseItem::Message {
+                RolloutMessage::ResponseItem(ResponseItem::Message {
                     id: None,
                     role: "user".to_string(),
                     content: vec![ContentItem::InputText { text: user_turn }],
                     phase: None,
                     internal_chat_message_metadata_passthrough: None,
                 }),
-                RolloutItem::ResponseItem(ResponseItem::Message {
+                RolloutMessage::ResponseItem(ResponseItem::Message {
                     id: None,
                     role: "assistant".to_string(),
                     content: vec![ContentItem::OutputText {

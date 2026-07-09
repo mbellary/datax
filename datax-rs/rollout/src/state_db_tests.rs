@@ -156,7 +156,7 @@ fn write_rollout_with_user_message(
     let lines = [
         RolloutLine {
             timestamp: "2026-06-01T14:26:25Z".to_string(),
-            item: RolloutItem::SessionMeta(SessionMetaLine {
+            item: RolloutMessage::SessionMeta(SessionMetaLine {
                 meta: SessionMeta {
                     session_id: chat_id.into(),
                     id: chat_id,
@@ -182,7 +182,7 @@ fn write_rollout_with_user_message(
         },
         RolloutLine {
             timestamp: "2026-06-01T14:26:26Z".to_string(),
-            item: RolloutItem::EventMsg(EventMsg::UserMessage(UserMessageEvent {
+            item: RolloutMessage::EventMsg(EventMsg::UserMessage(UserMessageEvent {
                 message: message.to_string(),
                 ..Default::default()
             })),

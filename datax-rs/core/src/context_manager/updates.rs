@@ -8,7 +8,7 @@ use crate::context::RealtimeEndInstructions;
 use crate::context::RealtimeStartInstructions;
 use crate::context::RealtimeStartWithInstructions;
 use crate::session::PreviousTurnSettings;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use datax_execpolicy::Policy;
 use datax_features::Feature;
 use datax_protocol::config_types::MultiAgentMode;
@@ -16,11 +16,11 @@ use datax_protocol::config_types::Personality;
 use datax_protocol::models::ContentItem;
 use datax_protocol::models::ResponseItem;
 use datax_protocol::openai_models::ModelInfo;
-use datax_protocol::protocol::TurnContextItem;
+use datax_protocol::protocol::InteractionContextMessage;
 
 fn build_permissions_update_item(
-    previous: Option<&TurnContextItem>,
-    next: &TurnContext,
+    previous: Option<&InteractionContextMessage>,
+    next: &InteractionContext,
     exec_policy: &Policy,
 ) -> Option<String> {
     if !next.config.include_permissions_instructions {
@@ -54,8 +54,8 @@ fn build_permissions_update_item(
 }
 
 fn build_collaboration_mode_update_item(
-    previous: Option<&TurnContextItem>,
-    next: &TurnContext,
+    previous: Option<&InteractionContextMessage>,
+    next: &InteractionContext,
 ) -> Option<String> {
     if !next.config.include_collaboration_mode_instructions {
         return None;
@@ -75,8 +75,8 @@ fn build_collaboration_mode_update_item(
 }
 
 fn build_multi_agent_mode_update_item(
-    previous: Option<&TurnContextItem>,
-    next: &TurnContext,
+    previous: Option<&InteractionContextMessage>,
+    next: &InteractionContext,
 ) -> Option<String> {
     let effective_multi_agent_mode = crate::session::multi_agents::effective_multi_agent_mode(next);
     let previous = previous?;
@@ -97,9 +97,9 @@ fn build_multi_agent_mode_update_item(
 }
 
 pub(crate) fn build_realtime_update_item(
-    previous: Option<&TurnContextItem>,
+    previous: Option<&InteractionContextMessage>,
     previous_turn_settings: Option<&PreviousTurnSettings>,
-    next: &TurnContext,
+    next: &InteractionContext,
 ) -> Option<String> {
     match (
         previous.and_then(|item| item.realtime_active),
@@ -126,16 +126,16 @@ pub(crate) fn build_realtime_update_item(
 }
 
 pub(crate) fn build_initial_realtime_item(
-    previous: Option<&TurnContextItem>,
+    previous: Option<&InteractionContextMessage>,
     previous_turn_settings: Option<&PreviousTurnSettings>,
-    next: &TurnContext,
+    next: &InteractionContext,
 ) -> Option<String> {
     build_realtime_update_item(previous, previous_turn_settings, next)
 }
 
 fn build_personality_update_item(
-    previous: Option<&TurnContextItem>,
-    next: &TurnContext,
+    previous: Option<&InteractionContextMessage>,
+    next: &InteractionContext,
     personality_feature_enabled: bool,
 ) -> Option<String> {
     if !personality_feature_enabled {
@@ -170,7 +170,7 @@ pub(crate) fn personality_message_for(
 
 pub(crate) fn build_model_instructions_update_item(
     previous_turn_settings: Option<&PreviousTurnSettings>,
-    next: &TurnContext,
+    next: &InteractionContext,
 ) -> Option<String> {
     let previous_turn_settings = previous_turn_settings?;
     if previous_turn_settings.model == next.model_info.slug {
@@ -233,9 +233,9 @@ fn build_text_message(role: &str, text_sections: Vec<String>) -> Option<Response
 }
 
 pub(crate) fn build_settings_update_items(
-    previous: Option<&TurnContextItem>,
+    previous: Option<&InteractionContextMessage>,
     previous_turn_settings: Option<&PreviousTurnSettings>,
-    next: &TurnContext,
+    next: &InteractionContext,
     exec_policy: &Policy,
     personality_feature_enabled: bool,
 ) -> Vec<ResponseItem> {

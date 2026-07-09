@@ -8,7 +8,7 @@ use crate::exec::ExecParams;
 use crate::exec_env::create_env;
 use crate::function_tool::FunctionCallError;
 use crate::maybe_emit_implicit_skill_invocation;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::shell::Shell;
 use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolPayload;
@@ -85,7 +85,7 @@ impl ShellCommandHandler {
     pub(super) fn to_exec_params(
         params: &ShellCommandToolCallParams,
         session: &crate::session::session::Session,
-        turn_context: &TurnContext,
+        turn_context: &InteractionContext,
         chat_id: ChatId,
         allow_login_shell: bool,
     ) -> Result<ExecParams, FunctionCallError> {

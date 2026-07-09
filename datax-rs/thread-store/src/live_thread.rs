@@ -2,20 +2,20 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use datax_protocol::ChatId;
-use datax_protocol::protocol::RolloutItem;
+use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::ThreadMemoryMode;
 use datax_rollout::persisted_rollout_items;
 use tokio::sync::Mutex;
 use tracing::warn;
 
-use crate::AppendThreadItemsParams;
+use crate::AppendChatMessagesParams;
 use crate::CreateThreadParams;
 use crate::LoadThreadHistoryParams;
 use crate::LocalThreadStore;
 use crate::ReadThreadParams;
 use crate::ResumeThreadParams;
-use crate::StoredThread;
-use crate::StoredThreadHistory;
+use crate::StoredChat;
+use crate::StoredChatHistory;
 use crate::ThreadMetadataPatch;
 use crate::ThreadStore;
 use crate::ThreadStoreResult;
@@ -138,13 +138,13 @@ impl LiveThread {
         skip_all,
         fields(item_count = items.len())
     )]
-    pub async fn append_items(&self, items: &[RolloutItem]) -> ThreadStoreResult<()> {
+    pub async fn append_items(&self, items: &[RolloutMessage]) -> ThreadStoreResult<()> {
         let canonical_items = persisted_rollout_items(items);
         if items.is_empty() {
             return Ok(());
         }
         self.thread_store
-            .append_items(AppendThreadItemsParams {
+            .append_items(AppendChatMessagesParams {
                 chat_id: self.chat_id,
                 items: items.to_vec(),
             })
@@ -197,7 +197,7 @@ impl LiveThread {
     pub async fn load_history(
         &self,
         include_archived: bool,
-    ) -> ThreadStoreResult<StoredThreadHistory> {
+    ) -> ThreadStoreResult<StoredChatHistory> {
         self.thread_store
             .load_history(LoadThreadHistoryParams {
                 chat_id: self.chat_id,
@@ -210,7 +210,7 @@ impl LiveThread {
         &self,
         include_archived: bool,
         include_history: bool,
-    ) -> ThreadStoreResult<StoredThread> {
+    ) -> ThreadStoreResult<StoredChat> {
         self.thread_store
             .read_thread(ReadThreadParams {
                 chat_id: self.chat_id,
@@ -243,7 +243,7 @@ impl LiveThread {
         &self,
         patch: ThreadMetadataPatch,
         include_archived: bool,
-    ) -> ThreadStoreResult<StoredThread> {
+    ) -> ThreadStoreResult<StoredChat> {
         self.flush_pending_metadata_update().await?;
         self.thread_store
             .update_thread_metadata(UpdateThreadMetadataParams {

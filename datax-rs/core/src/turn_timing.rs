@@ -7,15 +7,15 @@ use std::time::UNIX_EPOCH;
 
 use datax_analytics::TurnProfile;
 use datax_otel::TURN_TTFM_DURATION_METRIC;
-use datax_protocol::items::TurnItem;
+use datax_protocol::items::InteractionMessage;
 use datax_protocol::models::ResponseItem;
 use tokio::sync::Mutex;
 
 use crate::ResponseEvent;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::stream_events_utils::raw_assistant_output_text_from_item;
 
-pub(crate) async fn record_turn_ttft_metric(turn_context: &TurnContext, event: &ResponseEvent) {
+pub(crate) async fn record_turn_ttft_metric(turn_context: &InteractionContext, event: &ResponseEvent) {
     let Some(duration) = turn_context
         .turn_timing_state
         .record_ttft_for_response_event(event)
@@ -26,7 +26,7 @@ pub(crate) async fn record_turn_ttft_metric(turn_context: &TurnContext, event: &
     turn_context.session_telemetry.record_turn_ttft(duration);
 }
 
-pub(crate) async fn record_turn_ttfm_metric(turn_context: &TurnContext, item: &TurnItem) {
+pub(crate) async fn record_turn_ttfm_metric(turn_context: &InteractionContext, item: &InteractionMessage) {
     let Some(duration) = turn_context
         .turn_timing_state
         .record_ttfm_for_turn_item(item)
@@ -151,8 +151,8 @@ impl TurnTimingState {
         state.record_turn_ttft()
     }
 
-    pub(crate) async fn record_ttfm_for_turn_item(&self, item: &TurnItem) -> Option<Duration> {
-        if !matches!(item, TurnItem::AgentMessage(_)) {
+    pub(crate) async fn record_ttfm_for_turn_item(&self, item: &InteractionMessage) -> Option<Duration> {
+        if !matches!(item, InteractionMessage::AgentMessage(_)) {
             return None;
         }
         let mut state = self.state.lock().await;

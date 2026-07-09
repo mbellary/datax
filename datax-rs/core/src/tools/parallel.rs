@@ -14,9 +14,9 @@ use tracing::trace_span;
 
 use crate::function_tool::FunctionCallError;
 use crate::session::session::Session;
-use crate::session::turn_context::TurnContext;
+use crate::session::turn_context::InteractionContext;
 use crate::tools::context::AbortedToolOutput;
-use crate::tools::context::SharedTurnDiffTracker;
+use crate::tools::context::SharedInteractionDiffTracker;
 use crate::tools::context::ToolPayload;
 use crate::tools::lifecycle::notify_tool_aborted;
 use crate::tools::registry::AnyToolResult;
@@ -31,8 +31,8 @@ use datax_protocol::models::ResponseInputItem;
 pub(crate) struct ToolCallRuntime {
     router: Arc<ToolRouter>,
     session: Arc<Session>,
-    turn_context: Arc<TurnContext>,
-    tracker: SharedTurnDiffTracker,
+    turn_context: Arc<InteractionContext>,
+    tracker: SharedInteractionDiffTracker,
     parallel_execution: Arc<RwLock<()>>,
 }
 
@@ -40,8 +40,8 @@ impl ToolCallRuntime {
     pub(crate) fn new(
         router: Arc<ToolRouter>,
         session: Arc<Session>,
-        turn_context: Arc<TurnContext>,
-        tracker: SharedTurnDiffTracker,
+        turn_context: Arc<InteractionContext>,
+        tracker: SharedInteractionDiffTracker,
     ) -> Self {
         Self {
             router,
@@ -245,7 +245,7 @@ mod tests {
     use crate::tools::registry::CoreToolRuntime;
     use crate::tools::registry::ToolExecutor;
     use crate::tools::registry::ToolRegistry;
-    use crate::turn_diff_tracker::TurnDiffTracker;
+    use crate::turn_diff_tracker::InteractionDiffTracker;
     use datax_extension_api::ToolCallOutcome;
     use datax_protocol::models::FunctionCallOutputBody;
     use datax_protocol::models::FunctionCallOutputPayload;
@@ -427,7 +427,7 @@ mod tests {
             ToolRegistry::from_tools([handler]),
             Vec::new(),
         ));
-        let tracker = Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new()));
+        let tracker = Arc::new(tokio::sync::Mutex::new(InteractionDiffTracker::new()));
         let runtime = ToolCallRuntime::new(router, session, turn_context, tracker);
         let cancellation_token = CancellationToken::new();
         let call = ToolCall {
@@ -499,7 +499,7 @@ mod tests {
             ToolRegistry::from_tools([handler]),
             Vec::new(),
         ));
-        let tracker = Arc::new(tokio::sync::Mutex::new(TurnDiffTracker::new()));
+        let tracker = Arc::new(tokio::sync::Mutex::new(InteractionDiffTracker::new()));
         let runtime = ToolCallRuntime::new(router, session, turn_context, tracker);
         let cancellation_token = CancellationToken::new();
         let call = ToolCall {

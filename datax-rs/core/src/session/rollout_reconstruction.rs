@@ -8,7 +8,7 @@ use uuid::Uuid;
 pub(super) struct RolloutReconstruction {
     pub(super) history: Vec<ResponseItem>,
     pub(super) previous_turn_settings: Option<PreviousTurnSettings>,
-    pub(super) reference_context_item: Option<TurnContextItem>,
+    pub(super) reference_context_item: Option<InteractionContextMessage>,
     pub(super) window_number: u64,
     pub(super) first_window_id: Option<Uuid>,
     pub(super) previous_window_id: Option<Uuid>,
@@ -25,7 +25,7 @@ struct ReconstructedWindow {
 
 #[derive(Debug, Default)]
 enum TurnReferenceContextItem {
-    /// No `TurnContextItem` has been seen for this replay span yet.
+    /// No `InteractionContextMessage` has been seen for this replay span yet.
     ///
     /// This differs from `Cleared`: `NeverSet` means there is no evidence this turn ever
     /// established a baseline, while `Cleared` means a baseline existed and a later compaction
@@ -36,7 +36,7 @@ enum TurnReferenceContextItem {
     /// A previously established baseline was invalidated by later compaction.
     Cleared,
     /// The latest baseline established by this replay span.
-    Latest(Box<TurnContextItem>),
+    Latest(Box<InteractionContextMessage>),
 }
 
 #[derive(Debug, Default)]
@@ -109,8 +109,8 @@ fn finalize_active_segment<'a>(
 impl Session {
     pub(super) async fn reconstruct_history_from_rollout(
         &self,
-        turn_context: &TurnContext,
-        rollout_items: &[RolloutItem],
+        turn_context: &InteractionContext,
+        rollout_items: &[RolloutMessage],
     ) -> RolloutReconstruction {
         // Replay metadata should already match the shape of the future lazy reverse loader, even
         // while history materialization still uses an eager bridge. Scan newest-to-oldest,
@@ -133,7 +133,7 @@ impl Session {
 
         for (index, item) in rollout_items.iter().enumerate().rev() {
             match item {
-                RolloutItem::Compacted(compacted) => {
+                RolloutMessage::Compacted(compacted) => {
                     let active_segment =
                         active_segment.get_or_insert_with(ActiveReplaySegment::default);
                     if active_segment.window.is_none()
@@ -150,7 +150,7 @@ impl Session {
                         });
                     }
                     // Looking backward, compaction clears any older baseline unless a newer
-                    // `TurnContextItem` in this same segment has already re-established it.
+                    // `InteractionContextMessage` in this same segment has already re-established it.
                     if matches!(
                         active_segment.reference_context_item,
                         TurnReferenceContextItem::NeverSet
@@ -164,20 +164,20 @@ impl Session {
                         rollout_suffix = &rollout_items[index + 1..];
                     }
                 }
-                RolloutItem::EventMsg(EventMsg::ThreadRolledBack(rollback)) => {
+                RolloutMessage::EventMsg(EventMsg::ThreadRolledBack(rollback)) => {
                     pending_rollback_turns = pending_rollback_turns
                         .saturating_add(usize::try_from(rollback.num_turns).unwrap_or(usize::MAX));
                 }
-                RolloutItem::EventMsg(EventMsg::InteractionComplete(event)) => {
+                RolloutMessage::EventMsg(EventMsg::InteractionComplete(event)) => {
                     let active_segment =
                         active_segment.get_or_insert_with(ActiveReplaySegment::default);
                     // Reverse replay often sees `InteractionComplete` before any turn-scoped metadata.
-                    // Capture the turn id early so later `TurnContext` / abort items can match it.
+                    // Capture the turn id early so later `InteractionContext` / abort items can match it.
                     if active_segment.interaction_id.is_none() {
                         active_segment.interaction_id = Some(event.interaction_id.clone());
                     }
                 }
-                RolloutItem::EventMsg(EventMsg::InteractionAborted(event)) => {
+                RolloutMessage::EventMsg(EventMsg::InteractionAborted(event)) => {
                     if let Some(active_segment) = active_segment.as_mut() {
                         if active_segment.interaction_id.is_none()
                             && let Some(interaction_id) = &event.interaction_id
@@ -191,15 +191,15 @@ impl Session {
                         });
                     }
                 }
-                RolloutItem::EventMsg(EventMsg::UserMessage(_)) => {
+                RolloutMessage::EventMsg(EventMsg::UserMessage(_)) => {
                     let active_segment =
                         active_segment.get_or_insert_with(ActiveReplaySegment::default);
                     active_segment.counts_as_user_turn = true;
                 }
-                RolloutItem::TurnContext(ctx) => {
+                RolloutMessage::InteractionContext(ctx) => {
                     let active_segment =
                         active_segment.get_or_insert_with(ActiveReplaySegment::default);
-                    // `TurnContextItem` can attach metadata to an existing segment, but only a
+                    // `InteractionContextMessage` can attach metadata to an existing segment, but only a
                     // real `UserMessage` event should make the segment count as a user turn.
                     if active_segment.interaction_id.is_none() {
                         active_segment.interaction_id = ctx.interaction_id.clone();
@@ -222,7 +222,7 @@ impl Session {
                         }
                     }
                 }
-                RolloutItem::EventMsg(EventMsg::InteractionStarted(event)) => {
+                RolloutMessage::EventMsg(EventMsg::InteractionStarted(event)) => {
                     // `InteractionStarted` is the oldest boundary of the active reverse segment.
                     if active_segment.as_ref().is_some_and(|active_segment| {
                         interaction_ids_are_compatible(
@@ -241,17 +241,17 @@ impl Session {
                         );
                     }
                 }
-                RolloutItem::ResponseItem(response_item) => {
+                RolloutMessage::ResponseItem(response_item) => {
                     let active_segment =
                         active_segment.get_or_insert_with(ActiveReplaySegment::default);
                     active_segment.counts_as_user_turn |= is_user_turn_boundary(response_item);
                 }
-                RolloutItem::InterAgentCommunication(_) => {
+                RolloutMessage::InterAgentCommunication(_) => {
                     let active_segment =
                         active_segment.get_or_insert_with(ActiveReplaySegment::default);
                     active_segment.counts_as_user_turn = true;
                 }
-                RolloutItem::EventMsg(_) | RolloutItem::SessionMeta(_) => {}
+                RolloutMessage::EventMsg(_) | RolloutMessage::SessionMeta(_) => {}
             }
 
             if base_replacement_history.is_some()
@@ -279,7 +279,7 @@ impl Session {
         let fallback_window_number = u64::try_from(
             rollout_items
                 .iter()
-                .filter(|item| matches!(item, RolloutItem::Compacted(_)))
+                .filter(|item| matches!(item, RolloutMessage::Compacted(_)))
                 .count(),
         )
         .unwrap_or(u64::MAX);
@@ -291,23 +291,23 @@ impl Session {
         }
         // Materialize exact history semantics from the replay-derived suffix. The eventual lazy
         // design should keep this same replay shape, but drive it from a resumable reverse source
-        // instead of an eagerly loaded `&[RolloutItem]`.
+        // instead of an eagerly loaded `&[RolloutMessage]`.
         for item in rollout_suffix {
             match item {
-                RolloutItem::ResponseItem(response_item) => {
+                RolloutMessage::ResponseItem(response_item) => {
                     history.record_items(
                         std::iter::once(response_item),
                         turn_context.model_info.truncation_policy.into(),
                     );
                 }
-                RolloutItem::InterAgentCommunication(communication) => {
+                RolloutMessage::InterAgentCommunication(communication) => {
                     let response_item = communication.to_model_input_item();
                     history.record_items(
                         std::iter::once(&response_item),
                         turn_context.model_info.truncation_policy.into(),
                     );
                 }
-                RolloutItem::Compacted(compacted) => {
+                RolloutMessage::Compacted(compacted) => {
                     if let Some(replacement_history) = &compacted.replacement_history {
                         // This should actually never happen, because the reverse loop above (to build rollout_suffix)
                         // should stop before any compaction that has Some replacement_history
@@ -315,8 +315,8 @@ impl Session {
                     } else {
                         saw_legacy_compaction_without_replacement_history = true;
                         // Legacy rollouts without `replacement_history` should rebuild the
-                        // historical TurnContext at the correct insertion point from persisted
-                        // `TurnContextItem`s. These are rare enough that we currently just clear
+                        // historical InteractionContext at the correct insertion point from persisted
+                        // `InteractionContextMessage`s. These are rare enough that we currently just clear
                         // `reference_context_item`, reinject canonical context at the end of the
                         // resumed conversation, and accept the temporary out-of-distribution
                         // prompt shape.
@@ -331,12 +331,12 @@ impl Session {
                         history.replace(rebuilt);
                     }
                 }
-                RolloutItem::EventMsg(EventMsg::ThreadRolledBack(rollback)) => {
+                RolloutMessage::EventMsg(EventMsg::ThreadRolledBack(rollback)) => {
                     history.drop_last_n_user_turns(rollback.num_turns);
                 }
-                RolloutItem::EventMsg(_)
-                | RolloutItem::TurnContext(_)
-                | RolloutItem::SessionMeta(_) => {}
+                RolloutMessage::EventMsg(_)
+                | RolloutMessage::InteractionContext(_)
+                | RolloutMessage::SessionMeta(_) => {}
             }
         }
 

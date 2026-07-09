@@ -8,14 +8,14 @@ use super::helpers::scoped_rollout_path;
 use super::helpers::stored_thread_from_rollout_item;
 use super::helpers::touch_modified_time;
 use crate::ArchiveThreadParams;
-use crate::StoredThread;
+use crate::StoredChat;
 use crate::ThreadStoreError;
 use crate::ThreadStoreResult;
 
 pub(super) async fn unarchive_thread(
     store: &LocalThreadStore,
     params: ArchiveThreadParams,
-) -> ThreadStoreResult<StoredThread> {
+) -> ThreadStoreResult<StoredChat> {
     let chat_id = params.chat_id;
     let state_db_ctx = store.state_db().await;
     let archived_path = find_archived_thread_path_by_id_str(

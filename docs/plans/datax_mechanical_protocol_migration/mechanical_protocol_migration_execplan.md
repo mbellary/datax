@@ -36,6 +36,8 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 - [x] (2026-07-09 00:00Z) Renamed message/history contracts: `TurnItem -> InteractionMessage`, `RolloutItem -> RolloutMessage`, `TurnContextItem -> InteractionContextMessage`, `ItemStarted/ItemCompleted -> MessageStarted/MessageCompleted`, and stored history/search/page types such as `StoredThread -> StoredChat`, `StoredTurn -> StoredInteraction`, and `StoredThreadHistory -> StoredChatHistory`.
 - [x] (2026-07-09 00:00Z) Started Milestone 6 on branch `codex/phase1-8-m6-app-server-state-names`; GitHub issue #27 tracks the app-server state/store rename slice.
 - [x] (2026-07-09 00:00Z) Renamed app-server state/listener/status and store API contracts to Datax terms, including `ThreadState -> ChatState`, `ThreadWatchManager -> ChatWatchManager`, `ThreadStore -> ChatStore`, and `CreateThreadParams -> CreateChatParams`.
+- [x] (2026-07-10 00:00Z) Started Milestone 7 on branch `codex/phase1-8-m7-validation-handoff`; GitHub issue #29 tracks the validation and generated-artifact handoff slice.
+- [x] (2026-07-10 00:00Z) Documented the Milestone 7 validation commands, schema commands, assumptions, and remaining compatibility names. Per user instruction, Codex did not run build, test, formatter, or schema commands for this milestone.
 - [ ] Regenerate affected app-server schemas and run targeted tests.
 - [ ] Update Phase 2 bridge plans so downstream Codex integration starts only after Datax owns the Datax-named protocol and runtime contracts.
 
@@ -81,6 +83,10 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 - Decision: Treat `docs/plans/datax_mechanical_protocol_migration/mechanical_protocol_migration_execplan.md` as the canonical plan path.
   Rationale: The plan was moved out of the Phase 2 folder because this migration is now Phase 1.8 work. Any shorthand reference to `docs/plans/mechanical_protocol_migration_execplan.md` should resolve to this file unless a future repository move updates the path.
   Date/Author: 2026-07-09 / Codex
+
+- Decision: Treat Milestone 7 as a validation handoff when Codex is instructed not to run build, test, formatter, or schema commands.
+  Rationale: The milestone still needs traceability: the plan must say which generated artifacts and focused checks are required, which commands Codex intentionally did not run, and which compatibility names remain accepted until their owning migration slice.
+  Date/Author: 2026-07-10 / Codex
 
 ## Outcomes & Retrospective
 
@@ -528,6 +534,50 @@ Milestone 6 command assumptions:
 - `just fix -p datax-thread-store`, `just fix -p datax-core`, and `just fix -p datax-app-server` validate the renamed store API, dependent core runtime call sites, and app-server processors under the repo lint profile.
 - The targeted tests validate the renamed store API, core runtime callers, and app-server request processors without asking the user to run the full workspace suite.
 
+## Milestone 7 Validation and Schema Handoff Summary
+
+Milestone 7 does not introduce additional protocol, runtime, persistence, or app-server renames. It is the validation checkpoint for the mechanical migration slices already landed in Milestones 2 through 6.
+
+Codex did not run build, test, formatter, or schema commands for this milestone because the user explicitly requested that those commands not be run. This milestone therefore records the exact commands the user should run and the assumptions reviewers should use when interpreting the results.
+
+Required user-run commands:
+
+    cd /home/mbellary/wsl/projects/datax
+    git diff --check
+    cd /home/mbellary/wsl/projects/datax/datax-rs
+    just fmt
+    just write-config-schema
+    just write-app-server-schema
+    just fix -p datax-protocol
+    just fix -p datax-app-server-protocol
+    just fix -p datax-thread-store
+    just fix -p datax-core
+    just fix -p datax-app-server
+    just test -p datax-protocol
+    just test -p datax-app-server-protocol
+    just test -p datax-thread-store
+    just test -p datax-core
+    just test -p datax-app-server
+
+Milestone 7 command assumptions:
+
+- `just fmt` is required because Milestones 2 through 6 changed Rust source broadly and some slices intentionally deferred formatting to the user.
+- `just write-config-schema` is required because Milestone 6 changed `ConfigToml` from `experimental_thread_store` / `ThreadStoreToml` to `experimental_chat_store` / `ChatStoreToml`.
+- `just write-app-server-schema` is required because Milestones 2, 3, 5, and 6 changed app-server protocol projections, exported TypeScript names, or app-server request/response structures.
+- The focused `just fix -p ...` commands cover the Rust crates touched by the mechanical migration: protocol primitives/events, app-server protocol exports, thread-store/chat-store persistence contracts, core runtime names, and app-server request processors/state.
+- The focused `just test -p ...` commands validate the same crate boundaries without requiring a full workspace run. If these focused checks pass and reviewers want a full workspace signal, ask before running `just test`.
+
+Names still accepted after Milestone 7 must be explicit compatibility, provenance, downstream bridge, or owning-slice leftovers:
+
+- `datax-thread-store` and `datax_thread_store` remain crate/package identifiers until a separate crate-rename milestone owns package, Bazel, Cargo, and downstream import churn.
+- `thread_goals()`, `ThreadGoal`, `ThreadGoalStatus`, and `ThreadGoalUpdatedEvent` remain app-state/protocol compatibility names until the goal/status API slice owns that rename.
+- `ThreadSettings*`, `ThreadMemoryMode`, `ThreadSource`, and extension lifecycle thread names remain outside this validation slice and require explicit future classification before rename.
+- Downstream Codex bridge terms remain forbidden in native Datax product contracts, but are allowed in future Phase 2 adapter/runtime code that maps Datax `Chat`/`Interaction`/`Message` to downstream Codex `Thread`/`Turn`/`Item`.
+
+PR body handling assumption:
+
+- Milestone 7 pull request creation should use a body file with `gh pr create --body-file` so Markdown command blocks and backticks are not interpreted by the shell.
+
 ## Plan of Work
 
 Milestone 1 is a boundary inventory. Search Datax-facing Rust and protocol files for `Codex`, `Thread`, `Turn`, `Item`, and common snake_case forms such as `thread_id` and `turn_id`. Classify each occurrence as a mechanical rename target, compatibility alias, downstream Codex bridge term, provenance, protected sandbox identifier, external dependency, or unrelated English. This milestone should update this plan with a concise inventory summary before code changes begin.
@@ -610,8 +660,17 @@ For Milestone 7, the user should run the focused commands from the changed crate
     git diff --check
     cd /home/mbellary/wsl/projects/datax/datax-rs
     just fmt
+    just write-config-schema
     just write-app-server-schema
+    just fix -p datax-protocol
+    just fix -p datax-app-server-protocol
+    just fix -p datax-thread-store
+    just fix -p datax-core
+    just fix -p datax-app-server
+    just test -p datax-protocol
     just test -p datax-app-server-protocol
+    just test -p datax-thread-store
+    just test -p datax-core
     just test -p datax-app-server
 
 If Milestone 7 changes common, core, or protocol broadly, ask before running the complete workspace test suite:

@@ -977,6 +977,18 @@ ON CONFLICT(id) DO UPDATE SET
             .iter()
             .map(ChatId::to_string)
             .collect::<Vec<_>>();
+        let applied_log_migrations = sqlx::query_as::<_, (i64, String)>(
+            "SELECT version, description FROM _sqlx_migrations ORDER BY version",
+        )
+        .fetch_all(self.logs_pool.as_ref())
+        .await?;
+        let log_columns = sqlx::query_as::<_, (i64, String, String, i64, Option<String>, i64)>(
+            "PRAGMA table_info(logs)",
+        )
+        .fetch_all(self.logs_pool.as_ref())
+        .await?;
+        eprintln!("applied log migrations: {applied_log_migrations:#?}");
+        eprintln!("logs table columns: {log_columns:#?}");
         for (chat_id, chat_id_string) in chat_ids.iter().zip(&chat_id_strings) {
             sqlx::query("DELETE FROM logs WHERE chat_id = ?")
                 .bind(chat_id_string)

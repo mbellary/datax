@@ -1003,7 +1003,7 @@ impl AccountRequestProcessor {
             summary: AccountTokenUsageSummary {
                 lifetime_tokens: stats.lifetime_tokens,
                 peak_daily_tokens: stats.peak_daily_tokens,
-                longest_running_interaction_sec: stats.longest_running_interaction_sec,
+                longest_running_turn_sec: stats.longest_running_turn_sec,
                 current_streak_days: stats.current_streak_days,
                 longest_streak_days: stats.longest_streak_days,
             },
@@ -1138,7 +1138,7 @@ mod tests {
             stats: TokenUsageProfileStats {
                 lifetime_tokens: Some(123),
                 peak_daily_tokens: Some(45),
-                longest_running_interaction_sec: Some(67),
+                longest_running_turn_sec: Some(67),
                 current_streak_days: Some(8),
                 longest_streak_days: Some(9),
                 daily_usage_buckets: Some(vec![TokenUsageProfileDailyBucket {
@@ -1154,7 +1154,7 @@ mod tests {
                 summary: AccountTokenUsageSummary {
                     lifetime_tokens: Some(123),
                     peak_daily_tokens: Some(45),
-                    longest_running_interaction_sec: Some(67),
+                    longest_running_turn_sec: Some(67),
                     current_streak_days: Some(8),
                     longest_streak_days: Some(9),
                 },

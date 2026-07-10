@@ -136,7 +136,7 @@ impl ChatRequestProcessor {
                     ));
                 };
                 if state_db
-                    .get_chat(chat_id)
+                    .get_thread(chat_id)
                     .await
                     .map_err(|err| {
                         internal_error(format!(

@@ -318,9 +318,9 @@ impl InteractionRequestProcessor {
         request_id: &ConnectionRequestId,
         chat: &DataxChat,
     ) -> Result<(), JSONRPCErrorError> {
-        if thread.multi_agent_version() == Some(MultiAgentVersion::V2)
+        if chat.multi_agent_version() == Some(MultiAgentVersion::V2)
             && matches!(
-                thread.config_snapshot().await.session_source,
+                chat.config_snapshot().await.session_source,
                 SessionSource::SubAgent(SubAgentSource::ThreadSpawn { .. })
             )
         {
@@ -413,7 +413,7 @@ impl InteractionRequestProcessor {
         chat: &DataxChat,
         op: Op,
     ) -> CodexResult<String> {
-        thread
+        chat
             .submit_with_trace(op, self.request_trace_context(request_id).await)
             .await
     }
@@ -523,7 +523,7 @@ impl InteractionRequestProcessor {
             final_output_json_schema: params.output_schema,
             responsesapi_client_metadata: params.responsesapi_client_metadata,
             additional_context,
-            chat_settings,
+            thread_settings: chat_settings,
         };
         let interaction_id = thread
             .submit_user_input_with_client_user_message_id(
@@ -555,7 +555,7 @@ impl InteractionRequestProcessor {
             .await;
         let turn = Interaction {
             id: interaction_id,
-            items: vec![],
+            messages: vec![],
             messages_view: InteractionMessagesView::NotLoaded,
             error: None,
             status: InteractionStatus::InProgress,
@@ -583,7 +583,7 @@ impl InteractionRequestProcessor {
                 let legacy_fallback_cwd = match cwd {
                     Some(cwd) => cwd,
                     None => {
-                        let snapshot = thread.config_snapshot().await;
+                        let snapshot = chat.config_snapshot().await;
                         environment_selections
                             .iter()
                             .find(|selection| selection.environment_id == LOCAL_ENVIRONMENT_ID)
@@ -634,7 +634,7 @@ impl InteractionRequestProcessor {
         // Clients that send dependent partial updates should wait for
         // `chat/settings/updated` or combine the fields in one request.
         let snapshot = if permissions.is_some() {
-            Some(thread.config_snapshot().await)
+            Some(chat.config_snapshot().await)
         } else {
             None
         };
@@ -710,7 +710,7 @@ impl InteractionRequestProcessor {
         let effort = effort.map(Some);
 
         if has_any_overrides {
-            thread
+            chat
                 .preview_chat_settings_overrides(DataxChatSettingsOverrides {
                     environments: environments.clone(),
                     workspace_roots: runtime_workspace_roots.clone(),
@@ -788,7 +788,9 @@ impl InteractionRequestProcessor {
             self.submit_core_op(
                 request_id,
                 thread.as_ref(),
-                Op::ThreadSettings { chat_settings },
+                Op::ThreadSettings {
+                    thread_settings: chat_settings,
+                },
             )
             .await
             .map_err(|err| internal_error(format!("failed to update chat settings: {err}")))?;
@@ -804,7 +806,7 @@ impl InteractionRequestProcessor {
         let (_, thread) = self.load_thread(&params.chat_id).await?;
 
         let messages = params
-            .items
+            .messages
             .into_iter()
             .enumerate()
             .map(|(index, value)| {
@@ -834,7 +836,7 @@ impl InteractionRequestProcessor {
             app_server_client_name.as_deref(),
             app_server_client_version.as_deref(),
         );
-        thread
+        chat
             .set_app_server_client_info(
                 app_server_client_name,
                 app_server_client_version,
@@ -1156,7 +1158,7 @@ impl InteractionRequestProcessor {
         review_chat_id: String,
     ) {
         let response = ReviewStartResponse {
-            interaction: turn,
+            interaction,
             review_chat_id,
         };
         self.outgoing

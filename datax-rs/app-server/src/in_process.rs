@@ -885,7 +885,7 @@ mod tests {
         assert!(server_notification_requires_delivery(
             &InteractionCompleted(InteractionCompletedNotification {
                 chat_id: "thread-1".to_string(),
-                turn: Interaction {
+                interaction: Interaction {
                     id: "turn-1".to_string(),
                     messages: Vec::new(),
                     messages_view: InteractionMessagesView::NotLoaded,

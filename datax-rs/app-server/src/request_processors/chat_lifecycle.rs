@@ -645,7 +645,7 @@ pub(super) async fn handle_pending_chat_resume_request(
     thread.session_id = session_id;
 
     let response = ChatResumeResponse {
-        thread,
+        chat: thread,
         model,
         model_provider: model_provider_id,
         service_tier,

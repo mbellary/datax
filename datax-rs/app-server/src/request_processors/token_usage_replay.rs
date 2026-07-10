@@ -78,10 +78,10 @@ pub(super) fn latest_token_usage_interaction_id_from_rollout_items(
         if matches!(item, RolloutMessage::EventMsg(EventMsg::TokenCount(_))) {
             token_usage_turn_owner =
                 builder
-                    .active_interaction_snapshot()
+                    .active_turn_snapshot()
                     .map(|turn| TokenUsageTurnOwner {
                         id: turn.id,
-                        position: builder.active_interaction_position(),
+                        position: builder.active_turn_position(),
                     });
         }
         builder.handle_rollout_item(item);

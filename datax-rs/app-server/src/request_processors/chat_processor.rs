@@ -755,7 +755,7 @@ impl ChatRequestProcessor {
             app_server_client_name.as_deref(),
             app_server_client_version.as_deref(),
         );
-        thread
+        chat
             .set_app_server_client_info(
                 app_server_client_name,
                 app_server_client_version,
@@ -1012,7 +1012,7 @@ impl ChatRequestProcessor {
         chat: &DataxChat,
         op: Op,
     ) -> CodexResult<String> {
-        thread
+        chat
             .submit_with_trace(op, self.request_trace_context(request_id).await)
             .await
     }
@@ -2075,7 +2075,10 @@ impl ChatRequestProcessor {
                 if let Some(status) = statuses.get(&thread.id) {
                     thread.status = status.clone();
                 }
-                ChatSearchResult { thread, snippet }
+                ChatSearchResult {
+                    chat: thread,
+                    snippet,
+                }
             })
             .collect();
 
@@ -2309,14 +2312,14 @@ impl ChatRequestProcessor {
         include_interactions: bool,
         loaded_thread: &DataxChat,
     ) -> Result<(), ThreadReadViewError> {
-        self.attach_thread_name(chat_id, thread).await;
+        self.attach_thread_name(chat_id, chat).await;
 
         if include_interactions {
             let history = loaded_thread
                 .load_history(/*include_archived*/ true)
                 .await
                 .map_err(|err| thread_read_history_load_error(chat_id, err))?;
-            thread.interactions = build_api_turns_from_rollout_items(&history.items);
+            chat.interactions = build_api_turns_from_rollout_items(&history.items);
         }
 
         Ok(())
@@ -2824,7 +2827,7 @@ impl ChatRequestProcessor {
         };
         let state_db_ctx = self.state_db.clone()?;
         let persisted_metadata = state_db_ctx
-            .get_chat(resumed_history.conversation_id)
+            .get_thread(resumed_history.conversation_id)
             .await
             .ok()
             .flatten()?;
@@ -3151,8 +3154,8 @@ impl ChatRequestProcessor {
         resume_source_thread: Option<StoredChat>,
         include_interactions: bool,
     ) -> std::result::Result<Chat, String> {
-        let config_snapshot = thread.config_snapshot().await;
-        let session_id = thread.session_configured().session_id.to_string();
+        let config_snapshot = chat.config_snapshot().await;
+        let session_id = chat.session_configured().session_id.to_string();
         let thread = match thread_history {
             InitialHistory::Resumed(resumed) => {
                 let fallback_provider = config_snapshot.model_provider_id.as_str();
@@ -3699,9 +3702,9 @@ fn thread_backwards_cursor_for_sort_key(
     sort_direction: SortDirection,
 ) -> Option<String> {
     let timestamp = match sort_key {
-        StoreChatSortKey::CreatedAt => thread.created_at,
-        StoreChatSortKey::UpdatedAt => thread.updated_at,
-        StoreChatSortKey::RecencyAt => thread.recency_at,
+        StoreChatSortKey::CreatedAt => chat.created_at,
+        StoreChatSortKey::UpdatedAt => chat.updated_at,
+        StoreChatSortKey::RecencyAt => chat.recency_at,
     };
     // The state DB stores unique millisecond timestamps. Offset the reverse cursor by one
     // millisecond so the opposite-direction query includes the page anchor.
@@ -3886,22 +3889,22 @@ fn apply_chat_interactions_messages_view(
     for turn in interactions {
         match messages_view {
             InteractionMessagesView::NotLoaded => {
-                turn.items.clear();
+                turn.messages.clear();
                 turn.messages_view = InteractionMessagesView::NotLoaded;
             }
             InteractionMessagesView::Summary => {
                 let first_user_message = turn
-                    .items
+                    .messages
                     .iter()
                     .find(|item| matches!(item, Message::UserMessage { .. }))
                     .cloned();
                 let final_agent_message = turn
-                    .items
+                    .messages
                     .iter()
                     .rev()
                     .find(|item| matches!(item, Message::AgentMessage { .. }))
                     .cloned();
-                turn.items = match (first_user_message, final_agent_message) {
+                turn.messages = match (first_user_message, final_agent_message) {
                     (Some(user_message), Some(agent_message))
                         if user_message.id() != agent_message.id() =>
                     {
@@ -4110,10 +4113,10 @@ fn chat_store_archive_error(operation: &str, err: ChatStoreError) -> JSONRPCErro
 }
 
 fn set_thread_name_from_title(chat: &mut Chat, title: String) {
-    if title.trim().is_empty() || thread.preview.trim() == title.trim() {
+    if title.trim().is_empty() || chat.preview.trim() == title.trim() {
         return;
     }
-    thread.name = Some(title);
+    chat.name = Some(title);
 }
 
 pub(crate) fn chat_from_stored_chat(
@@ -4121,91 +4124,91 @@ pub(crate) fn chat_from_stored_chat(
     fallback_provider: &str,
     fallback_cwd: &AbsolutePathBuf,
 ) -> (Chat, Option<datax_thread_store::StoredChatHistory>) {
-    let path = thread.rollout_path;
-    let git_info = thread.git_info.map(|info| ApiGitInfo {
+    let path = chat.rollout_path;
+    let git_info = chat.git_info.map(|info| ApiGitInfo {
         sha: info.commit_hash.map(|sha| sha.0),
         branch: info.branch,
         origin_url: info.repository_url,
     });
     let cwd = AbsolutePathBuf::relative_to_current_dir(path_utils::normalize_for_native_workdir(
-        thread.cwd,
+        chat.cwd,
     ))
     .unwrap_or_else(|err| {
         warn!("failed to normalize thread cwd while reading stored chat: {err}");
         fallback_cwd.clone()
     });
     let source = with_thread_spawn_agent_metadata(
-        thread.source,
-        thread.agent_nickname.clone(),
-        thread.agent_role.clone(),
+        chat.source,
+        chat.agent_nickname.clone(),
+        chat.agent_role.clone(),
     );
-    let history = thread.history;
-    let chat_id = thread.chat_id.to_string();
-    let thread = Chat {
+    let history = chat.history;
+    let chat_id = chat.chat_id.to_string();
+    let chat = Chat {
         id: chat_id.clone(),
         session_id: chat_id,
-        forked_from_id: thread.forked_from_id.map(|id| id.to_string()),
-        parent_chat_id: thread.parent_chat_id.map(|id| id.to_string()),
-        preview: thread.preview,
+        forked_from_id: chat.forked_from_id.map(|id| id.to_string()),
+        parent_chat_id: chat.parent_chat_id.map(|id| id.to_string()),
+        preview: chat.preview,
         ephemeral: false,
-        model_provider: if thread.model_provider.is_empty() {
+        model_provider: if chat.model_provider.is_empty() {
             fallback_provider.to_string()
         } else {
-            thread.model_provider
+            chat.model_provider
         },
-        created_at: thread.created_at.timestamp(),
-        updated_at: thread.updated_at.timestamp(),
-        recency_at: Some(thread.recency_at.timestamp()),
+        created_at: chat.created_at.timestamp(),
+        updated_at: chat.updated_at.timestamp(),
+        recency_at: Some(chat.recency_at.timestamp()),
         status: ChatStatus::NotLoaded,
         path,
         cwd,
-        cli_version: thread.cli_version,
+        cli_version: chat.cli_version,
         agent_nickname: source.get_nickname(),
         agent_role: source.get_agent_role(),
         source: source.into(),
-        chat_source: thread.chat_source.map(Into::into),
+        chat_source: chat.chat_source.map(Into::into),
         git_info,
-        name: thread.name,
+        name: chat.name,
         interactions: Vec::new(),
     };
-    (thread, history)
+    (chat, history)
 }
 
 fn summary_from_stored_chat(chat: StoredChat, fallback_provider: &str) -> ConversationSummary {
-    let path = thread.rollout_path.unwrap_or_default();
+    let path = chat.rollout_path.unwrap_or_default();
     let source = with_thread_spawn_agent_metadata(
-        thread.source,
-        thread.agent_nickname.clone(),
-        thread.agent_role.clone(),
+        chat.source,
+        chat.agent_nickname.clone(),
+        chat.agent_role.clone(),
     );
-    let git_info = thread.git_info.map(|git| ConversationGitInfo {
+    let git_info = chat.git_info.map(|git| ConversationGitInfo {
         sha: git.commit_hash.map(|sha| sha.0),
         branch: git.branch,
         origin_url: git.repository_url,
     });
     ConversationSummary {
-        conversation_id: thread.chat_id,
+        conversation_id: chat.chat_id,
         path,
-        preview: thread.preview,
+        preview: chat.preview,
         // Preserve millisecond precision from the chat store so chat/list cursors
         // round-trip the same ordering key used by pagination queries.
         timestamp: Some(
-            thread
+            chat
                 .created_at
                 .to_rfc3339_opts(SecondsFormat::Millis, true),
         ),
         updated_at: Some(
-            thread
+            chat
                 .updated_at
                 .to_rfc3339_opts(SecondsFormat::Millis, true),
         ),
-        model_provider: if thread.model_provider.is_empty() {
+        model_provider: if chat.model_provider.is_empty() {
             fallback_provider.to_string()
         } else {
-            thread.model_provider
+            chat.model_provider
         },
-        cwd: thread.cwd,
-        cli_version: thread.cli_version,
+        cwd: chat.cwd,
+        cli_version: chat.cli_version,
         source,
         git_info,
     }

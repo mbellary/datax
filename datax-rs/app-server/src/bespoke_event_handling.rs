@@ -171,13 +171,13 @@ pub(crate) async fn apply_bespoke_event_handling(
                     completed_at: None,
                     duration_ms: None,
                 });
-                turn.items.clear();
+                turn.messages.clear();
                 turn.messages_view = InteractionMessagesView::NotLoaded;
                 turn
             };
             let notification = InteractionStartedNotification {
                 chat_id: conversation_id.to_string(),
-                turn,
+                interaction: turn,
             };
             outgoing
                 .send_server_notification(InteractionStarted(notification))
@@ -1262,7 +1262,7 @@ pub(crate) async fn apply_bespoke_event_handling(
         }
         EventMsg::ThreadSettingsApplied(chat_settings_event) => {
             let chat_settings =
-                chat_settings_from_core_snapshot(chat_settings_event.chat_settings);
+                chat_settings_from_core_snapshot(chat_settings_event.thread_settings);
             let changed = {
                 let mut state = chat_state.lock().await;
                 state.note_chat_settings(chat_settings.clone())
@@ -1272,7 +1272,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                     .send_server_notification(ChatSettingsUpdated(
                         ChatSettingsUpdatedNotification {
                             chat_id: conversation_id.to_string(),
-                            chat_settings,
+                            thread_settings: chat_settings,
                         },
                     ))
                     .await;
@@ -1360,9 +1360,9 @@ async fn emit_turn_completed_with_status(
 ) {
     let notification = InteractionCompletedNotification {
         chat_id: conversation_id.to_string(),
-        turn: Interaction {
+        interaction: Interaction {
             id: event_interaction_id,
-            items: vec![],
+            messages: vec![],
             messages_view: InteractionMessagesView::NotLoaded,
             error: turn_completion_metadata.error,
             status: turn_completion_metadata.status,
@@ -2325,7 +2325,7 @@ mod tests {
         assert_eq!(response.chat.name.as_deref(), Some("Rollback thread"));
         assert_eq!(response.chat.status, ChatStatus::NotLoaded);
         assert_eq!(response.chat.interactions.len(), 1);
-        assert_eq!(response.chat.interactions[0].items.len(), 2);
+        assert_eq!(response.chat.interactions[0].messages.len(), 2);
         Ok(())
     }
 
@@ -3397,7 +3397,7 @@ mod tests {
                     n.interaction.messages_view,
                     InteractionMessagesView::NotLoaded
                 );
-                assert!(n.interaction.items.is_empty());
+                assert!(n.interaction.messages.is_empty());
             }
             other => bail!("unexpected message: {other:?}"),
         }
@@ -3538,7 +3538,7 @@ mod tests {
                     n.interaction.messages_view,
                     InteractionMessagesView::NotLoaded
                 );
-                assert!(n.interaction.items.is_empty());
+                assert!(n.interaction.messages.is_empty());
                 assert_eq!(n.interaction.error, None);
                 assert_eq!(n.interaction.started_at, Some(42));
                 assert_eq!(n.interaction.completed_at, Some(TEST_TURN_COMPLETED_AT));

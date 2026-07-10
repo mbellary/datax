@@ -84,6 +84,9 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 - Observation: App-server suite failures exposed stale test callers plus one missing forward rollout-listing API.
   Evidence: `ChatStartResponse` and `ChatResumeResponse` define `chat`, `Interaction` defines `messages`, and `EnvironmentSelectionCase` defines `interaction`; app-server suite code still destructured `thread`, accessed `items`, or read `case.turn`. The app-server suite also expected `RolloutRecorder::list_chats`, while the rollout layer only exposed `list_threads`, so a forward `list_chats` wrapper was added at the rollout defining layer instead of moving callers backward.
 
+- Observation: Dedicated logs migrations still defined thread-named columns before a later chat-name migration, which left message-only migration fixtures out of sync with Datax-native runtime inserts.
+  Evidence: `datax-rs/state/src/runtime/logs.rs` inserts into `chat_id`, but `datax-rs/state/logs_migrations/0001_logs.sql` still created `thread_id`. The logs migration definitions now create and carry `chat_id` directly, with the old chat-name migration retained only as a version marker.
+
 ## Decision Log
 
 - Decision: Treat this plan as a mechanical migration plan, not an architecture redesign.

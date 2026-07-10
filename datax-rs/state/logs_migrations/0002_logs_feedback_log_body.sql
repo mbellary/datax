@@ -10,7 +10,7 @@ CREATE TABLE logs (
     module_path TEXT,
     file TEXT,
     line INTEGER,
-    thread_id TEXT,
+    chat_id TEXT,
     process_uuid TEXT,
     estimated_bytes INTEGER NOT NULL DEFAULT 0
 );
@@ -25,7 +25,7 @@ INSERT INTO logs (
     module_path,
     file,
     line,
-    thread_id,
+    chat_id,
     process_uuid,
     estimated_bytes
 )
@@ -39,7 +39,7 @@ SELECT
     module_path,
     file,
     line,
-    thread_id,
+    chat_id,
     process_uuid,
     estimated_bytes
 FROM logs_old;
@@ -47,7 +47,7 @@ FROM logs_old;
 DROP TABLE logs_old;
 
 CREATE INDEX idx_logs_ts ON logs(ts DESC, ts_nanos DESC, id DESC);
-CREATE INDEX idx_logs_thread_id ON logs(thread_id);
-CREATE INDEX idx_logs_thread_id_ts ON logs(thread_id, ts DESC, ts_nanos DESC, id DESC);
+CREATE INDEX idx_logs_chat_id ON logs(chat_id);
+CREATE INDEX idx_logs_chat_id_ts ON logs(chat_id, ts DESC, ts_nanos DESC, id DESC);
 CREATE INDEX idx_logs_process_uuid_threadless_ts ON logs(process_uuid, ts DESC, ts_nanos DESC, id DESC)
-WHERE thread_id IS NULL;
+WHERE chat_id IS NULL;

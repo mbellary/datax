@@ -2382,7 +2382,7 @@ mod tests {
             active_permission_profile: None,
             reasoning_effort: None,
             multi_agent_mode: Default::default(),
-            initial_turns_page: None,
+            initial_interactions_page: None,
         };
 
         let started = started_thread_from_resume_response(

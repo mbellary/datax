@@ -2996,7 +2996,7 @@ impl Session {
                     chat_id: self.chat_id(),
                     interaction_id: turn_context.sub_id.as_str(),
                     session_store: &self.services.session_extension_data,
-                    chat_store: &self.services.thread_extension_data,
+                    thread_store: &self.services.thread_extension_data,
                     turn_store: turn_context.extension_data.as_ref(),
                     model_context_window: turn_context.model_context_window(),
                 })
@@ -3242,7 +3242,7 @@ impl Session {
                     chat_id: self.chat_id(),
                     interaction_id: turn_context.sub_id.as_str(),
                     session_store: &self.services.session_extension_data,
-                    chat_store: &self.services.thread_extension_data,
+                    thread_store: &self.services.thread_extension_data,
                     turn_store: turn_context.extension_data.as_ref(),
                     model_context_window: turn_context.model_context_window(),
                 })

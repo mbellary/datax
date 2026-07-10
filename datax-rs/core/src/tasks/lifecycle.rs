@@ -19,7 +19,7 @@ impl Session {
                     collaboration_mode: &turn_context.collaboration_mode,
                     token_usage_at_turn_start,
                     session_store: &self.services.session_extension_data,
-                    chat_store: &self.services.thread_extension_data,
+                    thread_store: &self.services.thread_extension_data,
                     turn_store: turn_context.extension_data.as_ref(),
                 })
                 .await;
@@ -31,7 +31,7 @@ impl Session {
             contributor
                 .on_turn_stop(datax_extension_api::TurnStopInput {
                     session_store: &self.services.session_extension_data,
-                    chat_store: &self.services.thread_extension_data,
+                    thread_store: &self.services.thread_extension_data,
                     turn_store,
                 })
                 .await;
@@ -49,7 +49,7 @@ impl Session {
             contributor
                 .on_chat_idle(datax_extension_api::ChatIdleInput {
                     session_store: &self.services.session_extension_data,
-                    chat_store: &self.services.thread_extension_data,
+                    thread_store: &self.services.thread_extension_data,
                 })
                 .await;
         }
@@ -65,7 +65,7 @@ impl Session {
                 .on_turn_abort(datax_extension_api::TurnAbortInput {
                     reason: reason.clone(),
                     session_store: &self.services.session_extension_data,
-                    chat_store: &self.services.thread_extension_data,
+                    thread_store: &self.services.thread_extension_data,
                     turn_store,
                 })
                 .await;
@@ -83,7 +83,7 @@ impl Session {
                     interaction_id: turn_context.sub_id.as_str(),
                     error: error.clone(),
                     session_store: &self.services.session_extension_data,
-                    chat_store: &self.services.thread_extension_data,
+                    thread_store: &self.services.thread_extension_data,
                     turn_store: turn_context.extension_data.as_ref(),
                 })
                 .await;

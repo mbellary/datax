@@ -8,8 +8,8 @@ pub use datax_rollout::SESSIONS_SUBDIR;
 pub use datax_rollout::SessionMeta;
 pub use datax_rollout::SortDirection;
 pub use datax_rollout::ThreadItem;
-pub use datax_rollout::ChatSortKey;
 pub use datax_rollout::ThreadsPage;
+pub use datax_rollout::ThreadSortKey as ChatSortKey;
 pub use datax_rollout::append_thread_name;
 pub use datax_rollout::find_archived_thread_path_by_id_str;
 #[deprecated(note = "use find_thread_path_by_id_str")]

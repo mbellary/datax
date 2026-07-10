@@ -164,7 +164,7 @@ impl AgentControl {
             .await;
 
         match state
-            .resume_thread_with_history_with_source(ResumeThreadWithHistoryOptions {
+            .resume_chat_with_history_with_source(ResumeThreadWithHistoryOptions {
                 config,
                 initial_history,
                 agent_control: self.clone(),
@@ -325,7 +325,7 @@ impl AgentControl {
             let parent_chat_id = thread_config.parent_chat_id;
             emit_subagent_session_started(
                 &new_thread
-                    .thread
+                    .chat
                     .codex
                     .session
                     .services
@@ -344,7 +344,7 @@ impl AgentControl {
         // TODO(jif) add helper for drain
         state.notify_thread_created(new_thread.chat_id);
 
-        self.persist_thread_spawn_edge_for_source(
+        self.persist_chat_spawn_edge_for_source(
             new_thread.chat.as_ref(),
             new_thread.chat_id,
             notification_source.as_ref(),
@@ -641,7 +641,7 @@ impl AgentControl {
             }) => {
                 let (resumed_agent_nickname, resumed_agent_role) =
                     if let Some(state_db_ctx) = state_db_ctx.as_ref() {
-                        match state_db_ctx.get_chat(chat_id).await {
+                        match state_db_ctx.get_thread(chat_id).await {
                             Ok(Some(metadata)) => (metadata.agent_nickname, metadata.agent_role),
                             Ok(None) | Err(_) => (None, None),
                         }
@@ -669,7 +669,7 @@ impl AgentControl {
             .await;
 
         let resumed_thread = state
-            .resume_thread_with_history_with_source(ResumeThreadWithHistoryOptions {
+            .resume_chat_with_history_with_source(ResumeThreadWithHistoryOptions {
                 config: config.clone(),
                 initial_history,
                 agent_control: self.clone(),
@@ -698,7 +698,7 @@ impl AgentControl {
                 agent_metadata.agent_path.clone(),
             );
         }
-        self.persist_thread_spawn_edge_for_source(
+        self.persist_chat_spawn_edge_for_source(
             resumed_thread.chat.as_ref(),
             resumed_thread.chat_id,
             Some(&notification_source),

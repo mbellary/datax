@@ -217,7 +217,7 @@ impl DataxChat {
             contributor
                 .on_thread_resume(datax_extension_api::ThreadResumeInput {
                     session_store: &self.codex.session.services.session_extension_data,
-                    chat_store: &self.codex.session.services.thread_extension_data,
+                    thread_store: &self.codex.session.services.thread_extension_data,
                 })
                 .await;
         }

@@ -2827,7 +2827,7 @@ impl ChatRequestProcessor {
         };
         let state_db_ctx = self.state_db.clone()?;
         let persisted_metadata = state_db_ctx
-            .get_thread(resumed_history.conversation_id)
+            .get_chat(resumed_history.conversation_id)
             .await
             .ok()
             .flatten()?;

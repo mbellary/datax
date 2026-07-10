@@ -208,7 +208,7 @@ async fn set_thread_search_result_names(
     let mut names = HashMap::<ChatId, String>::with_capacity(chat_ids.len());
     if let Some(state_db_ctx) = store.state_db().await {
         for &chat_id in &chat_ids {
-            let Ok(Some(metadata)) = state_db_ctx.get_thread(chat_id).await else {
+            let Ok(Some(metadata)) = state_db_ctx.get_chat(chat_id).await else {
                 continue;
             };
             if let Some(title) = distinct_chat_metadata_title(&metadata) {

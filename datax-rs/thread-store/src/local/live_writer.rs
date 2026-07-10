@@ -178,7 +178,7 @@ async fn sync_materialized_rollout_path(
     let result: ChatStoreResult<()> = async {
         let Some(mut metadata) =
             state_db
-                .get_thread(chat_id)
+                .get_chat(chat_id)
                 .await
                 .map_err(|err| ChatStoreError::Internal {
                     message: format!("failed to read chat metadata for {chat_id}: {err}"),

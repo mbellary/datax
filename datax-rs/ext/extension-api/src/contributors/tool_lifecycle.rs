@@ -47,8 +47,8 @@ pub enum ToolCallOutcome {
 pub struct ToolStartInput<'a> {
     /// Store scoped to the host session runtime.
     pub session_store: &'a ExtensionData,
-    /// Store scoped to this thread runtime.
-    pub thread_store: &'a ExtensionData,
+    /// Store scoped to this chat runtime.
+    pub chat_store: &'a ExtensionData,
     /// Store scoped to this turn runtime.
     pub turn_store: &'a ExtensionData,
     /// Current turn submission id.
@@ -65,8 +65,8 @@ pub struct ToolStartInput<'a> {
 pub struct ToolFinishInput<'a> {
     /// Store scoped to the host session runtime.
     pub session_store: &'a ExtensionData,
-    /// Store scoped to this thread runtime.
-    pub thread_store: &'a ExtensionData,
+    /// Store scoped to this chat runtime.
+    pub chat_store: &'a ExtensionData,
     /// Store scoped to this turn runtime.
     pub turn_store: &'a ExtensionData,
     /// Current turn submission id.

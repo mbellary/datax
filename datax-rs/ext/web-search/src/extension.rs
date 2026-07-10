@@ -95,7 +95,7 @@ impl ThreadLifecycleContributor<Config> for WebSearchExtension {
     ) -> ExtensionFuture<'a, ()> {
         Box::pin(async move {
             input
-                .thread_store
+                .chat_store
                 .insert(WebSearchExtensionConfig::from(input.config));
         })
     }
@@ -105,7 +105,7 @@ impl ConfigContributor<Config> for WebSearchExtension {
     fn on_config_changed(
         &self,
         _session_store: &ExtensionData,
-        thread_store: &ExtensionData,
+        chat_store: &ExtensionData,
         _previous_config: &Config,
         new_config: &Config,
     ) {
@@ -117,7 +117,7 @@ impl ToolContributor for WebSearchExtension {
     fn tools(
         &self,
         session_store: &ExtensionData,
-        thread_store: &ExtensionData,
+        chat_store: &ExtensionData,
     ) -> Vec<Arc<dyn datax_extension_api::ToolExecutor<datax_extension_api::ToolCall>>> {
         let Some(config) = thread_store.get::<WebSearchExtensionConfig>() else {
             return Vec::new();

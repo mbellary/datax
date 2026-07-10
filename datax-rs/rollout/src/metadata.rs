@@ -260,7 +260,7 @@ pub(crate) async fn backfill_sessions_with_lease(
                     let mut metadata = outcome.metadata;
                     metadata.cwd = normalize_cwd_for_state_db(&metadata.cwd);
                     let memory_mode = outcome.memory_mode.unwrap_or_else(|| "enabled".to_string());
-                    if let Ok(Some(existing_metadata)) = runtime.get_thread(metadata.id).await {
+                    if let Ok(Some(existing_metadata)) = runtime.get_chat(metadata.id).await {
                         metadata.prefer_existing_git_info(&existing_metadata);
                         metadata.prefer_existing_explicit_title(&existing_metadata);
                     }

@@ -135,7 +135,7 @@ async fn state_db_init_backfills_before_returning() -> anyhow::Result<()> {
         .expect("state db should initialize");
 
     let metadata = runtime
-        .get_thread(chat_id)
+        .get_chat(chat_id)
         .await?
         .expect("thread should be backfilled before init returns");
     assert_eq!(metadata.rollout_path, rollout_path);

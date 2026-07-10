@@ -190,7 +190,7 @@ mod tests {
             .join("sessions/2025/01/03")
             .join(archived_path.file_name().expect("file name"));
         let updated = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("state db read should succeed")
             .expect("chat metadata should exist");

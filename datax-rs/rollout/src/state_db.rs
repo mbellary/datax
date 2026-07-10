@@ -528,7 +528,7 @@ pub async fn reconcile_rollout(
     let mut metadata = outcome.metadata;
     let memory_mode = outcome.memory_mode.unwrap_or_else(|| "enabled".to_string());
     metadata.cwd = normalize_cwd_for_state_db(&metadata.cwd);
-    if let Ok(Some(existing_metadata)) = ctx.get_thread(metadata.id).await {
+    if let Ok(Some(existing_metadata)) = ctx.get_chat(metadata.id).await {
         metadata.prefer_existing_git_info(&existing_metadata);
         metadata.prefer_existing_explicit_title(&existing_metadata);
     }
@@ -574,7 +574,7 @@ pub async fn read_repair_rollout_path(
     // read-repair computes no effective change.
     let mut saw_existing_metadata = false;
     if let Some(chat_id) = chat_id
-        && let Ok(Some(metadata)) = ctx.get_thread(chat_id).await
+        && let Ok(Some(metadata)) = ctx.get_chat(chat_id).await
     {
         saw_existing_metadata = true;
         let mut repaired = metadata.clone();

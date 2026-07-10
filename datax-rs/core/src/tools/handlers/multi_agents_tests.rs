@@ -2800,7 +2800,7 @@ async fn resume_agent_restores_closed_agent_and_accepts_send_input() {
     session.services.agent_control = manager.agent_control();
     let config = turn.config.as_ref().clone();
     let thread = manager
-        .resume_thread_with_history(
+        .resume_chat_with_history(
             config.clone(),
             InitialHistory::Forked(vec![RolloutMessage::ResponseItem(ResponseItem::Message {
                 id: None,

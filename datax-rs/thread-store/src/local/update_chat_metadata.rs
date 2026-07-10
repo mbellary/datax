@@ -104,7 +104,7 @@ pub(super) async fn update_chat_metadata(
             };
             let metadata =
                 state_db
-                    .get_thread(chat_id)
+                    .get_chat(chat_id)
                     .await
                     .map_err(|err| ChatStoreError::Internal {
                         message: format!(
@@ -199,7 +199,7 @@ async fn apply_metadata_update(
         async {
             let existing =
                 state_db
-                    .get_thread(chat_id)
+                    .get_chat(chat_id)
                     .await
                     .map_err(|err| ChatStoreError::Internal {
                         message: format!("failed to read chat metadata for {chat_id}: {err}"),
@@ -900,7 +900,7 @@ mod tests {
 
         assert_eq!(thread.permission_profile, PermissionProfile::Disabled);
         let metadata = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("sqlite metadata read")
             .expect("sqlite metadata");
@@ -1355,7 +1355,7 @@ mod tests {
             Some("Hello from user")
         );
         let metadata = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("sqlite metadata read")
             .expect("sqlite metadata");
@@ -1398,7 +1398,7 @@ mod tests {
                 if message == format!("thread not found: {chat_id}")
         ));
         let metadata = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("sqlite metadata read");
         assert!(metadata.is_none());
@@ -1435,7 +1435,7 @@ mod tests {
         assert!(thread.archived_at.is_some());
         assert!(
             runtime
-                .get_thread(chat_id)
+                .get_chat(chat_id)
                 .await
                 .expect("get metadata")
                 .expect("metadata")
@@ -1479,7 +1479,7 @@ mod tests {
             .expect("update observed cwd");
 
         let metadata = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("get metadata")
             .expect("metadata");
@@ -1540,7 +1540,7 @@ mod tests {
         .await;
         assert!(
             runtime
-                .get_thread(chat_id)
+                .get_chat(chat_id)
                 .await
                 .expect("get metadata")
                 .expect("metadata")
@@ -1563,7 +1563,7 @@ mod tests {
         assert!(thread.archived_at.is_some());
         assert!(
             runtime
-                .get_thread(chat_id)
+                .get_chat(chat_id)
                 .await
                 .expect("get metadata")
                 .expect("metadata")
@@ -1627,7 +1627,7 @@ mod tests {
         assert!(thread.archived_at.is_some());
         assert!(
             runtime
-                .get_thread(chat_id)
+                .get_chat(chat_id)
                 .await
                 .expect("get metadata")
                 .expect("metadata")

@@ -137,7 +137,7 @@ async fn reconcile_rollout_preserves_existing_explicit_title() -> anyhow::Result
     .await;
 
     let persisted = runtime
-        .get_thread(chat_id)
+        .get_chat(chat_id)
         .await?
         .expect("thread should exist");
     assert_eq!(persisted.title, "math");

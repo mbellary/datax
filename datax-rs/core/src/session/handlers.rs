@@ -611,7 +611,7 @@ async fn emit_thread_stop_lifecycle(sess: &Session) {
         contributor
             .on_thread_stop(datax_extension_api::ThreadStopInput {
                 session_store: &sess.services.session_extension_data,
-                thread_store: &sess.services.thread_extension_data,
+                chat_store: &sess.services.thread_extension_data,
             })
             .await;
     }

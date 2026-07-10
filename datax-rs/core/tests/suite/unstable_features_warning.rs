@@ -41,7 +41,7 @@ async fn emits_warning_when_unstable_features_enabled_via_config() {
     let NewChat {
         chat: conversation, ..
     } = chat_manager
-        .resume_thread_with_history(
+        .resume_chat_with_history(
             config.clone(),
             InitialHistory::New,
             auth_manager,
@@ -87,7 +87,7 @@ async fn suppresses_warning_when_configured() {
     let NewChat {
         chat: conversation, ..
     } = chat_manager
-        .resume_thread_with_history(
+        .resume_chat_with_history(
             config.clone(),
             InitialHistory::New,
             auth_manager,

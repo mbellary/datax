@@ -57,7 +57,7 @@ where
     fn on_thread_start<'a>(&'a self, input: ThreadStartInput<'a, C>) -> ExtensionFuture<'a, ()> {
         Box::pin(async move {
             let selected_roots = input
-                .thread_store
+                .chat_store
                 .get::<Vec<SelectedCapabilityRoot>>()
                 .map(|selected_roots| selected_roots.as_ref().clone())
                 .unwrap_or_default();
@@ -65,7 +65,7 @@ where
                 .environments
                 .iter()
                 .any(|environment| environment.environment_id == LOCAL_ENVIRONMENT_ID);
-            input.thread_store.insert(SkillsThreadState::new(
+            input.chat_store.insert(SkillsThreadState::new(
                 (self.config_from_host)(input.config),
                 selected_roots,
                 orchestrator_skills_available,
@@ -81,7 +81,7 @@ where
     fn on_config_changed(
         &self,
         _session_store: &ExtensionData,
-        thread_store: &ExtensionData,
+        chat_store: &ExtensionData,
         _previous_config: &C,
         new_config: &C,
     ) {
@@ -106,7 +106,7 @@ where
     fn contribute_thread_context<'a>(
         &'a self,
         session_store: &'a ExtensionData,
-        thread_store: &'a ExtensionData,
+        chat_store: &'a ExtensionData,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Vec<PromptFragment>> + Send + 'a>> {
         Box::pin(async move {
             let Some(thread_state) = thread_store.get::<SkillsThreadState>() else {
@@ -148,7 +148,7 @@ where
     fn tools(
         &self,
         session_store: &ExtensionData,
-        thread_store: &ExtensionData,
+        chat_store: &ExtensionData,
     ) -> Vec<Arc<dyn ToolExecutor<ToolCall>>> {
         let Some(thread_state) = thread_store.get::<SkillsThreadState>() else {
             return Vec::new();
@@ -175,7 +175,7 @@ where
         &'a self,
         input: TurnInputContext,
         session_store: &'a ExtensionData,
-        thread_store: &'a ExtensionData,
+        chat_store: &'a ExtensionData,
         turn_store: &'a ExtensionData,
     ) -> ExtensionFuture<'a, Vec<Box<dyn ContextualUserFragment + Send>>> {
         Box::pin(async move {

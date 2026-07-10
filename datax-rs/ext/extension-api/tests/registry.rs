@@ -230,7 +230,7 @@ async fn contributors_preserve_registration_order() {
                     chat_id: datax_protocol::ChatId::default(),
                     interaction_id: turn_store.level_id(),
                     session_store: &session_store,
-                    thread_store: &thread_store,
+                    chat_store: &thread_store,
                     turn_store: &turn_store,
                     model_context_window: Some(123),
                 })
@@ -284,7 +284,7 @@ impl ApprovalReviewContributor for RecordingApprovalContributor {
     fn contribute<'a>(
         &'a self,
         session_store: &'a ExtensionData,
-        thread_store: &'a ExtensionData,
+        chat_store: &'a ExtensionData,
         prompt: &'a str,
     ) -> ExtensionFuture<'a, Option<ReviewDecision>> {
         Box::pin(async move {

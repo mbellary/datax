@@ -105,7 +105,7 @@ async fn emits_warning_when_resumed_model_differs() {
     let NewChat {
         chat: conversation, ..
     } = chat_manager
-        .resume_thread_with_history(
+        .resume_chat_with_history(
             config.clone(),
             initial_history,
             auth_manager,

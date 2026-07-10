@@ -1053,7 +1053,7 @@ async fn fill_missing_thread_item_metadata_from_state_db(
         let Some(chat_id) = item.chat_id else {
             continue;
         };
-        let metadata = match state_db_ctx.get_thread(chat_id).await {
+        let metadata = match state_db_ctx.get_chat(chat_id).await {
             Ok(Some(metadata)) => metadata,
             Ok(None) => continue,
             Err(err) => {

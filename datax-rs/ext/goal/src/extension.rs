@@ -108,15 +108,15 @@ where
                     SessionSource::SubAgent(SubAgentSource::Review)
                 );
             input
-                .thread_store
+                .chat_store
                 .insert(GoalExtensionConfig::from_enabled(enabled));
             let accounting_state = input
-                .thread_store
+                .chat_store
                 .get_or_init::<GoalAccountingState>(GoalAccountingState::default);
-            let Ok(chat_id) = ChatId::from_string(input.thread_store.level_id()) else {
+            let Ok(chat_id) = ChatId::from_string(input.chat_store.level_id()) else {
                 return;
             };
-            let runtime = input.thread_store.get_or_init::<GoalRuntimeHandle>(|| {
+            let runtime = input.chat_store.get_or_init::<GoalRuntimeHandle>(|| {
                 GoalRuntimeHandle::new(
                     chat_id,
                     Arc::clone(&self.state_dbs),
@@ -138,7 +138,7 @@ where
 
     fn on_thread_resume<'a>(&'a self, input: ThreadResumeInput<'a>) -> ExtensionFuture<'a, ()> {
         Box::pin(async move {
-            let Some(runtime) = goal_runtime_handle(input.thread_store) else {
+            let Some(runtime) = goal_runtime_handle(input.chat_store) else {
                 return;
             };
 
@@ -153,7 +153,7 @@ where
 
     fn on_chat_idle<'a>(&'a self, input: ChatIdleInput<'a>) -> ExtensionFuture<'a, ()> {
         Box::pin(async move {
-            let Some(runtime) = goal_runtime_handle(input.thread_store) else {
+            let Some(runtime) = goal_runtime_handle(input.chat_store) else {
                 return;
             };
 
@@ -168,7 +168,7 @@ where
 
     fn on_thread_stop<'a>(&'a self, input: ThreadStopInput<'a>) -> ExtensionFuture<'a, ()> {
         Box::pin(async move {
-            if let Some(runtime) = goal_runtime_handle(input.thread_store) {
+            if let Some(runtime) = goal_runtime_handle(input.chat_store) {
                 self.goal_service.unregister_runtime(&runtime);
             }
         })
@@ -182,7 +182,7 @@ where
     fn on_config_changed(
         &self,
         _session_store: &ExtensionData,
-        thread_store: &ExtensionData,
+        chat_store: &ExtensionData,
         _previous_config: &C,
         new_config: &C,
     ) {
@@ -200,7 +200,7 @@ where
 {
     fn on_turn_start<'a>(&'a self, input: TurnStartInput<'a>) -> ExtensionFuture<'a, ()> {
         Box::pin(async move {
-            let Some(runtime) = goal_runtime_handle(input.thread_store) else {
+            let Some(runtime) = goal_runtime_handle(input.chat_store) else {
                 return;
             };
             if !runtime.is_enabled() {
@@ -242,7 +242,7 @@ where
 
     fn on_turn_stop<'a>(&'a self, input: TurnStopInput<'a>) -> ExtensionFuture<'a, ()> {
         Box::pin(async move {
-            let Some(runtime) = goal_runtime_handle(input.thread_store) else {
+            let Some(runtime) = goal_runtime_handle(input.chat_store) else {
                 return;
             };
             if !runtime.is_enabled() {
@@ -270,7 +270,7 @@ where
 
     fn on_turn_abort<'a>(&'a self, input: TurnAbortInput<'a>) -> ExtensionFuture<'a, ()> {
         Box::pin(async move {
-            let Some(runtime) = goal_runtime_handle(input.thread_store) else {
+            let Some(runtime) = goal_runtime_handle(input.chat_store) else {
                 return;
             };
             if !runtime.is_enabled() {
@@ -298,7 +298,7 @@ where
 
     fn on_turn_error<'a>(&'a self, input: TurnErrorInput<'a>) -> ExtensionFuture<'a, ()> {
         Box::pin(async move {
-            let Some(runtime) = goal_runtime_handle(input.thread_store) else {
+            let Some(runtime) = goal_runtime_handle(input.chat_store) else {
                 return;
             };
 
@@ -330,7 +330,7 @@ where
     fn on_token_usage<'a>(
         &'a self,
         _session_store: &'a ExtensionData,
-        thread_store: &'a ExtensionData,
+        chat_store: &'a ExtensionData,
         turn_store: &'a ExtensionData,
         token_usage: &'a TokenUsageInfo,
     ) -> ExtensionFuture<'a, ()> {
@@ -358,7 +358,7 @@ where
 {
     fn on_tool_finish<'a>(&'a self, input: ToolFinishInput<'a>) -> ToolLifecycleFuture<'a> {
         Box::pin(async move {
-            let Some(runtime) = goal_runtime_handle(input.thread_store) else {
+            let Some(runtime) = goal_runtime_handle(input.chat_store) else {
                 return;
             };
             let should_count_for_goal_progress = runtime.is_enabled()
@@ -410,7 +410,7 @@ where
     fn tools(
         &self,
         _session_store: &ExtensionData,
-        thread_store: &ExtensionData,
+        chat_store: &ExtensionData,
     ) -> Vec<Arc<dyn datax_extension_api::ToolExecutor<datax_extension_api::ToolCall>>> {
         let Some(runtime) = goal_runtime_handle(thread_store) else {
             return Vec::new();
@@ -476,7 +476,7 @@ pub fn install_with_backend<C>(
     registry.tool_contributor(extension);
 }
 
-fn goal_runtime_handle(thread_store: &ExtensionData) -> Option<Arc<GoalRuntimeHandle>> {
+fn goal_runtime_handle(chat_store: &ExtensionData) -> Option<Arc<GoalRuntimeHandle>> {
     thread_store.get::<GoalRuntimeHandle>()
 }
 

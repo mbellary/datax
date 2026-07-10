@@ -51,7 +51,7 @@ impl ContextContributor for MemoriesExtension {
     fn contribute_thread_context<'a>(
         &'a self,
         _session_store: &'a ExtensionData,
-        thread_store: &'a ExtensionData,
+        chat_store: &'a ExtensionData,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Vec<PromptFragment>> + Send + 'a>> {
         Box::pin(async move {
             let Some(config) = thread_store.get::<MemoriesExtensionConfig>() else {
@@ -77,7 +77,7 @@ impl ThreadLifecycleContributor<Config> for MemoriesExtension {
     ) -> ExtensionFuture<'a, ()> {
         Box::pin(async move {
             input
-                .thread_store
+                .chat_store
                 .insert(MemoriesExtensionConfig::from_config(input.config));
         })
     }
@@ -87,7 +87,7 @@ impl ConfigContributor<Config> for MemoriesExtension {
     fn on_config_changed(
         &self,
         _session_store: &ExtensionData,
-        thread_store: &ExtensionData,
+        chat_store: &ExtensionData,
         _previous_config: &Config,
         new_config: &Config,
     ) {
@@ -99,7 +99,7 @@ impl ToolContributor for MemoriesExtension {
     fn tools(
         &self,
         _session_store: &ExtensionData,
-        thread_store: &ExtensionData,
+        chat_store: &ExtensionData,
     ) -> Vec<Arc<dyn datax_extension_api::ToolExecutor<datax_extension_api::ToolCall>>> {
         let Some(config) = thread_store.get::<MemoriesExtensionConfig>() else {
             return Vec::new();

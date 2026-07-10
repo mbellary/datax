@@ -50,7 +50,7 @@ impl ThreadLifecycleContributor<Config> for ImageGenerationExtension {
     ) -> ExtensionFuture<'a, ()> {
         Box::pin(async move {
             input
-                .thread_store
+                .chat_store
                 .insert(ImageGenerationExtensionConfig::from(input.config));
         })
     }
@@ -61,7 +61,7 @@ impl ConfigContributor<Config> for ImageGenerationExtension {
     fn on_config_changed(
         &self,
         _session_store: &ExtensionData,
-        thread_store: &ExtensionData,
+        chat_store: &ExtensionData,
         _previous_config: &Config,
         new_config: &Config,
     ) {
@@ -74,7 +74,7 @@ impl ToolContributor for ImageGenerationExtension {
     fn tools(
         &self,
         _session_store: &ExtensionData,
-        thread_store: &ExtensionData,
+        chat_store: &ExtensionData,
     ) -> Vec<Arc<dyn ToolExecutor<ToolCall>>> {
         let Some(config) = thread_store.get::<ImageGenerationExtensionConfig>() else {
             return Vec::new();

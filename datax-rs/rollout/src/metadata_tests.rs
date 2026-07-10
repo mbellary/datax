@@ -219,14 +219,14 @@ async fn backfill_sessions_resumes_from_watermark_and_marks_complete() {
     let second_id = ChatId::from_string(&second_uuid.to_string()).expect("second thread id");
     assert_eq!(
         runtime
-            .get_thread(first_id)
+            .get_chat(first_id)
             .await
             .expect("get first thread"),
         None
     );
     assert!(
         runtime
-            .get_thread(second_id)
+            .get_chat(second_id)
             .await
             .expect("get second thread")
             .is_some()
@@ -283,7 +283,7 @@ async fn backfill_sessions_preserves_existing_git_branch_and_fills_missing_git_f
     backfill_sessions(runtime.as_ref(), codex_home.as_path(), "test-provider").await;
 
     let persisted = runtime
-        .get_thread(chat_id)
+        .get_chat(chat_id)
         .await
         .expect("get thread")
         .expect("thread exists");
@@ -318,7 +318,7 @@ async fn backfill_sessions_normalizes_cwd_before_upsert() {
 
     let chat_id = ChatId::from_string(&thread_uuid.to_string()).expect("thread id");
     let stored = runtime
-        .get_thread(chat_id)
+        .get_chat(chat_id)
         .await
         .expect("get thread")
         .expect("thread should be backfilled");

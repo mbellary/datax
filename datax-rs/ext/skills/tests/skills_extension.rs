@@ -81,7 +81,7 @@ async fn installed_extension_uses_host_service_snapshot() -> TestResult {
             persistent_thread_state_available: true,
             environments: &[],
             session_store: &session_store,
-            thread_store: &thread_store,
+            chat_store: &thread_store,
         })
         .await;
 
@@ -183,7 +183,7 @@ async fn selected_executor_catalog_is_context_and_selected_entrypoint_is_turn_in
             persistent_thread_state_available: true,
             environments: &[],
             session_store: &session_store,
-            thread_store: &thread_store,
+            chat_store: &thread_store,
         })
         .await;
 
@@ -294,7 +294,7 @@ async fn default_context_truncates_catalog_descriptions() -> TestResult {
             persistent_thread_state_available: true,
             environments: &[],
             session_store: &session_store,
-            thread_store: &thread_store,
+            chat_store: &thread_store,
         })
         .await;
 
@@ -344,7 +344,7 @@ async fn skills_list_truncates_catalog_descriptions_in_tool_output() -> TestResu
             persistent_thread_state_available: true,
             environments: &[],
             session_store: &session_store,
-            thread_store: &thread_store,
+            chat_store: &thread_store,
         })
         .await;
 
@@ -416,7 +416,7 @@ async fn orchestrator_catalog_snapshot_caches_failure() -> TestResult {
             persistent_thread_state_available: true,
             environments: &[],
             session_store: &session_store,
-            thread_store: &thread_store,
+            chat_store: &thread_store,
         })
         .await;
 
@@ -508,7 +508,7 @@ async fn root_qualified_locator_selects_only_the_matching_executor_skill() -> Te
             persistent_thread_state_available: true,
             environments: &[],
             session_store: &session_store,
-            thread_store: &thread_store,
+            chat_store: &thread_store,
         })
         .await;
 
@@ -583,7 +583,7 @@ async fn prompt_hidden_skill_can_still_be_invoked() -> TestResult {
             persistent_thread_state_available: true,
             environments: &[],
             session_store: &session_store,
-            thread_store: &thread_store,
+            chat_store: &thread_store,
         })
         .await;
 

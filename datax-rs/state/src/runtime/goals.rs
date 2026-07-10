@@ -595,7 +595,7 @@ mod tests {
                 .unwrap()
         );
         let metadata = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("thread metadata should load")
             .expect("thread should exist");

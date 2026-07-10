@@ -70,7 +70,7 @@ pub(crate) async fn read_session_model(
     path: Option<&Path>,
 ) -> Option<String> {
     if let Some(state_db_ctx) = state_db_ctx
-        && let Ok(Some(metadata)) = state_db_ctx.get_thread(chat_id).await
+        && let Ok(Some(metadata)) = state_db_ctx.get_chat(chat_id).await
         && let Some(model) = metadata.model
     {
         return Some(model);
@@ -117,7 +117,7 @@ async fn read_session_cwd(
     path: Option<&Path>,
 ) -> Option<PathBuf> {
     if let Some(state_db_ctx) = state_db_ctx
-        && let Ok(Some(metadata)) = state_db_ctx.get_thread(chat_id).await
+        && let Ok(Some(metadata)) = state_db_ctx.get_chat(chat_id).await
     {
         return Some(metadata.cwd);
     }

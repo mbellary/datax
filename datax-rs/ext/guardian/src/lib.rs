@@ -57,11 +57,11 @@ where
         input: ThreadStartInput<'a, Config>,
     ) -> ExtensionFuture<'a, ()> {
         Box::pin(async move {
-            let Ok(forked_from_chat_id) = ChatId::from_string(input.thread_store.level_id())
+            let Ok(forked_from_chat_id) = ChatId::from_string(input.chat_store.level_id())
             else {
                 return;
             };
-            input.thread_store.insert(GuardianThreadContext {
+            input.chat_store.insert(GuardianThreadContext {
                 forked_from_chat_id,
             });
         })

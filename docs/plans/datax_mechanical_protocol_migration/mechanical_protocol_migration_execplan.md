@@ -46,6 +46,7 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 - [x] (2026-07-10 00:00Z) Updated stale native `exec` and TUI app-server protocol consumers and fixtures to use the migrated `chat` and `interaction` fields instead of the removed Rust fields `thread` and `turn`.
 - [x] (2026-07-10 00:00Z) Migrated the remote config request field at its protobuf definition from `thread_id` to `chat_id`, preserving protobuf field number 1, and aligned the checked-in generated Rust and native request construction.
 - [x] (2026-07-10 00:00Z) Migrated stale core test-support resume callers from `resume_thread_from_rollout*` to the defining `resume_chat_from_rollout*` APIs.
+- [x] (2026-07-10 00:00Z) Migrated extension lifecycle input store fields and state runtime metadata lookup from stale thread vocabulary to native chat vocabulary.
 
 ## Surprises & Discoveries
 
@@ -75,6 +76,9 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 
 - Observation: Core resume APIs had already moved to Datax `chat` vocabulary at their definitions, but shared test harnesses still called removed `resume_thread_from_rollout*` names.
   Evidence: `datax-rs/core/src/chat_manager.rs` defines `resume_chat_from_rollout`, `datax-rs/core/src/test_support.rs` defines `resume_chat_from_rollout_with_user_shell_override`, while `datax-rs/core/tests/common/test_codex.rs` and `datax-rs/core/tests/suite/compact_resume_fork.rs` retained stale `resume_thread_from_rollout*` callers.
+
+- Observation: Extension lifecycle input structs and state runtime metadata lookup lagged behind migrated native callers.
+  Evidence: `datax-rs/ext/extension-api/src/contributors/*_lifecycle.rs` still exposed `thread_store` fields while core and extension tests expected `chat_store`; `datax-rs/state/src/runtime/threads.rs` still defined `get_thread` while Datax core agent-control callers expected `get_chat`.
 
 ## Decision Log
 

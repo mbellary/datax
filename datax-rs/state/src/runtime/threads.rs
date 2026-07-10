@@ -5,7 +5,7 @@ use std::sync::atomic::AtomicI64;
 use std::sync::atomic::Ordering;
 
 impl StateRuntime {
-    pub async fn get_thread(&self, id: ChatId) -> anyhow::Result<Option<crate::ThreadMetadata>> {
+    pub async fn get_chat(&self, id: ChatId) -> anyhow::Result<Option<crate::ThreadMetadata>> {
         let row = sqlx::query(
             r#"
 SELECT
@@ -877,7 +877,7 @@ ON CONFLICT(id) DO UPDATE SET
         if items.is_empty() {
             return Ok(());
         }
-        let existing_metadata = self.get_thread(builder.id).await?;
+        let existing_metadata = self.get_chat(builder.id).await?;
         let mut metadata = existing_metadata
             .clone()
             .unwrap_or_else(|| builder.build(&self.default_provider));
@@ -919,7 +919,7 @@ ON CONFLICT(id) DO UPDATE SET
         rollout_path: &Path,
         archived_at: DateTime<Utc>,
     ) -> anyhow::Result<()> {
-        let Some(mut metadata) = self.get_thread(chat_id).await? else {
+        let Some(mut metadata) = self.get_chat(chat_id).await? else {
             return Ok(());
         };
         metadata.archived_at = Some(archived_at);
@@ -942,7 +942,7 @@ ON CONFLICT(id) DO UPDATE SET
         chat_id: ChatId,
         rollout_path: &Path,
     ) -> anyhow::Result<()> {
-        let Some(mut metadata) = self.get_thread(chat_id).await? else {
+        let Some(mut metadata) = self.get_chat(chat_id).await? else {
             return Ok(());
         };
         metadata.archived_at = None;
@@ -1445,7 +1445,7 @@ mod tests {
             .await?;
 
         assert_eq!(rows, 1);
-        assert!(runtime.get_thread(chat_id).await?.is_none());
+        assert!(runtime.get_chat(chat_id).await?.is_none());
         let dynamic_tool_count: i64 =
             sqlx::query_scalar("SELECT COUNT(*) FROM chat_dynamic_tools WHERE chat_id = ?")
                 .bind(chat_id.to_string())
@@ -1500,7 +1500,7 @@ mod tests {
             .await
             .expect_err("closed log db should fail deletion");
 
-        assert!(runtime.get_thread(chat_id).await?.is_some());
+        assert!(runtime.get_chat(chat_id).await?.is_some());
         assert_eq!(
             runtime.list_thread_spawn_descendants(chat_id).await?,
             vec![child_chat_id]
@@ -2054,7 +2054,7 @@ mod tests {
             .expect("apply_rollout_items should succeed");
 
         let persisted = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2095,7 +2095,7 @@ mod tests {
             .expect("rollout upsert should succeed");
 
         let persisted = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2133,7 +2133,7 @@ mod tests {
             .expect("rollout upsert should succeed");
 
         let persisted = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2174,7 +2174,7 @@ mod tests {
         assert!(!overwrite_updated);
 
         let persisted = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2224,7 +2224,7 @@ mod tests {
         assert!(updated, "git info update should touch the thread row");
 
         let persisted = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2275,7 +2275,7 @@ mod tests {
         assert!(!inserted, "existing rows should not be overwritten");
 
         let persisted = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2316,7 +2316,7 @@ mod tests {
         assert!(updated, "git info clear should touch the thread row");
 
         let persisted = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2351,7 +2351,7 @@ mod tests {
         assert!(touched);
 
         let persisted = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2398,7 +2398,7 @@ mod tests {
             .expect("stale metadata upsert should succeed");
 
         let persisted = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2413,7 +2413,7 @@ mod tests {
                 .expect("older touch should succeed")
         );
         let persisted = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2575,12 +2575,12 @@ mod tests {
             .expect("second upsert should succeed");
 
         let first = runtime
-            .get_thread(first_id)
+            .get_chat(first_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
         let second = runtime
-            .get_thread(second_id)
+            .get_chat(second_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2626,7 +2626,7 @@ mod tests {
             .await
             .expect("older upsert should succeed");
         let older = runtime
-            .get_thread(older_id)
+            .get_chat(older_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2642,7 +2642,7 @@ mod tests {
             .await
             .expect("legacy timestamp write should succeed");
         let legacy = runtime
-            .get_thread(first_id)
+            .get_chat(first_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");
@@ -2703,7 +2703,7 @@ mod tests {
             .expect("apply_rollout_items should succeed");
 
         let persisted = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("thread should load")
             .expect("thread should exist");

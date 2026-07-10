@@ -15,8 +15,8 @@ pub struct TurnStartInput<'a> {
     pub token_usage_at_turn_start: &'a TokenUsage,
     /// Store scoped to the host session runtime.
     pub session_store: &'a ExtensionData,
-    /// Store scoped to this thread runtime.
-    pub thread_store: &'a ExtensionData,
+    /// Store scoped to this chat runtime.
+    pub chat_store: &'a ExtensionData,
     /// Store scoped to this turn runtime.
     pub turn_store: &'a ExtensionData,
 }
@@ -25,8 +25,8 @@ pub struct TurnStartInput<'a> {
 pub struct TurnStopInput<'a> {
     /// Store scoped to the host session runtime.
     pub session_store: &'a ExtensionData,
-    /// Store scoped to this thread runtime.
-    pub thread_store: &'a ExtensionData,
+    /// Store scoped to this chat runtime.
+    pub chat_store: &'a ExtensionData,
     /// Store scoped to this turn runtime.
     pub turn_store: &'a ExtensionData,
 }
@@ -37,8 +37,8 @@ pub struct TurnAbortInput<'a> {
     pub reason: InteractionAbortReason,
     /// Store scoped to the host session runtime.
     pub session_store: &'a ExtensionData,
-    /// Store scoped to this thread runtime.
-    pub thread_store: &'a ExtensionData,
+    /// Store scoped to this chat runtime.
+    pub chat_store: &'a ExtensionData,
     /// Store scoped to this turn runtime.
     pub turn_store: &'a ExtensionData,
 }
@@ -51,8 +51,8 @@ pub struct TurnErrorInput<'a> {
     pub error: CodexErrorInfo,
     /// Store scoped to the host session runtime.
     pub session_store: &'a ExtensionData,
-    /// Store scoped to this thread runtime.
-    pub thread_store: &'a ExtensionData,
+    /// Store scoped to this chat runtime.
+    pub chat_store: &'a ExtensionData,
     /// Store scoped to this turn runtime.
     pub turn_store: &'a ExtensionData,
 }

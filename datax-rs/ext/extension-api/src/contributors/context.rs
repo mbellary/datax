@@ -11,8 +11,8 @@ pub struct InteractionContextContributionInput<'a> {
     pub interaction_id: &'a str,
     /// Store scoped to the host session runtime.
     pub session_store: &'a ExtensionData,
-    /// Store scoped to this thread runtime.
-    pub thread_store: &'a ExtensionData,
+    /// Store scoped to this chat runtime.
+    pub chat_store: &'a ExtensionData,
     /// Store scoped to this turn.
     pub turn_store: &'a ExtensionData,
     /// Effective model context window for this turn, when known.

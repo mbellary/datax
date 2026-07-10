@@ -641,7 +641,7 @@ impl AgentControl {
             }) => {
                 let (resumed_agent_nickname, resumed_agent_role) =
                     if let Some(state_db_ctx) = state_db_ctx.as_ref() {
-                        match state_db_ctx.get_thread(chat_id).await {
+                        match state_db_ctx.get_chat(chat_id).await {
                             Ok(Some(metadata)) => (metadata.agent_nickname, metadata.agent_role),
                             Ok(None) | Err(_) => (None, None),
                         }

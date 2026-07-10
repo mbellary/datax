@@ -413,7 +413,7 @@ mod tests {
 
         assert_eq!(
             runtime
-                .get_thread(chat_id)
+                .get_chat(chat_id)
                 .await
                 .expect("sqlite metadata read"),
             None
@@ -443,7 +443,7 @@ mod tests {
         live_chat.flush().await.expect("flush thread");
 
         let metadata = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("sqlite metadata read")
             .expect("sqlite metadata");
@@ -477,7 +477,7 @@ mod tests {
             .expect("append initial user message");
         live_chat.flush().await.expect("flush thread");
         let before_turn_start = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("sqlite metadata read")
             .expect("sqlite metadata");
@@ -496,7 +496,7 @@ mod tests {
             .expect("append turn start");
         live_chat.flush().await.expect("flush thread");
         let after_turn_start = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("sqlite metadata read")
             .expect("sqlite metadata");
@@ -533,7 +533,7 @@ mod tests {
             .expect("append post-start items");
         live_chat.flush().await.expect("flush thread");
         let completed = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("sqlite metadata read")
             .expect("sqlite metadata");
@@ -571,7 +571,7 @@ mod tests {
         );
         assert_eq!(
             runtime
-                .get_thread(chat_id)
+                .get_chat(chat_id)
                 .await
                 .expect("sqlite metadata read"),
             None
@@ -615,7 +615,7 @@ mod tests {
                 .expect("rollout path should be checkable")
         );
         let metadata = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("sqlite metadata read")
             .expect("sqlite metadata");
@@ -660,7 +660,7 @@ mod tests {
             .expect("append after resume");
 
         let metadata = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("sqlite metadata read")
             .expect("sqlite metadata");
@@ -714,7 +714,7 @@ mod tests {
             .expect("append after external resume");
 
         let metadata = runtime
-            .get_thread(chat_id)
+            .get_chat(chat_id)
             .await
             .expect("sqlite metadata read")
             .expect("sqlite metadata");

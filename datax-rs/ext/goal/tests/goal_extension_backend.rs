@@ -1131,7 +1131,7 @@ async fn installed_tools_with_start(
                 persistent_thread_state_available,
                 environments: &[],
                 session_store: &session_store,
-                thread_store: &thread_store,
+                chat_store: &thread_store,
             })
             .await;
     }
@@ -1150,7 +1150,7 @@ fn tool_names(tools: &[Arc<dyn ToolExecutor<ToolCall>>]) -> Vec<String> {
 struct GoalExtensionHarness {
     registry: datax_extension_api::ExtensionRegistry<()>,
     session_store: ExtensionData,
-    thread_store: ExtensionData,
+    chat_store: ExtensionData,
     goal_service: Arc<GoalService>,
     sink: Arc<RecordingEventSink>,
 }
@@ -1181,14 +1181,14 @@ impl GoalExtensionHarness {
                     persistent_thread_state_available: true,
                     environments: &[],
                     session_store: &session_store,
-                    thread_store: &thread_store,
+                    chat_store: &thread_store,
                 })
                 .await;
         }
         Ok(Self {
             registry,
             session_store,
-            thread_store,
+            chat_store: thread_store,
             goal_service,
             sink,
         })
@@ -1198,7 +1198,7 @@ impl GoalExtensionHarness {
         self.registry
             .tool_contributors()
             .iter()
-            .flat_map(|contributor| contributor.tools(&self.session_store, &self.thread_store))
+            .flat_map(|contributor| contributor.tools(&self.session_store, &self.chat_store))
             .collect()
     }
 
@@ -1218,7 +1218,7 @@ impl GoalExtensionHarness {
                     collaboration_mode: &collaboration_mode,
                     token_usage_at_turn_start: usage,
                     session_store: &self.session_store,
-                    thread_store: &self.thread_store,
+                    chat_store: &self.chat_store,
                     turn_store: &turn_store,
                 })
                 .await;
@@ -1231,7 +1231,7 @@ impl GoalExtensionHarness {
             contributor
                 .on_turn_stop(TurnStopInput {
                     session_store: &self.session_store,
-                    thread_store: &self.thread_store,
+                    chat_store: &self.chat_store,
                     turn_store: &turn_store,
                 })
                 .await;
@@ -1249,7 +1249,7 @@ impl GoalExtensionHarness {
             contributor
                 .on_token_usage(
                     &self.session_store,
-                    &self.thread_store,
+                    &self.chat_store,
                     &turn_store,
                     &token_usage,
                 )
@@ -1262,7 +1262,7 @@ impl GoalExtensionHarness {
             contributor
                 .on_thread_resume(ThreadResumeInput {
                     session_store: &self.session_store,
-                    thread_store: &self.thread_store,
+                    chat_store: &self.chat_store,
                 })
                 .await;
         }
@@ -1273,7 +1273,7 @@ impl GoalExtensionHarness {
             contributor
                 .on_thread_stop(ThreadStopInput {
                     session_store: &self.session_store,
-                    thread_store: &self.thread_store,
+                    chat_store: &self.chat_store,
                 })
                 .await;
         }
@@ -1286,7 +1286,7 @@ impl GoalExtensionHarness {
             contributor
                 .on_tool_finish(ToolFinishInput {
                     session_store: &self.session_store,
-                    thread_store: &self.thread_store,
+                    chat_store: &self.chat_store,
                     turn_store: &turn_store,
                     interaction_id,
                     call_id,
@@ -1306,7 +1306,7 @@ impl GoalExtensionHarness {
                     interaction_id,
                     error: error.clone(),
                     session_store: &self.session_store,
-                    thread_store: &self.thread_store,
+                    chat_store: &self.chat_store,
                     turn_store: &turn_store,
                 })
                 .await;
@@ -1314,7 +1314,7 @@ impl GoalExtensionHarness {
     }
 
     fn runtime_handle(&self) -> Arc<GoalRuntimeHandle> {
-        self.thread_store
+        self.chat_store
             .get::<GoalRuntimeHandle>()
             .expect("goal runtime handle should exist")
     }

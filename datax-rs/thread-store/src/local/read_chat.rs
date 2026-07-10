@@ -296,7 +296,7 @@ async fn read_sqlite_metadata(
     chat_id: datax_protocol::ChatId,
 ) -> Option<ThreadMetadata> {
     let runtime = store.state_db().await?;
-    runtime.get_thread(chat_id).await.ok().flatten()
+    runtime.get_chat(chat_id).await.ok().flatten()
 }
 
 async fn stored_chat_from_sqlite_metadata(

@@ -4,7 +4,7 @@
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct LoadThreadConfigRequest {
     #[prost(string, optional, tag = "1")]
-    pub thread_id: ::core::option::Option<::prost::alloc::string::String>,
+    pub chat_id: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, optional, tag = "2")]
     pub cwd: ::core::option::Option<::prost::alloc::string::String>,
 }

@@ -83,7 +83,7 @@ fn load_thread_config_request(
     context: ThreadConfigContext,
 ) -> tonic::Request<proto::LoadThreadConfigRequest> {
     let mut request = tonic::Request::new(proto::LoadThreadConfigRequest {
-        thread_id: context.chat_id,
+        chat_id: context.chat_id,
         cwd: context.cwd.map(|cwd| cwd.to_string_lossy().into_owned()),
     });
     request.set_timeout(REMOTE_THREAD_CONFIG_LOAD_TIMEOUT);

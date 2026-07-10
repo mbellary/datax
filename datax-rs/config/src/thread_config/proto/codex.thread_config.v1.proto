@@ -7,7 +7,7 @@ service ThreadConfigLoader {
 }
 
 message LoadThreadConfigRequest {
-  optional string thread_id = 1;
+  optional string chat_id = 1;
   optional string cwd = 2;
 }
 

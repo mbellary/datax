@@ -187,8 +187,8 @@ where
         new_config: &C,
     ) {
         let enabled = (self.goals_enabled)(new_config);
-        thread_store.insert(GoalExtensionConfig::from_enabled(enabled));
-        if let Some(runtime) = goal_runtime_handle(thread_store) {
+        chat_store.insert(GoalExtensionConfig::from_enabled(enabled));
+        if let Some(runtime) = goal_runtime_handle(chat_store) {
             runtime.set_enabled(enabled);
         }
     }
@@ -335,7 +335,7 @@ where
         token_usage: &'a TokenUsageInfo,
     ) -> ExtensionFuture<'a, ()> {
         Box::pin(async move {
-            let Some(runtime) = goal_runtime_handle(thread_store) else {
+            let Some(runtime) = goal_runtime_handle(chat_store) else {
                 return;
             };
             if !runtime.is_enabled() {
@@ -412,7 +412,7 @@ where
         _session_store: &ExtensionData,
         chat_store: &ExtensionData,
     ) -> Vec<Arc<dyn datax_extension_api::ToolExecutor<datax_extension_api::ToolCall>>> {
-        let Some(runtime) = goal_runtime_handle(thread_store) else {
+        let Some(runtime) = goal_runtime_handle(chat_store) else {
             return Vec::new();
         };
         if !runtime.tools_visible() {
@@ -477,7 +477,7 @@ pub fn install_with_backend<C>(
 }
 
 fn goal_runtime_handle(chat_store: &ExtensionData) -> Option<Arc<GoalRuntimeHandle>> {
-    thread_store.get::<GoalRuntimeHandle>()
+    chat_store.get::<GoalRuntimeHandle>()
 }
 
 fn tool_attempt_counts_for_goal_progress(outcome: ToolCallOutcome) -> bool {

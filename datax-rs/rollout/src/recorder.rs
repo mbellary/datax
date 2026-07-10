@@ -220,6 +220,37 @@ enum ThreadListRepairMode {
 }
 
 impl RolloutRecorder {
+    /// List chats (rollout files) under the provided Codex home directory.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn list_chats(
+        state_db_ctx: Option<StateDbHandle>,
+        config: &impl RolloutConfigView,
+        page_size: usize,
+        cursor: Option<&Cursor>,
+        sort_key: ThreadSortKey,
+        sort_direction: SortDirection,
+        allowed_sources: &[SessionSource],
+        model_providers: Option<&[String]>,
+        cwd_filters: Option<&[PathBuf]>,
+        default_provider: &str,
+        search_term: Option<&str>,
+    ) -> std::io::Result<ThreadsPage> {
+        Self::list_threads(
+            state_db_ctx,
+            config,
+            page_size,
+            cursor,
+            sort_key,
+            sort_direction,
+            allowed_sources,
+            model_providers,
+            cwd_filters,
+            default_provider,
+            search_term,
+        )
+        .await
+    }
+
     /// List threads (rollout files) under the provided Codex home directory.
     #[allow(clippy::too_many_arguments)]
     pub async fn list_threads(

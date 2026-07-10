@@ -179,18 +179,19 @@ async fn thread_read_can_include_turns() -> Result<()> {
     let turn = &thread.interactions[0];
     assert_eq!(turn.status, InteractionStatus::Completed);
     assert_eq!(turn.messages_view, InteractionMessagesView::Full);
-    assert_eq!(turn.items.len(), 1, "expected user message item");
-    match &turn.items[0] {
+    assert_eq!(turn.messages.len(), 1, "expected user message");
+    match &turn.messages[0] {
         Message::UserMessage { content, .. } => {
+            let expected_content = [UserInput::Text {
+                text: preview.to_string(),
+                text_elements: text_elements.clone().into_iter().map(Into::into).collect(),
+            }];
             assert_eq!(
-                content,
-                &vec![UserInput::Text {
-                    text: preview.to_string(),
-                    text_elements: text_elements.clone().into_iter().map(Into::into).collect(),
-                }]
+                content.as_slice(),
+                expected_content.as_slice()
             );
         }
-        other => panic!("expected user message item, got {other:?}"),
+        other => panic!("expected user message, got {other:?}"),
     }
     assert_eq!(thread.status, ChatStatus::NotLoaded);
 
@@ -346,7 +347,7 @@ async fn thread_turns_list_supports_requested_messages_view() -> Result<()> {
     )
     .await?;
     assert_eq!(not_loaded.messages_view, InteractionMessagesView::NotLoaded);
-    assert!(not_loaded.items.is_empty());
+    assert!(not_loaded.messages.is_empty());
     assert_eq!(not_loaded.id, full.id);
     assert_eq!(not_loaded.status, full.status);
     assert_eq!(not_loaded.started_at, full.started_at);
@@ -695,7 +696,7 @@ async fn thread_resume_initial_turns_page_matches_requested_turns_list_page() ->
     )
     .await??;
     let ChatResumeResponse {
-        thread,
+        chat: thread,
         initial_interactions_page,
         ..
     } = to_response::<ChatResumeResponse>(resume_resp)?;
@@ -1323,7 +1324,7 @@ async fn read_single_turn_messages_view(
 fn turn_user_texts(interactions: &[datax_app_server_protocol::Interaction]) -> Vec<&str> {
     interactions
         .iter()
-        .filter_map(|turn| match turn.items.first()? {
+        .filter_map(|turn| match turn.messages.first()? {
             Message::UserMessage { content, .. } => match content.first()? {
                 UserInput::Text { text, .. } => Some(text.as_str()),
                 UserInput::Image { .. }
@@ -1339,8 +1340,8 @@ fn turn_user_texts(interactions: &[datax_app_server_protocol::Interaction]) -> V
 fn turn_agent_texts(interactions: &[datax_app_server_protocol::Interaction]) -> Vec<&str> {
     interactions
         .iter()
-        .flat_map(|turn| &turn.items)
-        .filter_map(|item| match item {
+        .flat_map(|turn| &turn.messages)
+        .filter_map(|message| match message {
             Message::AgentMessage { text, .. } => Some(text.as_str()),
             _ => None,
         })

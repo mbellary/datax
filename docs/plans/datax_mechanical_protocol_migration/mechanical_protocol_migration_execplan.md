@@ -47,6 +47,7 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 - [x] (2026-07-10 00:00Z) Migrated the remote config request field at its protobuf definition from `thread_id` to `chat_id`, preserving protobuf field number 1, and aligned the checked-in generated Rust and native request construction.
 - [x] (2026-07-10 00:00Z) Migrated stale core test-support resume callers from `resume_thread_from_rollout*` to the defining `resume_chat_from_rollout*` APIs.
 - [x] (2026-07-10 00:00Z) Migrated extension lifecycle input store fields and state runtime metadata lookup from stale thread vocabulary to native chat vocabulary.
+- [x] (2026-07-10 00:00Z) Migrated stale app-server suite callers to the defining protocol fields `chat`, `interaction`, and `messages`, and added a forward `RolloutRecorder::list_chats` API over the existing rollout listing implementation.
 
 ## Surprises & Discoveries
 
@@ -79,6 +80,9 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 
 - Observation: Extension lifecycle input structs and state runtime metadata lookup lagged behind migrated native callers.
   Evidence: `datax-rs/ext/extension-api/src/contributors/*_lifecycle.rs` still exposed `thread_store` fields while core and extension tests expected `chat_store`; `datax-rs/state/src/runtime/threads.rs` still defined `get_thread` while Datax core agent-control callers expected `get_chat`.
+
+- Observation: App-server suite failures exposed stale test callers plus one missing forward rollout-listing API.
+  Evidence: `ChatStartResponse` and `ChatResumeResponse` define `chat`, `Interaction` defines `messages`, and `EnvironmentSelectionCase` defines `interaction`; app-server suite code still destructured `thread`, accessed `items`, or read `case.turn`. The app-server suite also expected `RolloutRecorder::list_chats`, while the rollout layer only exposed `list_threads`, so a forward `list_chats` wrapper was added at the rollout defining layer instead of moving callers backward.
 
 ## Decision Log
 

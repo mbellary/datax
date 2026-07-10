@@ -466,7 +466,7 @@ async fn thread_start_without_selected_environment_includes_only_global_instruct
     )
     .await??;
     let ChatStartResponse {
-        thread,
+        chat: thread,
         instruction_sources,
         ..
     } = to_response::<ChatStartResponse>(response)?;

@@ -1881,7 +1881,7 @@ async fn thread_start_ignores_deprecated_multi_agent_mode() -> Result<()> {
     )
     .await??;
     let ChatStartResponse {
-        thread,
+        chat: thread,
         multi_agent_mode,
         ..
     } = to_response::<ChatStartResponse>(thread_resp)?;
@@ -2878,7 +2878,7 @@ async fn run_environment_selection_case(
                 text: format!("run {}", case.name),
                 text_elements: Vec::new(),
             }],
-            environments: environment_params(case.turn, workspace),
+            environments: environment_params(case.interaction, workspace),
             cwd: Some(workspace.to_path_buf()),
             model: Some("mock-model".to_string()),
             ..Default::default()

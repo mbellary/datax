@@ -283,7 +283,7 @@ async fn thread_resume_running_thread_uses_cached_instruction_sources() -> Resul
     )
     .await??;
     let ChatStartResponse {
-        thread,
+        chat: thread,
         instruction_sources,
         ..
     } = to_response::<ChatStartResponse>(start_resp)?;

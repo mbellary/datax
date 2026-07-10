@@ -695,9 +695,9 @@ mod tests {
         assert_eq!(
             indexes,
             vec![
-                "idx_logs_process_uuid_threadless_ts".to_string(),
                 "idx_logs_chat_id".to_string(),
                 "idx_logs_chat_id_ts".to_string(),
+                "idx_logs_process_uuid_threadless_ts".to_string(),
                 "idx_logs_ts".to_string(),
             ]
         );

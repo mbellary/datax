@@ -291,18 +291,18 @@ fn sample_thread(chat_id: &str) -> Chat {
         cwd: test_path_buf("/tmp").abs(),
         cli_version: "0.0.0".to_string(),
         source: AppServerSessionSource::Exec,
-        thread_source: None,
+        chat_source: None,
         agent_nickname: None,
         agent_role: None,
         git_info: None,
         name: None,
-        turns: Vec::new(),
+        interactions: Vec::new(),
     }
 }
 
 fn sample_thread_start_response() -> ClientResponsePayload {
     ClientResponsePayload::ChatStart(ChatStartResponse {
-        thread: sample_thread("thread-1"),
+        chat: sample_thread("thread-1"),
         model: "gpt-5".to_string(),
         model_provider: "openai".to_string(),
         service_tier: None,
@@ -320,7 +320,7 @@ fn sample_thread_start_response() -> ClientResponsePayload {
 
 fn sample_thread_resume_response() -> ClientResponsePayload {
     ClientResponsePayload::ChatResume(ChatResumeResponse {
-        thread: sample_thread("thread-2"),
+        chat: sample_thread("thread-2"),
         model: "gpt-5".to_string(),
         model_provider: "openai".to_string(),
         service_tier: None,
@@ -333,13 +333,13 @@ fn sample_thread_resume_response() -> ClientResponsePayload {
         active_permission_profile: None,
         reasoning_effort: None,
         multi_agent_mode: Default::default(),
-        initial_turns_page: None,
+        initial_interactions_page: None,
     })
 }
 
 fn sample_thread_fork_response() -> ClientResponsePayload {
     ClientResponsePayload::ChatFork(ChatForkResponse {
-        thread: sample_thread("thread-3"),
+        chat: sample_thread("thread-3"),
         model: "gpt-5".to_string(),
         model_provider: "openai".to_string(),
         service_tier: None,
@@ -357,10 +357,10 @@ fn sample_thread_fork_response() -> ClientResponsePayload {
 
 fn sample_turn_start_response() -> ClientResponsePayload {
     ClientResponsePayload::InteractionStart(InteractionStartResponse {
-        turn: Interaction {
+        interaction: Interaction {
             id: "turn-1".to_string(),
-            items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-            items: Vec::new(),
+            messages: Vec::new(),
+            messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
             status: AppServerTurnStatus::InProgress,
             error: None,
             started_at: None,

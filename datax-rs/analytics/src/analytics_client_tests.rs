@@ -123,7 +123,7 @@ use datax_app_server_protocol::Message;
 use datax_app_server_protocol::MessageCompletedNotification;
 use datax_app_server_protocol::MessageGuardianApprovalReviewCompletedNotification;
 use datax_app_server_protocol::MessageStartedNotification;
-use datax_app_server_protocol::NonSteerableTurnKind;
+use datax_app_server_protocol::NonSteerableInteractionKind;
 use datax_app_server_protocol::PatchApplyStatus;
 use datax_app_server_protocol::PermissionsRequestApprovalParams;
 use datax_app_server_protocol::RequestId;
@@ -191,12 +191,12 @@ fn sample_thread_with_metadata(
         cwd: test_path_buf("/tmp").abs(),
         cli_version: "0.0.0".to_string(),
         source,
-        thread_source,
+        chat_source: thread_source,
         agent_nickname: None,
         agent_role: None,
         git_info: None,
         name: None,
-        turns: Vec::new(),
+        interactions: Vec::new(),
     }
 }
 
@@ -206,7 +206,7 @@ fn sample_thread_start_response(
     model: &str,
 ) -> ClientResponsePayload {
     ClientResponsePayload::ChatStart(ChatStartResponse {
-        thread: sample_thread_with_metadata(
+        chat: sample_thread_with_metadata(
             chat_id,
             ephemeral,
             AppServerSessionSource::Exec,
@@ -271,7 +271,7 @@ fn sample_thread_resume_response_with_source(
     parent_chat_id: Option<String>,
 ) -> ClientResponsePayload {
     ClientResponsePayload::ChatResume(ChatResumeResponse {
-        thread: sample_thread_with_metadata(
+        chat: sample_thread_with_metadata(
             chat_id,
             ephemeral,
             source,
@@ -290,7 +290,7 @@ fn sample_thread_resume_response_with_source(
         active_permission_profile: None,
         reasoning_effort: None,
         multi_agent_mode: Default::default(),
-        initial_turns_page: None,
+        initial_interactions_page: None,
     })
 }
 
@@ -317,10 +317,10 @@ fn sample_turn_start_request(chat_id: &str, request_id: i64) -> ClientRequest {
 
 fn sample_turn_start_response(interaction_id: &str) -> ClientResponsePayload {
     ClientResponsePayload::InteractionStart(datax_app_server_protocol::InteractionStartResponse {
-        turn: Interaction {
+        interaction: Interaction {
             id: interaction_id.to_string(),
-            items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-            items: vec![],
+            messages: vec![],
+            messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
             status: AppServerTurnStatus::InProgress,
             error: None,
             started_at: None,
@@ -333,10 +333,10 @@ fn sample_turn_start_response(interaction_id: &str) -> ClientResponsePayload {
 fn sample_turn_started_notification(chat_id: &str, interaction_id: &str) -> ServerNotification {
     ServerNotification::InteractionStarted(InteractionStartedNotification {
         chat_id: chat_id.to_string(),
-        turn: Interaction {
+        interaction: Interaction {
             id: interaction_id.to_string(),
-            items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-            items: vec![],
+            messages: vec![],
+            messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
             status: AppServerTurnStatus::InProgress,
             error: None,
             started_at: Some(455),
@@ -368,10 +368,10 @@ fn sample_turn_completed_notification(
 ) -> ServerNotification {
     ServerNotification::InteractionCompleted(InteractionCompletedNotification {
         chat_id: chat_id.to_string(),
-        turn: Interaction {
+        interaction: Interaction {
             id: interaction_id.to_string(),
-            items_view: datax_app_server_protocol::InteractionMessagesView::Full,
-            items: vec![],
+            messages: vec![],
+            messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
             status,
             error: codex_error_info.map(|codex_error_info| AppServerTurnError {
                 message: "turn failed".to_string(),
@@ -475,7 +475,7 @@ fn non_steerable_review_error() -> JSONRPCErrorError {
             serde_json::to_value(AppServerTurnError {
                 message: "cannot steer a review turn".to_string(),
                 codex_error_info: Some(CodexErrorInfo::ActiveTurnNotSteerable {
-                    turn_kind: NonSteerableTurnKind::Review,
+                    interaction_kind: NonSteerableInteractionKind::Review,
                 }),
                 additional_details: None,
             })
@@ -869,7 +869,7 @@ fn sample_command_approval_request(request_id: i64, approval_id: Option<&str>) -
         params: CommandExecutionRequestApprovalParams {
             chat_id: "thread-1".to_string(),
             interaction_id: "turn-1".to_string(),
-            item_id: "item-1".to_string(),
+            message_id: "item-1".to_string(),
             started_at_ms: 1_000,
             approval_id: approval_id.map(str::to_string),
             environment_id: None,
@@ -902,7 +902,7 @@ fn sample_permissions_approval_request(request_id: i64) -> ServerRequest {
         params: PermissionsRequestApprovalParams {
             chat_id: "thread-1".to_string(),
             interaction_id: "turn-1".to_string(),
-            item_id: "permissions-1".to_string(),
+            message_id: "permissions-1".to_string(),
             environment_id: None,
             started_at_ms: 1_000,
             cwd: test_path_buf("/tmp").abs(),
@@ -940,7 +940,7 @@ fn sample_guardian_review_completed(
             started_at_ms: 1_000,
             completed_at_ms: 1_042,
             review_id: review_id.to_string(),
-            target_item_id: target_item_id.map(str::to_string),
+            target_message_id: target_item_id.map(str::to_string),
             decision_source: datax_app_server_protocol::AutoReviewDecisionSource::Agent,
             review: GuardianApprovalReview {
                 status,

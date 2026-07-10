@@ -751,7 +751,7 @@ mod thread_processor_behavior_tests {
             developer_instructions: None,
             personality: None,
             exclude_interactions: false,
-            initial_turns_page: None,
+            initial_interactions_page: None,
         };
         let config_snapshot = ChatConfigSnapshot {
             model: "gpt-5".to_string(),

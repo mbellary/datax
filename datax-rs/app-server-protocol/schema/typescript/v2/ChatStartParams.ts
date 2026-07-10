@@ -50,11 +50,6 @@ environments?: Array<InteractionEnvironmentParams> | null, dynamicTools?: Array<
  */
 selectedCapabilityRoots?: Array<SelectedCapabilityRoot> | null,
 /**
- * Test-only experimental field used to validate experimental gating and
- * schema filtering behavior in a stable way.
- */
-mockExperimentalField?: string | null,
-/**
  * If true, opt into emitting raw Responses API messages on the event stream.
  * This is for internal use only (e.g. Codex Cloud).
  */

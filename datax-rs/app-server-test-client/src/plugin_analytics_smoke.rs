@@ -104,7 +104,7 @@ fn run_plugin_turn(client: &mut DataxClient, expected: &ExpectedPlugin) -> Resul
         ..Default::default()
     })?;
     let turn = client.interaction_start(InteractionStartParams {
-        chat_id: thread.thread.id.clone(),
+        chat_id: thread.chat.id.clone(),
         client_user_message_id: None,
         input: vec![UserInput::Mention {
             name: expected.plugin_name.clone(),
@@ -112,7 +112,7 @@ fn run_plugin_turn(client: &mut DataxClient, expected: &ExpectedPlugin) -> Resul
         }],
         ..Default::default()
     })?;
-    client.stream_turn(&thread.thread.id, &turn.turn.id)?;
+    client.stream_turn(&thread.chat.id, &turn.interaction.id)?;
     if client.last_turn_status != Some(InteractionStatus::Completed) {
         bail!(
             "plugin analytics smoke turn did not complete: status={:?}, error={:?}",
@@ -120,7 +120,7 @@ fn run_plugin_turn(client: &mut DataxClient, expected: &ExpectedPlugin) -> Resul
             client.last_turn_error_message
         );
     }
-    Ok(turn.turn.id)
+    Ok(turn.interaction.id)
 }
 
 fn wait_for_plugin_usage(

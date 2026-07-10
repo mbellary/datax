@@ -825,7 +825,7 @@ async fn trigger_zsh_fork_multi_cmd_approval(
             client.last_turn_status = None;
 
             let mut turn_params = InteractionStartParams {
-                chat_id: thread_response.thread.id.clone(),
+                chat_id: thread_response.chat.id.clone(),
                 client_user_message_id: None,
                 input: vec![V2UserInput::Text {
                     text: message,
@@ -840,7 +840,7 @@ async fn trigger_zsh_fork_multi_cmd_approval(
 
             let turn_response = client.interaction_start(turn_params)?;
             println!("< interaction/start response: {turn_response:?}");
-            client.stream_turn(&thread_response.thread.id, &turn_response.turn.id)?;
+            client.stream_turn(&thread_response.chat.id, &turn_response.interaction.id)?;
 
             if client.command_approval_count < min_approvals {
                 bail!(
@@ -910,7 +910,7 @@ async fn resume_message_v2(
         println!("< thread/resume response: {resume_response:?}");
 
         let turn_response = client.interaction_start(InteractionStartParams {
-            chat_id: resume_response.thread.id.clone(),
+            chat_id: resume_response.chat.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: user_message,
@@ -920,7 +920,7 @@ async fn resume_message_v2(
         })?;
         println!("< interaction/start response: {turn_response:?}");
 
-        client.stream_turn(&resume_response.thread.id, &turn_response.turn.id)?;
+        client.stream_turn(&resume_response.chat.id, &turn_response.interaction.id)?;
 
         Ok(())
     })
@@ -1052,7 +1052,7 @@ async fn send_message_v2_with_policies(
             })?;
             println!("< chat/start response: {thread_response:?}");
             let mut turn_params = InteractionStartParams {
-                chat_id: thread_response.thread.id.clone(),
+                chat_id: thread_response.chat.id.clone(),
                 client_user_message_id: None,
                 input: vec![V2UserInput::Text {
                     text: user_message,
@@ -1067,7 +1067,7 @@ async fn send_message_v2_with_policies(
             let turn_response = client.interaction_start(turn_params)?;
             println!("< interaction/start response: {turn_response:?}");
 
-            client.stream_turn(&thread_response.thread.id, &turn_response.turn.id)?;
+            client.stream_turn(&thread_response.chat.id, &turn_response.interaction.id)?;
 
             Ok(())
         },
@@ -1093,7 +1093,7 @@ async fn send_follow_up_v2(
         println!("< chat/start response: {thread_response:?}");
 
         let first_turn_params = InteractionStartParams {
-            chat_id: thread_response.thread.id.clone(),
+            chat_id: thread_response.chat.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: first_message,
@@ -1104,10 +1104,10 @@ async fn send_follow_up_v2(
         };
         let first_turn_response = client.interaction_start(first_turn_params)?;
         println!("< interaction/start response (initial): {first_turn_response:?}");
-        client.stream_turn(&thread_response.thread.id, &first_turn_response.turn.id)?;
+        client.stream_turn(&thread_response.chat.id, &first_turn_response.interaction.id)?;
 
         let follow_up_params = InteractionStartParams {
-            chat_id: thread_response.thread.id.clone(),
+            chat_id: thread_response.chat.id.clone(),
             client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: follow_up_message,
@@ -1118,7 +1118,7 @@ async fn send_follow_up_v2(
         };
         let follow_up_response = client.interaction_start(follow_up_params)?;
         println!("< interaction/start response (follow-up): {follow_up_response:?}");
-        client.stream_turn(&thread_response.thread.id, &follow_up_response.turn.id)?;
+        client.stream_turn(&thread_response.chat.id, &follow_up_response.interaction.id)?;
 
         Ok(())
     })
@@ -1338,7 +1338,7 @@ fn live_elicitation_timeout_pause(
     })?;
     println!("< chat/start response: {thread_response:?}");
 
-    let chat_id = thread_response.thread.id;
+    let chat_id = thread_response.chat.id;
     let command = format!(
         "APP_SERVER_URL={} APP_SERVER_TEST_CLIENT_BIN={} ELICITATION_HOLD_SECONDS={} sh {}",
         shell_quote(&websocket_url),
@@ -1366,7 +1366,7 @@ fn live_elicitation_timeout_pause(
     })?;
     println!("< interaction/start response: {turn_response:?}");
 
-    let stream_result = client.stream_turn(&chat_id, &turn_response.turn.id);
+    let stream_result = client.stream_turn(&chat_id, &turn_response.interaction.id);
     let elapsed = started_at.elapsed();
 
     let validation_result = (|| -> Result<()> {
@@ -1434,7 +1434,7 @@ fn live_elicitation_timeout_pause(
 
     println!(
         "[live elicitation timeout pause summary] chat_id={chat_id}, interaction_id={}, elapsed={elapsed:?}, command_statuses={:?}",
-        turn_response.turn.id, client.command_execution_statuses
+        turn_response.interaction.id, client.command_execution_statuses
     );
 
     Ok(())
@@ -1835,15 +1835,15 @@ impl DataxClient {
 
             match server_notification {
                 ServerNotification::ChatStarted(payload) => {
-                    if payload.thread.id == chat_id {
-                        println!("< chat/started notification: {:?}", payload.thread);
+                    if payload.chat.id == chat_id {
+                        println!("< chat/started notification: {:?}", payload.chat);
                     }
                 }
                 ServerNotification::InteractionStarted(payload) => {
-                    if payload.turn.id == interaction_id {
+                    if payload.interaction.id == interaction_id {
                         println!(
                             "< interaction/started notification: {:?}",
-                            payload.turn.status
+                            payload.interaction.status
                         );
                     }
                 }
@@ -1893,19 +1893,22 @@ impl DataxClient {
                     println!("< item completed: {:?}", payload.item);
                 }
                 ServerNotification::InteractionCompleted(payload) => {
-                    if payload.turn.id == interaction_id {
-                        self.last_turn_status = Some(payload.turn.status.clone());
+                    if payload.interaction.id == interaction_id {
+                        self.last_turn_status = Some(payload.interaction.status.clone());
                         if self.command_item_started && !self.helper_done_seen {
                             self.turn_completed_before_helper_done = true;
                         }
                         self.last_turn_error_message = payload
-                            .turn
+                            .interaction
                             .error
                             .as_ref()
                             .map(|error| error.message.clone());
-                        println!("\n< turn/completed notification: {:?}", payload.turn.status);
-                        if payload.turn.status == InteractionStatus::Failed
-                            && let Some(error) = payload.turn.error
+                        println!(
+                            "\n< turn/completed notification: {:?}",
+                            payload.interaction.status
+                        );
+                        if payload.interaction.status == InteractionStatus::Failed
+                            && let Some(error) = payload.interaction.error
                         {
                             println!("[turn error] {}", error.message);
                         }

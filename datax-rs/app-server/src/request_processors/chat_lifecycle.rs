@@ -6,10 +6,10 @@ pub(super) const THREAD_UNLOADING_DELAY: Duration = Duration::from_secs(30 * 60)
 #[derive(Clone)]
 pub(super) struct ListenerTaskContext {
     pub(super) chat_manager: Arc<ChatManager>,
-    pub(super) thread_state_manager: ThreadStateManager,
+    pub(super) chat_state_manager: ChatStateManager,
     pub(super) outgoing: Arc<OutgoingMessageSender>,
-    pub(super) pending_thread_unloads: Arc<Mutex<HashSet<ChatId>>>,
-    pub(super) thread_watch_manager: ThreadWatchManager,
+    pub(super) pending_chat_unloads: Arc<Mutex<HashSet<ChatId>>>,
+    pub(super) chat_watch_manager: ChatWatchManager,
     pub(super) thread_list_state_permit: Arc<Semaphore>,
     pub(super) fallback_model_provider: String,
     pub(super) codex_home: PathBuf,
@@ -20,7 +20,7 @@ struct UnloadingState {
     delay: Duration,
     has_subscribers_rx: watch::Receiver<bool>,
     has_subscribers: (bool, Instant),
-    thread_status_rx: watch::Receiver<ChatStatus>,
+    chat_status_rx: watch::Receiver<ChatStatus>,
     is_active: (bool, Instant),
 }
 
@@ -31,23 +31,23 @@ impl UnloadingState {
         delay: Duration,
     ) -> Option<Self> {
         let has_subscribers_rx = listener_task_context
-            .thread_state_manager
+            .chat_state_manager
             .subscribe_to_has_connections(chat_id)
             .await?;
-        let thread_status_rx = listener_task_context
-            .thread_watch_manager
+        let chat_status_rx = listener_task_context
+            .chat_watch_manager
             .subscribe(chat_id)
             .await?;
         let has_subscribers = (*has_subscribers_rx.borrow(), Instant::now());
         let is_active = (
-            matches!(*thread_status_rx.borrow(), ChatStatus::Active { .. }),
+            matches!(*chat_status_rx.borrow(), ChatStatus::Active { .. }),
             Instant::now(),
         );
         Some(Self {
             delay,
             has_subscribers_rx,
             has_subscribers,
-            thread_status_rx,
+            chat_status_rx,
             is_active,
         })
     }
@@ -67,7 +67,7 @@ impl UnloadingState {
             self.has_subscribers = (has_subscribers, Instant::now());
         }
 
-        let is_active = matches!(*self.thread_status_rx.borrow(), ChatStatus::Active { .. });
+        let is_active = matches!(*self.chat_status_rx.borrow(), ChatStatus::Active { .. });
         if self.is_active.0 != is_active {
             self.is_active = (is_active, Instant::now());
         }
@@ -109,7 +109,7 @@ impl UnloadingState {
                     }
                     self.sync_receiver_values();
                 },
-                changed = self.thread_status_rx.changed() => {
+                changed = self.chat_status_rx.changed() => {
                     if changed.is_err() {
                         return false;
                     }
@@ -120,7 +120,7 @@ impl UnloadingState {
     }
 }
 
-pub(super) enum ThreadShutdownResult {
+pub(super) enum ChatShutdownResult {
     Complete,
     SubmitFailed,
     TimedOut,
@@ -153,33 +153,33 @@ pub(super) async fn ensure_conversation_listener(
             )));
         }
     };
-    let thread_state = {
-        let pending_thread_unloads = listener_task_context.pending_thread_unloads.lock().await;
-        if pending_thread_unloads.contains(&conversation_id) {
+    let chat_state = {
+        let pending_chat_unloads = listener_task_context.pending_chat_unloads.lock().await;
+        if pending_chat_unloads.contains(&conversation_id) {
             return Err(invalid_request(format!(
                 "thread {conversation_id} is closing; retry after the thread is closed"
             )));
         }
-        let Some(thread_state) = listener_task_context
-            .thread_state_manager
+        let Some(chat_state) = listener_task_context
+            .chat_state_manager
             .try_ensure_connection_subscribed(conversation_id, connection_id, raw_events_enabled)
             .await
         else {
             return Ok(EnsureConversationListenerResult::ConnectionClosed);
         };
-        thread_state
+        chat_state
     };
     if let Err(error) = ensure_listener_task_running(
         listener_task_context.clone(),
         conversation_id,
         conversation,
-        thread_state,
+        chat_state,
     )
     .await
     {
         let _ = listener_task_context
-            .thread_state_manager
-            .unsubscribe_connection_from_thread(conversation_id, connection_id)
+            .chat_state_manager
+            .unsubscribe_connection_from_chat(conversation_id, connection_id)
             .await;
         return Err(error);
     }
@@ -214,7 +214,7 @@ pub(super) async fn ensure_listener_task_running(
     listener_task_context: ListenerTaskContext,
     conversation_id: ChatId,
     conversation: Arc<DataxChat>,
-    thread_state: Arc<Mutex<ThreadState>>,
+    chat_state: Arc<Mutex<ChatState>>,
 ) -> Result<(), JSONRPCErrorError> {
     let (cancel_tx, mut cancel_rx) = oneshot::channel();
     let Some(mut unloading_state) = UnloadingState::new(
@@ -238,36 +238,36 @@ pub(super) async fn ensure_listener_task_running(
             &environments,
         )
         .await;
-    let thread_settings_baseline =
-        thread_settings_from_config_snapshot(&conversation.config_snapshot().await);
+    let chat_settings_baseline =
+        chat_settings_from_config_snapshot(&conversation.config_snapshot().await);
     let (mut listener_command_rx, listener_generation) = {
-        let mut thread_state = thread_state.lock().await;
-        if thread_state.listener_matches(&conversation) {
+        let mut chat_state = chat_state.lock().await;
+        if chat_state.listener_matches(&conversation) {
             return Ok(());
         }
-        let (listener_command_rx, listener_generation) = thread_state.set_listener(
+        let (listener_command_rx, listener_generation) = chat_state.set_listener(
             cancel_tx,
             &conversation,
             watch_registration,
-            thread_settings_baseline,
+            chat_settings_baseline,
         );
-        let Some(listener_command_tx) = thread_state.listener_command_tx() else {
+        let Some(listener_command_tx) = chat_state.listener_command_tx() else {
             tracing::warn!(
-                "thread listener command sender missing immediately after listener registration"
+                "chat listener command sender missing immediately after listener registration"
             );
             return Ok(());
         };
         listener_task_context
-            .thread_state_manager
+            .chat_state_manager
             .register_listener_command_tx(conversation_id, listener_command_tx);
         (listener_command_rx, listener_generation)
     };
     let ListenerTaskContext {
         outgoing,
         chat_manager,
-        thread_state_manager,
-        pending_thread_unloads,
-        thread_watch_manager,
+        chat_state_manager,
+        pending_chat_unloads,
+        chat_watch_manager,
         thread_list_state_permit,
         fallback_model_provider,
         codex_home,
@@ -286,15 +286,15 @@ pub(super) async fn ensure_listener_task_running(
                     let Some(listener_command) = listener_command else {
                         break;
                     };
-                    handle_thread_listener_command(
+                    handle_chat_listener_command(
                         conversation_id,
                         &conversation,
                         codex_home.as_path(),
-                        &thread_state_manager,
-                        &thread_state,
-                        &thread_watch_manager,
+                        &chat_state_manager,
+                        &chat_state,
+                        &chat_watch_manager,
                         &outgoing_for_task,
-                        &pending_thread_unloads,
+                        &pending_chat_unloads,
                         listener_command,
                     )
                     .await;
@@ -312,11 +312,11 @@ pub(super) async fn ensure_listener_task_running(
                     // so thread-local state such as raw event opt-in stays
                     // synchronized with the conversation.
                     let raw_events_enabled = {
-                        let mut thread_state = thread_state.lock().await;
-                        thread_state.track_current_turn_event(&event.id, &event.msg);
-                        thread_state.experimental_raw_events
+                        let mut chat_state = chat_state.lock().await;
+                        chat_state.track_current_interaction_event(&event.id, &event.msg);
+                        chat_state.experimental_raw_events
                     };
-                    let subscribed_connection_ids = thread_state_manager
+                    let subscribed_connection_ids = chat_state_manager
                         .subscribed_connection_ids(conversation_id)
                         .await;
                     let thread_outgoing = ThreadScopedOutgoingMessageSender::new(
@@ -344,8 +344,8 @@ pub(super) async fn ensure_listener_task_running(
                         conversation.clone(),
                         chat_manager.clone(),
                         thread_outgoing,
-                        thread_state.clone(),
-                        thread_watch_manager.clone(),
+                        chat_state.clone(),
+                        chat_watch_manager.clone(),
                         thread_list_state_permit.clone(),
                         fallback_model_provider.clone(),
                     )
@@ -363,21 +363,21 @@ pub(super) async fn ensure_listener_task_running(
                         continue;
                     }
                     {
-                        let mut pending_thread_unloads = pending_thread_unloads.lock().await;
-                        if pending_thread_unloads.contains(&conversation_id) {
+                        let mut pending_chat_unloads = pending_chat_unloads.lock().await;
+                        if pending_chat_unloads.contains(&conversation_id) {
                             continue;
                         }
                         if !unloading_state.should_unload_now() {
                             continue;
                         }
-                        pending_thread_unloads.insert(conversation_id);
+                        pending_chat_unloads.insert(conversation_id);
                     }
                     unload_thread_without_subscribers(
                         chat_manager.clone(),
                         outgoing_for_task.clone(),
-                        pending_thread_unloads.clone(),
-                        thread_state_manager.clone(),
-                        thread_watch_manager.clone(),
+                        pending_chat_unloads.clone(),
+                        chat_state_manager.clone(),
+                        chat_watch_manager.clone(),
                         conversation_id,
                         conversation.clone(),
                     )
@@ -387,29 +387,29 @@ pub(super) async fn ensure_listener_task_running(
             }
         }
 
-        let mut thread_state = thread_state.lock().await;
-        if thread_state.listener_generation == listener_generation {
-            thread_state_manager.unregister_listener_command_tx(conversation_id);
-            thread_state.clear_listener();
+        let mut chat_state = chat_state.lock().await;
+        if chat_state.listener_generation == listener_generation {
+            chat_state_manager.unregister_listener_command_tx(conversation_id);
+            chat_state.clear_listener();
         }
     });
     Ok(())
 }
 
-pub(super) async fn wait_for_thread_shutdown(thread: &Arc<DataxChat>) -> ThreadShutdownResult {
+pub(super) async fn wait_for_chat_shutdown(thread: &Arc<DataxChat>) -> ChatShutdownResult {
     match tokio::time::timeout(Duration::from_secs(10), thread.shutdown_and_wait()).await {
-        Ok(Ok(())) => ThreadShutdownResult::Complete,
-        Ok(Err(_)) => ThreadShutdownResult::SubmitFailed,
-        Err(_) => ThreadShutdownResult::TimedOut,
+        Ok(Ok(())) => ChatShutdownResult::Complete,
+        Ok(Err(_)) => ChatShutdownResult::SubmitFailed,
+        Err(_) => ChatShutdownResult::TimedOut,
     }
 }
 
 pub(super) async fn unload_thread_without_subscribers(
     chat_manager: Arc<ChatManager>,
     outgoing: Arc<OutgoingMessageSender>,
-    pending_thread_unloads: Arc<Mutex<HashSet<ChatId>>>,
-    thread_state_manager: ThreadStateManager,
-    thread_watch_manager: ThreadWatchManager,
+    pending_chat_unloads: Arc<Mutex<HashSet<ChatId>>>,
+    chat_state_manager: ChatStateManager,
+    chat_watch_manager: ChatWatchManager,
     chat_id: ChatId,
     thread: Arc<DataxChat>,
 ) {
@@ -420,32 +420,32 @@ pub(super) async fn unload_thread_without_subscribers(
     outgoing
         .cancel_requests_for_thread(chat_id, /*error*/ None)
         .await;
-    thread_state_manager.remove_chat_state(chat_id).await;
+    chat_state_manager.remove_chat_state(chat_id).await;
 
     tokio::spawn(async move {
-        match wait_for_thread_shutdown(&thread).await {
-            ThreadShutdownResult::Complete => {
+        match wait_for_chat_shutdown(&thread).await {
+            ChatShutdownResult::Complete => {
                 if chat_manager.remove_chat(&chat_id).await.is_none() {
                     info!("thread {chat_id} was already removed before teardown finalized");
-                    thread_watch_manager.remove_chat(&chat_id.to_string()).await;
-                    pending_thread_unloads.lock().await.remove(&chat_id);
+                    chat_watch_manager.remove_chat(&chat_id.to_string()).await;
+                    pending_chat_unloads.lock().await.remove(&chat_id);
                     return;
                 }
-                thread_watch_manager.remove_chat(&chat_id.to_string()).await;
+                chat_watch_manager.remove_chat(&chat_id.to_string()).await;
                 let notification = ChatClosedNotification {
                     chat_id: chat_id.to_string(),
                 };
                 outgoing
                     .send_server_notification(ChatClosed(notification))
                     .await;
-                pending_thread_unloads.lock().await.remove(&chat_id);
+                pending_chat_unloads.lock().await.remove(&chat_id);
             }
-            ThreadShutdownResult::SubmitFailed => {
-                pending_thread_unloads.lock().await.remove(&chat_id);
+            ChatShutdownResult::SubmitFailed => {
+                pending_chat_unloads.lock().await.remove(&chat_id);
                 warn!("failed to submit Shutdown to thread {chat_id}");
             }
-            ThreadShutdownResult::TimedOut => {
-                pending_thread_unloads.lock().await.remove(&chat_id);
+            ChatShutdownResult::TimedOut => {
+                pending_chat_unloads.lock().await.remove(&chat_id);
                 warn!("thread {chat_id} shutdown timed out; leaving thread loaded");
             }
         }
@@ -453,33 +453,33 @@ pub(super) async fn unload_thread_without_subscribers(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(super) async fn handle_thread_listener_command(
+pub(super) async fn handle_chat_listener_command(
     conversation_id: ChatId,
     conversation: &Arc<DataxChat>,
     codex_home: &Path,
-    thread_state_manager: &ThreadStateManager,
-    thread_state: &Arc<Mutex<ThreadState>>,
-    thread_watch_manager: &ThreadWatchManager,
+    chat_state_manager: &ChatStateManager,
+    chat_state: &Arc<Mutex<ChatState>>,
+    chat_watch_manager: &ChatWatchManager,
     outgoing: &Arc<OutgoingMessageSender>,
-    pending_thread_unloads: &Arc<Mutex<HashSet<ChatId>>>,
-    listener_command: ThreadListenerCommand,
+    pending_chat_unloads: &Arc<Mutex<HashSet<ChatId>>>,
+    listener_command: ChatListenerCommand,
 ) {
     match listener_command {
-        ThreadListenerCommand::SendThreadResumeResponse(resume_request) => {
-            handle_pending_thread_resume_request(
+        ChatListenerCommand::SendChatResumeResponse(resume_request) => {
+            handle_pending_chat_resume_request(
                 conversation_id,
                 conversation,
                 codex_home,
-                thread_state_manager,
-                thread_state,
-                thread_watch_manager,
+                chat_state_manager,
+                chat_state,
+                chat_watch_manager,
                 outgoing,
-                pending_thread_unloads,
+                pending_chat_unloads,
                 *resume_request,
             )
             .await;
         }
-        ThreadListenerCommand::EmitThreadGoalUpdated {
+        ChatListenerCommand::EmitChatGoalUpdated {
             interaction_id,
             goal,
         } => {
@@ -491,23 +491,23 @@ pub(super) async fn handle_thread_listener_command(
                 }))
                 .await;
         }
-        ThreadListenerCommand::EmitThreadGoalCleared => {
+        ChatListenerCommand::EmitChatGoalCleared => {
             outgoing
                 .send_server_notification(ChatGoalCleared(ChatGoalClearedNotification {
                     chat_id: conversation_id.to_string(),
                 }))
                 .await;
         }
-        ThreadListenerCommand::EmitThreadGoalSnapshot { state_db } => {
-            send_thread_goal_snapshot_notification(outgoing, conversation_id, &state_db).await;
+        ChatListenerCommand::EmitChatGoalSnapshot { state_db } => {
+            send_chat_goal_snapshot_notification(outgoing, conversation_id, &state_db).await;
         }
-        ThreadListenerCommand::ResolveServerRequest {
+        ChatListenerCommand::ResolveServerRequest {
             request_id,
             completion_tx,
         } => {
             resolve_pending_server_request(
                 conversation_id,
-                thread_state_manager,
+                chat_state_manager,
                 outgoing,
                 request_id,
             )
@@ -522,62 +522,62 @@ pub(super) async fn handle_thread_listener_command(
     clippy::await_holding_invalid_type,
     reason = "running-thread resume subscription must be serialized against pending unloads"
 )]
-pub(super) async fn handle_pending_thread_resume_request(
+pub(super) async fn handle_pending_chat_resume_request(
     conversation_id: ChatId,
     conversation: &Arc<DataxChat>,
     _codex_home: &Path,
-    thread_state_manager: &ThreadStateManager,
-    thread_state: &Arc<Mutex<ThreadState>>,
-    thread_watch_manager: &ThreadWatchManager,
+    chat_state_manager: &ChatStateManager,
+    chat_state: &Arc<Mutex<ChatState>>,
+    chat_watch_manager: &ChatWatchManager,
     outgoing: &Arc<OutgoingMessageSender>,
-    pending_thread_unloads: &Arc<Mutex<HashSet<ChatId>>>,
-    pending: crate::thread_state::PendingThreadResumeRequest,
+    pending_chat_unloads: &Arc<Mutex<HashSet<ChatId>>>,
+    pending: crate::chat_state::PendingChatResumeRequest,
 ) {
-    let active_turn = {
-        let state = thread_state.lock().await;
-        state.active_turn_snapshot()
+    let active_interaction = {
+        let state = chat_state.lock().await;
+        state.active_interaction_snapshot()
     };
     tracing::debug!(
         chat_id = %conversation_id,
         request_id = ?pending.request_id,
-        active_turn_present = active_turn.is_some(),
-        active_interaction_id = ?active_turn.as_ref().map(|turn| turn.id.as_str()),
-        active_turn_status = ?active_turn.as_ref().map(|turn| &turn.status),
-        "composing running thread resume response"
+        active_interaction_present = active_interaction.is_some(),
+        active_interaction_id = ?active_interaction.as_ref().map(|turn| turn.id.as_str()),
+        active_interaction_status = ?active_interaction.as_ref().map(|turn| &turn.status),
+        "composing running chat resume response"
     );
     let has_live_in_progress_turn =
         matches!(conversation.agent_status().await, AgentStatus::Running)
-            || active_turn
+            || active_interaction
                 .as_ref()
                 .is_some_and(|turn| matches!(turn.status, InteractionStatus::InProgress));
 
     let request_id = pending.request_id;
     let connection_id = request_id.connection_id;
-    let mut thread = pending.thread_summary;
+    let mut thread = pending.chat_summary;
     if pending.include_interactions {
-        populate_thread_turns_from_history(
+        populate_chat_interactions_from_history(
             &mut thread,
             &pending.history_items,
-            active_turn.as_ref(),
+            active_interaction.as_ref(),
         );
     }
 
-    let thread_status = thread_watch_manager
-        .loaded_status_for_thread(&thread.id)
+    let chat_status = chat_watch_manager
+        .loaded_status_for_chat(&thread.id)
         .await;
 
-    set_thread_status_and_interrupt_stale_turns(
+    set_chat_status_and_interrupt_stale_turns(
         &mut thread,
-        thread_status,
+        chat_status,
         has_live_in_progress_turn,
     );
     let token_usage_thread = pending.include_interactions.then(|| thread.clone());
     let mut initial_turns_page = if let Some(params) = pending.initial_turns_page.as_ref() {
-        match super::chat_processor::build_thread_resume_initial_turns_page(
+        match super::chat_processor::build_chat_resume_initial_turns_page(
             &pending.history_items,
             thread.status.clone(),
             has_live_in_progress_turn,
-            active_turn,
+            active_interaction,
             params,
         ) {
             Ok(page) => Some(page),
@@ -590,16 +590,16 @@ pub(super) async fn handle_pending_thread_resume_request(
         None
     };
     if pending.redact_resume_payloads {
-        redact_thread_resume_payloads(&mut thread.interactions);
+        redact_chat_resume_payloads(&mut thread.interactions);
         if let Some(initial_turns_page) = initial_turns_page.as_mut() {
-            redact_thread_resume_payloads(&mut initial_turns_page.data);
+            redact_chat_resume_payloads(&mut initial_turns_page.data);
         }
     }
 
     {
-        let pending_thread_unloads = pending_thread_unloads.lock().await;
-        if pending_thread_unloads.contains(&conversation_id) {
-            drop(pending_thread_unloads);
+        let pending_chat_unloads = pending_chat_unloads.lock().await;
+        if pending_chat_unloads.contains(&conversation_id) {
+            drop(pending_chat_unloads);
             outgoing
                 .send_error(
                     request_id,
@@ -610,14 +610,14 @@ pub(super) async fn handle_pending_thread_resume_request(
                 .await;
             return;
         }
-        if !thread_state_manager
-            .try_add_connection_to_thread(conversation_id, connection_id)
+        if !chat_state_manager
+            .try_add_connection_to_chat(conversation_id, connection_id)
             .await
         {
             tracing::debug!(
                 chat_id = %conversation_id,
                 connection_id = ?connection_id,
-                "skipping running thread resume for closed connection"
+                "skipping running chat resume for closed connection"
             );
             return;
         }
@@ -680,13 +680,13 @@ pub(super) async fn handle_pending_thread_resume_request(
         )
         .await;
     }
-    if pending.emit_thread_goal_update {
-        if let Some(state_db) = pending.thread_goal_state_db {
-            send_thread_goal_snapshot_notification(outgoing, conversation_id, &state_db).await;
+    if pending.emit_chat_goal_update {
+        if let Some(state_db) = pending.chat_goal_state_db {
+            send_chat_goal_snapshot_notification(outgoing, conversation_id, &state_db).await;
         } else {
             tracing::warn!(
                 chat_id = %conversation_id,
-                "state db unavailable when reading thread goal for running thread resume"
+                "state db unavailable when reading chat goal for running chat resume"
             );
         }
     }
@@ -695,12 +695,12 @@ pub(super) async fn handle_pending_thread_resume_request(
         .await;
     // App-server owns resume response and snapshot ordering, so wait until
     // replay completes before letting extensions react to the idle thread.
-    if pending.emit_thread_goal_update {
+    if pending.emit_chat_goal_update {
         conversation.emit_chat_idle_lifecycle_if_idle().await;
     }
 }
 
-pub(super) async fn send_thread_goal_snapshot_notification(
+pub(super) async fn send_chat_goal_snapshot_notification(
     outgoing: &Arc<OutgoingMessageSender>,
     chat_id: ChatId,
     state_db: &StateDbHandle,
@@ -711,7 +711,7 @@ pub(super) async fn send_thread_goal_snapshot_notification(
                 .send_server_notification(ChatGoalUpdated(ChatGoalUpdatedNotification {
                     chat_id: chat_id.to_string(),
                     interaction_id: None,
-                    goal: api_thread_goal_from_state(goal),
+                    goal: api_chat_goal_from_state(goal),
                 }))
                 .await;
         }
@@ -725,32 +725,32 @@ pub(super) async fn send_thread_goal_snapshot_notification(
         Err(err) => {
             tracing::warn!(
                 chat_id = %chat_id,
-                "failed to read thread goal for resume snapshot: {err}"
+                "failed to read chat goal for resume snapshot: {err}"
             );
         }
     }
 }
 
-pub(crate) fn populate_thread_turns_from_history(
+pub(crate) fn populate_chat_interactions_from_history(
     thread: &mut Chat,
     messages: &[RolloutMessage],
-    active_turn: Option<&Interaction>,
+    active_interaction: Option<&Interaction>,
 ) {
     let mut interactions = build_api_turns_from_rollout_items(messages);
-    if let Some(active_turn) = active_turn {
-        merge_turn_history_with_active_turn(&mut interactions, active_turn.clone());
+    if let Some(active_interaction) = active_interaction {
+        merge_interaction_history_with_active_interaction(&mut interactions, active_interaction.clone());
     }
     thread.interactions = interactions;
 }
 
 pub(super) async fn resolve_pending_server_request(
     conversation_id: ChatId,
-    thread_state_manager: &ThreadStateManager,
+    chat_state_manager: &ChatStateManager,
     outgoing: &Arc<OutgoingMessageSender>,
     request_id: RequestId,
 ) {
     let chat_id = conversation_id.to_string();
-    let subscribed_connection_ids = thread_state_manager
+    let subscribed_connection_ids = chat_state_manager
         .subscribed_connection_ids(conversation_id)
         .await;
     let outgoing = ThreadScopedOutgoingMessageSender::new(
@@ -768,20 +768,20 @@ pub(super) async fn resolve_pending_server_request(
         .await;
 }
 
-pub(super) fn merge_turn_history_with_active_turn(
+pub(super) fn merge_interaction_history_with_active_interaction(
     interactions: &mut Vec<Interaction>,
-    active_turn: Interaction,
+    active_interaction: Interaction,
 ) {
-    interactions.retain(|turn| turn.id != active_turn.id);
-    interactions.push(active_turn);
+    interactions.retain(|turn| turn.id != active_interaction.id);
+    interactions.push(active_interaction);
 }
 
-pub(super) fn set_thread_status_and_interrupt_stale_turns(
+pub(super) fn set_chat_status_and_interrupt_stale_turns(
     thread: &mut Chat,
     loaded_status: ChatStatus,
     has_live_in_progress_turn: bool,
 ) {
-    let status = resolve_thread_status(loaded_status, has_live_in_progress_turn);
+    let status = resolve_chat_status(loaded_status, has_live_in_progress_turn);
     if !matches!(status, ChatStatus::Active { .. }) {
         for turn in &mut thread.interactions {
             if matches!(turn.status, InteractionStatus::InProgress) {

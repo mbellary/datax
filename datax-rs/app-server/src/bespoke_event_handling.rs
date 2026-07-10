@@ -2,15 +2,15 @@ use crate::error_code::internal_error;
 use crate::error_code::invalid_request;
 use crate::outgoing_message::ClientRequestResult;
 use crate::outgoing_message::ThreadScopedOutgoingMessageSender;
-use crate::request_processors::chat_from_stored_thread;
-use crate::request_processors::populate_thread_turns_from_history;
-use crate::request_processors::thread_settings_from_core_snapshot;
+use crate::request_processors::chat_from_stored_chat;
+use crate::request_processors::populate_chat_interactions_from_history;
+use crate::request_processors::chat_settings_from_core_snapshot;
 use crate::server_request_error::is_turn_transition_server_request_error;
-use crate::thread_state::ThreadState;
-use crate::thread_state::TurnSummary;
-use crate::thread_state::resolve_server_request_on_thread_listener;
-use crate::thread_status::ThreadWatchActiveGuard;
-use crate::thread_status::ThreadWatchManager;
+use crate::chat_state::ChatState;
+use crate::chat_state::InteractionSummary;
+use crate::chat_state::resolve_server_request_on_chat_listener;
+use crate::chat_status::ChatWatchActiveGuard;
+use crate::chat_status::ChatWatchManager;
 use datax_app_server_protocol::AccountRateLimitsUpdatedNotification;
 use datax_app_server_protocol::AdditionalPermissionProfile as V2AdditionalPermissionProfile;
 use datax_app_server_protocol::ChatGoalUpdatedNotification;
@@ -143,8 +143,8 @@ pub(crate) async fn apply_bespoke_event_handling(
     conversation: Arc<DataxChat>,
     chat_manager: Arc<ChatManager>,
     outgoing: ThreadScopedOutgoingMessageSender,
-    thread_state: Arc<tokio::sync::Mutex<ThreadState>>,
-    thread_watch_manager: ThreadWatchManager,
+    chat_state: Arc<tokio::sync::Mutex<ChatState>>,
+    chat_watch_manager: ChatWatchManager,
     thread_list_state_permit: Arc<tokio::sync::Semaphore>,
     fallback_model_provider: String,
 ) {
@@ -156,12 +156,12 @@ pub(crate) async fn apply_bespoke_event_handling(
         EventMsg::InteractionStarted(payload) => {
             // While not technically necessary as it was already done on InteractionComplete, be extra cautios and abort any pending server requests.
             outgoing.abort_pending_server_requests().await;
-            thread_watch_manager
-                .note_turn_started(&conversation_id.to_string())
+            chat_watch_manager
+                .note_interaction_started(&conversation_id.to_string())
                 .await;
             let turn = {
-                let state = thread_state.lock().await;
-                let mut turn = state.active_turn_snapshot().unwrap_or_else(|| Interaction {
+                let state = chat_state.lock().await;
+                let mut turn = state.active_interaction_snapshot().unwrap_or_else(|| Interaction {
                     id: payload.interaction_id.clone(),
                     messages: Vec::new(),
                     messages_view: InteractionMessagesView::NotLoaded,
@@ -184,19 +184,19 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .await;
         }
         EventMsg::InteractionComplete(turn_complete_event) => {
-            // All per-thread requests are bound to a turn, so abort them.
+            // All per-chat requests are bound to a turn, so abort them.
             outgoing.abort_pending_server_requests().await;
-            respond_to_pending_interrupts(&thread_state, &outgoing).await;
-            let turn_failed = thread_state.lock().await.turn_summary.last_error.is_some();
-            thread_watch_manager
-                .note_turn_completed(&conversation_id.to_string(), turn_failed)
+            respond_to_pending_interrupts(&chat_state, &outgoing).await;
+            let turn_failed = chat_state.lock().await.interaction_summary.last_error.is_some();
+            chat_watch_manager
+                .note_interaction_completed(&conversation_id.to_string(), turn_failed)
                 .await;
             handle_turn_complete(
                 conversation_id,
                 event_interaction_id,
                 turn_complete_event,
                 &outgoing,
-                &thread_state,
+                &chat_state,
             )
             .await;
         }
@@ -282,7 +282,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                     completion_item.command_actions.clone(),
                     CommandExecutionSource::Agent,
                     &outgoing,
-                    &thread_state,
+                    &chat_state,
                 )
                 .await;
             }
@@ -317,7 +317,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                     completion_item.command_actions,
                     completion_status,
                     &outgoing,
-                    &thread_state,
+                    &chat_state,
                 )
                 .await;
             }
@@ -531,7 +531,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .await;
         }
         EventMsg::ApplyPatchApprovalRequest(event) => {
-            let permission_guard = thread_watch_manager
+            let permission_guard = chat_watch_manager
                 .note_permission_requested(&conversation_id.to_string())
                 .await;
             let message_id = event.call_id.clone();
@@ -553,14 +553,14 @@ pub(crate) async fn apply_bespoke_event_handling(
                     pending_request_id,
                     rx,
                     conversation,
-                    thread_state.clone(),
+                    chat_state.clone(),
                     permission_guard,
                 )
                 .await;
             });
         }
         EventMsg::ExecApprovalRequest(ev) => {
-            let permission_guard = thread_watch_manager
+            let permission_guard = chat_watch_manager
                 .note_permission_requested(&conversation_id.to_string())
                 .await;
             let available_decisions = ev
@@ -627,7 +627,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                     completion_item.command_actions.clone(),
                     CommandExecutionSource::Agent,
                     &outgoing,
-                    &thread_state,
+                    &chat_state,
                 )
                 .await;
             }
@@ -676,14 +676,14 @@ pub(crate) async fn apply_bespoke_event_handling(
                     rx,
                     conversation,
                     outgoing,
-                    thread_state.clone(),
+                    chat_state.clone(),
                     permission_guard,
                 )
                 .await;
             });
         }
         EventMsg::RequestUserInput(request) => {
-            let user_input_guard = thread_watch_manager
+            let user_input_guard = chat_watch_manager
                 .note_user_input_requested(&conversation_id.to_string())
                 .await;
             let questions = request
@@ -722,21 +722,21 @@ pub(crate) async fn apply_bespoke_event_handling(
                     pending_request_id,
                     rx,
                     conversation,
-                    thread_state,
+                    chat_state,
                     user_input_guard,
                 )
                 .await;
             });
         }
         EventMsg::ElicitationRequest(request) => {
-            let permission_guard = thread_watch_manager
+            let permission_guard = chat_watch_manager
                 .note_permission_requested(&conversation_id.to_string())
                 .await;
             let interaction_id = match request.interaction_id.clone() {
                 Some(interaction_id) => Some(interaction_id),
                 None => {
-                    let state = thread_state.lock().await;
-                    state.active_turn_snapshot().map(|turn| turn.id)
+                    let state = chat_state.lock().await;
+                    state.active_interaction_snapshot().map(|turn| turn.id)
                 }
             };
             let server_name = request.server_name.clone();
@@ -780,14 +780,14 @@ pub(crate) async fn apply_bespoke_event_handling(
                     pending_request_id,
                     rx,
                     conversation,
-                    thread_state,
+                    chat_state,
                     permission_guard,
                 )
                 .await;
             });
         }
         EventMsg::RequestPermissions(request) => {
-            let permission_guard = thread_watch_manager
+            let permission_guard = chat_watch_manager
                 .note_permission_requested(&conversation_id.to_string())
                 .await;
             let requested_permissions = request.permissions.clone();
@@ -820,7 +820,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                 request_permissions_guard: permission_guard,
             };
             tokio::spawn(async move {
-                on_request_permissions_response(pending_response, conversation, thread_state).await;
+                on_request_permissions_response(pending_response, conversation, chat_state).await;
             });
         }
         EventMsg::DynamicToolCallRequest(request) => {
@@ -893,7 +893,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             if activity.kind == SubAgentActivityKind::Interrupted
                 && chat_manager.get_chat(activity.agent_chat_id).await.is_err()
             {
-                thread_watch_manager
+                chat_watch_manager
                     .remove_chat(&activity.agent_chat_id.to_string())
                     .await;
             }
@@ -910,7 +910,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .await
                 .is_err()
             {
-                thread_watch_manager
+                chat_watch_manager
                     .remove_chat(&end_event.receiver_chat_id.to_string())
                     .await;
             }
@@ -944,7 +944,7 @@ pub(crate) async fn apply_bespoke_event_handling(
             .await;
         }
         EventMsg::Error(ev) => {
-            thread_watch_manager
+            chat_watch_manager
                 .note_system_error(&conversation_id.to_string())
                 .await;
 
@@ -961,7 +961,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                 return handle_thread_rollback_failed(
                     conversation_id,
                     message,
-                    &thread_state,
+                    &chat_state,
                     &outgoing,
                 )
                 .await;
@@ -981,7 +981,7 @@ pub(crate) async fn apply_bespoke_event_handling(
                 &event_interaction_id,
                 turn_error,
                 &outgoing,
-                &thread_state,
+                &chat_state,
             )
             .await;
         }
@@ -1121,9 +1121,9 @@ pub(crate) async fn apply_bespoke_event_handling(
             }
             let message_id = exec_command_begin_event.call_id.clone();
             let first_start = {
-                let mut state = thread_state.lock().await;
+                let mut state = chat_state.lock().await;
                 state
-                    .turn_summary
+                    .interaction_summary
                     .command_execution_started
                     .insert(message_id.clone())
             };
@@ -1147,9 +1147,9 @@ pub(crate) async fn apply_bespoke_event_handling(
         EventMsg::ExecCommandEnd(exec_command_end_event) => {
             let call_id = exec_command_end_event.call_id.clone();
             {
-                let mut state = thread_state.lock().await;
+                let mut state = chat_state.lock().await;
                 state
-                    .turn_summary
+                    .interaction_summary
                     .command_execution_started
                     .remove(&call_id);
             }
@@ -1171,25 +1171,25 @@ pub(crate) async fn apply_bespoke_event_handling(
         }
         // If this is a InteractionAborted, reply to any pending interrupt requests.
         EventMsg::InteractionAborted(turn_aborted_event) => {
-            // All per-thread requests are bound to a turn, so abort them.
+            // All per-chat requests are bound to a turn, so abort them.
             outgoing.abort_pending_server_requests().await;
-            respond_to_pending_interrupts(&thread_state, &outgoing).await;
+            respond_to_pending_interrupts(&chat_state, &outgoing).await;
 
-            thread_watch_manager
-                .note_turn_interrupted(&conversation_id.to_string())
+            chat_watch_manager
+                .note_interaction_interrupted(&conversation_id.to_string())
                 .await;
             handle_turn_interrupted(
                 conversation_id,
                 event_interaction_id,
                 turn_aborted_event,
                 &outgoing,
-                &thread_state,
+                &chat_state,
             )
             .await;
         }
         EventMsg::ThreadRolledBack(_rollback_event) => {
             let pending = {
-                let mut state = thread_state.lock().await;
+                let mut state = chat_state.lock().await;
                 state.pending_rollbacks.take()
             };
 
@@ -1209,13 +1209,13 @@ pub(crate) async fn apply_bespoke_event_handling(
                     }
                 };
                 let fallback_cwd = conversation.config_snapshot().await.cwd().clone();
-                let stored_thread = match conversation
-                    .read_thread(
+                let stored_chat = match conversation
+                    .read_chat(
                         /*include_archived*/ true, /*include_history*/ true,
                     )
                     .await
                 {
-                    Ok(stored_thread) => stored_thread,
+                    Ok(stored_chat) => stored_chat,
                     Err(err) => {
                         outgoing
                             .send_error(
@@ -1228,11 +1228,11 @@ pub(crate) async fn apply_bespoke_event_handling(
                         return;
                     }
                 };
-                let loaded_status = thread_watch_manager
-                    .loaded_status_for_thread(&conversation_id.to_string())
+                let loaded_status = chat_watch_manager
+                    .loaded_status_for_chat(&conversation_id.to_string())
                     .await;
-                let response = match thread_rollback_response_from_stored_thread(
-                    stored_thread,
+                let response = match chat_rollback_response_from_stored_chat(
+                    stored_chat,
                     conversation.session_configured().session_id.to_string(),
                     fallback_model_provider.as_str(),
                     &fallback_cwd,
@@ -1250,29 +1250,29 @@ pub(crate) async fn apply_bespoke_event_handling(
                 outgoing.send_response(request_id, response).await;
             }
         }
-        EventMsg::ThreadGoalUpdated(thread_goal_event) => {
+        EventMsg::ThreadGoalUpdated(chat_goal_event) => {
             let notification = ChatGoalUpdatedNotification {
-                chat_id: thread_goal_event.chat_id.to_string(),
-                interaction_id: thread_goal_event.interaction_id,
-                goal: thread_goal_event.goal.clone().into(),
+                chat_id: chat_goal_event.chat_id.to_string(),
+                interaction_id: chat_goal_event.interaction_id,
+                goal: chat_goal_event.goal.clone().into(),
             };
             outgoing
                 .send_global_server_notification(ChatGoalUpdated(notification))
                 .await;
         }
-        EventMsg::ThreadSettingsApplied(thread_settings_event) => {
-            let thread_settings =
-                thread_settings_from_core_snapshot(thread_settings_event.thread_settings);
+        EventMsg::ThreadSettingsApplied(chat_settings_event) => {
+            let chat_settings =
+                chat_settings_from_core_snapshot(chat_settings_event.chat_settings);
             let changed = {
-                let mut state = thread_state.lock().await;
-                state.note_thread_settings(thread_settings.clone())
+                let mut state = chat_state.lock().await;
+                state.note_chat_settings(chat_settings.clone())
             };
             if changed {
                 outgoing
                     .send_server_notification(ChatSettingsUpdated(
                         ChatSettingsUpdatedNotification {
                             chat_id: conversation_id.to_string(),
-                            thread_settings,
+                            chat_settings,
                         },
                     ))
                     .await;
@@ -1297,8 +1297,8 @@ pub(crate) async fn apply_bespoke_event_handling(
             .await;
         }
         EventMsg::ShutdownComplete => {
-            thread_watch_manager
-                .note_thread_shutdown(&conversation_id.to_string())
+            chat_watch_manager
+                .note_chat_shutdown(&conversation_id.to_string())
                 .await;
         }
 
@@ -1386,12 +1386,12 @@ async fn start_command_execution_item(
     command_actions: Vec<V2ParsedCommand>,
     source: CommandExecutionSource,
     outgoing: &ThreadScopedOutgoingMessageSender,
-    thread_state: &Arc<Mutex<ThreadState>>,
+    chat_state: &Arc<Mutex<ChatState>>,
 ) -> bool {
     let first_start = {
-        let mut state = thread_state.lock().await;
+        let mut state = chat_state.lock().await;
         state
-            .turn_summary
+            .interaction_summary
             .command_execution_started
             .insert(message_id.clone())
     };
@@ -1432,12 +1432,12 @@ async fn complete_command_execution_item(
     command_actions: Vec<V2ParsedCommand>,
     status: CommandExecutionStatus,
     outgoing: &ThreadScopedOutgoingMessageSender,
-    thread_state: &Arc<Mutex<ThreadState>>,
+    chat_state: &Arc<Mutex<ChatState>>,
 ) {
-    let should_emit = thread_state
+    let should_emit = chat_state
         .lock()
         .await
-        .turn_summary
+        .interaction_summary
         .command_execution_started
         .remove(&message_id);
     if !should_emit {
@@ -1522,12 +1522,12 @@ pub(crate) async fn maybe_emit_hook_prompt_item_completed(
         .await;
 }
 
-async fn find_and_remove_turn_summary(
+async fn find_and_remove_interaction_summary(
     _conversation_id: ChatId,
-    thread_state: &Arc<Mutex<ThreadState>>,
-) -> TurnSummary {
-    let mut state = thread_state.lock().await;
-    std::mem::take(&mut state.turn_summary)
+    chat_state: &Arc<Mutex<ChatState>>,
+) -> InteractionSummary {
+    let mut state = chat_state.lock().await;
+    std::mem::take(&mut state.interaction_summary)
 }
 
 async fn handle_turn_complete(
@@ -1535,11 +1535,11 @@ async fn handle_turn_complete(
     event_interaction_id: String,
     turn_complete_event: InteractionCompleteEvent,
     outgoing: &ThreadScopedOutgoingMessageSender,
-    thread_state: &Arc<Mutex<ThreadState>>,
+    chat_state: &Arc<Mutex<ChatState>>,
 ) {
-    let turn_summary = find_and_remove_turn_summary(conversation_id, thread_state).await;
+    let interaction_summary = find_and_remove_interaction_summary(conversation_id, chat_state).await;
 
-    let (status, error) = match turn_summary.last_error {
+    let (status, error) = match interaction_summary.last_error {
         Some(error) => (InteractionStatus::Failed, Some(error)),
         None => (InteractionStatus::Completed, None),
     };
@@ -1550,7 +1550,7 @@ async fn handle_turn_complete(
         TurnCompletionMetadata {
             status,
             error,
-            started_at: turn_summary.started_at,
+            started_at: interaction_summary.started_at,
             completed_at: turn_complete_event.completed_at,
             duration_ms: turn_complete_event.duration_ms,
         },
@@ -1564,9 +1564,9 @@ async fn handle_turn_interrupted(
     event_interaction_id: String,
     turn_aborted_event: InteractionAbortedEvent,
     outgoing: &ThreadScopedOutgoingMessageSender,
-    thread_state: &Arc<Mutex<ThreadState>>,
+    chat_state: &Arc<Mutex<ChatState>>,
 ) {
-    let turn_summary = find_and_remove_turn_summary(conversation_id, thread_state).await;
+    let interaction_summary = find_and_remove_interaction_summary(conversation_id, chat_state).await;
 
     emit_turn_completed_with_status(
         conversation_id,
@@ -1574,7 +1574,7 @@ async fn handle_turn_interrupted(
         TurnCompletionMetadata {
             status: InteractionStatus::Interrupted,
             error: None,
-            started_at: turn_summary.started_at,
+            started_at: interaction_summary.started_at,
             completed_at: turn_aborted_event.completed_at,
             duration_ms: turn_aborted_event.duration_ms,
         },
@@ -1586,10 +1586,10 @@ async fn handle_turn_interrupted(
 async fn handle_thread_rollback_failed(
     _conversation_id: ChatId,
     message: String,
-    thread_state: &Arc<Mutex<ThreadState>>,
+    chat_state: &Arc<Mutex<ChatState>>,
     outgoing: &ThreadScopedOutgoingMessageSender,
 ) {
-    let pending_rollback = thread_state.lock().await.pending_rollbacks.take();
+    let pending_rollback = chat_state.lock().await.pending_rollbacks.take();
 
     if let Some(request_id) = pending_rollback {
         outgoing
@@ -1598,33 +1598,33 @@ async fn handle_thread_rollback_failed(
     }
 }
 
-fn thread_rollback_response_from_stored_thread(
-    stored_thread: datax_thread_store::StoredChat,
+fn chat_rollback_response_from_stored_chat(
+    stored_chat: datax_thread_store::StoredChat,
     session_id: String,
     fallback_model_provider: &str,
     fallback_cwd: &AbsolutePathBuf,
     loaded_status: ChatStatus,
 ) -> std::result::Result<ChatRollbackResponse, String> {
-    let chat_id = stored_thread.chat_id;
+    let chat_id = stored_chat.chat_id;
     let (mut thread, history) =
-        chat_from_stored_thread(stored_thread, fallback_model_provider, fallback_cwd);
+        chat_from_stored_chat(stored_chat, fallback_model_provider, fallback_cwd);
     thread.session_id = session_id;
     let Some(history) = history else {
         return Err(format!(
             "thread {chat_id} did not include persisted history after rollback"
         ));
     };
-    populate_thread_turns_from_history(&mut thread, &history.items, /*active_turn*/ None);
+    populate_chat_interactions_from_history(&mut thread, &history.items, /*active_interaction*/ None);
     thread.status = loaded_status;
     Ok(ChatRollbackResponse { chat: thread })
 }
 
 async fn respond_to_pending_interrupts(
-    thread_state: &Arc<Mutex<ThreadState>>,
+    chat_state: &Arc<Mutex<ChatState>>,
     outgoing: &ThreadScopedOutgoingMessageSender,
 ) {
     let pending = {
-        let mut state = thread_state.lock().await;
+        let mut state = chat_state.lock().await;
         std::mem::take(&mut state.pending_interrupts)
     };
 
@@ -1666,10 +1666,10 @@ async fn handle_token_count_event(
 async fn handle_error(
     _conversation_id: ChatId,
     error: InteractionError,
-    thread_state: &Arc<Mutex<ThreadState>>,
+    chat_state: &Arc<Mutex<ChatState>>,
 ) {
-    let mut state = thread_state.lock().await;
-    state.turn_summary.last_error = Some(error);
+    let mut state = chat_state.lock().await;
+    state.interaction_summary.last_error = Some(error);
 }
 
 async fn handle_error_notification(
@@ -1677,9 +1677,9 @@ async fn handle_error_notification(
     event_interaction_id: &str,
     error: InteractionError,
     outgoing: &ThreadScopedOutgoingMessageSender,
-    thread_state: &Arc<Mutex<ThreadState>>,
+    chat_state: &Arc<Mutex<ChatState>>,
 ) {
-    handle_error(conversation_id, error.clone(), thread_state).await;
+    handle_error(conversation_id, error.clone(), chat_state).await;
     outgoing
         .send_server_notification(ServerNotification::Error(ErrorNotification {
             error,
@@ -1695,11 +1695,11 @@ async fn on_request_user_input_response(
     pending_request_id: RequestId,
     receiver: oneshot::Receiver<ClientRequestResult>,
     conversation: Arc<DataxChat>,
-    thread_state: Arc<Mutex<ThreadState>>,
-    user_input_guard: ThreadWatchActiveGuard,
+    chat_state: Arc<Mutex<ChatState>>,
+    user_input_guard: ChatWatchActiveGuard,
 ) {
     let response = receiver.await;
-    resolve_server_request_on_thread_listener(&thread_state, pending_request_id).await;
+    resolve_server_request_on_chat_listener(&chat_state, pending_request_id).await;
     drop(user_input_guard);
     let value = match response {
         Ok(Ok(value)) => value,
@@ -1777,11 +1777,11 @@ async fn on_mcp_server_elicitation_response(
     pending_request_id: RequestId,
     receiver: oneshot::Receiver<ClientRequestResult>,
     conversation: Arc<DataxChat>,
-    thread_state: Arc<Mutex<ThreadState>>,
-    permission_guard: ThreadWatchActiveGuard,
+    chat_state: Arc<Mutex<ChatState>>,
+    permission_guard: ChatWatchActiveGuard,
 ) {
     let response = receiver.await;
-    resolve_server_request_on_thread_listener(&thread_state, pending_request_id).await;
+    resolve_server_request_on_chat_listener(&chat_state, pending_request_id).await;
     drop(permission_guard);
     let response = mcp_server_elicitation_response_from_client_result(response);
 
@@ -1841,7 +1841,7 @@ fn mcp_server_elicitation_response_from_client_result(
 async fn on_request_permissions_response(
     pending_response: PendingRequestPermissionsResponse,
     conversation: Arc<DataxChat>,
-    thread_state: Arc<Mutex<ThreadState>>,
+    chat_state: Arc<Mutex<ChatState>>,
 ) {
     let PendingRequestPermissionsResponse {
         call_id,
@@ -1855,7 +1855,7 @@ async fn on_request_permissions_response(
         request_permissions_guard,
     } = pending_response;
     let response = receiver.await;
-    resolve_server_request_on_thread_listener(&thread_state, pending_request_id.clone()).await;
+    resolve_server_request_on_chat_listener(&chat_state, pending_request_id.clone()).await;
     drop(request_permissions_guard);
     let response = match request_permissions_response_from_client_result(
         requested_permissions,
@@ -1877,7 +1877,7 @@ async fn on_request_permissions_response(
                     additional_details: None,
                 },
                 &outgoing,
-                &thread_state,
+                &chat_state,
             )
             .await;
             if let Err(err) = conversation.submit(Op::Interrupt).await {
@@ -1908,7 +1908,7 @@ struct PendingRequestPermissionsResponse {
     pending_request_id: RequestId,
     outgoing: ThreadScopedOutgoingMessageSender,
     receiver: oneshot::Receiver<ClientRequestResult>,
-    request_permissions_guard: ThreadWatchActiveGuard,
+    request_permissions_guard: ChatWatchActiveGuard,
 }
 
 fn request_permissions_response_from_client_result(
@@ -2010,11 +2010,11 @@ async fn on_file_change_request_approval_response(
     pending_request_id: RequestId,
     receiver: oneshot::Receiver<ClientRequestResult>,
     codex: Arc<DataxChat>,
-    thread_state: Arc<Mutex<ThreadState>>,
-    permission_guard: ThreadWatchActiveGuard,
+    chat_state: Arc<Mutex<ChatState>>,
+    permission_guard: ChatWatchActiveGuard,
 ) {
     let response = receiver.await;
-    resolve_server_request_on_thread_listener(&thread_state, pending_request_id).await;
+    resolve_server_request_on_chat_listener(&chat_state, pending_request_id).await;
     drop(permission_guard);
     let decision = match response {
         Ok(Ok(value)) => {
@@ -2061,11 +2061,11 @@ async fn on_command_execution_request_approval_response(
     receiver: oneshot::Receiver<ClientRequestResult>,
     conversation: Arc<DataxChat>,
     outgoing: ThreadScopedOutgoingMessageSender,
-    thread_state: Arc<Mutex<ThreadState>>,
-    permission_guard: ThreadWatchActiveGuard,
+    chat_state: Arc<Mutex<ChatState>>,
+    permission_guard: ChatWatchActiveGuard,
 ) {
     let response = receiver.await;
-    resolve_server_request_on_thread_listener(&thread_state, pending_request_id).await;
+    resolve_server_request_on_chat_listener(&chat_state, pending_request_id).await;
     drop(permission_guard);
     let (decision, completion_status) = match response {
         Ok(Ok(value)) => {
@@ -2133,9 +2133,9 @@ async fn on_command_execution_request_approval_response(
         // For zsh-fork subcommand approvals, approval_id is present and
         // message_id points to the parent command item.
         if approval_id.is_some() {
-            let state = thread_state.lock().await;
+            let state = chat_state.lock().await;
             state
-                .turn_summary
+                .interaction_summary
                 .command_execution_started
                 .contains(&message_id)
         } else {
@@ -2158,7 +2158,7 @@ async fn on_command_execution_request_approval_response(
             completion_item.command_actions,
             status,
             &outgoing,
-            &thread_state,
+            &chat_state,
         )
         .await;
     }
@@ -2237,8 +2237,8 @@ mod tests {
     use tokio::sync::Mutex;
     use tokio::sync::mpsc;
 
-    fn new_thread_state() -> Arc<Mutex<ThreadState>> {
-        Arc::new(Mutex::new(ThreadState::default()))
+    fn new_chat_state() -> Arc<Mutex<ChatState>> {
+        Arc::new(Mutex::new(ChatState::default()))
     }
 
     const TEST_TURN_COMPLETED_AT: i64 = 1_716_000_456;
@@ -2276,7 +2276,7 @@ mod tests {
                 memory_citation: None,
             })),
         ];
-        let stored_thread = StoredChat {
+        let stored_chat = StoredChat {
             chat_id: chat_id,
             extra_config: None,
             rollout_path: None,
@@ -2310,8 +2310,8 @@ mod tests {
         };
         let fallback_cwd = test_path_buf("/tmp").abs();
 
-        let response = thread_rollback_response_from_stored_thread(
-            stored_thread,
+        let response = chat_rollback_response_from_stored_chat(
+            stored_chat,
             chat_id.to_string(),
             "fallback-provider",
             &fallback_cwd,
@@ -2411,8 +2411,8 @@ mod tests {
         conversation: Arc<DataxChat>,
         chat_manager: Arc<ChatManager>,
         outgoing: ThreadScopedOutgoingMessageSender,
-        thread_state: Arc<Mutex<ThreadState>>,
-        thread_watch_manager: ThreadWatchManager,
+        chat_state: Arc<Mutex<ChatState>>,
+        chat_watch_manager: ChatWatchManager,
     }
 
     impl GuardianAssessmentTestContext {
@@ -2427,8 +2427,8 @@ mod tests {
                 self.conversation.clone(),
                 self.chat_manager.clone(),
                 self.outgoing.clone(),
-                self.thread_state.clone(),
-                self.thread_watch_manager.clone(),
+                self.chat_state.clone(),
+                self.chat_watch_manager.clone(),
                 Arc::new(tokio::sync::Semaphore::new(/*permits*/ 1)),
                 "test-provider".to_string(),
             )
@@ -2584,7 +2584,7 @@ mod tests {
     #[tokio::test]
     async fn command_execution_started_helper_emits_once() -> Result<()> {
         let conversation_id = ChatId::new();
-        let thread_state = new_thread_state();
+        let chat_state = new_chat_state();
         let (tx, mut rx) = mpsc::channel(CHANNEL_CAPACITY);
         let outgoing = Arc::new(OutgoingMessageSender::new(
             tx,
@@ -2603,7 +2603,7 @@ mod tests {
             completion_item.command_actions.clone(),
             CommandExecutionSource::Agent,
             &outgoing,
-            &thread_state,
+            &chat_state,
         )
         .await;
         assert!(first_start);
@@ -2641,7 +2641,7 @@ mod tests {
             completion_item.command_actions.clone(),
             CommandExecutionSource::Agent,
             &outgoing,
-            &thread_state,
+            &chat_state,
         )
         .await;
         assert!(!second_start);
@@ -2653,7 +2653,7 @@ mod tests {
     async fn complete_command_execution_item_emits_declined_once_for_pending_command() -> Result<()>
     {
         let conversation_id = ChatId::new();
-        let thread_state = new_thread_state();
+        let chat_state = new_chat_state();
         let (tx, mut rx) = mpsc::channel(CHANNEL_CAPACITY);
         let outgoing = Arc::new(OutgoingMessageSender::new(
             tx,
@@ -2672,7 +2672,7 @@ mod tests {
             completion_item.command_actions.clone(),
             CommandExecutionSource::Agent,
             &outgoing,
-            &thread_state,
+            &chat_state,
         )
         .await;
         let _started = recv_broadcast_message(&mut rx).await?;
@@ -2688,7 +2688,7 @@ mod tests {
             completion_item.command_actions.clone(),
             CommandExecutionStatus::Declined,
             &outgoing,
-            &thread_state,
+            &chat_state,
         )
         .await;
 
@@ -2715,7 +2715,7 @@ mod tests {
             completion_item.command_actions,
             CommandExecutionStatus::Declined,
             &outgoing,
-            &thread_state,
+            &chat_state,
         )
         .await;
         assert!(
@@ -2742,8 +2742,8 @@ mod tests {
             chat: conversation,
             ..
         } = chat_manager.start_chat(config.clone()).await?;
-        let thread_state = new_thread_state();
-        let thread_watch_manager = ThreadWatchManager::new();
+        let chat_state = new_chat_state();
+        let chat_watch_manager = ChatWatchManager::new();
         let (tx, mut rx) = mpsc::channel(CHANNEL_CAPACITY);
         let outgoing = Arc::new(OutgoingMessageSender::new(
             tx,
@@ -2759,8 +2759,8 @@ mod tests {
             conversation: conversation.clone(),
             chat_manager: chat_manager.clone(),
             outgoing: outgoing.clone(),
-            thread_state: thread_state.clone(),
-            thread_watch_manager: thread_watch_manager.clone(),
+            chat_state: chat_state.clone(),
+            chat_watch_manager: chat_watch_manager.clone(),
         };
 
         guardian_context
@@ -3286,7 +3286,7 @@ mod tests {
     #[tokio::test]
     async fn test_handle_error_records_message() -> Result<()> {
         let conversation_id = ChatId::new();
-        let thread_state = new_thread_state();
+        let chat_state = new_chat_state();
 
         handle_error(
             conversation_id,
@@ -3295,13 +3295,13 @@ mod tests {
                 codex_error_info: Some(V2CodexErrorInfo::InternalServerError),
                 additional_details: None,
             },
-            &thread_state,
+            &chat_state,
         )
         .await;
 
-        let turn_summary = find_and_remove_turn_summary(conversation_id, &thread_state).await;
+        let interaction_summary = find_and_remove_interaction_summary(conversation_id, &chat_state).await;
         assert_eq!(
-            turn_summary.last_error,
+            interaction_summary.last_error,
             Some(InteractionError {
                 message: "boom".to_string(),
                 codex_error_info: Some(V2CodexErrorInfo::InternalServerError),
@@ -3328,10 +3328,10 @@ mod tests {
             chat: conversation,
             ..
         } = chat_manager.start_chat(config.clone()).await?;
-        let thread_state = new_thread_state();
+        let chat_state = new_chat_state();
         {
-            let mut state = thread_state.lock().await;
-            state.track_current_turn_event(
+            let mut state = chat_state.lock().await;
+            state.track_current_interaction_event(
                 "turn-1",
                 &EventMsg::InteractionStarted(datax_protocol::protocol::InteractionStartedEvent {
                     interaction_id: "turn-1".to_string(),
@@ -3341,7 +3341,7 @@ mod tests {
                     collaboration_mode_kind: Default::default(),
                 }),
             );
-            state.track_current_turn_event(
+            state.track_current_interaction_event(
                 "turn-1",
                 &EventMsg::UserMessage(datax_protocol::protocol::UserMessageEvent {
                     client_id: None,
@@ -3353,7 +3353,7 @@ mod tests {
                 }),
             );
         }
-        let thread_watch_manager = ThreadWatchManager::new();
+        let chat_watch_manager = ChatWatchManager::new();
         let (tx, mut rx) = mpsc::channel(CHANNEL_CAPACITY);
         let outgoing = Arc::new(OutgoingMessageSender::new(
             tx,
@@ -3382,8 +3382,8 @@ mod tests {
             conversation,
             chat_manager,
             outgoing,
-            thread_state,
-            thread_watch_manager,
+            chat_state,
+            chat_watch_manager,
             Arc::new(tokio::sync::Semaphore::new(/*permits*/ 1)),
             "test-provider".to_string(),
         )
@@ -3423,11 +3423,11 @@ mod tests {
         } = chat_manager.start_chat(config).await?;
         let child_chat_id = ChatId::new();
         let child_chat_id_string = child_chat_id.to_string();
-        let thread_watch_manager = ThreadWatchManager::new();
-        thread_watch_manager
-            .note_turn_started(&child_chat_id_string)
+        let chat_watch_manager = ChatWatchManager::new();
+        chat_watch_manager
+            .note_interaction_started(&child_chat_id_string)
             .await;
-        assert_eq!(thread_watch_manager.running_turn_count().await, 1);
+        assert_eq!(chat_watch_manager.running_interaction_count().await, 1);
         let (tx, mut rx) = mpsc::channel(CHANNEL_CAPACITY);
         let outgoing = Arc::new(OutgoingMessageSender::new(
             tx,
@@ -3455,20 +3455,20 @@ mod tests {
             conversation,
             chat_manager,
             outgoing,
-            new_thread_state(),
-            thread_watch_manager.clone(),
+            new_chat_state(),
+            chat_watch_manager.clone(),
             Arc::new(tokio::sync::Semaphore::new(/*permits*/ 1)),
             "test-provider".to_string(),
         )
         .await;
 
         assert_eq!(
-            thread_watch_manager
-                .loaded_status_for_thread(&child_chat_id_string)
+            chat_watch_manager
+                .loaded_status_for_chat(&child_chat_id_string)
                 .await,
             ChatStatus::NotLoaded
         );
-        assert_eq!(thread_watch_manager.running_turn_count().await, 0);
+        assert_eq!(chat_watch_manager.running_interaction_count().await, 0);
         let message = recv_broadcast_message(&mut rx).await?;
         let OutgoingMessage::AppServerNotification(MessageCompleted(payload)) = message else {
             bail!("unexpected message: {message:?}");
@@ -3501,10 +3501,10 @@ mod tests {
         ));
         let outgoing =
             ThreadScopedOutgoingMessageSender::new(outgoing, vec![ConnectionId(1)], ChatId::new());
-        let thread_state = new_thread_state();
+        let chat_state = new_chat_state();
         {
-            let mut state = thread_state.lock().await;
-            state.track_current_turn_event(
+            let mut state = chat_state.lock().await;
+            state.track_current_interaction_event(
                 &event_interaction_id,
                 &EventMsg::InteractionStarted(datax_protocol::protocol::InteractionStartedEvent {
                     interaction_id: event_interaction_id.clone(),
@@ -3514,7 +3514,7 @@ mod tests {
                     collaboration_mode_kind: Default::default(),
                 }),
             );
-            state.track_current_turn_event(
+            state.track_current_interaction_event(
                 &event_interaction_id,
                 &EventMsg::InteractionComplete(turn_complete_event(&event_interaction_id)),
             );
@@ -3525,7 +3525,7 @@ mod tests {
             event_interaction_id.clone(),
             turn_complete_event(&event_interaction_id),
             &outgoing,
-            &thread_state,
+            &chat_state,
         )
         .await;
 
@@ -3554,7 +3554,7 @@ mod tests {
     async fn test_handle_turn_interrupted_emits_interrupted_with_error() -> Result<()> {
         let conversation_id = ChatId::new();
         let event_interaction_id = "interrupt1".to_string();
-        let thread_state = new_thread_state();
+        let chat_state = new_chat_state();
         handle_error(
             conversation_id,
             InteractionError {
@@ -3562,7 +3562,7 @@ mod tests {
                 codex_error_info: None,
                 additional_details: None,
             },
-            &thread_state,
+            &chat_state,
         )
         .await;
         let (tx, mut rx) = mpsc::channel(CHANNEL_CAPACITY);
@@ -3578,7 +3578,7 @@ mod tests {
             event_interaction_id.clone(),
             turn_aborted_event(&event_interaction_id),
             &outgoing,
-            &thread_state,
+            &chat_state,
         )
         .await;
 
@@ -3601,7 +3601,7 @@ mod tests {
     async fn test_handle_turn_complete_emits_failed_with_error() -> Result<()> {
         let conversation_id = ChatId::new();
         let event_interaction_id = "complete_err1".to_string();
-        let thread_state = new_thread_state();
+        let chat_state = new_chat_state();
         handle_error(
             conversation_id,
             InteractionError {
@@ -3609,7 +3609,7 @@ mod tests {
                 codex_error_info: Some(V2CodexErrorInfo::Other),
                 additional_details: None,
             },
-            &thread_state,
+            &chat_state,
         )
         .await;
         let (tx, mut rx) = mpsc::channel(CHANNEL_CAPACITY);
@@ -3625,7 +3625,7 @@ mod tests {
             event_interaction_id.clone(),
             turn_complete_event(&event_interaction_id),
             &outgoing,
-            &thread_state,
+            &chat_state,
         )
         .await;
 
@@ -3819,7 +3819,7 @@ mod tests {
         // Conversation A will have two interactions; Conversation B will have one turn.
         let conversation_a = ChatId::new();
         let conversation_b = ChatId::new();
-        let thread_state = new_thread_state();
+        let chat_state = new_chat_state();
 
         let (tx, mut rx) = mpsc::channel(CHANNEL_CAPACITY);
         let outgoing = Arc::new(OutgoingMessageSender::new(
@@ -3838,7 +3838,7 @@ mod tests {
                 codex_error_info: Some(V2CodexErrorInfo::BadRequest),
                 additional_details: None,
             },
-            &thread_state,
+            &chat_state,
         )
         .await;
         handle_turn_complete(
@@ -3846,7 +3846,7 @@ mod tests {
             a_turn1.clone(),
             turn_complete_event(&a_turn1),
             &outgoing,
-            &thread_state,
+            &chat_state,
         )
         .await;
 
@@ -3859,7 +3859,7 @@ mod tests {
                 codex_error_info: None,
                 additional_details: None,
             },
-            &thread_state,
+            &chat_state,
         )
         .await;
         handle_turn_complete(
@@ -3867,7 +3867,7 @@ mod tests {
             b_turn1.clone(),
             turn_complete_event(&b_turn1),
             &outgoing,
-            &thread_state,
+            &chat_state,
         )
         .await;
 
@@ -3878,7 +3878,7 @@ mod tests {
             a_turn2.clone(),
             turn_complete_event(&a_turn2),
             &outgoing,
-            &thread_state,
+            &chat_state,
         )
         .await;
 

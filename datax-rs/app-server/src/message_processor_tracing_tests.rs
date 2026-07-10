@@ -162,7 +162,7 @@ impl TracingHarness {
     }
 
     async fn shutdown(self) {
-        self.processor.shutdown_threads().await;
+        self.processor.shutdown_chats().await;
         self.processor.drain_background_tasks().await;
     }
 
@@ -205,7 +205,7 @@ impl TracingHarness {
                 trace,
             )
             .await;
-        read_thread_started_notification(&mut self.outgoing_rx).await;
+        read_chat_started_notification(&mut self.outgoing_rx).await;
         response
     }
 }
@@ -455,7 +455,7 @@ async fn read_response<T: serde::de::DeserializeOwned>(
     }
 }
 
-async fn read_thread_started_notification(
+async fn read_chat_started_notification(
     outgoing_rx: &mut mpsc::Receiver<crate::outgoing_message::OutgoingEnvelope>,
 ) {
     loop {

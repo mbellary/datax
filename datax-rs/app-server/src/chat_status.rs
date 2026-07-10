@@ -17,24 +17,24 @@ use tokio::sync::mpsc;
 use tokio::sync::watch;
 
 #[derive(Clone)]
-pub(crate) struct ThreadWatchManager {
-    state: Arc<Mutex<ThreadWatchState>>,
+pub(crate) struct ChatWatchManager {
+    state: Arc<Mutex<ChatWatchState>>,
     outgoing: Option<Arc<OutgoingMessageSender>>,
-    running_turn_count_tx: watch::Sender<usize>,
+    running_interaction_count_tx: watch::Sender<usize>,
 }
 
-pub(crate) struct ThreadWatchActiveGuard {
-    manager: ThreadWatchManager,
+pub(crate) struct ChatWatchActiveGuard {
+    manager: ChatWatchManager,
     chat_id: String,
-    guard_type: ThreadWatchActiveGuardType,
+    guard_type: ChatWatchActiveGuardType,
     handle: tokio::runtime::Handle,
 }
 
-impl ThreadWatchActiveGuard {
+impl ChatWatchActiveGuard {
     fn new(
-        manager: ThreadWatchManager,
+        manager: ChatWatchManager,
         chat_id: String,
-        guard_type: ThreadWatchActiveGuardType,
+        guard_type: ChatWatchActiveGuardType,
     ) -> Self {
         Self {
             manager,
@@ -45,7 +45,7 @@ impl ThreadWatchActiveGuard {
     }
 }
 
-impl Drop for ThreadWatchActiveGuard {
+impl Drop for ChatWatchActiveGuard {
     fn drop(&mut self) {
         let manager = self.manager.clone();
         let chat_id = self.chat_id.clone();
@@ -59,46 +59,46 @@ impl Drop for ThreadWatchActiveGuard {
 }
 
 #[derive(Clone, Copy)]
-enum ThreadWatchActiveGuardType {
+enum ChatWatchActiveGuardType {
     Permission,
     UserInput,
 }
 
-impl Default for ThreadWatchManager {
+impl Default for ChatWatchManager {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ThreadWatchManager {
+impl ChatWatchManager {
     pub(crate) fn new() -> Self {
-        let (running_turn_count_tx, _running_turn_count_rx) = watch::channel(0);
+        let (running_interaction_count_tx, _running_interaction_count_rx) = watch::channel(0);
         Self {
-            state: Arc::new(Mutex::new(ThreadWatchState::default())),
+            state: Arc::new(Mutex::new(ChatWatchState::default())),
             outgoing: None,
-            running_turn_count_tx,
+            running_interaction_count_tx,
         }
     }
 
     pub(crate) fn new_with_outgoing(outgoing: Arc<OutgoingMessageSender>) -> Self {
-        let (running_turn_count_tx, _running_turn_count_rx) = watch::channel(0);
+        let (running_interaction_count_tx, _running_interaction_count_rx) = watch::channel(0);
         Self {
-            state: Arc::new(Mutex::new(ThreadWatchState::default())),
+            state: Arc::new(Mutex::new(ChatWatchState::default())),
             outgoing: Some(outgoing),
-            running_turn_count_tx,
+            running_interaction_count_tx,
         }
     }
 
-    pub(crate) async fn upsert_thread(&self, thread: Chat) {
+    pub(crate) async fn upsert_chat(&self, thread: Chat) {
         self.mutate_and_publish(move |state| {
-            state.upsert_thread(thread.id, /*emit_notification*/ true)
+            state.upsert_chat(thread.id, /*emit_notification*/ true)
         })
         .await;
     }
 
-    pub(crate) async fn upsert_thread_silently(&self, thread: Chat) {
+    pub(crate) async fn upsert_chat_silently(&self, thread: Chat) {
         self.mutate_and_publish(move |state| {
-            state.upsert_thread(thread.id, /*emit_notification*/ false)
+            state.upsert_chat(thread.id, /*emit_notification*/ false)
         })
         .await;
     }
@@ -109,11 +109,11 @@ impl ThreadWatchManager {
             .await;
     }
 
-    pub(crate) async fn loaded_status_for_thread(&self, chat_id: &str) -> ChatStatus {
-        self.state.lock().await.loaded_status_for_thread(chat_id)
+    pub(crate) async fn loaded_status_for_chat(&self, chat_id: &str) -> ChatStatus {
+        self.state.lock().await.loaded_status_for_chat(chat_id)
     }
 
-    pub(crate) async fn loaded_statuses_for_threads(
+    pub(crate) async fn loaded_statuses_for_chats(
         &self,
         chat_ids: Vec<String>,
     ) -> HashMap<String, ChatStatus> {
@@ -121,14 +121,14 @@ impl ThreadWatchManager {
         chat_ids
             .into_iter()
             .map(|chat_id| {
-                let status = state.loaded_status_for_thread(&chat_id);
+                let status = state.loaded_status_for_chat(&chat_id);
                 (chat_id, status)
             })
             .collect()
     }
 
     #[cfg(test)]
-    pub(crate) async fn running_turn_count(&self) -> usize {
+    pub(crate) async fn running_interaction_count(&self) -> usize {
         self.state
             .lock()
             .await
@@ -138,12 +138,12 @@ impl ThreadWatchManager {
             .count()
     }
 
-    pub(crate) fn subscribe_running_turn_count(&self) -> watch::Receiver<usize> {
-        self.running_turn_count_tx.subscribe()
+    pub(crate) fn subscribe_running_interaction_count(&self) -> watch::Receiver<usize> {
+        self.running_interaction_count_tx.subscribe()
     }
 
-    pub(crate) async fn note_turn_started(&self, chat_id: &str) {
-        self.update_runtime_for_thread(chat_id, |runtime| {
+    pub(crate) async fn note_interaction_started(&self, chat_id: &str) {
+        self.update_runtime_for_chat(chat_id, |runtime| {
             runtime.is_loaded = true;
             runtime.running = true;
             runtime.has_system_error = false;
@@ -151,16 +151,16 @@ impl ThreadWatchManager {
         .await;
     }
 
-    pub(crate) async fn note_turn_completed(&self, chat_id: &str, _failed: bool) {
+    pub(crate) async fn note_interaction_completed(&self, chat_id: &str, _failed: bool) {
         self.clear_active_state(chat_id).await;
     }
 
-    pub(crate) async fn note_turn_interrupted(&self, chat_id: &str) {
+    pub(crate) async fn note_interaction_interrupted(&self, chat_id: &str) {
         self.clear_active_state(chat_id).await;
     }
 
-    pub(crate) async fn note_thread_shutdown(&self, chat_id: &str) {
-        self.update_runtime_for_thread(chat_id, |runtime| {
+    pub(crate) async fn note_chat_shutdown(&self, chat_id: &str) {
+        self.update_runtime_for_chat(chat_id, |runtime| {
             runtime.running = false;
             runtime.pending_permission_requests = 0;
             runtime.pending_user_input_requests = 0;
@@ -170,7 +170,7 @@ impl ThreadWatchManager {
     }
 
     pub(crate) async fn note_system_error(&self, chat_id: &str) {
-        self.update_runtime_for_thread(chat_id, |runtime| {
+        self.update_runtime_for_chat(chat_id, |runtime| {
             runtime.running = false;
             runtime.pending_permission_requests = 0;
             runtime.pending_user_input_requests = 0;
@@ -180,7 +180,7 @@ impl ThreadWatchManager {
     }
 
     async fn clear_active_state(&self, chat_id: &str) {
-        self.update_runtime_for_thread(chat_id, move |runtime| {
+        self.update_runtime_for_chat(chat_id, move |runtime| {
             runtime.running = false;
             runtime.pending_permission_requests = 0;
             runtime.pending_user_input_requests = 0;
@@ -188,45 +188,45 @@ impl ThreadWatchManager {
         .await;
     }
 
-    pub(crate) async fn note_permission_requested(&self, chat_id: &str) -> ThreadWatchActiveGuard {
-        self.note_pending_request(chat_id, ThreadWatchActiveGuardType::Permission)
+    pub(crate) async fn note_permission_requested(&self, chat_id: &str) -> ChatWatchActiveGuard {
+        self.note_pending_request(chat_id, ChatWatchActiveGuardType::Permission)
             .await
     }
 
-    pub(crate) async fn note_user_input_requested(&self, chat_id: &str) -> ThreadWatchActiveGuard {
-        self.note_pending_request(chat_id, ThreadWatchActiveGuardType::UserInput)
+    pub(crate) async fn note_user_input_requested(&self, chat_id: &str) -> ChatWatchActiveGuard {
+        self.note_pending_request(chat_id, ChatWatchActiveGuardType::UserInput)
             .await
     }
 
     async fn note_pending_request(
         &self,
         chat_id: &str,
-        guard_type: ThreadWatchActiveGuardType,
-    ) -> ThreadWatchActiveGuard {
-        self.update_runtime_for_thread(chat_id, move |runtime| {
+        guard_type: ChatWatchActiveGuardType,
+    ) -> ChatWatchActiveGuard {
+        self.update_runtime_for_chat(chat_id, move |runtime| {
             runtime.is_loaded = true;
             let counter = Self::pending_counter(runtime, guard_type);
             *counter = counter.saturating_add(1);
         })
         .await;
-        ThreadWatchActiveGuard::new(self.clone(), chat_id.to_string(), guard_type)
+        ChatWatchActiveGuard::new(self.clone(), chat_id.to_string(), guard_type)
     }
 
     async fn mutate_and_publish<F>(&self, mutate: F)
     where
-        F: FnOnce(&mut ThreadWatchState) -> Option<ChatStatusChangedNotification>,
+        F: FnOnce(&mut ChatWatchState) -> Option<ChatStatusChangedNotification>,
     {
-        let (notification, running_turn_count) = {
+        let (notification, running_interaction_count) = {
             let mut state = self.state.lock().await;
             let notification = mutate(&mut state);
-            let running_turn_count = state
+            let running_interaction_count = state
                 .runtime_by_chat_id
                 .values()
                 .filter(|runtime| runtime.running)
                 .count();
-            (notification, running_turn_count)
+            (notification, running_interaction_count)
         };
-        let _ = self.running_turn_count_tx.send(running_turn_count);
+        let _ = self.running_interaction_count_tx.send(running_interaction_count);
 
         if let Some(notification) = notification
             && let Some(outgoing) = &self.outgoing
@@ -244,16 +244,16 @@ impl ThreadWatchManager {
     async fn note_active_guard_released(
         &self,
         chat_id: String,
-        guard_type: ThreadWatchActiveGuardType,
+        guard_type: ChatWatchActiveGuardType,
     ) {
-        self.update_runtime_for_thread(&chat_id, move |runtime| {
+        self.update_runtime_for_chat(&chat_id, move |runtime| {
             let counter = Self::pending_counter(runtime, guard_type);
             *counter = counter.saturating_sub(1);
         })
         .await;
     }
 
-    async fn update_runtime_for_thread<F>(&self, chat_id: &str, update: F)
+    async fn update_runtime_for_chat<F>(&self, chat_id: &str, update: F)
     where
         F: FnOnce(&mut RuntimeFacts),
     {
@@ -264,20 +264,20 @@ impl ThreadWatchManager {
 
     fn pending_counter(
         runtime: &mut RuntimeFacts,
-        guard_type: ThreadWatchActiveGuardType,
+        guard_type: ChatWatchActiveGuardType,
     ) -> &mut u32 {
         match guard_type {
-            ThreadWatchActiveGuardType::Permission => &mut runtime.pending_permission_requests,
-            ThreadWatchActiveGuardType::UserInput => &mut runtime.pending_user_input_requests,
+            ChatWatchActiveGuardType::Permission => &mut runtime.pending_permission_requests,
+            ChatWatchActiveGuardType::UserInput => &mut runtime.pending_user_input_requests,
         }
     }
 }
 
-pub(crate) fn resolve_thread_status(status: ChatStatus, has_in_progress_turn: bool) -> ChatStatus {
+pub(crate) fn resolve_chat_status(status: ChatStatus, has_in_progress_interaction: bool) -> ChatStatus {
     // Running-turn events can arrive before the watch runtime state is observed by
     // the listener loop. In that window we prefer to reflect a real active turn as
     // `Active` instead of `Idle`/`NotLoaded`.
-    if has_in_progress_turn && matches!(status, ChatStatus::Idle | ChatStatus::NotLoaded) {
+    if has_in_progress_interaction && matches!(status, ChatStatus::Idle | ChatStatus::NotLoaded) {
         return ChatStatus::Active {
             active_flags: Vec::new(),
         };
@@ -287,13 +287,13 @@ pub(crate) fn resolve_thread_status(status: ChatStatus, has_in_progress_turn: bo
 }
 
 #[derive(Default)]
-struct ThreadWatchState {
+struct ChatWatchState {
     runtime_by_chat_id: HashMap<String, RuntimeFacts>,
     status_watcher_by_chat_id: HashMap<String, watch::Sender<ChatStatus>>,
 }
 
-impl ThreadWatchState {
-    fn upsert_thread(
+impl ChatWatchState {
+    fn upsert_chat(
         &mut self,
         chat_id: String,
         emit_notification: bool,
@@ -345,15 +345,15 @@ impl ThreadWatchState {
     fn status_for(&self, chat_id: &str) -> Option<ChatStatus> {
         self.runtime_by_chat_id
             .get(chat_id)
-            .map(loaded_thread_status)
+            .map(loaded_chat_status)
     }
 
-    fn loaded_status_for_thread(&self, chat_id: &str) -> ChatStatus {
+    fn loaded_status_for_chat(&self, chat_id: &str) -> ChatStatus {
         self.status_for(chat_id).unwrap_or(ChatStatus::NotLoaded)
     }
 
     fn subscribe(&mut self, chat_id: String) -> watch::Receiver<ChatStatus> {
-        let status = self.loaded_status_for_thread(&chat_id);
+        let status = self.loaded_status_for_chat(&chat_id);
         let sender = self
             .status_watcher_by_chat_id
             .entry(chat_id)
@@ -362,7 +362,7 @@ impl ThreadWatchState {
     }
 
     fn update_status_watcher_for_thread(&mut self, chat_id: &str) {
-        let status = self.loaded_status_for_thread(chat_id);
+        let status = self.loaded_status_for_chat(chat_id);
         self.update_status_watcher(chat_id, &status);
     }
 
@@ -410,7 +410,7 @@ struct RuntimeFacts {
     has_system_error: bool,
 }
 
-fn loaded_thread_status(runtime: &RuntimeFacts) -> ChatStatus {
+fn loaded_chat_status(runtime: &RuntimeFacts) -> ChatStatus {
     if !runtime.is_loaded {
         return ChatStatus::NotLoaded;
     }
@@ -448,31 +448,31 @@ mod tests {
 
     #[tokio::test]
     async fn loaded_status_defaults_to_not_loaded_for_untracked_threads() {
-        let manager = ThreadWatchManager::new();
+        let manager = ChatWatchManager::new();
 
         assert_eq!(
             manager
-                .loaded_status_for_thread("00000000-0000-0000-0000-000000000003")
+                .loaded_status_for_chat("00000000-0000-0000-0000-000000000003")
                 .await,
             ChatStatus::NotLoaded,
         );
     }
 
     #[tokio::test]
-    async fn tracks_non_interactive_thread_status() {
-        let manager = ThreadWatchManager::new();
+    async fn tracks_non_interactive_chat_status() {
+        let manager = ChatWatchManager::new();
         manager
-            .upsert_thread(test_thread(
+            .upsert_chat(test_thread(
                 NON_INTERACTIVE_THREAD_ID,
                 datax_app_server_protocol::SessionSource::AppServer,
             ))
             .await;
 
-        manager.note_turn_started(NON_INTERACTIVE_THREAD_ID).await;
+        manager.note_interaction_started(NON_INTERACTIVE_THREAD_ID).await;
 
         assert_eq!(
             manager
-                .loaded_status_for_thread(NON_INTERACTIVE_THREAD_ID)
+                .loaded_status_for_chat(NON_INTERACTIVE_THREAD_ID)
                 .await,
             ChatStatus::Active {
                 active_flags: vec![],
@@ -482,18 +482,18 @@ mod tests {
 
     #[tokio::test]
     async fn status_updates_track_single_thread() {
-        let manager = ThreadWatchManager::new();
+        let manager = ChatWatchManager::new();
         manager
-            .upsert_thread(test_thread(
+            .upsert_chat(test_thread(
                 INTERACTIVE_THREAD_ID,
                 datax_app_server_protocol::SessionSource::Cli,
             ))
             .await;
 
-        manager.note_turn_started(INTERACTIVE_THREAD_ID).await;
+        manager.note_interaction_started(INTERACTIVE_THREAD_ID).await;
         assert_eq!(
             manager
-                .loaded_status_for_thread(INTERACTIVE_THREAD_ID)
+                .loaded_status_for_chat(INTERACTIVE_THREAD_ID)
                 .await,
             ChatStatus::Active {
                 active_flags: vec![],
@@ -505,7 +505,7 @@ mod tests {
             .await;
         assert_eq!(
             manager
-                .loaded_status_for_thread(INTERACTIVE_THREAD_ID)
+                .loaded_status_for_chat(INTERACTIVE_THREAD_ID)
                 .await,
             ChatStatus::Active {
                 active_flags: vec![ChatActiveFlag::WaitingOnApproval],
@@ -517,7 +517,7 @@ mod tests {
             .await;
         assert_eq!(
             manager
-                .loaded_status_for_thread(INTERACTIVE_THREAD_ID)
+                .loaded_status_for_chat(INTERACTIVE_THREAD_ID)
                 .await,
             ChatStatus::Active {
                 active_flags: vec![
@@ -548,11 +548,11 @@ mod tests {
         .await;
 
         manager
-            .note_turn_completed(INTERACTIVE_THREAD_ID, false)
+            .note_interaction_completed(INTERACTIVE_THREAD_ID, false)
             .await;
         assert_eq!(
             manager
-                .loaded_status_for_thread(INTERACTIVE_THREAD_ID)
+                .loaded_status_for_chat(INTERACTIVE_THREAD_ID)
                 .await,
             ChatStatus::Idle,
         );
@@ -560,7 +560,7 @@ mod tests {
 
     #[test]
     fn resolves_in_progress_turn_to_active_status() {
-        let status = resolve_thread_status(ChatStatus::Idle, /*has_in_progress_turn*/ true);
+        let status = resolve_chat_status(ChatStatus::Idle, /*has_in_progress_interaction*/ true);
         assert_eq!(
             status,
             ChatStatus::Active {
@@ -569,7 +569,7 @@ mod tests {
         );
 
         let status =
-            resolve_thread_status(ChatStatus::NotLoaded, /*has_in_progress_turn*/ true);
+            resolve_chat_status(ChatStatus::NotLoaded, /*has_in_progress_interaction*/ true);
         assert_eq!(
             status,
             ChatStatus::Active {
@@ -581,39 +581,39 @@ mod tests {
     #[test]
     fn keeps_status_when_no_in_progress_turn() {
         assert_eq!(
-            resolve_thread_status(ChatStatus::Idle, /*has_in_progress_turn*/ false),
+            resolve_chat_status(ChatStatus::Idle, /*has_in_progress_interaction*/ false),
             ChatStatus::Idle
         );
         assert_eq!(
-            resolve_thread_status(ChatStatus::SystemError, /*has_in_progress_turn*/ false),
+            resolve_chat_status(ChatStatus::SystemError, /*has_in_progress_interaction*/ false),
             ChatStatus::SystemError
         );
     }
 
     #[tokio::test]
     async fn system_error_sets_idle_flag_until_next_turn() {
-        let manager = ThreadWatchManager::new();
+        let manager = ChatWatchManager::new();
         manager
-            .upsert_thread(test_thread(
+            .upsert_chat(test_thread(
                 INTERACTIVE_THREAD_ID,
                 datax_app_server_protocol::SessionSource::Cli,
             ))
             .await;
 
-        manager.note_turn_started(INTERACTIVE_THREAD_ID).await;
+        manager.note_interaction_started(INTERACTIVE_THREAD_ID).await;
         manager.note_system_error(INTERACTIVE_THREAD_ID).await;
 
         assert_eq!(
             manager
-                .loaded_status_for_thread(INTERACTIVE_THREAD_ID)
+                .loaded_status_for_chat(INTERACTIVE_THREAD_ID)
                 .await,
             ChatStatus::SystemError,
         );
 
-        manager.note_turn_started(INTERACTIVE_THREAD_ID).await;
+        manager.note_interaction_started(INTERACTIVE_THREAD_ID).await;
         assert_eq!(
             manager
-                .loaded_status_for_thread(INTERACTIVE_THREAD_ID)
+                .loaded_status_for_chat(INTERACTIVE_THREAD_ID)
                 .await,
             ChatStatus::Active {
                 active_flags: vec![],
@@ -623,20 +623,20 @@ mod tests {
 
     #[tokio::test]
     async fn shutdown_marks_thread_not_loaded() {
-        let manager = ThreadWatchManager::new();
+        let manager = ChatWatchManager::new();
         manager
-            .upsert_thread(test_thread(
+            .upsert_chat(test_thread(
                 INTERACTIVE_THREAD_ID,
                 datax_app_server_protocol::SessionSource::Cli,
             ))
             .await;
 
-        manager.note_turn_started(INTERACTIVE_THREAD_ID).await;
-        manager.note_thread_shutdown(INTERACTIVE_THREAD_ID).await;
+        manager.note_interaction_started(INTERACTIVE_THREAD_ID).await;
+        manager.note_chat_shutdown(INTERACTIVE_THREAD_ID).await;
 
         assert_eq!(
             manager
-                .loaded_status_for_thread(INTERACTIVE_THREAD_ID)
+                .loaded_status_for_chat(INTERACTIVE_THREAD_ID)
                 .await,
             ChatStatus::NotLoaded,
         );
@@ -644,17 +644,17 @@ mod tests {
 
     #[tokio::test]
     async fn loaded_statuses_default_to_not_loaded_for_untracked_threads() {
-        let manager = ThreadWatchManager::new();
+        let manager = ChatWatchManager::new();
         manager
-            .upsert_thread(test_thread(
+            .upsert_chat(test_thread(
                 INTERACTIVE_THREAD_ID,
                 datax_app_server_protocol::SessionSource::Cli,
             ))
             .await;
-        manager.note_turn_started(INTERACTIVE_THREAD_ID).await;
+        manager.note_interaction_started(INTERACTIVE_THREAD_ID).await;
 
         let statuses = manager
-            .loaded_statuses_for_threads(vec![
+            .loaded_statuses_for_chats(vec![
                 INTERACTIVE_THREAD_ID.to_string(),
                 NON_INTERACTIVE_THREAD_ID.to_string(),
             ])
@@ -673,41 +673,41 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn has_running_turns_tracks_runtime_running_flag_only() {
-        let manager = ThreadWatchManager::new();
+    async fn has_running_interactions_tracks_runtime_running_flag_only() {
+        let manager = ChatWatchManager::new();
         manager
-            .upsert_thread(test_thread(
+            .upsert_chat(test_thread(
                 INTERACTIVE_THREAD_ID,
                 datax_app_server_protocol::SessionSource::Cli,
             ))
             .await;
 
-        assert_eq!(manager.running_turn_count().await, 0);
+        assert_eq!(manager.running_interaction_count().await, 0);
 
         let _permission_guard = manager
             .note_permission_requested(INTERACTIVE_THREAD_ID)
             .await;
-        assert_eq!(manager.running_turn_count().await, 0);
+        assert_eq!(manager.running_interaction_count().await, 0);
 
-        manager.note_turn_started(INTERACTIVE_THREAD_ID).await;
-        assert_eq!(manager.running_turn_count().await, 1);
+        manager.note_interaction_started(INTERACTIVE_THREAD_ID).await;
+        assert_eq!(manager.running_interaction_count().await, 1);
 
         manager
-            .note_turn_completed(INTERACTIVE_THREAD_ID, false)
+            .note_interaction_completed(INTERACTIVE_THREAD_ID, false)
             .await;
-        assert_eq!(manager.running_turn_count().await, 0);
+        assert_eq!(manager.running_interaction_count().await, 0);
     }
 
     #[tokio::test]
     async fn status_change_emits_notification() {
         let (outgoing_tx, mut outgoing_rx) = mpsc::channel(8);
-        let manager = ThreadWatchManager::new_with_outgoing(Arc::new(OutgoingMessageSender::new(
+        let manager = ChatWatchManager::new_with_outgoing(Arc::new(OutgoingMessageSender::new(
             outgoing_tx,
             datax_analytics::AnalyticsEventsClient::disabled(),
         )));
 
         manager
-            .upsert_thread(test_thread(
+            .upsert_chat(test_thread(
                 INTERACTIVE_THREAD_ID,
                 datax_app_server_protocol::SessionSource::Cli,
             ))
@@ -720,7 +720,7 @@ mod tests {
             },
         );
 
-        manager.note_turn_started(INTERACTIVE_THREAD_ID).await;
+        manager.note_interaction_started(INTERACTIVE_THREAD_ID).await;
         assert_eq!(
             recv_status_changed_notification(&mut outgoing_rx).await,
             ChatStatusChangedNotification {
@@ -744,13 +744,13 @@ mod tests {
     #[tokio::test]
     async fn silent_upsert_skips_initial_notification() {
         let (outgoing_tx, mut outgoing_rx) = mpsc::channel(8);
-        let manager = ThreadWatchManager::new_with_outgoing(Arc::new(OutgoingMessageSender::new(
+        let manager = ChatWatchManager::new_with_outgoing(Arc::new(OutgoingMessageSender::new(
             outgoing_tx,
             datax_analytics::AnalyticsEventsClient::disabled(),
         )));
 
         manager
-            .upsert_thread_silently(test_thread(
+            .upsert_chat_silently(test_thread(
                 INTERACTIVE_THREAD_ID,
                 datax_app_server_protocol::SessionSource::Cli,
             ))
@@ -758,7 +758,7 @@ mod tests {
 
         assert_eq!(
             manager
-                .loaded_status_for_thread(INTERACTIVE_THREAD_ID)
+                .loaded_status_for_chat(INTERACTIVE_THREAD_ID)
                 .await,
             ChatStatus::Idle,
         );
@@ -769,7 +769,7 @@ mod tests {
             "silent upsert should not emit chat/status/changed"
         );
 
-        manager.note_turn_started(INTERACTIVE_THREAD_ID).await;
+        manager.note_interaction_started(INTERACTIVE_THREAD_ID).await;
         assert_eq!(
             recv_status_changed_notification(&mut outgoing_rx).await,
             ChatStatusChangedNotification {
@@ -783,15 +783,15 @@ mod tests {
 
     #[tokio::test]
     async fn status_watchers_receive_only_their_thread_updates() {
-        let manager = ThreadWatchManager::new();
+        let manager = ChatWatchManager::new();
         manager
-            .upsert_thread(test_thread(
+            .upsert_chat(test_thread(
                 INTERACTIVE_THREAD_ID,
                 datax_app_server_protocol::SessionSource::Cli,
             ))
             .await;
         manager
-            .upsert_thread(test_thread(
+            .upsert_chat(test_thread(
                 NON_INTERACTIVE_THREAD_ID,
                 datax_app_server_protocol::SessionSource::AppServer,
             ))
@@ -809,7 +809,7 @@ mod tests {
             .await
             .expect("non-interactive status watcher should subscribe");
 
-        manager.note_turn_started(INTERACTIVE_THREAD_ID).await;
+        manager.note_interaction_started(INTERACTIVE_THREAD_ID).await;
 
         timeout(Duration::from_secs(1), interactive_rx.changed())
             .await
@@ -831,13 +831,13 @@ mod tests {
     }
 
     async fn wait_for_status(
-        manager: &ThreadWatchManager,
+        manager: &ChatWatchManager,
         chat_id: &str,
         expected_status: ChatStatus,
     ) {
         timeout(Duration::from_secs(1), async {
             loop {
-                let status = manager.loaded_status_for_thread(chat_id).await;
+                let status = manager.loaded_status_for_chat(chat_id).await;
                 if status == expected_status {
                     break;
                 }

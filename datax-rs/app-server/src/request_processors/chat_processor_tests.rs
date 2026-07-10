@@ -285,7 +285,7 @@ mod thread_processor_behavior_tests {
     }
 
     #[test]
-    fn thread_turns_list_merges_in_progress_active_turn_before_agent_status_running() {
+    fn thread_interactions_list_merges_in_progress_active_interaction_before_agent_status_running() {
         let persisted_items = vec![RolloutMessage::EventMsg(EventMsg::UserMessage(
             datax_protocol::protocol::UserMessageEvent {
                 client_id: None,
@@ -296,7 +296,7 @@ mod thread_processor_behavior_tests {
                 ..Default::default()
             },
         ))];
-        let active_turn = Interaction {
+        let active_interaction = Interaction {
             id: "live-turn".to_string(),
             messages: vec![Message::UserMessage {
                 id: "live-user-message".to_string(),
@@ -314,14 +314,14 @@ mod thread_processor_behavior_tests {
             duration_ms: None,
         };
 
-        let interactions = reconstruct_thread_turns_for_turns_list(
+        let interactions = reconstruct_chat_interactions_for_interactions_list(
             &persisted_items,
             ChatStatus::Idle,
             /*has_live_running_thread*/ false,
-            Some(active_turn.clone()),
+            Some(active_interaction.clone()),
         );
 
-        assert_eq!(interactions.last(), Some(&active_turn));
+        assert_eq!(interactions.last(), Some(&active_interaction));
     }
 
     #[test]
@@ -458,14 +458,14 @@ mod thread_processor_behavior_tests {
     }
 
     #[test]
-    fn summary_from_stored_thread_preserves_millisecond_precision() {
+    fn summary_from_stored_chat_preserves_millisecond_precision() {
         let created_at =
             DateTime::parse_from_rfc3339("2025-01-02T03:04:05.678Z").expect("valid timestamp");
         let updated_at =
             DateTime::parse_from_rfc3339("2025-01-02T03:04:06.789Z").expect("valid timestamp");
         let chat_id =
             ChatId::from_string("00000000-0000-0000-0000-000000000123").expect("valid thread");
-        let stored_thread = StoredChat {
+        let stored_chat = StoredChat {
             chat_id: chat_id,
             extra_config: None,
             rollout_path: Some(PathBuf::from("/tmp/thread.jsonl")),
@@ -495,7 +495,7 @@ mod thread_processor_behavior_tests {
             history: None,
         };
 
-        let summary = summary_from_stored_thread(stored_thread, "fallback");
+        let summary = summary_from_stored_chat(stored_chat, "fallback");
 
         assert_eq!(
             summary.timestamp.as_deref(),
@@ -788,7 +788,7 @@ mod thread_processor_behavior_tests {
         );
     }
 
-    fn test_thread_metadata(
+    fn test_chat_metadata(
         model: Option<&str>,
         reasoning_effort: Option<ReasoningEffort>,
     ) -> Result<ThreadMetadata> {
@@ -807,15 +807,15 @@ mod thread_processor_behavior_tests {
     }
 
     #[test]
-    fn summary_from_thread_metadata_formats_protocol_timestamps_as_seconds() -> Result<()> {
+    fn summary_from_chat_metadata_formats_protocol_timestamps_as_seconds() -> Result<()> {
         let mut metadata =
-            test_thread_metadata(/*model*/ None, /*reasoning_effort*/ None)?;
+            test_chat_metadata(/*model*/ None, /*reasoning_effort*/ None)?;
         metadata.created_at =
             DateTime::parse_from_rfc3339("2025-09-05T16:53:11.123Z")?.with_timezone(&Utc);
         metadata.updated_at =
             DateTime::parse_from_rfc3339("2025-09-05T16:53:12.456Z")?.with_timezone(&Utc);
 
-        let summary = summary_from_thread_metadata(&metadata);
+        let summary = summary_from_chat_metadata(&metadata);
 
         assert_eq!(summary.timestamp, Some("2025-09-05T16:53:11Z".to_string()));
         assert_eq!(summary.updated_at, Some("2025-09-05T16:53:12Z".to_string()));
@@ -828,7 +828,7 @@ mod thread_processor_behavior_tests {
         let mut request_overrides = None;
         let mut typesafe_overrides = ConfigOverrides::default();
         let persisted_metadata =
-            test_thread_metadata(Some("gpt-5.1-codex-max"), Some(ReasoningEffort::High))?;
+            test_chat_metadata(Some("gpt-5.1-codex-max"), Some(ReasoningEffort::High))?;
 
         merge_persisted_resume_metadata(
             &mut request_overrides,
@@ -865,7 +865,7 @@ mod thread_processor_behavior_tests {
             ..Default::default()
         };
         let persisted_metadata =
-            test_thread_metadata(Some("gpt-5.1-codex-max"), Some(ReasoningEffort::High))?;
+            test_chat_metadata(Some("gpt-5.1-codex-max"), Some(ReasoningEffort::High))?;
 
         merge_persisted_resume_metadata(
             &mut request_overrides,
@@ -894,7 +894,7 @@ mod thread_processor_behavior_tests {
         )]));
         let mut typesafe_overrides = ConfigOverrides::default();
         let persisted_metadata =
-            test_thread_metadata(Some("gpt-5.1-codex-max"), Some(ReasoningEffort::High))?;
+            test_chat_metadata(Some("gpt-5.1-codex-max"), Some(ReasoningEffort::High))?;
 
         merge_persisted_resume_metadata(
             &mut request_overrides,
@@ -923,7 +923,7 @@ mod thread_processor_behavior_tests {
             ..Default::default()
         };
         let persisted_metadata =
-            test_thread_metadata(Some("gpt-5.1-codex-max"), Some(ReasoningEffort::High))?;
+            test_chat_metadata(Some("gpt-5.1-codex-max"), Some(ReasoningEffort::High))?;
 
         merge_persisted_resume_metadata(
             &mut request_overrides,
@@ -946,7 +946,7 @@ mod thread_processor_behavior_tests {
         )]));
         let mut typesafe_overrides = ConfigOverrides::default();
         let persisted_metadata =
-            test_thread_metadata(Some("gpt-5.1-codex-max"), Some(ReasoningEffort::High))?;
+            test_chat_metadata(Some("gpt-5.1-codex-max"), Some(ReasoningEffort::High))?;
 
         merge_persisted_resume_metadata(
             &mut request_overrides,
@@ -971,7 +971,7 @@ mod thread_processor_behavior_tests {
         let mut request_overrides = None;
         let mut typesafe_overrides = ConfigOverrides::default();
         let persisted_metadata =
-            test_thread_metadata(/*model*/ None, /*reasoning_effort*/ None)?;
+            test_chat_metadata(/*model*/ None, /*reasoning_effort*/ None)?;
 
         merge_persisted_resume_metadata(
             &mut request_overrides,
@@ -1236,8 +1236,8 @@ mod thread_processor_behavior_tests {
     }
 
     #[tokio::test]
-    async fn removing_thread_state_clears_listener_and_active_turn_history() -> Result<()> {
-        let manager = ThreadStateManager::new();
+    async fn removing_chat_state_clears_listener_and_active_interaction_history() -> Result<()> {
+        let manager = ChatStateManager::new();
         let chat_id = ChatId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
         let connection = ConnectionId(1);
         let (cancel_tx, cancel_rx) = oneshot::channel();
@@ -1252,10 +1252,10 @@ mod thread_processor_behavior_tests {
             .await
             .expect("connection should be live");
         {
-            let state = manager.thread_state(chat_id).await;
+            let state = manager.chat_state(chat_id).await;
             let mut state = state.lock().await;
             state.cancel_tx = Some(cancel_tx);
-            state.track_current_turn_event(
+            state.track_current_interaction_event(
                 "turn-1",
                 &EventMsg::InteractionStarted(datax_protocol::protocol::InteractionStartedEvent {
                     interaction_id: "turn-1".to_string(),
@@ -1270,19 +1270,19 @@ mod thread_processor_behavior_tests {
         manager.remove_chat_state(chat_id).await;
         assert_eq!(cancel_rx.await, Ok(()));
 
-        let state = manager.thread_state(chat_id).await;
+        let state = manager.chat_state(chat_id).await;
         let subscribed_connection_ids = manager.subscribed_connection_ids(chat_id).await;
         assert!(subscribed_connection_ids.is_empty());
         let state = state.lock().await;
         assert!(state.cancel_tx.is_none());
-        assert!(state.active_turn_snapshot().is_none());
+        assert!(state.active_interaction_snapshot().is_none());
         Ok(())
     }
 
     #[tokio::test]
     async fn removing_auto_attached_connection_preserves_listener_for_other_connections()
     -> Result<()> {
-        let manager = ThreadStateManager::new();
+        let manager = ChatStateManager::new();
         let chat_id = ChatId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
         let connection_a = ConnectionId(1);
         let connection_b = ConnectionId(2);
@@ -1311,7 +1311,7 @@ mod thread_processor_behavior_tests {
             .await
             .expect("connection_b should be live");
         {
-            let state = manager.thread_state(chat_id).await;
+            let state = manager.chat_state(chat_id).await;
             state.lock().await.cancel_tx = Some(cancel_tx);
         }
 
@@ -1332,7 +1332,7 @@ mod thread_processor_behavior_tests {
 
     #[tokio::test]
     async fn adding_connection_to_thread_updates_has_connections_watcher() -> Result<()> {
-        let manager = ThreadStateManager::new();
+        let manager = ChatStateManager::new();
         let chat_id = ChatId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
         let connection_a = ConnectionId(1);
         let connection_b = ConnectionId(2);
@@ -1359,7 +1359,7 @@ mod thread_processor_behavior_tests {
 
         assert!(
             manager
-                .unsubscribe_connection_from_thread(chat_id, connection_a)
+                .unsubscribe_connection_from_chat(chat_id, connection_a)
                 .await
         );
         tokio::time::timeout(Duration::from_secs(1), has_connections.changed())
@@ -1370,7 +1370,7 @@ mod thread_processor_behavior_tests {
 
         assert!(
             manager
-                .try_add_connection_to_thread(chat_id, connection_b)
+                .try_add_connection_to_chat(chat_id, connection_b)
                 .await
         );
         tokio::time::timeout(Duration::from_secs(1), has_connections.changed())
@@ -1382,19 +1382,19 @@ mod thread_processor_behavior_tests {
     }
 
     #[tokio::test]
-    async fn wait_for_thread_subscriber_unblocks_after_connection_attaches() -> Result<()> {
-        let manager = ThreadStateManager::new();
+    async fn wait_for_chat_subscriber_unblocks_after_connection_attaches() -> Result<()> {
+        let manager = ChatStateManager::new();
         let chat_id = ChatId::from_string("ba62fd70-2ec2-4b1b-9d94-355694332dd2")?;
         let connection = ConnectionId(1);
         manager
             .connection_initialized(connection, ConnectionCapabilities::default())
             .await;
 
-        let wait_for_subscriber = manager.wait_for_thread_subscriber(chat_id);
+        let wait_for_subscriber = manager.wait_for_chat_subscriber(chat_id);
         let attach_connection = async {
             tokio::task::yield_now().await;
             manager
-                .try_add_connection_to_thread(chat_id, connection)
+                .try_add_connection_to_chat(chat_id, connection)
                 .await
         };
         let ((), attached) = tokio::time::timeout(Duration::from_secs(1), async {
@@ -1408,7 +1408,7 @@ mod thread_processor_behavior_tests {
 
     #[tokio::test]
     async fn closed_connection_cannot_be_reintroduced_by_auto_subscribe() -> Result<()> {
-        let manager = ThreadStateManager::new();
+        let manager = ChatStateManager::new();
         let chat_id = ChatId::from_string("ad7f0408-99b8-4f6e-a46f-bd0eec433370")?;
         let connection = ConnectionId(1);
 
@@ -1431,9 +1431,9 @@ mod thread_processor_behavior_tests {
     }
 
     #[tokio::test]
-    async fn first_attestation_capable_connection_for_thread_only_uses_thread_subscribers()
+    async fn first_attestation_capable_connection_for_chat_only_uses_thread_subscribers()
     -> Result<()> {
-        let manager = ThreadStateManager::new();
+        let manager = ChatStateManager::new();
         let chat_id = ChatId::from_string("dfbd9a95-2f44-470a-8bd8-1cfc04efc243")?;
         let other_chat_id = ChatId::from_string("6c9a74e4-5e59-479e-90bf-5c5798bb50aa")?;
         let unrelated_supported_connection = ConnectionId(1);
@@ -1471,34 +1471,34 @@ mod thread_processor_behavior_tests {
 
         assert!(
             manager
-                .try_add_connection_to_thread(other_chat_id, unrelated_supported_connection)
+                .try_add_connection_to_chat(other_chat_id, unrelated_supported_connection)
                 .await
         );
         assert!(
             manager
-                .try_add_connection_to_thread(chat_id, later_supported_connection)
+                .try_add_connection_to_chat(chat_id, later_supported_connection)
                 .await
         );
         assert!(
             manager
-                .try_add_connection_to_thread(chat_id, earlier_supported_connection)
+                .try_add_connection_to_chat(chat_id, earlier_supported_connection)
                 .await
         );
         assert!(
             manager
-                .try_add_connection_to_thread(chat_id, unsupported_connection)
+                .try_add_connection_to_chat(chat_id, unsupported_connection)
                 .await
         );
 
         assert_eq!(
             manager
-                .first_attestation_capable_connection_for_thread(chat_id)
+                .first_attestation_capable_connection_for_chat(chat_id)
                 .await,
             Some(earlier_supported_connection)
         );
         assert_eq!(
             manager
-                .first_attestation_capable_connection_for_thread(other_chat_id)
+                .first_attestation_capable_connection_for_chat(other_chat_id)
                 .await,
             Some(unrelated_supported_connection)
         );

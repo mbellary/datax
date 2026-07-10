@@ -4,108 +4,108 @@ use std::future::Future;
 use std::pin::Pin;
 
 use crate::AppendChatMessagesParams;
-use crate::ArchiveThreadParams;
-use crate::CreateThreadParams;
-use crate::DeleteThreadParams;
+use crate::ArchiveChatParams;
+use crate::CreateChatParams;
+use crate::DeleteChatParams;
 use crate::MessagePage;
 use crate::ListMessagesParams;
-use crate::ListThreadsParams;
+use crate::ListChatsParams;
 use crate::ListInteractionsParams;
-use crate::LoadThreadHistoryParams;
-use crate::ReadThreadByRolloutPathParams;
-use crate::ReadThreadParams;
-use crate::ResumeThreadParams;
-use crate::SearchThreadsParams;
+use crate::LoadChatHistoryParams;
+use crate::ReadChatByRolloutPathParams;
+use crate::ReadChatParams;
+use crate::ResumeChatParams;
+use crate::SearchChatsParams;
 use crate::StoredChat;
 use crate::StoredChatHistory;
 use crate::ChatPage;
 use crate::ChatSearchPage;
-use crate::ThreadStoreError;
-use crate::ThreadStoreResult;
+use crate::ChatStoreError;
+use crate::ChatStoreResult;
 use crate::InteractionPage;
-use crate::UpdateThreadMetadataParams;
+use crate::UpdateChatMetadataParams;
 
-/// Future returned by [`ThreadStore`] operations.
-pub type ThreadStoreFuture<'a, T> = Pin<Box<dyn Future<Output = ThreadStoreResult<T>> + Send + 'a>>;
+/// Future returned by [`ChatStore`] operations.
+pub type ChatStoreFuture<'a, T> = Pin<Box<dyn Future<Output = ChatStoreResult<T>> + Send + 'a>>;
 
-/// Storage-neutral thread persistence boundary.
-pub trait ThreadStore: Any + Send + Sync {
+/// Storage-neutral chat persistence boundary.
+pub trait ChatStore: Any + Send + Sync {
     /// Return this store as [`Any`] for implementation-owned escape hatches.
     fn as_any(&self) -> &dyn Any;
 
     /// Creates a new live thread.
-    fn create_thread(&self, params: CreateThreadParams) -> ThreadStoreFuture<'_, ()>;
+    fn create_chat(&self, params: CreateChatParams) -> ChatStoreFuture<'_, ()>;
 
     /// Reopens an existing thread for live appends.
-    fn resume_thread(&self, params: ResumeThreadParams) -> ThreadStoreFuture<'_, ()>;
+    fn resume_chat(&self, params: ResumeChatParams) -> ChatStoreFuture<'_, ()>;
 
     /// Appends raw rollout items to a live thread.
     ///
     /// Implementations should apply the shared rollout persistence policy before writing durable
     /// replay history and before updating any implementation-owned projections.
-    fn append_items(&self, params: AppendChatMessagesParams) -> ThreadStoreFuture<'_, ()>;
+    fn append_items(&self, params: AppendChatMessagesParams) -> ChatStoreFuture<'_, ()>;
 
     /// Materializes the thread if persistence is lazy, then persists all queued items.
-    fn persist_thread(&self, chat_id: ChatId) -> ThreadStoreFuture<'_, ()>;
+    fn persist_chat(&self, chat_id: ChatId) -> ChatStoreFuture<'_, ()>;
 
     /// Flushes all queued items and returns once they are durable/readable.
-    fn flush_thread(&self, chat_id: ChatId) -> ThreadStoreFuture<'_, ()>;
+    fn flush_chat(&self, chat_id: ChatId) -> ChatStoreFuture<'_, ()>;
 
     /// Flushes pending items and closes the live thread writer.
-    fn shutdown_thread(&self, chat_id: ChatId) -> ThreadStoreFuture<'_, ()>;
+    fn shutdown_chat(&self, chat_id: ChatId) -> ChatStoreFuture<'_, ()>;
 
     /// Discards the live thread writer without forcing pending in-memory items to become durable.
     ///
     /// Core calls this when session initialization fails after a live writer has been created.
     /// Implementations should release any live writer resources for the thread while preserving
     /// already-durable thread data.
-    fn discard_thread(&self, chat_id: ChatId) -> ThreadStoreFuture<'_, ()>;
+    fn discard_chat(&self, chat_id: ChatId) -> ChatStoreFuture<'_, ()>;
 
     /// Loads persisted history for resume, fork, rollback, and memory jobs.
     fn load_history(
         &self,
-        params: LoadThreadHistoryParams,
-    ) -> ThreadStoreFuture<'_, StoredChatHistory>;
+        params: LoadChatHistoryParams,
+    ) -> ChatStoreFuture<'_, StoredChatHistory>;
 
     /// Reads a thread summary and optionally its persisted history.
-    fn read_thread(&self, params: ReadThreadParams) -> ThreadStoreFuture<'_, StoredChat>;
+    fn read_chat(&self, params: ReadChatParams) -> ChatStoreFuture<'_, StoredChat>;
 
     /// Reads a rollout-backed thread by path when the store supports path-addressed lookups.
     ///
-    /// Deprecated: new callers should use [`ThreadStore::read_thread`] instead.
-    fn read_thread_by_rollout_path(
+    /// Deprecated: new callers should use [`ChatStore::read_chat`] instead.
+    fn read_chat_by_rollout_path(
         &self,
-        params: ReadThreadByRolloutPathParams,
-    ) -> ThreadStoreFuture<'_, StoredChat>;
+        params: ReadChatByRolloutPathParams,
+    ) -> ChatStoreFuture<'_, StoredChat>;
 
     /// Lists stored threads matching the supplied filters.
-    fn list_threads(&self, params: ListThreadsParams) -> ThreadStoreFuture<'_, ChatPage>;
+    fn list_chats(&self, params: ListChatsParams) -> ChatStoreFuture<'_, ChatPage>;
 
     /// Searches stored threads and returns search-only preview metadata.
-    fn search_threads(
+    fn search_chats(
         &self,
-        _params: SearchThreadsParams,
-    ) -> ThreadStoreFuture<'_, ChatSearchPage> {
+        _params: SearchChatsParams,
+    ) -> ChatStoreFuture<'_, ChatSearchPage> {
         Box::pin(async {
-            Err(ThreadStoreError::Unsupported {
+            Err(ChatStoreError::Unsupported {
                 operation: "thread/search",
             })
         })
     }
 
     /// Lists turns within a stored thread.
-    fn list_turns(&self, _params: ListInteractionsParams) -> ThreadStoreFuture<'_, InteractionPage> {
+    fn list_interactions(&self, _params: ListInteractionsParams) -> ChatStoreFuture<'_, InteractionPage> {
         Box::pin(async {
-            Err(ThreadStoreError::Unsupported {
-                operation: "list_turns",
+            Err(ChatStoreError::Unsupported {
+                operation: "list_interactions",
             })
         })
     }
 
     /// Lists persisted items within a stored thread, optionally filtered to a turn.
-    fn list_messages(&self, _params: ListMessagesParams) -> ThreadStoreFuture<'_, MessagePage> {
+    fn list_messages(&self, _params: ListMessagesParams) -> ChatStoreFuture<'_, MessagePage> {
         Box::pin(async {
-            Err(ThreadStoreError::Unsupported {
+            Err(ChatStoreError::Unsupported {
                 operation: "list_messages",
             })
         })
@@ -115,17 +115,17 @@ pub trait ThreadStore: Any + Send + Sync {
     ///
     /// Implementations should apply the supplied fields directly. Policy such as deciding whether
     /// an append-derived preview should be emitted belongs above the store.
-    fn update_thread_metadata(
+    fn update_chat_metadata(
         &self,
-        params: UpdateThreadMetadataParams,
-    ) -> ThreadStoreFuture<'_, StoredChat>;
+        params: UpdateChatMetadataParams,
+    ) -> ChatStoreFuture<'_, StoredChat>;
 
     /// Archives a thread.
-    fn archive_thread(&self, params: ArchiveThreadParams) -> ThreadStoreFuture<'_, ()>;
+    fn archive_chat(&self, params: ArchiveChatParams) -> ChatStoreFuture<'_, ()>;
 
     /// Unarchives a thread and returns its updated metadata.
-    fn unarchive_thread(&self, params: ArchiveThreadParams) -> ThreadStoreFuture<'_, StoredChat>;
+    fn unarchive_chat(&self, params: ArchiveChatParams) -> ChatStoreFuture<'_, StoredChat>;
 
     /// Deletes a thread's persisted rollout data and associated metadata.
-    fn delete_thread(&self, params: DeleteThreadParams) -> ThreadStoreFuture<'_, ()>;
+    fn delete_chat(&self, params: DeleteChatParams) -> ChatStoreFuture<'_, ()>;
 }

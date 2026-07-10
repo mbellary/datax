@@ -14,23 +14,23 @@ use tokio::time::timeout;
 use tracing::warn;
 
 use crate::outgoing_message::OutgoingMessageSender;
-use crate::thread_state::ThreadStateManager;
+use crate::chat_state::ChatStateManager;
 
 const ATTESTATION_GENERATE_TIMEOUT: Duration = Duration::from_millis(100);
 
 pub(crate) fn app_server_attestation_provider(
     outgoing: Arc<OutgoingMessageSender>,
-    thread_state_manager: ThreadStateManager,
+    chat_state_manager: ChatStateManager,
 ) -> Arc<dyn AttestationProvider> {
     Arc::new(AppServerAttestationProvider {
         outgoing: Arc::downgrade(&outgoing),
-        thread_state_manager,
+        chat_state_manager,
     })
 }
 
 struct AppServerAttestationProvider {
     outgoing: Weak<OutgoingMessageSender>,
-    thread_state_manager: ThreadStateManager,
+    chat_state_manager: ChatStateManager,
 }
 
 impl std::fmt::Debug for AppServerAttestationProvider {
@@ -46,11 +46,11 @@ impl AttestationProvider for AppServerAttestationProvider {
         let Some(outgoing) = self.outgoing.upgrade() else {
             return Box::pin(async { None });
         };
-        let thread_state_manager = self.thread_state_manager.clone();
+        let chat_state_manager = self.chat_state_manager.clone();
         Box::pin(async move {
             request_attestation_header_value_with_timeout(
                 outgoing,
-                thread_state_manager,
+                chat_state_manager,
                 context.chat_id,
                 ATTESTATION_GENERATE_TIMEOUT,
             )
@@ -62,12 +62,12 @@ impl AttestationProvider for AppServerAttestationProvider {
 
 async fn request_attestation_header_value_with_timeout(
     outgoing: Arc<OutgoingMessageSender>,
-    thread_state_manager: ThreadStateManager,
+    chat_state_manager: ChatStateManager,
     chat_id: datax_protocol::ChatId,
     timeout_duration: Duration,
 ) -> Option<String> {
-    let connection_id = thread_state_manager
-        .first_attestation_capable_connection_for_thread(chat_id)
+    let connection_id = chat_state_manager
+        .first_attestation_capable_connection_for_chat(chat_id)
         .await?;
 
     let connection_ids = [connection_id];

@@ -356,16 +356,16 @@ async fn start_chat_seeds_extension_data_for_mcp_and_lifecycle_contributors() {
         ) -> datax_extension_api::ExtensionFuture<'a, ()> {
             Box::pin(async move {
                 let selected_root = input
-                    .thread_store
+                    .chat_store
                     .get::<Vec<SelectedCapabilityRoot>>()
                     .and_then(|roots| roots.first().cloned())
                     .expect("selected root should be available");
                 self.lifecycle_observed
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .push((input.thread_store.level_id().to_string(), selected_root.id));
+                    .push((input.chat_store.level_id().to_string(), selected_root.id));
                 input
-                    .thread_store
+                    .chat_store
                     .insert(Vec::<SelectedCapabilityRoot>::new());
             })
         }
@@ -436,7 +436,7 @@ async fn start_chat_seeds_extension_data_for_mcp_and_lifecycle_contributors() {
         Arc::new(extensions.build()),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
-        thread_store_from_config(&config, /*state_db*/ None),
+        chat_store_from_config(&config, /*state_db*/ None),
         /*state_db*/ None,
         TEST_INSTALLATION_ID.to_string(),
         /*attestation_provider*/ None,
@@ -542,7 +542,7 @@ async fn resume_and_fork_do_not_restore_thread_environments_from_rollout() {
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
-        thread_store_from_config(&config, /*state_db*/ None),
+        chat_store_from_config(&config, /*state_db*/ None),
         /*state_db*/ None,
         TEST_INSTALLATION_ID.to_string(),
         /*attestation_provider*/ None,
@@ -591,7 +591,7 @@ async fn resume_and_fork_do_not_restore_thread_environments_from_rollout() {
     let _ = manager.remove_chat(&source.chat_id).await;
 
     let resumed = manager
-        .resume_thread_from_rollout(
+        .resume_chat_from_rollout(
             config.clone(),
             rollout_path.clone(),
             auth_manager,
@@ -657,7 +657,7 @@ async fn explicit_installation_id_skips_codex_home_file() {
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing());
     let installation_id = uuid::Uuid::new_v4().to_string();
     let state_db = init_state_db(&config).await;
-    let thread_store = thread_store_from_config(&config, state_db.clone());
+    let chat_store = chat_store_from_config(&config, state_db.clone());
     let manager = ChatManager::new(
         &config,
         auth_manager,
@@ -666,7 +666,7 @@ async fn explicit_installation_id_skips_codex_home_file() {
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
-        thread_store,
+        chat_store,
         state_db.clone(),
         installation_id.clone(),
         /*attestation_provider*/ None,
@@ -707,7 +707,7 @@ async fn resume_active_thread_from_rollout_returns_running_thread() {
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
-        thread_store_from_config(&config, /*state_db*/ None),
+        chat_store_from_config(&config, /*state_db*/ None),
         /*state_db*/ None,
         TEST_INSTALLATION_ID.to_string(),
         /*attestation_provider*/ None,
@@ -730,7 +730,7 @@ async fn resume_active_thread_from_rollout_returns_running_thread() {
         .expect("source rollout path should exist");
 
     let resumed = manager
-        .resume_thread_from_rollout(
+        .resume_chat_from_rollout(
             config,
             rollout_path,
             auth_manager,
@@ -767,7 +767,7 @@ async fn resume_stopped_thread_from_rollout_spawns_new_thread() {
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
-        thread_store_from_config(&config, /*state_db*/ None),
+        chat_store_from_config(&config, /*state_db*/ None),
         /*state_db*/ None,
         TEST_INSTALLATION_ID.to_string(),
         /*attestation_provider*/ None,
@@ -795,7 +795,7 @@ async fn resume_stopped_thread_from_rollout_spawns_new_thread() {
         .expect("shutdown source thread");
 
     let resumed = manager
-        .resume_thread_from_rollout(
+        .resume_chat_from_rollout(
             config,
             rollout_path,
             auth_manager,
@@ -825,7 +825,7 @@ async fn resume_stopped_thread_from_rollout_preserves_thread_source() {
     let auth_manager =
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing());
     let state_db = init_state_db(&config).await;
-    let thread_store = thread_store_from_config(&config, state_db.clone());
+    let chat_store = chat_store_from_config(&config, state_db.clone());
     let manager = ChatManager::new(
         &config,
         auth_manager.clone(),
@@ -834,7 +834,7 @@ async fn resume_stopped_thread_from_rollout_preserves_thread_source() {
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
-        thread_store,
+        chat_store,
         state_db.clone(),
         TEST_INSTALLATION_ID.to_string(),
         /*attestation_provider*/ None,
@@ -874,7 +874,7 @@ async fn resume_stopped_thread_from_rollout_preserves_thread_source() {
     let _ = manager.remove_chat(&source.chat_id).await;
 
     let resumed = manager
-        .resume_thread_from_rollout(
+        .resume_chat_from_rollout(
             config,
             rollout_path,
             auth_manager,
@@ -897,12 +897,12 @@ async fn resume_stopped_thread_from_rollout_preserves_thread_source() {
 }
 
 #[tokio::test]
-async fn rollout_path_resume_and_fork_read_history_through_thread_store() {
+async fn rollout_path_resume_and_fork_read_history_through_chat_store() {
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
     config.codex_home = temp_dir.path().join("datax-home").abs();
     config.cwd = config.codex_home.abs();
-    config.experimental_thread_store = ThreadStoreConfig::InMemory {
+    config.experimental_chat_store = ChatStoreConfig::InMemory {
         id: format!("thread-manager-{}", uuid::Uuid::new_v4()),
     };
     std::fs::create_dir_all(&config.codex_home).expect("create codex home");
@@ -910,10 +910,10 @@ async fn rollout_path_resume_and_fork_read_history_through_thread_store() {
     let auth_manager =
         AuthManager::from_auth_for_testing(CodexAuth::create_dummy_chatgpt_auth_for_testing());
     let state_db = init_state_db(&config).await;
-    let thread_store = thread_store_from_config(&config, state_db.clone());
-    let in_memory_store = thread_store
+    let chat_store = chat_store_from_config(&config, state_db.clone());
+    let in_memory_store = chat_store
         .as_any()
-        .downcast_ref::<InMemoryThreadStore>()
+        .downcast_ref::<InMemoryChatStore>()
         .expect("configured in-memory store");
     let manager = ChatManager::new(
         &config,
@@ -923,7 +923,7 @@ async fn rollout_path_resume_and_fork_read_history_through_thread_store() {
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
-        thread_store.clone(),
+        chat_store.clone(),
         state_db,
         TEST_INSTALLATION_ID.to_string(),
         /*attestation_provider*/ None,
@@ -946,7 +946,7 @@ async fn rollout_path_resume_and_fork_read_history_through_thread_store() {
         .join("rollouts/source.jsonl")
         .to_path_buf();
     let resumed = manager
-        .resume_thread_with_history(
+        .resume_chat_with_history(
             config.clone(),
             InitialHistory::Resumed(ResumedHistory {
                 conversation_id: source.chat_id,
@@ -967,7 +967,7 @@ async fn rollout_path_resume_and_fork_read_history_through_thread_store() {
     let _ = manager.remove_chat(&resumed.chat_id).await;
 
     let resumed_from_path = manager
-        .resume_thread_from_rollout(
+        .resume_chat_from_rollout(
             config.clone(),
             rollout_path.clone(),
             auth_manager,
@@ -991,7 +991,7 @@ async fn rollout_path_resume_and_fork_read_history_through_thread_store() {
     assert_ne!(forked.chat_id, resumed.chat_id);
 
     let calls = in_memory_store.calls().await;
-    assert_eq!(calls.read_thread_by_rollout_path, 2);
+    assert_eq!(calls.read_chat_by_rollout_path, 2);
 
     resumed_from_path
         .chat
@@ -1028,7 +1028,7 @@ async fn new_uses_active_provider_for_model_refresh() {
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
-        thread_store_from_config(&config, /*state_db*/ None),
+        chat_store_from_config(&config, /*state_db*/ None),
         /*state_db*/ None,
         TEST_INSTALLATION_ID.to_string(),
         /*attestation_provider*/ None,
@@ -1250,7 +1250,7 @@ async fn interrupted_fork_snapshot_does_not_synthesize_interaction_id_for_legacy
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
-        thread_store_from_config(&config, state_db.clone()),
+        chat_store_from_config(&config, state_db.clone()),
         state_db.clone(),
         TEST_INSTALLATION_ID.to_string(),
         /*attestation_provider*/ None,
@@ -1258,7 +1258,7 @@ async fn interrupted_fork_snapshot_does_not_synthesize_interaction_id_for_legacy
     );
 
     let source = manager
-        .resume_thread_with_history(
+        .resume_chat_with_history(
             config.clone(),
             InitialHistory::Forked(vec![
                 RolloutMessage::ResponseItem(user_msg("hello")),
@@ -1359,7 +1359,7 @@ async fn interrupted_fork_snapshot_preserves_explicit_interaction_id() {
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
-        thread_store_from_config(&config, state_db.clone()),
+        chat_store_from_config(&config, state_db.clone()),
         state_db.clone(),
         TEST_INSTALLATION_ID.to_string(),
         /*attestation_provider*/ None,
@@ -1367,7 +1367,7 @@ async fn interrupted_fork_snapshot_preserves_explicit_interaction_id() {
     );
 
     let source = manager
-        .resume_thread_with_history(
+        .resume_chat_with_history(
             config.clone(),
             InitialHistory::Forked(vec![
                 RolloutMessage::EventMsg(EventMsg::InteractionStarted(InteractionStartedEvent {
@@ -1458,7 +1458,7 @@ async fn interrupted_fork_snapshot_uses_persisted_mid_turn_history_without_live_
         empty_extension_registry(),
         Arc::new(crate::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
-        thread_store_from_config(&config, state_db.clone()),
+        chat_store_from_config(&config, state_db.clone()),
         state_db.clone(),
         TEST_INSTALLATION_ID.to_string(),
         /*attestation_provider*/ None,
@@ -1466,7 +1466,7 @@ async fn interrupted_fork_snapshot_uses_persisted_mid_turn_history_without_live_
     );
 
     let source = manager
-        .resume_thread_with_history(
+        .resume_chat_with_history(
             config.clone(),
             InitialHistory::Forked(vec![
                 RolloutMessage::ResponseItem(user_msg("hello")),

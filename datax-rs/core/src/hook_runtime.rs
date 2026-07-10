@@ -35,7 +35,7 @@ use datax_protocol::protocol::HookSource;
 use datax_protocol::protocol::HookStartedEvent;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
-use datax_thread_store::ReadThreadParams;
+use datax_thread_store::ReadChatParams;
 use serde_json::Value;
 use tracing::instrument;
 
@@ -313,8 +313,8 @@ pub(crate) async fn run_turn_stop_hooks(
             let agent_transcript_path = sess.hook_transcript_path().await;
             let parent_transcript_path = match sess
                 .services
-                .thread_store
-                .read_thread(ReadThreadParams {
+                .chat_store
+                .read_chat(ReadChatParams {
                     chat_id: *parent_chat_id,
                     include_archived: true,
                     include_history: false,

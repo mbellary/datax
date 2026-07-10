@@ -38,9 +38,9 @@ use datax_protocol::protocol::W3cTraceContext;
 use datax_protocol::user_input::UserInput;
 use datax_thread_store::StoredChat;
 use datax_thread_store::StoredChatHistory;
-use datax_thread_store::ThreadMetadataPatch;
-use datax_thread_store::ThreadStoreError;
-use datax_thread_store::ThreadStoreResult;
+use datax_thread_store::ChatMetadataPatch;
+use datax_thread_store::ChatStoreError;
+use datax_thread_store::ChatStoreResult;
 use datax_utils_absolute_path::AbsolutePathBuf;
 use datax_utils_path_uri::LegacyAppPathString;
 use datax_utils_path_uri::PathUri;
@@ -217,7 +217,7 @@ impl DataxChat {
             contributor
                 .on_thread_resume(datax_extension_api::ThreadResumeInput {
                     session_store: &self.codex.session.services.session_extension_data,
-                    thread_store: &self.codex.session.services.thread_extension_data,
+                    chat_store: &self.codex.session.services.thread_extension_data,
                 })
                 .await;
         }
@@ -498,59 +498,59 @@ impl DataxChat {
     pub async fn load_history(
         &self,
         include_archived: bool,
-    ) -> ThreadStoreResult<StoredChatHistory> {
-        let live_thread = self
+    ) -> ChatStoreResult<StoredChatHistory> {
+        let live_chat = self
             .codex
             .session
-            .live_thread_for_persistence("load history")
-            .map_err(|err| ThreadStoreError::Internal {
+            .live_chat_for_persistence("load history")
+            .map_err(|err| ChatStoreError::Internal {
                 message: err.to_string(),
             })?;
-        live_thread.load_history(include_archived).await
+        live_chat.load_history(include_archived).await
     }
 
-    pub async fn read_thread(
+    pub async fn read_chat(
         &self,
         include_archived: bool,
         include_history: bool,
-    ) -> ThreadStoreResult<StoredChat> {
-        let live_thread = self
+    ) -> ChatStoreResult<StoredChat> {
+        let live_chat = self
             .codex
             .session
-            .live_thread_for_persistence("read thread")
-            .map_err(|err| ThreadStoreError::Internal {
+            .live_chat_for_persistence("read thread")
+            .map_err(|err| ChatStoreError::Internal {
                 message: err.to_string(),
             })?;
-        live_thread
-            .read_thread(include_archived, include_history)
+        live_chat
+            .read_chat(include_archived, include_history)
             .await
     }
 
-    pub async fn update_thread_metadata(
+    pub async fn update_chat_metadata(
         &self,
-        patch: ThreadMetadataPatch,
+        patch: ChatMetadataPatch,
         include_archived: bool,
-    ) -> ThreadStoreResult<StoredChat> {
-        let live_thread = self
+    ) -> ChatStoreResult<StoredChat> {
+        let live_chat = self
             .codex
             .session
-            .live_thread_for_persistence("update thread metadata")
-            .map_err(|err| ThreadStoreError::Internal {
+            .live_chat_for_persistence("update thread metadata")
+            .map_err(|err| ChatStoreError::Internal {
                 message: err.to_string(),
             })?;
-        live_thread.update_metadata(patch, include_archived).await
+        live_chat.update_metadata(patch, include_archived).await
     }
 
     /// Appends rollout items through the live thread so derived metadata stays in sync.
-    pub async fn append_rollout_items(&self, items: &[RolloutMessage]) -> ThreadStoreResult<()> {
-        let live_thread = self
+    pub async fn append_rollout_items(&self, items: &[RolloutMessage]) -> ChatStoreResult<()> {
+        let live_chat = self
             .codex
             .session
-            .live_thread_for_persistence("append rollout items")
-            .map_err(|err| ThreadStoreError::Internal {
+            .live_chat_for_persistence("append rollout items")
+            .map_err(|err| ChatStoreError::Internal {
                 message: err.to_string(),
             })?;
-        live_thread.append_items(items).await
+        live_chat.append_items(items).await
     }
 
     pub fn state_db(&self) -> Option<StateDbHandle> {

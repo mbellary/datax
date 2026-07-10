@@ -491,7 +491,7 @@ impl Session {
         environment_manager: Arc<EnvironmentManager>,
         inherited_environments: Option<TurnEnvironmentSnapshot>,
         analytics_events_client: Option<AnalyticsEventsClient>,
-        thread_store: Arc<dyn ThreadStore>,
+        chat_store: Arc<dyn ChatStore>,
         parent_rollout_thread_trace: ThreadTraceContext,
         attestation_provider: Option<Arc<dyn AttestationProvider>>,
         external_time_provider: Option<Arc<dyn TimeProvider>>,
@@ -564,9 +564,9 @@ impl Session {
             if config.ephemeral {
                 Ok::<_, anyhow::Error>(None)
             } else {
-                let live_thread = match &initial_history {
+                let live_chat = match &initial_history {
                     InitialHistory::New | InitialHistory::Cleared | InitialHistory::Forked(_) => {
-                        let params = CreateThreadParams {
+                        let params = CreateChatParams {
                             session_id,
                             chat_id,
                             extra_config: config.extra_config.clone(),
@@ -579,7 +579,7 @@ impl Session {
                             },
                             dynamic_tools: session_configuration.dynamic_tools.clone(),
                             multi_agent_version: initial_multi_agent_version,
-                            metadata: ThreadPersistenceMetadata {
+                            metadata: ChatPersistenceMetadata {
                                 cwd: Some(config.cwd.to_path_buf()),
                                 model_provider: config.model_provider_id.clone(),
                                 memory_mode: if config.memories.generate_memories {
@@ -589,15 +589,15 @@ impl Session {
                                 },
                             },
                         };
-                        LiveThread::create(Arc::clone(&thread_store), params).await?
+                        LiveChat::create(Arc::clone(&chat_store), params).await?
                     }
                     InitialHistory::Resumed(resumed_history) => {
-                        let params = ResumeThreadParams {
+                        let params = ResumeChatParams {
                             chat_id: resumed_history.conversation_id,
                             rollout_path: resumed_history.rollout_path.clone(),
                             history: Some(resumed_history.history.clone()),
                             include_archived: true,
-                            metadata: ThreadPersistenceMetadata {
+                            metadata: ChatPersistenceMetadata {
                                 cwd: Some(config.cwd.to_path_buf()),
                                 model_provider: config.model_provider_id.clone(),
                                 memory_mode: if config.memories.generate_memories {
@@ -607,10 +607,10 @@ impl Session {
                                 },
                             },
                         };
-                        LiveThread::resume(Arc::clone(&thread_store), params).await?
+                        LiveChat::resume(Arc::clone(&chat_store), params).await?
                     }
                 };
-                Ok(Some(live_thread))
+                Ok(Some(live_chat))
             }
         }
         .instrument(info_span!(
@@ -622,7 +622,7 @@ impl Session {
             if config.ephemeral {
                 None
             } else if let Some(local_store) =
-                thread_store.as_any().downcast_ref::<LocalThreadStore>()
+                chat_store.as_any().downcast_ref::<LocalChatStore>()
             {
                 local_store.state_db().await
             } else {
@@ -667,14 +667,14 @@ impl Session {
             (auth, mcp_servers, auth_statuses, tool_plugin_provenance),
         ) = tokio::join!(thread_persistence_fut, state_db_fut, auth_and_mcp_fut);
 
-        let mut live_thread_init =
-            LiveThreadInitGuard::new(thread_persistence_result.map_err(|e| {
+        let mut live_chat_init =
+            LiveChatInitGuard::new(thread_persistence_result.map_err(|e| {
                 error!("failed to initialize thread persistence: {e:#}");
                 e
             })?);
         let session_result: anyhow::Result<Arc<Self>> = async {
-            let rollout_path = if let Some(live_thread) = live_thread_init.as_ref() {
-                live_thread.local_rollout_path().await?
+            let rollout_path = if let Some(live_chat) = live_chat_init.as_ref() {
+                live_chat.local_rollout_path().await?
             } else {
                 None
             };
@@ -883,7 +883,7 @@ impl Session {
                 );
             }
             let thread_name =
-                thread_title_from_thread_store(live_thread_init.as_ref(), &thread_store, chat_id)
+                thread_title_from_chat_store(live_chat_init.as_ref(), &chat_store, chat_id)
                     .instrument(info_span!(
                         "session_init.thread_name_lookup",
                         otel.name = "session_init.thread_name_lookup",
@@ -995,7 +995,7 @@ impl Session {
                     persistent_thread_state_available: state_db_ctx.is_some(),
                     environments: session_configuration.environment_selections(),
                     session_store: &session_extension_data,
-                    thread_store: &thread_extension_data,
+                    chat_store: &thread_extension_data,
                 }).await;
             }
 
@@ -1044,8 +1044,8 @@ impl Session {
                 managed_network_requirements_configured,
                 network_approval: Arc::clone(&network_approval),
                 state_db: state_db_ctx.clone(),
-                live_thread: live_thread_init.as_ref().cloned(),
-                thread_store: Arc::clone(&thread_store),
+                live_chat: live_chat_init.as_ref().cloned(),
+                chat_store: Arc::clone(&chat_store),
                 attestation_provider: attestation_provider.clone(),
                 time_provider,
                 model_client: ModelClient::new(
@@ -1216,11 +1216,11 @@ impl Session {
         .await;
         match session_result {
             Ok(sess) => {
-                live_thread_init.commit();
+                live_chat_init.commit();
                 Ok(sess)
             }
             Err(err) => {
-                live_thread_init.discard().await;
+                live_chat_init.discard().await;
                 Err(err)
             }
         }

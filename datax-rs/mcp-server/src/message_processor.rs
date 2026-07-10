@@ -74,7 +74,7 @@ impl MessageProcessor {
             empty_extension_registry(),
             user_instructions_provider,
             /*analytics_events_client*/ None,
-            datax_core::thread_store_from_config(config.as_ref(), state_db.clone()),
+            datax_core::chat_store_from_config(config.as_ref(), state_db.clone()),
             state_db.clone(),
             installation_id,
             /*attestation_provider*/ None,

@@ -421,10 +421,10 @@ pub struct ConfigToml {
     /// Removed. Former remote thread-store endpoint setting kept only so we can
     /// fail fast instead of silently falling back to local persistence.
     #[schemars(skip)]
-    pub experimental_thread_store_endpoint: Option<String>,
+    pub experimental_chat_store_endpoint: Option<String>,
 
     /// Experimental / do not use. Selects the thread store implementation.
-    pub experimental_thread_store: Option<ThreadStoreToml>,
+    pub experimental_chat_store: Option<ChatStoreToml>,
     pub projects: Option<HashMap<String, ProjectConfig>>,
 
     /// Controls the web search tool mode: disabled, cached, indexed, or live.
@@ -552,7 +552,7 @@ pub struct DebugConfigLockToml {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum ThreadStoreToml {
+pub enum ChatStoreToml {
     Local {},
     #[schemars(skip)]
     InMemory {

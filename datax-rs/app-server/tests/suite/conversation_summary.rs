@@ -24,10 +24,10 @@ use datax_protocol::ChatId;
 use datax_protocol::models::BaseInstructions;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::ThreadMemoryMode;
-use datax_thread_store::CreateThreadParams;
-use datax_thread_store::InMemoryThreadStore;
-use datax_thread_store::ThreadPersistenceMetadata;
-use datax_thread_store::ThreadStore;
+use datax_thread_store::CreateChatParams;
+use datax_thread_store::InMemoryChatStore;
+use datax_thread_store::ChatPersistenceMetadata;
+use datax_thread_store::ChatStore;
 use datax_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use std::path::Path;
@@ -115,12 +115,12 @@ async fn get_conversation_summary_by_chat_id_reads_rollout() -> Result<()> {
 async fn get_conversation_summary_by_chat_id_reads_pathless_store_thread() -> Result<()> {
     let codex_home = TempDir::new()?;
     let store_id = Uuid::new_v4().to_string();
-    create_config_toml_with_in_memory_thread_store(codex_home.path(), &store_id)?;
-    let store = InMemoryThreadStore::for_id(store_id.clone());
-    let _in_memory_store = InMemoryThreadStoreId { store_id };
+    create_config_toml_with_in_memory_chat_store(codex_home.path(), &store_id)?;
+    let store = InMemoryChatStore::for_id(store_id.clone());
+    let _in_memory_store = InMemoryChatStoreId { store_id };
     let chat_id = ChatId::from_string("00000000-0000-4000-8000-000000000125")?;
     store
-        .create_thread(CreateThreadParams {
+        .create_chat(CreateChatParams {
             session_id: chat_id.into(),
             chat_id: chat_id,
             extra_config: None,
@@ -131,7 +131,7 @@ async fn get_conversation_summary_by_chat_id_reads_pathless_store_thread() -> Re
             base_instructions: BaseInstructions::default(),
             dynamic_tools: Vec::new(),
             multi_agent_version: None,
-            metadata: ThreadPersistenceMetadata {
+            metadata: ChatPersistenceMetadata {
                 cwd: None,
                 model_provider: "test-provider".to_string(),
                 memory_mode: ThreadMemoryMode::Disabled,
@@ -232,17 +232,17 @@ async fn get_conversation_summary_by_relative_rollout_path_resolves_from_codex_h
     Ok(())
 }
 
-struct InMemoryThreadStoreId {
+struct InMemoryChatStoreId {
     store_id: String,
 }
 
-impl Drop for InMemoryThreadStoreId {
+impl Drop for InMemoryChatStoreId {
     fn drop(&mut self) {
-        InMemoryThreadStore::remove_id(&self.store_id);
+        InMemoryChatStore::remove_id(&self.store_id);
     }
 }
 
-fn create_config_toml_with_in_memory_thread_store(
+fn create_config_toml_with_in_memory_chat_store(
     codex_home: &Path,
     store_id: &str,
 ) -> std::io::Result<()> {
@@ -253,7 +253,7 @@ fn create_config_toml_with_in_memory_thread_store(
 model = "mock-model"
 approval_policy = "never"
 sandbox_mode = "read-only"
-experimental_thread_store = {{ type = "in_memory", id = "{store_id}" }}
+experimental_chat_store = {{ type = "in_memory", id = "{store_id}" }}
 
 model_provider = "mock_provider"
 

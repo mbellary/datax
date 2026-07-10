@@ -6,10 +6,10 @@ use std::path::PathBuf;
 use datax_rollout::ARCHIVED_SESSIONS_SUBDIR;
 use uuid::Uuid;
 
-use super::LocalThreadStoreConfig;
+use super::LocalChatStoreConfig;
 
-pub(super) fn test_config(codex_home: &Path) -> LocalThreadStoreConfig {
-    LocalThreadStoreConfig {
+pub(super) fn test_config(codex_home: &Path) -> LocalChatStoreConfig {
+    LocalChatStoreConfig {
         codex_home: codex_home.to_path_buf(),
         sqlite_home: codex_home.to_path_buf(),
         default_model_provider_id: "test-provider".to_string(),

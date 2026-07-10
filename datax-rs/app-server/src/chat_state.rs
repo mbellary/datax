@@ -29,37 +29,37 @@ use tracing::error;
 
 type PendingInterruptQueue = Vec<ConnectionRequestId>;
 
-pub(crate) struct PendingThreadResumeRequest {
+pub(crate) struct PendingChatResumeRequest {
     pub(crate) request_id: ConnectionRequestId,
     pub(crate) history_items: Vec<RolloutMessage>,
     pub(crate) config_snapshot: ThreadConfigSnapshot,
     pub(crate) instruction_sources: Vec<LegacyAppPathString>,
-    pub(crate) thread_summary: datax_app_server_protocol::Chat,
-    pub(crate) emit_thread_goal_update: bool,
-    pub(crate) thread_goal_state_db: Option<StateDbHandle>,
+    pub(crate) chat_summary: datax_app_server_protocol::Chat,
+    pub(crate) emit_chat_goal_update: bool,
+    pub(crate) chat_goal_state_db: Option<StateDbHandle>,
     pub(crate) include_interactions: bool,
     pub(crate) initial_turns_page:
         Option<datax_app_server_protocol::ChatResumeInitialInteractionsPageParams>,
     pub(crate) redact_resume_payloads: bool,
 }
 
-// ThreadListenerCommand is used to perform operations in the context of the thread listener, for serialization purposes.
-pub(crate) enum ThreadListenerCommand {
-    // SendThreadResumeResponse is used to resume an already running thread by sending the thread's history to the client and atomically subscribing for new updates.
-    SendThreadResumeResponse(Box<PendingThreadResumeRequest>),
-    // EmitThreadGoalUpdated is used to order goal updates with running-thread resume responses and goal clears.
-    EmitThreadGoalUpdated {
+// ChatListenerCommand is used to perform operations in the context of the chat listener, for serialization purposes.
+pub(crate) enum ChatListenerCommand {
+    // SendChatResumeResponse is used to resume an already running thread by sending the thread's history to the client and atomically subscribing for new updates.
+    SendChatResumeResponse(Box<PendingChatResumeRequest>),
+    // EmitChatGoalUpdated is used to order goal updates with running-thread resume responses and goal clears.
+    EmitChatGoalUpdated {
         interaction_id: Option<String>,
         goal: ChatGoal,
     },
-    // EmitThreadGoalCleared is used to order app-server goal clears with running-thread resume responses.
-    EmitThreadGoalCleared,
-    // EmitThreadGoalSnapshot is used to read and emit the latest goal state in the listener order.
-    EmitThreadGoalSnapshot {
+    // EmitChatGoalCleared is used to order app-server goal clears with running-thread resume responses.
+    EmitChatGoalCleared,
+    // EmitChatGoalSnapshot is used to read and emit the latest goal state in the listener order.
+    EmitChatGoalSnapshot {
         state_db: StateDbHandle,
     },
     // ResolveServerRequest is used to notify the client that the request has been resolved.
-    // It is executed in the thread listener's context to ensure that the resolved notification is ordered with regard to the request itself.
+    // It is executed in the chat listener's context to ensure that the resolved notification is ordered with regard to the request itself.
     ResolveServerRequest {
         request_id: RequestId,
         completion_tx: oneshot::Sender<()>,
@@ -68,29 +68,29 @@ pub(crate) enum ThreadListenerCommand {
 
 /// Per-conversation accumulation of the latest states e.g. error message while a turn runs.
 #[derive(Default, Clone)]
-pub(crate) struct TurnSummary {
+pub(crate) struct InteractionSummary {
     pub(crate) started_at: Option<i64>,
     pub(crate) command_execution_started: HashSet<String>,
     pub(crate) last_error: Option<InteractionError>,
 }
 
 #[derive(Default)]
-pub(crate) struct ThreadState {
+pub(crate) struct ChatState {
     pub(crate) pending_interrupts: PendingInterruptQueue,
     pub(crate) pending_rollbacks: Option<ConnectionRequestId>,
-    pub(crate) turn_summary: TurnSummary,
+    pub(crate) interaction_summary: InteractionSummary,
     pub(crate) last_terminal_interaction_id: Option<String>,
     pub(crate) cancel_tx: Option<oneshot::Sender<()>>,
     pub(crate) experimental_raw_events: bool,
     pub(crate) listener_generation: u64,
-    last_thread_settings: Option<ChatSettings>,
-    listener_command_tx: Option<mpsc::UnboundedSender<ThreadListenerCommand>>,
-    current_turn_history: ChatHistoryBuilder,
+    last_chat_settings: Option<ChatSettings>,
+    listener_command_tx: Option<mpsc::UnboundedSender<ChatListenerCommand>>,
+    current_interaction_history: ChatHistoryBuilder,
     listener_thread: Option<Weak<DataxChat>>,
     watch_registration: WatchRegistration,
 }
 
-impl ThreadState {
+impl ChatState {
     pub(crate) fn listener_matches(&self, conversation: &Arc<DataxChat>) -> bool {
         self.listener_thread
             .as_ref()
@@ -103,13 +103,13 @@ impl ThreadState {
         cancel_tx: oneshot::Sender<()>,
         conversation: &Arc<DataxChat>,
         watch_registration: WatchRegistration,
-        thread_settings_baseline: ChatSettings,
-    ) -> (mpsc::UnboundedReceiver<ThreadListenerCommand>, u64) {
+        chat_settings_baseline: ChatSettings,
+    ) -> (mpsc::UnboundedReceiver<ChatListenerCommand>, u64) {
         if let Some(previous) = self.cancel_tx.replace(cancel_tx) {
             let _ = previous.send(());
         }
         self.listener_generation = self.listener_generation.wrapping_add(1);
-        self.last_thread_settings = Some(thread_settings_baseline);
+        self.last_chat_settings = Some(chat_settings_baseline);
         let (listener_command_tx, listener_command_rx) = mpsc::unbounded_channel();
         self.listener_command_tx = Some(listener_command_tx);
         self.listener_thread = Some(Arc::downgrade(conversation));
@@ -122,7 +122,7 @@ impl ThreadState {
             let _ = cancel_tx.send(());
         }
         self.listener_command_tx = None;
-        self.current_turn_history.reset();
+        self.current_interaction_history.reset();
         self.listener_thread = None;
         self.watch_registration = WatchRegistration::default();
     }
@@ -133,63 +133,63 @@ impl ThreadState {
 
     pub(crate) fn listener_command_tx(
         &self,
-    ) -> Option<mpsc::UnboundedSender<ThreadListenerCommand>> {
+    ) -> Option<mpsc::UnboundedSender<ChatListenerCommand>> {
         self.listener_command_tx.clone()
     }
 
-    pub(crate) fn active_turn_snapshot(&self) -> Option<Interaction> {
-        self.current_turn_history.active_turn_snapshot()
+    pub(crate) fn active_interaction_snapshot(&self) -> Option<Interaction> {
+        self.current_interaction_history.active_turn_snapshot()
     }
 
-    pub(crate) fn track_current_turn_event(
+    pub(crate) fn track_current_interaction_event(
         &mut self,
         event_interaction_id: &str,
         event: &EventMsg,
     ) {
         if let EventMsg::InteractionStarted(payload) = event {
-            self.turn_summary.started_at = payload.started_at;
+            self.interaction_summary.started_at = payload.started_at;
         }
-        self.current_turn_history.handle_event(event);
+        self.current_interaction_history.handle_event(event);
         if matches!(
             event,
             EventMsg::InteractionAborted(_) | EventMsg::InteractionComplete(_)
-        ) && !self.current_turn_history.has_active_turn()
+        ) && !self.current_interaction_history.has_active_turn()
         {
             self.last_terminal_interaction_id = Some(event_interaction_id.to_string());
-            self.current_turn_history.reset();
+            self.current_interaction_history.reset();
         }
     }
 
-    pub(crate) fn note_thread_settings(&mut self, thread_settings: ChatSettings) -> bool {
-        let changed = self.last_thread_settings.as_ref() != Some(&thread_settings);
-        self.last_thread_settings = Some(thread_settings);
+    pub(crate) fn note_chat_settings(&mut self, chat_settings: ChatSettings) -> bool {
+        let changed = self.last_chat_settings.as_ref() != Some(&chat_settings);
+        self.last_chat_settings = Some(chat_settings);
         changed
     }
 }
 
-pub(crate) async fn resolve_server_request_on_thread_listener(
-    thread_state: &Arc<Mutex<ThreadState>>,
+pub(crate) async fn resolve_server_request_on_chat_listener(
+    chat_state: &Arc<Mutex<ChatState>>,
     request_id: RequestId,
 ) {
     let (completion_tx, completion_rx) = oneshot::channel();
     let listener_command_tx = {
-        let state = thread_state.lock().await;
+        let state = chat_state.lock().await;
         state.listener_command_tx()
     };
     let Some(listener_command_tx) = listener_command_tx else {
-        error!("failed to remove pending client request: thread listener is not running");
+        error!("failed to remove pending client request: chat listener is not running");
         return;
     };
 
     if listener_command_tx
-        .send(ThreadListenerCommand::ResolveServerRequest {
+        .send(ChatListenerCommand::ResolveServerRequest {
             request_id,
             completion_tx,
         })
         .is_err()
     {
         error!(
-            "failed to remove pending client request: thread listener command channel is closed"
+            "failed to remove pending client request: chat listener command channel is closed"
         );
         return;
     }
@@ -212,22 +212,22 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn note_thread_settings_reports_only_effective_changes() {
-        let mut state = ThreadState::default();
-        let initial = thread_settings("mock-model");
-        let updated = thread_settings("mock-model-2");
+    fn note_chat_settings_reports_only_effective_changes() {
+        let mut state = ChatState::default();
+        let initial = chat_settings("mock-model");
+        let updated = chat_settings("mock-model-2");
 
         let results = vec![
-            state.note_thread_settings(initial.clone()),
-            state.note_thread_settings(initial),
-            state.note_thread_settings(updated.clone()),
-            state.note_thread_settings(updated),
+            state.note_chat_settings(initial.clone()),
+            state.note_chat_settings(initial),
+            state.note_chat_settings(updated.clone()),
+            state.note_chat_settings(updated),
         ];
 
         assert_eq!(results, vec![true, false, true, false]);
     }
 
-    fn thread_settings(model: &str) -> ChatSettings {
+    fn chat_settings(model: &str) -> ChatSettings {
         ChatSettings {
             cwd: AbsolutePathBuf::from_absolute_path("/tmp").expect("absolute path"),
             approval_policy: AskForApproval::OnRequest,
@@ -255,23 +255,23 @@ mod tests {
     }
 }
 
-struct ThreadEntry {
-    state: Arc<Mutex<ThreadState>>,
+struct ChatEntry {
+    state: Arc<Mutex<ChatState>>,
     connection_ids: HashSet<ConnectionId>,
     has_connections_watcher: watch::Sender<bool>,
 }
 
-impl Default for ThreadEntry {
+impl Default for ChatEntry {
     fn default() -> Self {
         Self {
-            state: Arc::new(Mutex::new(ThreadState::default())),
+            state: Arc::new(Mutex::new(ChatState::default())),
             connection_ids: HashSet::new(),
             has_connections_watcher: watch::channel(false).0,
         }
     }
 }
 
-impl ThreadEntry {
+impl ChatEntry {
     fn update_has_connections(&self) {
         let _ = self.has_connections_watcher.send_if_modified(|current| {
             let prev = *current;
@@ -282,9 +282,9 @@ impl ThreadEntry {
 }
 
 #[derive(Default)]
-struct ThreadStateManagerInner {
+struct ChatStateManagerInner {
     live_connections: HashMap<ConnectionId, ConnectionCapabilities>,
-    threads: HashMap<ChatId, ThreadEntry>,
+    threads: HashMap<ChatId, ChatEntry>,
     chat_ids_by_connection: HashMap<ConnectionId, HashSet<ChatId>>,
 }
 
@@ -294,14 +294,14 @@ pub(crate) struct ConnectionCapabilities {
 }
 
 #[derive(Clone, Default)]
-pub(crate) struct ThreadStateManager {
-    state: Arc<Mutex<ThreadStateManagerInner>>,
+pub(crate) struct ChatStateManager {
+    state: Arc<Mutex<ChatStateManagerInner>>,
     // Extension event sinks are synchronous, so they need an await-free way to
-    // enqueue work on the active per-thread listener.
-    listener_commands: Arc<StdMutex<HashMap<ChatId, mpsc::UnboundedSender<ThreadListenerCommand>>>>,
+    // enqueue work on the active per-chat listener.
+    listener_commands: Arc<StdMutex<HashMap<ChatId, mpsc::UnboundedSender<ChatListenerCommand>>>>,
 }
 
-impl ThreadStateManager {
+impl ChatStateManager {
     pub(crate) fn new() -> Self {
         Self::default()
     }
@@ -318,7 +318,7 @@ impl ThreadStateManager {
             .insert(connection_id, capabilities);
     }
 
-    pub(crate) async fn first_attestation_capable_connection_for_thread(
+    pub(crate) async fn first_attestation_capable_connection_for_chat(
         &self,
         chat_id: ChatId,
     ) -> Option<ConnectionId> {
@@ -338,7 +338,7 @@ impl ThreadStateManager {
             .min_by_key(|connection_id| connection_id.0)
     }
 
-    pub(crate) async fn wait_for_thread_subscriber(&self, chat_id: ChatId) {
+    pub(crate) async fn wait_for_chat_subscriber(&self, chat_id: ChatId) {
         let mut has_connections = {
             let mut state = self.state.lock().await;
             state
@@ -364,7 +364,7 @@ impl ThreadStateManager {
             .unwrap_or_default()
     }
 
-    pub(crate) async fn thread_state(&self, chat_id: ChatId) -> Arc<Mutex<ThreadState>> {
+    pub(crate) async fn chat_state(&self, chat_id: ChatId) -> Arc<Mutex<ChatState>> {
         let mut state = self.state.lock().await;
         state.threads.entry(chat_id).or_default().state.clone()
     }
@@ -372,7 +372,7 @@ impl ThreadStateManager {
     pub(crate) fn current_listener_command_tx(
         &self,
         chat_id: ChatId,
-    ) -> Option<mpsc::UnboundedSender<ThreadListenerCommand>> {
+    ) -> Option<mpsc::UnboundedSender<ChatListenerCommand>> {
         self.listener_commands
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -383,7 +383,7 @@ impl ThreadStateManager {
     pub(crate) fn register_listener_command_tx(
         &self,
         chat_id: ChatId,
-        tx: mpsc::UnboundedSender<ThreadListenerCommand>,
+        tx: mpsc::UnboundedSender<ChatListenerCommand>,
     ) {
         self.listener_commands
             .lock()
@@ -399,9 +399,9 @@ impl ThreadStateManager {
     }
 
     pub(crate) async fn remove_chat_state(&self, chat_id: ChatId) {
-        let thread_state = {
+        let chat_state = {
             let mut state = self.state.lock().await;
-            let thread_state = state
+            let chat_state = state
                 .threads
                 .remove(&chat_id)
                 .map(|thread_entry| thread_entry.state);
@@ -409,25 +409,25 @@ impl ThreadStateManager {
                 chat_ids.remove(&chat_id);
                 !chat_ids.is_empty()
             });
-            thread_state
+            chat_state
         };
         self.unregister_listener_command_tx(chat_id);
 
-        if let Some(thread_state) = thread_state {
-            let mut thread_state = thread_state.lock().await;
+        if let Some(chat_state) = chat_state {
+            let mut chat_state = chat_state.lock().await;
             tracing::debug!(
                 chat_id = %chat_id,
-                listener_generation = thread_state.listener_generation,
-                had_listener = thread_state.cancel_tx.is_some(),
-                had_active_turn = thread_state.active_turn_snapshot().is_some(),
-                "clearing thread listener during thread-state teardown"
+                listener_generation = chat_state.listener_generation,
+                had_listener = chat_state.cancel_tx.is_some(),
+                had_active_interaction = chat_state.active_interaction_snapshot().is_some(),
+                "clearing chat listener during chat-state teardown"
             );
-            thread_state.clear_listener();
+            chat_state.clear_listener();
         }
     }
 
     pub(crate) async fn clear_all_listeners(&self) {
-        let thread_states = {
+        let chat_states = {
             let state = self.state.lock().await;
             state
                 .threads
@@ -436,21 +436,21 @@ impl ThreadStateManager {
                 .collect::<Vec<_>>()
         };
 
-        for (chat_id, thread_state) in thread_states {
+        for (chat_id, chat_state) in chat_states {
             self.unregister_listener_command_tx(chat_id);
-            let mut thread_state = thread_state.lock().await;
+            let mut chat_state = chat_state.lock().await;
             tracing::debug!(
                 chat_id = %chat_id,
-                listener_generation = thread_state.listener_generation,
-                had_listener = thread_state.cancel_tx.is_some(),
-                had_active_turn = thread_state.active_turn_snapshot().is_some(),
-                "clearing thread listener during app-server shutdown"
+                listener_generation = chat_state.listener_generation,
+                had_listener = chat_state.cancel_tx.is_some(),
+                had_active_interaction = chat_state.active_interaction_snapshot().is_some(),
+                "clearing chat listener during app-server shutdown"
             );
-            thread_state.clear_listener();
+            chat_state.clear_listener();
         }
     }
 
-    pub(crate) async fn unsubscribe_connection_from_thread(
+    pub(crate) async fn unsubscribe_connection_from_chat(
         &self,
         chat_id: ChatId,
         connection_id: ConnectionId,
@@ -499,8 +499,8 @@ impl ThreadStateManager {
         chat_id: ChatId,
         connection_id: ConnectionId,
         experimental_raw_events: bool,
-    ) -> Option<Arc<Mutex<ThreadState>>> {
-        let thread_state = {
+    ) -> Option<Arc<Mutex<ChatState>>> {
+        let chat_state = {
             let mut state = self.state.lock().await;
             if !state.live_connections.contains_key(&connection_id) {
                 return None;
@@ -516,15 +516,15 @@ impl ThreadStateManager {
             thread_entry.state.clone()
         };
         {
-            let mut thread_state_guard = thread_state.lock().await;
+            let mut chat_state_guard = chat_state.lock().await;
             if experimental_raw_events {
-                thread_state_guard.set_experimental_raw_events(/*enabled*/ true);
+                chat_state_guard.set_experimental_raw_events(/*enabled*/ true);
             }
         }
-        Some(thread_state)
+        Some(chat_state)
     }
 
-    pub(crate) async fn try_add_connection_to_thread(
+    pub(crate) async fn try_add_connection_to_chat(
         &self,
         chat_id: ChatId,
         connection_id: ConnectionId,

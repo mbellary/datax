@@ -887,8 +887,8 @@ async fn load_rollout_items_for_fork(
 ) -> anyhow::Result<Option<Vec<RolloutMessage>>> {
     session.try_ensure_rollout_materialized().await?;
     session.flush_rollout().await?;
-    let live_thread = session.live_thread_for_persistence("guardian review fork")?;
-    let history = live_thread.load_history(/*include_archived*/ true).await?;
+    let live_chat = session.live_chat_for_persistence("guardian review fork")?;
+    let history = live_chat.load_history(/*include_archived*/ true).await?;
     Ok(Some(history.items))
 }
 

@@ -1,7 +1,7 @@
 //! Regression coverage for app-server thread operations backed by a non-local
-//! `ThreadStore`.
+//! `ChatStore`.
 //!
-//! The app-server startup path should honor `experimental_thread_store`
+//! The app-server startup path should honor `experimental_chat_store`
 //! by routing all thread persistence through the configured store. This suite uses
 //! the thread-store crate's test-only in-memory store to exercise the non-local
 //! config-driven selection path without touching local rollout or sqlite storage.
@@ -50,10 +50,10 @@ use datax_protocol::ChatId;
 use datax_protocol::models::BaseInstructions;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::ThreadMemoryMode;
-use datax_thread_store::CreateThreadParams as StoreCreateThreadParams;
-use datax_thread_store::InMemoryThreadStore;
-use datax_thread_store::ThreadPersistenceMetadata;
-use datax_thread_store::ThreadStore;
+use datax_thread_store::CreateChatParams as StoreCreateChatParams;
+use datax_thread_store::InMemoryChatStore;
+use datax_thread_store::ChatPersistenceMetadata;
+use datax_thread_store::ChatStore;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::time::timeout;
@@ -71,8 +71,8 @@ async fn thread_delete_with_non_local_thread_store_does_not_create_local_persist
     // here so this regression stays focused on thread persistence artifacts.
     create_config_toml_with_thread_store(codex_home.path(), &server.uri(), &store_id)?;
 
-    let thread_store = InMemoryThreadStore::for_id(store_id.clone());
-    let _in_memory_store = InMemoryThreadStoreId { store_id };
+    let thread_store = InMemoryChatStore::for_id(store_id.clone());
+    let _in_memory_store = InMemoryChatStoreId { store_id };
 
     let mut client = start_in_process_server(codex_home.path()).await?;
 
@@ -142,10 +142,10 @@ async fn thread_delete_with_non_local_thread_store_does_not_create_local_persist
     assert_eq!(data[0].id, thread.id);
     assert_eq!(data[0].path, None);
 
-    delete_thread(&client, /*request_id*/ 4, thread.id.clone()).await?;
+    delete_chat(&client, /*request_id*/ 4, thread.id.clone()).await?;
     let unloaded_chat_id = ChatId::from_string(&Uuid::new_v4().to_string())?;
     thread_store
-        .create_thread(StoreCreateThreadParams {
+        .create_chat(StoreCreateChatParams {
             session_id: unloaded_chat_id.into(),
             chat_id: unloaded_chat_id,
             extra_config: None,
@@ -156,27 +156,27 @@ async fn thread_delete_with_non_local_thread_store_does_not_create_local_persist
             base_instructions: BaseInstructions::default(),
             dynamic_tools: Vec::new(),
             multi_agent_version: None,
-            metadata: ThreadPersistenceMetadata {
+            metadata: ChatPersistenceMetadata {
                 cwd: Some(codex_home.path().to_path_buf()),
                 model_provider: "mock_provider".to_string(),
                 memory_mode: ThreadMemoryMode::Enabled,
             },
         })
         .await?;
-    delete_thread(&client, /*request_id*/ 5, unloaded_chat_id.to_string()).await?;
+    delete_chat(&client, /*request_id*/ 5, unloaded_chat_id.to_string()).await?;
 
     client.shutdown().await?;
 
     let calls = thread_store.calls().await;
-    assert_eq!(calls.create_thread, 2);
-    assert_eq!(calls.list_threads, 1);
-    assert_eq!(calls.delete_thread, 2);
+    assert_eq!(calls.create_chat, 2);
+    assert_eq!(calls.list_chats, 1);
+    assert_eq!(calls.delete_chat, 2);
     assert!(
         calls.append_items > 0,
         "interaction/start should append rollout messages through the injected store"
     );
     assert!(
-        calls.flush_thread > 0,
+        calls.flush_chat > 0,
         "turn completion should flush through the injected store"
     );
 
@@ -201,8 +201,8 @@ async fn cold_thread_resume_reuses_non_local_history_probe() -> Result<()> {
             .build()
             .await?,
     );
-    let thread_store = InMemoryThreadStore::for_id(store_id.clone());
-    let _in_memory_store = InMemoryThreadStoreId { store_id };
+    let thread_store = InMemoryChatStore::for_id(store_id.clone());
+    let _in_memory_store = InMemoryChatStoreId { store_id };
 
     let mut client = start_in_process_client(config.clone(), loader_overrides.clone()).await?;
     let response = client
@@ -245,7 +245,7 @@ async fn cold_thread_resume_reuses_non_local_history_probe() -> Result<()> {
     client.shutdown().await?;
 
     let client = start_in_process_client(config, loader_overrides).await?;
-    let reads_before_resume = thread_store.calls().await.read_thread_with_history;
+    let reads_before_resume = thread_store.calls().await.read_chat_with_history;
     // The in-memory store is pathless, so resume currently fails later while
     // assembling the response. The history-bearing probe must still be reused.
     let _resume_result = client
@@ -259,7 +259,7 @@ async fn cold_thread_resume_reuses_non_local_history_probe() -> Result<()> {
         .await?;
 
     assert_eq!(
-        thread_store.calls().await.read_thread_with_history,
+        thread_store.calls().await.read_chat_with_history,
         reads_before_resume + 1
     );
 
@@ -313,7 +313,7 @@ async fn start_in_process_client(
     .await
 }
 
-async fn delete_thread(
+async fn delete_chat(
     client: &InProcessClientHandle,
     request_id: i64,
     chat_id: String,
@@ -392,13 +392,13 @@ fn codex_home_entries(codex_home: &Path) -> Result<BTreeSet<String>> {
         .collect())
 }
 
-struct InMemoryThreadStoreId {
+struct InMemoryChatStoreId {
     store_id: String,
 }
 
-impl Drop for InMemoryThreadStoreId {
+impl Drop for InMemoryChatStoreId {
     fn drop(&mut self) {
-        InMemoryThreadStore::remove_id(&self.store_id);
+        InMemoryChatStore::remove_id(&self.store_id);
     }
 }
 
@@ -414,7 +414,7 @@ fn create_config_toml_with_thread_store(
 model = "mock-model"
 approval_policy = "never"
 sandbox_mode = "read-only"
-experimental_thread_store = {{ type = "in_memory", id = "{store_id}" }}
+experimental_chat_store = {{ type = "in_memory", id = "{store_id}" }}
 
 model_provider = "mock_provider"
 

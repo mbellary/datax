@@ -1,14 +1,14 @@
 use datax_protocol::ChatId;
 
 /// Result type returned by thread-store operations.
-pub type ThreadStoreResult<T> = Result<T, ThreadStoreError>;
+pub type ChatStoreResult<T> = Result<T, ChatStoreError>;
 
 /// Error type shared by thread-store implementations.
 #[derive(Debug, thiserror::Error)]
-pub enum ThreadStoreError {
+pub enum ChatStoreError {
     /// The requested thread does not exist in this store.
     #[error("thread {chat_id} not found")]
-    ThreadNotFound {
+    ChatNotFound {
         /// Thread id requested by the caller.
         chat_id: ChatId,
     },

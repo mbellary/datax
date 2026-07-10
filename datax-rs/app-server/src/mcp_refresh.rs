@@ -109,7 +109,7 @@ mod tests {
     use datax_config::types::AuthKeyringBackendKind;
     use datax_core::config::ConfigOverrides;
     use datax_core::init_state_db;
-    use datax_core::thread_store_from_config;
+    use datax_core::chat_store_from_config;
     use datax_exec_server::EnvironmentManager;
     use datax_extension_api::NoopExtensionEventSink;
     use datax_home::CodexHomeUserInstructionsProvider;
@@ -214,7 +214,7 @@ mod tests {
         let state_db = init_state_db(&good_config)
             .await
             .expect("refresh tests require state db");
-        let thread_store = thread_store_from_config(&good_config, Some(state_db.clone()));
+        let chat_store = chat_store_from_config(&good_config, Some(state_db.clone()));
         let environment_manager = Arc::new(EnvironmentManager::default_for_tests());
         let executor_skill_provider: Arc<dyn datax_skills_extension::SkillProvider> = Arc::new(
             datax_skills_extension::ExecutorSkillProvider::new_with_restriction_product(
@@ -239,14 +239,14 @@ mod tests {
                         goal_service: Arc::new(datax_goal_extension::GoalService::new()),
                         environment_manager: Arc::clone(&environment_manager),
                         executor_skill_provider: Arc::clone(&executor_skill_provider),
-                        thread_store: Arc::clone(&thread_store),
+                        chat_store: Arc::clone(&chat_store),
                     },
                 ),
                 Arc::new(CodexHomeUserInstructionsProvider::new(
                     good_config.codex_home.clone(),
                 )),
                 /*analytics_events_client*/ None,
-                Arc::clone(&thread_store),
+                Arc::clone(&chat_store),
                 Some(state_db.clone()),
                 "11111111-1111-4111-8111-111111111111".to_string(),
                 /*attestation_provider*/ None,

@@ -20,23 +20,23 @@ use datax_rollout::ThreadItem;
 use datax_state::ThreadMetadata;
 
 use crate::StoredChat;
-use crate::ThreadStoreError;
-use crate::ThreadStoreResult;
+use crate::ChatStoreError;
+use crate::ChatStoreResult;
 
 pub(super) fn scoped_rollout_path(
     root: PathBuf,
     rollout_path: &Path,
     root_name: &str,
-) -> ThreadStoreResult<PathBuf> {
+) -> ChatStoreResult<PathBuf> {
     let canonical_root =
-        std::fs::canonicalize(&root).map_err(|err| ThreadStoreError::Internal {
+        std::fs::canonicalize(&root).map_err(|err| ChatStoreError::Internal {
             message: format!(
                 "failed to resolve {root_name} directory `{}`: {err}",
                 root.display()
             ),
         })?;
     let canonical_rollout_path =
-        std::fs::canonicalize(rollout_path).map_err(|_| ThreadStoreError::InvalidRequest {
+        std::fs::canonicalize(rollout_path).map_err(|_| ChatStoreError::InvalidRequest {
             message: format!(
                 "rollout path `{}` must be in {root_name} directory",
                 rollout_path.display()
@@ -45,7 +45,7 @@ pub(super) fn scoped_rollout_path(
     if canonical_rollout_path.starts_with(&canonical_root) {
         Ok(canonical_rollout_path)
     } else {
-        Err(ThreadStoreError::InvalidRequest {
+        Err(ChatStoreError::InvalidRequest {
             message: format!(
                 "rollout path `{}` must be in {root_name} directory",
                 rollout_path.display()
@@ -65,9 +65,9 @@ pub(super) fn matching_rollout_file_name(
     rollout_path: &Path,
     chat_id: ChatId,
     display_path: &Path,
-) -> ThreadStoreResult<std::ffi::OsString> {
+) -> ChatStoreResult<std::ffi::OsString> {
     let Some(file_name) = rollout_path.file_name().map(OsStr::to_owned) else {
-        return Err(ThreadStoreError::InvalidRequest {
+        return Err(ChatStoreError::InvalidRequest {
             message: format!(
                 "rollout path `{}` missing file name",
                 display_path.display()
@@ -82,7 +82,7 @@ pub(super) fn matching_rollout_file_name(
     {
         Ok(file_name)
     } else {
-        Err(ThreadStoreError::InvalidRequest {
+        Err(ChatStoreError::InvalidRequest {
             message: format!(
                 "rollout path `{}` does not match thread id {chat_id}",
                 display_path.display()
@@ -96,7 +96,7 @@ pub(super) fn touch_modified_time(path: &Path) -> std::io::Result<()> {
     OpenOptions::new().append(true).open(path)?.set_times(times)
 }
 
-pub(super) fn stored_thread_from_rollout_item(
+pub(super) fn stored_chat_from_rollout_item(
     item: ThreadItem,
     archived: bool,
     default_provider: &str,
@@ -176,7 +176,7 @@ pub(super) fn permission_profile_to_metadata_value(
     }
 }
 
-pub(super) fn distinct_thread_metadata_title(metadata: &ThreadMetadata) -> Option<String> {
+pub(super) fn distinct_chat_metadata_title(metadata: &ThreadMetadata) -> Option<String> {
     let title = metadata.title.trim();
     if title.is_empty() || metadata.first_user_message.as_deref().map(str::trim) == Some(title) {
         None
@@ -250,12 +250,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn stored_thread_from_rollout_item_returns_logical_rollout_path() {
+    fn stored_chat_from_rollout_item_returns_logical_rollout_path() {
         let uuid = Uuid::from_u128(1);
         let compressed_path = PathBuf::from(format!(
             "/tmp/sessions/2025/01/03/rollout-2025-01-03T12-00-00-{uuid}.jsonl.zst"
         ));
-        let thread = stored_thread_from_rollout_item(
+        let thread = stored_chat_from_rollout_item(
             ThreadItem {
                 path: compressed_path.clone(),
                 ..Default::default()

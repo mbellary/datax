@@ -30,7 +30,7 @@ use datax_core::NewChat;
 use datax_core::Prompt;
 use datax_core::ResponseEvent;
 use datax_core::resolve_installation_id;
-use datax_core::thread_store_from_config;
+use datax_core::chat_store_from_config;
 use datax_extension_api::empty_extension_registry;
 use datax_features::Feature;
 use datax_login::AuthKeyringBackendKind;
@@ -1470,7 +1470,7 @@ async fn prefers_apikey_when_config_prefers_apikey_even_with_chatgpt_tokens() {
         empty_extension_registry(),
         Arc::new(datax_core::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
-        thread_store_from_config(&config, /*state_db*/ None),
+        chat_store_from_config(&config, /*state_db*/ None),
         /*state_db*/ None,
         installation_id,
         /*attestation_provider*/ None,

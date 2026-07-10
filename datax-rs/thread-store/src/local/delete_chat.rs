@@ -13,17 +13,17 @@ use datax_rollout::find_archived_thread_path_by_id_str;
 use datax_rollout::find_thread_path_by_id_str;
 use datax_rollout::remove_thread_name_entries;
 
-use super::LocalThreadStore;
+use super::LocalChatStore;
 use super::helpers::matching_rollout_file_name;
 use super::helpers::scoped_rollout_path;
-use crate::DeleteThreadParams;
-use crate::ThreadStoreError;
-use crate::ThreadStoreResult;
+use crate::DeleteChatParams;
+use crate::ChatStoreError;
+use crate::ChatStoreResult;
 
-pub(super) async fn delete_thread(
-    store: &LocalThreadStore,
-    params: DeleteThreadParams,
-) -> ThreadStoreResult<()> {
+pub(super) async fn delete_chat(
+    store: &LocalChatStore,
+    params: DeleteChatParams,
+) -> ChatStoreResult<()> {
     let chat_id = params.chat_id;
     let chat_id_str = chat_id.to_string();
     let state_db_ctx = store.state_db().await;
@@ -39,7 +39,7 @@ pub(super) async fn delete_thread(
         Ok(Some(path)) => rollout_paths.push(path),
         Ok(None) => {}
         Err(err) => {
-            return Err(ThreadStoreError::InvalidRequest {
+            return Err(ChatStoreError::InvalidRequest {
                 message: format!("failed to locate thread id {chat_id}: {err}"),
             });
         }
@@ -59,7 +59,7 @@ pub(super) async fn delete_thread(
         }
         Ok(None) => {}
         Err(err) => {
-            return Err(ThreadStoreError::InvalidRequest {
+            return Err(ChatStoreError::InvalidRequest {
                 message: format!("failed to locate archived thread id {chat_id}: {err}"),
             });
         }
@@ -71,12 +71,12 @@ pub(super) async fn delete_thread(
     }
     remove_thread_name_entries(store.config.codex_home.as_path(), chat_id)
         .await
-        .map_err(|err| ThreadStoreError::Internal {
+        .map_err(|err| ChatStoreError::Internal {
             message: format!("failed to delete thread name index entries for {chat_id}: {err}"),
         })?;
 
     if !found_rollout_path {
-        return Err(ThreadStoreError::ThreadNotFound { chat_id });
+        return Err(ChatStoreError::ChatNotFound { chat_id });
     }
 
     store.live_recorders.lock().await.remove(&chat_id);
@@ -85,10 +85,10 @@ pub(super) async fn delete_thread(
 }
 
 fn delete_rollout_file(
-    store: &LocalThreadStore,
+    store: &LocalChatStore,
     rollout_path: &Path,
     chat_id: datax_protocol::ChatId,
-) -> ThreadStoreResult<bool> {
+) -> ChatStoreResult<bool> {
     let plain_path = datax_rollout::plain_rollout_path(rollout_path);
     let compressed_path = plain_path.with_extension("jsonl.zst");
     let deleted_plain = delete_rollout_path(store, plain_path.as_path(), chat_id)?;
@@ -97,10 +97,10 @@ fn delete_rollout_file(
 }
 
 fn delete_rollout_path(
-    store: &LocalThreadStore,
+    store: &LocalChatStore,
     rollout_path: &Path,
     chat_id: datax_protocol::ChatId,
-) -> ThreadStoreResult<bool> {
+) -> ChatStoreResult<bool> {
     let canonical_rollout_path = scoped_rollout_path(
         store.config.codex_home.join(SESSIONS_SUBDIR),
         rollout_path,
@@ -121,7 +121,7 @@ fn delete_rollout_path(
     match std::fs::remove_file(&canonical_rollout_path) {
         Ok(()) => Ok(true),
         Err(err) if err.kind() == ErrorKind::NotFound => Ok(false),
-        Err(err) => Err(ThreadStoreError::Internal {
+        Err(err) => Err(ChatStoreError::Internal {
             message: format!(
                 "failed to delete rollout file `{}`: {err}",
                 canonical_rollout_path.display()
@@ -138,16 +138,16 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
-    use crate::ThreadStore;
-    use crate::local::LocalThreadStore;
+    use crate::ChatStore;
+    use crate::local::LocalChatStore;
     use crate::local::test_support::test_config;
     use crate::local::test_support::write_archived_session_file;
     use crate::local::test_support::write_session_file;
 
     #[tokio::test]
-    async fn delete_thread_removes_active_and_archived_rollouts() {
+    async fn delete_chat_removes_active_and_archived_rollouts() {
         let home = TempDir::new().expect("temp dir");
-        let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
+        let store = LocalChatStore::new(test_config(home.path()), /*state_db*/ None);
         let active_path =
             write_session_file(home.path(), "2025-01-03T12-00-00", Uuid::from_u128(301))
                 .expect("session file");
@@ -169,7 +169,7 @@ mod tests {
         for (uuid, path) in cases {
             let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
             store
-                .delete_thread(DeleteThreadParams { chat_id })
+                .delete_chat(DeleteChatParams { chat_id })
                 .await
                 .expect("delete thread");
 
@@ -181,7 +181,7 @@ mod tests {
     #[tokio::test]
     async fn delete_rollout_file_treats_vanished_path_as_already_deleted() {
         let home = TempDir::new().expect("temp dir");
-        let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
+        let store = LocalChatStore::new(test_config(home.path()), /*state_db*/ None);
         let uuid = Uuid::from_u128(305);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let path =
@@ -192,14 +192,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn delete_thread_reports_missing_thread() {
+    async fn delete_chat_reports_missing_thread() {
         let home = TempDir::new().expect("temp dir");
-        let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
+        let store = LocalChatStore::new(test_config(home.path()), /*state_db*/ None);
         let chat_id =
             ChatId::from_string("00000000-0000-0000-0000-000000000304").expect("valid thread id");
 
         let err = store
-            .delete_thread(DeleteThreadParams { chat_id })
+            .delete_chat(DeleteChatParams { chat_id })
             .await
             .expect_err("missing thread should fail");
         assert_eq!(

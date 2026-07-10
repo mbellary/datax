@@ -2286,14 +2286,14 @@ async fn thread_resume_and_read_interrupt_incomplete_rollout_turn_when_thread_is
     )
     .await??;
     let ChatReadResponse {
-        chat: read_thread, ..
+        chat: read_chat, ..
     } = to_response::<ChatReadResponse>(read_resp)?;
 
-    assert_eq!(read_thread.status, ChatStatus::Idle);
-    assert_eq!(read_thread.interactions.len(), 2);
-    assert_eq!(read_thread.interactions[1].id, interaction_id);
+    assert_eq!(read_chat.status, ChatStatus::Idle);
+    assert_eq!(read_chat.interactions.len(), 2);
+    assert_eq!(read_chat.interactions[1].id, interaction_id);
     assert_eq!(
-        read_thread.interactions[1].status,
+        read_chat.interactions[1].status,
         InteractionStatus::Interrupted
     );
 

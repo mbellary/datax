@@ -45,7 +45,7 @@ use datax_core_api::RealtimeConfig;
 use datax_core_api::SessionPickerViewMode;
 use datax_core_api::SessionSource;
 use datax_core_api::TerminalResizeReflowConfig;
-use datax_core_api::ThreadStoreConfig;
+use datax_core_api::ChatStoreConfig;
 use datax_core_api::ToolSuggestConfig;
 use datax_core_api::TuiKeymap;
 use datax_core_api::TuiNotificationSettings;
@@ -61,7 +61,7 @@ use datax_core_api::init_state_db;
 use datax_core_api::item_event_to_server_notification;
 use datax_core_api::resolve_installation_id;
 use datax_core_api::set_default_originator;
-use datax_core_api::thread_store_from_config;
+use datax_core_api::chat_store_from_config;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -115,7 +115,7 @@ async fn run_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
         config.codex_self_exe.clone(),
         config.codex_linux_sandbox_exe.clone(),
     )?;
-    let thread_store = thread_store_from_config(&config, state_db.clone());
+    let thread_store = chat_store_from_config(&config, state_db.clone());
     let environment_manager = Arc::new(
         EnvironmentManager::from_codex_home(config.codex_home.clone(), Some(local_runtime_paths))
             .await?,
@@ -271,7 +271,7 @@ fn new_config(model: Option<String>, arg0_paths: Arg0DispatchPaths) -> anyhow::R
         experimental_realtime_ws_startup_context: None,
         experimental_realtime_start_instructions: None,
         experimental_thread_config_endpoint: None,
-        experimental_thread_store: ThreadStoreConfig::Local,
+        experimental_chat_store: ChatStoreConfig::Local,
         forced_chatgpt_workspace_id: None,
         forced_login_method: None,
         web_search_mode: Constrained::allow_any(WebSearchMode::Disabled),

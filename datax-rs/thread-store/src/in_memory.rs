@@ -16,28 +16,28 @@ use datax_protocol::protocol::ThreadMemoryMode;
 use datax_rollout::persisted_rollout_items;
 
 use crate::AppendChatMessagesParams;
-use crate::ArchiveThreadParams;
-use crate::CreateThreadParams;
-use crate::DeleteThreadParams;
-use crate::ListThreadsParams;
-use crate::LoadThreadHistoryParams;
-use crate::ReadThreadByRolloutPathParams;
-use crate::ReadThreadParams;
-use crate::ResumeThreadParams;
+use crate::ArchiveChatParams;
+use crate::CreateChatParams;
+use crate::DeleteChatParams;
+use crate::ListChatsParams;
+use crate::LoadChatHistoryParams;
+use crate::ReadChatByRolloutPathParams;
+use crate::ReadChatParams;
+use crate::ResumeChatParams;
 use crate::StoredChat;
 use crate::StoredChatHistory;
-use crate::ThreadMetadataPatch;
+use crate::ChatMetadataPatch;
 use crate::ChatPage;
-use crate::ThreadStore;
-use crate::ThreadStoreError;
-use crate::ThreadStoreFuture;
-use crate::ThreadStoreResult;
-use crate::UpdateThreadMetadataParams;
+use crate::ChatStore;
+use crate::ChatStoreError;
+use crate::ChatStoreFuture;
+use crate::ChatStoreResult;
+use crate::UpdateChatMetadataParams;
 
-static IN_MEMORY_THREAD_STORES: OnceLock<Mutex<HashMap<String, Arc<InMemoryThreadStore>>>> =
+static IN_MEMORY_THREAD_STORES: OnceLock<Mutex<HashMap<String, Arc<InMemoryChatStore>>>> =
     OnceLock::new();
 
-fn stores() -> &'static Mutex<HashMap<String, Arc<InMemoryThreadStore>>> {
+fn stores() -> &'static Mutex<HashMap<String, Arc<InMemoryChatStore>>> {
     IN_MEMORY_THREAD_STORES.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
@@ -48,31 +48,31 @@ mod tests {
     use crate::ListInteractionsParams;
     use crate::SortDirection;
     use crate::StoredInteractionMessagesView;
-    use crate::ThreadPersistenceMetadata;
-    use crate::ThreadSortKey;
+    use crate::ChatPersistenceMetadata;
+    use crate::ChatSortKey;
     use datax_protocol::models::BaseInstructions;
     use datax_protocol::protocol::SessionSource;
 
     #[tokio::test]
     async fn default_turn_pagination_methods_return_unsupported() {
-        let store = InMemoryThreadStore::default();
+        let store = InMemoryChatStore::default();
         let chat_id = ChatId::default();
 
         let turns_err = store
-            .list_turns(ListInteractionsParams {
+            .list_interactions(ListInteractionsParams {
                 chat_id,
                 include_archived: true,
                 cursor: None,
                 page_size: 10,
                 sort_direction: SortDirection::Asc,
-                items_view: StoredInteractionMessagesView::Summary,
+                messages_view: StoredInteractionMessagesView::Summary,
             })
             .await
-            .expect_err("default list_turns should be unsupported");
+            .expect_err("default list_interactions should be unsupported");
         assert!(matches!(
             turns_err,
-            ThreadStoreError::Unsupported {
-                operation: "list_turns"
+            ChatStoreError::Unsupported {
+                operation: "list_interactions"
             }
         ));
 
@@ -89,15 +89,15 @@ mod tests {
             .expect_err("default list_messages should be unsupported");
         assert!(matches!(
             items_err,
-            ThreadStoreError::Unsupported {
+            ChatStoreError::Unsupported {
                 operation: "list_messages"
             }
         ));
     }
 
     #[tokio::test]
-    async fn list_threads_filters_by_parent_chat_id() {
-        let store = InMemoryThreadStore::default();
+    async fn list_chats_filters_by_parent_chat_id() {
+        let store = InMemoryChatStore::default();
         let parent_chat_id = ChatId::default();
         let child_chat_id =
             ChatId::from_string("00000000-0000-0000-0000-000000000001").expect("valid thread id");
@@ -109,7 +109,7 @@ mod tests {
             (unrelated_chat_id, None),
         ] {
             store
-                .create_thread(CreateThreadParams {
+                .create_chat(CreateChatParams {
                     session_id: chat_id.into(),
                     chat_id,
                     extra_config: None,
@@ -120,7 +120,7 @@ mod tests {
                     base_instructions: BaseInstructions::default(),
                     dynamic_tools: Vec::new(),
                     multi_agent_version: None,
-                    metadata: ThreadPersistenceMetadata {
+                    metadata: ChatPersistenceMetadata {
                         cwd: None,
                         model_provider: "test-provider".to_string(),
                         memory_mode: ThreadMemoryMode::Enabled,
@@ -130,12 +130,12 @@ mod tests {
                 .expect("create thread");
         }
 
-        let page = ThreadStore::list_threads(
+        let page = ChatStore::list_chats(
             &store,
-            ListThreadsParams {
+            ListChatsParams {
                 page_size: 10,
                 cursor: None,
-                sort_key: ThreadSortKey::CreatedAt,
+                sort_key: ChatSortKey::CreatedAt,
                 sort_direction: SortDirection::Desc,
                 allowed_sources: Vec::new(),
                 model_providers: None,
@@ -159,55 +159,55 @@ mod tests {
     }
 }
 
-fn stores_guard() -> MutexGuard<'static, HashMap<String, Arc<InMemoryThreadStore>>> {
+fn stores_guard() -> MutexGuard<'static, HashMap<String, Arc<InMemoryChatStore>>> {
     match stores().lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
     }
 }
 
-/// Recorded call counts for [`InMemoryThreadStore`].
+/// Recorded call counts for [`InMemoryChatStore`].
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct InMemoryThreadStoreCalls {
-    pub create_thread: usize,
-    pub resume_thread: usize,
+pub struct InMemoryChatStoreCalls {
+    pub create_chat: usize,
+    pub resume_chat: usize,
     pub append_items: usize,
-    pub persist_thread: usize,
-    pub flush_thread: usize,
-    pub shutdown_thread: usize,
-    pub discard_thread: usize,
+    pub persist_chat: usize,
+    pub flush_chat: usize,
+    pub shutdown_chat: usize,
+    pub discard_chat: usize,
     pub load_history: usize,
-    pub read_thread: usize,
-    pub read_thread_with_history: usize,
-    pub read_thread_by_rollout_path: usize,
-    pub list_threads: usize,
-    pub update_thread_metadata: usize,
-    pub archive_thread: usize,
-    pub unarchive_thread: usize,
-    pub delete_thread: usize,
+    pub read_chat: usize,
+    pub read_chat_with_history: usize,
+    pub read_chat_by_rollout_path: usize,
+    pub list_chats: usize,
+    pub update_chat_metadata: usize,
+    pub archive_chat: usize,
+    pub unarchive_chat: usize,
+    pub delete_chat: usize,
 }
 
-/// In-memory [`ThreadStore`] implementation for tests and debug configs.
+/// In-memory [`ChatStore`] implementation for tests and debug configs.
 ///
 /// Test and debug configs can select this store by id, letting tests exercise
 /// config-driven non-local persistence without requiring the real remote gRPC
 /// service.
 #[derive(Default)]
-pub struct InMemoryThreadStore {
-    state: tokio::sync::Mutex<InMemoryThreadStoreState>,
+pub struct InMemoryChatStore {
+    state: tokio::sync::Mutex<InMemoryChatStoreState>,
 }
 
 #[derive(Default)]
-struct InMemoryThreadStoreState {
-    calls: InMemoryThreadStoreCalls,
-    created_threads: HashMap<ChatId, CreateThreadParams>,
+struct InMemoryChatStoreState {
+    calls: InMemoryChatStoreCalls,
+    created_threads: HashMap<ChatId, CreateChatParams>,
     histories: HashMap<ChatId, Vec<RolloutMessage>>,
-    metadata_updates: HashMap<ChatId, ThreadMetadataPatch>,
+    metadata_updates: HashMap<ChatId, ChatMetadataPatch>,
     names: HashMap<ChatId, Option<String>>,
     rollout_paths: HashMap<PathBuf, ChatId>,
 }
 
-impl InMemoryThreadStore {
+impl InMemoryChatStore {
     /// Returns the store associated with `id`, creating it if needed.
     pub fn for_id(id: impl Into<String>) -> Arc<Self> {
         let id = id.into();
@@ -224,13 +224,13 @@ impl InMemoryThreadStore {
     }
 
     /// Returns the calls observed by this store.
-    pub async fn calls(&self) -> InMemoryThreadStoreCalls {
+    pub async fn calls(&self) -> InMemoryChatStoreCalls {
         self.state.lock().await.calls.clone()
     }
 
-    async fn create_thread(&self, params: CreateThreadParams) -> ThreadStoreResult<()> {
+    async fn create_chat(&self, params: CreateChatParams) -> ChatStoreResult<()> {
         let mut state = self.state.lock().await;
-        state.calls.create_thread += 1;
+        state.calls.create_chat += 1;
         let session_meta = SessionMeta {
             session_id: params.session_id,
             id: params.chat_id,
@@ -262,9 +262,9 @@ impl InMemoryThreadStore {
         Ok(())
     }
 
-    async fn resume_thread(&self, params: ResumeThreadParams) -> ThreadStoreResult<()> {
+    async fn resume_chat(&self, params: ResumeChatParams) -> ChatStoreResult<()> {
         let mut state = self.state.lock().await;
-        state.calls.resume_thread += 1;
+        state.calls.resume_chat += 1;
         if let Some(history) = params.history {
             state.histories.insert(params.chat_id, history);
         } else {
@@ -276,7 +276,7 @@ impl InMemoryThreadStore {
         Ok(())
     }
 
-    async fn append_items(&self, params: AppendChatMessagesParams) -> ThreadStoreResult<()> {
+    async fn append_items(&self, params: AppendChatMessagesParams) -> ChatStoreResult<()> {
         let canonical_items = persisted_rollout_items(params.items.as_slice());
         if canonical_items.is_empty() {
             return Ok(());
@@ -293,12 +293,12 @@ impl InMemoryThreadStore {
 
     async fn load_history(
         &self,
-        params: LoadThreadHistoryParams,
-    ) -> ThreadStoreResult<StoredChatHistory> {
+        params: LoadChatHistoryParams,
+    ) -> ChatStoreResult<StoredChatHistory> {
         let mut state = self.state.lock().await;
         state.calls.load_history += 1;
         let items = state.histories.get(&params.chat_id).cloned().ok_or(
-            ThreadStoreError::ThreadNotFound {
+            ChatStoreError::ChatNotFound {
                 chat_id: params.chat_id,
             },
         )?;
@@ -308,42 +308,42 @@ impl InMemoryThreadStore {
         })
     }
 
-    async fn read_thread(&self, params: ReadThreadParams) -> ThreadStoreResult<StoredChat> {
+    async fn read_chat(&self, params: ReadChatParams) -> ChatStoreResult<StoredChat> {
         let mut state = self.state.lock().await;
-        state.calls.read_thread += 1;
+        state.calls.read_chat += 1;
         if params.include_history {
-            state.calls.read_thread_with_history += 1;
+            state.calls.read_chat_with_history += 1;
         }
-        stored_thread_from_state(&state, params.chat_id, params.include_history)
+        stored_chat_from_state(&state, params.chat_id, params.include_history)
     }
 
-    async fn read_thread_by_rollout_path(
+    async fn read_chat_by_rollout_path(
         &self,
-        params: ReadThreadByRolloutPathParams,
-    ) -> ThreadStoreResult<StoredChat> {
+        params: ReadChatByRolloutPathParams,
+    ) -> ChatStoreResult<StoredChat> {
         let mut state = self.state.lock().await;
-        state.calls.read_thread_by_rollout_path += 1;
+        state.calls.read_chat_by_rollout_path += 1;
         let Some(chat_id) = state.rollout_paths.get(&params.rollout_path).copied() else {
-            return Err(ThreadStoreError::InvalidRequest {
+            return Err(ChatStoreError::InvalidRequest {
                 message: format!(
-                    "in-memory thread store does not know rollout path {}",
+                    "in-memory chat store does not know rollout path {}",
                     params.rollout_path.display()
                 ),
             });
         };
-        stored_thread_from_state(&state, chat_id, params.include_history)
+        stored_chat_from_state(&state, chat_id, params.include_history)
     }
 
-    async fn list_threads(&self) -> ThreadStoreResult<ChatPage> {
+    async fn list_chats(&self) -> ChatStoreResult<ChatPage> {
         let mut state = self.state.lock().await;
-        state.calls.list_threads += 1;
+        state.calls.list_chats += 1;
         let mut items = state
             .created_threads
             .keys()
             .map(|chat_id| {
-                stored_thread_from_state(&state, *chat_id, /*include_history*/ false)
+                stored_chat_from_state(&state, *chat_id, /*include_history*/ false)
             })
-            .collect::<ThreadStoreResult<Vec<_>>>()?;
+            .collect::<ChatStoreResult<Vec<_>>>()?;
         items.sort_by_key(|item| item.chat_id.to_string());
         Ok(ChatPage {
             items,
@@ -351,12 +351,12 @@ impl InMemoryThreadStore {
         })
     }
 
-    async fn update_thread_metadata(
+    async fn update_chat_metadata(
         &self,
-        params: UpdateThreadMetadataParams,
-    ) -> ThreadStoreResult<StoredChat> {
+        params: UpdateChatMetadataParams,
+    ) -> ChatStoreResult<StoredChat> {
         let mut state = self.state.lock().await;
-        state.calls.update_thread_metadata += 1;
+        state.calls.update_chat_metadata += 1;
         if let Some(name) = params.patch.name.clone() {
             state.names.insert(params.chat_id, name);
         }
@@ -365,12 +365,12 @@ impl InMemoryThreadStore {
             .entry(params.chat_id)
             .or_default()
             .merge(params.patch);
-        stored_thread_from_state(&state, params.chat_id, /*include_history*/ false)
+        stored_chat_from_state(&state, params.chat_id, /*include_history*/ false)
     }
 
-    async fn delete_thread(&self, params: DeleteThreadParams) -> ThreadStoreResult<()> {
+    async fn delete_chat(&self, params: DeleteChatParams) -> ChatStoreResult<()> {
         let mut state = self.state.lock().await;
-        state.calls.delete_thread += 1;
+        state.calls.delete_chat += 1;
         let existed = state.histories.remove(&params.chat_id).is_some();
         state.created_threads.remove(&params.chat_id);
         state.names.remove(&params.chat_id);
@@ -381,81 +381,81 @@ impl InMemoryThreadStore {
         if existed {
             Ok(())
         } else {
-            Err(ThreadStoreError::ThreadNotFound {
+            Err(ChatStoreError::ChatNotFound {
                 chat_id: params.chat_id,
             })
         }
     }
 }
 
-impl ThreadStore for InMemoryThreadStore {
+impl ChatStore for InMemoryChatStore {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
-    fn create_thread(&self, params: CreateThreadParams) -> ThreadStoreFuture<'_, ()> {
-        Box::pin(InMemoryThreadStore::create_thread(self, params))
+    fn create_chat(&self, params: CreateChatParams) -> ChatStoreFuture<'_, ()> {
+        Box::pin(InMemoryChatStore::create_chat(self, params))
     }
 
-    fn resume_thread(&self, params: ResumeThreadParams) -> ThreadStoreFuture<'_, ()> {
-        Box::pin(InMemoryThreadStore::resume_thread(self, params))
+    fn resume_chat(&self, params: ResumeChatParams) -> ChatStoreFuture<'_, ()> {
+        Box::pin(InMemoryChatStore::resume_chat(self, params))
     }
 
-    fn append_items(&self, params: AppendChatMessagesParams) -> ThreadStoreFuture<'_, ()> {
-        Box::pin(InMemoryThreadStore::append_items(self, params))
+    fn append_items(&self, params: AppendChatMessagesParams) -> ChatStoreFuture<'_, ()> {
+        Box::pin(InMemoryChatStore::append_items(self, params))
     }
 
-    fn persist_thread(&self, _chat_id: ChatId) -> ThreadStoreFuture<'_, ()> {
+    fn persist_chat(&self, _chat_id: ChatId) -> ChatStoreFuture<'_, ()> {
         Box::pin(async move {
-            self.state.lock().await.calls.persist_thread += 1;
+            self.state.lock().await.calls.persist_chat += 1;
             Ok(())
         })
     }
 
-    fn flush_thread(&self, _chat_id: ChatId) -> ThreadStoreFuture<'_, ()> {
+    fn flush_chat(&self, _chat_id: ChatId) -> ChatStoreFuture<'_, ()> {
         Box::pin(async move {
-            self.state.lock().await.calls.flush_thread += 1;
+            self.state.lock().await.calls.flush_chat += 1;
             Ok(())
         })
     }
 
-    fn shutdown_thread(&self, _chat_id: ChatId) -> ThreadStoreFuture<'_, ()> {
+    fn shutdown_chat(&self, _chat_id: ChatId) -> ChatStoreFuture<'_, ()> {
         Box::pin(async move {
-            self.state.lock().await.calls.shutdown_thread += 1;
+            self.state.lock().await.calls.shutdown_chat += 1;
             Ok(())
         })
     }
 
-    fn discard_thread(&self, _chat_id: ChatId) -> ThreadStoreFuture<'_, ()> {
+    fn discard_chat(&self, _chat_id: ChatId) -> ChatStoreFuture<'_, ()> {
         Box::pin(async move {
-            self.state.lock().await.calls.discard_thread += 1;
+            self.state.lock().await.calls.discard_chat += 1;
             Ok(())
         })
     }
 
     fn load_history(
         &self,
-        params: LoadThreadHistoryParams,
-    ) -> ThreadStoreFuture<'_, StoredChatHistory> {
-        Box::pin(InMemoryThreadStore::load_history(self, params))
+        params: LoadChatHistoryParams,
+    ) -> ChatStoreFuture<'_, StoredChatHistory> {
+        Box::pin(InMemoryChatStore::load_history(self, params))
     }
 
-    fn read_thread(&self, params: ReadThreadParams) -> ThreadStoreFuture<'_, StoredChat> {
-        Box::pin(InMemoryThreadStore::read_thread(self, params))
+    fn read_chat(&self, params: ReadChatParams) -> ChatStoreFuture<'_, StoredChat> {
+        Box::pin(InMemoryChatStore::read_chat(self, params))
     }
 
-    fn read_thread_by_rollout_path(
+    fn read_chat_by_rollout_path(
         &self,
-        params: ReadThreadByRolloutPathParams,
-    ) -> ThreadStoreFuture<'_, StoredChat> {
-        Box::pin(InMemoryThreadStore::read_thread_by_rollout_path(
+        params: ReadChatByRolloutPathParams,
+    ) -> ChatStoreFuture<'_, StoredChat> {
+        Box::pin(InMemoryChatStore::read_chat_by_rollout_path(
             self, params,
         ))
     }
 
-    fn list_threads(&self, params: ListThreadsParams) -> ThreadStoreFuture<'_, ChatPage> {
+    fn list_chats(&self, params: ListChatsParams) -> ChatStoreFuture<'_, ChatPage> {
         Box::pin(async move {
-            let mut page = InMemoryThreadStore::list_threads(self).await?;
+            let mut page = InMemoryChatStore::list_chats(self).await?;
             if let Some(parent_chat_id) = params.parent_chat_id {
                 page.items
                     .retain(|thread| thread.parent_chat_id == Some(parent_chat_id));
@@ -464,42 +464,42 @@ impl ThreadStore for InMemoryThreadStore {
         })
     }
 
-    fn update_thread_metadata(
+    fn update_chat_metadata(
         &self,
-        params: UpdateThreadMetadataParams,
-    ) -> ThreadStoreFuture<'_, StoredChat> {
-        Box::pin(InMemoryThreadStore::update_thread_metadata(self, params))
+        params: UpdateChatMetadataParams,
+    ) -> ChatStoreFuture<'_, StoredChat> {
+        Box::pin(InMemoryChatStore::update_chat_metadata(self, params))
     }
 
-    fn archive_thread(&self, _params: ArchiveThreadParams) -> ThreadStoreFuture<'_, ()> {
+    fn archive_chat(&self, _params: ArchiveChatParams) -> ChatStoreFuture<'_, ()> {
         Box::pin(async move {
-            self.state.lock().await.calls.archive_thread += 1;
+            self.state.lock().await.calls.archive_chat += 1;
             Ok(())
         })
     }
 
-    fn unarchive_thread(&self, params: ArchiveThreadParams) -> ThreadStoreFuture<'_, StoredChat> {
+    fn unarchive_chat(&self, params: ArchiveChatParams) -> ChatStoreFuture<'_, StoredChat> {
         Box::pin(async move {
             let mut state = self.state.lock().await;
-            state.calls.unarchive_thread += 1;
-            stored_thread_from_state(&state, params.chat_id, /*include_history*/ false)
+            state.calls.unarchive_chat += 1;
+            stored_chat_from_state(&state, params.chat_id, /*include_history*/ false)
         })
     }
 
-    fn delete_thread(&self, params: DeleteThreadParams) -> ThreadStoreFuture<'_, ()> {
-        Box::pin(InMemoryThreadStore::delete_thread(self, params))
+    fn delete_chat(&self, params: DeleteChatParams) -> ChatStoreFuture<'_, ()> {
+        Box::pin(InMemoryChatStore::delete_chat(self, params))
     }
 }
 
-fn stored_thread_from_state(
-    state: &InMemoryThreadStoreState,
+fn stored_chat_from_state(
+    state: &InMemoryChatStoreState,
     chat_id: ChatId,
     include_history: bool,
-) -> ThreadStoreResult<StoredChat> {
+) -> ChatStoreResult<StoredChat> {
     let created = state
         .created_threads
         .get(&chat_id)
-        .ok_or(ThreadStoreError::ThreadNotFound { chat_id })?;
+        .ok_or(ChatStoreError::ChatNotFound { chat_id })?;
     let history_items = state.histories.get(&chat_id).cloned().unwrap_or_default();
     let history = include_history.then(|| StoredChatHistory {
         chat_id,
@@ -569,7 +569,7 @@ fn stored_thread_from_state(
     })
 }
 
-fn git_info_from_patch(patch: &ThreadMetadataPatch) -> Option<datax_protocol::protocol::GitInfo> {
+fn git_info_from_patch(patch: &ChatMetadataPatch) -> Option<datax_protocol::protocol::GitInfo> {
     let git_info = patch.git_info.as_ref()?;
     let sha = git_info.sha.clone().flatten();
     let branch = git_info.branch.clone().flatten();

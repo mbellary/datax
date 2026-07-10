@@ -475,8 +475,8 @@ pub async fn thread_rollback(sess: &Arc<Session>, sub_id: String, num_turns: u32
     }
 
     let turn_context = sess.new_default_turn_with_sub_id(sub_id).await;
-    let live_thread = match sess.live_thread_for_persistence("rollback thread") {
-        Ok(live_thread) => live_thread,
+    let live_chat = match sess.live_chat_for_persistence("rollback thread") {
+        Ok(live_chat) => live_chat,
         Err(_) => {
             sess.send_event_raw(Event {
                 id: turn_context.sub_id.clone(),
@@ -489,7 +489,7 @@ pub async fn thread_rollback(sess: &Arc<Session>, sub_id: String, num_turns: u32
             return;
         }
     };
-    if let Err(err) = live_thread.flush().await {
+    if let Err(err) = live_chat.flush().await {
         sess.send_event_raw(Event {
             id: turn_context.sub_id.clone(),
             msg: EventMsg::Error(ErrorEvent {
@@ -501,7 +501,7 @@ pub async fn thread_rollback(sess: &Arc<Session>, sub_id: String, num_turns: u32
         return;
     }
 
-    let stored_history = match live_thread.load_history(/*include_archived*/ false).await {
+    let stored_history = match live_chat.load_history(/*include_archived*/ false).await {
         Ok(history) => history,
         Err(err) => {
             sess.send_event_raw(Event {
@@ -552,17 +552,17 @@ pub async fn thread_rollback(sess: &Arc<Session>, sub_id: String, num_turns: u32
     .await;
 }
 
-pub(super) async fn persist_thread_memory_mode_update(
+pub(super) async fn persist_chat_memory_mode_update(
     sess: &Arc<Session>,
     mode: ThreadMemoryMode,
 ) -> anyhow::Result<()> {
-    let live_thread = sess.live_thread_for_persistence("update thread memory mode")?;
-    live_thread.persist().await?;
-    live_thread.flush().await?;
-    live_thread
+    let live_chat = sess.live_chat_for_persistence("update thread memory mode")?;
+    live_chat.persist().await?;
+    live_chat.flush().await?;
+    live_chat
         .update_memory_mode(mode, /*include_archived*/ false)
         .await?;
-    live_thread.flush().await?;
+    live_chat.flush().await?;
     Ok(())
 }
 
@@ -571,7 +571,7 @@ pub(super) async fn persist_thread_memory_mode_update(
 /// This does not involve the model and only affects whether the thread is
 /// eligible for future memory generation.
 pub async fn set_thread_memory_mode(sess: &Arc<Session>, sub_id: String, mode: ThreadMemoryMode) {
-    if let Err(err) = persist_thread_memory_mode_update(sess, mode).await {
+    if let Err(err) = persist_chat_memory_mode_update(sess, mode).await {
         warn!("Failed to persist thread memory mode update to rollout: {err}");
         let event = Event {
             id: sub_id,
@@ -611,7 +611,7 @@ async fn emit_thread_stop_lifecycle(sess: &Session) {
         contributor
             .on_thread_stop(datax_extension_api::ThreadStopInput {
                 session_store: &sess.services.session_extension_data,
-                thread_store: &sess.services.thread_extension_data,
+                chat_store: &sess.services.thread_extension_data,
             })
             .await;
     }
@@ -636,8 +636,8 @@ pub async fn shutdown(sess: &Arc<Session>, sub_id: String) -> bool {
 
     // Gracefully flush and shutdown thread persistence on session end so tests
     // that inspect durable state do not race with the background writer.
-    if let Some(live_thread) = sess.live_thread()
-        && let Err(e) = live_thread.shutdown().await
+    if let Some(live_chat) = sess.live_chat()
+        && let Err(e) = live_chat.shutdown().await
     {
         warn!("failed to shutdown thread persistence: {e}");
         let event = Event {

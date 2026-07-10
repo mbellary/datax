@@ -2158,7 +2158,7 @@ async fn record_token_usage_info_notifies_extension_contributors() {
         turn_level_id: String,
         token_usage: TokenUsageInfo,
         saw_session_store: bool,
-        saw_thread_store: bool,
+        saw_chat_store: bool,
     }
 
     struct TokenUsageRecorder {
@@ -2169,7 +2169,7 @@ async fn record_token_usage_info_notifies_extension_contributors() {
         fn on_token_usage<'a>(
             &'a self,
             session_store: &'a datax_extension_api::ExtensionData,
-            thread_store: &'a datax_extension_api::ExtensionData,
+            chat_store: &'a datax_extension_api::ExtensionData,
             turn_store: &'a datax_extension_api::ExtensionData,
             token_usage: &'a TokenUsageInfo,
         ) -> datax_extension_api::ExtensionFuture<'a, ()> {
@@ -2179,11 +2179,11 @@ async fn record_token_usage_info_notifies_extension_contributors() {
                     .expect("token usage records lock")
                     .push(RecordedTokenUsage {
                         session_level_id: session_store.level_id().to_string(),
-                        thread_level_id: thread_store.level_id().to_string(),
+                        thread_level_id: chat_store.level_id().to_string(),
                         turn_level_id: turn_store.level_id().to_string(),
                         token_usage: token_usage.clone(),
                         saw_session_store: session_store.get::<SessionTokenUsageMarker>().is_some(),
-                        saw_thread_store: thread_store.get::<ThreadTokenUsageMarker>().is_some(),
+                        saw_chat_store: chat_store.get::<ThreadTokenUsageMarker>().is_some(),
                     });
             })
         }
@@ -2242,7 +2242,7 @@ async fn record_token_usage_info_notifies_extension_contributors() {
                 model_context_window: turn_context.model_context_window(),
             },
             saw_session_store: true,
-            saw_thread_store: true,
+            saw_chat_store: true,
         },
         RecordedTokenUsage {
             session_level_id: session.session_id().to_string(),
@@ -2254,7 +2254,7 @@ async fn record_token_usage_info_notifies_extension_contributors() {
                 model_context_window: turn_context.model_context_window(),
             },
             saw_session_store: true,
-            saw_thread_store: true,
+            saw_chat_store: true,
         },
     ];
     let actual = records
@@ -2279,7 +2279,7 @@ async fn turn_start_lifecycle_exposes_turn_metadata_and_token_baseline() {
         collaboration_mode: CollaborationMode,
         token_usage_at_turn_start: TokenUsage,
         saw_session_store: bool,
-        saw_thread_store: bool,
+        saw_chat_store: bool,
     }
 
     struct TurnStartRecorder {
@@ -2297,7 +2297,7 @@ async fn turn_start_lifecycle_exposes_turn_metadata_and_token_baseline() {
                     .expect("turn start records lock")
                     .push(RecordedTurnStart {
                         session_level_id: input.session_store.level_id().to_string(),
-                        thread_level_id: input.thread_store.level_id().to_string(),
+                        thread_level_id: input.chat_store.level_id().to_string(),
                         turn_level_id: input.turn_store.level_id().to_string(),
                         interaction_id: input.interaction_id.to_string(),
                         collaboration_mode: input.collaboration_mode.clone(),
@@ -2306,8 +2306,8 @@ async fn turn_start_lifecycle_exposes_turn_metadata_and_token_baseline() {
                             .session_store
                             .get::<SessionTurnStartMarker>()
                             .is_some(),
-                        saw_thread_store: input
-                            .thread_store
+                        saw_chat_store: input
+                            .chat_store
                             .get::<ThreadTurnStartMarker>()
                             .is_some(),
                     });
@@ -2348,7 +2348,7 @@ async fn turn_start_lifecycle_exposes_turn_metadata_and_token_baseline() {
         collaboration_mode: turn_context.collaboration_mode.clone(),
         token_usage_at_turn_start,
         saw_session_store: true,
-        saw_thread_store: true,
+        saw_chat_store: true,
     };
 
     let sess = Arc::new(session);
@@ -2385,7 +2385,7 @@ async fn turn_error_lifecycle_exposes_error_and_stores() {
         interaction_id: String,
         error: CodexErrorInfo,
         saw_session_store: bool,
-        saw_thread_store: bool,
+        saw_chat_store: bool,
     }
 
     struct TurnErrorRecorder {
@@ -2403,7 +2403,7 @@ async fn turn_error_lifecycle_exposes_error_and_stores() {
                     .expect("turn error records lock")
                     .push(RecordedTurnError {
                         session_level_id: input.session_store.level_id().to_string(),
-                        thread_level_id: input.thread_store.level_id().to_string(),
+                        thread_level_id: input.chat_store.level_id().to_string(),
                         turn_level_id: input.turn_store.level_id().to_string(),
                         interaction_id: input.interaction_id.to_string(),
                         error: input.error,
@@ -2411,8 +2411,8 @@ async fn turn_error_lifecycle_exposes_error_and_stores() {
                             .session_store
                             .get::<SessionTurnErrorMarker>()
                             .is_some(),
-                        saw_thread_store: input
-                            .thread_store
+                        saw_chat_store: input
+                            .chat_store
                             .get::<ThreadTurnErrorMarker>()
                             .is_some(),
                     });
@@ -2443,7 +2443,7 @@ async fn turn_error_lifecycle_exposes_error_and_stores() {
         interaction_id: turn_context.sub_id.clone(),
         error: CodexErrorInfo::UsageLimitExceeded,
         saw_session_store: true,
-        saw_thread_store: true,
+        saw_chat_store: true,
     };
 
     session
@@ -2470,7 +2470,7 @@ async fn config_change_contributor_observes_effective_config_changes() {
         previous_disabled_tools: Vec<ToolSuggestDisabledTool>,
         new_disabled_tools: Vec<ToolSuggestDisabledTool>,
         saw_session_store: bool,
-        saw_thread_store: bool,
+        saw_chat_store: bool,
     }
 
     struct ConfigRecorder {
@@ -2481,7 +2481,7 @@ async fn config_change_contributor_observes_effective_config_changes() {
         fn on_config_changed(
             &self,
             session_store: &datax_extension_api::ExtensionData,
-            thread_store: &datax_extension_api::ExtensionData,
+            chat_store: &datax_extension_api::ExtensionData,
             previous_config: &crate::config::Config,
             new_config: &crate::config::Config,
         ) {
@@ -2494,7 +2494,7 @@ async fn config_change_contributor_observes_effective_config_changes() {
                     previous_disabled_tools: previous_config.tool_suggest.disabled_tools.clone(),
                     new_disabled_tools: new_config.tool_suggest.disabled_tools.clone(),
                     saw_session_store: session_store.get::<SessionConfigMarker>().is_some(),
-                    saw_thread_store: thread_store.get::<ThreadConfigMarker>().is_some(),
+                    saw_chat_store: chat_store.get::<ThreadConfigMarker>().is_some(),
                 });
         }
     }
@@ -2566,7 +2566,7 @@ disabled_tools = [
             previous_disabled_tools: original_disabled_tools.clone(),
             new_disabled_tools: original_disabled_tools.clone(),
             saw_session_store: true,
-            saw_thread_store: true,
+            saw_chat_store: true,
         },
         RecordedConfigChange {
             previous_model: Some(next_model.to_string()),
@@ -2574,7 +2574,7 @@ disabled_tools = [
             previous_disabled_tools: original_disabled_tools,
             new_disabled_tools: expected_disabled_tools,
             saw_session_store: true,
-            saw_thread_store: true,
+            saw_chat_store: true,
         },
     ];
     let actual = records
@@ -3817,9 +3817,9 @@ async fn wait_for_thread_rollback_failed(rx: &async_channel::Receiver<Event>) ->
 
 async fn attach_thread_persistence(session: &mut Session) -> PathBuf {
     let config = session.get_config().await;
-    let live_thread = LiveThread::create(
-        Arc::clone(&session.services.thread_store),
-        CreateThreadParams {
+    let live_chat = LiveChat::create(
+        Arc::clone(&session.services.chat_store),
+        CreateChatParams {
             session_id: session.session_id(),
             chat_id: session.chat_id,
             extra_config: None,
@@ -3830,7 +3830,7 @@ async fn attach_thread_persistence(session: &mut Session) -> PathBuf {
             base_instructions: BaseInstructions::default(),
             dynamic_tools: Vec::new(),
             multi_agent_version: None,
-            metadata: ThreadPersistenceMetadata {
+            metadata: ChatPersistenceMetadata {
                 cwd: Some(config.cwd.to_path_buf()),
                 model_provider: config.model_provider_id.clone(),
                 memory_mode: if config.memories.generate_memories {
@@ -3843,7 +3843,7 @@ async fn attach_thread_persistence(session: &mut Session) -> PathBuf {
     )
     .await
     .expect("create thread persistence");
-    session.services.live_thread = Some(live_thread);
+    session.services.live_chat = Some(live_chat);
     session.ensure_rollout_materialized().await;
     session
         .flush_rollout()
@@ -5007,8 +5007,8 @@ async fn session_new_fails_when_zsh_fork_enabled_without_packaged_zsh() {
         environment_manager,
         /*inherited_environments*/ None,
         /*analytics_events_client*/ None,
-        Arc::new(datax_thread_store::LocalThreadStore::new(
-            datax_thread_store::LocalThreadStoreConfig::from_config(config.as_ref()),
+        Arc::new(datax_thread_store::LocalChatStore::new(
+            datax_thread_store::LocalChatStoreConfig::from_config(config.as_ref()),
             /*state_db*/ None,
         )),
         datax_rollout_trace::ThreadTraceContext::disabled(),
@@ -5174,9 +5174,9 @@ pub(crate) async fn make_session_and_context() -> (Session, InteractionContext) 
         managed_network_requirements_configured: false,
         network_approval: Arc::clone(&network_approval),
         state_db: None,
-        live_thread: None,
-        thread_store: Arc::new(datax_thread_store::LocalThreadStore::new(
-            datax_thread_store::LocalThreadStoreConfig::from_config(config.as_ref()),
+        live_chat: None,
+        chat_store: Arc::new(datax_thread_store::LocalChatStore::new(
+            datax_thread_store::LocalChatStoreConfig::from_config(config.as_ref()),
             /*state_db*/ None,
         )),
         attestation_provider: None,
@@ -5365,8 +5365,8 @@ async fn make_session_with_config_and_rx(
         environment_manager,
         /*inherited_environments*/ None,
         /*analytics_events_client*/ None,
-        Arc::new(datax_thread_store::LocalThreadStore::new(
-            datax_thread_store::LocalThreadStoreConfig::from_config(config.as_ref()),
+        Arc::new(datax_thread_store::LocalChatStore::new(
+            datax_thread_store::LocalChatStoreConfig::from_config(config.as_ref()),
             /*state_db*/ None,
         )),
         datax_rollout_trace::ThreadTraceContext::disabled(),
@@ -5471,8 +5471,8 @@ async fn make_session_with_history_source_and_agent_control_and_rx(
         environment_manager,
         /*inherited_environments*/ None,
         /*analytics_events_client*/ None,
-        Arc::new(datax_thread_store::LocalThreadStore::new(
-            datax_thread_store::LocalThreadStoreConfig::from_config(config.as_ref()),
+        Arc::new(datax_thread_store::LocalChatStore::new(
+            datax_thread_store::LocalChatStoreConfig::from_config(config.as_ref()),
             Some(
                 datax_state::StateRuntime::init(
                     config.sqlite_home.clone(),
@@ -6656,14 +6656,14 @@ async fn spawn_task_turn_span_inherits_dispatch_trace_context() {
 
 #[cfg(debug_assertions)]
 #[tokio::test]
-async fn shutdown_complete_does_not_append_to_thread_store_after_shutdown() {
+async fn shutdown_complete_does_not_append_to_chat_store_after_shutdown() {
     let (mut session, _turn_context) = make_session_and_context().await;
-    let store = Arc::new(datax_thread_store::InMemoryThreadStore::default());
-    let thread_store: Arc<dyn datax_thread_store::ThreadStore> = store.clone();
+    let store = Arc::new(datax_thread_store::InMemoryChatStore::default());
+    let chat_store: Arc<dyn datax_thread_store::ChatStore> = store.clone();
     let config = session.get_config().await;
-    let live_thread = LiveThread::create(
-        Arc::clone(&thread_store),
-        CreateThreadParams {
+    let live_chat = LiveChat::create(
+        Arc::clone(&chat_store),
+        CreateChatParams {
             session_id: session.session_id(),
             chat_id: session.chat_id,
             extra_config: None,
@@ -6674,7 +6674,7 @@ async fn shutdown_complete_does_not_append_to_thread_store_after_shutdown() {
             base_instructions: BaseInstructions::default(),
             dynamic_tools: Vec::new(),
             multi_agent_version: None,
-            metadata: ThreadPersistenceMetadata {
+            metadata: ChatPersistenceMetadata {
                 cwd: Some(config.cwd.to_path_buf()),
                 model_provider: config.model_provider_id.clone(),
                 memory_mode: if config.memories.generate_memories {
@@ -6687,16 +6687,16 @@ async fn shutdown_complete_does_not_append_to_thread_store_after_shutdown() {
     )
     .await
     .expect("create thread persistence");
-    session.services.thread_store = thread_store;
-    session.services.live_thread = Some(live_thread);
+    session.services.chat_store = chat_store;
+    session.services.live_chat = Some(live_chat);
     let session = Arc::new(session);
 
     assert!(handlers::shutdown(&session, "sub-1".to_string()).await);
 
     assert_eq!(
-        datax_thread_store::InMemoryThreadStoreCalls {
-            create_thread: 1,
-            shutdown_thread: 1,
+        datax_thread_store::InMemoryChatStoreCalls {
+            create_chat: 1,
+            shutdown_chat: 1,
             ..Default::default()
         },
         store.calls().await
@@ -6721,10 +6721,10 @@ async fn submission_loop_channel_close_emits_thread_stop_lifecycle() {
             Box::pin(async move {
                 assert_eq!(
                     self.expected_chat_id.to_string(),
-                    input.thread_store.level_id()
+                    input.chat_store.level_id()
                 );
                 assert!(input.session_store.get::<SessionStopMarker>().is_some());
-                assert!(input.thread_store.get::<ThreadStopMarker>().is_some());
+                assert!(input.chat_store.get::<ThreadStopMarker>().is_some());
                 self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             })
         }
@@ -6771,7 +6771,7 @@ async fn submission_loop_channel_close_aborts_active_turn_before_thread_stop_lif
             Box::pin(async move {
                 assert_eq!(
                     self.expected_chat_id.to_string(),
-                    input.thread_store.level_id()
+                    input.chat_store.level_id()
                 );
                 self.calls
                     .lock()
@@ -6789,7 +6789,7 @@ async fn submission_loop_channel_close_aborts_active_turn_before_thread_stop_lif
             Box::pin(async move {
                 assert_eq!(
                     self.expected_chat_id.to_string(),
-                    input.thread_store.level_id()
+                    input.chat_store.level_id()
                 );
                 assert_eq!(self.expected_interaction_id, input.turn_store.level_id());
                 assert_eq!(InteractionAbortReason::Interrupted, input.reason);
@@ -7239,9 +7239,9 @@ where
         managed_network_requirements_configured: false,
         network_approval: Arc::clone(&network_approval),
         state_db: state_db.clone(),
-        live_thread: None,
-        thread_store: Arc::new(datax_thread_store::LocalThreadStore::new(
-            datax_thread_store::LocalThreadStoreConfig::from_config(config.as_ref()),
+        live_chat: None,
+        chat_store: Arc::new(datax_thread_store::LocalChatStore::new(
+            datax_thread_store::LocalChatStoreConfig::from_config(config.as_ref()),
             state_db,
         )),
         attestation_provider: None,
@@ -7736,12 +7736,12 @@ impl datax_extension_api::ContextContributor for PromptExtensionTestContributor 
     fn contribute_thread_context<'a>(
         &'a self,
         _session_store: &'a datax_extension_api::ExtensionData,
-        thread_store: &'a datax_extension_api::ExtensionData,
+        chat_store: &'a datax_extension_api::ExtensionData,
     ) -> std::pin::Pin<
         Box<dyn std::future::Future<Output = Vec<datax_extension_api::PromptFragment>> + Send + 'a>,
     > {
         Box::pin(async move {
-            thread_store
+            chat_store
                 .get::<PromptExtensionTestState>()
                 .is_some()
                 .then(|| {
@@ -9174,7 +9174,7 @@ async fn task_finish_emits_chat_idle_lifecycle_after_active_turn_clears() {
             Box::pin(async move {
                 assert_eq!(
                     self.expected_chat_id.to_string(),
-                    input.thread_store.level_id()
+                    input.chat_store.level_id()
                 );
                 self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
                 self.idle_tx.send(()).await.expect("idle receiver open");

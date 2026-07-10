@@ -2,11 +2,11 @@ use crate::config::edit::ConfigEditsBuilder;
 use datax_config::config_toml::ConfigToml;
 use datax_protocol::config_types::Personality;
 use datax_rollout::state_db::StateDbHandle;
-use datax_thread_store::ListThreadsParams;
-use datax_thread_store::LocalThreadStore;
-use datax_thread_store::LocalThreadStoreConfig;
-use datax_thread_store::ThreadSortKey;
-use datax_thread_store::ThreadStore;
+use datax_thread_store::ListChatsParams;
+use datax_thread_store::LocalChatStore;
+use datax_thread_store::LocalChatStoreConfig;
+use datax_thread_store::ChatSortKey;
+use datax_thread_store::ChatStore;
 use std::io;
 use std::path::Path;
 use tokio::fs::OpenOptions;
@@ -64,8 +64,8 @@ async fn has_recorded_sessions(
     default_provider: &str,
     state_db: Option<StateDbHandle>,
 ) -> io::Result<bool> {
-    let store = LocalThreadStore::new(
-        LocalThreadStoreConfig {
+    let store = LocalChatStore::new(
+        LocalChatStoreConfig {
             codex_home: codex_home.to_path_buf(),
             sqlite_home: codex_home.to_path_buf(),
             default_model_provider_id: default_provider.to_string(),
@@ -78,12 +78,12 @@ async fn has_recorded_sessions(
     has_threads(&store, /*archived*/ true).await
 }
 
-async fn has_threads(store: &LocalThreadStore, archived: bool) -> io::Result<bool> {
+async fn has_threads(store: &LocalChatStore, archived: bool) -> io::Result<bool> {
     store
-        .list_threads(ListThreadsParams {
+        .list_chats(ListChatsParams {
             page_size: 1,
             cursor: None,
-            sort_key: ThreadSortKey::CreatedAt,
+            sort_key: ChatSortKey::CreatedAt,
             sort_direction: datax_thread_store::SortDirection::Desc,
             allowed_sources: Vec::new(),
             model_providers: None,

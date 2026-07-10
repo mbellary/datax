@@ -7,34 +7,34 @@ use datax_rollout::RolloutRecorder;
 use datax_rollout::find_thread_names_by_ids;
 use datax_rollout::parse_cursor;
 
-use super::LocalThreadStore;
-use super::helpers::distinct_thread_metadata_title;
+use super::LocalChatStore;
+use super::helpers::distinct_chat_metadata_title;
 use super::helpers::set_thread_name_from_title;
-use super::helpers::stored_thread_from_rollout_item;
-use crate::ListThreadsParams;
+use super::helpers::stored_chat_from_rollout_item;
+use crate::ListChatsParams;
 use crate::SortDirection;
 use crate::ChatPage;
-use crate::ThreadSortKey;
-use crate::ThreadStoreError;
-use crate::ThreadStoreResult;
+use crate::ChatSortKey;
+use crate::ChatStoreError;
+use crate::ChatStoreResult;
 
-pub(super) async fn list_threads(
-    store: &LocalThreadStore,
-    params: ListThreadsParams,
-) -> ThreadStoreResult<ChatPage> {
+pub(super) async fn list_chats(
+    store: &LocalChatStore,
+    params: ListChatsParams,
+) -> ChatStoreResult<ChatPage> {
     let cursor = params
         .cursor
         .as_deref()
         .map(|cursor| {
-            parse_cursor(cursor).ok_or_else(|| ThreadStoreError::InvalidRequest {
+            parse_cursor(cursor).ok_or_else(|| ChatStoreError::InvalidRequest {
                 message: format!("invalid cursor: {cursor}"),
             })
         })
         .transpose()?;
     let sort_key = match params.sort_key {
-        ThreadSortKey::CreatedAt => datax_rollout::ThreadSortKey::CreatedAt,
-        ThreadSortKey::UpdatedAt => datax_rollout::ThreadSortKey::UpdatedAt,
-        ThreadSortKey::RecencyAt => datax_rollout::ThreadSortKey::RecencyAt,
+        ChatSortKey::CreatedAt => datax_rollout::ChatSortKey::CreatedAt,
+        ChatSortKey::UpdatedAt => datax_rollout::ChatSortKey::UpdatedAt,
+        ChatSortKey::RecencyAt => datax_rollout::ChatSortKey::RecencyAt,
     };
     let sort_direction = match params.sort_direction {
         SortDirection::Asc => datax_rollout::SortDirection::Asc,
@@ -68,7 +68,7 @@ pub(super) async fn list_threads(
         .items
         .into_iter()
         .filter_map(|item| {
-            stored_thread_from_rollout_item(
+            stored_chat_from_rollout_item(
                 item,
                 params.archived,
                 store.config.default_model_provider_id.as_str(),
@@ -86,7 +86,7 @@ pub(super) async fn list_threads(
             let Ok(Some(metadata)) = state_db_ctx.get_thread(chat_id).await else {
                 continue;
             };
-            if let Some(title) = distinct_thread_metadata_title(&metadata) {
+            if let Some(title) = distinct_chat_metadata_title(&metadata) {
                 names.insert(chat_id, title);
             }
         }
@@ -112,13 +112,13 @@ pub(super) async fn list_rollout_threads(
     state_db: Option<datax_rollout::StateDbHandle>,
     config: &RolloutConfig,
     default_model_provider_id: &str,
-    params: &ListThreadsParams,
+    params: &ListChatsParams,
     cursor: Option<&datax_rollout::Cursor>,
-    sort_key: datax_rollout::ThreadSortKey,
+    sort_key: datax_rollout::ChatSortKey,
     sort_direction: datax_rollout::SortDirection,
-) -> ThreadStoreResult<datax_rollout::ThreadsPage> {
+) -> ChatStoreResult<datax_rollout::ThreadsPage> {
     if let Some(parent_chat_id) = params.parent_chat_id {
-        let page = datax_rollout::state_db::list_threads_db(
+        let page = datax_rollout::state_db::list_chats_db(
             state_db.as_deref(),
             config.codex_home.as_path(),
             params.page_size,
@@ -133,7 +133,7 @@ pub(super) async fn list_rollout_threads(
             params.search_term.as_deref(),
         )
         .await
-        .ok_or_else(|| ThreadStoreError::Internal {
+        .ok_or_else(|| ChatStoreError::Internal {
             message: "state DB unavailable for parent-filtered thread listing".to_string(),
         })?;
         let mut page: datax_rollout::ThreadsPage = page.into();
@@ -159,7 +159,7 @@ pub(super) async fn list_rollout_threads(
         )
         .await
     } else if params.use_state_db_only {
-        RolloutRecorder::list_threads_from_state_db(
+        RolloutRecorder::list_chats_from_state_db(
             state_db,
             config,
             params.page_size,
@@ -189,7 +189,7 @@ pub(super) async fn list_rollout_threads(
         )
         .await
     } else {
-        RolloutRecorder::list_threads(
+        RolloutRecorder::list_chats(
             state_db,
             config,
             params.page_size,
@@ -204,7 +204,7 @@ pub(super) async fn list_rollout_threads(
         )
         .await
     };
-    page.map_err(|err| ThreadStoreError::Internal {
+    page.map_err(|err| ChatStoreError::Internal {
         message: format!("failed to list threads: {err}"),
     })
 }
@@ -220,17 +220,17 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
-    use crate::ThreadStore;
-    use crate::local::LocalThreadStore;
+    use crate::ChatStore;
+    use crate::local::LocalChatStore;
     use crate::local::test_support::test_config;
     use crate::local::test_support::write_archived_session_file;
     use crate::local::test_support::write_session_file;
     use crate::local::test_support::write_session_file_with;
 
     #[tokio::test]
-    async fn list_threads_uses_default_provider_when_rollout_omits_provider() {
+    async fn list_chats_uses_default_provider_when_rollout_omits_provider() {
         let home = TempDir::new().expect("temp dir");
-        let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
+        let store = LocalChatStore::new(test_config(home.path()), /*state_db*/ None);
         write_session_file_with(
             home.path(),
             home.path().join("sessions/2025/01/03"),
@@ -242,10 +242,10 @@ mod tests {
         .expect("session file");
 
         let page = store
-            .list_threads(ListThreadsParams {
+            .list_chats(ListChatsParams {
                 page_size: 10,
                 cursor: None,
-                sort_key: ThreadSortKey::CreatedAt,
+                sort_key: ChatSortKey::CreatedAt,
                 sort_direction: SortDirection::Desc,
                 allowed_sources: Vec::new(),
                 model_providers: None,
@@ -263,7 +263,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn list_threads_preserves_sqlite_title_search_results() {
+    async fn list_chats_preserves_sqlite_title_search_results() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let uuid = Uuid::from_u128(103);
@@ -277,7 +277,7 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config.clone(), Some(runtime.clone()));
+        let store = LocalChatStore::new(config.clone(), Some(runtime.clone()));
         runtime
             .mark_backfill_complete(/*last_watermark*/ None)
             .await
@@ -297,15 +297,15 @@ mod tests {
         metadata.first_user_message = Some("plain preview".to_string());
         metadata.preview = metadata.first_user_message.clone();
         runtime
-            .upsert_thread(&metadata)
+            .upsert_chat(&metadata)
             .await
             .expect("state db upsert should succeed");
 
         let page = store
-            .list_threads(ListThreadsParams {
+            .list_chats(ListChatsParams {
                 page_size: 10,
                 cursor: None,
-                sort_key: ThreadSortKey::CreatedAt,
+                sort_key: ChatSortKey::CreatedAt,
                 sort_direction: SortDirection::Desc,
                 allowed_sources: Vec::new(),
                 model_providers: None,
@@ -331,9 +331,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn list_threads_selects_active_or_archived_collection() {
+    async fn list_chats_selects_active_or_archived_collection() {
         let home = TempDir::new().expect("temp dir");
-        let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
+        let store = LocalChatStore::new(test_config(home.path()), /*state_db*/ None);
         let active_uuid = Uuid::from_u128(105);
         let archived_uuid = Uuid::from_u128(106);
         write_session_file(home.path(), "2025-01-03T12-00-00", active_uuid)
@@ -342,10 +342,10 @@ mod tests {
             .expect("archived session file");
 
         let active = store
-            .list_threads(ListThreadsParams {
+            .list_chats(ListChatsParams {
                 page_size: 10,
                 cursor: None,
-                sort_key: ThreadSortKey::CreatedAt,
+                sort_key: ChatSortKey::CreatedAt,
                 sort_direction: SortDirection::Desc,
                 allowed_sources: Vec::new(),
                 model_providers: None,
@@ -358,10 +358,10 @@ mod tests {
             .await
             .expect("active listing");
         let archived = store
-            .list_threads(ListThreadsParams {
+            .list_chats(ListChatsParams {
                 page_size: 10,
                 cursor: None,
-                sort_key: ThreadSortKey::CreatedAt,
+                sort_key: ChatSortKey::CreatedAt,
                 sort_direction: SortDirection::Desc,
                 allowed_sources: Vec::new(),
                 model_providers: None,
@@ -401,19 +401,19 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn list_threads_returns_local_rollout_summary() {
+    async fn list_chats_returns_local_rollout_summary() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let store = LocalThreadStore::new(config, /*state_db*/ None);
+        let store = LocalChatStore::new(config, /*state_db*/ None);
         let uuid = Uuid::from_u128(101);
         let path =
             write_session_file(home.path(), "2025-01-03T12-00-00", uuid).expect("session file");
 
         let page = store
-            .list_threads(ListThreadsParams {
+            .list_chats(ListChatsParams {
                 page_size: 10,
                 cursor: None,
-                sort_key: ThreadSortKey::CreatedAt,
+                sort_key: ChatSortKey::CreatedAt,
                 sort_direction: SortDirection::Desc,
                 allowed_sources: vec![SessionSource::Cli],
                 model_providers: Some(vec!["test-provider".to_string()]),
@@ -442,15 +442,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn list_threads_rejects_invalid_cursor() {
+    async fn list_chats_rejects_invalid_cursor() {
         let home = TempDir::new().expect("temp dir");
-        let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
+        let store = LocalChatStore::new(test_config(home.path()), /*state_db*/ None);
 
         let err = store
-            .list_threads(ListThreadsParams {
+            .list_chats(ListChatsParams {
                 page_size: 10,
                 cursor: Some("not-a-cursor".to_string()),
-                sort_key: ThreadSortKey::CreatedAt,
+                sort_key: ChatSortKey::CreatedAt,
                 sort_direction: SortDirection::Desc,
                 allowed_sources: Vec::new(),
                 model_providers: None,
@@ -463,6 +463,6 @@ mod tests {
             .await
             .expect_err("invalid cursor should fail");
 
-        assert!(matches!(err, ThreadStoreError::InvalidRequest { .. }));
+        assert!(matches!(err, ChatStoreError::InvalidRequest { .. }));
     }
 }

@@ -73,9 +73,9 @@ pub(crate) struct InteractionRequestProcessor {
     arg0_paths: Arg0DispatchPaths,
     config: Arc<Config>,
     config_manager: ConfigManager,
-    pending_thread_unloads: Arc<Mutex<HashSet<ChatId>>>,
-    thread_state_manager: ThreadStateManager,
-    thread_watch_manager: ThreadWatchManager,
+    pending_chat_unloads: Arc<Mutex<HashSet<ChatId>>>,
+    chat_state_manager: ChatStateManager,
+    chat_watch_manager: ChatWatchManager,
     thread_list_state_permit: Arc<Semaphore>,
     skills_watcher: Arc<SkillsWatcher>,
 }
@@ -129,9 +129,9 @@ impl InteractionRequestProcessor {
         arg0_paths: Arg0DispatchPaths,
         config: Arc<Config>,
         config_manager: ConfigManager,
-        pending_thread_unloads: Arc<Mutex<HashSet<ChatId>>>,
-        thread_state_manager: ThreadStateManager,
-        thread_watch_manager: ThreadWatchManager,
+        pending_chat_unloads: Arc<Mutex<HashSet<ChatId>>>,
+        chat_state_manager: ChatStateManager,
+        chat_watch_manager: ChatWatchManager,
         thread_list_state_permit: Arc<Semaphore>,
         skills_watcher: Arc<SkillsWatcher>,
     ) -> Self {
@@ -143,9 +143,9 @@ impl InteractionRequestProcessor {
             arg0_paths,
             config,
             config_manager,
-            pending_thread_unloads,
-            thread_state_manager,
-            thread_watch_manager,
+            pending_chat_unloads,
+            chat_state_manager,
+            chat_watch_manager,
             thread_list_state_permit,
             skills_watcher,
         }
@@ -180,12 +180,12 @@ impl InteractionRequestProcessor {
             .map(|response| Some(response.into()))
     }
 
-    pub(crate) async fn thread_settings_update(
+    pub(crate) async fn chat_settings_update(
         &self,
         request_id: &ConnectionRequestId,
         params: ChatSettingsUpdateParams,
     ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
-        self.thread_settings_update_inner(request_id, params)
+        self.chat_settings_update_inner(request_id, params)
             .await
             .map(|response| Some(response.into()))
     }
@@ -496,8 +496,8 @@ impl InteractionRequestProcessor {
         let environments = self
             .build_environment_override(thread.as_ref(), cwd, environment_selections)
             .await;
-        let thread_settings = self
-            .build_thread_settings_overrides(
+        let chat_settings = self
+            .build_chat_settings_overrides(
                 thread.as_ref(),
                 ThreadSettingsBuildParams {
                     method: "interaction/start",
@@ -523,7 +523,7 @@ impl InteractionRequestProcessor {
             final_output_json_schema: params.output_schema,
             responsesapi_client_metadata: params.responsesapi_client_metadata,
             additional_context,
-            thread_settings,
+            chat_settings,
         };
         let interaction_id = thread
             .submit_user_input_with_client_user_message_id(
@@ -599,7 +599,7 @@ impl InteractionRequestProcessor {
         }
     }
 
-    async fn build_thread_settings_overrides(
+    async fn build_chat_settings_overrides(
         &self,
         chat: &DataxChat,
         params: ThreadSettingsBuildParams,
@@ -696,7 +696,7 @@ impl InteractionRequestProcessor {
                     warning.contains("Configured value for `permission_profile` is disallowed")
                 }) {
                     return Err(invalid_request(format!(
-                        "invalid thread settings override: {warning}"
+                        "invalid chat settings override: {warning}"
                     )));
                 }
                 (
@@ -711,7 +711,7 @@ impl InteractionRequestProcessor {
 
         if has_any_overrides {
             thread
-                .preview_thread_settings_overrides(DataxChatSettingsOverrides {
+                .preview_chat_settings_overrides(DataxChatSettingsOverrides {
                     environments: environments.clone(),
                     workspace_roots: runtime_workspace_roots.clone(),
                     approval_policy,
@@ -730,7 +730,7 @@ impl InteractionRequestProcessor {
                 })
                 .await
                 .map_err(|err| {
-                    invalid_request(format!("invalid thread settings override: {err}"))
+                    invalid_request(format!("invalid chat settings override: {err}"))
                 })?;
         }
 
@@ -753,7 +753,7 @@ impl InteractionRequestProcessor {
         })
     }
 
-    async fn thread_settings_update_inner(
+    async fn chat_settings_update_inner(
         &self,
         request_id: &ConnectionRequestId,
         params: ChatSettingsUpdateParams,
@@ -763,8 +763,8 @@ impl InteractionRequestProcessor {
         let environments = self
             .build_environment_override(thread.as_ref(), cwd, /*environment_selections*/ None)
             .await;
-        let thread_settings = self
-            .build_thread_settings_overrides(
+        let chat_settings = self
+            .build_chat_settings_overrides(
                 thread.as_ref(),
                 ThreadSettingsBuildParams {
                     method: "chat/settings/update",
@@ -784,14 +784,14 @@ impl InteractionRequestProcessor {
             )
             .await?;
 
-        if thread_settings != datax_protocol::protocol::ThreadSettingsOverrides::default() {
+        if chat_settings != datax_protocol::protocol::ThreadSettingsOverrides::default() {
             self.submit_core_op(
                 request_id,
                 thread.as_ref(),
-                Op::ThreadSettings { thread_settings },
+                Op::ThreadSettings { chat_settings },
             )
             .await
-            .map_err(|err| internal_error(format!("failed to update thread settings: {err}")))?;
+            .map_err(|err| internal_error(format!("failed to update chat settings: {err}")))?;
         }
 
         Ok(ChatSettingsUpdateResponse {})
@@ -1249,23 +1249,23 @@ impl InteractionRequestProcessor {
 
         let fallback_provider = self.config.model_provider_id.as_str();
         match review_thread
-            .read_thread(
+            .read_chat(
                 /*include_archived*/ true, /*include_history*/ false,
             )
             .await
         {
-            Ok(stored_thread) => {
+            Ok(stored_chat) => {
                 let (mut thread, _) =
-                    chat_from_stored_thread(stored_thread, fallback_provider, &self.config.cwd);
+                    chat_from_stored_chat(stored_chat, fallback_provider, &self.config.cwd);
                 thread.session_id = review_thread.session_configured().session_id.to_string();
-                self.thread_watch_manager
-                    .upsert_thread_silently(thread.clone())
+                self.chat_watch_manager
+                    .upsert_chat_silently(thread.clone())
                     .await;
-                thread.status = resolve_thread_status(
-                    self.thread_watch_manager
-                        .loaded_status_for_thread(&thread.id)
+                thread.status = resolve_chat_status(
+                    self.chat_watch_manager
+                        .loaded_status_for_chat(&thread.id)
                         .await,
-                    /*has_in_progress_turn*/ false,
+                    /*has_in_progress_interaction*/ false,
                 );
                 let notif = thread_started_notification(thread);
                 self.outgoing
@@ -1352,24 +1352,24 @@ impl InteractionRequestProcessor {
         // Record turn interrupts so we can reply when InteractionAborted arrives. Startup
         // interrupts do not have a turn and are acknowledged after submission.
         if !is_startup_interrupt {
-            let thread_state = self.thread_state_manager.thread_state(thread_uuid).await;
+            let chat_state = self.chat_state_manager.chat_state(thread_uuid).await;
             let is_running = matches!(thread.agent_status().await, AgentStatus::Running);
             {
-                let mut thread_state = thread_state.lock().await;
-                if let Some(active_turn) = thread_state.active_turn_snapshot() {
-                    if active_turn.id != interaction_id {
+                let mut chat_state = chat_state.lock().await;
+                if let Some(active_interaction) = chat_state.active_interaction_snapshot() {
+                    if active_interaction.id != interaction_id {
                         return Err(invalid_request(format!(
                             "expected active turn id {interaction_id} but found {}",
-                            active_turn.id
+                            active_interaction.id
                         )));
                     }
-                } else if thread_state.last_terminal_interaction_id.as_deref()
+                } else if chat_state.last_terminal_interaction_id.as_deref()
                     == Some(interaction_id.as_str())
                     || !is_running
                 {
                     return Err(invalid_request("no active turn to interrupt"));
                 }
-                thread_state.pending_interrupts.push(request_id.clone());
+                chat_state.pending_interrupts.push(request_id.clone());
             }
 
             self.outgoing
@@ -1387,9 +1387,9 @@ impl InteractionRequestProcessor {
             Ok(_) => Ok(None),
             Err(err) => {
                 if !is_startup_interrupt {
-                    let thread_state = self.thread_state_manager.thread_state(thread_uuid).await;
-                    let mut thread_state = thread_state.lock().await;
-                    thread_state
+                    let chat_state = self.chat_state_manager.chat_state(thread_uuid).await;
+                    let mut chat_state = chat_state.lock().await;
+                    chat_state
                         .pending_interrupts
                         .retain(|pending_request_id| pending_request_id != request_id);
                 }
@@ -1408,10 +1408,10 @@ impl InteractionRequestProcessor {
     fn listener_task_context(&self) -> ListenerTaskContext {
         ListenerTaskContext {
             chat_manager: Arc::clone(&self.chat_manager),
-            thread_state_manager: self.thread_state_manager.clone(),
+            chat_state_manager: self.chat_state_manager.clone(),
             outgoing: Arc::clone(&self.outgoing),
-            pending_thread_unloads: Arc::clone(&self.pending_thread_unloads),
-            thread_watch_manager: self.thread_watch_manager.clone(),
+            pending_chat_unloads: Arc::clone(&self.pending_chat_unloads),
+            chat_watch_manager: self.chat_watch_manager.clone(),
             thread_list_state_permit: self.thread_list_state_permit.clone(),
             fallback_model_provider: self.config.model_provider_id.clone(),
             codex_home: self.config.codex_home.to_path_buf(),
@@ -1425,7 +1425,7 @@ impl InteractionRequestProcessor {
         connection_id: ConnectionId,
         raw_events_enabled: bool,
     ) -> Result<EnsureConversationListenerResult, JSONRPCErrorError> {
-        super::thread_lifecycle::ensure_conversation_listener(
+        super::chat_lifecycle::ensure_conversation_listener(
             self.listener_task_context(),
             conversation_id,
             connection_id,

@@ -699,8 +699,8 @@ async fn guardian_subagent_does_not_inherit_parent_exec_policy_rules() {
         /*bundled_skills_enabled*/ true,
     ));
     let mcp_manager = Arc::new(McpManager::new(Arc::clone(&plugins_manager)));
-    let thread_store = Arc::new(datax_thread_store::LocalThreadStore::new(
-        datax_thread_store::LocalThreadStoreConfig::from_config(&config),
+    let thread_store = Arc::new(datax_thread_store::LocalChatStore::new(
+        datax_thread_store::LocalChatStoreConfig::from_config(&config),
         /*state_db*/ None,
     ));
 

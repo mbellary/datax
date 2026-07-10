@@ -8,36 +8,36 @@ use datax_rollout::RolloutRecorderParams;
 use datax_rollout::persisted_rollout_items;
 use tracing::warn;
 
-use super::LocalThreadStore;
-use super::create_thread;
+use super::LocalChatStore;
+use super::create_chat;
 use crate::AppendChatMessagesParams;
-use crate::CreateThreadParams;
-use crate::ReadThreadParams;
-use crate::ResumeThreadParams;
-use crate::ThreadStoreError;
-use crate::ThreadStoreResult;
+use crate::CreateChatParams;
+use crate::ReadChatParams;
+use crate::ResumeChatParams;
+use crate::ChatStoreError;
+use crate::ChatStoreResult;
 
-pub(super) async fn create_thread(
-    store: &LocalThreadStore,
-    params: CreateThreadParams,
-) -> ThreadStoreResult<()> {
+pub(super) async fn create_chat(
+    store: &LocalChatStore,
+    params: CreateChatParams,
+) -> ChatStoreResult<()> {
     let chat_id = params.chat_id;
     store.ensure_live_recorder_absent(chat_id).await?;
-    let recorder = create_thread::create_thread(store, params).await?;
+    let recorder = create_chat::create_chat(store, params).await?;
     store.insert_live_recorder(chat_id, recorder).await
 }
 
-pub(super) async fn resume_thread(
-    store: &LocalThreadStore,
-    params: ResumeThreadParams,
-) -> ThreadStoreResult<()> {
+pub(super) async fn resume_chat(
+    store: &LocalChatStore,
+    params: ResumeChatParams,
+) -> ChatStoreResult<()> {
     store.ensure_live_recorder_absent(params.chat_id).await?;
     let rollout_path = match (params.rollout_path, params.history) {
         (Some(rollout_path), _history) => rollout_path,
         (None, history) => {
-            let thread = super::read_thread::read_thread(
+            let thread = super::read_chat::read_chat(
                 store,
-                ReadThreadParams {
+                ReadChatParams {
                     chat_id: params.chat_id,
                     include_archived: params.include_archived,
                     include_history: history.is_none(),
@@ -47,7 +47,7 @@ pub(super) async fn resume_thread(
 
             thread
                 .rollout_path
-                .ok_or_else(|| ThreadStoreError::Internal {
+                .ok_or_else(|| ChatStoreError::Internal {
                     message: format!("thread {} does not have a rollout path", params.chat_id),
                 })?
         }
@@ -56,8 +56,8 @@ pub(super) async fn resume_thread(
         .metadata
         .cwd
         .clone()
-        .ok_or_else(|| ThreadStoreError::InvalidRequest {
-            message: "local thread store requires a cwd".to_string(),
+        .ok_or_else(|| ChatStoreError::InvalidRequest {
+            message: "local chat store requires a cwd".to_string(),
         })?;
     let config = RolloutConfig {
         codex_home: store.config.codex_home.clone(),
@@ -68,7 +68,7 @@ pub(super) async fn resume_thread(
     };
     let recorder = RolloutRecorder::new(&config, RolloutRecorderParams::resume(rollout_path))
         .await
-        .map_err(|err| ThreadStoreError::Internal {
+        .map_err(|err| ChatStoreError::Internal {
             message: format!("failed to resume local thread recorder: {err}"),
         })?;
     store.insert_live_recorder(params.chat_id, recorder).await
@@ -80,9 +80,9 @@ pub(super) async fn resume_thread(
     fields(item_count = params.items.len())
 )]
 pub(super) async fn append_items(
-    store: &LocalThreadStore,
+    store: &LocalChatStore,
     params: AppendChatMessagesParams,
-) -> ThreadStoreResult<()> {
+) -> ChatStoreResult<()> {
     let canonical_items = persisted_rollout_items(params.items.as_slice());
     if canonical_items.is_empty() {
         return Ok(());
@@ -91,80 +91,80 @@ pub(super) async fn append_items(
     recorder
         .record_canonical_items(canonical_items.as_slice())
         .await
-        .map_err(thread_store_io_error)?;
-    // LiveThread applies metadata immediately after append_items returns. Wait for the local
+        .map_err(chat_store_io_error)?;
+    // LiveChat applies metadata immediately after append_items returns. Wait for the local
     // writer so SQLite never gets ahead of JSONL for accepted live appends.
-    recorder.flush().await.map_err(thread_store_io_error)
+    recorder.flush().await.map_err(chat_store_io_error)
 }
 
-pub(super) async fn persist_thread(
-    store: &LocalThreadStore,
+pub(super) async fn persist_chat(
+    store: &LocalChatStore,
     chat_id: ChatId,
-) -> ThreadStoreResult<()> {
+) -> ChatStoreResult<()> {
     store
         .live_recorder(chat_id)
         .await?
         .persist()
         .await
-        .map_err(thread_store_io_error)?;
+        .map_err(chat_store_io_error)?;
     sync_materialized_rollout_path(store, chat_id).await
 }
 
-pub(super) async fn flush_thread(
-    store: &LocalThreadStore,
+pub(super) async fn flush_chat(
+    store: &LocalChatStore,
     chat_id: ChatId,
-) -> ThreadStoreResult<()> {
+) -> ChatStoreResult<()> {
     store
         .live_recorder(chat_id)
         .await?
         .flush()
         .await
-        .map_err(thread_store_io_error)?;
+        .map_err(chat_store_io_error)?;
     sync_materialized_rollout_path(store, chat_id).await
 }
 
-pub(super) async fn shutdown_thread(
-    store: &LocalThreadStore,
+pub(super) async fn shutdown_chat(
+    store: &LocalChatStore,
     chat_id: ChatId,
-) -> ThreadStoreResult<()> {
+) -> ChatStoreResult<()> {
     let recorder = store.live_recorder(chat_id).await?;
-    recorder.shutdown().await.map_err(thread_store_io_error)?;
+    recorder.shutdown().await.map_err(chat_store_io_error)?;
     sync_materialized_rollout_path(store, chat_id).await?;
     store.live_recorders.lock().await.remove(&chat_id);
     Ok(())
 }
 
-pub(super) async fn discard_thread(
-    store: &LocalThreadStore,
+pub(super) async fn discard_chat(
+    store: &LocalChatStore,
     chat_id: ChatId,
-) -> ThreadStoreResult<()> {
+) -> ChatStoreResult<()> {
     store
         .live_recorders
         .lock()
         .await
         .remove(&chat_id)
         .map(|_| ())
-        .ok_or(ThreadStoreError::ThreadNotFound { chat_id })
+        .ok_or(ChatStoreError::ChatNotFound { chat_id })
 }
 
 pub(super) async fn rollout_path(
-    store: &LocalThreadStore,
+    store: &LocalChatStore,
     chat_id: ChatId,
-) -> ThreadStoreResult<PathBuf> {
+) -> ChatStoreResult<PathBuf> {
     Ok(store
         .live_recorders
         .lock()
         .await
         .get(&chat_id)
-        .ok_or(ThreadStoreError::ThreadNotFound { chat_id })?
+        .ok_or(ChatStoreError::ChatNotFound { chat_id })?
         .rollout_path()
         .to_path_buf())
 }
 
 async fn sync_materialized_rollout_path(
-    store: &LocalThreadStore,
+    store: &LocalChatStore,
     chat_id: ChatId,
-) -> ThreadStoreResult<()> {
+) -> ChatStoreResult<()> {
     let rollout_path = rollout_path(store, chat_id).await?;
     if datax_rollout::existing_rollout_path(rollout_path.as_path())
         .await
@@ -175,13 +175,13 @@ async fn sync_materialized_rollout_path(
     let Some(state_db) = store.state_db().await else {
         return Ok(());
     };
-    let result: ThreadStoreResult<()> = async {
+    let result: ChatStoreResult<()> = async {
         let Some(mut metadata) =
             state_db
                 .get_thread(chat_id)
                 .await
-                .map_err(|err| ThreadStoreError::Internal {
-                    message: format!("failed to read thread metadata for {chat_id}: {err}"),
+                .map_err(|err| ChatStoreError::Internal {
+                    message: format!("failed to read chat metadata for {chat_id}: {err}"),
                 })?
         else {
             return Ok(());
@@ -189,10 +189,10 @@ async fn sync_materialized_rollout_path(
         if metadata.rollout_path != rollout_path {
             metadata.rollout_path = rollout_path;
             state_db
-                .upsert_thread(&metadata)
+                .upsert_chat(&metadata)
                 .await
-                .map_err(|err| ThreadStoreError::Internal {
-                    message: format!("failed to update thread metadata for {chat_id}: {err}"),
+                .map_err(|err| ChatStoreError::Internal {
+                    message: format!("failed to update chat metadata for {chat_id}: {err}"),
                 })?;
         }
         Ok(())
@@ -204,8 +204,8 @@ async fn sync_materialized_rollout_path(
     Ok(())
 }
 
-fn thread_store_io_error(err: std::io::Error) -> ThreadStoreError {
-    ThreadStoreError::Internal {
+fn chat_store_io_error(err: std::io::Error) -> ChatStoreError {
+    ChatStoreError::Internal {
         message: err.to_string(),
     }
 }

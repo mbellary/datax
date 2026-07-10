@@ -1,17 +1,17 @@
 use chrono::Utc;
 use datax_rollout::find_thread_path_by_id_str;
 
-use super::LocalThreadStore;
+use super::LocalChatStore;
 use super::helpers::matching_rollout_file_name;
 use super::helpers::scoped_rollout_path;
-use crate::ArchiveThreadParams;
-use crate::ThreadStoreError;
-use crate::ThreadStoreResult;
+use crate::ArchiveChatParams;
+use crate::ChatStoreError;
+use crate::ChatStoreResult;
 
-pub(super) async fn archive_thread(
-    store: &LocalThreadStore,
-    params: ArchiveThreadParams,
-) -> ThreadStoreResult<()> {
+pub(super) async fn archive_chat(
+    store: &LocalChatStore,
+    params: ArchiveChatParams,
+) -> ChatStoreResult<()> {
     let chat_id = params.chat_id;
     let state_db_ctx = store.state_db().await;
     let rollout_path = find_thread_path_by_id_str(
@@ -20,10 +20,10 @@ pub(super) async fn archive_thread(
         state_db_ctx.as_deref(),
     )
     .await
-    .map_err(|err| ThreadStoreError::InvalidRequest {
+    .map_err(|err| ChatStoreError::InvalidRequest {
         message: format!("failed to locate thread id {chat_id}: {err}"),
     })?
-    .ok_or_else(|| ThreadStoreError::InvalidRequest {
+    .ok_or_else(|| ChatStoreError::InvalidRequest {
         message: format!("no rollout found for thread id {chat_id}"),
     })?;
 
@@ -42,12 +42,12 @@ pub(super) async fn archive_thread(
         .config
         .codex_home
         .join(datax_rollout::ARCHIVED_SESSIONS_SUBDIR);
-    std::fs::create_dir_all(&archive_folder).map_err(|err| ThreadStoreError::Internal {
+    std::fs::create_dir_all(&archive_folder).map_err(|err| ChatStoreError::Internal {
         message: format!("failed to archive thread: {err}"),
     })?;
     let archived_path = archive_folder.join(&file_name);
     std::fs::rename(&canonical_rollout_path, &archived_path).map_err(|err| {
-        ThreadStoreError::Internal {
+        ChatStoreError::Internal {
             message: format!("failed to archive thread: {err}"),
         }
     })?;
@@ -71,24 +71,24 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
-    use crate::ListThreadsParams;
-    use crate::ThreadSortKey;
-    use crate::ThreadStore;
-    use crate::local::LocalThreadStore;
+    use crate::ListChatsParams;
+    use crate::ChatSortKey;
+    use crate::ChatStore;
+    use crate::local::LocalChatStore;
     use crate::local::test_support::test_config;
     use crate::local::test_support::write_session_file;
 
     #[tokio::test]
-    async fn archive_thread_moves_rollout_to_archived_collection() {
+    async fn archive_chat_moves_rollout_to_archived_collection() {
         let home = TempDir::new().expect("temp dir");
-        let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
+        let store = LocalChatStore::new(test_config(home.path()), /*state_db*/ None);
         let uuid = Uuid::from_u128(201);
         let chat_id = ChatId::from_string(&uuid.to_string()).expect("valid thread id");
         let active_path =
             write_session_file(home.path(), "2025-01-03T12-00-00", uuid).expect("session file");
 
         store
-            .archive_thread(ArchiveThreadParams { chat_id })
+            .archive_chat(ArchiveChatParams { chat_id })
             .await
             .expect("archive thread");
 
@@ -100,10 +100,10 @@ mod tests {
         assert!(archived_path.exists());
 
         let archived = store
-            .list_threads(ListThreadsParams {
+            .list_chats(ListChatsParams {
                 page_size: 10,
                 cursor: None,
-                sort_key: ThreadSortKey::CreatedAt,
+                sort_key: ChatSortKey::CreatedAt,
                 sort_direction: crate::SortDirection::Desc,
                 allowed_sources: Vec::new(),
                 model_providers: None,
@@ -125,7 +125,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn archive_thread_updates_sqlite_metadata_when_present() {
+    async fn archive_chat_updates_sqlite_metadata_when_present() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
         let uuid = Uuid::from_u128(202);
@@ -138,7 +138,7 @@ mod tests {
         )
         .await
         .expect("state db should initialize");
-        let store = LocalThreadStore::new(config.clone(), Some(runtime.clone()));
+        let store = LocalChatStore::new(config.clone(), Some(runtime.clone()));
         runtime
             .mark_backfill_complete(/*last_watermark*/ None)
             .await
@@ -154,12 +154,12 @@ mod tests {
         builder.cli_version = Some("test_version".to_string());
         let metadata = builder.build(config.default_model_provider_id.as_str());
         runtime
-            .upsert_thread(&metadata)
+            .upsert_chat(&metadata)
             .await
             .expect("state db upsert should succeed");
 
         store
-            .archive_thread(ArchiveThreadParams { chat_id })
+            .archive_chat(ArchiveChatParams { chat_id })
             .await
             .expect("archive thread");
 
@@ -171,7 +171,7 @@ mod tests {
             .get_thread(chat_id)
             .await
             .expect("state db read should succeed")
-            .expect("thread metadata should exist");
+            .expect("chat metadata should exist");
         assert_eq!(updated.rollout_path, archived_path);
         assert!(updated.archived_at.is_some());
         assert_eq!(updated.recency_at, metadata.recency_at);

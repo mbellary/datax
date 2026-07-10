@@ -132,7 +132,7 @@ pub enum Feature {
     /// Enable startup memory extraction and file-backed memory consolidation.
     MemoryTool,
     /// Compress cold local thread-store rollout files.
-    LocalThreadStoreCompression,
+    LocalChatStoreCompression,
     /// Enable the Chronicle sidecar for passive screen-context memories.
     Chronicle,
     /// Compress request bodies (zstd) when sending streaming requests to codex-backend.
@@ -924,7 +924,7 @@ pub const FEATURES: &[FeatureSpec] = &[
         default_enabled: false,
     },
     FeatureSpec {
-        id: Feature::LocalThreadStoreCompression,
+        id: Feature::LocalChatStoreCompression,
         key: "local_thread_store_compression",
         stage: Stage::UnderDevelopment,
         default_enabled: false,

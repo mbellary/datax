@@ -2,7 +2,7 @@ use crate::SkillsService;
 use crate::agent::AgentControl;
 use crate::attestation::AttestationProvider;
 use crate::config::Config;
-use crate::config::ThreadStoreConfig;
+use crate::config::ChatStoreConfig;
 use crate::current_time::TimeProvider;
 use crate::datax_chat::DataxChat;
 use crate::environment_selection::TurnEnvironmentSnapshot;
@@ -56,16 +56,16 @@ use datax_protocol::protocol::TurnEnvironmentSelection;
 use datax_protocol::protocol::W3cTraceContext;
 use datax_rollout::state_db::StateDbHandle;
 use datax_state::DirectionalThreadSpawnEdgeStatus;
-use datax_thread_store::InMemoryThreadStore;
-use datax_thread_store::LocalThreadStore;
-use datax_thread_store::LocalThreadStoreConfig;
-use datax_thread_store::ReadThreadByRolloutPathParams;
-use datax_thread_store::ReadThreadParams;
+use datax_thread_store::InMemoryChatStore;
+use datax_thread_store::LocalChatStore;
+use datax_thread_store::LocalChatStoreConfig;
+use datax_thread_store::ReadChatByRolloutPathParams;
+use datax_thread_store::ReadChatParams;
 use datax_thread_store::StoredChat;
-use datax_thread_store::ThreadMetadataPatch;
-use datax_thread_store::ThreadStore;
-use datax_thread_store::ThreadStoreError;
-use datax_thread_store::UpdateThreadMetadataParams;
+use datax_thread_store::ChatMetadataPatch;
+use datax_thread_store::ChatStore;
+use datax_thread_store::ChatStoreError;
+use datax_thread_store::UpdateChatMetadataParams;
 use datax_utils_absolute_path::AbsolutePathBuf;
 use futures::StreamExt;
 use futures::stream::FuturesUnordered;
@@ -214,7 +214,7 @@ pub(crate) struct ChatManagerState {
     mcp_manager: Arc<McpManager>,
     extensions: Arc<ExtensionRegistry<Config>>,
     user_instructions_provider: Arc<dyn UserInstructionsProvider>,
-    thread_store: Arc<dyn ThreadStore>,
+    chat_store: Arc<dyn ChatStore>,
     attestation_provider: Option<Arc<dyn AttestationProvider>>,
     external_time_provider: Option<Arc<dyn TimeProvider>>,
     session_source: SessionSource,
@@ -236,24 +236,24 @@ pub fn build_models_manager(
     )
 }
 
-pub fn thread_store_from_config(
+pub fn chat_store_from_config(
     config: &Config,
     state_db: Option<StateDbHandle>,
-) -> Arc<dyn ThreadStore> {
-    match &config.experimental_thread_store {
-        ThreadStoreConfig::Local => {
+) -> Arc<dyn ChatStore> {
+    match &config.experimental_chat_store {
+        ChatStoreConfig::Local => {
             if config
                 .features
-                .enabled(Feature::LocalThreadStoreCompression)
+                .enabled(Feature::LocalChatStoreCompression)
             {
                 datax_rollout::spawn_rollout_compression_worker(config.codex_home.to_path_buf());
             }
-            Arc::new(LocalThreadStore::new(
-                LocalThreadStoreConfig::from_config(config),
+            Arc::new(LocalChatStore::new(
+                LocalChatStoreConfig::from_config(config),
                 state_db,
             ))
         }
-        ThreadStoreConfig::InMemory { id } => InMemoryThreadStore::for_id(id),
+        ChatStoreConfig::InMemory { id } => InMemoryChatStore::for_id(id),
     }
 }
 
@@ -267,7 +267,7 @@ impl ChatManager {
         extensions: Arc<ExtensionRegistry<Config>>,
         user_instructions_provider: Arc<dyn UserInstructionsProvider>,
         analytics_events_client: Option<AnalyticsEventsClient>,
-        thread_store: Arc<dyn ThreadStore>,
+        chat_store: Arc<dyn ChatStore>,
         state_db: Option<StateDbHandle>,
         installation_id: String,
         attestation_provider: Option<Arc<dyn AttestationProvider>>,
@@ -301,7 +301,7 @@ impl ChatManager {
                 mcp_manager,
                 extensions,
                 user_instructions_provider,
-                thread_store,
+                chat_store,
                 attestation_provider,
                 external_time_provider,
                 auth_manager,
@@ -385,8 +385,8 @@ impl ChatManager {
         ));
         // This test constructor has no Config input. Tests that need a non-local
         // process store should construct ChatManager::new with an explicit store.
-        let thread_store: Arc<dyn ThreadStore> = Arc::new(LocalThreadStore::new(
-            LocalThreadStoreConfig {
+        let chat_store: Arc<dyn ChatStore> = Arc::new(LocalChatStore::new(
+            LocalChatStoreConfig {
                 codex_home: codex_home.clone(),
                 sqlite_home: codex_home.clone(),
                 default_model_provider_id: OPENAI_PROVIDER_ID.to_string(),
@@ -407,7 +407,7 @@ impl ChatManager {
                 user_instructions_provider: Arc::new(
                     crate::test_support::EmptyUserInstructionsProvider,
                 ),
-                thread_store,
+                chat_store,
                 attestation_provider: None,
                 external_time_provider: None,
                 auth_manager,
@@ -507,13 +507,13 @@ impl ChatManager {
 
     /// Updates metadata for loaded and cold threads through one entrypoint.
     ///
-    /// Loaded threads route through `DataxChat`/`LiveThread`, so metadata changes stay ordered
+    /// Loaded threads route through `DataxChat`/`LiveChat`, so metadata changes stay ordered
     /// with live rollout writes. Cold threads go directly to the store, which owns unloaded JSONL
     /// compatibility and SQLite metadata updates.
-    pub async fn update_thread_metadata(
+    pub async fn update_chat_metadata(
         &self,
         chat_id: ChatId,
-        patch: ThreadMetadataPatch,
+        patch: ChatMetadataPatch,
         include_archived: bool,
     ) -> CodexResult<StoredChat> {
         if let Ok(thread) = self.get_chat(chat_id).await {
@@ -523,21 +523,21 @@ impl ChatManager {
                 )));
             }
             return thread
-                .update_thread_metadata(patch, include_archived)
+                .update_chat_metadata(patch, include_archived)
                 .await
-                .map_err(|err| thread_store_metadata_update_error(chat_id, err));
+                .map_err(|err| chat_store_metadata_update_error(chat_id, err));
         }
         self.state
-            .thread_store
-            .update_thread_metadata(UpdateThreadMetadataParams {
+            .chat_store
+            .update_chat_metadata(UpdateChatMetadataParams {
                 chat_id,
                 patch,
                 include_archived,
             })
             .await
             .map_err(|err| match err {
-                ThreadStoreError::ThreadNotFound { chat_id } => CodexErr::ThreadNotFound(chat_id),
-                err => thread_store_metadata_update_error(chat_id, err),
+                ChatStoreError::ChatNotFound { chat_id } => CodexErr::ThreadNotFound(chat_id),
+                err => chat_store_metadata_update_error(chat_id, err),
             })
     }
 
@@ -660,8 +660,8 @@ impl ChatManager {
         // Persist queued rollout updates before reading the fork snapshot.
         fork_source.ensure_rollout_materialized().await;
         fork_source.flush_rollout().await?;
-        let stored_thread = fork_source
-            .read_thread(
+        let stored_chat = fork_source
+            .read_chat(
                 /*include_archived*/ true, /*include_history*/ true,
             )
             .await
@@ -670,7 +670,7 @@ impl ChatManager {
                     "failed to read subagent fork source {forked_from_chat_id}: {err}"
                 ))
             })?;
-        let history = stored_thread_to_initial_history(stored_thread, fork_source.rollout_path())?;
+        let history = stored_chat_to_initial_history(stored_chat, fork_source.rollout_path())?;
         let inherited_multi_agent_version = fork_source
             .multi_agent_version()
             .unwrap_or(MultiAgentVersion::V1);
@@ -686,7 +686,7 @@ impl ChatManager {
             .await
     }
 
-    pub async fn resume_thread_from_rollout(
+    pub async fn resume_chat_from_rollout(
         &self,
         config: Config,
         rollout_path: PathBuf,
@@ -695,7 +695,7 @@ impl ChatManager {
         supports_openai_form_elicitation: bool,
     ) -> CodexResult<NewChat> {
         let initial_history = self.initial_history_from_rollout_path(rollout_path).await?;
-        Box::pin(self.resume_thread_with_history(
+        Box::pin(self.resume_chat_with_history(
             config,
             initial_history,
             auth_manager,
@@ -706,7 +706,7 @@ impl ChatManager {
     }
 
     #[instrument(level = "trace", skip_all)]
-    pub async fn resume_thread_with_history(
+    pub async fn resume_chat_with_history(
         &self,
         config: Config,
         initial_history: InitialHistory,
@@ -774,7 +774,7 @@ impl ChatManager {
         .await
     }
 
-    pub(crate) async fn resume_thread_from_rollout_with_user_shell_override_for_tests(
+    pub(crate) async fn resume_chat_from_rollout_with_user_shell_override_for_tests(
         &self,
         config: Config,
         rollout_path: PathBuf,
@@ -904,17 +904,17 @@ impl ChatManager {
         rollout_path: PathBuf,
     ) -> CodexResult<InitialHistory> {
         let requested_rollout_path = rollout_path.clone();
-        let stored_thread = self
+        let stored_chat = self
             .state
-            .thread_store
-            .read_thread_by_rollout_path(ReadThreadByRolloutPathParams {
+            .chat_store
+            .read_chat_by_rollout_path(ReadChatByRolloutPathParams {
                 rollout_path,
                 include_archived: true,
                 include_history: true,
             })
             .await
-            .map_err(thread_store_rollout_read_error)?;
-        stored_thread_to_initial_history(stored_thread, Some(requested_rollout_path))
+            .map_err(chat_store_rollout_read_error)?;
+        stored_chat_to_initial_history(stored_chat, Some(requested_rollout_path))
     }
 
     /// Fork an existing thread from already-loaded store history.
@@ -1029,7 +1029,7 @@ impl ChatManagerState {
     }
 
     /// List parent-child edges for currently loaded thread-spawn agents.
-    pub(crate) async fn list_live_thread_spawn_edges(&self) -> Vec<(ChatId, ChatId)> {
+    pub(crate) async fn list_live_chat_spawn_edges(&self) -> Vec<(ChatId, ChatId)> {
         self.threads
             .read()
             .await
@@ -1057,19 +1057,19 @@ impl ChatManagerState {
         }
     }
 
-    pub(crate) async fn read_stored_thread(
+    pub(crate) async fn read_stored_chat(
         &self,
-        params: ReadThreadParams,
+        params: ReadChatParams,
     ) -> CodexResult<StoredChat> {
         let chat_id = params.chat_id;
-        self.thread_store
-            .read_thread(params)
+        self.chat_store
+            .read_chat(params)
             .await
             .map_err(|err| match err {
-                ThreadStoreError::ThreadNotFound { chat_id } => {
+                ChatStoreError::ChatNotFound { chat_id } => {
                     CodexErr::ThreadNotFound(chat_id)
                 }
-                ThreadStoreError::InvalidRequest { message } => {
+                ChatStoreError::InvalidRequest { message } => {
                     if message.starts_with("no rollout found for thread id ") {
                         CodexErr::ThreadNotFound(chat_id)
                     } else {
@@ -1254,7 +1254,7 @@ impl ChatManagerState {
         .await
     }
 
-    pub(crate) async fn resume_thread_with_history_with_source(
+    pub(crate) async fn resume_chat_with_history_with_source(
         &self,
         options: ResumeThreadWithHistoryOptions,
     ) -> CodexResult<NewChat> {
@@ -1458,7 +1458,7 @@ impl ChatManagerState {
             thread_extension_init,
             supports_openai_form_elicitation,
             analytics_events_client: self.analytics_events_client.clone(),
-            thread_store: Arc::clone(&self.thread_store),
+            chat_store: Arc::clone(&self.chat_store),
             attestation_provider: self.attestation_provider.clone(),
             external_time_provider: self.external_time_provider.clone(),
             inherited_multi_agent_version: multi_agent_version,
@@ -1550,12 +1550,12 @@ impl ChatManagerState {
     }
 }
 
-fn stored_thread_to_initial_history(
-    stored_thread: StoredChat,
+fn stored_chat_to_initial_history(
+    stored_chat: StoredChat,
     rollout_path: Option<PathBuf>,
 ) -> CodexResult<InitialHistory> {
-    let chat_id = stored_thread.chat_id;
-    let history = stored_thread.history.ok_or_else(|| {
+    let chat_id = stored_chat.chat_id;
+    let history = stored_chat.history.ok_or_else(|| {
         CodexErr::Fatal(format!(
             "thread {chat_id} did not include persisted history"
         ))
@@ -1563,23 +1563,23 @@ fn stored_thread_to_initial_history(
     Ok(InitialHistory::Resumed(ResumedHistory {
         conversation_id: chat_id,
         history: history.items,
-        rollout_path: rollout_path.or(stored_thread.rollout_path),
+        rollout_path: rollout_path.or(stored_chat.rollout_path),
     }))
 }
 
-fn thread_store_rollout_read_error(err: ThreadStoreError) -> CodexErr {
+fn chat_store_rollout_read_error(err: ChatStoreError) -> CodexErr {
     match err {
-        ThreadStoreError::ThreadNotFound { chat_id } => CodexErr::ThreadNotFound(chat_id),
-        ThreadStoreError::InvalidRequest { message } => CodexErr::InvalidRequest(message),
+        ChatStoreError::ChatNotFound { chat_id } => CodexErr::ThreadNotFound(chat_id),
+        ChatStoreError::InvalidRequest { message } => CodexErr::InvalidRequest(message),
         err => CodexErr::Fatal(format!("failed to read thread by rollout path: {err}")),
     }
 }
 
-fn thread_store_metadata_update_error(chat_id: ChatId, err: ThreadStoreError) -> CodexErr {
+fn chat_store_metadata_update_error(chat_id: ChatId, err: ChatStoreError) -> CodexErr {
     match err {
-        ThreadStoreError::ThreadNotFound { chat_id } => CodexErr::ThreadNotFound(chat_id),
-        ThreadStoreError::InvalidRequest { message } => CodexErr::InvalidRequest(message),
-        ThreadStoreError::Unsupported { operation } => CodexErr::UnsupportedOperation(format!(
+        ChatStoreError::ChatNotFound { chat_id } => CodexErr::ThreadNotFound(chat_id),
+        ChatStoreError::InvalidRequest { message } => CodexErr::InvalidRequest(message),
+        ChatStoreError::Unsupported { operation } => CodexErr::UnsupportedOperation(format!(
             "thread metadata update is not supported by this store: {operation}"
         )),
         err => CodexErr::Fatal(format!("failed to update thread metadata {chat_id}: {err}")),

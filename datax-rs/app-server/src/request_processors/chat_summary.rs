@@ -186,7 +186,7 @@ pub(crate) fn thread_response_sandbox_policy(
     sandbox_policy.into()
 }
 
-pub(crate) fn thread_settings_from_config_snapshot(
+pub(crate) fn chat_settings_from_config_snapshot(
     config_snapshot: &ThreadConfigSnapshot,
 ) -> ChatSettings {
     ChatSettings {
@@ -211,7 +211,7 @@ pub(crate) fn thread_settings_from_config_snapshot(
     }
 }
 
-pub(crate) fn thread_settings_from_core_snapshot(
+pub(crate) fn chat_settings_from_core_snapshot(
     snapshot: datax_protocol::protocol::ThreadSettingsSnapshot,
 ) -> ChatSettings {
     let datax_protocol::protocol::ThreadSettingsSnapshot {
@@ -338,5 +338,5 @@ pub(crate) fn summary_to_thread(
 }
 
 #[cfg(test)]
-#[path = "thread_summary_tests.rs"]
-mod thread_summary_tests;
+#[path = "chat_summary_tests.rs"]
+mod chat_summary_tests;

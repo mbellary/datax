@@ -19,47 +19,47 @@ use tokio::time::timeout_at;
 
 use crate::outgoing_message::ConnectionId;
 use crate::outgoing_message::OutgoingMessageSender;
-use crate::thread_state::ThreadStateManager;
+use crate::chat_state::ChatStateManager;
 
 const CURRENT_TIME_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 pub(crate) fn app_server_time_provider(
     outgoing: Arc<OutgoingMessageSender>,
-    thread_state_manager: ThreadStateManager,
+    chat_state_manager: ChatStateManager,
 ) -> Arc<dyn TimeProvider> {
     Arc::new(AppServerTimeProvider {
         outgoing: Arc::downgrade(&outgoing),
-        thread_state_manager,
+        chat_state_manager,
     })
 }
 
 struct AppServerTimeProvider {
     outgoing: Weak<OutgoingMessageSender>,
-    thread_state_manager: ThreadStateManager,
+    chat_state_manager: ChatStateManager,
 }
 
 impl TimeProvider for AppServerTimeProvider {
     fn current_time(&self, chat_id: ChatId) -> TimeFuture<'_> {
         let outgoing = self.outgoing.clone();
-        let thread_state_manager = self.thread_state_manager.clone();
+        let chat_state_manager = self.chat_state_manager.clone();
         Box::pin(async move {
             let outgoing = outgoing
                 .upgrade()
                 .context("app-server current-time provider is unavailable")?;
-            request_current_time(outgoing, thread_state_manager, chat_id).await
+            request_current_time(outgoing, chat_state_manager, chat_id).await
         })
     }
 }
 
 async fn request_current_time(
     outgoing: Arc<OutgoingMessageSender>,
-    thread_state_manager: ThreadStateManager,
+    chat_state_manager: ChatStateManager,
     chat_id: ChatId,
 ) -> Result<DateTime<Utc>> {
     let deadline = Instant::now() + CURRENT_TIME_REQUEST_TIMEOUT;
     timeout_at(
         deadline,
-        thread_state_manager.wait_for_thread_subscriber(chat_id),
+        chat_state_manager.wait_for_chat_subscriber(chat_id),
     )
     .await
     .map_err(|_| {
@@ -68,7 +68,7 @@ async fn request_current_time(
             CURRENT_TIME_REQUEST_TIMEOUT.as_secs()
         )
     })?;
-    let connection_ids = thread_state_manager
+    let connection_ids = chat_state_manager
         .subscribed_connection_ids(chat_id)
         .await;
     let connection_id = require_single_current_time_connection(&connection_ids)?;

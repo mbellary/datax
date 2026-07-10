@@ -147,14 +147,14 @@ use datax_rollout_trace::ThreadTraceContext;
 use datax_sandboxing::policy_transforms::intersect_permission_profiles;
 use datax_shell_command::parse_command::parse_command;
 use datax_terminal_detection::user_agent;
-use datax_thread_store::CreateThreadParams;
-use datax_thread_store::LiveThread;
-use datax_thread_store::LiveThreadInitGuard;
-use datax_thread_store::LocalThreadStore;
-use datax_thread_store::ReadThreadParams;
-use datax_thread_store::ResumeThreadParams;
-use datax_thread_store::ThreadPersistenceMetadata;
-use datax_thread_store::ThreadStore;
+use datax_thread_store::CreateChatParams;
+use datax_thread_store::LiveChat;
+use datax_thread_store::LiveChatInitGuard;
+use datax_thread_store::LocalChatStore;
+use datax_thread_store::ReadChatParams;
+use datax_thread_store::ResumeChatParams;
+use datax_thread_store::ChatPersistenceMetadata;
+use datax_thread_store::ChatStore;
 use datax_utils_path_uri::PathUri;
 use futures::future::BoxFuture;
 use futures::future::Shared;
@@ -450,7 +450,7 @@ pub(crate) struct CodexSpawnArgs {
     pub(crate) thread_extension_init: ExtensionDataInit,
     pub(crate) supports_openai_form_elicitation: bool,
     pub(crate) analytics_events_client: Option<AnalyticsEventsClient>,
-    pub(crate) thread_store: Arc<dyn ThreadStore>,
+    pub(crate) chat_store: Arc<dyn ChatStore>,
     pub(crate) attestation_provider: Option<Arc<dyn AttestationProvider>>,
     pub(crate) external_time_provider: Option<Arc<dyn TimeProvider>>,
     pub(crate) inherited_multi_agent_version: Option<MultiAgentVersion>,
@@ -534,7 +534,7 @@ impl Codex {
             thread_extension_init,
             supports_openai_form_elicitation,
             analytics_events_client,
-            thread_store,
+            chat_store,
             attestation_provider,
             external_time_provider,
             inherited_multi_agent_version,
@@ -681,7 +681,7 @@ impl Codex {
             environment_manager,
             inherited_environments,
             analytics_events_client,
-            thread_store,
+            chat_store,
             parent_rollout_thread_trace,
             attestation_provider,
             external_time_provider,
@@ -772,7 +772,7 @@ impl Codex {
         &self,
         mode: datax_protocol::protocol::ThreadMemoryMode,
     ) -> anyhow::Result<()> {
-        handlers::persist_thread_memory_mode_update(&self.session, mode).await
+        handlers::persist_chat_memory_mode_update(&self.session, mode).await
     }
 
     pub async fn shutdown_and_wait(&self) -> CodexResult<()> {
@@ -902,22 +902,22 @@ pub(crate) fn session_loop_termination_from_handle(
     .shared()
 }
 
-async fn thread_title_from_thread_store(
-    live_thread: Option<&LiveThread>,
-    thread_store: &Arc<dyn ThreadStore>,
+async fn thread_title_from_chat_store(
+    live_chat: Option<&LiveChat>,
+    chat_store: &Arc<dyn ChatStore>,
     conversation_id: ChatId,
 ) -> Option<String> {
-    let thread = match live_thread {
-        Some(live_thread) => {
-            live_thread
-                .read_thread(
+    let thread = match live_chat {
+        Some(live_chat) => {
+            live_chat
+                .read_chat(
                     /*include_archived*/ true, /*include_history*/ false,
                 )
                 .await
         }
         None => {
-            thread_store
-                .read_thread(ReadThreadParams {
+            chat_store
+                .read_chat(ReadChatParams {
                     chat_id: conversation_id,
                     include_archived: true,
                     include_history: false,
@@ -1128,31 +1128,31 @@ impl Session {
         self.services.state_db.clone()
     }
 
-    pub(crate) fn live_thread_for_persistence(
+    pub(crate) fn live_chat_for_persistence(
         &self,
         operation: &str,
-    ) -> anyhow::Result<&LiveThread> {
-        self.live_thread()
+    ) -> anyhow::Result<&LiveChat> {
+        self.live_chat()
             .ok_or_else(|| anyhow::anyhow!("Session persistence is disabled; cannot {operation}."))
     }
 
-    pub(crate) fn live_thread(&self) -> Option<&LiveThread> {
-        self.services.live_thread.as_ref()
+    pub(crate) fn live_chat(&self) -> Option<&LiveChat> {
+        self.services.live_chat.as_ref()
     }
 
     /// Flush rollout writes and return the final durability-barrier result.
     #[instrument(name = "session.flush_rollout", level = "trace", skip_all)]
     pub(crate) async fn flush_rollout(&self) -> std::io::Result<()> {
-        if let Some(live_thread) = self.live_thread() {
-            live_thread.flush().await.map_err(std::io::Error::other)
+        if let Some(live_chat) = self.live_chat() {
+            live_chat.flush().await.map_err(std::io::Error::other)
         } else {
             Ok(())
         }
     }
 
     pub(crate) async fn try_ensure_rollout_materialized(&self) -> std::io::Result<()> {
-        if let Some(live_thread) = self.live_thread() {
-            live_thread.persist().await.map_err(std::io::Error::other)?;
+        if let Some(live_chat) = self.live_chat() {
+            live_chat.persist().await.map_err(std::io::Error::other)?;
         }
         Ok(())
     }
@@ -2996,7 +2996,7 @@ impl Session {
                     chat_id: self.chat_id(),
                     interaction_id: turn_context.sub_id.as_str(),
                     session_store: &self.services.session_extension_data,
-                    thread_store: &self.services.thread_extension_data,
+                    chat_store: &self.services.thread_extension_data,
                     turn_store: turn_context.extension_data.as_ref(),
                     model_context_window: turn_context.model_context_window(),
                 })
@@ -3242,7 +3242,7 @@ impl Session {
                     chat_id: self.chat_id(),
                     interaction_id: turn_context.sub_id.as_str(),
                     session_store: &self.services.session_extension_data,
-                    thread_store: &self.services.thread_extension_data,
+                    chat_store: &self.services.thread_extension_data,
                     turn_store: turn_context.extension_data.as_ref(),
                     model_context_window: turn_context.model_context_window(),
                 })
@@ -3366,8 +3366,8 @@ impl Session {
 
     #[tracing::instrument(level = "trace", skip_all, fields(item_count = items.len()))]
     pub(crate) async fn persist_rollout_items(&self, items: &[RolloutMessage]) {
-        if let Some(live_thread) = self.live_thread()
-            && let Err(e) = live_thread.append_items(items).await
+        if let Some(live_chat) = self.live_chat()
+            && let Err(e) = live_chat.append_items(items).await
         {
             error!("failed to record rollout items: {e:#}");
         }
@@ -3818,10 +3818,10 @@ impl Session {
     }
 
     pub(crate) async fn current_rollout_path(&self) -> anyhow::Result<Option<PathBuf>> {
-        let Some(live_thread) = self.live_thread() else {
+        let Some(live_chat) = self.live_chat() else {
             return Ok(None);
         };
-        live_thread.local_rollout_path().await.map_err(Into::into)
+        live_chat.local_rollout_path().await.map_err(Into::into)
     }
 
     pub(crate) async fn hook_transcript_path(&self) -> Option<PathBuf> {

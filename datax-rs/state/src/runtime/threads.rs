@@ -85,7 +85,7 @@ WHERE id = ? AND preview = ''
     ) -> anyhow::Result<()> {
         sqlx::query(
             r#"
-INSERT INTO thread_spawn_edges (
+INSERT INTO chat_spawn_edges (
     parent_chat_id,
     child_chat_id,
     status
@@ -109,7 +109,7 @@ ON CONFLICT(child_chat_id) DO UPDATE SET
         child_chat_id: ChatId,
         status: crate::DirectionalThreadSpawnEdgeStatus,
     ) -> anyhow::Result<()> {
-        sqlx::query("UPDATE thread_spawn_edges SET status = ? WHERE child_chat_id = ?")
+        sqlx::query("UPDATE chat_spawn_edges SET status = ? WHERE child_chat_id = ?")
             .bind(status.as_ref())
             .bind(child_chat_id.to_string())
             .execute(self.pool.as_ref())
@@ -168,9 +168,9 @@ ON CONFLICT(child_chat_id) DO UPDATE SET
         let rows = sqlx::query(
             r#"
 SELECT threads.id
-FROM thread_spawn_edges
-JOIN threads ON threads.id = thread_spawn_edges.child_chat_id
-WHERE thread_spawn_edges.parent_chat_id = ?
+FROM chat_spawn_edges
+JOIN threads ON threads.id = chat_spawn_edges.child_chat_id
+WHERE chat_spawn_edges.parent_chat_id = ?
   AND threads.agent_path = ?
 ORDER BY threads.id
 LIMIT 2
@@ -193,11 +193,11 @@ LIMIT 2
             r#"
 WITH RECURSIVE subtree(child_chat_id) AS (
     SELECT child_chat_id
-    FROM thread_spawn_edges
+    FROM chat_spawn_edges
     WHERE parent_chat_id = ?
     UNION ALL
     SELECT edge.child_chat_id
-    FROM thread_spawn_edges AS edge
+    FROM chat_spawn_edges AS edge
     JOIN subtree ON edge.parent_chat_id = subtree.child_chat_id
 )
 SELECT threads.id
@@ -221,7 +221,7 @@ LIMIT 2
         status: Option<crate::DirectionalThreadSpawnEdgeStatus>,
     ) -> anyhow::Result<Vec<ChatId>> {
         let mut builder = QueryBuilder::<Sqlite>::new(
-            "SELECT child_chat_id FROM thread_spawn_edges WHERE parent_chat_id = ",
+            "SELECT child_chat_id FROM chat_spawn_edges WHERE parent_chat_id = ",
         );
         builder.push_bind(parent_chat_id.to_string());
         if let Some(status) = status {
@@ -246,7 +246,7 @@ LIMIT 2
             r#"
 WITH RECURSIVE subtree(child_chat_id, depth) AS (
     SELECT child_chat_id, 1
-    FROM thread_spawn_edges
+    FROM chat_spawn_edges
     WHERE parent_chat_id =
             "#,
         );
@@ -258,7 +258,7 @@ WITH RECURSIVE subtree(child_chat_id, depth) AS (
                 r#"
     UNION ALL
     SELECT edge.child_chat_id, subtree.depth + 1
-    FROM thread_spawn_edges AS edge
+    FROM chat_spawn_edges AS edge
     JOIN subtree ON edge.parent_chat_id = subtree.child_chat_id
     WHERE status =
                 "#,
@@ -269,7 +269,7 @@ WITH RECURSIVE subtree(child_chat_id, depth) AS (
                 r#"
     UNION ALL
     SELECT edge.child_chat_id, subtree.depth + 1
-    FROM thread_spawn_edges AS edge
+    FROM chat_spawn_edges AS edge
     JOIN subtree ON edge.parent_chat_id = subtree.child_chat_id
                 "#,
             );
@@ -298,7 +298,7 @@ ORDER BY depth ASC, child_chat_id ASC
     ) -> anyhow::Result<()> {
         sqlx::query(
             r#"
-INSERT INTO thread_spawn_edges (
+INSERT INTO chat_spawn_edges (
     parent_chat_id,
     child_chat_id,
     status
@@ -1000,7 +1000,7 @@ WHERE status IN (?, ?)
   AND id IN (
     SELECT item.job_id
     FROM agent_job_items AS item
-    JOIN thread_spawn_edges AS edge ON edge.child_chat_id = item.assigned_chat_id
+    JOIN chat_spawn_edges AS edge ON edge.child_chat_id = item.assigned_chat_id
     WHERE item.status = ? AND item.assigned_chat_id = ? AND edge.parent_chat_id = ?
   )
                     "#,
@@ -1017,7 +1017,7 @@ WHERE status IN (?, ?)
                 .execute(&mut *tx)
                 .await?;
             }
-            sqlx::query("DELETE FROM thread_dynamic_tools WHERE chat_id = ?")
+            sqlx::query("DELETE FROM chat_dynamic_tools WHERE chat_id = ?")
                 .bind(chat_id_string)
                 .execute(&mut *tx)
                 .await?;
@@ -1053,7 +1053,7 @@ WHERE assigned_chat_id = ?
         }
         for chat_id_string in &chat_id_strings {
             sqlx::query(
-                "DELETE FROM thread_spawn_edges WHERE parent_chat_id = ? OR child_chat_id = ?",
+                "DELETE FROM chat_spawn_edges WHERE parent_chat_id = ? OR child_chat_id = ?",
             )
             .bind(chat_id_string)
             .bind(chat_id_string)
@@ -1105,7 +1105,7 @@ fn push_list_threads_query(
     push_thread_filters(builder, filters);
     if let Some(parent_chat_id) = parent_chat_id {
         builder.push(
-            " AND threads.id IN (SELECT child_chat_id FROM thread_spawn_edges WHERE parent_chat_id = ",
+            " AND threads.id IN (SELECT child_chat_id FROM chat_spawn_edges WHERE parent_chat_id = ",
         );
         builder.push_bind(parent_chat_id.to_string());
         builder.push(")");
@@ -1402,7 +1402,7 @@ mod tests {
             ))
             .await?;
         seed_thread_cleanup_state(&runtime, chat_id, child_chat_id).await?;
-        sqlx::query("INSERT INTO thread_dynamic_tools (chat_id, position, name, description, input_schema) VALUES (?, ?, ?, ?, ?)")
+        sqlx::query("INSERT INTO chat_dynamic_tools (chat_id, position, name, description, input_schema) VALUES (?, ?, ?, ?, ?)")
         .bind(chat_id.to_string())
         .bind(0_i64)
         .bind("test_tool")
@@ -1447,7 +1447,7 @@ mod tests {
         assert_eq!(rows, 1);
         assert!(runtime.get_thread(chat_id).await?.is_none());
         let dynamic_tool_count: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM thread_dynamic_tools WHERE chat_id = ?")
+            sqlx::query_scalar("SELECT COUNT(*) FROM chat_dynamic_tools WHERE chat_id = ?")
                 .bind(chat_id.to_string())
                 .fetch_one(runtime.pool.as_ref())
                 .await?;
@@ -1541,7 +1541,7 @@ mod tests {
         chat_id: ChatId,
     ) -> Result<()> {
         let spawn_edge_count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM thread_spawn_edges WHERE parent_chat_id = ? OR child_chat_id = ?",
+            "SELECT COUNT(*) FROM chat_spawn_edges WHERE parent_chat_id = ? OR child_chat_id = ?",
         )
         .bind(chat_id.to_string())
         .bind(chat_id.to_string())
@@ -2712,7 +2712,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn thread_spawn_edges_track_directional_status() {
+    async fn chat_spawn_edges_track_directional_status() {
         let codex_home = unique_temp_dir();
         let runtime = StateRuntime::init(codex_home, "test-provider".to_string())
             .await
@@ -2840,7 +2840,7 @@ mod tests {
             .expect("closed child edge insert should succeed");
         sqlx::query(
             r#"
-INSERT INTO thread_spawn_edges (
+INSERT INTO chat_spawn_edges (
     parent_chat_id,
     child_chat_id,
     status

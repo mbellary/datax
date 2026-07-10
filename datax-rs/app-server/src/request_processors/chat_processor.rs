@@ -4166,7 +4166,7 @@ pub(crate) fn chat_from_stored_chat(
         agent_nickname: source.get_nickname(),
         agent_role: source.get_agent_role(),
         source: source.into(),
-        chat_source: chat.chat_source.map(Into::into),
+        chat_source: chat.thread_source.map(Into::into),
         git_info,
         name: chat.name,
         interactions: Vec::new(),

@@ -711,7 +711,7 @@ impl InteractionRequestProcessor {
 
         if has_any_overrides {
             chat
-                .preview_chat_settings_overrides(DataxChatSettingsOverrides {
+                .preview_thread_settings_overrides(DataxChatSettingsOverrides {
                     environments: environments.clone(),
                     workspace_roots: runtime_workspace_roots.clone(),
                     approval_policy,

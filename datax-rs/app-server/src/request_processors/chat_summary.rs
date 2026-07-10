@@ -187,7 +187,7 @@ pub(crate) fn thread_response_sandbox_policy(
 }
 
 pub(crate) fn chat_settings_from_config_snapshot(
-    config_snapshot: &ThreadConfigSnapshot,
+    config_snapshot: &ChatConfigSnapshot,
 ) -> ChatSettings {
     ChatSettings {
         cwd: config_snapshot.cwd().clone(),

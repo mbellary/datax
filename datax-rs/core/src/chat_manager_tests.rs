@@ -24,7 +24,7 @@ use datax_protocol::protocol::InteractionStartedEvent;
 use datax_protocol::protocol::InternalSessionSource;
 use datax_protocol::protocol::ResumedHistory;
 use datax_protocol::protocol::SessionSource;
-use datax_protocol::protocol::ThreadSource;
+use datax_protocol::protocol::ChatSource;
 use datax_protocol::protocol::UserMessageEvent;
 use datax_utils_path_uri::PathUri;
 use pretty_assertions::assert_eq;
@@ -176,7 +176,7 @@ fn fork_chat_accepts_legacy_usize_snapshot_argument() {
             usize::MAX,
             config,
             path,
-            /*thread_source*/ None,
+            /*chat_source*/ None,
             /*parent_trace*/ None,
         );
     }
@@ -319,7 +319,7 @@ async fn start_chat_keeps_internal_threads_hidden_from_normal_lookups() {
             session_source: Some(SessionSource::Internal(
                 InternalSessionSource::MemoryConsolidation,
             )),
-            thread_source: None,
+            chat_source: None,
             dynamic_tools: Vec::new(),
             metrics_service_name: None,
             parent_trace: None,
@@ -459,7 +459,7 @@ async fn start_chat_seeds_extension_data_for_mcp_and_lifecycle_contributors() {
             config: config.clone(),
             initial_history: InitialHistory::New,
             session_source: None,
-            thread_source: None,
+            chat_source: None,
             dynamic_tools: Vec::new(),
             metrics_service_name: None,
             parent_trace: None,
@@ -474,7 +474,7 @@ async fn start_chat_seeds_extension_data_for_mcp_and_lifecycle_contributors() {
             config: config.clone(),
             initial_history: InitialHistory::New,
             session_source: None,
-            thread_source: None,
+            chat_source: None,
             dynamic_tools: Vec::new(),
             metrics_service_name: None,
             parent_trace: None,
@@ -563,7 +563,7 @@ async fn resume_and_fork_do_not_restore_thread_environments_from_rollout() {
             config: source_config,
             initial_history: InitialHistory::New,
             session_source: None,
-            thread_source: None,
+            chat_source: None,
             dynamic_tools: Vec::new(),
             metrics_service_name: None,
             parent_trace: None,
@@ -622,7 +622,7 @@ async fn resume_and_fork_do_not_restore_thread_environments_from_rollout() {
             ForkSnapshot::Interrupted,
             config,
             rollout_path,
-            /*thread_source*/ None,
+            /*chat_source*/ None,
             /*parent_trace*/ None,
         )
         .await
@@ -815,7 +815,7 @@ async fn resume_stopped_thread_from_rollout_spawns_new_thread() {
 }
 
 #[tokio::test]
-async fn resume_stopped_thread_from_rollout_preserves_thread_source() {
+async fn resume_stopped_thread_from_rollout_preserves_chat_source() {
     let temp_dir = tempdir().expect("tempdir");
     let mut config = test_config().await;
     config.codex_home = temp_dir.path().join("datax-home").abs();
@@ -846,7 +846,7 @@ async fn resume_stopped_thread_from_rollout_preserves_thread_source() {
             config: config.clone(),
             initial_history: InitialHistory::New,
             session_source: None,
-            thread_source: Some(ThreadSource::User),
+            chat_source: Some(ChatSource::User),
             dynamic_tools: Vec::new(),
             metrics_service_name: None,
             parent_trace: None,
@@ -885,8 +885,8 @@ async fn resume_stopped_thread_from_rollout_preserves_thread_source() {
         .expect("resume source thread");
 
     assert_eq!(
-        resumed.chat.config_snapshot().await.thread_source.as_ref(),
-        Some(&ThreadSource::User)
+        resumed.chat.config_snapshot().await.chat_source.as_ref(),
+        Some(&ChatSource::User)
     );
 
     resumed
@@ -983,7 +983,7 @@ async fn rollout_path_resume_and_fork_read_history_through_chat_store() {
             ForkSnapshot::Interrupted,
             config,
             rollout_path,
-            /*thread_source*/ None,
+            /*chat_source*/ None,
             /*parent_trace*/ None,
         )
         .await
@@ -1287,7 +1287,7 @@ async fn interrupted_fork_snapshot_does_not_synthesize_interaction_id_for_legacy
             ForkSnapshot::Interrupted,
             config.clone(),
             source_path,
-            /*thread_source*/ None,
+            /*chat_source*/ None,
             /*parent_trace*/ None,
         )
         .await
@@ -1408,7 +1408,7 @@ async fn interrupted_fork_snapshot_preserves_explicit_interaction_id() {
             ForkSnapshot::Interrupted,
             config.clone(),
             source_path,
-            /*thread_source*/ None,
+            /*chat_source*/ None,
             /*parent_trace*/ None,
         )
         .await
@@ -1493,7 +1493,7 @@ async fn interrupted_fork_snapshot_uses_persisted_mid_turn_history_without_live_
             ForkSnapshot::Interrupted,
             config.clone(),
             source_path,
-            /*thread_source*/ None,
+            /*chat_source*/ None,
             /*parent_trace*/ None,
         )
         .await
@@ -1533,7 +1533,7 @@ async fn interrupted_fork_snapshot_uses_persisted_mid_turn_history_without_live_
             ForkSnapshot::Interrupted,
             config.clone(),
             forked_path,
-            /*thread_source*/ None,
+            /*chat_source*/ None,
             /*parent_trace*/ None,
         )
         .await

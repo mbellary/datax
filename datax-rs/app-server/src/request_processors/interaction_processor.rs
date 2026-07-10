@@ -711,7 +711,7 @@ impl InteractionRequestProcessor {
 
         if has_any_overrides {
             chat
-                .preview_thread_settings_overrides(DataxChatSettingsOverrides {
+                .preview_chat_settings_overrides(DataxChatSettingsOverrides {
                     environments: environments.clone(),
                     workspace_roots: runtime_workspace_roots.clone(),
                     approval_policy,
@@ -1230,7 +1230,7 @@ impl InteractionRequestProcessor {
                     history: parent_history.items,
                     rollout_path: parent_thread.rollout_path(),
                 }),
-                /*thread_source*/ None,
+                /*chat_source*/ None,
                 self.request_trace_context(request_id).await,
                 /*supports_openai_form_elicitation*/ false,
             )

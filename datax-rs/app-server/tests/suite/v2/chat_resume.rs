@@ -574,7 +574,7 @@ async fn thread_resume_tracks_thread_initialized_analytics() -> Result<()> {
         Some("mock_provider"),
         /*git_info*/ None,
     )?;
-    set_thread_source_on_fake_rollout(
+    set_chat_source_on_fake_rollout(
         codex_home.path(),
         "2025-01-05T12-00-00",
         &conversation_id,
@@ -616,7 +616,7 @@ async fn thread_resume_tracks_thread_initialized_analytics() -> Result<()> {
     Ok(())
 }
 
-fn set_thread_source_on_fake_rollout(
+fn set_chat_source_on_fake_rollout(
     codex_home: &std::path::Path,
     filename_ts: &str,
     chat_id: &str,
@@ -2079,7 +2079,7 @@ stream_max_retries = 0
         originator: "codex".to_string(),
         cli_version: "0.0.0".to_string(),
         source: RolloutSessionSource::Cli,
-        thread_source: None,
+        chat_source: None,
         agent_path: None,
         agent_nickname: None,
         agent_role: None,

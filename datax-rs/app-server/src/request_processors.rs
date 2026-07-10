@@ -312,7 +312,7 @@ use datax_core::NewChat;
 use datax_core::SessionMeta;
 use datax_core::StartChatOptions;
 use datax_core::SteerInputError;
-use datax_core::ThreadConfigSnapshot;
+use datax_core::ChatConfigSnapshot;
 use datax_core::config::Config;
 use datax_core::config::ConfigOverrides;
 use datax_core::config::NetworkProxyAuditMetadata;

@@ -167,7 +167,7 @@ fn write_rollout_with_user_message(
                     originator: "test".to_string(),
                     cli_version: "test".to_string(),
                     source: SessionSource::Cli,
-                    thread_source: None,
+                    chat_source: None,
                     agent_nickname: None,
                     agent_role: None,
                     agent_path: None,

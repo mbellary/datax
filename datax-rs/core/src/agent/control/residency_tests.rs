@@ -14,7 +14,7 @@ use datax_protocol::protocol::InteractionAbortedEvent;
 use datax_protocol::protocol::InteractionCompleteEvent;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
-use datax_protocol::protocol::ThreadSource;
+use datax_protocol::protocol::ChatSource;
 use pretty_assertions::assert_eq;
 use std::sync::Arc;
 
@@ -138,7 +138,7 @@ async fn spawn_v2_subagent(
             SessionSource::SubAgent(SubAgentSource::Other(label.to_string())),
             Some(parent_chat_id),
             /*forked_from_chat_id*/ None,
-            Some(ThreadSource::Subagent),
+            Some(ChatSource::Subagent),
             /*metrics_service_name*/ None,
             /*inherited_environments*/ None,
             /*inherited_exec_policy*/ None,

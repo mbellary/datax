@@ -212,7 +212,7 @@ async fn config_summary_entries_include_runtime_workspace_roots() {
         chat_id: ChatId::new(),
         forked_from_id: None,
         parent_chat_id: None,
-        thread_source: None,
+        chat_source: None,
         thread_name: None,
         model: "gpt-5.4".to_string(),
         model_provider_id: config.model_provider_id.clone(),

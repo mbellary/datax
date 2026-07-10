@@ -86,7 +86,7 @@ use datax_app_server_protocol::Chat;
 use datax_app_server_protocol::ChatArchiveParams;
 use datax_app_server_protocol::ChatArchiveResponse;
 use datax_app_server_protocol::ChatResumeResponse;
-use datax_app_server_protocol::ChatSource as AppServerThreadSource;
+use datax_app_server_protocol::ChatSource as AppServerChatSource;
 use datax_app_server_protocol::ChatStartResponse;
 use datax_app_server_protocol::ChatStatus as AppServerThreadStatus;
 use datax_app_server_protocol::ClientInfo;
@@ -153,7 +153,7 @@ use datax_protocol::protocol::HookRunStatus;
 use datax_protocol::protocol::HookSource;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
-use datax_protocol::protocol::ThreadSource;
+use datax_protocol::protocol::ChatSource;
 use datax_protocol::protocol::TokenUsage;
 use datax_protocol::request_permissions::PermissionGrantScope as CorePermissionGrantScope;
 use datax_protocol::request_permissions::RequestPermissionProfile as CoreRequestPermissionProfile;
@@ -172,7 +172,7 @@ fn sample_thread_with_metadata(
     chat_id: &str,
     ephemeral: bool,
     source: AppServerSessionSource,
-    thread_source: Option<AppServerThreadSource>,
+    chat_source: Option<AppServerChatSource>,
     parent_chat_id: Option<String>,
 ) -> Chat {
     Chat {
@@ -191,7 +191,7 @@ fn sample_thread_with_metadata(
         cwd: test_path_buf("/tmp").abs(),
         cli_version: "0.0.0".to_string(),
         source,
-        chat_source: thread_source,
+        chat_source: chat_source,
         agent_nickname: None,
         agent_role: None,
         git_info: None,
@@ -210,7 +210,7 @@ fn sample_thread_start_response(
             chat_id,
             ephemeral,
             AppServerSessionSource::Exec,
-            Some(AppServerThreadSource::User),
+            Some(AppServerChatSource::User),
             /*parent_chat_id*/ None,
         ),
         model: model.to_string(),
@@ -257,7 +257,7 @@ fn sample_thread_resume_response(
         ephemeral,
         model,
         AppServerSessionSource::Exec,
-        Some(AppServerThreadSource::User),
+        Some(AppServerChatSource::User),
         /*parent_chat_id*/ None,
     )
 }
@@ -267,7 +267,7 @@ fn sample_thread_resume_response_with_source(
     ephemeral: bool,
     model: &str,
     source: AppServerSessionSource,
-    thread_source: Option<AppServerThreadSource>,
+    chat_source: Option<AppServerChatSource>,
     parent_chat_id: Option<String>,
 ) -> ClientResponsePayload {
     ClientResponsePayload::ChatResume(ChatResumeResponse {
@@ -275,7 +275,7 @@ fn sample_thread_resume_response_with_source(
             chat_id,
             ephemeral,
             source,
-            thread_source,
+            chat_source,
             parent_chat_id,
         ),
         model: model.to_string(),
@@ -1305,7 +1305,7 @@ fn compaction_event_serializes_expected_shape() {
             "session-thread-1".to_string(),
             sample_app_server_client_metadata(),
             sample_runtime_metadata(),
-            Some(ThreadSource::User),
+            Some(ChatSource::User),
             /*subagent_source*/ None,
             /*parent_chat_id*/ None,
         ),
@@ -1334,7 +1334,7 @@ fn compaction_event_serializes_expected_shape() {
                     "runtime_os_version": "15.3.1",
                     "runtime_arch": "aarch64"
                 },
-                "thread_source": "user",
+                "chat_source": "user",
                 "subagent_source": null,
                 "parent_chat_id": null,
                 "trigger": "auto",
@@ -1418,7 +1418,7 @@ fn thread_initialized_event_serializes_expected_shape() {
             },
             model: "gpt-5".to_string(),
             ephemeral: true,
-            thread_source: Some(ThreadSource::Feature("automation".to_string())),
+            chat_source: Some(ChatSource::Feature("automation".to_string())),
             initialization_mode: ThreadInitializationMode::New,
             subagent_source: None,
             parent_chat_id: None,
@@ -1451,7 +1451,7 @@ fn thread_initialized_event_serializes_expected_shape() {
                 },
                 "model": "gpt-5",
                 "ephemeral": true,
-                "thread_source": "automation",
+                "chat_source": "automation",
                 "initialization_mode": "new",
                 "subagent_source": null,
                 "parent_chat_id": null,
@@ -1484,7 +1484,7 @@ fn command_execution_event_serializes_expected_shape() {
                     runtime_os_version: "15.3.1".to_string(),
                     runtime_arch: "aarch64".to_string(),
                 },
-                thread_source: Some(ThreadSource::User),
+                chat_source: Some(ChatSource::User),
                 subagent_source: None,
                 parent_chat_id: None,
                 tool_name: "shell".to_string(),
@@ -1533,7 +1533,7 @@ fn command_execution_event_serializes_expected_shape() {
                     "runtime_os_version": "15.3.1",
                     "runtime_arch": "aarch64"
                 },
-                "thread_source": "user",
+                "chat_source": "user",
                 "subagent_source": null,
                 "parent_chat_id": null,
                 "tool_name": "shell",
@@ -1583,7 +1583,7 @@ fn review_event_serializes_expected_shape() {
                 runtime_os_version: "15.3.1".to_string(),
                 runtime_arch: "aarch64".to_string(),
             },
-            thread_source: Some(ThreadSource::Subagent),
+            chat_source: Some(ChatSource::Subagent),
             subagent_source: Some("thread_spawn".to_string()),
             parent_chat_id: Some("parent-thread-1".to_string()),
             subject_kind: ReviewSubjectKind::NetworkAccess,
@@ -1621,7 +1621,7 @@ fn review_event_serializes_expected_shape() {
                     "runtime_os_version": "15.3.1",
                     "runtime_arch": "aarch64"
                 },
-                "thread_source": "subagent",
+                "chat_source": "subagent",
                 "subagent_source": "thread_spawn",
                 "parent_chat_id": "parent-thread-1",
                 "subject_kind": "network_access",
@@ -1846,7 +1846,7 @@ async fn compaction_event_ingests_custom_fact() {
                         agent_nickname: None,
                         agent_role: None,
                     }),
-                    Some(AppServerThreadSource::Subagent),
+                    Some(AppServerChatSource::Subagent),
                     Some(parent_chat_id.to_string()),
                 )),
             },
@@ -1913,7 +1913,7 @@ async fn compaction_event_ingests_custom_fact() {
         payload[0]["event_params"]["runtime"]["codex_rs_version"],
         "0.1.0"
     );
-    assert_eq!(payload[0]["event_params"]["thread_source"], "subagent");
+    assert_eq!(payload[0]["event_params"]["chat_source"], "subagent");
     assert_eq!(
         payload[0]["event_params"]["subagent_source"],
         "thread_spawn"
@@ -2206,7 +2206,7 @@ async fn item_lifecycle_notifications_publish_command_execution_event() {
         payload[0]["event_params"]["app_server_client"]["client_name"],
         "datax-tui"
     );
-    assert_eq!(payload[0]["event_params"]["thread_source"], "user");
+    assert_eq!(payload[0]["event_params"]["chat_source"], "user");
 }
 
 #[tokio::test]
@@ -2248,7 +2248,7 @@ async fn command_execution_approval_response_publishes_user_review_event() {
     assert_eq!(payload[0]["event_params"]["interaction_id"], "turn-1");
     assert_eq!(payload[0]["event_params"]["item_id"], "item-1");
     assert_eq!(payload[0]["event_params"]["review_id"], "user:41");
-    assert_eq!(payload[0]["event_params"]["thread_source"], "user");
+    assert_eq!(payload[0]["event_params"]["chat_source"], "user");
     assert_eq!(
         payload[0]["event_params"]["subject_kind"],
         "command_execution"
@@ -2431,7 +2431,7 @@ async fn guardian_completed_notification_publishes_review_event_with_thread_meta
     assert_eq!(payload["event_type"], "codex_review_event");
     assert_eq!(payload["event_params"]["review_id"], "guardian-review-1");
     assert_eq!(payload["event_params"]["item_id"], "item-1");
-    assert_eq!(payload["event_params"]["thread_source"], "user");
+    assert_eq!(payload["event_params"]["chat_source"], "user");
     assert_eq!(payload["event_params"]["subject_kind"], "command_execution");
     assert_eq!(payload["event_params"]["reviewer"], "guardian");
     assert_eq!(payload["event_params"]["status"], "denied");
@@ -2558,7 +2558,7 @@ fn subagent_thread_started_review_serializes_expected_shape() {
     ));
 
     let payload = serde_json::to_value(&event).expect("serialize review subagent event");
-    assert_eq!(payload["event_params"]["thread_source"], "subagent");
+    assert_eq!(payload["event_params"]["chat_source"], "subagent");
     assert_eq!(
         payload["event_params"]["app_server_client"]["product_client_id"],
         "datax-tui"
@@ -2617,7 +2617,7 @@ fn subagent_thread_started_thread_spawn_serializes_thread_lineage() {
 
     let payload = serde_json::to_value(&event).expect("serialize thread spawn subagent event");
     assert_eq!(payload["event_params"]["chat_id"], "thread-spawn");
-    assert_eq!(payload["event_params"]["thread_source"], "subagent");
+    assert_eq!(payload["event_params"]["chat_source"], "subagent");
     assert_eq!(payload["event_params"]["subagent_source"], "thread_spawn");
     assert_eq!(
         payload["event_params"]["parent_chat_id"],
@@ -2742,7 +2742,7 @@ async fn subagent_thread_started_publishes_without_initialize() {
         payload[0]["event_params"]["app_server_client"]["product_client_id"],
         "datax-tui"
     );
-    assert_eq!(payload[0]["event_params"]["thread_source"], "subagent");
+    assert_eq!(payload[0]["event_params"]["chat_source"], "subagent");
     assert_eq!(payload[0]["event_params"]["subagent_source"], "review");
 }
 
@@ -2864,7 +2864,7 @@ async fn subagent_events_use_inherited_connection_unless_turn_connection_is_expl
     };
     let params = &event.event_params;
     assert_eq!(params.session_id, "session-root");
-    assert_eq!(params.thread_source, Some(ThreadSource::Subagent));
+    assert_eq!(params.chat_source, Some(ChatSource::Subagent));
     assert_eq!(params.subagent_source.as_deref(), Some("thread_spawn"));
     assert_eq!(
         params.parent_chat_id.as_deref(),
@@ -2995,7 +2995,7 @@ async fn subagent_tool_items_inherit_parent_connection_metadata() {
     let payload = serde_json::to_value(&events).expect("serialize events");
     assert_eq!(payload.as_array().expect("events array").len(), 1);
     assert_eq!(payload[0]["event_type"], "codex_command_execution_event");
-    assert_eq!(payload[0]["event_params"]["thread_source"], "subagent");
+    assert_eq!(payload[0]["event_params"]["chat_source"], "subagent");
     assert_eq!(payload[0]["event_params"]["subagent_source"], "review");
     assert_eq!(payload[0]["event_params"]["parent_chat_id"], "thread-1");
     assert_eq!(
@@ -3659,7 +3659,7 @@ fn turn_event_serializes_expected_shape() {
             runtime: sample_runtime_metadata(),
             submission_type: None,
             ephemeral: false,
-            thread_source: Some(ThreadSource::User),
+            chat_source: Some(ChatSource::User),
             initialization_mode: ThreadInitializationMode::New,
             subagent_source: None,
             parent_chat_id: None,
@@ -3731,7 +3731,7 @@ fn turn_event_serializes_expected_shape() {
                     "runtime_arch": "aarch64"
                 },
                 "ephemeral": false,
-                "thread_source": "user",
+                "chat_source": "user",
                 "initialization_mode": "new",
                 "subagent_source": null,
                 "parent_chat_id": null,
@@ -3849,7 +3849,7 @@ async fn accepted_turn_steer_emits_expected_event() {
         payload["event_params"]["runtime"]["codex_rs_version"],
         json!("0.1.0")
     );
-    assert_eq!(payload["event_params"]["thread_source"], json!("user"));
+    assert_eq!(payload["event_params"]["chat_source"], json!("user"));
     assert_eq!(payload["event_params"]["subagent_source"], json!(null));
     assert_eq!(payload["event_params"]["parent_chat_id"], json!(null));
     assert!(payload["event_params"].get("product_client_id").is_none());
@@ -3880,7 +3880,7 @@ async fn rejected_turn_steer_uses_request_connection_metadata() {
         payload["event_params"]["runtime"]["codex_rs_version"],
         json!("0.1.0")
     );
-    assert_eq!(payload["event_params"]["thread_source"], json!("user"));
+    assert_eq!(payload["event_params"]["chat_source"], json!("user"));
     assert_eq!(payload["event_params"]["subagent_source"], json!(null));
     assert_eq!(payload["event_params"]["parent_chat_id"], json!(null));
     assert_eq!(payload["event_params"]["result"], json!("rejected"));

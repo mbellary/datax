@@ -112,7 +112,7 @@ fn session_configured_produces_thread_started_event() {
         chat_id,
         forked_from_id: None,
         parent_chat_id: None,
-        thread_source: None,
+        chat_source: None,
         thread_name: None,
         model: "datax-mini-latest".to_string(),
         model_provider_id: "test-provider".to_string(),

@@ -101,7 +101,7 @@ async fn fork_chat_twice_drops_to_first_message() {
             ForkSnapshot::TruncateBeforeNthUserMessage(1),
             config_for_fork.clone(),
             base_path.clone(),
-            /*thread_source*/ None,
+            /*chat_source*/ None,
             /*parent_trace*/ None,
         )
         .await
@@ -124,7 +124,7 @@ async fn fork_chat_twice_drops_to_first_message() {
             ForkSnapshot::TruncateBeforeNthUserMessage(0),
             config_for_fork.clone(),
             fork1_path.clone(),
-            /*thread_source*/ None,
+            /*chat_source*/ None,
             /*parent_trace*/ None,
         )
         .await
@@ -197,7 +197,7 @@ async fn fork_chat_from_history_does_not_require_source_rollout_path() {
                 history: source_items.clone(),
                 rollout_path: None,
             }),
-            /*thread_source*/ None,
+            /*chat_source*/ None,
             /*parent_trace*/ None,
             /*supports_openai_form_elicitation*/ false,
         )

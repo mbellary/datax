@@ -38,7 +38,7 @@ use datax_protocol::protocol::HookEventName;
 use datax_protocol::protocol::HookRunStatus;
 use datax_protocol::protocol::HookSource;
 use datax_protocol::protocol::SubAgentSource;
-use datax_protocol::protocol::ThreadSource;
+use datax_protocol::protocol::ChatSource;
 use datax_protocol::protocol::TokenUsage;
 use serde::Serialize;
 
@@ -159,7 +159,7 @@ pub(crate) struct ThreadInitializedEventParams {
     pub(crate) runtime: CodexRuntimeMetadata,
     pub(crate) model: String,
     pub(crate) ephemeral: bool,
-    pub(crate) thread_source: Option<ThreadSource>,
+    pub(crate) chat_source: Option<ChatSource>,
     pub(crate) initialization_mode: ThreadInitializationMode,
     pub(crate) subagent_source: Option<String>,
     pub(crate) parent_chat_id: Option<String>,
@@ -521,7 +521,7 @@ pub(crate) struct CodexToolItemEventBase {
     pub(crate) item_id: String,
     pub(crate) app_server_client: CodexAppServerClientMetadata,
     pub(crate) runtime: CodexRuntimeMetadata,
-    pub(crate) thread_source: Option<ThreadSource>,
+    pub(crate) chat_source: Option<ChatSource>,
     pub(crate) subagent_source: Option<String>,
     pub(crate) parent_chat_id: Option<String>,
     pub(crate) tool_name: String,
@@ -598,7 +598,7 @@ pub(crate) struct CodexReviewEventParams {
     pub(crate) review_id: String,
     pub(crate) app_server_client: CodexAppServerClientMetadata,
     pub(crate) runtime: CodexRuntimeMetadata,
-    pub(crate) thread_source: Option<ThreadSource>,
+    pub(crate) chat_source: Option<ChatSource>,
     pub(crate) subagent_source: Option<String>,
     pub(crate) parent_chat_id: Option<String>,
     pub(crate) subject_kind: ReviewSubjectKind,
@@ -791,7 +791,7 @@ pub(crate) struct CodexCompactionEventParams {
     pub(crate) interaction_id: String,
     pub(crate) app_server_client: CodexAppServerClientMetadata,
     pub(crate) runtime: CodexRuntimeMetadata,
-    pub(crate) thread_source: Option<ThreadSource>,
+    pub(crate) chat_source: Option<ChatSource>,
     pub(crate) subagent_source: Option<String>,
     pub(crate) parent_chat_id: Option<String>,
     pub(crate) trigger: CompactionTrigger,
@@ -825,7 +825,7 @@ pub(crate) struct CodexGoalEventParams {
     pub(crate) interaction_id: Option<String>,
     pub(crate) app_server_client: CodexAppServerClientMetadata,
     pub(crate) runtime: CodexRuntimeMetadata,
-    pub(crate) thread_source: Option<ThreadSource>,
+    pub(crate) chat_source: Option<ChatSource>,
     pub(crate) subagent_source: Option<String>,
     pub(crate) parent_chat_id: Option<String>,
     pub(crate) goal_id: String,
@@ -853,7 +853,7 @@ pub(crate) struct CodexTurnEventParams {
     pub(crate) app_server_client: CodexAppServerClientMetadata,
     pub(crate) runtime: CodexRuntimeMetadata,
     pub(crate) ephemeral: bool,
-    pub(crate) thread_source: Option<ThreadSource>,
+    pub(crate) chat_source: Option<ChatSource>,
     pub(crate) initialization_mode: ThreadInitializationMode,
     pub(crate) subagent_source: Option<String>,
     pub(crate) parent_chat_id: Option<String>,
@@ -915,7 +915,7 @@ pub(crate) struct CodexTurnSteerEventParams {
     pub(crate) accepted_interaction_id: Option<String>,
     pub(crate) app_server_client: CodexAppServerClientMetadata,
     pub(crate) runtime: CodexRuntimeMetadata,
-    pub(crate) thread_source: Option<ThreadSource>,
+    pub(crate) chat_source: Option<ChatSource>,
     pub(crate) subagent_source: Option<String>,
     pub(crate) parent_chat_id: Option<String>,
     pub(crate) num_input_images: usize,
@@ -1067,7 +1067,7 @@ pub(crate) fn codex_compaction_event_params(
     session_id: String,
     app_server_client: CodexAppServerClientMetadata,
     runtime: CodexRuntimeMetadata,
-    thread_source: Option<ThreadSource>,
+    chat_source: Option<ChatSource>,
     subagent_source: Option<String>,
     parent_chat_id: Option<String>,
 ) -> CodexCompactionEventParams {
@@ -1077,7 +1077,7 @@ pub(crate) fn codex_compaction_event_params(
         interaction_id: input.interaction_id,
         app_server_client,
         runtime,
-        thread_source,
+        chat_source,
         subagent_source,
         parent_chat_id,
         trigger: input.trigger,
@@ -1104,7 +1104,7 @@ pub(crate) fn codex_goal_event_params(
     session_id: String,
     app_server_client: CodexAppServerClientMetadata,
     runtime: CodexRuntimeMetadata,
-    thread_source: Option<ThreadSource>,
+    chat_source: Option<ChatSource>,
     subagent_source: Option<String>,
     parent_chat_id: Option<String>,
 ) -> CodexGoalEventParams {
@@ -1114,7 +1114,7 @@ pub(crate) fn codex_goal_event_params(
         interaction_id: input.interaction_id,
         app_server_client,
         runtime,
-        thread_source,
+        chat_source,
         subagent_source,
         parent_chat_id,
         goal_id: input.goal_id,
@@ -1214,7 +1214,7 @@ pub(crate) fn subagent_thread_started_event_request(
         runtime: current_runtime_metadata(),
         model: input.model,
         ephemeral: input.ephemeral,
-        thread_source: Some(ThreadSource::Subagent),
+        chat_source: Some(ChatSource::Subagent),
         initialization_mode: ThreadInitializationMode::New,
         subagent_source: Some(subagent_source_name(&input.subagent_source)),
         parent_chat_id: input.parent_chat_id,

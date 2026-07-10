@@ -222,7 +222,7 @@ async fn apply_metadata_update(
                     patch.source.clone().unwrap_or(SessionSource::Unknown),
                 );
                 builder.model_provider = patch.model_provider.clone();
-                builder.thread_source = patch.thread_source.clone().flatten();
+                builder.chat_source = patch.chat_source.clone().flatten();
                 builder.agent_nickname = patch.agent_nickname.clone().flatten();
                 builder.agent_role = patch.agent_role.clone().flatten();
                 builder.agent_path = patch.agent_path.clone().flatten();
@@ -269,8 +269,8 @@ async fn apply_metadata_update(
             if let Some(source) = patch.source {
                 metadata.source = enum_to_string(&source);
             }
-            if let Some(thread_source) = patch.thread_source {
-                metadata.thread_source = thread_source;
+            if let Some(chat_source) = patch.chat_source {
+                metadata.chat_source = chat_source;
             }
             if let Some(agent_nickname) = patch.agent_nickname {
                 metadata.agent_nickname = agent_nickname;
@@ -402,7 +402,7 @@ fn has_observed_metadata_facts(patch: &ChatMetadataPatch) -> bool {
         || patch.reasoning_effort.is_some()
         || patch.created_at.is_some()
         || patch.source.is_some()
-        || patch.thread_source.is_some()
+        || patch.chat_source.is_some()
         || patch.agent_nickname.is_some()
         || patch.agent_role.is_some()
         || patch.agent_path.is_some()

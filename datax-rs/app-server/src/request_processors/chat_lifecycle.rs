@@ -625,7 +625,7 @@ pub(super) async fn handle_pending_chat_resume_request(
 
     let config_snapshot = pending.config_snapshot;
     let cwd = config_snapshot.cwd().clone();
-    let ThreadConfigSnapshot {
+    let ChatConfigSnapshot {
         model,
         model_provider_id,
         service_tier,

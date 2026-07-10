@@ -465,7 +465,7 @@ fn write_rollout(path: &std::path::Path, chat_id: ChatId, message: &str) -> anyh
             originator: "test".to_string(),
             cli_version: "test".to_string(),
             source: SessionSource::Cli,
-            thread_source: None,
+            chat_source: None,
             agent_path: None,
             agent_nickname: None,
             agent_role: None,

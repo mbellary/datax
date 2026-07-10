@@ -281,7 +281,7 @@ impl AgentControl {
                     session_source,
                     options.parent_chat_id,
                     /*forked_from_chat_id*/ None,
-                    /*thread_source*/ Some(ThreadSource::Subagent),
+                    /*chat_source*/ Some(ChatSource::Subagent),
                     /*metrics_service_name*/ None,
                     inheritance.environments,
                     inheritance.exec_policy,
@@ -321,7 +321,7 @@ impl AgentControl {
                     }
                 }
             };
-            let thread_config = new_thread.chat.codex.thread_config_snapshot().await;
+            let thread_config = new_thread.chat.codex.chat_config_snapshot().await;
             let parent_chat_id = thread_config.parent_chat_id;
             emit_subagent_session_started(
                 &new_thread
@@ -506,7 +506,7 @@ impl AgentControl {
                 InitialHistory::Forked(forked_rollout_items),
                 self.clone(),
                 session_source,
-                /*thread_source*/ Some(ThreadSource::Subagent),
+                /*chat_source*/ Some(ChatSource::Subagent),
                 /*parent_chat_id*/ Some(parent_chat_id),
                 /*forked_from_chat_id*/ Some(parent_chat_id),
                 inherited_environments,

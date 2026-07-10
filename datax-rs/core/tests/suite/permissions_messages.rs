@@ -515,7 +515,7 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
             ForkSnapshot::Interrupted,
             fork_config.clone(),
             rollout_path,
-            /*thread_source*/ None,
+            /*chat_source*/ None,
             /*parent_trace*/ None,
         )
         .await?;

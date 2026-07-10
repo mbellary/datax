@@ -762,7 +762,7 @@ async fn wait_for_request(mock: &ResponseMock, expected_count: usize) -> Vec<Res
 async fn wait_for_service_tier(
     test: &TestCodex,
     expected_service_tier: Option<String>,
-) -> anyhow::Result<datax_core::ThreadConfigSnapshot> {
+) -> anyhow::Result<datax_core::ChatConfigSnapshot> {
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
         let config_snapshot = test.codex.config_snapshot().await;

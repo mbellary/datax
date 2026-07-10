@@ -15,7 +15,7 @@ SELECT
     threads.updated_at_ms AS updated_at,
     threads.recency_at_ms AS recency_at,
     threads.source,
-    threads.thread_source,
+    threads.chat_source,
     threads.agent_nickname,
     threads.agent_role,
     threads.agent_path,
@@ -514,7 +514,7 @@ INSERT INTO threads (
     updated_at_ms,
     recency_at_ms,
     source,
-    thread_source,
+    chat_source,
     agent_nickname,
     agent_role,
     agent_path,
@@ -550,9 +550,9 @@ ON CONFLICT(id) DO NOTHING
         .bind(metadata.source.as_str())
         .bind(
             metadata
-                .thread_source
+                .chat_source
                 .as_ref()
-                .map(datax_protocol::protocol::ThreadSource::as_str),
+                .map(datax_protocol::protocol::ChatSource::as_str),
         )
         .bind(metadata.agent_nickname.as_deref())
         .bind(metadata.agent_role.as_deref())
@@ -766,7 +766,7 @@ INSERT INTO threads (
     updated_at_ms,
     recency_at_ms,
     source,
-    thread_source,
+    chat_source,
     agent_nickname,
     agent_role,
     agent_path,
@@ -797,7 +797,7 @@ ON CONFLICT(id) DO UPDATE SET
     updated_at_ms = excluded.updated_at_ms,
     recency_at_ms = threads.recency_at_ms,
     source = excluded.source,
-    thread_source = excluded.thread_source,
+    chat_source = excluded.chat_source,
     agent_nickname = excluded.agent_nickname,
     agent_role = excluded.agent_role,
     agent_path = excluded.agent_path,
@@ -830,9 +830,9 @@ ON CONFLICT(id) DO UPDATE SET
         .bind(metadata.source.as_str())
         .bind(
             metadata
-                .thread_source
+                .chat_source
                 .as_ref()
-                .map(datax_protocol::protocol::ThreadSource::as_str),
+                .map(datax_protocol::protocol::ChatSource::as_str),
         )
         .bind(metadata.agent_nickname.as_deref())
         .bind(metadata.agent_role.as_deref())
@@ -1135,7 +1135,7 @@ SELECT
     threads.updated_at_ms AS updated_at,
     threads.recency_at_ms AS recency_at,
     threads.source,
-    threads.thread_source,
+    threads.chat_source,
     threads.agent_nickname,
     threads.agent_role,
     threads.agent_path,
@@ -1966,7 +1966,7 @@ mod tests {
                 originator: String::new(),
                 cli_version: String::new(),
                 source: SessionSource::Cli,
-                thread_source: None,
+                chat_source: None,
                 agent_path: None,
                 agent_nickname: None,
                 agent_role: None,
@@ -2028,7 +2028,7 @@ mod tests {
                 originator: String::new(),
                 cli_version: String::new(),
                 source: SessionSource::Cli,
-                thread_source: None,
+                chat_source: None,
                 agent_path: None,
                 agent_nickname: None,
                 agent_role: None,

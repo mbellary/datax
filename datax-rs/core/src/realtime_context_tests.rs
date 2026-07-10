@@ -55,7 +55,7 @@ fn stored_chat(cwd: &str, title: &str, first_user_message: &str) -> StoredChat {
         cwd: PathBuf::from(cwd),
         cli_version: "test".to_string(),
         source: SessionSource::Cli,
-        thread_source: None,
+        chat_source: None,
         agent_nickname: None,
         agent_role: None,
         agent_path: None,

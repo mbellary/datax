@@ -21,7 +21,7 @@ struct ThreadListFilters {
 
 fn collect_resume_override_mismatches(
     request: &ChatResumeParams,
-    config_snapshot: &ThreadConfigSnapshot,
+    config_snapshot: &ChatConfigSnapshot,
 ) -> Vec<String> {
     let mut mismatch_details = Vec::new();
 
@@ -1030,7 +1030,7 @@ impl ChatRequestProcessor {
         dynamic_tools: Option<Vec<DynamicToolSpec>>,
         selected_capability_roots: Vec<SelectedCapabilityRoot>,
         session_start_source: Option<datax_app_server_protocol::ChatStartSource>,
-        chat_source: Option<datax_protocol::protocol::ThreadSource>,
+        chat_source: Option<datax_protocol::protocol::ChatSource>,
         environments: Option<Vec<TurnEnvironmentSelection>>,
         service_name: Option<String>,
         experimental_raw_events: bool,
@@ -1147,7 +1147,7 @@ impl ChatRequestProcessor {
                     datax_app_server_protocol::ChatStartSource::Clear => InitialHistory::Cleared,
                 },
                 session_source: None,
-                thread_source: chat_source,
+                chat_source: chat_source,
                 dynamic_tools,
                 metrics_service_name: service_name,
                 parent_trace: request_trace,
@@ -2713,7 +2713,7 @@ impl ChatRequestProcessor {
                 thread.chat_source = datax_chat
                     .config_snapshot()
                     .await
-                    .thread_source
+                    .chat_source
                     .map(Into::into);
 
                 self.chat_watch_manager
@@ -3460,7 +3460,7 @@ impl ChatRequestProcessor {
         thread.chat_source = forked_thread
             .config_snapshot()
             .await
-            .thread_source
+            .chat_source
             .map(Into::into);
 
         self.chat_watch_manager
@@ -4166,7 +4166,7 @@ pub(crate) fn chat_from_stored_chat(
         agent_nickname: source.get_nickname(),
         agent_role: source.get_agent_role(),
         source: source.into(),
-        chat_source: chat.thread_source.map(Into::into),
+        chat_source: chat.chat_source.map(Into::into),
         git_info,
         name: chat.name,
         interactions: Vec::new(),
@@ -4227,7 +4227,7 @@ fn summary_from_state_db_metadata(
     cwd: PathBuf,
     cli_version: String,
     source: String,
-    _thread_source: Option<datax_protocol::protocol::ThreadSource>,
+    _chat_source: Option<datax_protocol::protocol::ChatSource>,
     agent_nickname: Option<String>,
     agent_role: Option<String>,
     git_sha: Option<String>,
@@ -4279,7 +4279,7 @@ fn summary_from_chat_metadata(metadata: &ThreadMetadata) -> ConversationSummary 
         metadata.cwd.clone(),
         metadata.cli_version.clone(),
         metadata.source.clone(),
-        metadata.thread_source.clone(),
+        metadata.chat_source.clone(),
         metadata.agent_nickname.clone(),
         metadata.agent_role.clone(),
         metadata.git_sha.clone(),
@@ -4347,7 +4347,7 @@ fn permission_profile_trusts_project(
 fn build_thread_from_snapshot(
     chat_id: ChatId,
     session_id: String,
-    config_snapshot: &ThreadConfigSnapshot,
+    config_snapshot: &ChatConfigSnapshot,
     path: Option<PathBuf>,
 ) -> Chat {
     let now = time::OffsetDateTime::now_utc().unix_timestamp();
@@ -4369,7 +4369,7 @@ fn build_thread_from_snapshot(
         agent_nickname: config_snapshot.session_source.get_nickname(),
         agent_role: config_snapshot.session_source.get_agent_role(),
         source: config_snapshot.session_source.clone().into(),
-        chat_source: config_snapshot.thread_source.clone().map(Into::into),
+        chat_source: config_snapshot.chat_source.clone().map(Into::into),
         git_info: None,
         name: None,
         interactions: Vec::new(),
@@ -4406,7 +4406,7 @@ fn paginate_background_terminals(
 
 fn build_thread_from_loaded_snapshot(
     chat_id: ChatId,
-    config_snapshot: &ThreadConfigSnapshot,
+    config_snapshot: &ChatConfigSnapshot,
     loaded_thread: &DataxChat,
 ) -> Chat {
     build_thread_from_snapshot(

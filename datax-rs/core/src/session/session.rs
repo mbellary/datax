@@ -14,7 +14,7 @@ use datax_protocol::config_types::ServiceTier;
 use datax_protocol::permissions::FileSystemPath;
 use datax_protocol::permissions::FileSystemSpecialPath;
 use datax_protocol::protocol::MultiAgentVersion;
-use datax_protocol::protocol::ThreadSource;
+use datax_protocol::protocol::ChatSource;
 use datax_protocol::protocol::TurnEnvironmentSelection;
 use datax_protocol::protocol::TurnEnvironmentSelections;
 use std::sync::OnceLock;
@@ -104,7 +104,7 @@ pub(crate) struct SessionConfiguration {
     /// Immediate control/spawn parent for this thread, when it has one.
     pub(super) parent_chat_id: Option<ChatId>,
     /// Optional analytics source classification for this thread.
-    pub(super) thread_source: Option<ThreadSource>,
+    pub(super) chat_source: Option<ChatSource>,
     pub(super) dynamic_tools: Vec<DynamicToolSpec>,
     pub(super) user_shell_override: Option<shell::Shell>,
 }
@@ -175,8 +175,8 @@ impl SessionConfiguration {
             .network_sandbox_policy()
     }
 
-    pub(super) fn thread_config_snapshot(&self) -> ThreadConfigSnapshot {
-        ThreadConfigSnapshot {
+    pub(super) fn chat_config_snapshot(&self) -> ChatConfigSnapshot {
+        ChatConfigSnapshot {
             model: self.collaboration_mode.model().to_string(),
             model_provider_id: self.original_config_do_not_use.model_provider_id.clone(),
             service_tier: self.service_tier.clone(),
@@ -195,7 +195,7 @@ impl SessionConfiguration {
             session_source: self.session_source.clone(),
             forked_from_chat_id: self.forked_from_chat_id,
             parent_chat_id: self.parent_chat_id,
-            thread_source: self.thread_source.clone(),
+            chat_source: self.chat_source.clone(),
         }
     }
 
@@ -573,7 +573,7 @@ impl Session {
                             forked_from_id,
                             parent_chat_id,
                             source: session_source,
-                            thread_source: session_configuration.thread_source.clone(),
+                            chat_source: session_configuration.chat_source.clone(),
                             base_instructions: BaseInstructions {
                                 text: session_configuration.base_instructions.clone(),
                             },
@@ -1105,7 +1105,7 @@ impl Session {
                     chat_id,
                     forked_from_id,
                     parent_chat_id,
-                    thread_source: session_configuration.thread_source.clone(),
+                    chat_source: session_configuration.chat_source.clone(),
                     thread_name: session_configuration.thread_name.clone(),
                     model: session_configuration.collaboration_mode.model().to_string(),
                     model_provider_id: config.model_provider_id.clone(),

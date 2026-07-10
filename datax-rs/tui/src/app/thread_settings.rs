@@ -161,7 +161,7 @@ impl App {
         if !thread_settings_update_has_changes(&params) {
             return;
         }
-        if let Err(err) = app_server.thread_settings_update(params).await {
+        if let Err(err) = app_server.chat_settings_update(params).await {
             tracing::warn!("failed to update app-server thread settings from TUI: {err}");
             self.chat_widget
                 .add_error_message(format!("Failed to update thread settings: {err}"));

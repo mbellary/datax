@@ -42,6 +42,7 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 - [x] (2026-07-10 00:00Z) Started Milestone 8 on branch `codex/phase1-8-m8-phase2-bridge-plan`; GitHub issue #31 tracks the Phase 2 bridge planning alignment slice.
 - [x] (2026-07-10 00:00Z) Updated Phase 2 planning artifacts so stale pre-Phase-1.8 blocker language no longer treats `ThreadManager`, `CodexThread`, `ThreadId`, `TurnItem`, or `RolloutItem` as the native Datax app-server substrate.
 - [x] Update Phase 2 bridge plans so downstream Codex integration starts only after Datax owns the Datax-named protocol and runtime contracts.
+- [x] (2026-07-10 00:00Z) Completed the source-classification rename through native Datax layers: `ThreadSource -> ChatSource`, `thread_source -> chat_source`, and the related runtime helpers. Kept the old serialized key as an explicit read alias and added a forward SQLite column migration.
 
 ## Surprises & Discoveries
 
@@ -59,6 +60,9 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 
 - Observation: `gh auth status` may report an invalid stored token even when issue and PR creation are still usable in this environment.
   Evidence: Milestone 1 issue #17, PR #18, and Milestone 2 issue #19 were created successfully despite the earlier `gh auth status` warning.
+
+- Observation: Compiler failures in app-server callers exposed incomplete lower-layer renames rather than invalid Datax-facing names.
+  Evidence: `DataxChat` still exposed `preview_thread_settings_overrides`, while `StoredChat` and the state schema still exposed `thread_source`; changing app-server callers back to those names would violate the mechanical `Thread -> Chat` mapping.
 
 ## Decision Log
 
@@ -92,6 +96,10 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 
 - Decision: Treat Milestone 8 as a planning alignment slice, not a new implementation slice.
   Rationale: Milestones 3 through 6 already renamed the native Datax-facing runtime, protocol, message, history, state, and store contracts. Phase 2 plans now need to consume that baseline and reserve downstream Codex `Thread`/`Turn`/`Item` names for the future `AgentAdapter` and `codex-runtime` bridge.
+  Date/Author: 2026-07-10 / Codex
+
+- Decision: Resolve incomplete mechanical renames at their defining layer instead of changing Datax-facing callers back to Codex vocabulary.
+  Rationale: Native Datax code must compose the mapping all the way down. Legacy `thread_source` data remains readable through explicit serde aliases and a forward database migration, while current Rust and storage names use `ChatSource` and `chat_source`.
   Date/Author: 2026-07-10 / Codex
 
 ## Outcomes & Retrospective

@@ -14,7 +14,7 @@ use datax_protocol::protocol::MultiAgentVersion;
 use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::ThreadMemoryMode as MemoryMode;
-use datax_protocol::protocol::ThreadSource;
+use datax_protocol::protocol::ChatSource;
 use datax_protocol::protocol::TokenUsage;
 use serde::Deserialize;
 use serde::Deserializer;
@@ -77,7 +77,8 @@ pub struct CreateChatParams {
     /// Runtime source for the thread.
     pub source: SessionSource,
     /// Optional analytics source classification for this thread.
-    pub thread_source: Option<ThreadSource>,
+    #[serde(alias = "thread_source")]
+    pub chat_source: Option<ChatSource>,
     /// Base instructions persisted in session metadata.
     pub base_instructions: BaseInstructions,
     /// Dynamic tools available to the thread at startup.
@@ -413,7 +414,8 @@ pub struct StoredChat {
     /// Runtime source for the thread.
     pub source: SessionSource,
     /// Optional analytics source classification for this thread.
-    pub thread_source: Option<ThreadSource>,
+    #[serde(alias = "thread_source")]
+    pub chat_source: Option<ChatSource>,
     /// Optional random nickname for thread-spawn sub-agents.
     pub agent_nickname: Option<String>,
     /// Optional role for thread-spawn sub-agents.
@@ -518,10 +520,11 @@ pub struct ChatMetadataPatch {
     /// Optional analytics source classification.
     #[serde(
         default,
+        alias = "thread_source",
         skip_serializing_if = "Option::is_none",
         with = "optional_option"
     )]
-    pub thread_source: ClearableField<ThreadSource>,
+    pub chat_source: ClearableField<ChatSource>,
     /// Optional agent nickname.
     #[serde(
         default,
@@ -601,8 +604,8 @@ impl ChatMetadataPatch {
         if next.source.is_some() {
             self.source = next.source;
         }
-        if next.thread_source.is_some() {
-            self.thread_source = next.thread_source;
+        if next.chat_source.is_some() {
+            self.chat_source = next.chat_source;
         }
         if next.agent_nickname.is_some() {
             self.agent_nickname = next.agent_nickname;
@@ -653,7 +656,7 @@ impl ChatMetadataPatch {
             && self.updated_at.is_none()
             && self.advance_recency_at.is_none()
             && self.source.is_none()
-            && self.thread_source.is_none()
+            && self.chat_source.is_none()
             && self.agent_nickname.is_none()
             && self.agent_role.is_none()
             && self.agent_path.is_none()
@@ -704,7 +707,7 @@ mod tests {
     fn chat_metadata_patch_round_trips_optional_clears() {
         let patch = ChatMetadataPatch {
             name: Some(None),
-            thread_source: Some(None),
+            chat_source: Some(None),
             agent_nickname: Some(None),
             agent_role: Some(None),
             agent_path: Some(None),
@@ -713,7 +716,7 @@ mod tests {
 
         let value = serde_json::to_value(&patch).expect("serialize patch");
         assert_eq!(value["name"], json!(null));
-        assert_eq!(value["thread_source"], json!(null));
+        assert_eq!(value["chat_source"], json!(null));
         assert_eq!(value["agent_nickname"], json!(null));
         assert_eq!(value["agent_role"], json!(null));
         assert_eq!(value["agent_path"], json!(null));
@@ -721,7 +724,7 @@ mod tests {
         let decoded: ChatMetadataPatch =
             serde_json::from_value(value).expect("deserialize patch");
         assert_eq!(decoded.name, Some(None));
-        assert_eq!(decoded.thread_source, Some(None));
+        assert_eq!(decoded.chat_source, Some(None));
         assert_eq!(decoded.agent_nickname, Some(None));
         assert_eq!(decoded.agent_role, Some(None));
         assert_eq!(decoded.agent_path, Some(None));

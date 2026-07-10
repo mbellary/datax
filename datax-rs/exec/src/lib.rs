@@ -1227,7 +1227,7 @@ fn session_configured_from_thread_response(
     session_id: &str,
     chat_id: &str,
     parent_chat_id: Option<&str>,
-    thread_source: Option<datax_protocol::protocol::ThreadSource>,
+    chat_source: Option<datax_protocol::protocol::ChatSource>,
     thread_name: Option<String>,
     rollout_path: Option<PathBuf>,
     model: String,
@@ -1254,7 +1254,7 @@ fn session_configured_from_thread_response(
         chat_id,
         forked_from_id: None,
         parent_chat_id,
-        thread_source,
+        chat_source,
         thread_name,
         model,
         model_provider_id,
@@ -1402,7 +1402,7 @@ fn turn_items_for_thread(
         .map(|turn| turn.messages.clone())
 }
 
-fn all_thread_source_kinds() -> Vec<ChatSourceKind> {
+fn all_chat_source_kinds() -> Vec<ChatSourceKind> {
     vec![
         ChatSourceKind::Cli,
         ChatSourceKind::VsCode,
@@ -1468,7 +1468,7 @@ async fn resolve_resume_chat_id(
                         sort_key: Some(ChatSortKey::UpdatedAt),
                         sort_direction: None,
                         model_providers: model_providers.clone(),
-                        source_kinds: Some(all_thread_source_kinds()),
+                        source_kinds: Some(all_chat_source_kinds()),
                         archived: Some(false),
                         parent_chat_id: None,
                         cwd: None,
@@ -1534,7 +1534,7 @@ async fn resolve_resume_chat_id(
                     sort_key: Some(ChatSortKey::UpdatedAt),
                     sort_direction: None,
                     model_providers: model_providers.clone(),
-                    source_kinds: Some(all_thread_source_kinds()),
+                    source_kinds: Some(all_chat_source_kinds()),
                     archived: Some(false),
                     parent_chat_id: None,
                     cwd: None,

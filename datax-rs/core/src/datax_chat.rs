@@ -30,7 +30,7 @@ use datax_protocol::protocol::SessionConfiguredEvent;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::Submission;
 use datax_protocol::protocol::ThreadMemoryMode;
-use datax_protocol::protocol::ThreadSource;
+use datax_protocol::protocol::ChatSource;
 use datax_protocol::protocol::TokenUsageInfo;
 use datax_protocol::protocol::TurnEnvironmentSelection;
 use datax_protocol::protocol::TurnEnvironmentSelections;
@@ -55,7 +55,7 @@ use tokio::sync::watch;
 use datax_rollout::state_db::StateDbHandle;
 
 #[derive(Clone, Debug)]
-pub struct ThreadConfigSnapshot {
+pub struct ChatConfigSnapshot {
     pub model: String,
     pub model_provider_id: String,
     pub service_tier: Option<String>,
@@ -74,7 +74,7 @@ pub struct ThreadConfigSnapshot {
     pub session_source: SessionSource,
     pub forked_from_chat_id: Option<ChatId>,
     pub parent_chat_id: Option<ChatId>,
-    pub thread_source: Option<ThreadSource>,
+    pub chat_source: Option<ChatSource>,
 }
 
 /// Explains why `DataxChat::try_start_turn_if_idle` rejected an automatic
@@ -117,7 +117,7 @@ impl TryStartTurnIfIdleError {
     }
 }
 
-impl ThreadConfigSnapshot {
+impl ChatConfigSnapshot {
     pub fn cwd(&self) -> &AbsolutePathBuf {
         &self.environments.legacy_fallback_cwd
     }
@@ -340,16 +340,16 @@ impl DataxChat {
             .await
     }
 
-    /// Preview persistent thread settings overrides without committing them.
-    pub async fn preview_thread_settings_overrides(
+    /// Preview persistent chat settings overrides without committing them.
+    pub async fn preview_chat_settings_overrides(
         &self,
         overrides: DataxChatSettingsOverrides,
-    ) -> ConstraintResult<ThreadConfigSnapshot> {
-        let updates = self.thread_settings_update(overrides).await;
+    ) -> ConstraintResult<ChatConfigSnapshot> {
+        let updates = self.chat_settings_update(overrides).await;
         self.codex.session.preview_settings(&updates).await
     }
 
-    async fn thread_settings_update(
+    async fn chat_settings_update(
         &self,
         overrides: DataxChatSettingsOverrides,
     ) -> SessionSettingsUpdate {
@@ -557,8 +557,8 @@ impl DataxChat {
         self.codex.state_db()
     }
 
-    pub async fn config_snapshot(&self) -> ThreadConfigSnapshot {
-        self.codex.thread_config_snapshot().await
+    pub async fn config_snapshot(&self) -> ChatConfigSnapshot {
+        self.codex.chat_config_snapshot().await
     }
 
     /// Returns the files that supplied the thread's loaded model instructions.

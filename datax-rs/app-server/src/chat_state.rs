@@ -7,7 +7,7 @@ use datax_app_server_protocol::Interaction;
 use datax_app_server_protocol::InteractionError;
 use datax_app_server_protocol::RequestId;
 use datax_core::DataxChat;
-use datax_core::ThreadConfigSnapshot;
+use datax_core::ChatConfigSnapshot;
 use datax_file_watcher::WatchRegistration;
 use datax_protocol::ChatId;
 #[cfg(test)]
@@ -32,7 +32,7 @@ type PendingInterruptQueue = Vec<ConnectionRequestId>;
 pub(crate) struct PendingChatResumeRequest {
     pub(crate) request_id: ConnectionRequestId,
     pub(crate) history_items: Vec<RolloutMessage>,
-    pub(crate) config_snapshot: ThreadConfigSnapshot,
+    pub(crate) config_snapshot: ChatConfigSnapshot,
     pub(crate) instruction_sources: Vec<LegacyAppPathString>,
     pub(crate) chat_summary: datax_app_server_protocol::Chat,
     pub(crate) emit_chat_goal_update: bool,

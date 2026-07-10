@@ -152,7 +152,7 @@ async fn thread_delete_with_non_local_thread_store_does_not_create_local_persist
             forked_from_id: None,
             parent_chat_id: None,
             source: SessionSource::Cli,
-            thread_source: None,
+            chat_source: None,
             base_instructions: BaseInstructions::default(),
             dynamic_tools: Vec::new(),
             multi_agent_version: None,

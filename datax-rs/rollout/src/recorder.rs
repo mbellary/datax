@@ -60,7 +60,7 @@ use datax_protocol::protocol::RolloutLine;
 use datax_protocol::protocol::SessionMeta;
 use datax_protocol::protocol::SessionMetaLine;
 use datax_protocol::protocol::SessionSource;
-use datax_protocol::protocol::ThreadSource;
+use datax_protocol::protocol::ChatSource;
 use datax_state::StateRuntime;
 use datax_utils_path as path_utils;
 
@@ -87,7 +87,7 @@ pub enum RolloutRecorderParams {
         forked_from_id: Option<ChatId>,
         parent_chat_id: Option<ChatId>,
         source: Box<SessionSource>,
-        thread_source: Option<ThreadSource>,
+        chat_source: Option<ChatSource>,
         base_instructions: BaseInstructions,
         dynamic_tools: Vec<DynamicToolSpec>,
         multi_agent_version: Option<MultiAgentVersion>,
@@ -164,7 +164,7 @@ impl RolloutRecorderParams {
         forked_from_id: Option<ChatId>,
         parent_chat_id: Option<ChatId>,
         source: SessionSource,
-        thread_source: Option<ThreadSource>,
+        chat_source: Option<ChatSource>,
         base_instructions: BaseInstructions,
         dynamic_tools: Vec<DynamicToolSpec>,
     ) -> Self {
@@ -174,7 +174,7 @@ impl RolloutRecorderParams {
             forked_from_id,
             parent_chat_id,
             source: Box::new(source),
-            thread_source,
+            chat_source,
             base_instructions,
             dynamic_tools,
             multi_agent_version: None,
@@ -711,7 +711,7 @@ impl RolloutRecorder {
                 forked_from_id,
                 parent_chat_id,
                 source,
-                thread_source,
+                chat_source,
                 base_instructions,
                 dynamic_tools,
                 multi_agent_version,
@@ -742,7 +742,7 @@ impl RolloutRecorder {
                     agent_role: source.get_agent_role(),
                     agent_path: source.get_agent_path().map(Into::into),
                     source: *source,
-                    thread_source,
+                    chat_source,
                     model_provider: Some(config.model_provider_id().to_string()),
                     base_instructions: Some(base_instructions),
                     dynamic_tools: if dynamic_tools.is_empty() {

@@ -442,7 +442,7 @@ async fn loads_user_instructions_without_a_primary_environment() -> Result<()> {
             config: test.config.clone(),
             initial_history: InitialHistory::New,
             session_source: None,
-            thread_source: None,
+            chat_source: None,
             dynamic_tools: Vec::new(),
             metrics_service_name: None,
             parent_trace: None,
@@ -649,7 +649,7 @@ async fn multi_environment_thread_loads_every_project_and_keeps_creation_snapsho
             config: test.config.clone(),
             initial_history: InitialHistory::New,
             session_source: None,
-            thread_source: None,
+            chat_source: None,
             dynamic_tools: Vec::new(),
             metrics_service_name: None,
             parent_trace: None,
@@ -901,7 +901,7 @@ async fn fork_replays_rendered_instructions_from_shared_history() -> Result<()> 
             ForkSnapshot::Interrupted,
             fork_config,
             rollout_path,
-            /*thread_source*/ None,
+            /*chat_source*/ None,
             /*parent_trace*/ None,
         )
         .await?;

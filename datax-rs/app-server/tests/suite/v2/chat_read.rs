@@ -1369,7 +1369,7 @@ async fn seed_pathless_store_thread(
             forked_from_id: None,
             parent_chat_id: None,
             source: ProtocolSessionSource::Cli,
-            thread_source: None,
+            chat_source: None,
             base_instructions: BaseInstructions::default(),
             dynamic_tools: Vec::new(),
             multi_agent_version: None,

@@ -1129,7 +1129,7 @@ mod tests {
             forked_from_id: None,
             parent_chat_id: None,
             source: SessionSource::Exec,
-            thread_source: None,
+            chat_source: None,
             base_instructions: BaseInstructions::default(),
             dynamic_tools: Vec::new(),
             multi_agent_version: None,

@@ -62,7 +62,7 @@ fn test_absolute_path() -> AbsolutePathBuf {
 }
 
 #[test]
-fn thread_sources_round_trip_as_scalar_labels() {
+fn chat_sources_round_trip_as_scalar_labels() {
     for (source, label) in [
         (ChatSource::User, "user"),
         (ChatSource::Subagent, "subagent"),
@@ -77,7 +77,7 @@ fn thread_sources_round_trip_as_scalar_labels() {
             source
         );
 
-        let core_source: datax_protocol::protocol::ThreadSource = source.clone().into();
+        let core_source: datax_protocol::protocol::ChatSource = source.clone().into();
         assert_eq!(ChatSource::from(core_source), source);
     }
 }

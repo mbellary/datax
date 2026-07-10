@@ -530,7 +530,7 @@ impl Session {
             session_configuration.forked_from_chat_id,
             session_configuration.parent_chat_id,
             &session_configuration.session_source,
-            session_configuration.thread_source.clone(),
+            session_configuration.chat_source.clone(),
             sub_id.clone(),
             cwd.clone(),
             &session_configuration.permission_profile(),

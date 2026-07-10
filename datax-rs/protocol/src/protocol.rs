@@ -2627,14 +2627,14 @@ impl InitialHistory {
             .and_then(|turn_context| turn_context.multi_agent_mode)
     }
 
-    pub fn get_resumed_session_sources(&self) -> Option<(SessionSource, Option<ThreadSource>)> {
+    pub fn get_resumed_session_sources(&self) -> Option<(SessionSource, Option<ChatSource>)> {
         let meta = self.get_resumed_session_meta()?;
-        Some((meta.source.clone(), meta.thread_source.clone()))
+        Some((meta.source.clone(), meta.chat_source.clone()))
     }
 
-    pub fn get_resumed_thread_source(&self) -> Option<ThreadSource> {
+    pub fn get_resumed_chat_source(&self) -> Option<ChatSource> {
         self.get_resumed_session_meta()
-            .and_then(|meta| meta.thread_source.clone())
+            .and_then(|meta| meta.chat_source.clone())
     }
 
     pub fn get_resumed_parent_chat_id(&self) -> Option<ChatId> {
@@ -2682,31 +2682,31 @@ pub enum SessionSource {
 #[serde(try_from = "String", into = "String")]
 #[schemars(with = "String")]
 #[ts(type = "string")]
-pub enum ThreadSource {
+pub enum ChatSource {
     User,
     Subagent,
     Feature(String),
     MemoryConsolidation,
 }
 
-impl ThreadSource {
+impl ChatSource {
     pub fn as_str(&self) -> &str {
         match self {
-            ThreadSource::User => "user",
-            ThreadSource::Subagent => "subagent",
-            ThreadSource::Feature(feature) => feature,
-            ThreadSource::MemoryConsolidation => "memory_consolidation",
+            ChatSource::User => "user",
+            ChatSource::Subagent => "subagent",
+            ChatSource::Feature(feature) => feature,
+            ChatSource::MemoryConsolidation => "memory_consolidation",
         }
     }
 }
 
-impl fmt::Display for ThreadSource {
+impl fmt::Display for ChatSource {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
     }
 }
 
-impl TryFrom<String> for ThreadSource {
+impl TryFrom<String> for ChatSource {
     type Error = String;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
@@ -2714,21 +2714,21 @@ impl TryFrom<String> for ThreadSource {
     }
 }
 
-impl From<ThreadSource> for String {
-    fn from(value: ThreadSource) -> Self {
+impl From<ChatSource> for String {
+    fn from(value: ChatSource) -> Self {
         value.to_string()
     }
 }
 
-impl FromStr for ThreadSource {
+impl FromStr for ChatSource {
     type Err = String;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
-            "user" => Ok(ThreadSource::User),
-            "subagent" => Ok(ThreadSource::Subagent),
-            "memory_consolidation" => Ok(ThreadSource::MemoryConsolidation),
-            other => Ok(ThreadSource::Feature(other.to_string())),
+            "user" => Ok(ChatSource::User),
+            "subagent" => Ok(ChatSource::Subagent),
+            "memory_consolidation" => Ok(ChatSource::MemoryConsolidation),
+            other => Ok(ChatSource::Feature(other.to_string())),
         }
     }
 }
@@ -2968,8 +2968,12 @@ pub struct SessionMeta {
     #[serde(default)]
     pub source: SessionSource,
     /// Optional analytics source classification for this thread.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub thread_source: Option<ThreadSource>,
+    #[serde(
+        default,
+        alias = "thread_source",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub chat_source: Option<ChatSource>,
     /// Optional random unique nickname assigned to an AgentControl-spawned sub-agent.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_nickname: Option<String>,
@@ -3009,7 +3013,7 @@ impl Default for SessionMeta {
             originator: String::new(),
             cli_version: String::new(),
             source: SessionSource::default(),
-            thread_source: None,
+            chat_source: None,
             agent_nickname: None,
             agent_role: None,
             agent_path: None,
@@ -3733,7 +3737,7 @@ pub struct SessionConfiguredEvent {
     pub parent_chat_id: Option<ChatId>,
     /// Optional analytics source classification for this thread.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub thread_source: Option<ThreadSource>,
+    pub chat_source: Option<ChatSource>,
 
     /// Optional user-facing thread name (may be unset).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -3801,8 +3805,8 @@ impl<'de> Deserialize<'de> for SessionConfiguredEvent {
             chat_id: Option<ChatId>,
             forked_from_id: Option<ChatId>,
             parent_chat_id: Option<ChatId>,
-            #[serde(default)]
-            thread_source: Option<ThreadSource>,
+            #[serde(default, alias = "thread_source")]
+            chat_source: Option<ChatSource>,
             #[serde(default)]
             thread_name: Option<String>,
             model: String,
@@ -3842,7 +3846,7 @@ impl<'de> Deserialize<'de> for SessionConfiguredEvent {
             chat_id: wire.chat_id.unwrap_or_else(|| wire.session_id.into()),
             forked_from_id: wire.forked_from_id,
             parent_chat_id: wire.parent_chat_id,
-            thread_source: wire.thread_source,
+            chat_source: wire.chat_source,
             thread_name: wire.thread_name,
             model: wire.model,
             model_provider_id: wire.model_provider_id,
@@ -4275,12 +4279,12 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
-    fn feature_thread_source_serializes_as_its_app_owned_label() -> Result<()> {
-        let source = ThreadSource::Feature("automation".to_string());
+    fn feature_chat_source_serializes_as_its_app_owned_label() -> Result<()> {
+        let source = ChatSource::Feature("automation".to_string());
 
         assert_eq!(serde_json::to_value(&source)?, json!("automation"));
         assert_eq!(
-            serde_json::from_value::<ThreadSource>(json!("automation"))?,
+            serde_json::from_value::<ChatSource>(json!("automation"))?,
             source
         );
         Ok(())
@@ -5599,7 +5603,7 @@ mod tests {
                 chat_id,
                 forked_from_id: None,
                 parent_chat_id: None,
-                thread_source: None,
+                chat_source: None,
                 thread_name: None,
                 model: "datax-mini-latest".to_string(),
                 model_provider_id: "openai".to_string(),

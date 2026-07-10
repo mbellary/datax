@@ -8,7 +8,7 @@ use crate::chat_manager::ChatManagerState;
 use crate::chat_manager::ResumeThreadWithHistoryOptions;
 use crate::config::Config;
 use crate::config::RolloutBudgetConfig;
-use crate::datax_chat::ThreadConfigSnapshot;
+use crate::datax_chat::ChatConfigSnapshot;
 use crate::environment_selection::TurnEnvironmentSnapshot;
 use crate::rollout_budget::RolloutBudget;
 use crate::session::emit_subagent_session_started;
@@ -32,7 +32,7 @@ use datax_protocol::protocol::ResumedHistory;
 use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
-use datax_protocol::protocol::ThreadSource;
+use datax_protocol::protocol::ChatSource;
 use datax_protocol::protocol::TurnEnvironmentSelection;
 use datax_protocol::user_input::UserInput;
 use datax_state::DirectionalThreadSpawnEdgeStatus;
@@ -271,7 +271,7 @@ impl AgentControl {
     pub(crate) async fn get_agent_config_snapshot(
         &self,
         agent_id: ChatId,
-    ) -> Option<ThreadConfigSnapshot> {
+    ) -> Option<ChatConfigSnapshot> {
         let Ok(state) = self.upgrade() else {
             return None;
         };

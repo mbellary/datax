@@ -51,7 +51,7 @@ use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::SessionConfiguredEvent;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
-use datax_protocol::protocol::ThreadSource;
+use datax_protocol::protocol::ChatSource;
 use datax_protocol::protocol::TurnEnvironmentSelection;
 use datax_protocol::protocol::W3cTraceContext;
 use datax_rollout::state_db::StateDbHandle;
@@ -181,7 +181,7 @@ pub struct StartChatOptions {
     pub config: Config,
     pub initial_history: InitialHistory,
     pub session_source: Option<SessionSource>,
-    pub thread_source: Option<ThreadSource>,
+    pub chat_source: Option<ChatSource>,
     pub dynamic_tools: Vec<datax_protocol::dynamic_tools::DynamicToolSpec>,
     pub metrics_service_name: Option<String>,
     pub parent_trace: Option<W3cTraceContext>,
@@ -599,7 +599,7 @@ impl ChatManager {
             config,
             initial_history: InitialHistory::New,
             session_source: None,
-            thread_source: None,
+            chat_source: None,
             dynamic_tools,
             metrics_service_name: None,
             parent_trace: None,
@@ -621,12 +621,12 @@ impl ChatManager {
         forked_from_chat_id: Option<ChatId>,
     ) -> CodexResult<NewChat> {
         let agent_control = self.agent_control_for_config(&options.config);
-        let (resumed_session_source, resumed_thread_source) = options
+        let (resumed_session_source, resumed_chat_source) = options
             .initial_history
             .get_resumed_session_sources()
             .unwrap_or_else(|| (self.state.session_source.clone(), None));
         let session_source = options.session_source.unwrap_or(resumed_session_source);
-        let thread_source = options.thread_source.or(resumed_thread_source);
+        let chat_source = options.chat_source.or(resumed_chat_source);
         Box::pin(self.state.spawn_thread_with_source(
             options.config,
             options.initial_history,
@@ -635,7 +635,7 @@ impl ChatManager {
             session_source,
             /*parent_chat_id*/ None,
             forked_from_chat_id,
-            thread_source,
+            chat_source,
             options.dynamic_tools,
             options.metrics_service_name,
             /*inherited_environments*/ None,
@@ -719,7 +719,7 @@ impl ChatManager {
             self.state.environment_manager.as_ref(),
             &config.cwd,
         );
-        let (session_source, thread_source) = initial_history
+        let (session_source, chat_source) = initial_history
             .get_resumed_session_sources()
             .unwrap_or_else(|| (self.state.session_source.clone(), None));
         Box::pin(self.state.spawn_thread_with_source(
@@ -730,7 +730,7 @@ impl ChatManager {
             session_source,
             /*parent_chat_id*/ None,
             /*forked_from_chat_id*/ None,
-            thread_source,
+            chat_source,
             Vec::new(),
             /*metrics_service_name*/ None,
             /*inherited_environments*/ None,
@@ -762,7 +762,7 @@ impl ChatManager {
             agent_control,
             /*parent_chat_id*/ None,
             /*forked_from_chat_id*/ None,
-            /*thread_source*/ None,
+            /*chat_source*/ None,
             Vec::new(),
             /*metrics_service_name*/ None,
             /*parent_trace*/ None,
@@ -788,7 +788,7 @@ impl ChatManager {
             self.state.environment_manager.as_ref(),
             &config.cwd,
         );
-        let (session_source, thread_source) = initial_history
+        let (session_source, chat_source) = initial_history
             .get_resumed_session_sources()
             .unwrap_or_else(|| (self.state.session_source.clone(), None));
         Box::pin(self.state.spawn_thread_with_source(
@@ -799,7 +799,7 @@ impl ChatManager {
             session_source,
             /*parent_chat_id*/ None,
             /*forked_from_chat_id*/ None,
-            thread_source,
+            chat_source,
             Vec::new(),
             /*metrics_service_name*/ None,
             /*inherited_environments*/ None,
@@ -880,7 +880,7 @@ impl ChatManager {
         snapshot: S,
         config: Config,
         path: PathBuf,
-        thread_source: Option<ThreadSource>,
+        chat_source: Option<ChatSource>,
         parent_trace: Option<W3cTraceContext>,
     ) -> CodexResult<NewChat>
     where
@@ -892,7 +892,7 @@ impl ChatManager {
             snapshot,
             config,
             history,
-            thread_source,
+            chat_source,
             parent_trace,
             /*supports_openai_form_elicitation*/ false,
         )
@@ -923,7 +923,7 @@ impl ChatManager {
         snapshot: S,
         config: Config,
         history: InitialHistory,
-        thread_source: Option<ThreadSource>,
+        chat_source: Option<ChatSource>,
         parent_trace: Option<W3cTraceContext>,
         supports_openai_form_elicitation: bool,
     ) -> CodexResult<NewChat>
@@ -934,7 +934,7 @@ impl ChatManager {
             snapshot.into(),
             config,
             history,
-            thread_source,
+            chat_source,
             parent_trace,
             supports_openai_form_elicitation,
         )
@@ -946,7 +946,7 @@ impl ChatManager {
         snapshot: ForkSnapshot,
         config: Config,
         history: InitialHistory,
-        thread_source: Option<ThreadSource>,
+        chat_source: Option<ChatSource>,
         parent_trace: Option<W3cTraceContext>,
         supports_openai_form_elicitation: bool,
     ) -> CodexResult<NewChat> {
@@ -982,7 +982,7 @@ impl ChatManager {
             agent_control,
             /*parent_chat_id*/ None,
             source_chat_id,
-            thread_source,
+            chat_source,
             Vec::new(),
             /*metrics_service_name*/ None,
             parent_trace,
@@ -1206,7 +1206,7 @@ impl ChatManagerState {
             self.session_source.clone(),
             /*parent_chat_id*/ None,
             /*forked_from_chat_id*/ None,
-            /*thread_source*/ None,
+            /*chat_source*/ None,
             /*metrics_service_name*/ None,
             /*inherited_environments*/ None,
             /*inherited_exec_policy*/ None,
@@ -1223,7 +1223,7 @@ impl ChatManagerState {
         session_source: SessionSource,
         parent_chat_id: Option<ChatId>,
         forked_from_chat_id: Option<ChatId>,
-        thread_source: Option<ThreadSource>,
+        chat_source: Option<ChatSource>,
         metrics_service_name: Option<String>,
         inherited_environments: Option<TurnEnvironmentSnapshot>,
         inherited_exec_policy: Option<Arc<crate::exec_policy::ExecPolicyManager>>,
@@ -1240,7 +1240,7 @@ impl ChatManagerState {
             session_source,
             parent_chat_id,
             forked_from_chat_id,
-            thread_source,
+            chat_source,
             Vec::new(),
             metrics_service_name,
             inherited_environments,
@@ -1269,7 +1269,7 @@ impl ChatManagerState {
         } = options;
         let environments =
             default_thread_environment_selections(self.environment_manager.as_ref(), &config.cwd);
-        let thread_source = initial_history.get_resumed_thread_source();
+        let chat_source = initial_history.get_resumed_chat_source();
         Box::pin(self.spawn_thread_with_source(
             config,
             initial_history,
@@ -1278,7 +1278,7 @@ impl ChatManagerState {
             session_source,
             parent_chat_id,
             /*forked_from_chat_id*/ None,
-            thread_source,
+            chat_source,
             Vec::new(),
             /*metrics_service_name*/ None,
             inherited_environments,
@@ -1299,7 +1299,7 @@ impl ChatManagerState {
         initial_history: InitialHistory,
         agent_control: AgentControl,
         session_source: SessionSource,
-        thread_source: Option<ThreadSource>,
+        chat_source: Option<ChatSource>,
         parent_chat_id: Option<ChatId>,
         forked_from_chat_id: Option<ChatId>,
         inherited_environments: Option<TurnEnvironmentSnapshot>,
@@ -1317,7 +1317,7 @@ impl ChatManagerState {
             session_source,
             parent_chat_id,
             forked_from_chat_id,
-            thread_source,
+            chat_source,
             Vec::new(),
             /*metrics_service_name*/ None,
             inherited_environments,
@@ -1341,7 +1341,7 @@ impl ChatManagerState {
         agent_control: AgentControl,
         parent_chat_id: Option<ChatId>,
         forked_from_chat_id: Option<ChatId>,
-        thread_source: Option<ThreadSource>,
+        chat_source: Option<ChatSource>,
         dynamic_tools: Vec<datax_protocol::dynamic_tools::DynamicToolSpec>,
         metrics_service_name: Option<String>,
         parent_trace: Option<W3cTraceContext>,
@@ -1358,7 +1358,7 @@ impl ChatManagerState {
             self.session_source.clone(),
             parent_chat_id,
             forked_from_chat_id,
-            thread_source,
+            chat_source,
             dynamic_tools,
             metrics_service_name,
             /*inherited_environments*/ None,
@@ -1382,7 +1382,7 @@ impl ChatManagerState {
         session_source: SessionSource,
         parent_chat_id: Option<ChatId>,
         forked_from_chat_id: Option<ChatId>,
-        thread_source: Option<ThreadSource>,
+        chat_source: Option<ChatSource>,
         dynamic_tools: Vec<datax_protocol::dynamic_tools::DynamicToolSpec>,
         metrics_service_name: Option<String>,
         inherited_environments: Option<TurnEnvironmentSnapshot>,
@@ -1445,7 +1445,7 @@ impl ChatManagerState {
             session_source,
             forked_from_chat_id,
             parent_chat_id,
-            thread_source,
+            chat_source,
             agent_control,
             dynamic_tools,
             metrics_service_name,

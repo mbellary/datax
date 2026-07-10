@@ -577,7 +577,7 @@ async fn build_exec_config_preserves_headless_error_when_retry_fails() {
 }
 
 #[tokio::test]
-async fn thread_start_params_include_user_thread_source() {
+async fn thread_start_params_include_user_chat_source() {
     let codex_home = tempdir().expect("create temp codex home");
     let cwd = tempdir().expect("create temp cwd");
     let config = ConfigBuilder::default()
@@ -710,7 +710,7 @@ async fn session_configured_from_thread_response_uses_permission_profile_from_co
 }
 
 #[tokio::test]
-async fn session_configured_from_thread_response_preserves_thread_source() {
+async fn session_configured_from_thread_response_preserves_chat_source() {
     let codex_home = tempdir().expect("create temp codex home");
     let cwd = tempdir().expect("create temp cwd");
     let config = ConfigBuilder::default()
@@ -725,8 +725,8 @@ async fn session_configured_from_thread_response_preserves_thread_source() {
         .expect("build bootstrap session configured event");
 
     assert_eq!(
-        event.thread_source,
-        Some(datax_protocol::protocol::ThreadSource::User)
+        event.chat_source,
+        Some(datax_protocol::protocol::ChatSource::User)
     );
 }
 

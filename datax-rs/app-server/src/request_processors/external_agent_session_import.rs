@@ -206,7 +206,7 @@ impl ExternalAgentSessionImporter {
             forked_from_id: None,
             parent_chat_id: None,
             source: source.clone(),
-            thread_source: None,
+            chat_source: None,
             base_instructions: BaseInstructions {
                 text: config
                     .base_instructions

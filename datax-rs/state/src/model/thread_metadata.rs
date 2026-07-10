@@ -6,7 +6,7 @@ use datax_protocol::openai_models::ReasoningEffort;
 use datax_protocol::protocol::AskForApproval;
 use datax_protocol::protocol::SandboxPolicy;
 use datax_protocol::protocol::SessionSource;
-use datax_protocol::protocol::ThreadSource;
+use datax_protocol::protocol::ChatSource;
 use sqlx::Row;
 use sqlx::sqlite::SqliteRow;
 use std::path::PathBuf;
@@ -76,7 +76,7 @@ pub struct ThreadMetadata {
     /// The session source (stringified enum).
     pub source: String,
     /// Optional analytics source classification for this thread.
-    pub thread_source: Option<ThreadSource>,
+    pub chat_source: Option<ChatSource>,
     /// Optional random unique nickname assigned to an AgentControl-spawned sub-agent.
     pub agent_nickname: Option<String>,
     /// Optional role (agent_role) assigned to an AgentControl-spawned sub-agent.
@@ -131,7 +131,7 @@ pub struct ThreadMetadataBuilder {
     /// The session source.
     pub source: SessionSource,
     /// Optional analytics source classification for this thread.
-    pub thread_source: Option<ThreadSource>,
+    pub chat_source: Option<ChatSource>,
     /// Optional random unique nickname assigned to the session.
     pub agent_nickname: Option<String>,
     /// Optional role (agent_role) assigned to the session.
@@ -173,7 +173,7 @@ impl ThreadMetadataBuilder {
             updated_at: None,
             recency_at: None,
             source,
-            thread_source: None,
+            chat_source: None,
             agent_nickname: None,
             agent_role: None,
             agent_path: None,
@@ -210,7 +210,7 @@ impl ThreadMetadataBuilder {
             updated_at,
             recency_at,
             source,
-            thread_source: self.thread_source.clone(),
+            chat_source: self.chat_source.clone(),
             agent_nickname: self.agent_nickname.clone(),
             agent_role: self.agent_role.clone(),
             agent_path: self
@@ -356,7 +356,7 @@ pub(crate) struct ThreadRow {
     updated_at: i64,
     recency_at: i64,
     source: String,
-    thread_source: Option<String>,
+    chat_source: Option<String>,
     agent_nickname: Option<String>,
     agent_role: Option<String>,
     agent_path: Option<String>,
@@ -386,7 +386,7 @@ impl ThreadRow {
             updated_at: row.try_get("updated_at")?,
             recency_at: row.try_get("recency_at")?,
             source: row.try_get("source")?,
-            thread_source: row.try_get("thread_source")?,
+            chat_source: row.try_get("chat_source")?,
             agent_nickname: row.try_get("agent_nickname")?,
             agent_role: row.try_get("agent_role")?,
             agent_path: row.try_get("agent_path")?,
@@ -420,7 +420,7 @@ impl TryFrom<ThreadRow> for ThreadMetadata {
             updated_at,
             recency_at,
             source,
-            thread_source,
+            chat_source,
             agent_nickname,
             agent_role,
             agent_path,
@@ -440,8 +440,8 @@ impl TryFrom<ThreadRow> for ThreadMetadata {
             git_branch,
             git_origin_url,
         } = row;
-        let thread_source = thread_source
-            .map(|thread_source| thread_source.parse())
+        let chat_source = chat_source
+            .map(|chat_source| chat_source.parse())
             .transpose()
             .map_err(anyhow::Error::msg)?;
         Ok(Self {
@@ -451,7 +451,7 @@ impl TryFrom<ThreadRow> for ThreadMetadata {
             updated_at: epoch_millis_to_datetime(updated_at)?,
             recency_at: epoch_millis_to_datetime(recency_at)?,
             source,
-            thread_source,
+            chat_source,
             agent_nickname,
             agent_role,
             agent_path,
@@ -543,7 +543,7 @@ mod tests {
             updated_at: 1_700_000_100,
             recency_at: 1_700_000_100,
             source: "cli".to_string(),
-            thread_source: None,
+            chat_source: None,
             agent_nickname: None,
             agent_role: None,
             agent_path: None,
@@ -574,7 +574,7 @@ mod tests {
             updated_at: DateTime::<Utc>::from_timestamp(1_700_000_100, 0).expect("timestamp"),
             recency_at: DateTime::<Utc>::from_timestamp(1_700_000_100, 0).expect("timestamp"),
             source: "cli".to_string(),
-            thread_source: None,
+            chat_source: None,
             agent_nickname: None,
             agent_role: None,
             agent_path: None,

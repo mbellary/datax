@@ -721,7 +721,7 @@ async fn guardian_subagent_does_not_inherit_parent_exec_policy_rules() {
         )),
         forked_from_chat_id: None,
         parent_chat_id: None,
-        thread_source: None,
+        chat_source: None,
         agent_control: AgentControl::default(),
         dynamic_tools: Vec::new(),
         metrics_service_name: None,

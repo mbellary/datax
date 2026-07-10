@@ -28,7 +28,7 @@ use datax_protocol::protocol::InitialHistory;
 use datax_protocol::protocol::InternalSessionSource;
 use datax_protocol::protocol::Op;
 use datax_protocol::protocol::SessionSource;
-use datax_protocol::protocol::ThreadSource;
+use datax_protocol::protocol::ChatSource;
 use datax_protocol::protocol::TokenUsage;
 use datax_protocol::user_input::UserInput;
 use datax_rollout_trace::InferenceTraceContext;
@@ -310,7 +310,7 @@ impl MemoryStartupContext {
                 session_source: Some(SessionSource::Internal(
                     InternalSessionSource::MemoryConsolidation,
                 )),
-                thread_source: Some(ThreadSource::MemoryConsolidation),
+                chat_source: Some(ChatSource::MemoryConsolidation),
                 dynamic_tools: Vec::new(),
                 metrics_service_name: None,
                 parent_trace: None,

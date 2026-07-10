@@ -126,7 +126,7 @@ use datax_protocol::protocol::ReviewRequest;
 use datax_protocol::protocol::RolloutMessage;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
-use datax_protocol::protocol::ThreadSource;
+use datax_protocol::protocol::ChatSource;
 use datax_protocol::protocol::InteractionContextMessage;
 use datax_protocol::protocol::InteractionContextNetworkMessage;
 use datax_protocol::protocol::TurnEnvironmentSelection;
@@ -196,7 +196,7 @@ use crate::config::PermissionProfileState;
 use crate::config::StartedNetworkProxy;
 use crate::config::resolve_web_search_mode_for_turn;
 use crate::context_manager::ContextManager;
-use crate::datax_chat::ThreadConfigSnapshot;
+use crate::datax_chat::ChatConfigSnapshot;
 use crate::thread_rollout_truncation::initial_history_has_prior_user_turns;
 use datax_config::CONFIG_TOML_FILE;
 use datax_config::ConfigLayerSource;
@@ -433,7 +433,7 @@ pub(crate) struct CodexSpawnArgs {
     pub(crate) session_source: SessionSource,
     pub(crate) forked_from_chat_id: Option<ChatId>,
     pub(crate) parent_chat_id: Option<ChatId>,
-    pub(crate) thread_source: Option<ThreadSource>,
+    pub(crate) chat_source: Option<ChatSource>,
     pub(crate) agent_control: AgentControl,
     pub(crate) dynamic_tools: Vec<DynamicToolSpec>,
     pub(crate) metrics_service_name: Option<String>,
@@ -521,7 +521,7 @@ impl Codex {
             session_source,
             forked_from_chat_id,
             parent_chat_id,
-            thread_source,
+            chat_source,
             agent_control,
             dynamic_tools,
             metrics_service_name,
@@ -650,7 +650,7 @@ impl Codex {
             session_source,
             forked_from_chat_id,
             parent_chat_id,
-            thread_source,
+            chat_source,
             dynamic_tools,
             user_shell_override,
         };
@@ -836,9 +836,9 @@ impl Codex {
         self.agent_status.borrow().clone()
     }
 
-    pub(crate) async fn thread_config_snapshot(&self) -> ThreadConfigSnapshot {
+    pub(crate) async fn chat_config_snapshot(&self) -> ChatConfigSnapshot {
         let state = self.session.state.lock().await;
-        state.session_configuration.thread_config_snapshot()
+        state.session_configuration.chat_config_snapshot()
     }
 
     pub(crate) async fn instruction_sources(&self) -> Vec<PathUri> {
@@ -1498,12 +1498,12 @@ impl Session {
     pub(crate) async fn preview_settings(
         &self,
         updates: &SessionSettingsUpdate,
-    ) -> ConstraintResult<ThreadConfigSnapshot> {
+    ) -> ConstraintResult<ChatConfigSnapshot> {
         let state = self.state.lock().await;
         state
             .session_configuration
             .apply(updates)
-            .map(|configuration| configuration.thread_config_snapshot())
+            .map(|configuration| configuration.chat_config_snapshot())
     }
 
     pub(crate) async fn set_session_startup_prewarm(
@@ -3853,7 +3853,7 @@ pub(crate) fn emit_subagent_session_started(
     session_id: SessionId,
     chat_id: ChatId,
     parent_chat_id: Option<ChatId>,
-    thread_config: ThreadConfigSnapshot,
+    thread_config: ChatConfigSnapshot,
     subagent_source: SubAgentSource,
 ) {
     let AppServerClientMetadata {

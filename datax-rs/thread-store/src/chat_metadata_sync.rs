@@ -66,7 +66,7 @@ impl ChatMetadataSync {
             created_at: Some(created_at),
             updated_at: Some(created_at),
             source: Some(params.source.clone()),
-            thread_source: Some(params.thread_source.clone()),
+            chat_source: Some(params.chat_source.clone()),
             agent_nickname: Some(params.source.get_nickname()),
             agent_role: Some(params.source.get_agent_role()),
             agent_path: Some(params.source.get_agent_path().map(Into::into)),
@@ -207,7 +207,7 @@ impl ChatMetadataSync {
                 RolloutMessage::SessionMeta(meta_line) if meta_line.meta.id == self.chat_id => {
                     update.created_at = parse_session_timestamp(meta_line.meta.timestamp.as_str());
                     update.source = Some(meta_line.meta.source.clone());
-                    update.thread_source = Some(meta_line.meta.thread_source.clone());
+                    update.chat_source = Some(meta_line.meta.chat_source.clone());
                     update.agent_nickname = Some(meta_line.meta.agent_nickname.clone());
                     update.agent_role = Some(meta_line.meta.agent_role.clone());
                     update.agent_path = Some(meta_line.meta.agent_path.clone());
@@ -355,7 +355,7 @@ fn update_has_metadata_facts(update: &ChatMetadataPatch) -> bool {
         || update.created_at.is_some()
         || update.advance_recency_at.is_some()
         || update.source.is_some()
-        || update.thread_source.is_some()
+        || update.chat_source.is_some()
         || update.agent_nickname.is_some()
         || update.agent_role.is_some()
         || update.agent_path.is_some()

@@ -22,7 +22,7 @@ use core_test_support::test_codex::test_codex;
 use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::wait_for_event_match;
 use datax_core::StartChatOptions;
-use datax_core::ThreadConfigSnapshot;
+use datax_core::ChatConfigSnapshot;
 use datax_core::config::AgentRoleConfig;
 use datax_features::Feature;
 use datax_protocol::ChatId;
@@ -455,7 +455,7 @@ async fn spawn_child_and_capture_snapshot(
     configure_test: impl FnOnce(
         core_test_support::test_codex::TestCodexBuilder,
     ) -> core_test_support::test_codex::TestCodexBuilder,
-) -> Result<ThreadConfigSnapshot> {
+) -> Result<ChatConfigSnapshot> {
     let (test, spawned_id, _child_request_log) = setup_turn_one_with_custom_spawned_child(
         server,
         spawn_args,
@@ -749,7 +749,7 @@ async fn subagent_stop_replaces_stop_and_skips_internal_subagents() -> Result<()
             config: test.config.clone(),
             initial_history: InitialHistory::New,
             session_source: Some(SessionSource::SubAgent(SubAgentSource::Review)),
-            thread_source: None,
+            chat_source: None,
             dynamic_tools: Vec::new(),
             metrics_service_name: None,
             parent_trace: None,

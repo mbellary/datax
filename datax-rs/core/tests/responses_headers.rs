@@ -482,7 +482,7 @@ async fn responses_stream_includes_turn_metadata_header_for_git_workspace_e2e() 
     );
     assert_eq!(
         initial_parsed
-            .get("thread_source")
+            .get("chat_source")
             .and_then(serde_json::Value::as_str),
         None
     );
@@ -595,13 +595,13 @@ async fn responses_stream_includes_turn_metadata_header_for_git_workspace_e2e() 
     );
     assert_eq!(
         first_parsed
-            .get("thread_source")
+            .get("chat_source")
             .and_then(serde_json::Value::as_str),
         None
     );
     assert_eq!(
         second_parsed
-            .get("thread_source")
+            .get("chat_source")
             .and_then(serde_json::Value::as_str),
         None
     );

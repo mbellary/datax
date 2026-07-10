@@ -127,7 +127,7 @@ async fn get_conversation_summary_by_chat_id_reads_pathless_store_thread() -> Re
             forked_from_id: None,
             parent_chat_id: None,
             source: SessionSource::Cli,
-            thread_source: None,
+            chat_source: None,
             base_instructions: BaseInstructions::default(),
             dynamic_tools: Vec::new(),
             multi_agent_version: None,

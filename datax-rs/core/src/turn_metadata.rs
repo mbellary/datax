@@ -25,7 +25,7 @@ use datax_protocol::config_types::WindowsSandboxLevel;
 use datax_protocol::models::PermissionProfile;
 use datax_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
 use datax_protocol::protocol::SessionSource;
-use datax_protocol::protocol::ThreadSource;
+use datax_protocol::protocol::ChatSource;
 use datax_utils_absolute_path::AbsolutePathBuf;
 
 const MODEL_KEY: &str = "model";
@@ -92,7 +92,7 @@ pub(crate) struct TurnMetadataState {
     parent_chat_id: Option<ChatId>,
     subagent_header: Option<String>,
     subagent_kind: Option<String>,
-    thread_source: Option<ThreadSource>,
+    chat_source: Option<ChatSource>,
     interaction_id: String,
     sandbox: Option<String>,
     enriched_workspaces: Arc<RwLock<Option<BTreeMap<String, TurnMetadataWorkspace>>>>,
@@ -110,7 +110,7 @@ impl TurnMetadataState {
         forked_from_chat_id: Option<ChatId>,
         parent_chat_id: Option<ChatId>,
         session_source: &SessionSource,
-        thread_source: Option<ThreadSource>,
+        chat_source: Option<ChatSource>,
         interaction_id: String,
         cwd: AbsolutePathBuf,
         permission_profile: &PermissionProfile,
@@ -135,7 +135,7 @@ impl TurnMetadataState {
             parent_chat_id,
             subagent_header: subagent_header_value(session_source),
             subagent_kind: subagent_metadata_kind(session_source),
-            thread_source,
+            chat_source,
             interaction_id,
             sandbox,
             enriched_workspaces: Arc::new(RwLock::new(None)),
@@ -229,7 +229,7 @@ impl TurnMetadataState {
             parent_chat_id: self.parent_chat_id,
             subagent_header: self.subagent_header.clone(),
             subagent_kind: self.subagent_kind.clone(),
-            thread_source: self.thread_source.clone(),
+            chat_source: self.chat_source.clone(),
             sandbox: self.sandbox.clone(),
             workspaces: self.current_workspaces(),
             turn_started_at_unix_ms: self.current_turn_started_at_unix_ms(),

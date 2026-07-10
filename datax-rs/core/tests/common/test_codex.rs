@@ -637,7 +637,7 @@ impl TestCodexBuilder {
                     config: config.clone(),
                     initial_history: InitialHistory::New,
                     session_source: None,
-                    thread_source: None,
+                    chat_source: None,
                     dynamic_tools: Vec::new(),
                     metrics_service_name: None,
                     parent_trace: None,

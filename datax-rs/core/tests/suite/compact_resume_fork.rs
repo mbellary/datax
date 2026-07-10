@@ -854,7 +854,7 @@ async fn fork_chat(
         nth_user_message,
         config.clone(),
         path,
-        /*thread_source*/ None,
+        /*chat_source*/ None,
         /*parent_trace*/ None,
     ))
     .await

@@ -686,7 +686,7 @@ impl AppServerSession {
             .wrap_err("thread/metadata/update failed while syncing git branch")
     }
 
-    pub(crate) async fn thread_settings_update(
+    pub(crate) async fn chat_settings_update(
         &mut self,
         params: ChatSettingsUpdateParams,
     ) -> Result<()> {

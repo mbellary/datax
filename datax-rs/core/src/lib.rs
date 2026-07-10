@@ -26,7 +26,7 @@ mod datax_chat;
 pub use datax_chat::BackgroundTerminalInfo;
 pub use datax_chat::DataxChat;
 pub use datax_chat::DataxChatSettingsOverrides;
-pub use datax_chat::ThreadConfigSnapshot;
+pub use datax_chat::ChatConfigSnapshot;
 pub use datax_chat::TryStartTurnIfIdleError;
 pub use datax_chat::TryStartTurnIfIdleRejectionReason;
 pub use session::turn_context::InteractionContext;

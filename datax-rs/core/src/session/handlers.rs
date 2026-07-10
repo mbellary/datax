@@ -94,7 +94,7 @@ pub async fn update_thread_settings(
     sub_id: String,
     thread_settings: ThreadSettingsOverrides,
 ) {
-    let updates = thread_settings_update(sess, thread_settings).await;
+    let updates = chat_settings_update(sess, thread_settings).await;
     let msg = match sess.update_settings(updates).await {
         Ok(()) => thread_settings_applied_event(sess).await,
         Err(err) => EventMsg::Error(ErrorEvent {
@@ -105,7 +105,7 @@ pub async fn update_thread_settings(
     sess.send_event_raw(Event { id: sub_id, msg }).await;
 }
 
-async fn thread_settings_update(
+async fn chat_settings_update(
     sess: &Session,
     thread_settings: ThreadSettingsOverrides,
 ) -> SessionSettingsUpdate {
@@ -159,7 +159,7 @@ async fn thread_settings_update(
 async fn thread_settings_applied_event(sess: &Session) -> EventMsg {
     let snapshot = {
         let state = sess.state.lock().await;
-        state.session_configuration.thread_config_snapshot()
+        state.session_configuration.chat_config_snapshot()
     };
     let cwd = snapshot.cwd().clone();
     EventMsg::ThreadSettingsApplied(ThreadSettingsAppliedEvent {
@@ -198,7 +198,7 @@ pub(super) async fn user_input_or_turn_inner(
     };
     let emit_thread_settings_applied = thread_settings != ThreadSettingsOverrides::default();
     let mut updates = if emit_thread_settings_applied {
-        thread_settings_update(sess, thread_settings).await
+        chat_settings_update(sess, thread_settings).await
     } else {
         SessionSettingsUpdate::default()
     };

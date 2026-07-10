@@ -75,11 +75,11 @@ pub(super) async fn spawn_review_thread(
         .model_reasoning_summary
         .unwrap_or(model_info.default_reasoning_summary);
     let session_source = parent_turn_context.session_source.clone();
-    let (forked_from_chat_id, thread_source) = {
+    let (forked_from_chat_id, chat_source) = {
         let state = sess.state.lock().await;
         (
             state.session_configuration.forked_from_chat_id,
-            state.session_configuration.thread_source.clone(),
+            state.session_configuration.chat_source.clone(),
         )
     };
 
@@ -91,7 +91,7 @@ pub(super) async fn spawn_review_thread(
         forked_from_chat_id,
         parent_turn_context.parent_chat_id,
         &session_source,
-        thread_source,
+        chat_source,
         review_interaction_id.clone(),
         #[allow(deprecated)]
         parent_turn_context.cwd.clone(),

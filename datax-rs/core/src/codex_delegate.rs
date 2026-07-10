@@ -17,7 +17,7 @@ use datax_protocol::protocol::ReviewDecision;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SubAgentSource;
 use datax_protocol::protocol::Submission;
-use datax_protocol::protocol::ThreadSource;
+use datax_protocol::protocol::ChatSource;
 use datax_protocol::request_permissions::PermissionGrantScope;
 use datax_protocol::request_permissions::RequestPermissionsArgs;
 use datax_protocol::request_permissions::RequestPermissionsEvent;
@@ -102,7 +102,7 @@ pub(crate) async fn run_datax_chat_interactive(
         session_source: SessionSource::SubAgent(subagent_source.clone()),
         forked_from_chat_id,
         parent_chat_id: Some(parent_session.chat_id),
-        thread_source: Some(ThreadSource::Subagent),
+        chat_source: Some(ChatSource::Subagent),
         agent_control: parent_session.services.agent_control.clone(),
         dynamic_tools: Vec::new(),
         metrics_service_name: None,
@@ -125,7 +125,7 @@ pub(crate) async fn run_datax_chat_interactive(
     }))
     .or_cancel(&cancel_token)
     .await??;
-    let thread_config = codex.thread_config_snapshot().await;
+    let thread_config = codex.chat_config_snapshot().await;
     let client_metadata = parent_session.app_server_client_metadata().await;
     emit_subagent_session_started(
         &parent_session.services.analytics_events_client,

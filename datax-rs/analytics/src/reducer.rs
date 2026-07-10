@@ -133,7 +133,7 @@ use datax_protocol::config_types::ReasoningSummary;
 use datax_protocol::models::PermissionProfile;
 use datax_protocol::protocol::SessionSource;
 use datax_protocol::protocol::SkillScope;
-use datax_protocol::protocol::ThreadSource;
+use datax_protocol::protocol::ChatSource;
 use datax_protocol::protocol::TokenUsage;
 use datax_protocol::request_permissions::PermissionGrantScope as CorePermissionGrantScope;
 use datax_protocol::request_permissions::RequestPermissionsResponse as CoreRequestPermissionsResponse;
@@ -281,7 +281,7 @@ struct ItemReviewSummary {
 #[derive(Clone)]
 struct ThreadMetadataState {
     session_id: String,
-    thread_source: Option<ThreadSource>,
+    chat_source: Option<ChatSource>,
     initialization_mode: ThreadInitializationMode,
     subagent_source: Option<String>,
     parent_chat_id: Option<String>,
@@ -291,7 +291,7 @@ impl ThreadMetadataState {
     fn from_thread_metadata(
         session_id: String,
         session_source: &SessionSource,
-        thread_source: Option<ThreadSource>,
+        chat_source: Option<ChatSource>,
         parent_chat_id: Option<String>,
         initialization_mode: ThreadInitializationMode,
     ) -> Self {
@@ -307,7 +307,7 @@ impl ThreadMetadataState {
         };
         Self {
             session_id,
-            thread_source,
+            chat_source,
             initialization_mode,
             subagent_source,
             parent_chat_id,
@@ -573,7 +573,7 @@ impl AnalyticsReducer {
             .metadata
             .get_or_insert_with(|| ThreadMetadataState {
                 session_id: input.session_id.clone(),
-                thread_source: Some(ThreadSource::Subagent),
+                chat_source: Some(ChatSource::Subagent),
                 initialization_mode: ThreadInitializationMode::New,
                 subagent_source: Some(subagent_source_name(&input.subagent_source)),
                 parent_chat_id,
@@ -1336,7 +1336,7 @@ impl AnalyticsReducer {
                     runtime: connection_state.runtime.clone(),
                     model,
                     ephemeral: thread.ephemeral,
-                    thread_source: thread_metadata.thread_source,
+                    chat_source: thread_metadata.chat_source,
                     initialization_mode,
                     subagent_source: thread_metadata.subagent_source.clone(),
                     parent_chat_id: thread_metadata.parent_chat_id,
@@ -1361,7 +1361,7 @@ impl AnalyticsReducer {
                     thread_metadata.session_id.clone(),
                     connection_state.app_server_client.clone(),
                     connection_state.runtime.clone(),
-                    thread_metadata.thread_source.clone(),
+                    thread_metadata.chat_source.clone(),
                     thread_metadata.subagent_source.clone(),
                     thread_metadata.parent_chat_id.clone(),
                 ),
@@ -1382,7 +1382,7 @@ impl AnalyticsReducer {
                 thread_metadata.session_id.clone(),
                 connection_state.app_server_client.clone(),
                 connection_state.runtime.clone(),
-                thread_metadata.thread_source.clone(),
+                thread_metadata.chat_source.clone(),
                 thread_metadata.subagent_source.clone(),
                 thread_metadata.parent_chat_id.clone(),
             ),
@@ -1486,7 +1486,7 @@ impl AnalyticsReducer {
                 accepted_interaction_id,
                 app_server_client: connection_state.app_server_client.clone(),
                 runtime: connection_state.runtime.clone(),
-                thread_source: thread_metadata.thread_source.clone(),
+                chat_source: thread_metadata.chat_source.clone(),
                 subagent_source: thread_metadata.subagent_source.clone(),
                 parent_chat_id: thread_metadata.parent_chat_id.clone(),
                 num_input_images: pending_request.num_input_images,
@@ -1529,7 +1529,7 @@ impl AnalyticsReducer {
                 review_id: pending_review.review_id,
                 app_server_client: connection_state.app_server_client.clone(),
                 runtime: connection_state.runtime.clone(),
-                thread_source: thread_metadata.thread_source.clone(),
+                chat_source: thread_metadata.chat_source.clone(),
                 subagent_source: thread_metadata.subagent_source.clone(),
                 parent_chat_id: thread_metadata.parent_chat_id.clone(),
                 subject_kind: pending_review.subject_kind,
@@ -2106,7 +2106,7 @@ fn tool_item_base(
         item_id,
         app_server_client: context.connection_state.app_server_client.clone(),
         runtime: context.connection_state.runtime.clone(),
-        thread_source: thread_metadata.thread_source.clone(),
+        chat_source: thread_metadata.chat_source.clone(),
         subagent_source: thread_metadata.subagent_source.clone(),
         parent_chat_id: thread_metadata.parent_chat_id.clone(),
         tool_name,
@@ -2586,7 +2586,7 @@ fn codex_turn_event_params(
         runtime,
         submission_type,
         ephemeral,
-        thread_source: thread_metadata.thread_source.clone(),
+        chat_source: thread_metadata.chat_source.clone(),
         initialization_mode: thread_metadata.initialization_mode,
         subagent_source: thread_metadata.subagent_source.clone(),
         parent_chat_id: thread_metadata.parent_chat_id.clone(),

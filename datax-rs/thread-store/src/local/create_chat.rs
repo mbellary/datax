@@ -32,7 +32,7 @@ pub(super) async fn create_chat(
             params.forked_from_id,
             params.parent_chat_id,
             params.source,
-            params.thread_source,
+            params.chat_source,
             params.base_instructions,
             params.dynamic_tools,
         )

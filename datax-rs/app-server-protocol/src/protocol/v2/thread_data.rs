@@ -4,7 +4,7 @@ use super::InteractionStatus;
 use super::Message;
 use datax_protocol::protocol::SessionSource as CoreSessionSource;
 use datax_protocol::protocol::SubAgentSource as CoreSubAgentSource;
-use datax_protocol::protocol::ThreadSource as CoreThreadSource;
+use datax_protocol::protocol::ChatSource as CoreChatSource;
 use datax_utils_absolute_path::AbsolutePathBuf;
 use schemars::JsonSchema;
 use schemars::r#gen::SchemaGenerator;
@@ -88,34 +88,34 @@ impl TryFrom<String> for ChatSource {
     type Error = String;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        value.parse::<CoreThreadSource>().map(Into::into)
+        value.parse::<CoreChatSource>().map(Into::into)
     }
 }
 
 impl From<ChatSource> for String {
     fn from(value: ChatSource) -> Self {
-        CoreThreadSource::from(value).into()
+        CoreChatSource::from(value).into()
     }
 }
 
-impl From<CoreThreadSource> for ChatSource {
-    fn from(value: CoreThreadSource) -> Self {
+impl From<CoreChatSource> for ChatSource {
+    fn from(value: CoreChatSource) -> Self {
         match value {
-            CoreThreadSource::User => ChatSource::User,
-            CoreThreadSource::Subagent => ChatSource::Subagent,
-            CoreThreadSource::Feature(feature) => ChatSource::Feature(feature),
-            CoreThreadSource::MemoryConsolidation => ChatSource::MemoryConsolidation,
+            CoreChatSource::User => ChatSource::User,
+            CoreChatSource::Subagent => ChatSource::Subagent,
+            CoreChatSource::Feature(feature) => ChatSource::Feature(feature),
+            CoreChatSource::MemoryConsolidation => ChatSource::MemoryConsolidation,
         }
     }
 }
 
-impl From<ChatSource> for CoreThreadSource {
+impl From<ChatSource> for CoreChatSource {
     fn from(value: ChatSource) -> Self {
         match value {
-            ChatSource::User => CoreThreadSource::User,
-            ChatSource::Subagent => CoreThreadSource::Subagent,
-            ChatSource::Feature(feature) => CoreThreadSource::Feature(feature),
-            ChatSource::MemoryConsolidation => CoreThreadSource::MemoryConsolidation,
+            ChatSource::User => CoreChatSource::User,
+            ChatSource::Subagent => CoreChatSource::Subagent,
+            ChatSource::Feature(feature) => CoreChatSource::Feature(feature),
+            ChatSource::MemoryConsolidation => CoreChatSource::MemoryConsolidation,
         }
     }
 }

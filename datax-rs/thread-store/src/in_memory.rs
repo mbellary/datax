@@ -116,7 +116,7 @@ mod tests {
                     forked_from_id: None,
                     parent_chat_id,
                     source: SessionSource::Exec,
-                    thread_source: None,
+                    chat_source: None,
                     base_instructions: BaseInstructions::default(),
                     dynamic_tools: Vec::new(),
                     multi_agent_version: None,
@@ -241,7 +241,7 @@ impl InMemoryChatStore {
             agent_role: params.source.get_agent_role(),
             agent_path: params.source.get_agent_path().map(Into::into),
             source: params.source.clone(),
-            thread_source: params.thread_source.clone(),
+            chat_source: params.chat_source.clone(),
             model_provider: Some(params.metadata.model_provider.clone()),
             base_instructions: Some(params.base_instructions.clone()),
             dynamic_tools: (!params.dynamic_tools.is_empty()).then(|| params.dynamic_tools.clone()),
@@ -550,9 +550,9 @@ fn stored_chat_from_state(
         source: metadata
             .and_then(|metadata| metadata.source.clone())
             .unwrap_or_else(|| created.source.clone()),
-        thread_source: metadata
-            .and_then(|metadata| metadata.thread_source.clone())
-            .unwrap_or_else(|| created.thread_source.clone()),
+        chat_source: metadata
+            .and_then(|metadata| metadata.chat_source.clone())
+            .unwrap_or_else(|| created.chat_source.clone()),
         agent_nickname: metadata.and_then(|metadata| metadata.agent_nickname.clone().flatten()),
         agent_role: metadata.and_then(|metadata| metadata.agent_role.clone().flatten()),
         agent_path: metadata.and_then(|metadata| metadata.agent_path.clone().flatten()),

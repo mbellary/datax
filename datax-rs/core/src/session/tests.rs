@@ -2734,7 +2734,7 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
             usize::MAX,
             fork_config.clone(),
             rollout_path,
-            /*thread_source*/ None,
+            /*chat_source*/ None,
             /*parent_trace*/ None,
         )
         .await?;
@@ -3471,7 +3471,7 @@ async fn set_rate_limits_retains_previous_credits() {
         session_source: SessionSource::Exec,
         forked_from_chat_id: None,
         parent_chat_id: None,
-        thread_source: None,
+        chat_source: None,
         dynamic_tools: Vec::new(),
         user_shell_override: None,
     };
@@ -3577,7 +3577,7 @@ async fn set_rate_limits_updates_plan_type_when_present() {
         session_source: SessionSource::Exec,
         forked_from_chat_id: None,
         parent_chat_id: None,
-        thread_source: None,
+        chat_source: None,
         dynamic_tools: Vec::new(),
         user_shell_override: None,
     };
@@ -3826,7 +3826,7 @@ async fn attach_thread_persistence(session: &mut Session) -> PathBuf {
             forked_from_id: None,
             parent_chat_id: None,
             source: SessionSource::Exec,
-            thread_source: None,
+            chat_source: None,
             base_instructions: BaseInstructions::default(),
             dynamic_tools: Vec::new(),
             multi_agent_version: None,
@@ -4105,7 +4105,7 @@ pub(crate) async fn make_session_configuration_for_tests() -> SessionConfigurati
         session_source: SessionSource::Exec,
         forked_from_chat_id: None,
         parent_chat_id: None,
-        thread_source: None,
+        chat_source: None,
         dynamic_tools: Vec::new(),
         user_shell_override: None,
     }
@@ -4149,7 +4149,7 @@ async fn emit_subagent_session_started_includes_fork_lineage_from_session_config
         SessionId::from(child_chat_id),
         child_chat_id,
         Some(parent_chat_id),
-        session_configuration.thread_config_snapshot(),
+        session_configuration.chat_config_snapshot(),
         SubAgentSource::ThreadSpawn {
             parent_chat_id,
             depth: 1,
@@ -4971,7 +4971,7 @@ async fn session_new_fails_when_zsh_fork_enabled_without_packaged_zsh() {
         session_source: SessionSource::Exec,
         forked_from_chat_id: None,
         parent_chat_id: None,
-        thread_source: None,
+        chat_source: None,
         dynamic_tools: Vec::new(),
         user_shell_override: None,
     };
@@ -5083,7 +5083,7 @@ pub(crate) async fn make_session_and_context() -> (Session, InteractionContext) 
         session_source: SessionSource::Exec,
         forked_from_chat_id: None,
         parent_chat_id: None,
-        thread_source: None,
+        chat_source: None,
         dynamic_tools: Vec::new(),
         user_shell_override: None,
     };
@@ -5328,7 +5328,7 @@ async fn make_session_with_config_and_rx(
         session_source: SessionSource::Exec,
         forked_from_chat_id: None,
         parent_chat_id: None,
-        thread_source: None,
+        chat_source: None,
         dynamic_tools: Vec::new(),
         user_shell_override: None,
     };
@@ -5434,7 +5434,7 @@ async fn make_session_with_history_source_and_agent_control_and_rx(
         session_source: session_source.clone(),
         forked_from_chat_id: None,
         parent_chat_id: None,
-        thread_source: None,
+        chat_source: None,
         dynamic_tools: Vec::new(),
         user_shell_override: None,
     };
@@ -6670,7 +6670,7 @@ async fn shutdown_complete_does_not_append_to_chat_store_after_shutdown() {
             forked_from_id: None,
             parent_chat_id: None,
             source: SessionSource::Exec,
-            thread_source: None,
+            chat_source: None,
             base_instructions: BaseInstructions::default(),
             dynamic_tools: Vec::new(),
             multi_agent_version: None,
@@ -7149,7 +7149,7 @@ where
         session_source: SessionSource::Exec,
         forked_from_chat_id: None,
         parent_chat_id: None,
-        thread_source: None,
+        chat_source: None,
         dynamic_tools,
         user_shell_override: None,
     };

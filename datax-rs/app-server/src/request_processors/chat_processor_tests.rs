@@ -483,7 +483,7 @@ mod thread_processor_behavior_tests {
             cwd: PathBuf::from("/tmp"),
             cli_version: "0.0.0".to_string(),
             source: SessionSource::Cli,
-            thread_source: Some(datax_protocol::protocol::ThreadSource::User),
+            chat_source: Some(datax_protocol::protocol::ChatSource::User),
             agent_nickname: None,
             agent_role: None,
             agent_path: None,
@@ -753,7 +753,7 @@ mod thread_processor_behavior_tests {
             exclude_interactions: false,
             initial_turns_page: None,
         };
-        let config_snapshot = ThreadConfigSnapshot {
+        let config_snapshot = ChatConfigSnapshot {
             model: "gpt-5".to_string(),
             model_provider_id: "openai".to_string(),
             service_tier: Some("flex".to_string()),
@@ -779,7 +779,7 @@ mod thread_processor_behavior_tests {
             session_source: SessionSource::Cli,
             forked_from_chat_id: None,
             parent_chat_id: None,
-            thread_source: None,
+            chat_source: None,
         };
 
         assert_eq!(
@@ -1070,7 +1070,7 @@ mod thread_processor_behavior_tests {
                 agent_nickname: None,
                 agent_role: None,
             }),
-            thread_source: Some(datax_protocol::protocol::ThreadSource::Subagent),
+            chat_source: Some(datax_protocol::protocol::ChatSource::Subagent),
             agent_nickname: Some("atlas".to_string()),
             agent_role: Some("explorer".to_string()),
             model_provider: Some("test-provider".to_string()),
@@ -1219,7 +1219,7 @@ mod thread_processor_behavior_tests {
             PathBuf::from("/"),
             "0.0.0".to_string(),
             source,
-            Some(datax_protocol::protocol::ThreadSource::Subagent),
+            Some(datax_protocol::protocol::ChatSource::Subagent),
             Some("atlas".to_string()),
             Some("explorer".to_string()),
             /*git_sha*/ None,

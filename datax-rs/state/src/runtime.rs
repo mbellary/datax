@@ -49,7 +49,6 @@ use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::sqlite::SqliteJournalMode;
 use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::sqlite::SqliteSynchronous;
-use std::collections::BTreeSet;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -430,13 +429,8 @@ async fn open_sqlite(
     let migrate_result = async {
         if matches!(spec.kind, DbKind::State) {
             repair_legacy_recency_migration_version(&pool, migrator).await?;
-        } else if matches!(spec.kind, DbKind::Logs) {
-            repair_legacy_logs_chat_id_schema(&pool, migrator).await?;
         }
         migrator.run(&pool).await.map_err(anyhow::Error::from)?;
-        if matches!(spec.kind, DbKind::Logs) {
-            repair_legacy_logs_chat_id_schema(&pool, migrator).await?;
-        }
         Ok::<(), anyhow::Error>(())
     }
     .await;
@@ -540,101 +534,6 @@ pub async fn sqlite_integrity_check(path: &Path) -> anyhow::Result<Vec<String>> 
         .await?;
     pool.close().await;
     Ok(rows)
-}
-
-async fn repair_legacy_logs_chat_id_schema(
-    pool: &SqlitePool,
-    migrator: &Migrator,
-) -> anyhow::Result<()> {
-    let table_exists = sqlx::query_scalar::<_, i64>(
-        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'logs'",
-    )
-    .fetch_optional(pool)
-    .await?
-    .is_some();
-    if !table_exists {
-        return Ok(());
-    }
-
-    let columns = sqlx::query("PRAGMA table_info(logs)")
-        .fetch_all(pool)
-        .await?
-        .into_iter()
-        .map(|row| row.try_get::<String, _>("name"))
-        .collect::<Result<BTreeSet<_>, _>>()?;
-    if columns.contains("chat_id") || !columns.contains("thread_id") {
-        return Ok(());
-    }
-
-    sqlx::query("ALTER TABLE logs RENAME COLUMN thread_id TO chat_id")
-        .execute(pool)
-        .await?;
-    sqlx::query("DROP INDEX IF EXISTS idx_logs_thread_id")
-        .execute(pool)
-        .await?;
-    sqlx::query("DROP INDEX IF EXISTS idx_logs_thread_id_ts")
-        .execute(pool)
-        .await?;
-    sqlx::query("DROP INDEX IF EXISTS idx_logs_process_uuid_threadless_ts")
-        .execute(pool)
-        .await?;
-    sqlx::query("CREATE INDEX IF NOT EXISTS idx_logs_chat_id ON logs(chat_id)")
-        .execute(pool)
-        .await?;
-    sqlx::query(
-        r#"
-CREATE INDEX IF NOT EXISTS idx_logs_chat_id_ts
-ON logs(chat_id, ts DESC, ts_nanos DESC, id DESC)
-        "#,
-    )
-    .execute(pool)
-    .await?;
-    sqlx::query(
-        r#"
-CREATE INDEX IF NOT EXISTS idx_logs_process_uuid_threadless_ts
-ON logs(process_uuid, ts DESC, ts_nanos DESC, id DESC)
-WHERE chat_id IS NULL
-        "#,
-    )
-    .execute(pool)
-    .await?;
-
-    let Some(migration) = migrator
-        .migrations
-        .iter()
-        .find(|migration| migration.version == 3)
-    else {
-        return Ok(());
-    };
-    let migrations_table_exists = sqlx::query_scalar::<_, i64>(
-        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = '_sqlx_migrations'",
-    )
-    .fetch_optional(pool)
-    .await?
-    .is_some();
-    if !migrations_table_exists {
-        return Ok(());
-    }
-
-    sqlx::query(
-        r#"
-INSERT INTO _sqlx_migrations (version, description, success, checksum, execution_time)
-SELECT ?, ?, ?, ?, ?
-WHERE NOT EXISTS (
-    SELECT 1 FROM _sqlx_migrations WHERE version = ?
-)
-        "#,
-    )
-    .bind(migration.version)
-    .bind(migration.description.as_ref())
-    .bind(true)
-    .bind(migration.checksum.as_ref())
-    .bind(0_i64)
-    .bind(migration.version)
-    .execute(pool)
-    .await?;
-
-    Ok(())
 }
 
 #[cfg(test)]

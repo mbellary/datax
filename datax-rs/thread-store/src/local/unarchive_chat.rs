@@ -1,5 +1,5 @@
 use datax_rollout::find_archived_thread_path_by_id_str;
-use datax_rollout::read_chat_item_from_rollout;
+use datax_rollout::read_thread_item_from_rollout;
 use datax_rollout::rollout_date_parts;
 
 use super::LocalChatStore;
@@ -79,7 +79,7 @@ pub(super) async fn unarchive_chat(
             .await;
     }
 
-    let item = read_chat_item_from_rollout(restored_path.clone())
+    let item = read_thread_item_from_rollout(restored_path.clone())
         .await
         .ok_or_else(|| ChatStoreError::Internal {
             message: format!(
@@ -176,7 +176,7 @@ mod tests {
         let mut metadata = builder.build(config.default_model_provider_id.as_str());
         metadata.archived_at = Some(metadata.updated_at);
         runtime
-            .upsert_chat(&metadata)
+            .upsert_thread(&metadata)
             .await
             .expect("state db upsert should succeed");
 

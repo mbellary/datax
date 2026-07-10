@@ -9,7 +9,7 @@ use datax_rollout::find_archived_thread_path_by_id_str;
 use datax_rollout::find_thread_name_by_id;
 use datax_rollout::find_thread_path_by_id_str;
 use datax_rollout::read_session_meta_line;
-use datax_rollout::read_chat_item_from_rollout;
+use datax_rollout::read_thread_item_from_rollout;
 use datax_state::ThreadMetadata;
 
 use super::LocalChatStore;
@@ -248,7 +248,7 @@ async fn read_chat_from_rollout_path(
     store: &LocalChatStore,
     path: std::path::PathBuf,
 ) -> ChatStoreResult<StoredChat> {
-    let Some(item) = read_chat_item_from_rollout(path.clone()).await else {
+    let Some(item) = read_thread_item_from_rollout(path.clone()).await else {
         return stored_chat_from_session_meta(store, path).await;
     };
     let archived = rollout_path_is_archived(store.config.codex_home.as_path(), path.as_path());
@@ -556,7 +556,7 @@ mod tests {
             .with_timezone(&Utc);
         builder.recency_at = Some(recency_at);
         runtime
-            .upsert_chat(&builder.build(config.default_model_provider_id.as_str()))
+            .upsert_thread(&builder.build(config.default_model_provider_id.as_str()))
             .await
             .expect("state db upsert should succeed");
 
@@ -704,7 +704,7 @@ mod tests {
         metadata.title = "Saved title".to_string();
         metadata.first_user_message = Some("Hello from user".to_string());
         runtime
-            .upsert_chat(&metadata)
+            .upsert_thread(&metadata)
             .await
             .expect("state db upsert should succeed");
 
@@ -744,7 +744,7 @@ mod tests {
         metadata.sandbox_policy =
             serde_json::to_string(&permission_profile).expect("serialize profile");
         runtime
-            .upsert_chat(&metadata)
+            .upsert_thread(&metadata)
             .await
             .expect("state db upsert should succeed");
 
@@ -783,7 +783,7 @@ mod tests {
         let mut metadata = builder.build(config.default_model_provider_id.as_str());
         metadata.sandbox_policy = "danger-full-access".to_string();
         runtime
-            .upsert_chat(&metadata)
+            .upsert_thread(&metadata)
             .await
             .expect("state db upsert should succeed");
 
@@ -856,7 +856,7 @@ mod tests {
         metadata.first_user_message = Some("Hello from sqlite".to_string());
         metadata.sandbox_policy = "workspace-write".to_string();
         runtime
-            .upsert_chat(&metadata)
+            .upsert_thread(&metadata)
             .await
             .expect("state db upsert should succeed");
 
@@ -958,7 +958,7 @@ mod tests {
         let mut metadata = builder.build(config.default_model_provider_id.as_str());
         metadata.title = "Command-only thread".to_string();
         runtime
-            .upsert_chat(&metadata)
+            .upsert_thread(&metadata)
             .await
             .expect("state db upsert should succeed");
 
@@ -1010,7 +1010,7 @@ mod tests {
         let mut metadata = builder.build(config.default_model_provider_id.as_str());
         metadata.first_user_message = Some("stale sqlite preview".to_string());
         runtime
-            .upsert_chat(&metadata)
+            .upsert_thread(&metadata)
             .await
             .expect("state db upsert should succeed");
 
@@ -1057,7 +1057,7 @@ mod tests {
         let mut metadata = builder.build(config.default_model_provider_id.as_str());
         metadata.first_user_message = Some("wrong sqlite preview".to_string());
         runtime
-            .upsert_chat(&metadata)
+            .upsert_thread(&metadata)
             .await
             .expect("state db upsert should succeed");
 
@@ -1165,7 +1165,7 @@ mod tests {
         metadata.title = "next normal prompt".to_string();
         metadata.model = Some("sqlite-model".to_string());
         runtime
-            .upsert_chat(&metadata)
+            .upsert_thread(&metadata)
             .await
             .expect("state db upsert should succeed");
 
@@ -1218,7 +1218,7 @@ mod tests {
         let mut metadata = builder.build(config.default_model_provider_id.as_str());
         metadata.first_user_message = Some("Archived SQLite preview".to_string());
         runtime
-            .upsert_chat(&metadata)
+            .upsert_thread(&metadata)
             .await
             .expect("state db upsert should succeed");
 
@@ -1277,7 +1277,7 @@ mod tests {
         let mut metadata = builder.build(config.default_model_provider_id.as_str());
         metadata.first_user_message = Some("Archived SQLite preview".to_string());
         runtime
-            .upsert_chat(&metadata)
+            .upsert_thread(&metadata)
             .await
             .expect("state db upsert should succeed");
 

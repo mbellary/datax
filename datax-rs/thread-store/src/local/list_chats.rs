@@ -32,9 +32,9 @@ pub(super) async fn list_chats(
         })
         .transpose()?;
     let sort_key = match params.sort_key {
-        ChatSortKey::CreatedAt => datax_rollout::ChatSortKey::CreatedAt,
-        ChatSortKey::UpdatedAt => datax_rollout::ChatSortKey::UpdatedAt,
-        ChatSortKey::RecencyAt => datax_rollout::ChatSortKey::RecencyAt,
+        ChatSortKey::CreatedAt => datax_rollout::ThreadSortKey::CreatedAt,
+        ChatSortKey::UpdatedAt => datax_rollout::ThreadSortKey::UpdatedAt,
+        ChatSortKey::RecencyAt => datax_rollout::ThreadSortKey::RecencyAt,
     };
     let sort_direction = match params.sort_direction {
         SortDirection::Asc => datax_rollout::SortDirection::Asc,
@@ -114,11 +114,11 @@ pub(super) async fn list_rollout_threads(
     default_model_provider_id: &str,
     params: &ListChatsParams,
     cursor: Option<&datax_rollout::Cursor>,
-    sort_key: datax_rollout::ChatSortKey,
+    sort_key: datax_rollout::ThreadSortKey,
     sort_direction: datax_rollout::SortDirection,
 ) -> ChatStoreResult<datax_rollout::ThreadsPage> {
     if let Some(parent_chat_id) = params.parent_chat_id {
-        let page = datax_rollout::state_db::list_chats_db(
+        let page = datax_rollout::state_db::list_threads_db(
             state_db.as_deref(),
             config.codex_home.as_path(),
             params.page_size,
@@ -159,7 +159,7 @@ pub(super) async fn list_rollout_threads(
         )
         .await
     } else if params.use_state_db_only {
-        RolloutRecorder::list_chats_from_state_db(
+        RolloutRecorder::list_threads_from_state_db(
             state_db,
             config,
             params.page_size,
@@ -189,7 +189,7 @@ pub(super) async fn list_rollout_threads(
         )
         .await
     } else {
-        RolloutRecorder::list_chats(
+        RolloutRecorder::list_threads(
             state_db,
             config,
             params.page_size,
@@ -297,7 +297,7 @@ mod tests {
         metadata.first_user_message = Some("plain preview".to_string());
         metadata.preview = metadata.first_user_message.clone();
         runtime
-            .upsert_chat(&metadata)
+            .upsert_thread(&metadata)
             .await
             .expect("state db upsert should succeed");
 

@@ -154,7 +154,7 @@ mod tests {
         builder.cli_version = Some("test_version".to_string());
         let metadata = builder.build(config.default_model_provider_id.as_str());
         runtime
-            .upsert_chat(&metadata)
+            .upsert_thread(&metadata)
             .await
             .expect("state db upsert should succeed");
 

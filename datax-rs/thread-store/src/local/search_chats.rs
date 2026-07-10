@@ -52,9 +52,9 @@ pub(super) async fn search_chats(
         })
         .transpose()?;
     let sort_key = match params.sort_key {
-        ChatSortKey::CreatedAt => datax_rollout::ChatSortKey::CreatedAt,
-        ChatSortKey::UpdatedAt => datax_rollout::ChatSortKey::UpdatedAt,
-        ChatSortKey::RecencyAt => datax_rollout::ChatSortKey::RecencyAt,
+        ChatSortKey::CreatedAt => datax_rollout::ThreadSortKey::CreatedAt,
+        ChatSortKey::UpdatedAt => datax_rollout::ThreadSortKey::UpdatedAt,
+        ChatSortKey::RecencyAt => datax_rollout::ThreadSortKey::RecencyAt,
     };
     let sort_direction = match params.sort_direction {
         SortDirection::Asc => datax_rollout::SortDirection::Asc,

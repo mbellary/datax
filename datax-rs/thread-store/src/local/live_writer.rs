@@ -189,7 +189,7 @@ async fn sync_materialized_rollout_path(
         if metadata.rollout_path != rollout_path {
             metadata.rollout_path = rollout_path;
             state_db
-                .upsert_chat(&metadata)
+                .upsert_thread(&metadata)
                 .await
                 .map_err(|err| ChatStoreError::Internal {
                     message: format!("failed to update chat metadata for {chat_id}: {err}"),

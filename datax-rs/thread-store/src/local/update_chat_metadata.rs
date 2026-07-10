@@ -311,7 +311,7 @@ async fn apply_metadata_update(
                 metadata.git_origin_url = origin_url;
             }
             state_db
-                .upsert_chat(&metadata)
+                .upsert_thread(&metadata)
                 .await
                 .map_err(|err| ChatStoreError::Internal {
                     message: format!("failed to update chat metadata for {chat_id}: {err}"),

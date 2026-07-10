@@ -860,7 +860,7 @@ impl AnalyticsReducer {
             ClientResponse::ChatStart { response, .. } => {
                 self.emit_thread_initialized(
                     connection_id,
-                    response.thread,
+                    response.chat,
                     response.model,
                     ThreadInitializationMode::New,
                     out,
@@ -869,7 +869,7 @@ impl AnalyticsReducer {
             ClientResponse::ChatResume { response, .. } => {
                 self.emit_thread_initialized(
                     connection_id,
-                    response.thread,
+                    response.chat,
                     response.model,
                     ThreadInitializationMode::Resumed,
                     out,
@@ -878,7 +878,7 @@ impl AnalyticsReducer {
             ClientResponse::ChatFork { response, .. } => {
                 self.emit_thread_initialized(
                     connection_id,
-                    response.thread,
+                    response.chat,
                     response.model,
                     ThreadInitializationMode::Forked,
                     out,
@@ -888,7 +888,7 @@ impl AnalyticsReducer {
                 request_id,
                 response,
             } => {
-                let interaction_id = response.turn.id;
+                let interaction_id = response.interaction.id;
                 let Some(RequestState::TurnStart(pending_request)) =
                     self.requests.remove(&(connection_id, request_id))
                 else {
@@ -1254,9 +1254,9 @@ impl AnalyticsReducer {
                 self.ingest_guardian_review_completed(notification, out);
             }
             ServerNotification::InteractionStarted(notification) => {
-                let turn_state = self.turns.entry(notification.turn.id).or_default();
+                let turn_state = self.turns.entry(notification.interaction.id).or_default();
                 turn_state.started_at = notification
-                    .turn
+                    .interaction
                     .started_at
                     .and_then(|started_at| u64::try_from(started_at).ok());
             }
@@ -1269,24 +1269,27 @@ impl AnalyticsReducer {
                 turn_state.latest_diff = Some(notification.diff);
             }
             ServerNotification::InteractionCompleted(notification) => {
-                let turn_state = self.turns.entry(notification.turn.id.clone()).or_default();
+                let turn_state = self
+                    .turns
+                    .entry(notification.interaction.id.clone())
+                    .or_default();
                 turn_state.completed = Some(CompletedTurnState {
-                    status: analytics_turn_status(notification.turn.status),
+                    status: analytics_turn_status(notification.interaction.status),
                     turn_error: notification
-                        .turn
+                        .interaction
                         .error
                         .and_then(|error| error.codex_error_info),
                     completed_at: notification
-                        .turn
+                        .interaction
                         .completed_at
                         .and_then(|completed_at| u64::try_from(completed_at).ok())
                         .unwrap_or_default(),
                     duration_ms: notification
-                        .turn
+                        .interaction
                         .duration_ms
                         .and_then(|duration_ms| u64::try_from(duration_ms).ok()),
                 });
-                let interaction_id = notification.turn.id;
+                let interaction_id = notification.interaction.id;
                 self.maybe_emit_turn_event(&interaction_id, out).await;
             }
             _ => {}

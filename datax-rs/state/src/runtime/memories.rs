@@ -270,7 +270,7 @@ FROM threads
         Ok(claimed)
     }
 
-    pub(super) async fn delete_thread_memory(&self, chat_id: ChatId) -> anyhow::Result<()> {
+    pub(super) async fn delete_chat_memory(&self, chat_id: ChatId) -> anyhow::Result<()> {
         let now = Utc::now().timestamp();
         let chat_id = chat_id.to_string();
         let mut tx = self.pool.begin().await?;
@@ -2554,7 +2554,7 @@ WHERE kind = 'memory_stage1'
     }
 
     #[tokio::test]
-    async fn delete_thread_removes_stage1_output_and_enqueues_phase2_when_selected() {
+    async fn delete_chat_removes_stage1_output_and_enqueues_phase2_when_selected() {
         let codex_home = unique_temp_dir();
         let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string())
             .await
@@ -2634,9 +2634,9 @@ WHERE kind = 'memory_stage1'
         let before_delete = Utc::now().timestamp();
         assert_eq!(
             runtime
-                .delete_thread(chat_id)
+                .delete_chat(chat_id)
                 .await
-                .expect("delete thread"),
+                .expect("delete chat"),
             1
         );
 

@@ -381,7 +381,7 @@ WHERE chat_id = ?
         self.get_thread_goal(chat_id).await
     }
 
-    pub async fn delete_thread_goal(
+    pub async fn delete_chat_goal(
         &self,
         chat_id: ChatId,
     ) -> anyhow::Result<Option<crate::ThreadGoal>> {
@@ -643,7 +643,7 @@ mod tests {
             Some(replaced),
             runtime
                 .thread_goals()
-                .delete_thread_goal(chat_id)
+                .delete_chat_goal(chat_id)
                 .await
                 .unwrap()
         );
@@ -659,7 +659,7 @@ mod tests {
             None,
             runtime
                 .thread_goals()
-                .delete_thread_goal(chat_id)
+                .delete_chat_goal(chat_id)
                 .await
                 .unwrap()
         );
@@ -1607,7 +1607,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn deleting_thread_deletes_goal() {
+    async fn deleting_chat_deletes_goal() {
         let runtime = test_runtime().await;
         let chat_id = test_chat_id();
         upsert_test_thread(&runtime, chat_id).await;
@@ -1623,9 +1623,9 @@ mod tests {
             .expect("goal replacement should succeed");
 
         runtime
-            .delete_thread(chat_id)
+            .delete_chat(chat_id)
             .await
-            .expect("thread deletion should succeed");
+            .expect("chat deletion should succeed");
 
         assert_eq!(
             None,

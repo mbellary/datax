@@ -1078,7 +1078,7 @@ mod tests {
 
         assert_eq!(
             runtime
-                .delete_thread(chat_id)
+                .delete_chat(chat_id)
                 .await
                 .expect("delete sqlite thread row"),
             1

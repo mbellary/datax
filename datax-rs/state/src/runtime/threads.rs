@@ -959,16 +959,16 @@ ON CONFLICT(id) DO UPDATE SET
         self.upsert_thread(&metadata).await
     }
 
-    /// Delete a thread and all associated state by id.
-    pub async fn delete_thread(&self, chat_id: ChatId) -> anyhow::Result<u64> {
-        self.delete_threads_strict(&[chat_id]).await
+    /// Delete a chat and all associated state by id.
+    pub async fn delete_chat(&self, chat_id: ChatId) -> anyhow::Result<u64> {
+        self.delete_chats_strict(&[chat_id]).await
     }
 
-    /// Delete a set of threads and all associated state.
+    /// Delete a set of chats and all associated state.
     ///
-    /// Spawn edges and thread rows are deleted last so a failed delete can be retried with enough
+    /// Spawn edges and chat rows are deleted last so a failed delete can be retried with enough
     /// state left to rediscover the same spawned subtree.
-    pub async fn delete_threads_strict(&self, chat_ids: &[ChatId]) -> anyhow::Result<u64> {
+    pub async fn delete_chats_strict(&self, chat_ids: &[ChatId]) -> anyhow::Result<u64> {
         if chat_ids.is_empty() {
             return Ok(0);
         }
@@ -982,8 +982,8 @@ ON CONFLICT(id) DO UPDATE SET
                 .bind(chat_id_string)
                 .execute(self.logs_pool.as_ref())
                 .await?;
-            self.memories.delete_thread_memory(*chat_id).await?;
-            self.thread_goals.delete_thread_goal(*chat_id).await?;
+            self.memories.delete_chat_memory(*chat_id).await?;
+            self.thread_goals.delete_chat_goal(*chat_id).await?;
         }
 
         let now = Utc::now().timestamp();
@@ -1389,7 +1389,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn delete_thread_cleans_associated_state() -> Result<()> {
+    async fn delete_chat_cleans_associated_state() -> Result<()> {
         let codex_home = unique_temp_dir();
         let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string()).await?;
         let chat_id = ChatId::from_string("00000000-0000-0000-0000-000000000401")?;
@@ -1441,7 +1441,7 @@ mod tests {
             .await?;
 
         let rows = runtime
-            .delete_threads_strict(&[chat_id, child_chat_id])
+            .delete_chats_strict(&[chat_id, child_chat_id])
             .await?;
 
         assert_eq!(rows, 1);
@@ -1474,13 +1474,13 @@ mod tests {
             ChatId::from_string("00000000-0000-0000-0000-000000000404")?;
         seed_thread_cleanup_state(&runtime, missing_chat_id, missing_child_chat_id).await?;
 
-        assert_eq!(runtime.delete_thread(missing_chat_id).await?, 0);
+        assert_eq!(runtime.delete_chat(missing_chat_id).await?, 0);
         assert_thread_cleanup_state(&runtime, missing_chat_id).await?;
         Ok(())
     }
 
     #[tokio::test]
-    async fn delete_thread_keeps_retry_graph_on_cleanup_failure() -> Result<()> {
+    async fn delete_chat_keeps_retry_graph_on_cleanup_failure() -> Result<()> {
         let codex_home = unique_temp_dir();
         let runtime = StateRuntime::init(codex_home.clone(), "test-provider".to_string()).await?;
         let chat_id = ChatId::from_string("00000000-0000-0000-0000-000000000405")?;
@@ -1496,7 +1496,7 @@ mod tests {
 
         runtime.logs_pool.close().await;
         runtime
-            .delete_thread(chat_id)
+            .delete_chat(chat_id)
             .await
             .expect_err("closed log db should fail deletion");
 

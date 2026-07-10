@@ -272,7 +272,7 @@ impl GoalService {
 
         let cleared_goal = state_db
             .thread_goals()
-            .delete_thread_goal(chat_id)
+            .delete_chat_goal(chat_id)
             .await
             .map_err(|err| {
                 GoalServiceError::Internal(format!("failed to clear thread goal: {err}"))

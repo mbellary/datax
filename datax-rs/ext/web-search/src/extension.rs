@@ -109,7 +109,7 @@ impl ConfigContributor<Config> for WebSearchExtension {
         _previous_config: &Config,
         new_config: &Config,
     ) {
-        thread_store.insert(WebSearchExtensionConfig::from(new_config));
+        chat_store.insert(WebSearchExtensionConfig::from(new_config));
     }
 }
 
@@ -119,7 +119,7 @@ impl ToolContributor for WebSearchExtension {
         session_store: &ExtensionData,
         chat_store: &ExtensionData,
     ) -> Vec<Arc<dyn datax_extension_api::ToolExecutor<datax_extension_api::ToolCall>>> {
-        let Some(config) = thread_store.get::<WebSearchExtensionConfig>() else {
+        let Some(config) = chat_store.get::<WebSearchExtensionConfig>() else {
             return Vec::new();
         };
         if !config.available {

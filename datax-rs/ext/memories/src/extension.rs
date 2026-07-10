@@ -54,7 +54,7 @@ impl ContextContributor for MemoriesExtension {
         chat_store: &'a ExtensionData,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Vec<PromptFragment>> + Send + 'a>> {
         Box::pin(async move {
-            let Some(config) = thread_store.get::<MemoriesExtensionConfig>() else {
+            let Some(config) = chat_store.get::<MemoriesExtensionConfig>() else {
                 return Vec::new();
             };
             if !config.enabled {
@@ -91,7 +91,7 @@ impl ConfigContributor<Config> for MemoriesExtension {
         _previous_config: &Config,
         new_config: &Config,
     ) {
-        thread_store.insert(MemoriesExtensionConfig::from_config(new_config));
+        chat_store.insert(MemoriesExtensionConfig::from_config(new_config));
     }
 }
 
@@ -101,7 +101,7 @@ impl ToolContributor for MemoriesExtension {
         _session_store: &ExtensionData,
         chat_store: &ExtensionData,
     ) -> Vec<Arc<dyn datax_extension_api::ToolExecutor<datax_extension_api::ToolCall>>> {
-        let Some(config) = thread_store.get::<MemoriesExtensionConfig>() else {
+        let Some(config) = chat_store.get::<MemoriesExtensionConfig>() else {
             return Vec::new();
         };
         if !config.enabled || !config.dedicated_tools {

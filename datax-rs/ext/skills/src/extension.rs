@@ -86,11 +86,11 @@ where
         new_config: &C,
     ) {
         let next_config = (self.config_from_host)(new_config);
-        if let Some(state) = thread_store.get::<SkillsThreadState>() {
+        if let Some(state) = chat_store.get::<SkillsThreadState>() {
             state.set_config(next_config);
         } else {
             let orchestrator_skills_available = true;
-            thread_store.insert(SkillsThreadState::new(
+            chat_store.insert(SkillsThreadState::new(
                 next_config,
                 Vec::new(),
                 orchestrator_skills_available,
@@ -109,7 +109,7 @@ where
         chat_store: &'a ExtensionData,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Vec<PromptFragment>> + Send + 'a>> {
         Box::pin(async move {
-            let Some(thread_state) = thread_store.get::<SkillsThreadState>() else {
+            let Some(thread_state) = chat_store.get::<SkillsThreadState>() else {
                 return Vec::new();
             };
             let config = thread_state.config();
@@ -119,7 +119,7 @@ where
             let catalog = self
                 .list_skills(
                     SkillListQuery {
-                        interaction_id: thread_store.level_id().to_string(),
+                        interaction_id: chat_store.level_id().to_string(),
                         executor_roots: thread_state.selected_roots().to_vec(),
                         host_snapshot: None,
                         include_host_skills: false,
@@ -131,7 +131,7 @@ where
                 )
                 .await;
             for warning in &catalog.warnings {
-                self.emit_warning(thread_store.level_id(), warning.clone());
+                self.emit_warning(chat_store.level_id(), warning.clone());
             }
             available_skills_fragment(&catalog)
                 .map(|fragment| PromptFragment::developer_capability(fragment.render()))
@@ -150,7 +150,7 @@ where
         session_store: &ExtensionData,
         chat_store: &ExtensionData,
     ) -> Vec<Arc<dyn ToolExecutor<ToolCall>>> {
-        let Some(thread_state) = thread_store.get::<SkillsThreadState>() else {
+        let Some(thread_state) = chat_store.get::<SkillsThreadState>() else {
             return Vec::new();
         };
         if !self.providers.has_orchestrator_provider()
@@ -179,7 +179,7 @@ where
         turn_store: &'a ExtensionData,
     ) -> ExtensionFuture<'a, Vec<Box<dyn ContextualUserFragment + Send>>> {
         Box::pin(async move {
-            let Some(thread_state) = thread_store.get::<SkillsThreadState>() else {
+            let Some(thread_state) = chat_store.get::<SkillsThreadState>() else {
                 return Vec::new();
             };
 

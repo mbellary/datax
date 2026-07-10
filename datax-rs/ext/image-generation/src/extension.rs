@@ -65,7 +65,7 @@ impl ConfigContributor<Config> for ImageGenerationExtension {
         _previous_config: &Config,
         new_config: &Config,
     ) {
-        thread_store.insert(ImageGenerationExtensionConfig::from(new_config));
+        chat_store.insert(ImageGenerationExtensionConfig::from(new_config));
     }
 }
 
@@ -76,7 +76,7 @@ impl ToolContributor for ImageGenerationExtension {
         _session_store: &ExtensionData,
         chat_store: &ExtensionData,
     ) -> Vec<Arc<dyn ToolExecutor<ToolCall>>> {
-        let Some(config) = thread_store.get::<ImageGenerationExtensionConfig>() else {
+        let Some(config) = chat_store.get::<ImageGenerationExtensionConfig>() else {
             return Vec::new();
         };
         if !config.available || !self.auth_manager.current_auth_uses_codex_backend() {
@@ -89,7 +89,7 @@ impl ToolContributor for ImageGenerationExtension {
                 Some(self.auth_manager.clone()),
             )),
             config.codex_home.clone(),
-            thread_store.level_id().to_string(),
+            chat_store.level_id().to_string(),
         ))]
     }
 }

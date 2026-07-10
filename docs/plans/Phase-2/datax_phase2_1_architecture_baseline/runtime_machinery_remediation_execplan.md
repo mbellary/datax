@@ -10,11 +10,15 @@ Phase 1 was expected to migrate the app-server-facing runtime model to Datax pri
 
 This remediation plan works out that gap before Phase 2.2 begins. After this remediation, Datax app-server-facing code should consume Datax primitives and runtime-link metadata, while any inherited thread, turn, rollout, or item concepts are either removed from the path or contained behind an explicit Datax compatibility boundary.
 
+Update after Phase 1.8: the mechanical naming portion of this remediation was completed by the Phase 1.8 milestones. The Datax-facing substrate now uses `ChatManager`, `DataxChat`, `ChatId`, `InteractionMessage`, `RolloutMessage`, `ChatState`, and `ChatStore`. This document remains useful as historical context and as a reminder that future Phase 2 bridge work must isolate downstream Codex `Thread` / `Turn` / `Item` translation behind `AgentAdapter` and `codex-runtime`.
+
 ## Baseline
 
 The starting branch is `datax/phase2-1-architecture-baseline`. The starting Phase 2.1 architecture artifact is `docs/plans/Phase-2/datax_phase2_1_architecture_baseline/architecture_baseline_execplan.md`. The correction being applied is that inherited runtime machinery is not an acceptable Phase 2 substrate. It is a Phase 1 migration gap and must be remediated before downstream boundary inventory, adapter contracts, or runtime skeleton work continues.
 
 The current app-server public protocol already uses `chat/*`, `interaction/*`, and `message/*` methods. The implementation still imports and passes inherited runtime types. The first implementation goal is not to delete all downstream compatibility in one patch. The goal is to make the app-server-facing boundary Datax-owned, explicit, and testable.
+
+Current status after Phase 1.8: the native app-server-facing names were remediated mechanically. Remaining Phase 2 work should not implement these old slices as written; it should instead inventory any retained Codex references, classify them, and introduce `AgentAdapter` / `codex-runtime` only at the downstream bridge boundary.
 
 ## Progress
 
@@ -22,11 +26,9 @@ The current app-server public protocol already uses `chat/*`, `interaction/*`, a
 - [x] (2026-07-09 00:00Z) Confirmed `datax-rs/app-server/Cargo.toml` still depends directly on `datax-core`.
 - [x] (2026-07-09 00:00Z) Confirmed `datax-rs/core-api/src/lib.rs` still re-exports inherited thread-management APIs.
 - [x] (2026-07-09 00:00Z) Confirmed focused `rg` matches for `datax_core`, `ThreadManager`, `CodexThread`, `ThreadId`, `TurnItem`, and `RolloutItem` across app-server, app-server-protocol, core-api, and thread-store.
-- [ ] Implement remediation slice 1: add Datax primitive runtime-link boundary types and move app-server-facing call sites toward those types.
-- [ ] Implement remediation slice 2: isolate inherited runtime event mapping behind a named Datax compatibility translation module.
-- [ ] Implement remediation slice 3: remove direct `ThreadManager` and `CodexThread` ownership from request processor constructor surfaces.
-- [ ] Implement remediation slice 4: update persistence terminology so Datax identifiers and downstream runtime identifiers are distinct.
-- [ ] Run required formatting and targeted tests for each implementation slice.
+- [x] (2026-07-10 00:00Z) Phase 1.8 mechanically renamed the app-server-facing substrate to Datax names, including `ChatManager`, `DataxChat`, `ChatId`, `InteractionMessage`, `RolloutMessage`, `ChatState`, and `ChatStore`.
+- [x] (2026-07-10 00:00Z) Reclassified the old remediation slices as superseded by Phase 1.8 for native Datax naming; remaining Phase 2 bridge work must use a fresh downstream boundary inventory.
+- [ ] Record user-provided validation results for the Phase 1.8 build, format, fix, schema, and targeted test commands.
 
 ## Surprises & Discoveries
 
@@ -50,10 +52,13 @@ The current app-server public protocol already uses `chat/*`, `interaction/*`, a
 - Decision: Use a transitional Datax compatibility boundary where behavior cannot be removed in one reviewable slice.
   Rationale: The current references span request processing, event mapping, persistence, tests, and generated schemas. A staged translation boundary reduces risk while keeping the end state explicit.
   Date/Author: 2026-07-09 / Codex
+- Decision: Supersede the old implementation slices with the Phase 1.8 mechanical migration result.
+  Rationale: The slices targeted old Datax-facing names that are no longer the current substrate. Re-running them would create confusing duplicate work. Phase 2 should now focus on bridge isolation and runtime-link semantics from the Datax-named baseline.
+  Date/Author: 2026-07-10 / Codex
 
 ## Outcomes & Retrospective
 
-This remediation plan is currently an implementation guide. No Rust code has been changed yet. The expected outcome is a sequence of small PRs that remove direct inherited runtime machinery from app-server-facing surfaces before Phase 2.2 starts.
+This remediation plan is now historical guidance. The expected old outcome, removing direct inherited names from app-server-facing surfaces, was handled by Phase 1.8's mechanical migration. The remaining active outcome is to ensure future Phase 2 code maps Datax `Chat` / `Interaction` / `Message` to downstream Codex `Thread` / `Turn` / `Item` only inside `AgentAdapter` and `codex-runtime`.
 
 ## Context and Orientation
 
@@ -88,7 +93,7 @@ Persistence still exposes thread-shaped concepts through `datax-rs/thread-store`
 
 ## Remediation Architecture
 
-Introduce a Datax-owned runtime boundary before `AgentAdapter`. The boundary should live in the smallest location that prevents request processors from owning inherited runtime types. The likely first location is an app-server-local module because this is remediation of the app-server execution path, not yet a reusable adapter crate.
+Historical proposal: introduce a Datax-owned runtime boundary before `AgentAdapter`. Phase 1.8 supplied the native Datax naming layer mechanically. Do not implement the old proposal literally unless a current source scan finds a new native Datax-facing Codex leak.
 
 Suggested first module shape:
 
@@ -102,23 +107,25 @@ This keeps request processors Datax-shaped immediately while leaving the deeper 
 
 ## Implementation Slices
 
-Slice 1: Add the Datax primitive runtime boundary.
+The slices below are superseded for native Datax naming by Phase 1.8. They remain as context for why bridge code must be isolated.
+
+Superseded slice 1: Add the Datax primitive runtime boundary.
 
 Create app-server-local runtime types and move constructor surfaces away from raw `Arc<ThreadManager>`. The compatibility implementation may still wrap `ThreadManager`, but request processors should receive the Datax runtime abstraction. This slice should be small enough to compile without changing public JSON-RPC schemas.
 
-Slice 2: Move event and history conversion behind explicit compatibility translation.
+Superseded slice 2: Move event and history conversion behind explicit compatibility translation.
 
 Rename or extract the conversion code that maps `TurnItem`, `RolloutItem`, and `EventMsg::Turn*` into Datax messages. The Datax protocol module should expose Datax `Message` and `Interaction` results; inherited item names should be contained in one clearly named translation area.
 
-Slice 3: Replace active state and status surfaces.
+Superseded slice 3: Replace active state and status surfaces.
 
 Move `CodexThread` ownership out of `thread_state.rs`, `thread_status.rs`, and dynamic tool handling surfaces. These modules should receive Datax runtime facts and handles instead of inherited runtime objects.
 
-Slice 4: Split persistence identity.
+Superseded slice 4: Split persistence identity.
 
 Introduce explicit runtime-link metadata for persisted records. Datax `chat_id` and `interaction_id` must be distinct from downstream runtime identifiers even if a transitional one-to-one mapping is used.
 
-Slice 5: Remove or narrow direct app-server dependency on `datax-core`.
+Superseded slice 5: Remove or narrow direct app-server dependency on `datax-core`.
 
 After request processors and state modules consume the Datax runtime boundary, remove `datax-core` from app-server-facing code or keep it only inside the explicit compatibility implementation. The final dependency state should be visible in `datax-rs/app-server/Cargo.toml`.
 
@@ -136,7 +143,7 @@ Inspect the primary app-server construction path:
     sed -n '1,260p' datax-rs/app-server/src/request_processors/interaction_processor.rs
     sed -n '1,260p' datax-rs/app-server/src/request_processors/thread_lifecycle.rs
 
-Implement slice 1 first. Keep public protocol schemas unchanged unless the implementation proves a schema change is required.
+Do not implement these superseded slices as the next milestone. Start Phase 2 bridge work with the downstream Codex boundary inventory from the current Datax-named baseline. Keep public protocol schemas unchanged unless a future implementation phase intentionally changes them.
 
 After code changes in `datax-rs`, run:
 
@@ -156,18 +163,18 @@ If protocol types or generated schemas change, also run:
 
 | Area | Command | Status | Expected Result |
 | --- | --- | --- | --- |
-| Reference inventory | `rg -n "datax_core|datax-core|CodexThread|ThreadManager|ThreadId|TurnItem|RolloutItem" datax-rs/app-server datax-rs/app-server-protocol datax-rs/core-api datax-rs/thread-store` | `Completed` | Confirms remediation scope; direct app-server-facing matches are blockers, not waivers. |
+| Reference inventory | `rg -n "datax_core|datax-core|CodexThread|ThreadManager|ThreadId|TurnItem|RolloutItem" datax-rs/app-server datax-rs/app-server-protocol datax-rs/core-api datax-rs/thread-store` | `Historical` | Confirmed the original remediation scope before Phase 1.8. Repeat the current focused search from the mechanical migration plan before starting Phase 2.2. |
 | Markdown whitespace | `git diff --check` | `Pending` | No output. |
-| Formatting | `cd datax-rs && just fmt` | `Pending` | Required after Rust code changes. |
-| App-server tests | `cd datax-rs && just test -p datax-app-server` | `Pending` | Required after app-server runtime boundary changes. |
-| Protocol tests | `cd datax-rs && just test -p datax-app-server-protocol` | `Pending` | Required if protocol conversion or schema-related code changes. |
-| App-server fix/lint | `cd datax-rs && just fix -p datax-app-server` | `Pending` | Required before finalizing app-server Rust changes. |
+| Formatting | `cd datax-rs && just fmt` | `Deferred` | Not run for the Milestone 8 planning update per user instruction. Required only after future Rust code changes. |
+| App-server tests | `cd datax-rs && just test -p datax-app-server` | `Deferred` | Not run for the Milestone 8 planning update per user instruction. Required after future app-server runtime boundary changes. |
+| Protocol tests | `cd datax-rs && just test -p datax-app-server-protocol` | `Deferred` | Not run for the Milestone 8 planning update per user instruction. Required if future protocol conversion or schema-related code changes. |
+| App-server fix/lint | `cd datax-rs && just fix -p datax-app-server` | `Deferred` | Not run for the Milestone 8 planning update per user instruction. Required before finalizing future app-server Rust changes. |
 
 ## Validation and Acceptance
 
-This remediation is accepted when request processors no longer receive or own direct `ThreadManager` and `CodexThread` app-server-facing surfaces, event/history mapping from inherited runtime items is isolated behind an explicit compatibility translation boundary, and the remaining inherited references are documented as implementation details behind Datax primitives.
+This remediation is accepted for native naming when current source scans show request processors no longer receive or own direct `ThreadManager` and `CodexThread` app-server-facing surfaces, old `TurnItem` / `RolloutItem` names are not native Datax message/history contracts, and remaining inherited references are documented as compatibility, provenance, downstream runtime bridge terms, protected exceptions, external dependencies, unrelated English, or owning-slice leftovers.
 
-Phase 2.2 may start only after this remediation plan has at least one landed implementation slice that establishes the Datax-owned boundary, or after the user explicitly approves a revised staging order.
+Phase 2.2 may start from the Phase 1.8 Datax-named baseline. It must not start by adding downstream Codex calls to the Datax app-server; it should first inventory and classify the downstream Codex boundary.
 
 ## Idempotence and Recovery
 

@@ -10,13 +10,15 @@ Phase 2.1 establishes the architectural baseline for Datax before adapter implem
 
 In this document, Datax app-server means the server in this repository that speaks the public Datax protocol to clients such as CLI, TUI, desktop, or web. Agentic work means work delegated to an AI coding/runtime engine. `AgentAdapter` means the future Datax-owned interface the app-server will call when agentic work is needed. Downstream Codex app-server means an external or separately managed Codex runtime service hidden behind `AgentAdapter` and a later `codex-runtime` boundary.
 
+Update after Phase 1.8: the original Phase 2.1 blocker language below was written before the mechanical protocol/domain migration completed. Milestones 3 through 6 renamed the Datax-facing substrate to `ChatManager`, `DataxChat`, `ChatId`, `InteractionMessage`, `RolloutMessage`, `ChatState`, and `ChatStore`. Treat references to unresolved `ThreadManager`, `CodexThread`, `ThreadId`, `TurnItem`, and `RolloutItem` as historical evidence unless a current source scan proves a new native Datax-facing leak.
+
 ## Baseline
 
 The starting branch for this phase is `datax/phase2-1-architecture-baseline`, created from `main`. The starting commit observed for this phase is `7754dfc1c9`. The expected prior phase is Phase 1, the fork-first migration baseline. The user reported that Phase 1 tests are still running and will provide results when complete, so this phase records the validation state as pending rather than claiming a pass.
 
 The active Phase 2 roadmap is `docs/plans/Phase-2/Provisional-Datax-Migration-Plan-Phase2.md`. The product direction is `docs/plans/Phase-2/platform.md`, and the per-phase execution rules are `docs/plans/Phase-2/Recommended-Datax-Phase2-Execution-Model.md`. Phase 2.1's required artifact is this file at `docs/plans/Phase-2/datax_phase2_1_architecture_baseline/architecture_baseline_execplan.md`.
 
-Important correction: Phase 1 was expected to migrate the app-server-facing runtime model to Datax primitive `Chat`, `Interaction`, and `Message` concepts. Therefore, direct inherited runtime machinery such as `datax-rs/core`, `datax-rs/core-api`, `ThreadManager`, `CodexThread`, `ThreadId`, `TurnItem`, and `RolloutItem` in Datax app-server paths is not an acceptable steady-state Phase 2 baseline. It is a Phase 1 migration gap that must be worked out before Phase 2 proceeds to downstream boundary inventory, adapter contracts, or runtime skeleton implementation.
+Important correction as of 2026-07-10: Phase 1.8 worked out the app-server-facing runtime naming gap by mechanically migrating Datax-owned contracts to `Chat`, `Interaction`, and `Message` vocabulary. `datax-rs/core` and `datax-rs/core-api` remain implementation crates, but their Datax-facing runtime exports are now named in Datax terms. Phase 2 must not reintroduce downstream Codex `Thread`, `Turn`, or `Item` names into native Datax contracts; those names belong only in future `AgentAdapter` / `codex-runtime` bridge translation.
 
 ## Progress
 
@@ -30,6 +32,7 @@ Important correction: Phase 1 was expected to migrate the app-server-facing runt
 - [x] (2026-07-09 00:00Z) Created draft pull request `https://github.com/mbellary/datax/pull/16` for Phase 2.1.
 - [x] (2026-07-09 00:00Z) Recorded user correction that direct inherited runtime machinery in the Datax app-server path is a Phase 1 migration gap and a blocker before later Phase 2 work.
 - [x] (2026-07-09 00:00Z) Added `runtime_machinery_remediation_execplan.md` to define the remediation gate and implementation slices before Phase 2.2.
+- [x] (2026-07-10 00:00Z) Updated this baseline after Phase 1.8 Milestone 8 to record that the stale native-runtime blocker names were mechanically migrated to Datax names and that Phase 2 should start from the Datax-named substrate.
 - [ ] Record the user's Phase 1 validation results after the still-running tests complete.
 - [ ] Record user-provided results for deferred format, lint, and test commands if they are run outside this phase.
 
@@ -43,6 +46,8 @@ Important correction: Phase 1 was expected to migrate the app-server-facing runt
   Evidence: `datax-rs/app-server-protocol/src/protocol/v2/mod.rs` re-exports files such as `chat.rs`, `interaction.rs`, `message.rs`, and `thread_data.rs`.
 - Observation: A dedicated `codex-runtime` crate does not exist at the Phase 2.1 baseline.
   Evidence: `find datax-rs -maxdepth 2 -type f -name Cargo.toml` lists many crates, including `datax-rs/core`, `datax-rs/app-server`, and `datax-rs/thread-store`, but no `datax-rs/codex-runtime/Cargo.toml`.
+- Observation: After Phase 1.8, the focused old-name search no longer finds the old native app-server-facing runtime contracts that originally motivated the stop-the-line gate.
+  Evidence: `rg -n "ThreadManager|CodexThread|ThreadId|TurnItem|RolloutItem|EventMsg::Turn|datax_core::ThreadManager|datax_core::CodexThread" datax-rs/app-server datax-rs/app-server-protocol datax-rs/core-api datax-rs/thread-store -g '*.rs'` returns only `EventMsg::TurnModerationMetadata`, which is not the interaction lifecycle machinery migrated by Phase 1.8.
 
 ## Decision Log
 
@@ -58,10 +63,13 @@ Important correction: Phase 1 was expected to migrate the app-server-facing runt
 - Decision: Defer creation of `AgentAdapter` and `codex-runtime` code until the Phase 2.1 runtime-machinery blocker has a remediation plan and acceptance gate.
   Rationale: Adding an adapter on top of unremediated inherited runtime machinery would preserve the wrong dependency direction and make the downstream boundary appear to be the center of Datax.
   Date/Author: 2026-07-09 / Codex
+- Decision: Close the naming-substrate portion of the runtime-machinery blocker after Phase 1.8 and keep the remaining Phase 2 concern focused on bridge isolation.
+  Rationale: The Datax-facing runtime, protocol, message/history, state, and store contracts now use Datax names. The next risk is not the old native names themselves; it is accidentally reintroducing downstream Codex protocol names outside `AgentAdapter` and `codex-runtime`.
+  Date/Author: 2026-07-10 / Codex
 
 ## Outcomes & Retrospective
 
-At this checkpoint, Phase 2.1 has established the architecture inventory and baseline decisions needed to stop later phases from building on the wrong substrate. The most important result is corrective: direct use of inherited `datax-rs/core` runtime machinery in the Datax app-server-facing Chat, Interaction, and Message paths is now recorded as a blocker. The remaining work is to add the user's Phase 1 validation results, record validation command results, and complete a remediation plan before Phase 2.2 starts. No implementation code has been changed.
+At the original checkpoint, Phase 2.1 established the architecture inventory and baseline decisions needed to stop later phases from building on the wrong substrate. After Phase 1.8, the stale native naming blocker is resolved by mechanical migration: Datax-facing code now owns Datax names for the same runtime and protocol roles. The remaining work is to record user-provided validation results and ensure Phase 2 bridge implementation keeps downstream Codex names isolated behind `AgentAdapter` and `codex-runtime`. No implementation code is changed by this planning update.
 
 ## Context and Orientation
 
@@ -69,7 +77,7 @@ Datax currently exposes app-server functionality through `datax-rs/app-server` a
 
 The public protocol lives mostly in `datax-rs/app-server-protocol/src/protocol/common.rs` and the v2 protocol directory `datax-rs/app-server-protocol/src/protocol/v2/`. Public methods already include Datax-facing names such as `chat/start`, `chat/resume`, `chat/interactions/list`, `interaction/start`, `interaction/steer`, `interaction/interrupt`, and `message/*` notifications. The app-server processing path for chat creation and resumption is in `datax-rs/app-server/src/request_processors/chat_processor.rs`. Interaction start, steer, interrupt, and message injection are in `datax-rs/app-server/src/request_processors/interaction_processor.rs`. Per-chat runtime state is tracked by `datax-rs/app-server/src/thread_state.rs` and status projection by `datax-rs/app-server/src/thread_status.rs`.
 
-The inherited runtime boundary is currently not isolated behind a Datax-owned adapter. Instead, `datax-rs/app-server/src/message_processor.rs` constructs a `ThreadManager`, app-server request processors accept that manager directly, and `datax-rs/core-api/src/lib.rs` re-exports inherited runtime types. Persistence is represented today by `datax-rs/thread-store`, `datax-rs/rollout`, and state database access in `datax-rs/state` and `datax-rs/core`. These references are no longer treated as acceptable baseline debt. They are remediation targets that must either move behind a Datax primitive boundary or be removed from the app-server-facing Chat, Interaction, and Message paths before later Phase 2 implementation.
+Historical note: before Phase 1.8, the inherited runtime boundary was not isolated behind Datax names. `datax-rs/app-server/src/message_processor.rs` constructed a `ThreadManager`, app-server request processors accepted that manager directly, and `datax-rs/core-api/src/lib.rs` re-exported inherited runtime types. After Phase 1.8, these roles are expressed as Datax-facing `ChatManager`, `DataxChat`, `ChatId`, `InteractionMessage`, `RolloutMessage`, `ChatState`, and `ChatStore` contracts. Persistence remains represented by `datax-rs/thread-store`, `datax-rs/rollout`, and state database access in `datax-rs/state` and `datax-rs/core`; remaining package/file names that still say `thread` must be classified as compatibility, package metadata, provenance, protected exception, unrelated English, or separately owned leftovers before further rename work.
 
 ## File Inventory
 
@@ -125,14 +133,16 @@ The downstream Codex app-server must be treated as an implementation detail behi
 
 ## Stop-The-Line Remediation Gate
 
-Before Phase 2.2 starts, Phase 2.1 must produce a concrete remediation path for the inherited runtime machinery still present in app-server-facing paths. The remediation path may be staged, but it must make the dependency direction explicit and must not normalize `datax-rs/core` as the Datax runtime center.
+Original gate: before Phase 2.2 starts, Phase 2.1 must produce a concrete remediation path for inherited runtime machinery still present in app-server-facing paths. The remediation path may be staged, but it must make the dependency direction explicit and must not normalize downstream Codex protocol names as the Datax runtime center.
+
+Gate status after Phase 1.8: satisfied for the mechanical Datax-facing naming substrate. Phase 2.2 may proceed with downstream Codex boundary inventory as long as it starts from the Datax-native baseline and does not reintroduce downstream Codex `Thread`, `Turn`, or `Item` names into native Datax product contracts.
 
 Minimum remediation acceptance criteria:
 
-- `datax-rs/app-server` no longer treats `datax_core::ThreadManager` or `datax_core::CodexThread` as the app-server-facing Chat, Interaction, and Message model.
+- `datax-rs/app-server` no longer treats downstream Codex `ThreadManager` or `CodexThread` concepts as the app-server-facing Chat, Interaction, and Message model.
 - Any temporary compatibility layer is named and documented as Datax compatibility, not as a new `codex-core` or inherited runtime boundary.
 - App-server request processors consume Datax primitive concepts at their boundary: chat id, interaction id, message payloads, status, and runtime link metadata.
-- Runtime event mapping from inherited `TurnItem`, `RolloutItem`, or `EventMsg::Turn*` into Datax messages is isolated to a named translation module or crate.
+- Runtime event mapping from downstream Codex `Turn`, `Item`, or rollout records into Datax messages is isolated to a named translation module or crate.
 - Persistence distinguishes Datax product identifiers from downstream runtime identifiers, even if the first implementation keeps a transitional mapping.
 - Later `AgentAdapter` and `codex-runtime` work depends on the Datax primitive boundary, not directly on `datax-rs/core`.
 
@@ -152,12 +162,12 @@ Persistence candidates are `datax-rs/thread-store`, `datax-rs/rollout`, `datax-r
 
 | Reference | Classification | Notes |
 | --- | --- | --- |
-| `datax-rs/app-server` dependency on `datax-core` | `Phase 1 migration gap` | Direct dependency in `datax-rs/app-server/Cargo.toml`; must be removed or contained before later Phase 2 work. |
-| `datax_core::CodexThread` in app-server request processors and state | `Phase 1 migration gap` | Current inherited in-process runtime handle; must not remain the app-server-facing Datax runtime model. |
-| `datax_core::ThreadManager` in app-server processors and `message_processor.rs` | `Phase 1 migration gap` | Current runtime/session manager; must be replaced by or contained behind a Datax primitive boundary before adapter work. |
-| `datax_protocol::ThreadId` in app-server and protocol files | `Phase 1 migration gap / compatibility candidate` | Currently used as durable id type behind public `chat_id` fields; remediation must preserve persisted identity safely. |
-| `TurnItem`, `RolloutItem`, and `EventMsg::Turn*` in protocol mapping files | `Phase 1 migration gap / compatibility candidate` | Used to map inherited runtime events into Datax `Interaction` and `Message` values; should move behind an explicit translation boundary. |
-| `datax-rs/core-api` re-exports of `CodexThread`, `ThreadManager`, and `ThreadId` | `Phase 1 migration gap` | The facade still advertises inherited thread-management APIs and cannot be treated as the Datax primitive API. |
+| `datax-rs/app-server` dependency on `datax-core` | `Datax implementation dependency` | After Phase 1.8 the app-server-facing exports are Datax-named. Phase 2 must still prevent downstream Codex app-server protocol names from leaking through this dependency. |
+| `datax_core::DataxChat` in app-server request processors and state | `Datax-native runtime handle` | Mechanical replacement for the old live handle role. Future downstream runtime integration must map through `AgentAdapter`, not expose Codex `Thread` concepts here. |
+| `datax_core::ChatManager` in app-server processors and `message_processor.rs` | `Datax-native runtime manager` | Mechanical replacement for the old manager role. It remains a Datax-facing contract unless a later product architecture slice deliberately replaces it. |
+| `datax_protocol::ChatId` in app-server and protocol files | `Datax-native durable id` | Mechanical replacement for the old id role; persisted compatibility aliases are allowed only when explicitly documented. |
+| `InteractionMessage`, `RolloutMessage`, and `EventMsg::Interaction*` in protocol mapping files | `Datax-native message/history contracts` | Mechanical replacements for the old interaction/message roles. Future downstream Codex mapping must translate into these names before reaching Datax clients. |
+| `datax-rs/core-api` re-exports of `DataxChat`, `ChatManager`, and `ChatId` | `Datax-native facade` | The facade now advertises Datax-named runtime APIs. Any remaining Codex terms in this area require explicit compatibility/provenance/downstream-runtime classification. |
 | `Codex` in `codex-runtime` planning term | `downstream runtime` | Intentional name for the future boundary that integrates with the downstream Codex app-server. |
 | `CODEX_SANDBOX_NETWORK_DISABLED_ENV_VAR`, `CODEX_SANDBOX_ENV_VAR`, `CODEX_SANDBOX_NETWORK_DISABLED`, and `CODEX_SANDBOX` | `protected sandbox exception` | Must not be modified or renamed during Phase 2. |
 | Generated schema file names containing `codex_app_server_protocol` | `compatibility shim` | Existing generated artifact naming; do not mechanically rename in Phase 2.1. |

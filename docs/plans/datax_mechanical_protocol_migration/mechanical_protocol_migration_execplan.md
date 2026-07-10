@@ -39,7 +39,9 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 - [x] (2026-07-10 00:00Z) Started Milestone 7 on branch `codex/phase1-8-m7-validation-handoff`; GitHub issue #29 tracks the validation and generated-artifact handoff slice.
 - [x] (2026-07-10 00:00Z) Documented the Milestone 7 validation commands, schema commands, assumptions, and remaining compatibility names. Per user instruction, Codex did not run build, test, formatter, or schema commands for this milestone.
 - [ ] Regenerate affected app-server schemas and run targeted tests.
-- [ ] Update Phase 2 bridge plans so downstream Codex integration starts only after Datax owns the Datax-named protocol and runtime contracts.
+- [x] (2026-07-10 00:00Z) Started Milestone 8 on branch `codex/phase1-8-m8-phase2-bridge-plan`; GitHub issue #31 tracks the Phase 2 bridge planning alignment slice.
+- [x] (2026-07-10 00:00Z) Updated Phase 2 planning artifacts so stale pre-Phase-1.8 blocker language no longer treats `ThreadManager`, `CodexThread`, `ThreadId`, `TurnItem`, or `RolloutItem` as the native Datax app-server substrate.
+- [x] Update Phase 2 bridge plans so downstream Codex integration starts only after Datax owns the Datax-named protocol and runtime contracts.
 
 ## Surprises & Discoveries
 
@@ -86,6 +88,10 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 
 - Decision: Treat Milestone 7 as a validation handoff when Codex is instructed not to run build, test, formatter, or schema commands.
   Rationale: The milestone still needs traceability: the plan must say which generated artifacts and focused checks are required, which commands Codex intentionally did not run, and which compatibility names remain accepted until their owning migration slice.
+  Date/Author: 2026-07-10 / Codex
+
+- Decision: Treat Milestone 8 as a planning alignment slice, not a new implementation slice.
+  Rationale: Milestones 3 through 6 already renamed the native Datax-facing runtime, protocol, message, history, state, and store contracts. Phase 2 plans now need to consume that baseline and reserve downstream Codex `Thread`/`Turn`/`Item` names for the future `AgentAdapter` and `codex-runtime` bridge.
   Date/Author: 2026-07-10 / Codex
 
 ## Outcomes & Retrospective
@@ -578,6 +584,46 @@ PR body handling assumption:
 
 - Milestone 7 pull request creation should use a body file with `gh pr create --body-file` so Markdown command blocks and backticks are not interpreted by the shell.
 
+## Milestone 8 Phase 2 Bridge Planning Summary
+
+Milestone 8 updates Phase 2 planning after the mechanical protocol migration. It does not add adapter code, runtime behavior, schema output, or generated artifacts.
+
+Phase 2 planning now treats these Datax-native names as the current app-server-facing baseline:
+
+- `ChatManager`
+- `DataxChat`
+- `ChatId`
+- `InteractionMessage`
+- `RolloutMessage`
+- `ChatState`
+- `ChatStore`
+
+Downstream Codex protocol names remain allowed only in the future bridge boundary:
+
+- `AgentAdapter` receives and returns Datax-owned `Chat` / `Interaction` / `Message` concepts.
+- `codex-runtime` owns translation to downstream Codex `Thread` / `Turn` / `Item` concepts.
+- Datax app-server, Datax app-server protocol, CLI/TUI clients, and Datax persistence contracts must not introduce downstream Codex names as native product concepts.
+
+Source evidence used for the planning update:
+
+    rg -n "ThreadManager|CodexThread|ThreadId|TurnItem|RolloutItem|EventMsg::Turn|datax_core::ThreadManager|datax_core::CodexThread" datax-rs/app-server datax-rs/app-server-protocol datax-rs/core-api datax-rs/thread-store -g '*.rs'
+
+The remaining match in that focused search is `EventMsg::TurnModerationMetadata`, which is not the `TurnStarted` / `TurnComplete` / `TurnAborted` interaction lifecycle machinery migrated by this plan. Other remaining `thread` terms observed in planning are crate/package names, tests, extension lifecycle terms, compatibility strings, or owning-slice leftovers already documented in Milestone 7.
+
+Milestone 8 assumptions:
+
+- This milestone is documentation-only.
+- Phase 2 should start from the Datax-named native baseline created by Phase 1.8, not from the stale Phase 2.1 assumption that inherited `ThreadManager`, `CodexThread`, `ThreadId`, `TurnItem`, and `RolloutItem` still define the Datax app-server-facing model.
+- Future bridge implementation must map from Datax to downstream Codex in one explicit place instead of reintroducing downstream Codex names into native Datax contracts.
+- Per user instruction, Codex did not run build, test, formatter, or schema commands for this milestone.
+
+Milestone 8 user-run commands:
+
+    cd /home/mbellary/wsl/projects/datax
+    git diff --check
+
+No Rust tests, formatter, build, or schema commands are required for Milestone 8 unless code or generated artifacts are added later.
+
 ## Plan of Work
 
 Milestone 1 is a boundary inventory. Search Datax-facing Rust and protocol files for `Codex`, `Thread`, `Turn`, `Item`, and common snake_case forms such as `thread_id` and `turn_id`. Classify each occurrence as a mechanical rename target, compatibility alias, downstream Codex bridge term, provenance, protected sandbox identifier, external dependency, or unrelated English. This milestone should update this plan with a concise inventory summary before code changes begin.
@@ -683,7 +729,7 @@ For Milestone 8, the user should run:
     cd /home/mbellary/wsl/projects/datax
     git diff --check
 
-No Rust tests are required for Milestone 8 unless the bridge planning update includes code or generated artifacts.
+No Rust tests, formatter, build, or schema commands are required for Milestone 8 unless the bridge planning update includes code or generated artifacts.
 
 ## Concrete Steps
 

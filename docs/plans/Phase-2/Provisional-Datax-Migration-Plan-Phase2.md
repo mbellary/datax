@@ -7,6 +7,14 @@ forked and migrated codebase, not a greenfield rewrite. The goal of Phase 2 is
 to introduce the architecture that lets Datax become a data-engineering product
 while still using a downstream Codex app-server for agentic work.
 
+Phase 1.8 mechanically migrated Datax-facing protocol and runtime vocabulary
+according to the mapping `Codex -> Datax`, `Thread -> Chat`, `Turn ->
+Interaction`, and `Item -> Message`. Phase 2 therefore starts from Datax-native
+contracts such as `ChatManager`, `DataxChat`, `ChatId`,
+`InteractionMessage`, `RolloutMessage`, `ChatState`, and `ChatStore`. The
+downstream Codex `Thread` / `Turn` / `Item` vocabulary belongs only in future
+adapter/runtime bridge code.
+
 Terminology in this document is intentionally explicit:
 
 - `Datax app-server` means the app-server in this repository that serves Datax
@@ -23,7 +31,9 @@ The verified starting workflow after Phase 1 is:
 - Before Phase 2: Datax TUI/CLI talks to the inherited Datax app-server. The
   Datax app-server public protocol and TUI request construction already use
   `Chat`, `Interaction`, and `Message` concepts, including `chat/*`,
-  `interaction/*`, and `message/*` request and notification methods.
+  `interaction/*`, and `message/*` request and notification methods. After
+  Phase 1.8, native Datax-facing runtime, message/history, app-server state,
+  and store contracts also use Datax names.
 - After Phase 2: Datax TUI/CLI talks to the Datax app-server, and the Datax
   app-server talks to `AgentAdapter` when agentic work is required.
   `AgentAdapter` delegates to `codex-runtime` when the selected runtime is the
@@ -63,11 +73,12 @@ execution model for this phase is captured in
 ## Phase 2 Strategy
 
 Phase 2 should be adapter-first and product-boundary-first. Do not start by
-building data-engineering features directly into inherited internal session
-implementation names that still use `thread`, `turn`, or `item` terminology.
-Those internal names and stale error strings are known debt, not Phase 1 public
-protocol blockers. Instead, first create the boundaries that keep Datax product
-concepts separate from downstream Codex runtime concepts.
+building data-engineering features directly into downstream Codex protocol
+names. If any retained `thread`, `turn`, or `item` terms are encountered, first
+classify them as compatibility, provenance, downstream runtime bridge,
+protected sandbox identifiers, external dependencies, unrelated English, or a
+separately owned migration leftover. Then create the boundaries that keep Datax
+product concepts separate from downstream Codex runtime concepts.
 
 Datax owns:
 
@@ -127,6 +138,9 @@ ExecPlan and establish the first Phase 2 branch, issue, and draft pull request.
 Scope:
 
 - Confirm Phase 1 test results and current baseline commit.
+- Confirm the Phase 1.8 mechanical migration baseline and do not treat
+  pre-Phase-1.8 names such as `ThreadManager`, `CodexThread`, `ThreadId`,
+  `TurnItem`, or `RolloutItem` as the current Datax app-server substrate.
 - Record the Datax app-server as the public boundary in both directions:
   upstream-facing for Datax clients such as TUI/CLI, and downstream-facing only
   to the Datax-owned `AgentAdapter` contract.
@@ -387,6 +401,10 @@ Expected result:
   Codex concepts or forbidden public API leakage.
 - `Codex` matches are intentional downstream runtime, compatibility, or
   provenance references.
+- Focused searches for pre-Phase-1.8 native runtime names such as
+  `ThreadManager`, `CodexThread`, `ThreadId`, `TurnItem`, and `RolloutItem`
+  either have no native app-server-facing matches or return explicitly
+  classified compatibility/provenance/downstream-runtime leftovers.
 
 ## Phase 2 Risks
 

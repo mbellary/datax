@@ -910,7 +910,7 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
             )
             .await
             .map_err(anyhow::Error::msg)?;
-            let task_id = response.turn.id;
+            let task_id = response.interaction.id;
             info!("Sent prompt with event ID: {task_id}");
             task_id
         }
@@ -932,10 +932,10 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
             let _ = event_processor.process_server_notification(
                 ServerNotification::InteractionStarted(InteractionStartedNotification {
                     chat_id: response.review_chat_id.clone(),
-                    turn: response.turn.clone(),
+                    interaction: response.interaction.clone(),
                 }),
             );
-            let task_id = response.turn.id;
+            let task_id = response.interaction.id;
             info!("Sent review request with event ID: {task_id}");
             task_id
         }
@@ -993,9 +993,9 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
                     }
                 } else if let ServerNotification::InteractionCompleted(payload) = &notification
                     && payload.chat_id == primary_chat_id_for_requests
-                    && payload.turn.id == task_id
+                    && payload.interaction.id == task_id
                     && matches!(
-                        payload.turn.status,
+                        payload.interaction.status,
                         datax_app_server_protocol::InteractionStatus::Failed
                             | datax_app_server_protocol::InteractionStatus::Interrupted
                     )
@@ -1169,12 +1169,12 @@ fn session_configured_from_thread_start_response(
     config: &Config,
 ) -> Result<SessionConfiguredEvent, String> {
     session_configured_from_thread_response(
-        &response.thread.session_id,
-        &response.thread.id,
-        response.thread.parent_chat_id.as_deref(),
-        response.thread.chat_source.clone().map(Into::into),
-        response.thread.name.clone(),
-        response.thread.path.clone(),
+        &response.chat.session_id,
+        &response.chat.id,
+        response.chat.parent_chat_id.as_deref(),
+        response.chat.chat_source.clone().map(Into::into),
+        response.chat.name.clone(),
+        response.chat.path.clone(),
         response.model.clone(),
         response.model_provider.clone(),
         response.service_tier.clone(),
@@ -1192,12 +1192,12 @@ fn session_configured_from_thread_resume_response(
     config: &Config,
 ) -> Result<SessionConfiguredEvent, String> {
     session_configured_from_thread_response(
-        &response.thread.session_id,
-        &response.thread.id,
-        response.thread.parent_chat_id.as_deref(),
-        response.thread.chat_source.clone().map(Into::into),
-        response.thread.name.clone(),
-        response.thread.path.clone(),
+        &response.chat.session_id,
+        &response.chat.id,
+        response.chat.parent_chat_id.as_deref(),
+        response.chat.chat_source.clone().map(Into::into),
+        response.chat.name.clone(),
+        response.chat.path.clone(),
         response.model.clone(),
         response.model_provider.clone(),
         response.service_tier.clone(),
@@ -1320,7 +1320,7 @@ fn should_process_notification(
             notification.chat_id == chat_id && notification.interaction_id == interaction_id
         }
         ServerNotification::InteractionCompleted(notification) => {
-            notification.chat_id == chat_id && notification.turn.id == interaction_id
+            notification.chat_id == chat_id && notification.interaction.id == interaction_id
         }
         ServerNotification::InteractionDiffUpdated(notification) => {
             notification.chat_id == chat_id && notification.interaction_id == interaction_id
@@ -1329,7 +1329,7 @@ fn should_process_notification(
             notification.chat_id == chat_id && notification.interaction_id == interaction_id
         }
         ServerNotification::InteractionStarted(notification) => {
-            notification.chat_id == chat_id && notification.turn.id == interaction_id
+            notification.chat_id == chat_id && notification.interaction.id == interaction_id
         }
         _ => false,
     }
@@ -1368,8 +1368,11 @@ async fn maybe_backfill_turn_completed_items(
 
     match response {
         Ok(response) => {
-            if let Some(messages) = turn_items_for_thread(&response.thread, &payload.turn.id) {
-                payload.turn.messages = messages;
+            if let Some(messages) = interaction_messages_for_chat(
+                &response.chat,
+                &payload.interaction.id,
+            ) {
+                payload.interaction.messages = messages;
             }
         }
         Err(err) => {
@@ -1388,18 +1391,18 @@ fn should_backfill_turn_completed_items(
         return false;
     };
 
-    !thread_ephemeral && payload.turn.messages.is_empty()
+    !thread_ephemeral && payload.interaction.messages.is_empty()
 }
 
-fn turn_items_for_thread(
-    thread: &AppServerThread,
+fn interaction_messages_for_chat(
+    chat: &AppServerThread,
     interaction_id: &str,
 ) -> Option<Vec<AppServerThreadItem>> {
-    thread
+    chat
         .interactions
         .iter()
-        .find(|turn| turn.id == interaction_id)
-        .map(|turn| turn.messages.clone())
+        .find(|interaction| interaction.id == interaction_id)
+        .map(|interaction| interaction.messages.clone())
 }
 
 fn all_chat_source_kinds() -> Vec<ChatSourceKind> {

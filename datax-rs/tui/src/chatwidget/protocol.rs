@@ -58,7 +58,7 @@ impl ChatWidget {
                 self.on_thread_settings_updated(notification);
             }
             ServerNotification::InteractionStarted(notification) => {
-                self.turn_lifecycle.last_interaction_id = Some(notification.turn.id);
+                self.turn_lifecycle.last_interaction_id = Some(notification.interaction.id);
                 self.last_non_retry_error = None;
                 if !matches!(replay_kind, Some(ReplayKind::ResumeInitialMessages)) {
                     self.on_task_started();
@@ -240,12 +240,12 @@ impl ChatWidget {
         // this TUI already rendered locally. Once that turn ends, another
         // client can submit the same text and it still needs its own user cell.
         self.last_rendered_user_message_display = None;
-        match notification.turn.status {
+        match notification.interaction.status {
             InteractionStatus::Completed => {
                 self.last_non_retry_error = None;
                 self.on_task_complete(
                     /*last_agent_message*/ None,
-                    notification.turn.duration_ms,
+                    notification.interaction.duration_ms,
                     replay_kind.is_some(),
                 )
             }
@@ -253,7 +253,7 @@ impl ChatWidget {
                 self.last_non_retry_error = None;
                 let reason = if self
                     .turn_lifecycle
-                    .take_budget_limited(notification.turn.id.as_str())
+                    .take_budget_limited(notification.interaction.id.as_str())
                 {
                     InteractionAbortReason::BudgetLimited
                 } else {
@@ -262,9 +262,9 @@ impl ChatWidget {
                 self.on_interrupted_turn(reason);
             }
             InteractionStatus::Failed => {
-                if let Some(error) = notification.turn.error {
+                if let Some(error) = notification.interaction.error {
                     if self.last_non_retry_error.as_ref()
-                        == Some(&(notification.turn.id.clone(), error.message.clone()))
+                        == Some(&(notification.interaction.id.clone(), error.message.clone()))
                     {
                         self.last_non_retry_error = None;
                     } else {

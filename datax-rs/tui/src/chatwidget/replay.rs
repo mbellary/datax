@@ -39,7 +39,7 @@ impl ChatWidget {
                 self.handle_turn_completed_notification(
                     InteractionCompletedNotification {
                         chat_id: self.chat_id.map(|id| id.to_string()).unwrap_or_default(),
-                        turn: Interaction {
+                        interaction: Interaction {
                             id: interaction_id,
                             messages_view:
                                 datax_app_server_protocol::InteractionMessagesView::NotLoaded,

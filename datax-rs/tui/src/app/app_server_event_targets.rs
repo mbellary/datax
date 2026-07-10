@@ -47,7 +47,7 @@ pub(super) fn server_notification_thread_target(
 ) -> ServerNotificationThreadTarget {
     let chat_id = match notification {
         ServerNotification::Error(notification) => Some(notification.chat_id.as_str()),
-        ServerNotification::ChatStarted(notification) => Some(notification.thread.id.as_str()),
+        ServerNotification::ChatStarted(notification) => Some(notification.chat.id.as_str()),
         ServerNotification::ChatStatusChanged(notification) => Some(notification.chat_id.as_str()),
         ServerNotification::ChatArchived(notification) => Some(notification.chat_id.as_str()),
         ServerNotification::ChatDeleted(notification) => Some(notification.chat_id.as_str()),

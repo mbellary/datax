@@ -1130,7 +1130,7 @@ async fn submit_user_message_queues_while_compaction_turn_is_running() {
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
             chat_id: chat_id.to_string(),
-            turn: AppServerTurn {
+            interaction: AppServerTurn {
                 id: "turn-1".to_string(),
                 messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 messages: Vec::new(),
@@ -1175,7 +1175,7 @@ async fn submit_user_message_queues_while_compaction_turn_is_running() {
     chat.handle_server_notification(
         ServerNotification::InteractionCompleted(InteractionCompletedNotification {
             chat_id: chat_id.to_string(),
-            turn: AppServerTurn {
+            interaction: AppServerTurn {
                 id: "turn-1".to_string(),
                 messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 messages: Vec::new(),

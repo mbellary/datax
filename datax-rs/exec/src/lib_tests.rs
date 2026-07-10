@@ -386,7 +386,7 @@ fn turn_items_for_thread_returns_matching_turn_items() {
     };
 
     assert_eq!(
-        turn_items_for_thread(&thread, "turn-1"),
+        interaction_messages_for_chat(&thread, "turn-1"),
         Some(vec![AppServerThreadItem::AgentMessage {
             id: "msg-1".to_string(),
             text: "hello".to_string(),
@@ -394,7 +394,7 @@ fn turn_items_for_thread_returns_matching_turn_items() {
             memory_citation: None,
         }])
     );
-    assert_eq!(turn_items_for_thread(&thread, "missing-turn"), None);
+    assert_eq!(interaction_messages_for_chat(&thread, "missing-turn"), None);
 }
 
 #[test]
@@ -402,7 +402,7 @@ fn should_backfill_turn_completed_items_skips_ephemeral_threads() {
     let notification = ServerNotification::InteractionCompleted(
         datax_app_server_protocol::InteractionCompletedNotification {
             chat_id: "thread-1".to_string(),
-            turn: datax_app_server_protocol::Interaction {
+            interaction: datax_app_server_protocol::Interaction {
                 id: "turn-1".to_string(),
                 messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 messages: Vec::new(),
@@ -742,7 +742,7 @@ async fn session_configured_from_thread_response_preserves_parent_chat_id() {
         .expect("build config");
     let parent_chat_id = ChatId::new();
     let mut response = sample_thread_start_response();
-    response.thread.parent_chat_id = Some(parent_chat_id.to_string());
+    response.chat.parent_chat_id = Some(parent_chat_id.to_string());
 
     let event = session_configured_from_thread_start_response(&response, &config)
         .expect("build bootstrap session configured event");
@@ -752,7 +752,7 @@ async fn session_configured_from_thread_response_preserves_parent_chat_id() {
 
 fn sample_thread_start_response() -> ChatStartResponse {
     ChatStartResponse {
-        thread: datax_app_server_protocol::Chat {
+        chat: datax_app_server_protocol::Chat {
             id: "67e55044-10b1-426f-9247-bb680e5fe0c8".to_string(),
             session_id: "67e55044-10b1-426f-9247-bb680e5fe0c7".to_string(),
             forked_from_id: None,

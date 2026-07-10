@@ -1216,7 +1216,7 @@ async fn interrupted_turn_after_goal_budget_limited_uses_budget_message_snapshot
         datax_app_server_protocol::ServerNotification::InteractionStarted(
             datax_app_server_protocol::InteractionStartedNotification {
                 chat_id: "thread-1".to_string(),
-                turn: datax_app_server_protocol::Interaction {
+                interaction: datax_app_server_protocol::Interaction {
                     id: "turn-1".to_string(),
                     messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
                     messages: Vec::new(),
@@ -1253,7 +1253,7 @@ async fn interrupted_turn_after_goal_budget_limited_uses_budget_message_snapshot
         datax_app_server_protocol::ServerNotification::InteractionCompleted(
             datax_app_server_protocol::InteractionCompletedNotification {
                 chat_id: "thread-1".to_string(),
-                turn: datax_app_server_protocol::Interaction {
+                interaction: datax_app_server_protocol::Interaction {
                     id: "turn-1".to_string(),
                     messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
                     messages: Vec::new(),

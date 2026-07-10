@@ -2890,7 +2890,7 @@ async fn inactive_thread_started_notification_initializes_replay_session() -> Re
     app.enqueue_thread_notification(
         agent_chat_id,
         ServerNotification::ChatStarted(ChatStartedNotification {
-            thread: Chat {
+            chat: Chat {
                 id: agent_chat_id.to_string(),
                 session_id: agent_chat_id.to_string(),
                 forked_from_id: None,
@@ -2983,7 +2983,7 @@ async fn inactive_thread_started_notification_preserves_primary_model_when_path_
     app.enqueue_thread_notification(
         agent_chat_id,
         ServerNotification::ChatStarted(ChatStartedNotification {
-            thread: Chat {
+            chat: Chat {
                 id: agent_chat_id.to_string(),
                 session_id: agent_chat_id.to_string(),
                 forked_from_id: None,
@@ -4628,7 +4628,7 @@ fn test_turn(interaction_id: &str, status: InteractionStatus, items: Vec<Message
 fn turn_started_notification(chat_id: ChatId, interaction_id: &str) -> ServerNotification {
     ServerNotification::InteractionStarted(InteractionStartedNotification {
         chat_id: chat_id.to_string(),
-        turn: Interaction {
+        interaction: Interaction {
             started_at: Some(0),
             ..test_turn(interaction_id, InteractionStatus::InProgress, Vec::new())
         },
@@ -4642,7 +4642,7 @@ fn turn_completed_notification(
 ) -> ServerNotification {
     ServerNotification::InteractionCompleted(InteractionCompletedNotification {
         chat_id: chat_id.to_string(),
-        turn: Interaction {
+        interaction: Interaction {
             completed_at: Some(0),
             duration_ms: Some(1),
             ..test_turn(interaction_id, status, Vec::new())
@@ -5660,7 +5660,7 @@ async fn thread_rollback_response_discards_queued_active_thread_events() {
         chat_id,
         /*num_turns*/ 1,
         &ChatRollbackResponse {
-            thread: Chat {
+            chat: Chat {
                 id: chat_id.to_string(),
                 session_id: chat_id.to_string(),
                 forked_from_id: None,

@@ -43,6 +43,7 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 - [x] (2026-07-10 00:00Z) Updated Phase 2 planning artifacts so stale pre-Phase-1.8 blocker language no longer treats `ThreadManager`, `CodexThread`, `ThreadId`, `TurnItem`, or `RolloutItem` as the native Datax app-server substrate.
 - [x] Update Phase 2 bridge plans so downstream Codex integration starts only after Datax owns the Datax-named protocol and runtime contracts.
 - [x] (2026-07-10 00:00Z) Completed the source-classification rename through native Datax layers: `ThreadSource -> ChatSource`, `thread_source -> chat_source`, and the related runtime helpers. Kept the old serialized key as an explicit read alias and added a forward SQLite column migration.
+- [x] (2026-07-10 00:00Z) Updated stale native `exec` and TUI app-server protocol consumers and fixtures to use the migrated `chat` and `interaction` fields instead of the removed Rust fields `thread` and `turn`.
 
 ## Surprises & Discoveries
 
@@ -63,6 +64,9 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 
 - Observation: Compiler failures in app-server callers exposed incomplete lower-layer renames rather than invalid Datax-facing names.
   Evidence: `DataxChat` still exposed `preview_thread_settings_overrides`, while `StoredChat` and the state schema still exposed `thread_source`; changing app-server callers back to those names would violate the mechanical `Thread -> Chat` mapping.
+
+- Observation: After the protocol field definitions migrated, native `exec` and TUI consumers still accessed `Chat*Response.thread` and `Interaction*Notification.turn`.
+  Evidence: The reported compilation failed throughout `datax-rs/exec` and `datax-rs/tui` because the protocol types now expose only `chat` and `interaction`; the consumers and their fixtures were migrated forward to those fields.
 
 ## Decision Log
 

@@ -181,7 +181,7 @@ impl SideParentStatusChange {
         match notification {
             ServerNotification::InteractionStarted(_) => Some(SideParentStatusChange::Clear),
             ServerNotification::InteractionCompleted(notification) => {
-                match &notification.turn.status {
+                match &notification.interaction.status {
                     InteractionStatus::Completed => {
                         Some(SideParentStatusChange::Set(SideParentStatus::Finished))
                     }

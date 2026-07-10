@@ -708,7 +708,7 @@ impl App {
                     .wrap_err("review/start returned invalid review thread id")?;
                 let store = Arc::clone(&self.ensure_thread_channel(review_chat_id).store);
                 let mut store = store.lock().await;
-                store.active_interaction_id = Some(response.turn.id);
+                store.active_interaction_id = Some(response.interaction.id);
                 Ok(true)
             }
             AppCommand::CleanBackgroundTerminals => {
@@ -982,11 +982,11 @@ impl App {
         };
         let mut session = self.primary_session_configured.clone()?;
         session.chat_id = chat_id;
-        session.thread_name = notification.thread.name.clone();
-        session.model_provider_id = notification.thread.model_provider.clone();
+        session.thread_name = notification.chat.name.clone();
+        session.model_provider_id = notification.chat.model_provider.clone();
         session
-            .set_cwd_retargeting_implicit_runtime_workspace_root(notification.thread.cwd.clone());
-        let rollout_path = notification.thread.path.clone();
+            .set_cwd_retargeting_implicit_runtime_workspace_root(notification.chat.cwd.clone());
+        let rollout_path = notification.chat.path.clone();
         if let Some(model) =
             read_session_model(self.state_db.as_deref(), chat_id, rollout_path.as_deref()).await
         {
@@ -998,8 +998,8 @@ impl App {
         session.rollout_path = rollout_path;
         self.upsert_agent_picker_thread(
             chat_id,
-            notification.thread.agent_nickname.clone(),
-            notification.thread.agent_role.clone(),
+            notification.chat.agent_nickname.clone(),
+            notification.chat.agent_role.clone(),
             /*is_closed*/ false,
         );
         Some(session)

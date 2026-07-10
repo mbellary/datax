@@ -270,10 +270,10 @@ impl PendingInteractiveReplayState {
                 _ => {}
             },
             ServerNotification::InteractionCompleted(notification) => {
-                self.clear_exec_approval_turn(&notification.turn.id);
-                self.clear_patch_approval_turn(&notification.turn.id);
-                self.clear_request_permissions_turn(&notification.turn.id);
-                self.clear_request_user_input_turn(&notification.turn.id);
+                self.clear_exec_approval_turn(&notification.interaction.id);
+                self.clear_patch_approval_turn(&notification.interaction.id);
+                self.clear_request_permissions_turn(&notification.interaction.id);
+                self.clear_request_user_input_turn(&notification.interaction.id);
             }
             ServerNotification::ServerRequestResolved(notification) => {
                 self.remove_request(&notification.request_id);
@@ -672,7 +672,7 @@ mod tests {
     fn turn_completed(interaction_id: &str) -> ServerNotification {
         ServerNotification::InteractionCompleted(InteractionCompletedNotification {
             chat_id: "thread-1".to_string(),
-            turn: Interaction {
+            interaction: Interaction {
                 id: interaction_id.to_string(),
                 messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 messages: Vec::new(),

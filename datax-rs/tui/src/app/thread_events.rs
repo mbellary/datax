@@ -109,10 +109,10 @@ impl ThreadEventStore {
             .note_server_notification(&notification);
         match &notification {
             ServerNotification::InteractionStarted(turn) => {
-                self.active_interaction_id = Some(turn.turn.id.clone());
+                self.active_interaction_id = Some(turn.interaction.id.clone());
             }
             ServerNotification::InteractionCompleted(turn)
-                if self.active_interaction_id.as_deref() == Some(turn.turn.id.as_str()) =>
+                if self.active_interaction_id.as_deref() == Some(turn.interaction.id.as_str()) =>
             {
                 self.active_interaction_id = None;
             }
@@ -199,7 +199,7 @@ impl ThreadEventStore {
     }
 
     pub(super) fn apply_thread_rollback(&mut self, response: &ChatRollbackResponse) {
-        self.turns = response.thread.interactions.clone();
+        self.turns = response.chat.interactions.clone();
         self.buffer.clear();
         self.pending_interactive_replay = PendingInteractiveReplayState::default();
         self.active_interaction_id = None;
@@ -401,7 +401,7 @@ mod tests {
     fn turn_started_notification(chat_id: ChatId, interaction_id: &str) -> ServerNotification {
         ServerNotification::InteractionStarted(InteractionStartedNotification {
             chat_id: chat_id.to_string(),
-            turn: Interaction {
+            interaction: Interaction {
                 started_at: Some(0),
                 ..test_turn(interaction_id, InteractionStatus::InProgress, Vec::new())
             },
@@ -415,7 +415,7 @@ mod tests {
     ) -> ServerNotification {
         ServerNotification::InteractionCompleted(InteractionCompletedNotification {
             chat_id: chat_id.to_string(),
-            turn: Interaction {
+            interaction: Interaction {
                 completed_at: Some(0),
                 duration_ms: Some(1),
                 ..test_turn(interaction_id, status, Vec::new())

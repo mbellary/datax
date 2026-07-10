@@ -298,14 +298,14 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                 CodexStatus::Running
             }
             ServerNotification::InteractionCompleted(notification) => {
-                match notification.turn.status {
+                match notification.interaction.status {
                     InteractionStatus::Completed => {
                         let rendered_message = self
                             .final_message_rendered
                             .then(|| self.final_message.clone())
                             .flatten();
                         if let Some(final_message) =
-                            final_message_from_turn_items(notification.turn.messages.as_slice())
+                            final_message_from_turn_items(notification.interaction.messages.as_slice())
                         {
                             self.final_message_rendered =
                                 rendered_message.as_deref() == Some(final_message.as_str());
@@ -318,7 +318,7 @@ impl EventProcessor for EventProcessorWithHumanOutput {
                         self.final_message = None;
                         self.final_message_rendered = false;
                         self.emit_final_message_on_shutdown = false;
-                        if let Some(error) = notification.turn.error {
+                        if let Some(error) = notification.interaction.error {
                             eprintln!("{} {}", "ERROR:".style(self.red).style(self.bold), error);
                         }
                         CodexStatus::InitiateShutdown

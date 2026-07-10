@@ -813,7 +813,7 @@ async fn replayed_retryable_app_server_error_keeps_turn_running() {
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
             chat_id: "thread-1".to_string(),
-            turn: AppServerTurn {
+            interaction: AppServerTurn {
                 id: "turn-1".to_string(),
                 messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 messages: Vec::new(),
@@ -998,7 +998,7 @@ async fn live_reasoning_summary_is_not_rendered_twice_when_item_completes() {
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
             chat_id: "thread-1".to_string(),
-            turn: AppServerTurn {
+            interaction: AppServerTurn {
                 id: "turn-1".to_string(),
                 messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 messages: Vec::new(),

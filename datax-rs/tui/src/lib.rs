@@ -2793,7 +2793,7 @@ mod tests {
             })
             .await
             .expect("thread/start should succeed");
-        assert!(!response.thread.id.is_empty());
+        assert!(!response.chat.id.is_empty());
 
         app_server.shutdown().await?;
         Ok(())

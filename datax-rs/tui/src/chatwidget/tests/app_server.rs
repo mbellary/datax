@@ -304,7 +304,7 @@ async fn live_app_server_turn_completed_clears_working_status_after_answer_item(
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
             chat_id: "thread-1".to_string(),
-            turn: AppServerTurn {
+            interaction: AppServerTurn {
                 id: "turn-1".to_string(),
                 messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 messages: Vec::new(),
@@ -348,7 +348,7 @@ async fn live_app_server_turn_completed_clears_working_status_after_answer_item(
     chat.handle_server_notification(
         ServerNotification::InteractionCompleted(InteractionCompletedNotification {
             chat_id: "thread-1".to_string(),
-            turn: AppServerTurn {
+            interaction: AppServerTurn {
                 id: "turn-1".to_string(),
                 messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 messages: Vec::new(),
@@ -373,7 +373,7 @@ async fn live_app_server_turn_started_sets_feedback_interaction_id() {
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
             chat_id: "thread-1".to_string(),
-            turn: AppServerTurn {
+            interaction: AppServerTurn {
                 id: "turn-1".to_string(),
                 messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 messages: Vec::new(),
@@ -733,7 +733,7 @@ async fn live_app_server_failed_turn_does_not_duplicate_error_history() {
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
             chat_id: "thread-1".to_string(),
-            turn: AppServerTurn {
+            interaction: AppServerTurn {
                 id: "turn-1".to_string(),
                 messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 messages: Vec::new(),
@@ -768,7 +768,7 @@ async fn live_app_server_failed_turn_does_not_duplicate_error_history() {
     chat.handle_server_notification(
         ServerNotification::InteractionCompleted(InteractionCompletedNotification {
             chat_id: "thread-1".to_string(),
-            turn: AppServerTurn {
+            interaction: AppServerTurn {
                 id: "turn-1".to_string(),
                 messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 messages: Vec::new(),
@@ -831,7 +831,7 @@ async fn live_app_server_stream_recovery_restores_previous_status_header() {
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
             chat_id: "thread-1".to_string(),
-            turn: AppServerTurn {
+            interaction: AppServerTurn {
                 id: "turn-1".to_string(),
                 messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 messages: Vec::new(),
@@ -889,7 +889,7 @@ async fn live_app_server_server_overloaded_error_renders_warning() {
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
             chat_id: "thread-1".to_string(),
-            turn: AppServerTurn {
+            interaction: AppServerTurn {
                 id: "turn-1".to_string(),
                 messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 messages: Vec::new(),
@@ -931,7 +931,7 @@ async fn live_app_server_cyber_policy_error_renders_dedicated_notice() {
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
             chat_id: "thread-1".to_string(),
-            turn: AppServerTurn {
+            interaction: AppServerTurn {
                 id: "turn-1".to_string(),
                 messages_view: datax_app_server_protocol::InteractionMessagesView::Full,
                 messages: Vec::new(),

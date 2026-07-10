@@ -480,7 +480,7 @@ impl AppServerSession {
                 bootstrap_request_error("thread/resume failed during TUI bootstrap", err)
             })?;
         let fork_parent_title = self
-            .fork_parent_title_from_app_server(response.thread.forked_from_id.as_deref())
+            .fork_parent_title_from_app_server(response.chat.forked_from_id.as_deref())
             .await;
         let mut started =
             started_thread_from_resume_response(response, &config, self.thread_params_mode())
@@ -512,7 +512,7 @@ impl AppServerSession {
                 bootstrap_request_error("thread/fork failed during TUI bootstrap", err)
             })?;
         let fork_parent_title = self
-            .fork_parent_title_from_app_server(response.thread.forked_from_id.as_deref())
+            .fork_parent_title_from_app_server(response.chat.forked_from_id.as_deref())
             .await;
         let mut started =
             started_thread_from_fork_response(response, &config, self.thread_params_mode()).await?;
@@ -616,7 +616,7 @@ impl AppServerSession {
             })
             .await
             .wrap_err("thread/read failed during TUI session lookup")?;
-        Ok(response.thread)
+        Ok(response.chat)
     }
 
     pub(crate) async fn thread_archive(&mut self, chat_id: ChatId) -> Result<()> {
@@ -661,7 +661,7 @@ impl AppServerSession {
             })
             .await
             .wrap_err("failed to unarchive session")?;
-        Ok(response.thread)
+        Ok(response.chat)
     }
 
     pub(crate) async fn thread_metadata_update_branch(
@@ -1504,7 +1504,7 @@ async fn started_thread_from_start_response(
             .map_err(color_eyre::eyre::Report::msg)?;
     Ok(AppServerStartedThread {
         session,
-        turns: response.thread.interactions,
+        turns: response.chat.interactions,
     })
 }
 
@@ -1519,7 +1519,7 @@ async fn started_thread_from_resume_response(
             .map_err(color_eyre::eyre::Report::msg)?;
     Ok(AppServerStartedThread {
         session,
-        turns: response.thread.interactions,
+        turns: response.chat.interactions,
     })
 }
 
@@ -1534,7 +1534,7 @@ async fn started_thread_from_fork_response(
             .map_err(color_eyre::eyre::Report::msg)?;
     Ok(AppServerStartedThread {
         session,
-        turns: response.thread.interactions,
+        turns: response.chat.interactions,
     })
 }
 
@@ -1550,10 +1550,10 @@ async fn thread_session_state_from_thread_start_response(
         thread_params_mode,
     );
     thread_session_state_from_thread_response(
-        &response.thread.id,
-        response.thread.forked_from_id.clone(),
-        response.thread.name.clone(),
-        response.thread.path.clone(),
+        &response.chat.id,
+        response.chat.forked_from_id.clone(),
+        response.chat.name.clone(),
+        response.chat.path.clone(),
         response.model.clone(),
         response.model_provider.clone(),
         response.service_tier.clone(),
@@ -1591,10 +1591,10 @@ async fn thread_session_state_from_thread_resume_response(
         )
     };
     thread_session_state_from_thread_response(
-        &response.thread.id,
-        response.thread.forked_from_id.clone(),
-        response.thread.name.clone(),
-        response.thread.path.clone(),
+        &response.chat.id,
+        response.chat.forked_from_id.clone(),
+        response.chat.name.clone(),
+        response.chat.path.clone(),
         response.model.clone(),
         response.model_provider.clone(),
         response.service_tier.clone(),
@@ -1623,10 +1623,10 @@ async fn thread_session_state_from_thread_fork_response(
         thread_params_mode,
     );
     thread_session_state_from_thread_response(
-        &response.thread.id,
-        response.thread.forked_from_id.clone(),
-        response.thread.name.clone(),
-        response.thread.path.clone(),
+        &response.chat.id,
+        response.chat.forked_from_id.clone(),
+        response.chat.name.clone(),
+        response.chat.path.clone(),
         response.model.clone(),
         response.model_provider.clone(),
         response.service_tier.clone(),
@@ -2315,7 +2315,7 @@ mod tests {
         let forked_from_id = ChatId::new();
         let read_only_profile = PermissionProfile::read_only();
         let response = ChatResumeResponse {
-            thread: datax_app_server_protocol::Chat {
+            chat: datax_app_server_protocol::Chat {
                 id: chat_id.to_string(),
                 session_id: ChatId::new().to_string(),
                 forked_from_id: Some(forked_from_id.to_string()),
@@ -2403,7 +2403,7 @@ mod tests {
         );
         assert_eq!(started.session.permission_profile, read_only_profile);
         assert_eq!(started.turns.len(), 1);
-        assert_eq!(started.turns[0], response.thread.interactions[0]);
+        assert_eq!(started.turns[0], response.chat.interactions[0]);
 
         let embedded_config = ConfigBuilder::default()
             .codex_home(temp_dir.path().join("embedded-codex-home"))

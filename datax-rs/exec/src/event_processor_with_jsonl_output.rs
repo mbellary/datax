@@ -508,11 +508,13 @@ impl EventProcessorWithJsonOutput {
                         },
                     }));
                 }
-                events.extend(self.reconcile_unfinished_started_items(&notification.turn.messages));
-                match notification.turn.status {
+                events.extend(
+                    self.reconcile_unfinished_started_items(&notification.interaction.messages),
+                );
+                match notification.interaction.status {
                     InteractionStatus::Completed => {
                         if let Some(final_message) = Self::final_message_from_turn_items(
-                            notification.turn.messages.as_slice(),
+                            notification.interaction.messages.as_slice(),
                         ) {
                             self.final_message = Some(final_message);
                         }
@@ -526,7 +528,7 @@ impl EventProcessorWithJsonOutput {
                         self.final_message = None;
                         self.emit_final_message_on_shutdown = false;
                         let error = notification
-                            .turn
+                            .interaction
                             .error
                             .map(|error| ThreadErrorEvent {
                                 message: match error.additional_details {

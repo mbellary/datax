@@ -775,7 +775,7 @@ pub(super) fn replay_turn_started(chat: &mut ChatWidget, replay_kind: ReplayKind
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
             chat_id: chat_id(chat),
-            turn: app_server_turn(
+            interaction: app_server_turn(
                 "turn-1",
                 AppServerTurnStatus::InProgress,
                 /*duration_ms*/ None,
@@ -983,7 +983,7 @@ pub(super) fn handle_turn_started(chat: &mut ChatWidget, interaction_id: &str) {
     chat.handle_server_notification(
         ServerNotification::InteractionStarted(InteractionStartedNotification {
             chat_id: chat.chat_id.map(|id| id.to_string()).unwrap_or_default(),
-            turn: app_server_turn(
+            interaction: app_server_turn(
                 interaction_id,
                 AppServerTurnStatus::InProgress,
                 /*duration_ms*/ None,
@@ -1002,7 +1002,7 @@ pub(super) fn handle_turn_completed(
     chat.handle_server_notification(
         ServerNotification::InteractionCompleted(InteractionCompletedNotification {
             chat_id: chat.chat_id.map(|id| id.to_string()).unwrap_or_default(),
-            turn: app_server_turn(
+            interaction: app_server_turn(
                 interaction_id,
                 AppServerTurnStatus::Completed,
                 duration_ms,
@@ -1017,7 +1017,7 @@ pub(super) fn handle_turn_interrupted(chat: &mut ChatWidget, interaction_id: &st
     chat.handle_server_notification(
         ServerNotification::InteractionCompleted(InteractionCompletedNotification {
             chat_id: chat.chat_id.map(|id| id.to_string()).unwrap_or_default(),
-            turn: app_server_turn(
+            interaction: app_server_turn(
                 interaction_id,
                 AppServerTurnStatus::Interrupted,
                 /*duration_ms*/ None,

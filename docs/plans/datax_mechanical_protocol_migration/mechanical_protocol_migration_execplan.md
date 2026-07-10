@@ -45,6 +45,7 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 - [x] (2026-07-10 00:00Z) Completed the source-classification rename through native Datax layers: `ThreadSource -> ChatSource`, `thread_source -> chat_source`, and the related runtime helpers. Kept the old serialized key as an explicit read alias and added a forward SQLite column migration.
 - [x] (2026-07-10 00:00Z) Updated stale native `exec` and TUI app-server protocol consumers and fixtures to use the migrated `chat` and `interaction` fields instead of the removed Rust fields `thread` and `turn`.
 - [x] (2026-07-10 00:00Z) Migrated the remote config request field at its protobuf definition from `thread_id` to `chat_id`, preserving protobuf field number 1, and aligned the checked-in generated Rust and native request construction.
+- [x] (2026-07-10 00:00Z) Migrated stale core test-support resume callers from `resume_thread_from_rollout*` to the defining `resume_chat_from_rollout*` APIs.
 
 ## Surprises & Discoveries
 
@@ -71,6 +72,9 @@ After this plan is implemented, a developer should be able to inspect Datax-faci
 
 - Observation: The remote config test expected the migrated `chat_id` request field, but the protobuf source and checked-in generated Rust still defined `thread_id`.
   Evidence: `datax-rs/config/src/thread_config/proto/codex.thread_config.v1.proto` declared `optional string thread_id = 1`, and `load_thread_config_request` translated `ThreadConfigContext.chat_id` backward into that stale generated field. Renaming field 1 preserves protobuf wire compatibility while making the native source and generated API Datax-facing.
+
+- Observation: Core resume APIs had already moved to Datax `chat` vocabulary at their definitions, but shared test harnesses still called removed `resume_thread_from_rollout*` names.
+  Evidence: `datax-rs/core/src/chat_manager.rs` defines `resume_chat_from_rollout`, `datax-rs/core/src/test_support.rs` defines `resume_chat_from_rollout_with_user_shell_override`, while `datax-rs/core/tests/common/test_codex.rs` and `datax-rs/core/tests/suite/compact_resume_fork.rs` retained stale `resume_thread_from_rollout*` callers.
 
 ## Decision Log
 

@@ -831,7 +831,7 @@ async fn resume_conversation(
     let auth_manager = datax_core::test_support::auth_manager_from_auth(
         datax_login::CodexAuth::from_api_key("dummy"),
     );
-    Box::pin(manager.resume_thread_from_rollout(
+    Box::pin(manager.resume_chat_from_rollout(
         config.clone(),
         path,
         auth_manager,

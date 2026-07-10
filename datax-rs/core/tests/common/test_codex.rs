@@ -598,7 +598,7 @@ impl TestCodexBuilder {
             (Some(path), Some(user_shell_override)) => {
                 let auth_manager = datax_core::test_support::auth_manager_from_auth(auth);
                 Box::pin(
-                    datax_core::test_support::resume_thread_from_rollout_with_user_shell_override(
+                    datax_core::test_support::resume_chat_from_rollout_with_user_shell_override(
                         chat_manager.as_ref(),
                         config.clone(),
                         path,
@@ -611,7 +611,7 @@ impl TestCodexBuilder {
             }
             (Some(path), None) => {
                 let auth_manager = datax_core::test_support::auth_manager_from_auth(auth);
-                Box::pin(chat_manager.resume_thread_from_rollout(
+                Box::pin(chat_manager.resume_chat_from_rollout(
                     config.clone(),
                     path,
                     auth_manager,

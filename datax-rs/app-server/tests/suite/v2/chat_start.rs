@@ -116,7 +116,7 @@ async fn thread_start_creates_thread_and_emits_started() -> Result<()> {
 
     // Wire contract: thread title field is `name`, serialized as null when unset.
     let thread_json = resp_result
-        .get("thread")
+        .get("chat")
         .and_then(Value::as_object)
         .expect("chat/start result.chat must be an object");
     assert_eq!(
@@ -140,7 +140,7 @@ async fn thread_start_creates_thread_and_emits_started() -> Result<()> {
         "new persistent threads should serialize `ephemeral: false`"
     );
     assert_eq!(
-        thread_json.get("threadSource").and_then(Value::as_str),
+        thread_json.get("chatSource").and_then(Value::as_str),
         Some("user"),
         "new threads should serialize the caller-supplied thread origin"
     );
@@ -170,7 +170,7 @@ async fn thread_start_creates_thread_and_emits_started() -> Result<()> {
     };
     let started_params = notif.params.clone().expect("params must be present");
     let started_thread_json = started_params
-        .get("thread")
+        .get("chat")
         .and_then(Value::as_object)
         .expect("chat/started params.chat must be an object");
     assert_eq!(
@@ -187,7 +187,7 @@ async fn thread_start_creates_thread_and_emits_started() -> Result<()> {
     );
     assert_eq!(
         started_thread_json
-            .get("threadSource")
+            .get("chatSource")
             .and_then(Value::as_str),
         Some("user"),
         "chat/started should preserve the caller-supplied thread origin"
@@ -733,7 +733,7 @@ async fn thread_start_ephemeral_remains_pathless() -> Result<()> {
         "ephemeral threads should not expose a path"
     );
     let thread_json = resp_result
-        .get("thread")
+        .get("chat")
         .and_then(Value::as_object)
         .expect("chat/start result.chat must be an object");
     assert_eq!(

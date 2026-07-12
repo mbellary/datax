@@ -2280,7 +2280,7 @@ impl ChatRequestProcessor {
         let config_snapshot = loaded_thread.config_snapshot().await;
         if include_interactions && config_snapshot.ephemeral {
             return Err(ThreadReadViewError::InvalidRequest(
-                "ephemeral threads do not support includeTurns".to_string(),
+                "ephemeral chats do not support includeInteractions".to_string(),
             ));
         }
         let fallback_thread =
@@ -4009,7 +4009,7 @@ fn thread_interactions_list_history_load_error(
             if message.starts_with("failed to resolve rollout path `") =>
         {
             ThreadReadViewError::InvalidRequest(format!(
-                "thread {chat_id} is not materialized yet; chat/interactions/list is unavailable before first user message"
+                "chat {chat_id} is not materialized yet; chat/interactions/list is unavailable before first user message"
             ))
         }
         ChatStoreError::InvalidRequest { message } => {
@@ -4028,13 +4028,13 @@ fn thread_read_history_load_error(chat_id: ChatId, err: ChatStoreError) -> Threa
             if message.starts_with("failed to resolve rollout path `") =>
         {
             ThreadReadViewError::InvalidRequest(format!(
-                "thread {chat_id} is not materialized yet; includeTurns is unavailable before first user message"
+                "chat {chat_id} is not materialized yet; includeInteractions is unavailable before first user message"
             ))
         }
         ChatStoreError::ChatNotFound {
             chat_id: missing_chat_id,
         } if missing_chat_id == chat_id => ThreadReadViewError::InvalidRequest(format!(
-            "thread {chat_id} is not materialized yet; includeTurns is unavailable before first user message"
+            "chat {chat_id} is not materialized yet; includeInteractions is unavailable before first user message"
         )),
         ChatStoreError::InvalidRequest { message } => {
             ThreadReadViewError::InvalidRequest(message)

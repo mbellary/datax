@@ -175,7 +175,7 @@ async fn thread_unarchive_moves_rollout_back_into_sessions_directory() -> Result
 
     // Wire contract: thread title field is `name`, serialized as null when unset.
     let thread_json = unarchive_result
-        .get("thread")
+        .get("chat")
         .and_then(Value::as_object)
         .expect("chat/unarchive result.chat must be an object");
     assert_eq!(unarchived_thread.name, None);

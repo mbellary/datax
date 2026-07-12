@@ -1399,7 +1399,7 @@ fn app_used_dedupe_is_keyed_by_turn_and_connector() {
 #[test]
 fn thread_initialized_event_serializes_expected_shape() {
     let event = TrackEventRequest::ThreadInitialized(ThreadInitializedEvent {
-        event_type: "codex_thread_initialized",
+        event_type: "datax_chat_initialized",
         event_params: ThreadInitializedEventParams {
             chat_id: "thread-0".to_string(),
             session_id: "session-thread-0".to_string(),
@@ -1432,7 +1432,7 @@ fn thread_initialized_event_serializes_expected_shape() {
     assert_eq!(
         payload,
         json!({
-            "event_type": "codex_thread_initialized",
+            "event_type": "datax_chat_initialized",
             "event_params": {
                 "chat_id": "thread-0",
                 "session_id": "session-thread-0",
@@ -1704,7 +1704,7 @@ async fn initialize_caches_client_and_thread_lifecycle_publishes_once_initialize
 
     let payload = serde_json::to_value(&events).expect("serialize events");
     assert_eq!(payload.as_array().expect("events array").len(), 1);
-    assert_eq!(payload[0]["event_type"], "codex_thread_initialized");
+    assert_eq!(payload[0]["event_type"], "datax_chat_initialized");
     assert_eq!(payload[0]["event_params"]["session_id"], "session-thread-1");
     assert_eq!(
         payload[0]["event_params"]["app_server_client"]["product_client_id"],
@@ -2737,7 +2737,7 @@ async fn subagent_thread_started_publishes_without_initialize() {
 
     let payload = serde_json::to_value(&events).expect("serialize events");
     assert_eq!(payload.as_array().expect("events array").len(), 1);
-    assert_eq!(payload[0]["event_type"], "codex_thread_initialized");
+    assert_eq!(payload[0]["event_type"], "datax_chat_initialized");
     assert_eq!(
         payload[0]["event_params"]["app_server_client"]["product_client_id"],
         "datax-tui"

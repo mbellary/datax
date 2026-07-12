@@ -1,6 +1,6 @@
 use super::*;
 
-const MCP_TOOL_THREAD_ID_META_KEY: &str = "threadId";
+const MCP_TOOL_CHAT_ID_META_KEY: &str = "chatId";
 
 #[derive(Clone)]
 pub(crate) struct McpRequestProcessor {
@@ -450,7 +450,7 @@ fn with_mcp_tool_call_chat_id_meta(
     match meta {
         Some(serde_json::Value::Object(mut map)) => {
             map.insert(
-                MCP_TOOL_THREAD_ID_META_KEY.to_string(),
+                MCP_TOOL_CHAT_ID_META_KEY.to_string(),
                 serde_json::Value::String(chat_id.to_string()),
             );
             Some(serde_json::Value::Object(map))
@@ -458,7 +458,7 @@ fn with_mcp_tool_call_chat_id_meta(
         None => {
             let mut map = serde_json::Map::new();
             map.insert(
-                MCP_TOOL_THREAD_ID_META_KEY.to_string(),
+                MCP_TOOL_CHAT_ID_META_KEY.to_string(),
                 serde_json::Value::String(chat_id.to_string()),
             );
             Some(serde_json::Value::Object(map))

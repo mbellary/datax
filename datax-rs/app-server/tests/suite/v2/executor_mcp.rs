@@ -52,12 +52,12 @@ include_local = true
 [[environments]]
 id = "{EXECUTOR_ID}"
 program = {}
-args = ["exec-server", "--listen", "stdio"]
+args = ["--listen", "stdio"]
 [environments.env]
 {EXECUTOR_ENV_NAME} = "{EXECUTOR_ENV_VALUE}"
 "#,
             toml::Value::String(
-                datax_utils_cargo_bin::cargo_bin("datax")?
+                datax_utils_cargo_bin::cargo_bin("datax-exec-server")?
                     .to_string_lossy()
                     .into_owned()
             )

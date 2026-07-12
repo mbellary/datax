@@ -38,7 +38,7 @@ fn client_management_handle(
 
 fn empty_client_list() -> serde_json::Value {
     json!({
-        "items": [],
+        "messages": [],
         "cursor": null,
     })
 }
@@ -66,7 +66,7 @@ async fn remote_control_handle_lists_clients_while_disabled() {
         respond_with_json(
             request.stream,
             json!({
-                "items": [{
+                "messages": [{
                     "client_id": "client-123",
                     "account_user_id": "user-123",
                     "enrollment_status": "enrolled_device_key",

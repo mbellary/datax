@@ -138,7 +138,7 @@ async fn thread_fork_creates_new_thread_and_emits_started() -> Result<()> {
 
     // Wire contract: thread title field is `name`, serialized as null when unset.
     let thread_json = fork_result
-        .get("thread")
+        .get("chat")
         .and_then(Value::as_object)
         .expect("chat/fork result.chat must be an object");
     assert_eq!(
@@ -222,7 +222,7 @@ async fn thread_fork_creates_new_thread_and_emits_started() -> Result<()> {
     };
     let started_params = notif.params.clone().expect("params must be present");
     let started_thread_json = started_params
-        .get("thread")
+        .get("chat")
         .and_then(Value::as_object)
         .expect("chat/started params.chat must be an object");
     assert_eq!(
@@ -237,7 +237,7 @@ async fn thread_fork_creates_new_thread_and_emits_started() -> Result<()> {
     );
     assert_eq!(
         started_thread_json
-            .get("threadSource")
+            .get("chatSource")
             .and_then(Value::as_str),
         Some("user"),
         "chat/started should preserve the caller-supplied fork origin"
@@ -748,7 +748,7 @@ async fn thread_fork_ephemeral_remains_pathless_and_omits_listing() -> Result<()
     }
 
     let thread_json = fork_result
-        .get("thread")
+        .get("chat")
         .and_then(Value::as_object)
         .expect("chat/fork result.chat must be an object");
     assert_eq!(
@@ -780,7 +780,7 @@ async fn thread_fork_ephemeral_remains_pathless_and_omits_listing() -> Result<()
     };
     let started_params = notif.params.clone().expect("params must be present");
     let started_thread_json = started_params
-        .get("thread")
+        .get("chat")
         .and_then(Value::as_object)
         .expect("chat/started params.chat must be an object");
     assert_eq!(

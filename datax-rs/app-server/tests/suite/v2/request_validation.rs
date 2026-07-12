@@ -71,7 +71,7 @@ async fn request_handlers_reject_remote_image_urls() -> Result<()> {
             "interaction/steer",
             json!({
                 "chatId": chat_id,
-                "expectedTurnId": "turn-id",
+                "expectedInteractionId": "turn-id",
                 "input": [{
                     "type": "image",
                     "url": "https://example.com/steer.png",
@@ -80,7 +80,7 @@ async fn request_handlers_reject_remote_image_urls() -> Result<()> {
             }),
         ),
         (
-            "chat/inject_items",
+            "chat/inject_messages",
             json!({
                 "chatId": chat_id,
                 "messages": [remote_tool_output]

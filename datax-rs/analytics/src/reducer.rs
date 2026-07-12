@@ -1328,7 +1328,7 @@ impl AnalyticsReducer {
         );
         out.push(TrackEventRequest::ThreadInitialized(
             ThreadInitializedEvent {
-                event_type: "codex_thread_initialized",
+                event_type: "datax_chat_initialized",
                 event_params: ThreadInitializedEventParams {
                     chat_id,
                     session_id,

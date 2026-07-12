@@ -659,7 +659,7 @@ async fn plugin_share_checkout_adds_personal_marketplace_entry() -> Result<()> {
         response,
         PluginShareCheckoutResponse {
             remote_plugin_id: "plugins_123".to_string(),
-            plugin_id: "demo-plugin@codex-curated".to_string(),
+            plugin_id: "demo-plugin@datax-curated".to_string(),
             plugin_name: "demo-plugin".to_string(),
             plugin_path: plugin_path.clone(),
             marketplace_name: "datax-curated".to_string(),

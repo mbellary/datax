@@ -1030,7 +1030,7 @@ const MCP_TOOL_OPENAI_OUTPUT_TEMPLATE_META_KEY: &str = "openai/outputTemplate";
 const MCP_TOOL_UI_RESOURCE_URI_META_KEY: &str = "ui/resourceUri";
 const MCP_TOOL_LINK_ID_META_KEY: &str = "link_id";
 const MCP_TOOL_PLUGIN_ID_META_KEY: &str = "plugin_id";
-const MCP_TOOL_THREAD_ID_META_KEY: &str = "threadId";
+const MCP_TOOL_CHAT_ID_META_KEY: &str = "chatId";
 
 async fn custom_mcp_tool_approval_mode(
     sess: &Session,
@@ -1132,7 +1132,7 @@ fn with_mcp_tool_call_chat_id_meta(
     match meta {
         Some(serde_json::Value::Object(mut map)) => {
             map.insert(
-                MCP_TOOL_THREAD_ID_META_KEY.to_string(),
+                MCP_TOOL_CHAT_ID_META_KEY.to_string(),
                 serde_json::Value::String(chat_id.to_string()),
             );
             Some(serde_json::Value::Object(map))
@@ -1140,7 +1140,7 @@ fn with_mcp_tool_call_chat_id_meta(
         None => {
             let mut map = serde_json::Map::new();
             map.insert(
-                MCP_TOOL_THREAD_ID_META_KEY.to_string(),
+                MCP_TOOL_CHAT_ID_META_KEY.to_string(),
                 serde_json::Value::String(chat_id.to_string()),
             );
             Some(serde_json::Value::Object(map))

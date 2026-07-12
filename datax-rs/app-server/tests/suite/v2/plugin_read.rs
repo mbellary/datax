@@ -1442,10 +1442,10 @@ plugins = true
 name = "demo-plugin:thread-summarizer"
 enabled = false
 
-[plugins."demo-plugin@codex-curated"]
+[plugins."demo-plugin@datax-curated"]
 enabled = true
 
-[hooks.state."demo-plugin@codex-curated:hooks/hooks.json:pre_tool_use:0:0"]
+[hooks.state."demo-plugin@datax-curated:hooks/hooks.json:pre_tool_use:0:0"]
 enabled = false
 "#,
     )?;
@@ -1473,7 +1473,7 @@ enabled = false
 
     assert_eq!(response.plugin.marketplace_name, "datax-curated");
     assert_eq!(response.plugin.marketplace_path, Some(marketplace_path));
-    assert_eq!(response.plugin.summary.id, "demo-plugin@codex-curated");
+    assert_eq!(response.plugin.summary.id, "demo-plugin@datax-curated");
     assert_eq!(response.plugin.summary.name, "demo-plugin");
     assert_eq!(
         response.plugin.description.as_deref(),
@@ -1549,15 +1549,15 @@ enabled = false
         response.plugin.hooks,
         vec![
             datax_app_server_protocol::PluginHookSummary {
-                key: "demo-plugin@codex-curated:hooks/hooks.json:pre_tool_use:0:0".to_string(),
+                key: "demo-plugin@datax-curated:hooks/hooks.json:pre_tool_use:0:0".to_string(),
                 event_name: HookEventName::PreToolUse,
             },
             datax_app_server_protocol::PluginHookSummary {
-                key: "demo-plugin@codex-curated:hooks/hooks.json:pre_tool_use:0:1".to_string(),
+                key: "demo-plugin@datax-curated:hooks/hooks.json:pre_tool_use:0:1".to_string(),
                 event_name: HookEventName::PreToolUse,
             },
             datax_app_server_protocol::PluginHookSummary {
-                key: "demo-plugin@codex-curated:hooks/hooks.json:session_start:0:0".to_string(),
+                key: "demo-plugin@datax-curated:hooks/hooks.json:session_start:0:0".to_string(),
                 event_name: HookEventName::SessionStart,
             },
         ]

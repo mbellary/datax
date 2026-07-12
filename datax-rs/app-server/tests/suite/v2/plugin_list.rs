@@ -952,10 +952,10 @@ async fn plugin_list_includes_install_and_enabled_state_from_config() -> Result<
         r#"[features]
 plugins = true
 
-[plugins."enabled-plugin@codex-curated"]
+[plugins."enabled-plugin@datax-curated"]
 enabled = true
 
-[plugins."disabled-plugin@codex-curated"]
+[plugins."disabled-plugin@datax-curated"]
 enabled = false
 "#,
     )?;
@@ -1000,7 +1000,7 @@ enabled = false
         Some("ChatGPT Official")
     );
     assert_eq!(marketplace.plugins.len(), 3);
-    assert_eq!(marketplace.plugins[0].id, "enabled-plugin@codex-curated");
+    assert_eq!(marketplace.plugins[0].id, "enabled-plugin@datax-curated");
     assert_eq!(marketplace.plugins[0].name, "enabled-plugin");
     assert_eq!(marketplace.plugins[0].installed, true);
     assert_eq!(marketplace.plugins[0].enabled, true);
@@ -1012,7 +1012,7 @@ enabled = false
         marketplace.plugins[0].auth_policy,
         PluginAuthPolicy::OnInstall
     );
-    assert_eq!(marketplace.plugins[1].id, "disabled-plugin@codex-curated");
+    assert_eq!(marketplace.plugins[1].id, "disabled-plugin@datax-curated");
     assert_eq!(marketplace.plugins[1].name, "disabled-plugin");
     assert_eq!(marketplace.plugins[1].installed, true);
     assert_eq!(marketplace.plugins[1].enabled, false);
@@ -1026,7 +1026,7 @@ enabled = false
     );
     assert_eq!(
         marketplace.plugins[2].id,
-        "uninstalled-plugin@codex-curated"
+        "uninstalled-plugin@datax-curated"
     );
     assert_eq!(marketplace.plugins[2].name, "uninstalled-plugin");
     assert_eq!(marketplace.plugins[2].installed, false);
@@ -1067,7 +1067,7 @@ async fn plugin_list_uses_home_config_for_enabled_state() -> Result<()> {
         r#"[features]
 plugins = true
 
-[plugins."shared-plugin@codex-curated"]
+[plugins."shared-plugin@datax-curated"]
 enabled = true
 "#,
     )?;
@@ -1095,7 +1095,7 @@ enabled = true
     std::fs::create_dir_all(workspace_enabled.path().join(".datax"))?;
     std::fs::write(
         workspace_enabled.path().join(".datax/config.toml"),
-        r#"[plugins."shared-plugin@codex-curated"]
+        r#"[plugins."shared-plugin@datax-curated"]
 enabled = false
 "#,
     )?;
@@ -1140,7 +1140,7 @@ enabled = false
         .flat_map(|marketplace| marketplace.plugins.iter())
         .find(|plugin| plugin.name == "shared-plugin")
         .expect("expected shared-plugin entry");
-    assert_eq!(shared_plugin.id, "shared-plugin@codex-curated");
+    assert_eq!(shared_plugin.id, "shared-plugin@datax-curated");
     assert_eq!(shared_plugin.installed, true);
     assert_eq!(shared_plugin.enabled, true);
     Ok(())
@@ -1225,7 +1225,7 @@ async fn plugin_list_returns_plugin_interface_with_absolute_asset_paths() -> Res
         .find(|plugin| plugin.name == "demo-plugin")
         .expect("expected demo-plugin entry");
 
-    assert_eq!(plugin.id, "demo-plugin@codex-curated");
+    assert_eq!(plugin.id, "demo-plugin@datax-curated");
     assert_eq!(plugin.installed, false);
     assert_eq!(plugin.enabled, false);
     assert_eq!(plugin.install_policy, PluginInstallPolicy::Available);

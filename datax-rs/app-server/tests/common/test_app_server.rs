@@ -910,13 +910,13 @@ impl TestAppServer {
         self.send_request("interaction/start", params).await
     }
 
-    /// Send a `chat/inject_items` JSON-RPC request (v2).
+    /// Send a `chat/inject_messages` JSON-RPC request (v2).
     pub async fn send_chat_inject_messages_request(
         &mut self,
         params: ChatInjectMessagesParams,
     ) -> anyhow::Result<i64> {
         let params = Some(serde_json::to_value(params)?);
-        self.send_request("chat/inject_items", params).await
+        self.send_request("chat/inject_messages", params).await
     }
 
     /// Send a `command/exec` JSON-RPC request (v2).

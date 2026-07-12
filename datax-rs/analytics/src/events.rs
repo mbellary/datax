@@ -1222,7 +1222,7 @@ pub(crate) fn subagent_thread_started_event_request(
         created_at: input.created_at,
     };
     ThreadInitializedEvent {
-        event_type: "codex_thread_initialized",
+        event_type: "datax_chat_initialized",
         event_params,
     }
 }

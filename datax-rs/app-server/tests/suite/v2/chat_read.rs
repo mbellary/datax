@@ -943,7 +943,7 @@ async fn thread_name_set_is_reflected_in_read_list_and_resume() -> Result<()> {
     assert_eq!(thread.id, conversation_id);
     assert_eq!(thread.name.as_deref(), Some(new_name));
     let thread_json = read_result
-        .get("thread")
+        .get("chat")
         .and_then(Value::as_object)
         .expect("chat/read result.chat must be an object");
     assert_eq!(
@@ -1021,7 +1021,7 @@ async fn thread_name_set_is_reflected_in_read_list_and_resume() -> Result<()> {
     assert_eq!(resumed.id, conversation_id);
     assert_eq!(resumed.name.as_deref(), Some(new_name));
     let resumed_json = resume_result
-        .get("thread")
+        .get("chat")
         .and_then(Value::as_object)
         .expect("chat/resume result.chat must be an object");
     assert_eq!(

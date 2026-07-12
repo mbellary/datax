@@ -117,7 +117,7 @@ async fn thread_rollback_drops_last_turns_and_persists_to_rollout() -> Result<()
 
     // Wire contract: thread title field is `name`, serialized as null when unset.
     let thread_json = rollback_result
-        .get("thread")
+        .get("chat")
         .and_then(Value::as_object)
         .expect("chat/rollback result.chat must be an object");
     assert_eq!(rolled_back_thread.name, None);

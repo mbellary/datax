@@ -27,7 +27,8 @@ const REMOTE_CONTROL_CLIENT_MANAGEMENT_TIMEOUT: std::time::Duration =
 
 #[derive(Debug, Deserialize)]
 struct ListRemoteControlClientsResponse {
-    items: Vec<RemoteControlClientResponse>,
+    #[serde(alias = "items")]
+    messages: Vec<RemoteControlClientResponse>,
     #[serde(default)]
     cursor: Option<String>,
 }
@@ -114,7 +115,7 @@ pub(super) async fn list_remote_control_clients(
     )?;
     Ok(RemoteControlClientsListResponse {
         data: response
-            .items
+            .messages
             .into_iter()
             .map(RemoteControlClient::try_from)
             .collect::<io::Result<_>>()?,

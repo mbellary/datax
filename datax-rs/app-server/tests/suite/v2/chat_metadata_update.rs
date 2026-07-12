@@ -88,7 +88,7 @@ async fn thread_metadata_update_patches_git_branch_and_returns_updated_thread() 
     );
     assert_eq!(updated.status, ChatStatus::Idle);
     let updated_thread_json = update_result
-        .get("thread")
+        .get("chat")
         .and_then(Value::as_object)
         .expect("chat/metadata/update result.chat must be an object");
     assert_eq!(

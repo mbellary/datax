@@ -875,7 +875,7 @@ mod tests {
             json!({
                 "method": "guardianWarning",
                 "params": {
-                    "threadId": "thread-1",
+                    "chatId": "thread-1",
                     "message": "Automatic approval review denied the requested action.",
                 },
             }),
@@ -900,8 +900,8 @@ mod tests {
             json!({
                 "method": "model/rerouted",
                 "params": {
-                    "threadId": "thread-1",
-                    "turnId": "turn-1",
+                    "chatId": "thread-1",
+                    "interactionId": "turn-1",
                     "fromModel": "gpt-5.3-codex",
                     "toModel": "gpt-5.2",
                     "reason": "highRiskCyberActivity",
@@ -926,8 +926,8 @@ mod tests {
             json!({
                 "method": "model/verification",
                 "params": {
-                    "threadId": "thread-1",
-                    "turnId": "turn-1",
+                    "chatId": "thread-1",
+                    "interactionId": "turn-1",
                     "verifications": ["trustedAccessForCyber"],
                 },
             }),
@@ -952,8 +952,8 @@ mod tests {
             json!({
                 "method": "interaction/moderationMetadata",
                 "params": {
-                    "threadId": "thread-1",
-                    "turnId": "turn-1",
+                    "chatId": "thread-1",
+                    "interactionId": "turn-1",
                     "metadata": {"presentation": "inline"},
                 },
             }),

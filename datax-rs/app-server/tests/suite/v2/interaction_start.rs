@@ -86,6 +86,8 @@ use serde_json::Value;
 use serde_json::json;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+#[cfg(target_os = "linux")]
+use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use tempfile::TempDir;
 use tokio::time::timeout;
@@ -3976,7 +3978,13 @@ async fn turn_start_file_change_approval_accept_for_session_persists_v2() -> Res
         &BTreeMap::default(),
     )?;
 
-    let mut mcp = TestAppServer::new(&codex_home).await?;
+    #[cfg(target_os = "linux")]
+    let fake_bwrap_path = fake_bwrap_path_env(tmp.path())?;
+    #[cfg(target_os = "linux")]
+    let env_overrides = [("PATH", Some(fake_bwrap_path.as_str()))];
+    #[cfg(not(target_os = "linux"))]
+    let env_overrides: [(&str, Option<&str>); 0] = [];
+    let mut mcp = TestAppServer::new_with_env(&codex_home, &env_overrides).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let start_req = mcp
@@ -4130,6 +4138,60 @@ async fn turn_start_file_change_approval_accept_for_session_persists_v2() -> Res
     assert_eq!(std::fs::read_to_string(readme_path)?, "updated line\n");
 
     Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn fake_bwrap_path_env(tmp: &Path) -> Result<String> {
+    let fake_bin_dir = tmp.join("fake-bin");
+    std::fs::create_dir_all(&fake_bin_dir)?;
+    let fake_bwrap = fake_bin_dir.join("bwrap");
+    std::fs::write(
+        &fake_bwrap,
+        r#"#!/bin/bash
+set -euo pipefail
+
+for arg in "$@"; do
+  if [[ "${arg}" == "--help" ]]; then
+    echo "Usage: bwrap --argv0 --perms"
+    exit 0
+  fi
+done
+
+args=("$@")
+argv0=""
+command_start=-1
+for i in "${!args[@]}"; do
+  if [[ "${args[$i]}" == "--argv0" && $((i + 1)) -lt ${#args[@]} ]]; then
+    argv0="${args[$((i + 1))]}"
+  fi
+  if [[ "${args[$i]}" == "--" ]]; then
+    command_start=$((i + 1))
+    break
+  fi
+done
+
+if [[ "${command_start}" -lt 0 || "${command_start}" -ge "${#args[@]}" ]]; then
+  echo "fake bwrap did not find an inner command" >&2
+  exit 125
+fi
+
+cmd=("${args[@]:$command_start}")
+if [[ -n "${argv0}" ]]; then
+  exec -a "${argv0}" "${cmd[@]}"
+fi
+exec "${cmd[@]}"
+"#,
+    )?;
+    let mut permissions = std::fs::metadata(&fake_bwrap)?.permissions();
+    permissions.set_mode(0o755);
+    std::fs::set_permissions(&fake_bwrap, permissions)?;
+
+    let mut path_entries = vec![fake_bin_dir];
+    if let Some(path) = std::env::var_os("PATH") {
+        path_entries.extend(std::env::split_paths(&path));
+    }
+    let path = std::env::join_paths(path_entries)?;
+    Ok(path.to_string_lossy().into_owned())
 }
 
 #[tokio::test]

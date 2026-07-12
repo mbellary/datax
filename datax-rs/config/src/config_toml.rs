@@ -423,7 +423,7 @@ pub struct ConfigToml {
     #[schemars(skip)]
     pub experimental_chat_store_endpoint: Option<String>,
 
-    /// Experimental / do not use. Selects the thread store implementation.
+    /// Experimental / do not use. Selects the chat store implementation.
     pub experimental_chat_store: Option<ChatStoreToml>,
     pub projects: Option<HashMap<String, ProjectConfig>>,
 

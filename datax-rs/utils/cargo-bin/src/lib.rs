@@ -43,29 +43,45 @@ pub fn cargo_bin(name: &str) -> Result<PathBuf, CargoBinError> {
             return resolve_bin_from_env(key, value);
         }
     }
-    match assert_cmd::Command::cargo_bin(name) {
-        Ok(cmd) => {
-            let mut path = PathBuf::from(cmd.get_program());
-            if !path.is_absolute() {
-                path = std::env::current_dir()
-                    .map_err(|source| CargoBinError::CurrentDir { source })?
-                    .join(path);
-            }
-            if path.exists() {
-                Ok(path)
-            } else {
-                Err(CargoBinError::ResolvedPathDoesNotExist {
-                    key: "assert_cmd::Command::cargo_bin".to_owned(),
-                    path,
-                })
-            }
-        }
-        Err(err) => Err(CargoBinError::NotFound {
+    if let Some(path) = resolve_bin_from_current_exe(name)? {
+        Ok(path)
+    } else {
+        Err(CargoBinError::NotFound {
             name: name.to_owned(),
             env_keys,
-            fallback: format!("assert_cmd fallback failed: {err}"),
-        }),
+            fallback: "current test binary directory did not contain a matching binary".to_string(),
+        })
     }
+}
+
+fn resolve_bin_from_current_exe(name: &str) -> Result<Option<PathBuf>, CargoBinError> {
+    let exe = std::env::current_exe().map_err(|source| CargoBinError::CurrentExe { source })?;
+    let Some(exe_dir) = exe.parent() else {
+        return Ok(None);
+    };
+
+    let mut candidates = vec![exe_dir.join(name)];
+    if exe_dir
+        .file_name()
+        .is_some_and(|file_name| file_name == std::ffi::OsStr::new("deps"))
+        && let Some(parent) = exe_dir.parent()
+    {
+        candidates.push(parent.join(name));
+    }
+
+    #[cfg(windows)]
+    let candidates = candidates
+        .into_iter()
+        .flat_map(|candidate| {
+            if candidate.extension().is_some() {
+                vec![candidate]
+            } else {
+                vec![candidate.with_extension("exe"), candidate]
+            }
+        })
+        .collect::<Vec<_>>();
+
+    Ok(candidates.into_iter().find(|candidate| candidate.is_file()))
 }
 
 fn cargo_bin_env_keys(name: &str) -> Vec<String> {

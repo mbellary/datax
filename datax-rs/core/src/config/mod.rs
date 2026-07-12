@@ -594,13 +594,13 @@ fn build_network_proxy_spec(
     })
 }
 
-/// Configured thread persistence backend.
+/// Configured chat persistence backend.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum ChatStoreConfig {
-    /// Persist threads locally using rollout JSONL files and sqlite metadata.
+    /// Persist chats locally using rollout JSONL files and sqlite metadata.
     #[default]
     Local,
-    /// In-memory thread store for test and debug configurations.
+    /// In-memory chat store for test and debug configurations.
     InMemory { id: String },
 }
 

@@ -452,9 +452,9 @@
       "auto_compact_token_limit": null,
       "reasoning_summary_format": "experimental",
       "default_reasoning_summary": "none",
-      "slug": "codex-auto-review",
-      "display_name": "Codex Auto Review",
-      "description": "Automatic approval review model for Codex.",
+      "slug": "datax-auto-review",
+      "display_name": "Datax Auto Review",
+      "description": "Automatic approval review model for Datax.",
       "default_reasoning_level": "medium",
       "supported_reasoning_levels": [
         {

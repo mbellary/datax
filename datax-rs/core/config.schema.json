@@ -349,6 +349,24 @@
       },
       "type": "object"
     },
+    "ChatStoreToml": {
+      "oneOf": [
+        {
+          "properties": {
+            "type": {
+              "enum": [
+                "local"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "BundledSkillsConfig": {
       "additionalProperties": false,
       "properties": {
@@ -2845,24 +2863,6 @@
       },
       "type": "object"
     },
-    "ThreadStoreToml": {
-      "oneOf": [
-        {
-          "properties": {
-            "type": {
-              "enum": [
-                "local"
-              ],
-              "type": "string"
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "type": "object"
-        }
-      ]
-    },
     "TokenBudgetConfigToml": {
       "additionalProperties": false,
       "properties": {
@@ -4673,6 +4673,14 @@
       "description": "When true, disables burst-paste detection for typed input entirely. All characters are inserted as they are received, and no buffering or placeholder replacement will occur for fast keypress bursts.",
       "type": "boolean"
     },
+    "experimental_chat_store": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/ChatStoreToml"
+        }
+      ],
+      "description": "Experimental / do not use. Selects the chat store implementation."
+    },
     "experimental_compact_prompt_file": {
       "$ref": "#/definitions/AbsolutePathBuf"
     },
@@ -4703,14 +4711,6 @@
     "experimental_thread_config_endpoint": {
       "description": "Experimental / do not use. When set, app-server fetches thread-scoped config from a remote service at this endpoint.",
       "type": "string"
-    },
-    "experimental_thread_store": {
-      "allOf": [
-        {
-          "$ref": "#/definitions/ThreadStoreToml"
-        }
-      ],
-      "description": "Experimental / do not use. Selects the thread store implementation."
     },
     "experimental_use_unified_exec_tool": {
       "type": "boolean"

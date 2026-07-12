@@ -12,6 +12,10 @@ path = "src/main.rs"
 name = "datax-app-server-test-notify-capture"
 path = "src/bin/notify_capture.rs"
 
+[[bin]]
+name = "datax-exec-server"
+path = "src/bin/exec_server.rs"
+
 [lib]
 name = "datax_app_server"
 path = "src/lib.rs"
